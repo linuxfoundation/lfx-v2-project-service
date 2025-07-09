@@ -1,0 +1,17 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lfx-v2-project-service
+  namespace: lfx
+
+spec:
+  ports:
+    - name: web
+      port: 8080
+      targetPort: web
+
+  selector:
+    app: lfx-v2-project-service

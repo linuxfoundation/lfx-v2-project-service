@@ -1,0 +1,25 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: heimdall.dadrus.github.com/v1alpha4
+kind: RuleSet
+metadata:
+  name: query-svc
+  namespace: lfx
+spec:
+  rules:
+    - id: "rule:lfx:lfx-v2-project-service"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /project
+      execute:
+        - authenticator: authelia
+        - authenticator: anonymous_authenticator
+        - contextualizer: authelia_userinfo
+        - authorizer: allow_all
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
