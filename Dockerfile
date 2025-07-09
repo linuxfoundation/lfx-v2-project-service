@@ -1,4 +1,4 @@
-# Copyright The Linux Foundation and its contributors.
+# Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 
 # checkov:skip=CKV_DOCKER_7:No free access to Chainguard versioned labels.
