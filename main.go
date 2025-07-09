@@ -18,8 +18,8 @@ import (
 	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	goahttp "goa.design/goa/v3/http"
 
-	genhttp "lfx-v2-project-service/gen/http/project_service/server"
-	genquerysvc "lfx-v2-project-service/gen/project_service"
+	genhttp "github.com/linuxfoundation/lfx-v2-project-service/gen/http/project_service/server"
+	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/gen/project_service"
 )
 
 //go:embed gen/http/openapi3.json gen/http/openapi3.yaml
@@ -118,8 +118,9 @@ func main() {
 		Handler:           mux,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
+	gracefulCloseWG.Add(1)
 	go func() {
-		gracefulCloseWG.Add(1)
+		slog.With("addr", addr).Info("starting http server, listening on port " + *port)
 		err := httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			logger.With(errKey, err).Error("http listener error")
@@ -137,8 +138,8 @@ func main() {
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	// Create NATS connection.
-	gracefulCloseWG.Add(1)
-	var err error
+	//gracefulCloseWG.Add(1)
+	//var err error
 	//natsConn, err = nats.Connect(
 	//	natsURL,
 	//	nats.DrainTimeout(gracefulShutdownSeconds*time.Second),
@@ -168,10 +169,10 @@ func main() {
 	//		os.Exit(1)
 	//	}),
 	//)
-	if err != nil {
-		logger.With(errKey, err).Error("error creating NATS client")
-		os.Exit(1)
-	}
+	// if err != nil {
+	// 	logger.With(errKey, err).Error("error creating NATS client")
+	// 	os.Exit(1)
+	// }
 
 	// This next line blocks until SIGINT or SIGTERM is received.
 	<-done

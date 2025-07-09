@@ -27,3 +27,23 @@ var Project = Type("Project", func() {
 		Example([]string{"user123", "user456"})
 	})
 })
+
+var NotFoundError = Type("NotFoundError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("404")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("The project was not found.")
+	})
+	Required("code", "message")
+})
+
+var BadRequestError = Type("BadRequestError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("400")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("The request was invalid.")
+	})
+	Required("code", "message")
+})
