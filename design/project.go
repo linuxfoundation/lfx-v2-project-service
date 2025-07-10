@@ -53,6 +53,8 @@ var _ = Service("project-service", func() {
 		})
 
 		Error("BadRequest", BadRequestError, "Bad request")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
 			GET("/projects")
@@ -63,6 +65,8 @@ var _ = Service("project-service", func() {
 				Header("cache_control:Cache-Control")
 			})
 			Response("BadRequest", StatusBadRequest)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 
@@ -99,17 +103,19 @@ var _ = Service("project-service", func() {
 		Result(Project)
 
 		Error("BadRequest", BadRequestError, "Bad request")
+		Error("Conflict", ConflictError, "Conflict")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
 			POST("/projects")
 			Param("version:v")
 			//Header("bearer_token:Authorization")
 			Response(StatusOK)
-			Response("BadRequest", func() {
-				Description("The request was invalid.")
-				Code(StatusBadRequest)
-				Body(BadRequestError)
-			})
+			Response("BadRequest", StatusBadRequest)
+			Response("Conflict", StatusConflict)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 
@@ -136,6 +142,8 @@ var _ = Service("project-service", func() {
 		Result(Project)
 
 		Error("NotFound", NotFoundError, "Resource not found")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
 			GET("/projects/{project_id}")
@@ -144,6 +152,8 @@ var _ = Service("project-service", func() {
 			//Header("bearer_token:Authorization")
 			Response(StatusOK)
 			Response("NotFound", StatusNotFound)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 
@@ -184,6 +194,8 @@ var _ = Service("project-service", func() {
 
 		Error("BadRequest", BadRequestError, "Bad request")
 		Error("NotFound", NotFoundError, "Resource not found")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
 			PUT("/projects/{project_id}")
@@ -201,6 +213,8 @@ var _ = Service("project-service", func() {
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 
@@ -225,6 +239,8 @@ var _ = Service("project-service", func() {
 		})
 
 		Error("NotFound", NotFoundError, "Resource not found")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
 			DELETE("/projects/{project_id}")
@@ -235,6 +251,8 @@ var _ = Service("project-service", func() {
 			//Header("bearer_token:Authorization")
 			Response(StatusNoContent)
 			Response("NotFound", StatusNotFound)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 
@@ -243,17 +261,13 @@ var _ = Service("project-service", func() {
 		Result(Bytes, func() {
 			Example("OK")
 		})
-		Error("NotReady", func() {
-			Description("Service is not ready yet")
-			Temporary()
-			Fault()
-		})
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service is unavailable")
 		HTTP(func() {
-			GET("readyz")
+			GET("/readyz")
 			Response(StatusOK, func() {
 				ContentType("text/plain")
 			})
-			Response("NotReady", StatusServiceUnavailable)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 
