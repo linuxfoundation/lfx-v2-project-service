@@ -10,3 +10,6 @@ run:
 
 debug:
 	go run . -d
+
+test:
+	go test .

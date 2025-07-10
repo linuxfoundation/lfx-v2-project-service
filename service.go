@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/google/uuid"
@@ -18,7 +19,12 @@ import (
 )
 
 // ProjectsService implements the projsvc.Service interface
-type ProjectsService struct{}
+type ProjectsService struct {
+	logger     *slog.Logger
+	projectsKV INatsKeyValue
+	natsConn   INatsConn
+	auth       IJwtAuth
+}
 
 type contextID int
 
@@ -44,9 +50,23 @@ type TransactionBodyStub struct {
 	Data                 any    `json:"data"`
 }
 
+// IKeyValue is a NATS KV interface needed for the [ProjectsService].
+type INatsKeyValue interface {
+	ListKeys(context.Context, ...jetstream.WatchOpt) (jetstream.KeyLister, error)
+	Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error)
+	Put(context.Context, string, []byte) (uint64, error)
+	Update(context.Context, string, []byte, uint64) (uint64, error)
+	Delete(context.Context, string, ...jetstream.KVDeleteOpt) error
+}
+
+// INatsConn is a NATS connection interface needed for the [ProjectsService].
+type INatsConn interface {
+	IsConnected() bool
+}
+
 // GetProjects fetches all projects
 func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetProjectsPayload) (*projsvc.GetProjectsResult, error) {
-	reqLogger := logger.With("method", "GetProjects")
+	reqLogger := s.logger.With("method", "GetProjects")
 	reqLogger.With("request", payload).DebugContext(ctx, "request")
 
 	if payload != nil && payload.PageToken != nil {
@@ -56,7 +76,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 		}
 	}
 
-	if natsConn == nil || projectsKV == nil {
+	if s.natsConn == nil || s.projectsKV == nil {
 		reqLogger.Error("NATS connection or KeyValue store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
@@ -64,7 +84,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 		}
 	}
 
-	keysLister, err := projectsKV.ListKeys(ctx)
+	keysLister, err := s.projectsKV.ListKeys(ctx)
 	if err != nil {
 		reqLogger.With(errKey, err).Error("error getting project keys from NATS KV")
 		return nil, &projsvc.InternalServerError{
@@ -79,7 +99,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 			continue
 		}
 
-		entry, err := projectsKV.Get(ctx, key)
+		entry, err := s.projectsKV.Get(ctx, key)
 		if err != nil {
 			reqLogger.With(errKey, err, "project_id", key).Error("error getting project from NATS KV")
 			return nil, &projsvc.InternalServerError{
@@ -114,7 +134,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 
 // Create a new project.
 func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.CreateProjectPayload) (*projsvc.Project, error) {
-	reqLogger := logger.With("method", "CreateProject")
+	reqLogger := s.logger.With("method", "CreateProject")
 	reqLogger.With("request", payload).DebugContext(ctx, "request")
 
 	id := uuid.NewString() // TODO: what type of ID are we using for the project resource?
@@ -126,7 +146,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		Managers:    payload.Managers,
 	}
 
-	if natsConn == nil || projectsKV == nil {
+	if s.natsConn == nil || s.projectsKV == nil {
 		reqLogger.Error("NATS connection or KeyValue store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
@@ -136,7 +156,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	projectDB := ProjectDB{}
 	projectDB.FromProject(project)
-	_, err := projectsKV.Put(ctx, fmt.Sprintf("slug/%s", projectDB.Slug), []byte(projectDB.UID))
+	_, err := s.projectsKV.Put(ctx, fmt.Sprintf("slug/%s", projectDB.Slug), []byte(projectDB.UID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyExists) {
 			return nil, &projsvc.ConflictError{
@@ -159,7 +179,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Message: "error marshalling project into JSON",
 		}
 	}
-	_, err = projectsKV.Put(ctx, projectDB.UID, projectDBBytes)
+	_, err = s.projectsKV.Put(ctx, projectDB.UID, projectDBBytes)
 	if err != nil {
 		reqLogger.With(errKey, err, "project_id", projectDB.UID).Error("error putting project into NATS KV")
 		return nil, &projsvc.InternalServerError{
@@ -175,10 +195,10 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 // Get a single project.
 func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.GetOneProjectPayload) (*projsvc.Project, error) {
-	reqLogger := logger.With("method", "GetOneProject")
+	reqLogger := s.logger.With("method", "GetOneProject")
 	reqLogger.With("request", payload).DebugContext(ctx, "request")
 
-	if natsConn == nil || projectsKV == nil {
+	if s.natsConn == nil || s.projectsKV == nil {
 		reqLogger.Error("NATS connection or KeyValue store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
@@ -186,7 +206,7 @@ func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.Ge
 		}
 	}
 
-	entry, err := projectsKV.Get(ctx, *payload.ProjectID)
+	entry, err := s.projectsKV.Get(ctx, *payload.ProjectID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, &projsvc.NotFoundError{
@@ -220,7 +240,7 @@ func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.Ge
 
 // Update a project.
 func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.UpdateProjectPayload) (*projsvc.Project, error) {
-	reqLogger := logger.With("method", "UpdateProject")
+	reqLogger := s.logger.With("method", "UpdateProject")
 	reqLogger.With("request", payload).DebugContext(ctx, "request")
 
 	// return hardcoded response for now. Implement NATS later
@@ -232,7 +252,7 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 		Managers:    payload.Managers,
 	}
 
-	if natsConn == nil || projectsKV == nil {
+	if s.natsConn == nil || s.projectsKV == nil {
 		reqLogger.Error("NATS connection or KeyValue store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
@@ -240,7 +260,7 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 		}
 	}
 
-	entry, err := projectsKV.Get(ctx, *payload.ProjectID)
+	entry, err := s.projectsKV.Get(ctx, *payload.ProjectID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, &projsvc.NotFoundError{
@@ -266,7 +286,7 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 			Message: "error marshalling project into JSON",
 		}
 	}
-	_, err = projectsKV.Update(ctx, *payload.ProjectID, projectDBBytes, revision)
+	_, err = s.projectsKV.Update(ctx, *payload.ProjectID, projectDBBytes, revision)
 	if err != nil {
 		reqLogger.With(errKey, err, "project_id", *payload.ProjectID).Error("error updating project in NATS KV")
 		return nil, &projsvc.InternalServerError{
@@ -282,10 +302,10 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 
 // Delete a project.
 func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.DeleteProjectPayload) error {
-	reqLogger := logger.With("method", "DeleteProject")
+	reqLogger := s.logger.With("method", "DeleteProject")
 	reqLogger.With("request", payload).DebugContext(ctx, "request")
 
-	if natsConn == nil || projectsKV == nil {
+	if s.natsConn == nil || s.projectsKV == nil {
 		reqLogger.Error("NATS connection or KeyValue store not initialized")
 		return &projsvc.ServiceUnavailableError{
 			Code:    "503",
@@ -293,7 +313,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		}
 	}
 
-	entry, err := projectsKV.Get(ctx, *payload.ProjectID)
+	entry, err := s.projectsKV.Get(ctx, *payload.ProjectID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return &projsvc.NotFoundError{
@@ -304,7 +324,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	}
 	revision := entry.Revision()
 
-	err = projectsKV.Delete(ctx, *payload.ProjectID, jetstream.LastRevision(revision))
+	err = s.projectsKV.Delete(ctx, *payload.ProjectID, jetstream.LastRevision(revision))
 	if err != nil {
 		reqLogger.With(errKey, err, "project_id", *payload.ProjectID).Error("error deleting project from NATS KV")
 		return &projsvc.InternalServerError{
@@ -320,13 +340,13 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 // Readyz checks if the service is able to take inbound requests.
 func (s *ProjectsService) Readyz(ctx context.Context) ([]byte, error) {
-	if natsConn == nil || projectsKV == nil {
+	if s.natsConn == nil || s.projectsKV == nil {
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
 			Message: "service unavailable",
 		}
 	}
-	if !natsConn.IsConnected() {
+	if !s.natsConn.IsConnected() {
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
 			Message: "NATS connection not established",
@@ -347,7 +367,7 @@ func (s *ProjectsService) Livez(context.Context) ([]byte, error) {
 // JWTAuth implements Auther interface for the JWT security scheme.
 func (s *ProjectsService) JWTAuth(ctx context.Context, bearerToken string, schema *security.JWTScheme) (context.Context, error) {
 	// Parse the Heimdall-authorized principal from the token.
-	principal, err := parsePrincipal(ctx, bearerToken)
+	principal, err := s.auth.parsePrincipal(ctx, bearerToken, s.logger)
 	if err != nil {
 		return ctx, err
 	}
