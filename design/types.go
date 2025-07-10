@@ -30,22 +30,52 @@ var Project = Type("Project", func() {
 	})
 })
 
-var NotFoundError = Type("NotFoundError", func() {
-	Attribute("code", String, "HTTP status code", func() {
-		Example("404")
-	})
-	Attribute("message", String, "Error message", func() {
-		Example("The project was not found.")
-	})
-	Required("code", "message")
-})
-
 var BadRequestError = Type("BadRequestError", func() {
 	Attribute("code", String, "HTTP status code", func() {
 		Example("400")
 	})
 	Attribute("message", String, "Error message", func() {
 		Example("The request was invalid.")
+	})
+	Required("code", "message")
+})
+
+var NotFoundError = Type("NotFoundError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("404")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("The resource was not found.")
+	})
+	Required("code", "message")
+})
+
+var ConflictError = Type("ConflictError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("409")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("The resource already exists.")
+	})
+	Required("code", "message")
+})
+
+var InternalServerError = Type("InternalServerError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("500")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("An internal server error occurred.")
+	})
+	Required("code", "message")
+})
+
+var ServiceUnavailableError = Type("ServiceUnavailableError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("503")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("The service is unavailable.")
 	})
 	Required("code", "message")
 })

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	nats "github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	goahttp "goa.design/goa/v3/http"
 
@@ -34,6 +35,7 @@ const (
 	// request timeout, and lower than the pod or liveness probe's
 	// terminationGracePeriodSeconds.
 	gracefulShutdownSeconds = 25
+	natsKVBucketName        = "projects"
 )
 
 var (
@@ -42,6 +44,7 @@ var (
 	resourcesIndex string
 	natsConn       *nats.Conn
 	client         *opensearchapi.Client
+	projectsKV     jetstream.KeyValue
 )
 
 func init() {
@@ -122,7 +125,7 @@ func main() {
 	}
 	gracefulCloseWG.Add(1)
 	go func() {
-		slog.With("addr", addr).Info("starting http server, listening on port " + *port)
+		logger.With("addr", addr).Info("starting http server, listening on port " + *port)
 		err := httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			logger.With(errKey, err).Error("http listener error")
@@ -134,59 +137,76 @@ func main() {
 	}()
 
 	// Support graceful shutdown.
-	//ctx, cancel := context.WithCancel(context.Background())
-	//defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	// Create NATS connection.
-	//gracefulCloseWG.Add(1)
-	//var err error
-	//natsConn, err = nats.Connect(
-	//	natsURL,
-	//	nats.DrainTimeout(gracefulShutdownSeconds*time.Second),
-	//	nats.ErrorHandler(func(_ *nats.Conn, s *nats.Subscription, err error) {
-	//		if s != nil {
-	//			logger.With(errKey, err, "subject", s.Subject, "queue", s.Queue).Error("async NATS error")
-	//		} else {
-	//			logger.With(errKey, err).Error("async NATS error outside subscription")
-	//		}
-	//	}),
-	//	nats.ClosedHandler(func(_ *nats.Conn) {
-	//		if ctx.Err() != nil {
-	//			// If our parent background context has already been canceled, this is
-	//			// a graceful shutdown. Decrement the wait group but do not exit, to
-	//			// allow other graceful shutdown steps to complete.
-	//			gracefulCloseWG.Done()
-	//			return
-	//		}
-	//		// Otherwise, this handler means that max reconnect attempts have been
-	//		// exhausted.
-	//		logger.Error("NATS max-reconnects exhausted; connection closed")
-	//		// Send a synthetic interrupt and give any graceful-shutdown tasks 5
-	//		// seconds to clean up.
-	//		done <- os.Interrupt
-	//		time.Sleep(5 * time.Second)
-	//		// Exit with an error instead of decrementing the wait group.
-	//		os.Exit(1)
-	//	}),
-	//)
-	// if err != nil {
-	// 	logger.With(errKey, err).Error("error creating NATS client")
-	// 	os.Exit(1)
-	// }
+	gracefulCloseWG.Add(1)
+	var err error
+	logger.With("nats_url", natsURL).Info("attempting to connect to NATS")
+	natsConn, err = nats.Connect(
+		natsURL,
+		nats.DrainTimeout(gracefulShutdownSeconds*time.Second),
+		nats.ConnectHandler(func(_ *nats.Conn) {
+			logger.With("nats_url", natsURL).Info("NATS connection established")
+		}),
+		nats.ErrorHandler(func(_ *nats.Conn, s *nats.Subscription, err error) {
+			if s != nil {
+				logger.With(errKey, err, "subject", s.Subject, "queue", s.Queue).Error("async NATS error")
+			} else {
+				logger.With(errKey, err).Error("async NATS error outside subscription")
+			}
+		}),
+		nats.ClosedHandler(func(_ *nats.Conn) {
+			if ctx.Err() != nil {
+				// If our parent background context has already been canceled, this is
+				// a graceful shutdown. Decrement the wait group but do not exit, to
+				// allow other graceful shutdown steps to complete.
+				logger.With("nats_url", natsURL).Info("NATS connection closed gracefully")
+				gracefulCloseWG.Done()
+				return
+			}
+			// Otherwise, this handler means that max reconnect attempts have been
+			// exhausted.
+			logger.With("nats_url", natsURL).Error("NATS max-reconnects exhausted; connection closed")
+			// Send a synthetic interrupt and give any graceful-shutdown tasks 5
+			// seconds to clean up.
+			done <- os.Interrupt
+			time.Sleep(5 * time.Second)
+			// Exit with an error instead of decrementing the wait group.
+			os.Exit(1)
+		}),
+	)
+	if err != nil {
+		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS client")
+		os.Exit(1)
+	}
+
+	js, err := jetstream.New(natsConn)
+	if err != nil {
+		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS JetStream client")
+		os.Exit(1)
+	}
+	projectsKV, err = js.KeyValue(ctx, natsKVBucketName)
+	if err != nil {
+		logger.With("nats_url", natsURL, errKey, err, "bucket", natsKVBucketName).Error("error getting NATS JetStream key-value store")
+		os.Exit(1)
+	}
 
 	// This next line blocks until SIGINT or SIGTERM is received.
 	<-done
 
 	// Cancel the background context.
-	//cancel()
+	cancel()
 
 	go func() {
 		// Run the HTTP shutdown in a goroutine so the NATS draining can also start.
 		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownSeconds*time.Second)
 		defer cancel()
 
+		logger.With("addr", httpServer.Addr).Info("shutting down http server")
 		if err := httpServer.Shutdown(ctx); err != nil {
 			logger.With(errKey, err).Error("http shutdown error")
 		}
