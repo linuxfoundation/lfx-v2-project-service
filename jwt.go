@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
@@ -27,7 +28,6 @@ var (
 	customClaims = func() validator.CustomClaims {
 		return &HeimdallClaims{}
 	}
-	jwtValidator *validator.Validator
 )
 
 // HeimdallClaims contains extra custom claims we want to parse from the JWT
@@ -46,7 +46,15 @@ func (c *HeimdallClaims) Validate(ctx context.Context) error {
 	return nil
 }
 
-func setupJWTAuth() {
+type jwtAuth struct {
+	validator *validator.Validator
+}
+
+type IJwtAuth interface {
+	parsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error)
+}
+
+func setupJWTAuth(logger *slog.Logger) *jwtAuth {
 	// Set up Heimdall JWKS key provider.
 	jwksEnv := os.Getenv("JWKS_URL")
 	if jwksEnv == "" {
@@ -71,7 +79,7 @@ func setupJWTAuth() {
 	if audience == "" {
 		audience = defaultAudience
 	}
-	jwtValidator, err = validator.New(
+	jwtValidator, err := validator.New(
 		provider.KeyFunc,
 		signatureAlgorithm,
 		issuer.String(),
@@ -83,15 +91,19 @@ func setupJWTAuth() {
 		logger.With(errKey, err).Error("failed to set up the Heimdall JWT validator")
 		os.Exit(1)
 	}
+
+	return &jwtAuth{
+		validator: jwtValidator,
+	}
 }
 
 // parsePrincipal extracts the principal from the JWT claims.
-func parsePrincipal(ctx context.Context, token string) (string, error) {
-	if jwtValidator == nil {
+func (j *jwtAuth) parsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
+	if j.validator == nil {
 		return "", errors.New("JWT validator is not set up")
 	}
 
-	parsedJWT, err := jwtValidator.ValidateToken(ctx, token)
+	parsedJWT, err := j.validator.ValidateToken(ctx, token)
 	if err != nil {
 		// Drop tertiary (and deeper) nested errors for security reasons. This is
 		// using colons as an approximation for error nesting, which may not

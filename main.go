@@ -39,20 +39,9 @@ const (
 )
 
 var (
-	logger         *slog.Logger
-	natsURL        string
 	resourcesIndex string
-	natsConn       *nats.Conn
 	client         *opensearchapi.Client
-	projectsKV     jetstream.KeyValue
 )
-
-func init() {
-	natsURL = os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://nats:4222"
-	}
-}
 
 func main() {
 	// Allow overriding the port by environmental variable as well as command
@@ -60,6 +49,10 @@ func main() {
 	defaultPort := os.Getenv("PORT")
 	if defaultPort == "" {
 		defaultPort = defaultListenPort
+	}
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = "nats://nats:4222"
 	}
 	var debug = flag.Bool("d", false, "enable debug logging")
 	var port = flag.String("p", defaultPort, "listen port")
@@ -79,14 +72,16 @@ func main() {
 		logOptions.AddSource = true
 	}
 
-	logger = slog.New(slog.NewJSONHandler(os.Stdout, logOptions))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, logOptions))
 	slog.SetDefault(logger)
 
 	// Set up JWT validator needed by the JWTAuth security handler.
-	setupJWTAuth()
+	jwtAuth := setupJWTAuth(logger)
 
 	// Generated service initialization.
-	svc := &ProjectsService{}
+	svc := &ProjectsService{
+		auth: jwtAuth,
+	}
 
 	// Wrap it in the generated endpoints
 	endpoints := genquerysvc.NewEndpoints(svc)
@@ -146,7 +141,7 @@ func main() {
 	gracefulCloseWG.Add(1)
 	var err error
 	logger.With("nats_url", natsURL).Info("attempting to connect to NATS")
-	natsConn, err = nats.Connect(
+	natsConn, err := nats.Connect(
 		natsURL,
 		nats.DrainTimeout(gracefulShutdownSeconds*time.Second),
 		nats.ConnectHandler(func(_ *nats.Conn) {
@@ -183,17 +178,19 @@ func main() {
 		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS client")
 		os.Exit(1)
 	}
+	svc.natsConn = natsConn
 
 	js, err := jetstream.New(natsConn)
 	if err != nil {
 		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS JetStream client")
 		os.Exit(1)
 	}
-	projectsKV, err = js.KeyValue(ctx, natsKVBucketName)
+	projectsKV, err := js.KeyValue(ctx, natsKVBucketName)
 	if err != nil {
 		logger.With("nats_url", natsURL, errKey, err, "bucket", natsKVBucketName).Error("error getting NATS JetStream key-value store")
 		os.Exit(1)
 	}
+	svc.projectsKV = projectsKV
 
 	// This next line blocks until SIGINT or SIGTERM is received.
 	<-done
