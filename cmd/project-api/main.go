@@ -18,11 +18,11 @@ import (
 
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/opensearch-project/opensearch-go/v4/opensearchapi"
 	goahttp "goa.design/goa/v3/http"
 
-	genhttp "github.com/linuxfoundation/lfx-v2-project-service/gen/http/project_service/server"
-	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/gen/project_service"
+	genhttp "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/http/project_service/server"
+	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
 //go:embed gen/http/openapi3.json gen/http/openapi3.yaml
@@ -34,13 +34,8 @@ const (
 	// gracefulShutdownSeconds should be higher than NATS client
 	// request timeout, and lower than the pod or liveness probe's
 	// terminationGracePeriodSeconds.
-	gracefulShutdownSeconds = 25
-	natsKVBucketName        = "projects"
-)
-
-var (
-	resourcesIndex string
-	client         *opensearchapi.Client
+	gracefulShutdownSeconds  = 25
+	natsKVBucketNameProjects = "projects"
 )
 
 func main() {
@@ -80,7 +75,8 @@ func main() {
 
 	// Generated service initialization.
 	svc := &ProjectsService{
-		auth: jwtAuth,
+		logger: logger,
+		auth:   jwtAuth,
 	}
 
 	// Wrap it in the generated endpoints
@@ -180,17 +176,23 @@ func main() {
 	}
 	svc.natsConn = natsConn
 
+	// Create a JetStream client and get the key-value store for projects.
 	js, err := jetstream.New(natsConn)
 	if err != nil {
 		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS JetStream client")
 		os.Exit(1)
 	}
-	projectsKV, err := js.KeyValue(ctx, natsKVBucketName)
+	projectsKV, err := js.KeyValue(ctx, natsKVBucketNameProjects)
 	if err != nil {
-		logger.With("nats_url", natsURL, errKey, err, "bucket", natsKVBucketName).Error("error getting NATS JetStream key-value store")
+		logger.With("nats_url", natsURL, errKey, err, "bucket", natsKVBucketNameProjects).Error("error getting NATS JetStream key-value store")
 		os.Exit(1)
 	}
 	svc.projectsKV = projectsKV
+
+	// Create subscriptions to the NATS subjects for the project service.
+	natsConn.Subscribe(constants.ProjectsAPIQueue, func(msg *nats.Msg) {
+		logger.With("subject", msg.Subject, "bucket", natsKVBucketNameProjects).Info("received NATS message")
+	})
 
 	// This next line blocks until SIGINT or SIGTERM is received.
 	<-done

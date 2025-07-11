@@ -6,9 +6,10 @@ package main
 import (
 	"time"
 
-	projsvc "github.com/linuxfoundation/lfx-v2-project-service/gen/project_service"
+	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
 )
 
+// ProjectDB is the key-value store representation of a project.
 type ProjectDB struct {
 	UID         string    `json:"uid"`
 	Slug        string    `json:"slug"`
@@ -19,6 +20,7 @@ type ProjectDB struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// FromProject converts a project service project to a project database representation.
 func (p *ProjectDB) FromProject(project *projsvc.Project) {
 	currentTime := time.Now()
 
@@ -31,6 +33,7 @@ func (p *ProjectDB) FromProject(project *projsvc.Project) {
 	p.UpdatedAt = currentTime
 }
 
+// ToProject converts a project database representation to a project service project.
 func (p *ProjectDB) ToProject() *projsvc.Project {
 	return &projsvc.Project{
 		ID:          &p.UID,
@@ -40,11 +43,3 @@ func (p *ProjectDB) ToProject() *projsvc.Project {
 		Managers:    p.Managers,
 	}
 }
-
-// func StoreKeyValue(ctx context.Context, kv jetstream.KeyValue, key string, value []byte) error {
-// 	_, err := kv.Put(ctx, key, value)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }

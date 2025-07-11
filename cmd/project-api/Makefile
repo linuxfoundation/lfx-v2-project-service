@@ -3,7 +3,7 @@
 .PHONY: apigen run debug
 
 apigen:
-	goa gen github.com/linuxfoundation/lfx-v2-project-service/design
+	goa gen github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/design
 
 run:
 	go run .
