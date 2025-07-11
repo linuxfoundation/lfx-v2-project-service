@@ -5,129 +5,26 @@ package main
 import (
 	"context"
 	"log/slog"
+	"os"
 	"testing"
-	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"goa.design/goa/v3/security"
 
-	projsvc "github.com/linuxfoundation/lfx-v2-project-service/gen/project_service"
+	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
-
-// Mock NATS connection and KV store for testing
-type MockNATSConn struct {
-	mock.Mock
-}
-
-func (m *MockNATSConn) IsConnected() bool {
-	args := m.Called()
-	return args.Bool(0)
-}
-
-type MockKeyValue struct {
-	mock.Mock
-}
-
-func (m *MockKeyValue) Put(ctx context.Context, key string, value []byte) (uint64, error) {
-	args := m.Called(ctx, key, value)
-	return args.Get(0).(uint64), args.Error(1)
-}
-
-func (m *MockKeyValue) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
-	args := m.Called(ctx, key)
-	return args.Get(0).(jetstream.KeyValueEntry), args.Error(1)
-}
-
-func (m *MockKeyValue) Update(ctx context.Context, key string, value []byte, revision uint64) (uint64, error) {
-	args := m.Called(ctx, key, value, revision)
-	return args.Get(0).(uint64), args.Error(1)
-}
-
-func (m *MockKeyValue) Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
-	args := m.Called(ctx, key, opts)
-	return args.Error(0)
-}
-
-func (m *MockKeyValue) ListKeys(ctx context.Context, opts ...jetstream.WatchOpt) (jetstream.KeyLister, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(jetstream.KeyLister), args.Error(1)
-}
-
-type MockKeyLister struct {
-	mock.Mock
-	keys []string
-}
-
-func (m *MockKeyLister) Keys() <-chan string {
-	ch := make(chan string)
-	go func() {
-		defer close(ch)
-		for _, key := range m.keys {
-			ch <- key
-		}
-	}()
-	return ch
-}
-
-func (m *MockKeyLister) Stop() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-type MockKeyValueEntry struct {
-	mock.Mock
-	value    []byte
-	revision uint64
-}
-
-func (m *MockKeyValueEntry) Key() string {
-	args := m.Called()
-	return args.String(0)
-}
-
-func (m *MockKeyValueEntry) Value() []byte {
-	return m.value
-}
-
-func (m *MockKeyValueEntry) Revision() uint64 {
-	return m.revision
-}
-
-func (m *MockKeyValueEntry) Created() time.Time {
-	args := m.Called()
-	return args.Get(0).(time.Time)
-}
-
-func (m *MockKeyValueEntry) Delta() uint64 {
-	args := m.Called()
-	return args.Get(0).(uint64)
-}
-
-func (m *MockKeyValueEntry) Operation() jetstream.KeyValueOp {
-	args := m.Called()
-	return args.Get(0).(jetstream.KeyValueOp)
-}
-
-func (m *MockKeyValueEntry) Bucket() string {
-	args := m.Called()
-	return args.String(0)
-}
-
-type MockJwtAuth struct {
-	mock.Mock
-}
-
-func (m *MockJwtAuth) parsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
-	args := m.Called(ctx, token, logger)
-	return args.String(0), args.Error(1)
-}
 
 // setupService creates a new ProjectsService with mocked external service APIs.
 func setupService() *ProjectsService {
+	if os.Getenv("DEBUG") == "true" {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+	logger := slog.Default()
 	service := &ProjectsService{
-		logger:     slog.Default(),
+		logger:     logger,
 		natsConn:   &MockNATSConn{},
 		projectsKV: &MockKeyValue{},
 		auth:       &MockJwtAuth{},
@@ -257,7 +154,7 @@ func TestCreateProject(t *testing.T) {
 	tests := []struct {
 		name          string
 		payload       *projsvc.CreateProjectPayload
-		setupMocks    func(*MockKeyValue)
+		setupMocks    func(*ProjectsService)
 		expectedError bool
 	}{
 		{
@@ -268,11 +165,15 @@ func TestCreateProject(t *testing.T) {
 				Description: stringPtr("Test description"),
 				Managers:    []string{"user1", "user2"},
 			},
-			setupMocks: func(mockKV *MockKeyValue) {
+			setupMocks: func(service *ProjectsService) {
+				mockNats := service.natsConn.(*MockNATSConn)
+				mockKV := service.projectsKV.(*MockKeyValue)
 				// Mock successful slug mapping creation
 				mockKV.On("Put", mock.Anything, "slug/test-project", mock.Anything).Return(uint64(1), nil)
 				// Mock successful project creation
 				mockKV.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(uint64(1), nil)
+				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -284,7 +185,8 @@ func TestCreateProject(t *testing.T) {
 				Description: stringPtr("Test description"),
 				Managers:    []string{"user1"},
 			},
-			setupMocks: func(mockKV *MockKeyValue) {
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.projectsKV.(*MockKeyValue)
 				mockKV.On("Put", mock.Anything, "slug/existing-project", mock.Anything).Return(uint64(1), jetstream.ErrKeyExists)
 			},
 			expectedError: true,
@@ -297,7 +199,8 @@ func TestCreateProject(t *testing.T) {
 				Description: stringPtr("Test description"),
 				Managers:    []string{"user1"},
 			},
-			setupMocks: func(mockKV *MockKeyValue) {
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.projectsKV.(*MockKeyValue)
 				mockKV.On("Put", mock.Anything, "slug/test-project", mock.Anything).Return(uint64(1), assert.AnError)
 			},
 			expectedError: true,
@@ -307,7 +210,7 @@ func TestCreateProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service := setupService()
-			tt.setupMocks(service.projectsKV.(*MockKeyValue))
+			tt.setupMocks(service)
 
 			result, err := service.CreateProject(context.Background(), tt.payload)
 
@@ -392,7 +295,7 @@ func TestUpdateProject(t *testing.T) {
 	tests := []struct {
 		name          string
 		payload       *projsvc.UpdateProjectPayload
-		setupMocks    func(*MockKeyValue)
+		setupMocks    func(*ProjectsService)
 		expectedError bool
 	}{
 		{
@@ -404,12 +307,16 @@ func TestUpdateProject(t *testing.T) {
 				Description: stringPtr("Updated description"),
 				Managers:    []string{"user1", "user2"},
 			},
-			setupMocks: func(mockKV *MockKeyValue) {
+			setupMocks: func(service *ProjectsService) {
+				mockNats := service.natsConn.(*MockNATSConn)
+				mockKV := service.projectsKV.(*MockKeyValue)
 				// Mock getting existing project
 				projectData := `{"uid":"project-1","slug":"old-slug","name":"Old Project","description":"Old description","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(projectData), revision: 1}, nil)
 				// Mock updating project
 				mockKV.On("Update", mock.Anything, "project-1", mock.Anything, uint64(1)).Return(uint64(1), nil)
+				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -421,7 +328,8 @@ func TestUpdateProject(t *testing.T) {
 				Name:      "Test",
 				Managers:  []string{"user1"},
 			},
-			setupMocks: func(mockKV *MockKeyValue) {
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.projectsKV.(*MockKeyValue)
 				mockKV.On("Get", mock.Anything, "nonexistent").Return(&MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
 			},
 			expectedError: true,
@@ -431,7 +339,7 @@ func TestUpdateProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service := setupService()
-			tt.setupMocks(service.projectsKV.(*MockKeyValue))
+			tt.setupMocks(service)
 
 			result, err := service.UpdateProject(context.Background(), tt.payload)
 
@@ -455,7 +363,7 @@ func TestDeleteProject(t *testing.T) {
 	tests := []struct {
 		name          string
 		payload       *projsvc.DeleteProjectPayload
-		setupMocks    func(*MockKeyValue)
+		setupMocks    func(*ProjectsService)
 		expectedError bool
 	}{
 		{
@@ -463,12 +371,16 @@ func TestDeleteProject(t *testing.T) {
 			payload: &projsvc.DeleteProjectPayload{
 				ProjectID: stringPtr("project-1"),
 			},
-			setupMocks: func(mockKV *MockKeyValue) {
+			setupMocks: func(service *ProjectsService) {
+				mockNats := service.natsConn.(*MockNATSConn)
+				mockKV := service.projectsKV.(*MockKeyValue)
 				// Mock getting existing project
 				projectData := `{"uid":"project-1","slug":"test","name":"Test Project","description":"Test","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(projectData), revision: 1}, nil)
 				// Mock deleting project
 				mockKV.On("Delete", mock.Anything, "project-1", mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.DeleteAllAccessSubject, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -477,7 +389,8 @@ func TestDeleteProject(t *testing.T) {
 			payload: &projsvc.DeleteProjectPayload{
 				ProjectID: stringPtr("nonexistent"),
 			},
-			setupMocks: func(mockKV *MockKeyValue) {
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.projectsKV.(*MockKeyValue)
 				mockKV.On("Get", mock.Anything, "nonexistent").Return(&MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
 			},
 			expectedError: true,
@@ -487,7 +400,7 @@ func TestDeleteProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service := setupService()
-			tt.setupMocks(service.projectsKV.(*MockKeyValue))
+			tt.setupMocks(service)
 
 			err := service.DeleteProject(context.Background(), tt.payload)
 

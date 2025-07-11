@@ -50,10 +50,6 @@ type jwtAuth struct {
 	validator *validator.Validator
 }
 
-type IJwtAuth interface {
-	parsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error)
-}
-
 func setupJWTAuth(logger *slog.Logger) *jwtAuth {
 	// Set up Heimdall JWKS key provider.
 	jwksEnv := os.Getenv("JWKS_URL")
