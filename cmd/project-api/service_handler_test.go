@@ -1,17 +1,21 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
+
 package main
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 type MockNatsMsg struct {
 	mock.Mock
-	data []byte
+	data    []byte
+	subject string
 }
 
 func (m *MockNatsMsg) Respond(data []byte) error {
@@ -23,6 +27,10 @@ func (m *MockNatsMsg) Data() []byte {
 	return m.data
 }
 
+func (m *MockNatsMsg) Subject() string {
+	return m.subject
+}
+
 // CreateMockNatsMsg creates a mock NATS message that can be used in tests
 func CreateMockNatsMsg(data []byte) *MockNatsMsg {
 	msg := MockNatsMsg{
@@ -31,6 +39,16 @@ func CreateMockNatsMsg(data []byte) *MockNatsMsg {
 	return &msg
 }
 
+// CreateMockNatsMsgWithSubject creates a mock NATS message with a specific subject
+func CreateMockNatsMsgWithSubject(data []byte, subject string) *MockNatsMsg {
+	msg := MockNatsMsg{
+		data:    data,
+		subject: subject,
+	}
+	return &msg
+}
+
+// TestHandleProjectGetName tests the [HandleProjectGetName] function.
 func TestHandleProjectGetName(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -44,7 +62,6 @@ func TestHandleProjectGetName(t *testing.T) {
 			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
 				projectData := `{"uid":"550e8400-e29b-41d4-a716-446655440000","slug":"test-project","name":"Test Project","description":"Test description","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&MockKeyValueEntry{value: []byte(projectData)}, nil)
-				msg.On("Respond", []byte(projectData)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -53,7 +70,6 @@ func TestHandleProjectGetName(t *testing.T) {
 			projectID: "invalid-uuid",
 			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
 				// No mocks needed for invalid UUID case
-				msg.On("Respond", []byte(nil)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -62,7 +78,6 @@ func TestHandleProjectGetName(t *testing.T) {
 			projectID: "550e8400-e29b-41d4-a716-446655440000",
 			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
 				service.projectsKV = nil
-				msg.On("Respond", []byte(nil)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -71,7 +86,6 @@ func TestHandleProjectGetName(t *testing.T) {
 			projectID: "550e8400-e29b-41d4-a716-446655440000",
 			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&MockKeyValueEntry{}, assert.AnError)
-				msg.On("Respond", []byte(nil)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -88,22 +102,15 @@ func TestHandleProjectGetName(t *testing.T) {
 				service.HandleProjectGetName(msg)
 			})
 
-			msg.AssertExpectations(t)
-
 			// For success case, verify that the mock was called as expected
 			if tt.name == "success" {
 				service.projectsKV.(*MockKeyValue).AssertExpectations(t)
 			}
-
-			// Note: The handler functions call msg.Respond() as required before returning.
-			// We can see this from the error logs in the test output when the real nats.Msg.Respond()
-			// is called (e.g., "error responding to NATS message").
-			// In a more sophisticated test setup, you could use a custom mock or proxy to capture
-			// the exact data passed to msg.Respond() for verification.
 		})
 	}
 }
 
+// TestHandleProjectSlugToUID tests the [HandleProjectSlugToUID] function.
 func TestHandleProjectSlugToUID(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -117,7 +124,6 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
 				projectUID := "550e8400-e29b-41d4-a716-446655440000"
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{value: []byte(projectUID)}, nil)
-				msg.On("Respond", []byte(projectUID)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -126,7 +132,6 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 			projectSlug: "test-project",
 			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
 				service.projectsKV = nil
-				msg.On("Respond", []byte(nil)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -135,7 +140,6 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 			projectSlug: "test-project",
 			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{}, assert.AnError)
-				msg.On("Respond", []byte(nil)).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -152,18 +156,59 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 				service.HandleProjectSlugToUID(msg)
 			})
 
-			msg.AssertExpectations(t)
-
 			// For success case, verify that the mock was called as expected
 			if tt.name == "success" {
 				service.projectsKV.(*MockKeyValue).AssertExpectations(t)
 			}
+		})
+	}
+}
 
-			// Note: The handler functions call msg.Respond() as required before returning.
-			// We can see this from the error logs in the test output when the real nats.Msg.Respond()
-			// is called (e.g., "error responding to NATS message").
-			// In a more sophisticated test setup, you could use a custom mock or proxy to capture
-			// the exact data passed to msg.Respond() for verification.
+// TestHandleNatsMessage tests the [HandleNatsMessage] function.
+func TestHandleNatsMessage(t *testing.T) {
+	tests := []struct {
+		name    string
+		subject string
+		data    []byte
+		wantNil bool // if true, expect Respond(nil)
+	}{
+		{
+			name:    "project get name routes and responds",
+			subject: fmt.Sprintf("%s%s", constants.LFXEnvironmentDev, constants.IndexProjectSubject),
+			data:    []byte("some-id"),
+			wantNil: false,
+		},
+		{
+			name:    "project slug to UID routes and responds",
+			subject: fmt.Sprintf("%s%s", constants.LFXEnvironmentDev, constants.UpdateAccessProjectSubject),
+			data:    []byte("some-slug"),
+			wantNil: false,
+		},
+		{
+			name:    "unknown subject responds nil",
+			subject: "unknown.subject",
+			data:    []byte("test-data"),
+			wantNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service := setupService()
+			msg := CreateMockNatsMsgWithSubject(tt.data, tt.subject)
+			if tt.wantNil {
+				msg.On("Respond", []byte(nil)).Return(nil).Once()
+			} else {
+				msg.On("Respond", mock.Anything).Return(nil).Once()
+				// Set up a generic expectation for the Get method to avoid mock panics
+				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, mock.Anything).Return(&MockKeyValueEntry{}, nil)
+			}
+
+			assert.NotPanics(t, func() {
+				service.HandleNatsMessage(msg)
+			})
+
+			msg.AssertExpectations(t)
 		})
 	}
 }

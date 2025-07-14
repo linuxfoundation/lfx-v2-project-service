@@ -2,7 +2,22 @@
 
 This repository contains the source code the LFX v2 platform project service.
 
-## Development
+## File Structure
+
+```bash
+├── .github/                        # Github files
+│   └── workflows/                  # Github Action workflow files
+├── charts/                         # Helm charts for running the service in kubernetes
+├── cmd/                            # Services (main packages)
+│   └── project-api/                # Project service code
+├── internal/                       # Internal service packages
+│   ├── domain/                     # Domain logic layer
+│   ├── service/                    # Business logic layer
+│   └── infrastructure/             # Infrastructure layer
+└── pkg/                            # Shared packages for internal and external services
+```
+
+## Contributing
 
 To contribute to this repository:
 

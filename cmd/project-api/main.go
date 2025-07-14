@@ -1,6 +1,8 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
-// The project service.
+
+// Package main is the project service API that provides a RESTful API for managing projects
+// and handles NATS messages for the project service.
 package main
 
 import (
@@ -8,6 +10,7 @@ import (
 	"embed"
 	_ "expvar"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,6 +25,7 @@ import (
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/http/project_service/server"
 	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
@@ -34,8 +38,7 @@ const (
 	// gracefulShutdownSeconds should be higher than NATS client
 	// request timeout, and lower than the pod or liveness probe's
 	// terminationGracePeriodSeconds.
-	gracefulShutdownSeconds  = 25
-	natsKVBucketNameProjects = "projects"
+	gracefulShutdownSeconds = 25
 )
 
 func main() {
@@ -47,8 +50,10 @@ func main() {
 	}
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {
-		natsURL = "nats://nats:4222"
+		natsURL = "nats://localhost:4222"
 	}
+	lfxEnvironmentStr := os.Getenv("LFX_ENVIRONMENT")
+	lfxEnvironment := constants.ParseLFXEnvironment(lfxEnvironmentStr)
 	var debug = flag.Bool("d", false, "enable debug logging")
 	var port = flag.String("p", defaultPort, "listen port")
 	var bind = flag.String("bind", "*", "interface to bind on")
@@ -59,24 +64,22 @@ func main() {
 	}
 	flag.Parse()
 
-	logOptions := &slog.HandlerOptions{}
-
-	// Optional debug logging.
-	if os.Getenv("DEBUG") != "" || *debug {
-		logOptions.Level = slog.LevelDebug
-		logOptions.AddSource = true
+	// Set the log level environment variable used by [log.InitStructureLogConfig]
+	if *debug {
+		os.Setenv("LOG_LEVEL", "debug")
 	}
+	// Set up the logger
+	log.InitStructureLogConfig()
+	logger := slog.Default()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, logOptions))
-	slog.SetDefault(logger)
-
-	// Set up JWT validator needed by the JWTAuth security handler.
+	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
 	jwtAuth := setupJWTAuth(logger)
 
 	// Generated service initialization.
 	svc := &ProjectsService{
-		logger: logger,
-		auth:   jwtAuth,
+		logger:         logger,
+		lfxEnvironment: lfxEnvironment,
+		auth:           jwtAuth,
 	}
 
 	// Wrap it in the generated endpoints
@@ -116,7 +119,7 @@ func main() {
 	}
 	gracefulCloseWG.Add(1)
 	go func() {
-		logger.With("addr", addr).Info("starting http server, listening on port " + *port)
+		logger.With("addr", addr).Debug("starting http server, listening on port " + *port)
 		err := httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			logger.With(errKey, err).Error("http listener error")
@@ -176,23 +179,17 @@ func main() {
 	}
 	svc.natsConn = natsConn
 
-	// Create a JetStream client and get the key-value store for projects.
-	js, err := jetstream.New(natsConn)
+	// Get the key-value store for projects.
+	svc.projectsKV, err = getKeyValueStore(ctx, svc, natsConn)
 	if err != nil {
-		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS JetStream client")
 		os.Exit(1)
 	}
-	projectsKV, err := js.KeyValue(ctx, natsKVBucketNameProjects)
-	if err != nil {
-		logger.With("nats_url", natsURL, errKey, err, "bucket", natsKVBucketNameProjects).Error("error getting NATS JetStream key-value store")
-		os.Exit(1)
-	}
-	svc.projectsKV = projectsKV
 
-	// Create subscriptions to the NATS subjects for the project service.
-	natsConn.Subscribe(constants.ProjectsAPIQueue, func(msg *nats.Msg) {
-		logger.With("subject", msg.Subject, "bucket", natsKVBucketNameProjects).Info("received NATS message")
-	})
+	// Create NATS subscriptions for the project service.
+	err = createNatsSubcriptions(svc, natsConn)
+	if err != nil {
+		os.Exit(1)
+	}
 
 	// This next line blocks until SIGINT or SIGTERM is received.
 	<-done
@@ -213,7 +210,7 @@ func main() {
 		gracefulCloseWG.Done()
 	}()
 
-	// Drain the connection, which will drain all subscriptions, then close the
+	// Drain the NATS connection, which will drain all subscriptions, then close the
 	// connection when complete.
 	if !natsConn.IsClosed() && !natsConn.IsDraining() {
 		logger.Info("draining NATS connections")
@@ -228,4 +225,47 @@ func main() {
 	// closed (see nats.Connect options for the timeout and the handler that
 	// decrements the wait group).
 	gracefulCloseWG.Wait()
+}
+
+// getKeyValueStore creates a JetStream client and gets the key-value store for projects.
+func getKeyValueStore(ctx context.Context, svc *ProjectsService, natsConn *nats.Conn) (jetstream.KeyValue, error) {
+	js, err := jetstream.New(natsConn)
+	if err != nil {
+		svc.logger.With("nats_url", natsConn.ConnectedUrl(), errKey, err).Error("error creating NATS JetStream client")
+		return nil, err
+	}
+	projectsKV, err := js.KeyValue(ctx, constants.KVBucketNameProjects)
+	if err != nil {
+		svc.logger.With("nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjects).Error("error getting NATS JetStream key-value store")
+		return nil, err
+	}
+	return projectsKV, nil
+}
+
+// createNatsSubcriptions creates the NATS subscriptions for the project service.
+func createNatsSubcriptions(svc *ProjectsService, natsConn *nats.Conn) error {
+	svc.logger.With("nats_url", natsConn.ConnectedUrl()).With("servers", natsConn.Servers()).Info("subscribing to NATS subjects")
+	queueName := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectsAPIQueue)
+
+	// Get project name subscription
+	projectGetNameSubject := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectGetNameSubject)
+	_, err := natsConn.QueueSubscribe(projectGetNameSubject, queueName, func(msg *nats.Msg) {
+		svc.HandleNatsMessage(&NatsMsg{msg})
+	})
+	if err != nil {
+		svc.logger.With(errKey, err).Error("error creating NATS queue subscription")
+		return err
+	}
+
+	// Get project slug to UID subscription
+	projectSlugToUIDSubject := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectSlugToUIDSubject)
+	_, err = natsConn.QueueSubscribe(projectSlugToUIDSubject, queueName, func(msg *nats.Msg) {
+		svc.HandleNatsMessage(&NatsMsg{msg})
+	})
+	if err != nil {
+		svc.logger.With(errKey, err).Error("error creating NATS queue subscription")
+		return err
+	}
+
+	return nil
 }

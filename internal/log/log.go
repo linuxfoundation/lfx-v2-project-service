@@ -18,6 +18,7 @@ const (
 
 	debug = "debug"
 	warn  = "warn"
+	err   = "error"
 	info  = "info"
 )
 
@@ -54,7 +55,7 @@ func AppendCtx(parent context.Context, attr slog.Attr) context.Context {
 }
 
 // InitStructureLogConfig sets the structured log behavior
-func InitStructureLogConfig() {
+func InitStructureLogConfig() slog.Handler {
 
 	logOptions := &slog.HandlerOptions{}
 	var h slog.Handler
@@ -62,14 +63,13 @@ func InitStructureLogConfig() {
 	configurations := map[string]func(){
 		"options-logLevel": func() {
 			logLevel := os.Getenv("LOG_LEVEL")
-			slog.Info("log config",
-				"logLevel", logLevel,
-			)
 			switch logLevel {
 			case debug:
 				logOptions.Level = slog.LevelDebug
 			case warn:
 				logOptions.Level = slog.LevelWarn
+			case err:
+				logOptions.Level = slog.LevelError
 			case info:
 				logOptions.Level = slog.LevelInfo
 			default:
@@ -77,28 +77,28 @@ func InitStructureLogConfig() {
 			}
 		},
 		"options-addSource": func() {
-
 			addSourceBool := false
-
 			addSource := os.Getenv("LOG_ADD_SOURCE")
-			if addSource != "" || addSource == "true" || addSource == "false" {
-				addSourceBool = addSource == "true"
+			if addSource == "true" || addSource == "t" || addSource == "1" {
+				addSourceBool = true
 			}
-			slog.Info("log config",
-				"LOG_ADD_SOURCE", addSourceBool,
-			)
 			logOptions.AddSource = addSourceBool
 		},
 	}
 
-	for name, f := range configurations {
-		slog.Info("setting logging configuration",
-			"name", name,
-		)
+	for _, f := range configurations {
 		f()
 	}
+
+	slog.Info("log config",
+		"logLevel", logOptions.Level,
+		"addSource", logOptions.AddSource,
+	)
+
 	h = slog.NewJSONHandler(os.Stdout, logOptions)
 	log.SetFlags(log.Llongfile)
 	logger := contextHandler{h}
 	slog.SetDefault(slog.New(logger))
+
+	return h
 }

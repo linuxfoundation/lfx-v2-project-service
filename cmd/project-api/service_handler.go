@@ -1,5 +1,6 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
+
 package main
 
 import (
@@ -7,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
 )
 
@@ -14,6 +16,7 @@ import (
 type INatsMsg interface {
 	Respond(data []byte) error
 	Data() []byte
+	Subject() string
 }
 
 // NatsMsg is a wrapper around [nats.Msg] that implements [INatsMsg].
@@ -31,66 +34,89 @@ func (m *NatsMsg) Data() []byte {
 	return m.Msg.Data
 }
 
+// Subject implements [INatsMsg.Subject].
+func (m *NatsMsg) Subject() string {
+	return m.Msg.Subject
+}
+
+// HandleNatsMessage is the entrypoint NATS handler for all subjects handled by the service.
+func (s *ProjectsService) HandleNatsMessage(msg INatsMsg) {
+	subject := msg.Subject()
+	msgLogger := s.logger.With("subject", subject)
+	msgLogger.DebugContext(context.Background(), "handling NATS message")
+
+	var response []byte
+	var err error
+	switch subject {
+	case fmt.Sprintf("%s%s", s.lfxEnvironment, constants.ProjectGetNameSubject):
+		response, err = s.HandleProjectGetName(msg)
+		if err != nil {
+			s.logger.With(errKey, err).Error("error handling project get name")
+			msg.Respond(nil)
+			return
+		}
+		msg.Respond(response)
+	case fmt.Sprintf("%s%s", s.lfxEnvironment, constants.ProjectSlugToUIDSubject):
+		response, err = s.HandleProjectSlugToUID(msg)
+		if err != nil {
+			s.logger.With(errKey, err).Error("error handling project slug to UID")
+			msg.Respond(nil)
+			return
+		}
+		msg.Respond(response)
+	default:
+		s.logger.With("subject", subject).Warn("unknown subject")
+		msg.Respond(nil)
+	}
+
+	msgLogger.With("response", response).DebugContext(context.Background(), "responded to NATS message")
+}
+
 // HandleProjectGetName is the NATS handler for the project-get-name subject.
-func (s *ProjectsService) HandleProjectGetName(msg INatsMsg) {
+func (s *ProjectsService) HandleProjectGetName(msg INatsMsg) ([]byte, error) {
 	projectID := string(msg.Data())
 
-	logger := s.logger.With("project_id", projectID).With("handler", "project-get-name")
-	logger.DebugContext(context.Background(), "handling NATS message")
+	logger := s.logger.With("project_id", projectID).With("subject", constants.ProjectGetNameSubject)
 
 	// Validate that the project ID is a valid UUID.
 	_, err := uuid.Parse(projectID)
 	if err != nil {
 		logger.With(errKey, err).Error("error parsing project ID")
-		msg.Respond(nil)
-		return
+		return nil, err
 	}
 
 	if s.projectsKV == nil {
 		logger.Error("NATS KV store not initialized")
-		msg.Respond(nil)
-		return
+		return nil, fmt.Errorf("NATS KV store not initialized")
 	}
 
 	ctx := context.Background()
 	project, err := s.projectsKV.Get(ctx, projectID)
 	if err != nil {
 		logger.With(errKey, err).Error("error getting project from NATS KV")
-		msg.Respond(nil)
-		return
+		return nil, err
 	}
 
-	logger.With("project", project).DebugContext(ctx, "responding to NATS message")
-	err = msg.Respond(project.Value())
-	if err != nil {
-		logger.With(errKey, err).Error("error responding to NATS message")
-		return
-	}
+	return project.Value(), nil
 }
 
 // HandleProjectSlugToUID is the NATS handler for the project-slug-to-uid subject.
-func (s *ProjectsService) HandleProjectSlugToUID(msg INatsMsg) {
+func (s *ProjectsService) HandleProjectSlugToUID(msg INatsMsg) ([]byte, error) {
 	projectSlug := string(msg.Data())
 
-	logger := s.logger.With("project_slug", projectSlug).With("handler", "project-slug-to-uid")
+	logger := s.logger.With("project_slug", projectSlug).With("subject", constants.ProjectSlugToUIDSubject)
 
 	if s.projectsKV == nil {
 		logger.Error("NATS KV store not initialized")
-		msg.Respond(nil)
-		return
+		return nil, fmt.Errorf("NATS KV store not initialized")
 	}
 
 	ctx := context.Background()
 	project, err := s.projectsKV.Get(ctx, fmt.Sprintf("slug/%s", projectSlug))
 	if err != nil {
 		logger.With(errKey, err).Error("error getting project from NATS KV")
-		msg.Respond(nil)
-		return
+		return nil, err
 	}
 
-	err = msg.Respond(project.Value())
-	if err != nil {
-		logger.With(errKey, err).Error("error responding to NATS message")
-		return
-	}
+	return project.Value(), nil
 }

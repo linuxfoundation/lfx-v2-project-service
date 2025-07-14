@@ -13,16 +13,17 @@ var JWTAuth = JWTSecurity("jwt", func() {
 var _ = Service("project-service", func() {
 	Description("The project service provides LFX Project resources.")
 
+	// TODO: delete this endpoint once the query service is implemented
 	Method("get-projects", func() {
 		Description("Get all projects.")
 
-		//Security(JWTAuth)
+		Security(JWTAuth)
 
 		Payload(func() {
-			//Token("bearer_token", String, func() {
-			//	Description("JWT token issued by Heimdall")
-			//	Example("eyJhbGci...")
-			//})
+			Token("bearer_token", String, func() {
+				Description("JWT token issued by Heimdall")
+				Example("eyJhbGci...")
+			})
 			Attribute("version", String, "Version of the API", func() {
 				Enum("1")
 				Example("1")
@@ -38,7 +39,6 @@ var _ = Service("project-service", func() {
 				Description("Token to get the next page of results, if available")
 				Example("****")
 			})
-			//Required("bearer_token", "version")
 		})
 
 		Result(func() {
@@ -60,7 +60,7 @@ var _ = Service("project-service", func() {
 			GET("/projects")
 			Param("version:v")
 			Param("page_token")
-			//Header("bearer_token:Authorization")
+			Header("bearer_token:Authorization")
 			Response(StatusOK, func() {
 				Header("cache_control:Cache-Control")
 			})
@@ -73,13 +73,13 @@ var _ = Service("project-service", func() {
 	Method("create-project", func() {
 		Description("Create a new project.")
 
-		//Security(JWTAuth)
+		Security(JWTAuth)
 
 		Payload(func() {
-			//Token("bearer_token", String, func() {
-			//	Description("JWT token issued by Heimdall")
-			//	Example("eyJhbGci...")
-			//})
+			Token("bearer_token", String, func() {
+				Description("JWT token issued by Heimdall")
+				Example("eyJhbGci...")
+			})
 			Attribute("version", String, "Version of the API", func() {
 				Enum("1")
 				Example("1")
@@ -97,7 +97,6 @@ var _ = Service("project-service", func() {
 				Example([]string{"user123", "user456"})
 			})
 			Required("slug", "name", "managers")
-			//Required("bearer_token", "version")
 		})
 
 		Result(Project)
@@ -110,7 +109,7 @@ var _ = Service("project-service", func() {
 		HTTP(func() {
 			POST("/projects")
 			Param("version:v")
-			//Header("bearer_token:Authorization")
+			Header("bearer_token:Authorization")
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("Conflict", StatusConflict)
@@ -122,13 +121,13 @@ var _ = Service("project-service", func() {
 	Method("get-one-project", func() {
 		Description("Get a single project.")
 
-		//Security(JWTAuth)
+		Security(JWTAuth)
 
 		Payload(func() {
-			//Token("bearer_token", String, func() {
-			//	Description("JWT token issued by Heimdall")
-			//	Example("eyJhbGci...")
-			//})
+			Token("bearer_token", String, func() {
+				Description("JWT token issued by Heimdall")
+				Example("eyJhbGci...")
+			})
 			Attribute("version", String, "Version of the API", func() {
 				Enum("1")
 				Example("1")
@@ -136,7 +135,6 @@ var _ = Service("project-service", func() {
 			Attribute("project_id", String, "Project ID", func() {
 				Example("123")
 			})
-			//Required("bearer_token", "version")
 		})
 
 		Result(Project)
@@ -149,7 +147,7 @@ var _ = Service("project-service", func() {
 			GET("/projects/{project_id}")
 			Param("version:v")
 			Param("project_id")
-			//Header("bearer_token:Authorization")
+			Header("bearer_token:Authorization")
 			Response(StatusOK)
 			Response("NotFound", StatusNotFound)
 			Response("InternalServerError", StatusInternalServerError)
@@ -160,13 +158,13 @@ var _ = Service("project-service", func() {
 	Method("update-project", func() {
 		Description("Update an existing project.")
 
-		//Security(JWTAuth)
+		Security(JWTAuth)
 
 		Payload(func() {
-			//Token("bearer_token", String, func() {
-			//	Description("JWT token issued by Heimdall")
-			//	Example("eyJhbGci...")
-			//})
+			Token("bearer_token", String, func() {
+				Description("JWT token issued by Heimdall")
+				Example("eyJhbGci...")
+			})
 			Attribute("project_id", String, "Project ID", func() {
 				Example("123")
 			})
@@ -187,7 +185,6 @@ var _ = Service("project-service", func() {
 				Example([]string{"user123", "user456"})
 			})
 			Required("slug", "name", "managers")
-			//Required("bearer_token", "version")
 		})
 
 		Result(Project)
@@ -209,7 +206,7 @@ var _ = Service("project-service", func() {
 				Attribute("name")
 				Attribute("managers")
 			})
-			//Header("bearer_token:Authorization")
+			Header("bearer_token:Authorization")
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)
@@ -221,13 +218,13 @@ var _ = Service("project-service", func() {
 	Method("delete-project", func() {
 		Description("Delete an existing project.")
 
-		//Security(JWTAuth)
+		Security(JWTAuth)
 
 		Payload(func() {
-			//Token("bearer_token", String, func() {
-			//	Description("JWT token issued by Heimdall")
-			//	Example("eyJhbGci...")
-			//})
+			Token("bearer_token", String, func() {
+				Description("JWT token issued by Heimdall")
+				Example("eyJhbGci...")
+			})
 			Attribute("project_id", String, "Project ID", func() {
 				Example("123")
 			})
@@ -235,7 +232,6 @@ var _ = Service("project-service", func() {
 				Enum("1")
 				Example("1")
 			})
-			//Required("bearer_token", "version")
 		})
 
 		Error("NotFound", NotFoundError, "Resource not found")
@@ -248,7 +244,7 @@ var _ = Service("project-service", func() {
 				Param("version:v")
 				Param("project_id")
 			})
-			//Header("bearer_token:Authorization")
+			Header("bearer_token:Authorization")
 			Response(StatusNoContent)
 			Response("NotFound", StatusNotFound)
 			Response("InternalServerError", StatusInternalServerError)
