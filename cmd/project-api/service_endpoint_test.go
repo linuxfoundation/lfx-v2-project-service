@@ -1,9 +1,11 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
+
 package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"testing"
@@ -24,10 +26,11 @@ func setupService() *ProjectsService {
 	}
 	logger := slog.Default()
 	service := &ProjectsService{
-		logger:     logger,
-		natsConn:   &MockNATSConn{},
-		projectsKV: &MockKeyValue{},
-		auth:       &MockJwtAuth{},
+		logger:         logger,
+		lfxEnvironment: constants.LFXEnvironmentDev,
+		natsConn:       &MockNATSConn{},
+		projectsKV:     &MockKeyValue{},
+		auth:           &MockJwtAuth{},
 	}
 
 	return service
@@ -172,8 +175,8 @@ func TestCreateProject(t *testing.T) {
 				mockKV.On("Put", mock.Anything, "slug/test-project", mock.Anything).Return(uint64(1), nil)
 				// Mock successful project creation
 				mockKV.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(uint64(1), nil)
-				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
-				mockNats.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSubject), mock.Anything).Return(nil)
+				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.UpdateAccessProjectSubject), mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -315,8 +318,8 @@ func TestUpdateProject(t *testing.T) {
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(projectData), revision: 1}, nil)
 				// Mock updating project
 				mockKV.On("Update", mock.Anything, "project-1", mock.Anything, uint64(1)).Return(uint64(1), nil)
-				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
-				mockNats.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSubject), mock.Anything).Return(nil)
+				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.UpdateAccessProjectSubject), mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -379,8 +382,8 @@ func TestDeleteProject(t *testing.T) {
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(projectData), revision: 1}, nil)
 				// Mock deleting project
 				mockKV.On("Delete", mock.Anything, "project-1", mock.Anything).Return(nil)
-				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
-				mockNats.On("Publish", constants.DeleteAllAccessSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSubject), mock.Anything).Return(nil)
+				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.DeleteAllAccessSubject), mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
