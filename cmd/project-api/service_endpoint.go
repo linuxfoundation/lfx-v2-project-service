@@ -509,7 +509,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 }
 
 // Readyz checks if the service is able to take inbound requests.
-func (s *ProjectsService) Readyz(ctx context.Context) ([]byte, error) {
+func (s *ProjectsService) Readyz(_ context.Context) ([]byte, error) {
 	if s.natsConn == nil || s.projectsKV == nil {
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
@@ -526,7 +526,7 @@ func (s *ProjectsService) Readyz(ctx context.Context) ([]byte, error) {
 }
 
 // Livez checks if the service is alive.
-func (s *ProjectsService) Livez(context.Context) ([]byte, error) {
+func (s *ProjectsService) Livez(_ context.Context) ([]byte, error) {
 	// This always returns as long as the service is still running. As this
 	// endpoint is expected to be used as a Kubernetes liveness check, this
 	// service must likewise self-detect non-recoverable errors and
@@ -535,7 +535,7 @@ func (s *ProjectsService) Livez(context.Context) ([]byte, error) {
 }
 
 // JWTAuth implements Auther interface for the JWT security scheme.
-func (s *ProjectsService) JWTAuth(ctx context.Context, bearerToken string, schema *security.JWTScheme) (context.Context, error) {
+func (s *ProjectsService) JWTAuth(ctx context.Context, bearerToken string, _ *security.JWTScheme) (context.Context, error) {
 	// Parse the Heimdall-authorized principal from the token.
 	// TODO: handle error
 	principal, _ := s.auth.parsePrincipal(ctx, bearerToken, s.logger)

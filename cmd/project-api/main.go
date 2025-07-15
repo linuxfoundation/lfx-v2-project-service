@@ -66,7 +66,11 @@ func main() {
 
 	// Set the log level environment variable used by [log.InitStructureLogConfig]
 	if *debug {
-		os.Setenv("LOG_LEVEL", "debug")
+		err := os.Setenv("LOG_LEVEL", "debug")
+		if err != nil {
+			slog.With(errKey, err).Error("error setting log level")
+			os.Exit(1)
+		}
 	}
 	// Set up the logger
 	log.InitStructureLogConfig()
@@ -188,20 +192,20 @@ func main() {
 	)
 	if err != nil {
 		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS client")
-		os.Exit(1)
+		return
 	}
 	svc.natsConn = natsConn
 
 	// Get the key-value store for projects.
 	svc.projectsKV, err = getKeyValueStore(ctx, svc, natsConn)
 	if err != nil {
-		os.Exit(1)
+		return
 	}
 
 	// Create NATS subscriptions for the project service.
 	err = createNatsSubcriptions(svc, natsConn)
 	if err != nil {
-		os.Exit(1)
+		return
 	}
 
 	// This next line blocks until SIGINT or SIGTERM is received.
@@ -230,7 +234,7 @@ func main() {
 		if err := natsConn.Drain(); err != nil {
 			logger.With(errKey, err).Error("error draining NATS connection")
 			// Skip waiting or checking error channel.
-			os.Exit(1)
+			return
 		}
 	}
 

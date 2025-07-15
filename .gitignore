@@ -3,3 +3,7 @@
 bin/
 gen/
 .env*
+
+# Linter generated files
+megalinter-reports/
+revive.log

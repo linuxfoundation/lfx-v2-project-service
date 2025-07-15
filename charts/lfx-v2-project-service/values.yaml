@@ -1,5 +1,7 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 ---
+# nats is the configuration for the NATS server
 nats:
+  # url is the URL of the NATS server
   url: nats://nats.lfx.svc.cluster.local:4222

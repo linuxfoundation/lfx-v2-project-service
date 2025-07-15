@@ -1,11 +1,15 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
+
+// Package design contains the DSL for the project service Goa API generation.
 package design
 
 import (
+	//nolint:staticcheck // ST1001: the recommended way of using the goa GSL package is with the . import
 	. "goa.design/goa/v3/dsl"
 )
 
+// JWTAuth is the DSL JWT security type for authentication.
 var JWTAuth = JWTSecurity("jwt", func() {
 	Description("Heimdall authorization")
 })

@@ -4,7 +4,7 @@
 # checkov:skip=CKV_DOCKER_7:No free access to Chainguard versioned labels.
 # hadolint global ignore=DL3007
 
-FROM --platform=$BUILDPLATFORM cgr.dev/chainguard/go:latest AS builder
+FROM cgr.dev/chainguard/go:latest AS builder
 
 # Expose port 8080 for the project service API.
 EXPOSE 8080

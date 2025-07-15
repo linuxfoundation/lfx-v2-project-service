@@ -39,7 +39,7 @@ type HeimdallClaims struct {
 
 // Validate provides additional middleware validation of any claims defined in
 // HeimdallClaims.
-func (c *HeimdallClaims) Validate(ctx context.Context) error {
+func (c *HeimdallClaims) Validate(_ context.Context) error {
 	if c.Principal == "" {
 		return errors.New("principal must be provided")
 	}

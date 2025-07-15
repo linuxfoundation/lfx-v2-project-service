@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 module github.com/linuxfoundation/lfx-v2-project-service
 
-go 1.24.2
+go 1.23.0
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.3.0

@@ -116,7 +116,7 @@ func TestGetProjects(t *testing.T) {
 			payload: &projsvc.GetProjectsPayload{
 				PageToken: stringPtr("token"),
 			},
-			setupMocks:    func(mockKV *MockKeyValue) {},
+			setupMocks:    func(_ *MockKeyValue) {},
 			expectedError: true,
 		},
 	}
@@ -546,11 +546,9 @@ func TestJWTAuth(t *testing.T) {
 
 			if tt.expectedError {
 				assert.Error(t, err)
-			} else {
+			} else if assert.NoError(t, err) {
 				// For valid tokens, we expect the context to be modified
-				if assert.NoError(t, err) {
-					assert.NotEqual(t, context.Background(), ctx)
-				}
+				assert.NotEqual(t, context.Background(), ctx)
 			}
 		})
 	}

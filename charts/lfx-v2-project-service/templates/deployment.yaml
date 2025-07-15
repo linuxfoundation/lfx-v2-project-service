@@ -19,10 +19,12 @@ spec:
       containers:
         - name: app
           image: linuxfoundation/lfx-v2-project-service:0.1.0
-          imagePullPolicy: Never # todo: fix this
+          securityContext:
+            allowPrivilegeEscalation: false
+          imagePullPolicy: Never  # todo: fix this
           env:
             - name: NATS_URL
-              value: "nats://nats.lfx.svc.cluster.local:4222"
+              value: {{.Values.nats.url}}
           ports:
             - containerPort: 8080
               name: web

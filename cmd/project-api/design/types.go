@@ -1,11 +1,14 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
+
 package design
 
 import (
+	//nolint:staticcheck // ST1001: the recommended way of using the goa GSL package is with the . import
 	. "goa.design/goa/v3/dsl"
 )
 
+// Project is the DSL type for a project.
 var Project = Type("Project", func() {
 	Description("A representation of LFX Projects.")
 
@@ -30,6 +33,7 @@ var Project = Type("Project", func() {
 	})
 })
 
+// BadRequestError is the DSL type for a bad request error.
 var BadRequestError = Type("BadRequestError", func() {
 	Attribute("code", String, "HTTP status code", func() {
 		Example("400")
@@ -40,6 +44,7 @@ var BadRequestError = Type("BadRequestError", func() {
 	Required("code", "message")
 })
 
+// NotFoundError is the DSL type for a not found error.
 var NotFoundError = Type("NotFoundError", func() {
 	Attribute("code", String, "HTTP status code", func() {
 		Example("404")
@@ -50,6 +55,7 @@ var NotFoundError = Type("NotFoundError", func() {
 	Required("code", "message")
 })
 
+// ConflictError is the DSL type for a conflict error.
 var ConflictError = Type("ConflictError", func() {
 	Attribute("code", String, "HTTP status code", func() {
 		Example("409")
@@ -60,6 +66,7 @@ var ConflictError = Type("ConflictError", func() {
 	Required("code", "message")
 })
 
+// InternalServerError is the DSL type for an internal server error.
 var InternalServerError = Type("InternalServerError", func() {
 	Attribute("code", String, "HTTP status code", func() {
 		Example("500")
@@ -70,6 +77,7 @@ var InternalServerError = Type("InternalServerError", func() {
 	Required("code", "message")
 })
 
+// ServiceUnavailableError is the DSL type for a service unavailable error.
 var ServiceUnavailableError = Type("ServiceUnavailableError", func() {
 	Attribute("code", String, "HTTP status code", func() {
 		Example("503")

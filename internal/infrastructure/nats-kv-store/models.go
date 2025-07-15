@@ -1,6 +1,7 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
+// Package natskvstore contains the models for the NATS key-value store.
 package natskvstore
 
 import "time"

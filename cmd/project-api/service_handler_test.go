@@ -59,7 +59,7 @@ func TestHandleProjectGetName(t *testing.T) {
 		{
 			name:      "success",
 			projectID: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
-			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
+			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				projectData := `{"uid":"550e8400-e29b-41d4-a716-446655440000","slug":"test-project","name":"Test Project","description":"Test description","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&MockKeyValueEntry{value: []byte(projectData)}, nil)
 			},
@@ -68,26 +68,26 @@ func TestHandleProjectGetName(t *testing.T) {
 		{
 			name:      "invalid UUID",
 			projectID: "invalid-uuid",
-			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
+			setupMocks: func(_ *ProjectsService, _ *MockNatsMsg) {
 				// No mocks needed for invalid UUID case
 			},
-			expectedError: false,
+			expectedError: true,
 		},
 		{
 			name:      "NATS KV not initialized",
 			projectID: "550e8400-e29b-41d4-a716-446655440000",
-			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
+			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				service.projectsKV = nil
 			},
-			expectedError: false,
+			expectedError: true,
 		},
 		{
 			name:      "error getting project",
 			projectID: "550e8400-e29b-41d4-a716-446655440000",
-			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
+			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&MockKeyValueEntry{}, assert.AnError)
 			},
-			expectedError: false,
+			expectedError: true,
 		},
 	}
 
@@ -99,7 +99,12 @@ func TestHandleProjectGetName(t *testing.T) {
 
 			// Test that the function doesn't panic and handles the message
 			assert.NotPanics(t, func() {
-				service.HandleProjectGetName(msg)
+				_, err := service.HandleProjectGetName(msg)
+				if tt.expectedError {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+				}
 			})
 
 			// For success case, verify that the mock was called as expected
@@ -121,7 +126,7 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 		{
 			name:        "success",
 			projectSlug: "test-project",
-			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
+			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				projectUID := "550e8400-e29b-41d4-a716-446655440000"
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{value: []byte(projectUID)}, nil)
 			},
@@ -130,18 +135,18 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 		{
 			name:        "NATS KV not initialized",
 			projectSlug: "test-project",
-			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
+			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				service.projectsKV = nil
 			},
-			expectedError: false,
+			expectedError: true,
 		},
 		{
 			name:        "error getting project",
 			projectSlug: "test-project",
-			setupMocks: func(service *ProjectsService, msg *MockNatsMsg) {
+			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{}, assert.AnError)
 			},
-			expectedError: false,
+			expectedError: true,
 		},
 	}
 
@@ -153,7 +158,12 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 
 			// Test that the function doesn't panic and handles the message
 			assert.NotPanics(t, func() {
-				service.HandleProjectSlugToUID(msg)
+				_, err := service.HandleProjectSlugToUID(msg)
+				if tt.expectedError {
+					assert.Error(t, err)
+				} else {
+					assert.NoError(t, err)
+				}
 			})
 
 			// For success case, verify that the mock was called as expected

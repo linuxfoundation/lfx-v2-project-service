@@ -52,21 +52,39 @@ func (s *ProjectsService) HandleNatsMessage(msg INatsMsg) {
 		response, err = s.HandleProjectGetName(msg)
 		if err != nil {
 			s.logger.With(errKey, err).Error("error handling project get name")
-			msg.Respond(nil)
+			err = msg.Respond(nil)
+			if err != nil {
+				s.logger.With(errKey, err).Error("error responding to NATS message")
+			}
 			return
 		}
-		msg.Respond(response)
+		err = msg.Respond(response)
+		if err != nil {
+			s.logger.With(errKey, err).Error("error responding to NATS message")
+			return
+		}
 	case fmt.Sprintf("%s%s", s.lfxEnvironment, constants.ProjectSlugToUIDSubject):
 		response, err = s.HandleProjectSlugToUID(msg)
 		if err != nil {
 			s.logger.With(errKey, err).Error("error handling project slug to UID")
-			msg.Respond(nil)
+			err = msg.Respond(nil)
+			if err != nil {
+				s.logger.With(errKey, err).Error("error responding to NATS message")
+			}
 			return
 		}
-		msg.Respond(response)
+		err = msg.Respond(response)
+		if err != nil {
+			s.logger.With(errKey, err).Error("error responding to NATS message")
+			return
+		}
 	default:
 		s.logger.With("subject", subject).Warn("unknown subject")
-		msg.Respond(nil)
+		err = msg.Respond(nil)
+		if err != nil {
+			s.logger.With(errKey, err).Error("error responding to NATS message")
+			return
+		}
 	}
 
 	msgLogger.With("response", response).DebugContext(context.Background(), "responded to NATS message")
