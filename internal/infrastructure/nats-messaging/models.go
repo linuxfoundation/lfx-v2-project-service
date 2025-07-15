@@ -1,3 +1,6 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
 package natsmessaging
 
 // TransactionAction is a type for the action of a project transaction.

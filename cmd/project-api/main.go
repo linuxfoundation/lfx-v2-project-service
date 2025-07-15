@@ -89,11 +89,24 @@ func main() {
 	mux := goahttp.NewMuxer()
 	requestDecoder := goahttp.RequestDecoder
 	responseEncoder := goahttp.ResponseEncoder
+
+	// Create a custom encoder that sets ETag header for get-one-project
+	customEncoder := func(ctx context.Context, w http.ResponseWriter) goahttp.Encoder {
+		encoder := responseEncoder(ctx, w)
+
+		// Check if we have an ETag in the context
+		if etag, ok := ctx.Value(constants.ETagContextID).(string); ok {
+			w.Header().Set("ETag", etag)
+		}
+
+		return encoder
+	}
+
 	handler := genhttp.New(
 		endpoints,
 		mux,
 		requestDecoder,
-		responseEncoder,
+		customEncoder,
 		nil,
 		nil,
 		http.FS(StaticFS))
@@ -244,7 +257,11 @@ func getKeyValueStore(ctx context.Context, svc *ProjectsService, natsConn *nats.
 
 // createNatsSubcriptions creates the NATS subscriptions for the project service.
 func createNatsSubcriptions(svc *ProjectsService, natsConn *nats.Conn) error {
-	svc.logger.With("nats_url", natsConn.ConnectedUrl()).With("servers", natsConn.Servers()).Info("subscribing to NATS subjects")
+	svc.logger.
+		With("nats_url", natsConn.ConnectedUrl()).
+		With("servers", natsConn.Servers()).
+		With("subjects", []string{constants.ProjectGetNameSubject, constants.ProjectSlugToUIDSubject}).
+		Info("subscribing to NATS subjects")
 	queueName := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectsAPIQueue)
 
 	// Get project name subscription
