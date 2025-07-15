@@ -27,8 +27,9 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_TRIVY
   - REPOSITORY_CHECKOV
   - REPOSITORY_DEVSKIM
+YAML_YAMLLINT_CONFIG_FILE: .yamllint
 REPOSITORY_KICS_ARGUMENTS: >-
-  scan --no-progress --exclude-severities "medium,low,info,trace"
+  scan --no-progress --exclude-severities="medium,low,info,trace" --exclude-paths="./cmd/project-api/gen/*"
 SPELL_CSPELL_ANALYZE_FILE_NAMES: false
 # Make sure Vale is setup to run with the styles it needs.
 SPELL_VALE_PRE_COMMANDS:
@@ -36,7 +37,7 @@ SPELL_VALE_PRE_COMMANDS:
     cwd: "workspace"
   - command: vale sync
     cwd: "workspace"
-
+API_SPECTRAL_FILTER_REGEX_EXCLUDE: "gen/"
 # Ignore YAML files with templating macros; these typically fail linting and/or
 # schema checking.
 FILTER_REGEX_EXCLUDE: '(templates/.*\.yml|templates/.*\.yaml)'

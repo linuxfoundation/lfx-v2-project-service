@@ -1,0 +1,769 @@
+openapi: 3.0.3
+info:
+    title: Goa API
+    version: 0.0.1
+servers:
+    - url: http://localhost:80
+      description: Default server for project-service
+paths:
+    /livez:
+        get:
+            tags:
+                - project-service
+            summary: livez project-service
+            description: Check if the service is alive.
+            operationId: project-service#livez
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        text/plain:
+                            schema:
+                                type: string
+                                example: OK
+                                format: binary
+                            example: OK
+    /openapi.json:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi3.json
+            operationId: project-service#/openapi.json
+            responses:
+                "200":
+                    description: File downloaded
+    /projects:
+        get:
+            tags:
+                - project-service
+            summary: get-projects project-service
+            description: Get all projects.
+            operationId: project-service#get-projects
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: page_token
+                  in: query
+                  description: Token to get the next page of results, if available
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Token to get the next page of results, if available
+                    example: '****'
+                  example: '****'
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/GetProjectsRequestBody'
+                        example:
+                            page_size: 10
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        Cache-Control:
+                            description: Cache control header
+                            schema:
+                                type: string
+                                description: Cache control header
+                                example: public, max-age=300
+                            example: public, max-age=300
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetProjectsResponseBody'
+                            example:
+                                page_token: '****'
+                                projects:
+                                    - description: project foo is a project about bar
+                                      id: "123"
+                                      managers:
+                                        - user123
+                                        - user456
+                                      name: Foo Foundation
+                                      slug: project-slug
+                                    - description: project foo is a project about bar
+                                      id: "123"
+                                      managers:
+                                        - user123
+                                        - user456
+                                      name: Foo Foundation
+                                      slug: project-slug
+                                    - description: project foo is a project about bar
+                                      id: "123"
+                                      managers:
+                                        - user123
+                                        - user456
+                                      name: Foo Foundation
+                                      slug: project-slug
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+        post:
+            tags:
+                - project-service
+            summary: create-project project-service
+            description: Create a new project.
+            operationId: project-service#create-project
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateProjectRequestBody'
+                        example:
+                            description: project foo is a project about bar
+                            managers:
+                                - user123
+                                - user456
+                            name: Foo Foundation
+                            slug: project-slug
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Project'
+                            example:
+                                description: project foo is a project about bar
+                                id: "123"
+                                managers:
+                                    - user123
+                                    - user456
+                                name: Foo Foundation
+                                slug: project-slug
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "409":
+                    description: 'Conflict: Conflict'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{project_id}:
+        delete:
+            tags:
+                - project-service
+            summary: delete-project project-service
+            description: Delete an existing project.
+            operationId: project-service#delete-project
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_id
+                  in: path
+                  description: Project ID
+                  required: true
+                  schema:
+                    type: string
+                    description: Project ID
+                    example: "123"
+                  example: "123"
+                - name: ETag
+                  in: header
+                  description: ETag header value
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: ETag header value
+                    example: "123"
+                  example: "123"
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+        get:
+            tags:
+                - project-service
+            summary: get-one-project project-service
+            description: Get a single project.
+            operationId: project-service#get-one-project
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_id
+                  in: path
+                  description: Project ID
+                  required: true
+                  schema:
+                    type: string
+                    description: Project ID
+                    example: "123"
+                  example: "123"
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: Doloribus ratione debitis molestiae ut dolorum id.
+                            example: Magnam quos eos expedita voluptas et quibusdam.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Project'
+                            example:
+                                description: project foo is a project about bar
+                                id: "123"
+                                managers:
+                                    - user123
+                                    - user456
+                                name: Foo Foundation
+                                slug: project-slug
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+        put:
+            tags:
+                - project-service
+            summary: update-project project-service
+            description: Update an existing project.
+            operationId: project-service#update-project
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_id
+                  in: path
+                  description: Project ID
+                  required: true
+                  schema:
+                    type: string
+                    description: Project ID
+                    example: "123"
+                  example: "123"
+                - name: ETag
+                  in: header
+                  description: ETag header value
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: ETag header value
+                    example: "123"
+                  example: "123"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                description:
+                                    type: string
+                                    description: A description of the project
+                                    example: project foo is a project about bar
+                                managers:
+                                    type: array
+                                    items:
+                                        type: string
+                                        example: Aperiam omnis tenetur.
+                                    description: A list of project managers
+                                    example:
+                                        - user123
+                                        - user456
+                                name:
+                                    type: string
+                                    description: The pretty name of the project
+                                    example: Foo Foundation
+                                slug:
+                                    type: string
+                                    description: Project slug, a short slugified name of the project
+                                    example: project-slug
+                            example:
+                                description: project foo is a project about bar
+                                managers:
+                                    - user123
+                                    - user456
+                                name: Foo Foundation
+                                slug: project-slug
+                        example:
+                            description: project foo is a project about bar
+                            managers:
+                                - user123
+                                - user456
+                            name: Foo Foundation
+                            slug: project-slug
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Project'
+                            example:
+                                description: project foo is a project about bar
+                                id: "123"
+                                managers:
+                                    - user123
+                                    - user456
+                                name: Foo Foundation
+                                slug: project-slug
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /readyz:
+        get:
+            tags:
+                - project-service
+            summary: readyz project-service
+            description: Check if the service is able to take inbound requests.
+            operationId: project-service#readyz
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        text/plain:
+                            schema:
+                                type: string
+                                example: OK
+                                format: binary
+                            example: OK
+                "503":
+                    description: 'ServiceUnavailable: Service is unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+components:
+    schemas:
+        BadRequestError:
+            type: object
+            properties:
+                code:
+                    type: string
+                    description: HTTP status code
+                    example: "400"
+                message:
+                    type: string
+                    description: Error message
+                    example: The request was invalid.
+            example:
+                code: "400"
+                message: The request was invalid.
+            required:
+                - code
+                - message
+        ConflictError:
+            type: object
+            properties:
+                code:
+                    type: string
+                    description: HTTP status code
+                    example: "409"
+                message:
+                    type: string
+                    description: Error message
+                    example: The resource already exists.
+            example:
+                code: "409"
+                message: The resource already exists.
+            required:
+                - code
+                - message
+        CreateProjectRequestBody:
+            type: object
+            properties:
+                description:
+                    type: string
+                    description: A description of the project
+                    example: project foo is a project about bar
+                managers:
+                    type: array
+                    items:
+                        type: string
+                        example: Eum ipsam.
+                    description: A list of project managers
+                    example:
+                        - user123
+                        - user456
+                name:
+                    type: string
+                    description: The pretty name of the project
+                    example: Foo Foundation
+                slug:
+                    type: string
+                    description: Project slug, a short slugified name of the project
+                    example: project-slug
+            example:
+                description: project foo is a project about bar
+                managers:
+                    - user123
+                    - user456
+                name: Foo Foundation
+                slug: project-slug
+            required:
+                - slug
+                - name
+                - managers
+        GetProjectsRequestBody:
+            type: object
+            properties:
+                page_size:
+                    type: integer
+                    description: Page size
+                    default: 10
+                    example: 10
+                    format: int64
+                    minimum: 1
+                    maximum: 100
+            example:
+                page_size: 10
+        GetProjectsResponseBody:
+            type: object
+            properties:
+                page_token:
+                    type: string
+                    description: Opaque token if more results are available
+                    example: '****'
+                projects:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Project'
+                    description: Resources found
+                    example:
+                        - description: project foo is a project about bar
+                          id: "123"
+                          managers:
+                            - user123
+                            - user456
+                          name: Foo Foundation
+                          slug: project-slug
+                        - description: project foo is a project about bar
+                          id: "123"
+                          managers:
+                            - user123
+                            - user456
+                          name: Foo Foundation
+                          slug: project-slug
+                        - description: project foo is a project about bar
+                          id: "123"
+                          managers:
+                            - user123
+                            - user456
+                          name: Foo Foundation
+                          slug: project-slug
+            example:
+                page_token: '****'
+                projects:
+                    - description: project foo is a project about bar
+                      id: "123"
+                      managers:
+                        - user123
+                        - user456
+                      name: Foo Foundation
+                      slug: project-slug
+                    - description: project foo is a project about bar
+                      id: "123"
+                      managers:
+                        - user123
+                        - user456
+                      name: Foo Foundation
+                      slug: project-slug
+            required:
+                - projects
+        InternalServerError:
+            type: object
+            properties:
+                code:
+                    type: string
+                    description: HTTP status code
+                    example: "500"
+                message:
+                    type: string
+                    description: Error message
+                    example: An internal server error occurred.
+            example:
+                code: "500"
+                message: An internal server error occurred.
+            required:
+                - code
+                - message
+        NotFoundError:
+            type: object
+            properties:
+                code:
+                    type: string
+                    description: HTTP status code
+                    example: "404"
+                message:
+                    type: string
+                    description: Error message
+                    example: The resource was not found.
+            example:
+                code: "404"
+                message: The resource was not found.
+            required:
+                - code
+                - message
+        Project:
+            type: object
+            properties:
+                description:
+                    type: string
+                    description: A description of the project
+                    example: project foo is a project about bar
+                id:
+                    type: string
+                    description: Project ID -- v2 id, not related to v1 id directly
+                    example: "123"
+                managers:
+                    type: array
+                    items:
+                        type: string
+                        example: Quo illo voluptatibus.
+                    description: A list of project managers
+                    example:
+                        - user123
+                        - user456
+                name:
+                    type: string
+                    description: The pretty name of the project
+                    example: Foo Foundation
+                slug:
+                    type: string
+                    description: Project slug, a short slugified name of the project
+                    example: project-slug
+            description: A representation of LFX Projects.
+            example:
+                description: project foo is a project about bar
+                id: "123"
+                managers:
+                    - user123
+                    - user456
+                name: Foo Foundation
+                slug: project-slug
+        ServiceUnavailableError:
+            type: object
+            properties:
+                code:
+                    type: string
+                    description: HTTP status code
+                    example: "503"
+                message:
+                    type: string
+                    description: Error message
+                    example: The service is unavailable.
+            example:
+                code: "503"
+                message: The service is unavailable.
+            required:
+                - code
+                - message
+    securitySchemes:
+        jwt_header_Authorization:
+            type: http
+            description: Heimdall authorization
+            scheme: bearer
+tags:
+    - name: project-service
+      description: The project service provides LFX Project resources.
