@@ -6,6 +6,9 @@
 
 FROM --platform=$BUILDPLATFORM cgr.dev/chainguard/go:latest AS builder
 
+# Expose port 8080 for the project service API.
+EXPOSE 8080
+
 # Set necessary environment variables needed for our image. Allow building to
 # other architectures via cross-compilation build-arg.
 ARG TARGETARCH
@@ -22,7 +25,7 @@ RUN go mod download
 COPY . .
 
 # Build the packages
-RUN go build -o /go/bin/project-svc -trimpath -ldflags="-w -s" lfx-v2-project-service
+RUN go build -o /go/bin/project-svc -trimpath -ldflags="-w -s" github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api
 
 # Run our go binary standalone
 FROM cgr.dev/chainguard/static:latest
@@ -30,6 +33,6 @@ FROM cgr.dev/chainguard/static:latest
 # Implicit with base image; setting explicitly for linters.
 USER nonroot
 
-COPY --from=builder /go/bin/project-svc /project-svc
+COPY --from=builder /go/bin/project-svc /cmd/project-api
 
-ENTRYPOINT ["/project-svc"]
+ENTRYPOINT ["/cmd/project-api"]

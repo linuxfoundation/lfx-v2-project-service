@@ -137,7 +137,11 @@ var _ = Service("project-service", func() {
 			})
 		})
 
-		Result(Project)
+		Result(func() {
+			Attribute("project", Project)
+			Attribute("etag", String, "ETag header value")
+			Required("project")
+		})
 
 		Error("NotFound", NotFoundError, "Resource not found")
 		Error("InternalServerError", InternalServerError, "Internal server error")
@@ -148,7 +152,10 @@ var _ = Service("project-service", func() {
 			Param("version:v")
 			Param("project_id")
 			Header("bearer_token:Authorization")
-			Response(StatusOK)
+			Response(StatusOK, func() {
+				Body("project")
+				Header("etag:ETag")
+			})
 			Response("NotFound", StatusNotFound)
 			Response("InternalServerError", StatusInternalServerError)
 			Response("ServiceUnavailable", StatusServiceUnavailable)
@@ -164,6 +171,9 @@ var _ = Service("project-service", func() {
 			Token("bearer_token", String, func() {
 				Description("JWT token issued by Heimdall")
 				Example("eyJhbGci...")
+			})
+			Attribute("etag", String, "ETag header value", func() {
+				Example("123")
 			})
 			Attribute("project_id", String, "Project ID", func() {
 				Example("123")
@@ -207,6 +217,7 @@ var _ = Service("project-service", func() {
 				Attribute("managers")
 			})
 			Header("bearer_token:Authorization")
+			Header("etag:ETag")
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)
@@ -225,6 +236,9 @@ var _ = Service("project-service", func() {
 				Description("JWT token issued by Heimdall")
 				Example("eyJhbGci...")
 			})
+			Attribute("etag", String, "ETag header value", func() {
+				Example("123")
+			})
 			Attribute("project_id", String, "Project ID", func() {
 				Example("123")
 			})
@@ -235,6 +249,7 @@ var _ = Service("project-service", func() {
 		})
 
 		Error("NotFound", NotFoundError, "Resource not found")
+		Error("BadRequest", BadRequestError, "Bad request")
 		Error("InternalServerError", InternalServerError, "Internal server error")
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
@@ -245,8 +260,10 @@ var _ = Service("project-service", func() {
 				Param("project_id")
 			})
 			Header("bearer_token:Authorization")
+			Header("etag:ETag")
 			Response(StatusNoContent)
 			Response("NotFound", StatusNotFound)
+			Response("BadRequest", StatusBadRequest)
 			Response("InternalServerError", StatusInternalServerError)
 			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})

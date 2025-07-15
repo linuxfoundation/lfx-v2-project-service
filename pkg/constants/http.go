@@ -5,11 +5,15 @@ package constants
 
 type requestIDHeaderType string
 
+// RequestIDHeader is the header name for the request ID
+const RequestIDHeader requestIDHeaderType = "X-REQUEST-ID"
+
 type contextID int
 
-const (
-	// RequestIDHeader is the header name for the request ID
-	RequestIDHeader requestIDHeaderType = "X-REQUEST-ID"
-	// PrincipalContextID
-	PrincipalContextID contextID = iota
-)
+// PrincipalContextID is the context ID for the principal
+const PrincipalContextID contextID = iota
+
+type contextEtag string
+
+// ETagContextID is the context ID for the ETag
+const ETagContextID contextEtag = "etag"

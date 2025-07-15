@@ -4,7 +4,7 @@
 apiVersion: heimdall.dadrus.github.com/v1alpha4
 kind: RuleSet
 metadata:
-  name: query-svc
+  name: lfx-v2-project-service
   namespace: lfx
 spec:
   rules:
@@ -12,8 +12,15 @@ spec:
       match:
         methods:
           - GET
+          - POST
+          - PUT
+          - DELETE
         routes:
-          - path: /project
+          - path: /projects
+          - path: /projects/:id
+            path_params:
+              - name: id
+                type: string
       execute:
         - authenticator: authelia
         - authenticator: anonymous_authenticator
