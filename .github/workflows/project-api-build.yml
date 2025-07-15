@@ -31,14 +31,18 @@ jobs:
           TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           TOKEN_USER: ${{ secrets.PERSONAL_ACCESS_TOKEN_USER }}
 
-      - name: Setup
-        run: make setup-dev
-
       - name: Download Dependencies
         run: make deps
+        working-directory: cmd/project-api
+
+      - name: Generate service code
+        run: make apigen
+        working-directory: cmd/project-api
 
       - name: Build
         run: make build
+        working-directory: cmd/project-api
 
       - name: Test
         run: make test
+        working-directory: cmd/project-api
