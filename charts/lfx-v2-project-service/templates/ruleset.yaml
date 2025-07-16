@@ -18,9 +18,6 @@ spec:
         routes:
           - path: /projects
           - path: /projects/:id
-            path_params:
-              - name: id
-                type: string
       execute:
         - authenticator: authelia
         - authenticator: anonymous_authenticator

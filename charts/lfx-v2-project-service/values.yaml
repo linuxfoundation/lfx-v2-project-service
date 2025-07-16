@@ -5,3 +5,4 @@
 nats:
   # url is the URL of the NATS server
   url: nats://nats.lfx.svc.cluster.local:4222
+  projects_kv_bucket_name: projects

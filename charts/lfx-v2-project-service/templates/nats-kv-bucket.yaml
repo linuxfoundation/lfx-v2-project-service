@@ -1,0 +1,14 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: projects
+  namespace: lfx
+spec:
+  bucket: projects
+  history: 20
+  storage: file
+  maxBytes: 2048
+  compression: true
