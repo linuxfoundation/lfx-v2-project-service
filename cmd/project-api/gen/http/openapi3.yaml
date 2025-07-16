@@ -51,23 +51,6 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: page_token
-                  in: query
-                  description: Token to get the next page of results, if available
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Token to get the next page of results, if available
-                    example: '****'
-                  example: '****'
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/GetProjectsRequestBody'
-                        example:
-                            page_size: 10
             responses:
                 "200":
                     description: OK response.
@@ -84,24 +67,23 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/GetProjectsResponseBody'
                             example:
-                                page_token: '****'
                                 projects:
                                     - description: project foo is a project about bar
-                                      id: "123"
+                                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       managers:
                                         - user123
                                         - user456
                                       name: Foo Foundation
                                       slug: project-slug
                                     - description: project foo is a project about bar
-                                      id: "123"
+                                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       managers:
                                         - user123
                                         - user456
                                       name: Foo Foundation
                                       slug: project-slug
                                     - description: project foo is a project about bar
-                                      id: "123"
+                                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       managers:
                                         - user123
                                         - user456
@@ -176,7 +158,7 @@ paths:
                                 $ref: '#/components/schemas/Project'
                             example:
                                 description: project foo is a project about bar
-                                id: "123"
+                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 managers:
                                     - user123
                                     - user456
@@ -220,7 +202,7 @@ paths:
                                 message: The service is unavailable.
             security:
                 - jwt_header_Authorization: []
-    /projects/{project_id}:
+    /projects/{id}:
         delete:
             tags:
                 - project-service
@@ -239,15 +221,16 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: project_id
+                - name: id
                   in: path
-                  description: Project ID
+                  description: Project ID -- v2 id, not related to v1 id directly
                   required: true
                   schema:
                     type: string
-                    description: Project ID
-                    example: "123"
-                  example: "123"
+                    description: Project ID -- v2 id, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 - name: ETag
                   in: header
                   description: ETag header value
@@ -316,15 +299,16 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: project_id
+                - name: id
                   in: path
-                  description: Project ID
+                  description: Project ID -- v2 id, not related to v1 id directly
                   required: true
                   schema:
                     type: string
-                    description: Project ID
-                    example: "123"
-                  example: "123"
+                    description: Project ID -- v2 id, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             responses:
                 "200":
                     description: OK response.
@@ -342,7 +326,7 @@ paths:
                                 $ref: '#/components/schemas/Project'
                             example:
                                 description: project foo is a project about bar
-                                id: "123"
+                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 managers:
                                     - user123
                                     - user456
@@ -395,15 +379,16 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: project_id
+                - name: id
                   in: path
-                  description: Project ID
+                  description: Project ID -- v2 id, not related to v1 id directly
                   required: true
                   schema:
                     type: string
-                    description: Project ID
-                    example: "123"
-                  example: "123"
+                    description: Project ID -- v2 id, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 - name: ETag
                   in: header
                   description: ETag header value
@@ -429,7 +414,7 @@ paths:
                                     items:
                                         type: string
                                         example: Aperiam omnis tenetur.
-                                    description: A list of project managers
+                                    description: A list of project managers by their user IDs
                                     example:
                                         - user123
                                         - user456
@@ -441,6 +426,8 @@ paths:
                                     type: string
                                     description: Project slug, a short slugified name of the project
                                     example: project-slug
+                                    format: regexp
+                                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
                             example:
                                 description: project foo is a project about bar
                                 managers:
@@ -464,7 +451,7 @@ paths:
                                 $ref: '#/components/schemas/Project'
                             example:
                                 description: project foo is a project about bar
-                                id: "123"
+                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 managers:
                                     - user123
                                     - user456
@@ -582,7 +569,7 @@ components:
                     items:
                         type: string
                         example: Eum ipsam.
-                    description: A list of project managers
+                    description: A list of project managers by their user IDs
                     example:
                         - user123
                         - user456
@@ -594,6 +581,8 @@ components:
                     type: string
                     description: Project slug, a short slugified name of the project
                     example: project-slug
+                    format: regexp
+                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
             example:
                 description: project foo is a project about bar
                 managers:
@@ -603,28 +592,12 @@ components:
                 slug: project-slug
             required:
                 - slug
+                - description
                 - name
                 - managers
-        GetProjectsRequestBody:
-            type: object
-            properties:
-                page_size:
-                    type: integer
-                    description: Page size
-                    default: 10
-                    example: 10
-                    format: int64
-                    minimum: 1
-                    maximum: 100
-            example:
-                page_size: 10
         GetProjectsResponseBody:
             type: object
             properties:
-                page_token:
-                    type: string
-                    description: Opaque token if more results are available
-                    example: '****'
                 projects:
                     type: array
                     items:
@@ -632,38 +605,37 @@ components:
                     description: Resources found
                     example:
                         - description: project foo is a project about bar
-                          id: "123"
+                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           managers:
                             - user123
                             - user456
                           name: Foo Foundation
                           slug: project-slug
                         - description: project foo is a project about bar
-                          id: "123"
+                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           managers:
                             - user123
                             - user456
                           name: Foo Foundation
                           slug: project-slug
                         - description: project foo is a project about bar
-                          id: "123"
+                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           managers:
                             - user123
                             - user456
                           name: Foo Foundation
                           slug: project-slug
             example:
-                page_token: '****'
                 projects:
                     - description: project foo is a project about bar
-                      id: "123"
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       managers:
                         - user123
                         - user456
                       name: Foo Foundation
                       slug: project-slug
                     - description: project foo is a project about bar
-                      id: "123"
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       managers:
                         - user123
                         - user456
@@ -715,13 +687,14 @@ components:
                 id:
                     type: string
                     description: Project ID -- v2 id, not related to v1 id directly
-                    example: "123"
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
                 managers:
                     type: array
                     items:
                         type: string
                         example: Quo illo voluptatibus.
-                    description: A list of project managers
+                    description: A list of project managers by their user IDs
                     example:
                         - user123
                         - user456
@@ -733,10 +706,12 @@ components:
                     type: string
                     description: Project slug, a short slugified name of the project
                     example: project-slug
+                    format: regexp
+                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
             description: A representation of LFX Projects.
             example:
                 description: project foo is a project about bar
-                id: "123"
+                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 managers:
                     - user123
                     - user456

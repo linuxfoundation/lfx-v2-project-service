@@ -111,14 +111,6 @@ func TestGetProjects(t *testing.T) {
 			},
 			expectedError: true,
 		},
-		{
-			name: "page token not supported",
-			payload: &projsvc.GetProjectsPayload{
-				PageToken: stringPtr("token"),
-			},
-			setupMocks:    func(_ *MockKeyValue) {},
-			expectedError: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -165,7 +157,7 @@ func TestCreateProject(t *testing.T) {
 			payload: &projsvc.CreateProjectPayload{
 				Slug:        "test-project",
 				Name:        "Test Project",
-				Description: stringPtr("Test description"),
+				Description: "Test description",
 				Managers:    []string{"user1", "user2"},
 			},
 			setupMocks: func(service *ProjectsService) {
@@ -185,7 +177,7 @@ func TestCreateProject(t *testing.T) {
 			payload: &projsvc.CreateProjectPayload{
 				Slug:        "existing-project",
 				Name:        "Test Project",
-				Description: stringPtr("Test description"),
+				Description: "Test description",
 				Managers:    []string{"user1"},
 			},
 			setupMocks: func(service *ProjectsService) {
@@ -199,7 +191,7 @@ func TestCreateProject(t *testing.T) {
 			payload: &projsvc.CreateProjectPayload{
 				Slug:        "test-project",
 				Name:        "Test Project",
-				Description: stringPtr("Test description"),
+				Description: "Test description",
 				Managers:    []string{"user1"},
 			},
 			setupMocks: func(service *ProjectsService) {
@@ -224,9 +216,7 @@ func TestCreateProject(t *testing.T) {
 				assert.NotNil(t, result)
 				assert.Equal(t, tt.payload.Slug, *result.Slug)
 				assert.Equal(t, tt.payload.Name, *result.Name)
-				if tt.payload.Description != nil {
-					assert.Equal(t, *tt.payload.Description, *result.Description)
-				}
+				assert.Equal(t, tt.payload.Description, *result.Description)
 				assert.Equal(t, tt.payload.Managers, result.Managers)
 				assert.NotEmpty(t, *result.ID)
 			}
@@ -245,7 +235,7 @@ func TestGetOneProject(t *testing.T) {
 		{
 			name: "success",
 			payload: &projsvc.GetOneProjectPayload{
-				ProjectID: stringPtr("project-1"),
+				ID: stringPtr("project-1"),
 			},
 			setupMocks: func(mockKV *MockKeyValue) {
 				projectData := `{"uid":"project-1","slug":"test-1","name":"Test Project","description":"Test description","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
@@ -257,7 +247,7 @@ func TestGetOneProject(t *testing.T) {
 		{
 			name: "project not found",
 			payload: &projsvc.GetOneProjectPayload{
-				ProjectID: stringPtr("nonexistent"),
+				ID: stringPtr("nonexistent"),
 			},
 			setupMocks: func(mockKV *MockKeyValue) {
 				mockKV.On("Get", mock.Anything, "nonexistent").Return(&MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
@@ -267,7 +257,7 @@ func TestGetOneProject(t *testing.T) {
 		{
 			name: "error getting project",
 			payload: &projsvc.GetOneProjectPayload{
-				ProjectID: stringPtr("project-1"),
+				ID: stringPtr("project-1"),
 			},
 			setupMocks: func(mockKV *MockKeyValue) {
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{}, assert.AnError)
@@ -311,10 +301,10 @@ func TestUpdateProject(t *testing.T) {
 			name: "success",
 			payload: &projsvc.UpdateProjectPayload{
 				Etag:        stringPtr("1"),
-				ProjectID:   stringPtr("project-1"),
+				ID:          stringPtr("project-1"),
 				Slug:        "updated-slug",
 				Name:        "Updated Project",
-				Description: stringPtr("Updated description"),
+				Description: "Updated description",
 				Managers:    []string{"user1", "user2"},
 			},
 			setupMocks: func(service *ProjectsService) {
@@ -333,8 +323,8 @@ func TestUpdateProject(t *testing.T) {
 		{
 			name: "etag header is invalid",
 			payload: &projsvc.UpdateProjectPayload{
-				ProjectID: stringPtr("project-1"),
-				Etag:      stringPtr("invalid"),
+				ID:   stringPtr("project-1"),
+				Etag: stringPtr("invalid"),
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*MockKeyValue)
@@ -346,10 +336,10 @@ func TestUpdateProject(t *testing.T) {
 		{
 			name: "project not found",
 			payload: &projsvc.UpdateProjectPayload{
-				ProjectID: stringPtr("nonexistent"),
-				Slug:      "test",
-				Name:      "Test",
-				Managers:  []string{"user1"},
+				ID:       stringPtr("nonexistent"),
+				Slug:     "test",
+				Name:     "Test",
+				Managers: []string{"user1"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*MockKeyValue)
@@ -373,9 +363,7 @@ func TestUpdateProject(t *testing.T) {
 				if assert.NotNil(t, result) {
 					assert.Equal(t, tt.payload.Slug, *result.Slug)
 					assert.Equal(t, tt.payload.Name, *result.Name)
-					if tt.payload.Description != nil {
-						assert.Equal(t, *tt.payload.Description, *result.Description)
-					}
+					assert.Equal(t, tt.payload.Description, *result.Description)
 					assert.Equal(t, tt.payload.Managers, result.Managers)
 				}
 			}
@@ -393,8 +381,8 @@ func TestDeleteProject(t *testing.T) {
 		{
 			name: "success",
 			payload: &projsvc.DeleteProjectPayload{
-				ProjectID: stringPtr("project-1"),
-				Etag:      stringPtr("1"),
+				ID:   stringPtr("project-1"),
+				Etag: stringPtr("1"),
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockNats := service.natsConn.(*MockNATSConn)
@@ -412,8 +400,8 @@ func TestDeleteProject(t *testing.T) {
 		{
 			name: "etag header is invalid",
 			payload: &projsvc.DeleteProjectPayload{
-				ProjectID: stringPtr("project-1"),
-				Etag:      stringPtr("invalid"),
+				ID:   stringPtr("project-1"),
+				Etag: stringPtr("invalid"),
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*MockKeyValue)
@@ -425,7 +413,7 @@ func TestDeleteProject(t *testing.T) {
 		{
 			name: "project not found",
 			payload: &projsvc.DeleteProjectPayload{
-				ProjectID: stringPtr("nonexistent"),
+				ID: stringPtr("nonexistent"),
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*MockKeyValue)

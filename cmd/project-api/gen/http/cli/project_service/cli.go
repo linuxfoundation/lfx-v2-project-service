@@ -29,9 +29,7 @@ func UsageCommands() string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + ` project-service get-projects --body '{
-      "page_size": 10
-   }' --version "1" --page-token "****" --bearer-token "eyJhbGci..."` + "\n" +
+	return os.Args[0] + ` project-service get-projects --version "1" --bearer-token "eyJhbGci..."` + "\n" +
 		""
 }
 
@@ -48,9 +46,7 @@ func ParseEndpoint(
 		projectServiceFlags = flag.NewFlagSet("project-service", flag.ContinueOnError)
 
 		projectServiceGetProjectsFlags           = flag.NewFlagSet("get-projects", flag.ExitOnError)
-		projectServiceGetProjectsBodyFlag        = projectServiceGetProjectsFlags.String("body", "REQUIRED", "")
 		projectServiceGetProjectsVersionFlag     = projectServiceGetProjectsFlags.String("version", "", "")
-		projectServiceGetProjectsPageTokenFlag   = projectServiceGetProjectsFlags.String("page-token", "", "")
 		projectServiceGetProjectsBearerTokenFlag = projectServiceGetProjectsFlags.String("bearer-token", "", "")
 
 		projectServiceCreateProjectFlags           = flag.NewFlagSet("create-project", flag.ExitOnError)
@@ -59,19 +55,19 @@ func ParseEndpoint(
 		projectServiceCreateProjectBearerTokenFlag = projectServiceCreateProjectFlags.String("bearer-token", "", "")
 
 		projectServiceGetOneProjectFlags           = flag.NewFlagSet("get-one-project", flag.ExitOnError)
-		projectServiceGetOneProjectProjectIDFlag   = projectServiceGetOneProjectFlags.String("project-id", "REQUIRED", "Project ID")
+		projectServiceGetOneProjectIDFlag          = projectServiceGetOneProjectFlags.String("id", "REQUIRED", "Project ID -- v2 id, not related to v1 id directly")
 		projectServiceGetOneProjectVersionFlag     = projectServiceGetOneProjectFlags.String("version", "", "")
 		projectServiceGetOneProjectBearerTokenFlag = projectServiceGetOneProjectFlags.String("bearer-token", "", "")
 
 		projectServiceUpdateProjectFlags           = flag.NewFlagSet("update-project", flag.ExitOnError)
 		projectServiceUpdateProjectBodyFlag        = projectServiceUpdateProjectFlags.String("body", "REQUIRED", "")
-		projectServiceUpdateProjectProjectIDFlag   = projectServiceUpdateProjectFlags.String("project-id", "REQUIRED", "Project ID")
+		projectServiceUpdateProjectIDFlag          = projectServiceUpdateProjectFlags.String("id", "REQUIRED", "Project ID -- v2 id, not related to v1 id directly")
 		projectServiceUpdateProjectVersionFlag     = projectServiceUpdateProjectFlags.String("version", "", "")
 		projectServiceUpdateProjectBearerTokenFlag = projectServiceUpdateProjectFlags.String("bearer-token", "", "")
 		projectServiceUpdateProjectEtagFlag        = projectServiceUpdateProjectFlags.String("etag", "", "")
 
 		projectServiceDeleteProjectFlags           = flag.NewFlagSet("delete-project", flag.ExitOnError)
-		projectServiceDeleteProjectProjectIDFlag   = projectServiceDeleteProjectFlags.String("project-id", "REQUIRED", "Project ID")
+		projectServiceDeleteProjectIDFlag          = projectServiceDeleteProjectFlags.String("id", "REQUIRED", "Project ID -- v2 id, not related to v1 id directly")
 		projectServiceDeleteProjectVersionFlag     = projectServiceDeleteProjectFlags.String("version", "", "")
 		projectServiceDeleteProjectBearerTokenFlag = projectServiceDeleteProjectFlags.String("bearer-token", "", "")
 		projectServiceDeleteProjectEtagFlag        = projectServiceDeleteProjectFlags.String("etag", "", "")
@@ -171,19 +167,19 @@ func ParseEndpoint(
 			switch epn {
 			case "get-projects":
 				endpoint = c.GetProjects()
-				data, err = projectservicec.BuildGetProjectsPayload(*projectServiceGetProjectsBodyFlag, *projectServiceGetProjectsVersionFlag, *projectServiceGetProjectsPageTokenFlag, *projectServiceGetProjectsBearerTokenFlag)
+				data, err = projectservicec.BuildGetProjectsPayload(*projectServiceGetProjectsVersionFlag, *projectServiceGetProjectsBearerTokenFlag)
 			case "create-project":
 				endpoint = c.CreateProject()
 				data, err = projectservicec.BuildCreateProjectPayload(*projectServiceCreateProjectBodyFlag, *projectServiceCreateProjectVersionFlag, *projectServiceCreateProjectBearerTokenFlag)
 			case "get-one-project":
 				endpoint = c.GetOneProject()
-				data, err = projectservicec.BuildGetOneProjectPayload(*projectServiceGetOneProjectProjectIDFlag, *projectServiceGetOneProjectVersionFlag, *projectServiceGetOneProjectBearerTokenFlag)
+				data, err = projectservicec.BuildGetOneProjectPayload(*projectServiceGetOneProjectIDFlag, *projectServiceGetOneProjectVersionFlag, *projectServiceGetOneProjectBearerTokenFlag)
 			case "update-project":
 				endpoint = c.UpdateProject()
-				data, err = projectservicec.BuildUpdateProjectPayload(*projectServiceUpdateProjectBodyFlag, *projectServiceUpdateProjectProjectIDFlag, *projectServiceUpdateProjectVersionFlag, *projectServiceUpdateProjectBearerTokenFlag, *projectServiceUpdateProjectEtagFlag)
+				data, err = projectservicec.BuildUpdateProjectPayload(*projectServiceUpdateProjectBodyFlag, *projectServiceUpdateProjectIDFlag, *projectServiceUpdateProjectVersionFlag, *projectServiceUpdateProjectBearerTokenFlag, *projectServiceUpdateProjectEtagFlag)
 			case "delete-project":
 				endpoint = c.DeleteProject()
-				data, err = projectservicec.BuildDeleteProjectPayload(*projectServiceDeleteProjectProjectIDFlag, *projectServiceDeleteProjectVersionFlag, *projectServiceDeleteProjectBearerTokenFlag, *projectServiceDeleteProjectEtagFlag)
+				data, err = projectservicec.BuildDeleteProjectPayload(*projectServiceDeleteProjectIDFlag, *projectServiceDeleteProjectVersionFlag, *projectServiceDeleteProjectBearerTokenFlag, *projectServiceDeleteProjectEtagFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -219,18 +215,14 @@ Additional help:
 `, os.Args[0])
 }
 func projectServiceGetProjectsUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service get-projects -body JSON -version STRING -page-token STRING -bearer-token STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service get-projects -version STRING -bearer-token STRING
 
 Get all projects.
-    -body JSON: 
     -version STRING: 
-    -page-token STRING: 
     -bearer-token STRING: 
 
 Example:
-    %[1]s project-service get-projects --body '{
-      "page_size": 10
-   }' --version "1" --page-token "****" --bearer-token "eyJhbGci..."
+    %[1]s project-service get-projects --version "1" --bearer-token "eyJhbGci..."
 `, os.Args[0])
 }
 
@@ -256,24 +248,24 @@ Example:
 }
 
 func projectServiceGetOneProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service get-one-project -project-id STRING -version STRING -bearer-token STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service get-one-project -id STRING -version STRING -bearer-token STRING
 
 Get a single project.
-    -project-id STRING: Project ID
+    -id STRING: Project ID -- v2 id, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
 
 Example:
-    %[1]s project-service get-one-project --project-id "123" --version "1" --bearer-token "eyJhbGci..."
+    %[1]s project-service get-one-project --id "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..."
 `, os.Args[0])
 }
 
 func projectServiceUpdateProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project -body JSON -project-id STRING -version STRING -bearer-token STRING -etag STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project -body JSON -id STRING -version STRING -bearer-token STRING -etag STRING
 
 Update an existing project.
     -body JSON: 
-    -project-id STRING: Project ID
+    -id STRING: Project ID -- v2 id, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
     -etag STRING: 
@@ -287,21 +279,21 @@ Example:
       ],
       "name": "Foo Foundation",
       "slug": "project-slug"
-   }' --project-id "123" --version "1" --bearer-token "eyJhbGci..." --etag "123"
+   }' --id "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
 `, os.Args[0])
 }
 
 func projectServiceDeleteProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service delete-project -project-id STRING -version STRING -bearer-token STRING -etag STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service delete-project -id STRING -version STRING -bearer-token STRING -etag STRING
 
 Delete an existing project.
-    -project-id STRING: Project ID
+    -id STRING: Project ID -- v2 id, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
     -etag STRING: 
 
 Example:
-    %[1]s project-service delete-project --project-id "123" --version "1" --bearer-token "eyJhbGci..." --etag "123"
+    %[1]s project-service delete-project --id "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
 `, os.Args[0])
 }
 

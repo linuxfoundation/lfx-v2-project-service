@@ -18,15 +18,8 @@ import (
 
 // BuildGetProjectsPayload builds the payload for the project-service
 // get-projects endpoint from CLI flags.
-func BuildGetProjectsPayload(projectServiceGetProjectsBody string, projectServiceGetProjectsVersion string, projectServiceGetProjectsPageToken string, projectServiceGetProjectsBearerToken string) (*projectservice.GetProjectsPayload, error) {
+func BuildGetProjectsPayload(projectServiceGetProjectsVersion string, projectServiceGetProjectsBearerToken string) (*projectservice.GetProjectsPayload, error) {
 	var err error
-	var body GetProjectsRequestBody
-	{
-		err = json.Unmarshal([]byte(projectServiceGetProjectsBody), &body)
-		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"page_size\": 10\n   }'")
-		}
-	}
 	var version *string
 	{
 		if projectServiceGetProjectsVersion != "" {
@@ -39,29 +32,14 @@ func BuildGetProjectsPayload(projectServiceGetProjectsBody string, projectServic
 			}
 		}
 	}
-	var pageToken *string
-	{
-		if projectServiceGetProjectsPageToken != "" {
-			pageToken = &projectServiceGetProjectsPageToken
-		}
-	}
 	var bearerToken *string
 	{
 		if projectServiceGetProjectsBearerToken != "" {
 			bearerToken = &projectServiceGetProjectsBearerToken
 		}
 	}
-	v := &projectservice.GetProjectsPayload{
-		PageSize: body.PageSize,
-	}
-	{
-		var zero int
-		if v.PageSize == zero {
-			v.PageSize = 10
-		}
-	}
+	v := &projectservice.GetProjectsPayload{}
 	v.Version = version
-	v.PageToken = pageToken
 	v.BearerToken = bearerToken
 
 	return v, nil
@@ -80,6 +58,8 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		if body.Managers == nil {
 			err = goa.MergeErrors(err, goa.MissingFieldError("managers", "body"))
 		}
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 		if err != nil {
 			return nil, err
 		}
@@ -123,11 +103,15 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 
 // BuildGetOneProjectPayload builds the payload for the project-service
 // get-one-project endpoint from CLI flags.
-func BuildGetOneProjectPayload(projectServiceGetOneProjectProjectID string, projectServiceGetOneProjectVersion string, projectServiceGetOneProjectBearerToken string) (*projectservice.GetOneProjectPayload, error) {
+func BuildGetOneProjectPayload(projectServiceGetOneProjectID string, projectServiceGetOneProjectVersion string, projectServiceGetOneProjectBearerToken string) (*projectservice.GetOneProjectPayload, error) {
 	var err error
-	var projectID string
+	var id string
 	{
-		projectID = projectServiceGetOneProjectProjectID
+		id = projectServiceGetOneProjectID
+		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
 	}
 	var version *string
 	{
@@ -148,7 +132,7 @@ func BuildGetOneProjectPayload(projectServiceGetOneProjectProjectID string, proj
 		}
 	}
 	v := &projectservice.GetOneProjectPayload{}
-	v.ProjectID = &projectID
+	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -157,7 +141,7 @@ func BuildGetOneProjectPayload(projectServiceGetOneProjectProjectID string, proj
 
 // BuildUpdateProjectPayload builds the payload for the project-service
 // update-project endpoint from CLI flags.
-func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectServiceUpdateProjectProjectID string, projectServiceUpdateProjectVersion string, projectServiceUpdateProjectBearerToken string, projectServiceUpdateProjectEtag string) (*projectservice.UpdateProjectPayload, error) {
+func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectServiceUpdateProjectID string, projectServiceUpdateProjectVersion string, projectServiceUpdateProjectBearerToken string, projectServiceUpdateProjectEtag string) (*projectservice.UpdateProjectPayload, error) {
 	var err error
 	var body struct {
 		// Project slug, a short slugified name of the project
@@ -166,7 +150,7 @@ func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectSe
 		Description *string `form:"description" json:"description" xml:"description"`
 		// The pretty name of the project
 		Name *string `form:"name" json:"name" xml:"name"`
-		// A list of project managers
+		// A list of project managers by their user IDs
 		Managers []string `form:"managers" json:"managers" xml:"managers"`
 	}
 	{
@@ -175,9 +159,13 @@ func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectSe
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"description\": \"project foo is a project about bar\",\n      \"managers\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"name\": \"Foo Foundation\",\n      \"slug\": \"project-slug\"\n   }'")
 		}
 	}
-	var projectID string
+	var id string
 	{
-		projectID = projectServiceUpdateProjectProjectID
+		id = projectServiceUpdateProjectID
+		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
 	}
 	var version *string
 	{
@@ -203,11 +191,12 @@ func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectSe
 			etag = &projectServiceUpdateProjectEtag
 		}
 	}
-	v := &projectservice.UpdateProjectPayload{
-		Description: body.Description,
-	}
+	v := &projectservice.UpdateProjectPayload{}
 	if body.Slug != nil {
 		v.Slug = *body.Slug
+	}
+	if body.Description != nil {
+		v.Description = *body.Description
 	}
 	if body.Name != nil {
 		v.Name = *body.Name
@@ -218,7 +207,7 @@ func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectSe
 			v.Managers[i] = val
 		}
 	}
-	v.ProjectID = &projectID
+	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.Etag = etag
@@ -228,11 +217,15 @@ func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectSe
 
 // BuildDeleteProjectPayload builds the payload for the project-service
 // delete-project endpoint from CLI flags.
-func BuildDeleteProjectPayload(projectServiceDeleteProjectProjectID string, projectServiceDeleteProjectVersion string, projectServiceDeleteProjectBearerToken string, projectServiceDeleteProjectEtag string) (*projectservice.DeleteProjectPayload, error) {
+func BuildDeleteProjectPayload(projectServiceDeleteProjectID string, projectServiceDeleteProjectVersion string, projectServiceDeleteProjectBearerToken string, projectServiceDeleteProjectEtag string) (*projectservice.DeleteProjectPayload, error) {
 	var err error
-	var projectID string
+	var id string
 	{
-		projectID = projectServiceDeleteProjectProjectID
+		id = projectServiceDeleteProjectID
+		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
 	}
 	var version *string
 	{
@@ -259,7 +252,7 @@ func BuildDeleteProjectPayload(projectServiceDeleteProjectProjectID string, proj
 		}
 	}
 	v := &projectservice.DeleteProjectPayload{}
-	v.ProjectID = &projectID
+	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.Etag = etag

@@ -1,6 +1,10 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 ---
+# ingress is the configuration for the ingress routing
+ingress:
+  hostname: lfx-api.k8s.orb.local
+
 # nats is the configuration for the NATS server
 nats:
   # url is the URL of the NATS server

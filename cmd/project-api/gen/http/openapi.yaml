@@ -57,21 +57,11 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: page_token
-                  in: query
-                  description: Token to get the next page of results, if available
-                  required: false
-                  type: string
                 - name: Authorization
                   in: header
                   description: JWT token issued by Heimdall
                   required: false
                   type: string
-                - name: Get-ProjectsRequestBody
-                  in: body
-                  required: true
-                  schema:
-                    $ref: '#/definitions/ProjectServiceGetProjectsRequestBody'
             responses:
                 "200":
                     description: OK response.
@@ -134,6 +124,7 @@ paths:
                     $ref: '#/definitions/ProjectServiceCreateProjectRequestBody'
                     required:
                         - slug
+                        - description
                         - name
                         - managers
             responses:
@@ -173,7 +164,7 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
-    /projects/{project_id}:
+    /projects/{id}:
         get:
             tags:
                 - project-service
@@ -188,11 +179,12 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: project_id
+                - name: id
                   in: path
-                  description: Project ID
+                  description: Project ID -- v2 id, not related to v1 id directly
                   required: true
                   type: string
+                  format: uuid
                 - name: Authorization
                   in: header
                   description: JWT token issued by Heimdall
@@ -246,11 +238,12 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: project_id
+                - name: id
                   in: path
-                  description: Project ID
+                  description: Project ID -- v2 id, not related to v1 id directly
                   required: true
                   type: string
+                  format: uuid
                 - name: Authorization
                   in: header
                   description: JWT token issued by Heimdall
@@ -276,7 +269,7 @@ paths:
                             items:
                                 type: string
                                 example: Qui est temporibus in cupiditate quod.
-                            description: A list of project managers
+                            description: A list of project managers by their user IDs
                             example:
                                 - user123
                                 - user456
@@ -288,6 +281,8 @@ paths:
                             type: string
                             description: Project slug, a short slugified name of the project
                             example: project-slug
+                            format: regexp
+                            pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
             responses:
                 "200":
                     description: OK response.
@@ -339,11 +334,12 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: project_id
+                - name: id
                   in: path
-                  description: Project ID
+                  description: Project ID -- v2 id, not related to v1 id directly
                   required: true
                   type: string
+                  format: uuid
                 - name: Authorization
                   in: header
                   description: JWT token issued by Heimdall
@@ -501,13 +497,14 @@ definitions:
             id:
                 type: string
                 description: Project ID -- v2 id, not related to v1 id directly
-                example: "123"
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
             managers:
                 type: array
                 items:
                     type: string
                     example: Ex architecto repellat non earum cumque illo.
-                description: A list of project managers
+                description: A list of project managers by their user IDs
                 example:
                     - user123
                     - user456
@@ -519,10 +516,12 @@ definitions:
                 type: string
                 description: Project slug, a short slugified name of the project
                 example: project-slug
+                format: regexp
+                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
         description: A representation of LFX Projects.
         example:
             description: project foo is a project about bar
-            id: "123"
+            id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             managers:
                 - user123
                 - user456
@@ -541,7 +540,7 @@ definitions:
                 items:
                     type: string
                     example: Aperiam minus incidunt quia aut vero.
-                description: A list of project managers
+                description: A list of project managers by their user IDs
                 example:
                     - user123
                     - user456
@@ -553,6 +552,8 @@ definitions:
                 type: string
                 description: Project slug, a short slugified name of the project
                 example: project-slug
+                format: regexp
+                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
         example:
             description: project foo is a project about bar
             managers:
@@ -562,33 +563,16 @@ definitions:
             slug: project-slug
         required:
             - slug
+            - description
             - name
             - managers
     ProjectServiceGetOneProjectResponseBody:
         title: ProjectServiceGetOneProjectResponseBody
         $ref: '#/definitions/Project'
-    ProjectServiceGetProjectsRequestBody:
-        title: ProjectServiceGetProjectsRequestBody
-        type: object
-        properties:
-            page_size:
-                type: integer
-                description: Page size
-                default: 10
-                example: 10
-                format: int64
-                minimum: 1
-                maximum: 100
-        example:
-            page_size: 10
     ProjectServiceGetProjectsResponseBody:
         title: ProjectServiceGetProjectsResponseBody
         type: object
         properties:
-            page_token:
-                type: string
-                description: Opaque token if more results are available
-                example: '****'
             projects:
                 type: array
                 items:
@@ -596,38 +580,37 @@ definitions:
                 description: Resources found
                 example:
                     - description: project foo is a project about bar
-                      id: "123"
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       managers:
                         - user123
                         - user456
                       name: Foo Foundation
                       slug: project-slug
                     - description: project foo is a project about bar
-                      id: "123"
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       managers:
                         - user123
                         - user456
                       name: Foo Foundation
                       slug: project-slug
                     - description: project foo is a project about bar
-                      id: "123"
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       managers:
                         - user123
                         - user456
                       name: Foo Foundation
                       slug: project-slug
         example:
-            page_token: '****'
             projects:
                 - description: project foo is a project about bar
-                  id: "123"
+                  id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                   managers:
                     - user123
                     - user456
                   name: Foo Foundation
                   slug: project-slug
                 - description: project foo is a project about bar
-                  id: "123"
+                  id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                   managers:
                     - user123
                     - user456

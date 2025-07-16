@@ -13,13 +13,6 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
-// GetProjectsRequestBody is the type of the "project-service" service
-// "get-projects" endpoint HTTP request body.
-type GetProjectsRequestBody struct {
-	// Page size
-	PageSize *int `form:"page_size,omitempty" json:"page_size,omitempty" xml:"page_size,omitempty"`
-}
-
 // CreateProjectRequestBody is the type of the "project-service" service
 // "create-project" endpoint HTTP request body.
 type CreateProjectRequestBody struct {
@@ -29,7 +22,7 @@ type CreateProjectRequestBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
 }
 
@@ -38,8 +31,6 @@ type CreateProjectRequestBody struct {
 type GetProjectsResponseBody struct {
 	// Resources found
 	Projects []*ProjectResponseBody `form:"projects" json:"projects" xml:"projects"`
-	// Opaque token if more results are available
-	PageToken *string `form:"page_token,omitempty" json:"page_token,omitempty" xml:"page_token,omitempty"`
 }
 
 // CreateProjectResponseBody is the type of the "project-service" service
@@ -53,7 +44,7 @@ type CreateProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
 }
 
@@ -72,7 +63,7 @@ type UpdateProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
 }
 
@@ -276,16 +267,14 @@ type ProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
 }
 
 // NewGetProjectsResponseBody builds the HTTP response body from the result of
 // the "get-projects" endpoint of the "project-service" service.
 func NewGetProjectsResponseBody(res *projectservice.GetProjectsResult) *GetProjectsResponseBody {
-	body := &GetProjectsResponseBody{
-		PageToken: res.PageToken,
-	}
+	body := &GetProjectsResponseBody{}
 	if res.Projects != nil {
 		body.Projects = make([]*ProjectResponseBody, len(res.Projects))
 		for i, val := range res.Projects {
@@ -553,16 +542,9 @@ func NewReadyzServiceUnavailableResponseBody(res *projectservice.ServiceUnavaila
 
 // NewGetProjectsPayload builds a project-service service get-projects endpoint
 // payload.
-func NewGetProjectsPayload(body *GetProjectsRequestBody, version *string, pageToken *string, bearerToken *string) *projectservice.GetProjectsPayload {
+func NewGetProjectsPayload(version *string, bearerToken *string) *projectservice.GetProjectsPayload {
 	v := &projectservice.GetProjectsPayload{}
-	if body.PageSize != nil {
-		v.PageSize = *body.PageSize
-	}
-	if body.PageSize == nil {
-		v.PageSize = 10
-	}
 	v.Version = version
-	v.PageToken = pageToken
 	v.BearerToken = bearerToken
 
 	return v
@@ -573,7 +555,7 @@ func NewGetProjectsPayload(body *GetProjectsRequestBody, version *string, pageTo
 func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, bearerToken *string) *projectservice.CreateProjectPayload {
 	v := &projectservice.CreateProjectPayload{
 		Slug:        *body.Slug,
-		Description: body.Description,
+		Description: *body.Description,
 		Name:        *body.Name,
 	}
 	v.Managers = make([]string, len(body.Managers))
@@ -588,9 +570,9 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 
 // NewGetOneProjectPayload builds a project-service service get-one-project
 // endpoint payload.
-func NewGetOneProjectPayload(projectID string, version *string, bearerToken *string) *projectservice.GetOneProjectPayload {
+func NewGetOneProjectPayload(id string, version *string, bearerToken *string) *projectservice.GetOneProjectPayload {
 	v := &projectservice.GetOneProjectPayload{}
-	v.ProjectID = &projectID
+	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -606,14 +588,15 @@ func NewUpdateProjectPayload(body struct {
 	Description *string `form:"description" json:"description" xml:"description"`
 	// The pretty name of the project
 	Name *string `form:"name" json:"name" xml:"name"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers" json:"managers" xml:"managers"`
-}, projectID string, version *string, bearerToken *string, etag *string) *projectservice.UpdateProjectPayload {
-	v := &projectservice.UpdateProjectPayload{
-		Description: body.Description,
-	}
+}, id string, version *string, bearerToken *string, etag *string) *projectservice.UpdateProjectPayload {
+	v := &projectservice.UpdateProjectPayload{}
 	if body.Slug != nil {
 		v.Slug = *body.Slug
+	}
+	if body.Description != nil {
+		v.Description = *body.Description
 	}
 	if body.Name != nil {
 		v.Name = *body.Name
@@ -624,7 +607,7 @@ func NewUpdateProjectPayload(body struct {
 			v.Managers[i] = val
 		}
 	}
-	v.ProjectID = &projectID
+	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.Etag = etag
@@ -634,30 +617,14 @@ func NewUpdateProjectPayload(body struct {
 
 // NewDeleteProjectPayload builds a project-service service delete-project
 // endpoint payload.
-func NewDeleteProjectPayload(projectID string, version *string, bearerToken *string, etag *string) *projectservice.DeleteProjectPayload {
+func NewDeleteProjectPayload(id string, version *string, bearerToken *string, etag *string) *projectservice.DeleteProjectPayload {
 	v := &projectservice.DeleteProjectPayload{}
-	v.ProjectID = &projectID
+	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.Etag = etag
 
 	return v
-}
-
-// ValidateGetProjectsRequestBody runs the validations defined on
-// Get-ProjectsRequestBody
-func ValidateGetProjectsRequestBody(body *GetProjectsRequestBody) (err error) {
-	if body.PageSize != nil {
-		if *body.PageSize < 1 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("body.page_size", *body.PageSize, 1, true))
-		}
-	}
-	if body.PageSize != nil {
-		if *body.PageSize > 100 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("body.page_size", *body.PageSize, 100, false))
-		}
-	}
-	return
 }
 
 // ValidateCreateProjectRequestBody runs the validations defined on
@@ -666,11 +633,20 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	if body.Slug == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("slug", "body"))
 	}
+	if body.Description == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("description", "body"))
+	}
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
 	if body.Managers == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("managers", "body"))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	return
 }

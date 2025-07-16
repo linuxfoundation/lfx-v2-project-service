@@ -40,32 +40,11 @@ func EncodeGetProjectsResponse(encoder func(context.Context, http.ResponseWriter
 func DecodeGetProjectsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
 	return func(r *http.Request) (any, error) {
 		var (
-			body GetProjectsRequestBody
-			err  error
-		)
-		err = decoder(r).Decode(&body)
-		if err != nil {
-			if err == io.EOF {
-				return nil, goa.MissingPayloadError()
-			}
-			var gerr *goa.ServiceError
-			if errors.As(err, &gerr) {
-				return nil, gerr
-			}
-			return nil, goa.DecodePayloadError(err.Error())
-		}
-		err = ValidateGetProjectsRequestBody(&body)
-		if err != nil {
-			return nil, err
-		}
-
-		var (
 			version     *string
-			pageToken   *string
 			bearerToken *string
+			err         error
 		)
-		qp := r.URL.Query()
-		versionRaw := qp.Get("v")
+		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
 		}
@@ -74,10 +53,6 @@ func DecodeGetProjectsRequest(mux goahttp.Muxer, decoder func(*http.Request) goa
 				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
 			}
 		}
-		pageTokenRaw := qp.Get("page_token")
-		if pageTokenRaw != "" {
-			pageToken = &pageTokenRaw
-		}
 		bearerTokenRaw := r.Header.Get("Authorization")
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
@@ -85,7 +60,7 @@ func DecodeGetProjectsRequest(mux goahttp.Muxer, decoder func(*http.Request) goa
 		if err != nil {
 			return nil, err
 		}
-		payload := NewGetProjectsPayload(&body, version, pageToken, bearerToken)
+		payload := NewGetProjectsPayload(version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -310,14 +285,15 @@ func EncodeGetOneProjectResponse(encoder func(context.Context, http.ResponseWrit
 func DecodeGetOneProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
 	return func(r *http.Request) (any, error) {
 		var (
-			projectID   string
+			id          string
 			version     *string
 			bearerToken *string
 			err         error
 
 			params = mux.Vars(r)
 		)
-		projectID = params["project_id"]
+		id = params["id"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -334,7 +310,7 @@ func DecodeGetOneProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewGetOneProjectPayload(projectID, version, bearerToken)
+		payload := NewGetOneProjectPayload(id, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -426,7 +402,7 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 				Description *string `form:"description" json:"description" xml:"description"`
 				// The pretty name of the project
 				Name *string `form:"name" json:"name" xml:"name"`
-				// A list of project managers
+				// A list of project managers by their user IDs
 				Managers []string `form:"managers" json:"managers" xml:"managers"`
 			}
 			err error
@@ -442,16 +418,26 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 			}
 			return nil, goa.DecodePayloadError(err.Error())
 		}
+		if body.Slug != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
+		}
+		if body.Slug != nil {
+			err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		}
+		if err != nil {
+			return nil, err
+		}
 
 		var (
-			projectID   string
+			id          string
 			version     *string
 			bearerToken *string
 			etag        *string
 
 			params = mux.Vars(r)
 		)
-		projectID = params["project_id"]
+		id = params["id"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -472,7 +458,7 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewUpdateProjectPayload(body, projectID, version, bearerToken, etag)
+		payload := NewUpdateProjectPayload(body, id, version, bearerToken, etag)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -567,7 +553,7 @@ func EncodeDeleteProjectResponse(encoder func(context.Context, http.ResponseWrit
 func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
 	return func(r *http.Request) (any, error) {
 		var (
-			projectID   string
+			id          string
 			version     *string
 			bearerToken *string
 			etag        *string
@@ -575,7 +561,8 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 
 			params = mux.Vars(r)
 		)
-		projectID = params["project_id"]
+		id = params["id"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -596,7 +583,7 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewDeleteProjectPayload(projectID, version, bearerToken, etag)
+		payload := NewDeleteProjectPayload(id, version, bearerToken, etag)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")

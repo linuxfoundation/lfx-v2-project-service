@@ -55,14 +55,7 @@ func EncodeGetProjectsRequest(encoder func(*http.Request) goahttp.Encoder) func(
 		if p.Version != nil {
 			values.Add("v", *p.Version)
 		}
-		if p.PageToken != nil {
-			values.Add("page_token", *p.PageToken)
-		}
 		req.URL.RawQuery = values.Encode()
-		body := NewGetProjectsRequestBody(p)
-		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("project-service", "get-projects", err)
-		}
 		return nil
 	}
 }
@@ -238,6 +231,10 @@ func DecodeCreateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("project-service", "create-project", err)
 			}
+			err = ValidateCreateProjectResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project", err)
+			}
 			res := NewCreateProjectProjectOK(&body)
 			return res, nil
 		case http.StatusBadRequest:
@@ -307,18 +304,18 @@ func DecodeCreateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 // path set to call the "project-service" service "get-one-project" endpoint
 func (c *Client) BuildGetOneProjectRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectID string
+		id string
 	)
 	{
 		p, ok := v.(*projectservice.GetOneProjectPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("project-service", "get-one-project", "*projectservice.GetOneProjectPayload", v)
 		}
-		if p.ProjectID != nil {
-			projectID = *p.ProjectID
+		if p.ID != nil {
+			id = *p.ID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetOneProjectProjectServicePath(projectID)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetOneProjectProjectServicePath(id)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("project-service", "get-one-project", u.String(), err)
@@ -387,6 +384,10 @@ func DecodeGetOneProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("project-service", "get-one-project", err)
 			}
+			err = ValidateGetOneProjectResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project", err)
+			}
 			var (
 				etag *string
 			)
@@ -449,18 +450,18 @@ func DecodeGetOneProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 // path set to call the "project-service" service "update-project" endpoint
 func (c *Client) BuildUpdateProjectRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectID string
+		id string
 	)
 	{
 		p, ok := v.(*projectservice.UpdateProjectPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("project-service", "update-project", "*projectservice.UpdateProjectPayload", v)
 		}
-		if p.ProjectID != nil {
-			projectID = *p.ProjectID
+		if p.ID != nil {
+			id = *p.ID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectProjectServicePath(projectID)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectProjectServicePath(id)}
 	req, err := http.NewRequest("PUT", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("project-service", "update-project", u.String(), err)
@@ -538,6 +539,10 @@ func DecodeUpdateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("project-service", "update-project", err)
 			}
+			err = ValidateUpdateProjectResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project", err)
+			}
 			res := NewUpdateProjectProjectOK(&body)
 			return res, nil
 		case http.StatusBadRequest:
@@ -607,18 +612,18 @@ func DecodeUpdateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 // path set to call the "project-service" service "delete-project" endpoint
 func (c *Client) BuildDeleteProjectRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectID string
+		id string
 	)
 	{
 		p, ok := v.(*projectservice.DeleteProjectPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("project-service", "delete-project", "*projectservice.DeleteProjectPayload", v)
 		}
-		if p.ProjectID != nil {
-			projectID = *p.ProjectID
+		if p.ID != nil {
+			id = *p.ID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteProjectProjectServicePath(projectID)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteProjectProjectServicePath(id)}
 	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("project-service", "delete-project", u.String(), err)

@@ -13,7 +13,7 @@ spec:
   routes:
     - kind: Rule
       match: >-
-        Host(`lfx-api.k8s.orb.local`)
+        Host(`{{.Values.ingress.hostname}}`)
       priority: 10
       # TODO: add heimdall middleware once it is working - currently it causes a 403
       # middlewares:

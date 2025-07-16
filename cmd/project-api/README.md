@@ -95,7 +95,7 @@ The service relies on some resources and external services being spun up prior t
 
     ```bash
     # if using the nats cli tool
-    nats kv add projects
+    nats kv add projects --history=20 --storage=file --max-value-size=10485760 --max-bucket-size=1073741824
     ```
 
 #### 3. Export environment variables
@@ -139,7 +139,13 @@ The service relies on some resources and external services being spun up prior t
    go test . -v
    ```
 
-6. **Docker build + K8**
+6. **Lint the code**
+   ```bash
+   # From the root of the directory, run megalinter (https://megalinter.io/latest/mega-linter-runner/) to ensure the code passes the linter checks. The CI/CD has a check that uses megalinter.
+   npx mega-linter-runner .
+   ```
+
+7. **Docker build + K8**
 
     ```bash
     # Build the dockerfile (from the root of the repo)

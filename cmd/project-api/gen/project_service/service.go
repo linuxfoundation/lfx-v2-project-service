@@ -78,10 +78,10 @@ type CreateProjectPayload struct {
 	// Project slug, a short slugified name of the project
 	Slug string
 	// A description of the project
-	Description *string
+	Description string
 	// The pretty name of the project
 	Name string
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string
 }
 
@@ -92,10 +92,10 @@ type DeleteProjectPayload struct {
 	BearerToken *string
 	// ETag header value
 	Etag *string
-	// Project ID
-	ProjectID *string
 	// Version of the API
 	Version *string
+	// Project ID -- v2 id, not related to v1 id directly
+	ID *string
 }
 
 // GetOneProjectPayload is the payload type of the project-service service
@@ -105,8 +105,8 @@ type GetOneProjectPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// Project ID
-	ProjectID *string
+	// Project ID -- v2 id, not related to v1 id directly
+	ID *string
 }
 
 // GetOneProjectResult is the result type of the project-service service
@@ -124,10 +124,6 @@ type GetProjectsPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// Page size
-	PageSize int
-	// Token to get the next page of results, if available
-	PageToken *string
 }
 
 // GetProjectsResult is the result type of the project-service service
@@ -135,8 +131,6 @@ type GetProjectsPayload struct {
 type GetProjectsResult struct {
 	// Resources found
 	Projects []*Project
-	// Opaque token if more results are available
-	PageToken *string
 	// Cache control header
 	CacheControl *string
 }
@@ -166,7 +160,7 @@ type Project struct {
 	Description *string
 	// The pretty name of the project
 	Name *string
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string
 }
 
@@ -184,17 +178,17 @@ type UpdateProjectPayload struct {
 	BearerToken *string
 	// ETag header value
 	Etag *string
-	// Project ID
-	ProjectID *string
 	// Version of the API
 	Version *string
+	// Project ID -- v2 id, not related to v1 id directly
+	ID *string
 	// Project slug, a short slugified name of the project
 	Slug string
 	// A description of the project
-	Description *string
+	Description string
 	// The pretty name of the project
 	Name string
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string
 }
 

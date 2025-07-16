@@ -32,24 +32,10 @@ var _ = Service("project-service", func() {
 				Enum("1")
 				Example("1")
 			})
-			Attribute("page_size", Int, "Page size", func() {
-				// TODO: update these validations to reasonable values once API performance efficiency is accounted for.
-				Default(10)
-				Minimum(1)
-				Maximum(100)
-				Example(10)
-			})
-			Attribute("page_token", String, "opaque page token", func() {
-				Description("Token to get the next page of results, if available")
-				Example("****")
-			})
 		})
 
 		Result(func() {
 			Attribute("projects", ArrayOf(Project), "Resources found", func() {})
-			Attribute("page_token", String, "Opaque token if more results are available", func() {
-				Example("****")
-			})
 			Attribute("cache_control", String, "Cache control header", func() {
 				Example("public, max-age=300")
 			})
@@ -63,7 +49,6 @@ var _ = Service("project-service", func() {
 		HTTP(func() {
 			GET("/projects")
 			Param("version:v")
-			Param("page_token")
 			Header("bearer_token:Authorization")
 			Response(StatusOK, func() {
 				Header("cache_control:Cache-Control")
@@ -88,19 +73,11 @@ var _ = Service("project-service", func() {
 				Enum("1")
 				Example("1")
 			})
-			Attribute("slug", String, "Project slug, a short slugified name of the project", func() {
-				Example("project-slug")
-			})
-			Attribute("description", String, "A description of the project", func() {
-				Example("project foo is a project about bar")
-			})
-			Attribute("name", String, "The pretty name of the project", func() {
-				Example("Foo Foundation")
-			})
-			Attribute("managers", ArrayOf(String), "A list of project managers", func() {
-				Example([]string{"user123", "user456"})
-			})
-			Required("slug", "name", "managers")
+			ProjectSlugAttribute()
+			ProjectDescriptionAttribute()
+			ProjectNameAttribute()
+			ProjectManagersAttribute()
+			Required("slug", "description", "name", "managers")
 		})
 
 		Result(Project)
@@ -136,9 +113,7 @@ var _ = Service("project-service", func() {
 				Enum("1")
 				Example("1")
 			})
-			Attribute("project_id", String, "Project ID", func() {
-				Example("123")
-			})
+			ProjectIDAttribute()
 		})
 
 		Result(func() {
@@ -152,9 +127,9 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			GET("/projects/{project_id}")
+			GET("/projects/{id}")
 			Param("version:v")
-			Param("project_id")
+			Param("id")
 			Header("bearer_token:Authorization")
 			Response(StatusOK, func() {
 				Body("project")
@@ -179,26 +154,16 @@ var _ = Service("project-service", func() {
 			Attribute("etag", String, "ETag header value", func() {
 				Example("123")
 			})
-			Attribute("project_id", String, "Project ID", func() {
-				Example("123")
-			})
 			Attribute("version", String, "Version of the API", func() {
 				Enum("1")
 				Example("1")
 			})
-			Attribute("slug", String, "Project slug, a short slugified name of the project", func() {
-				Example("project-slug")
-			})
-			Attribute("description", String, "A description of the project", func() {
-				Example("project foo is a project about bar")
-			})
-			Attribute("name", String, "The pretty name of the project", func() {
-				Example("Foo Foundation")
-			})
-			Attribute("managers", ArrayOf(String), "A list of project managers", func() {
-				Example([]string{"user123", "user456"})
-			})
-			Required("slug", "name", "managers")
+			ProjectIDAttribute()
+			ProjectSlugAttribute()
+			ProjectDescriptionAttribute()
+			ProjectNameAttribute()
+			ProjectManagersAttribute()
+			Required("slug", "description", "name", "managers")
 		})
 
 		Result(Project)
@@ -209,10 +174,10 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			PUT("/projects/{project_id}")
+			PUT("/projects/{id}")
 			Params(func() {
 				Param("version:v")
-				Param("project_id")
+				Param("id")
 			})
 			Body(func() {
 				Attribute("slug")
@@ -243,13 +208,11 @@ var _ = Service("project-service", func() {
 			Attribute("etag", String, "ETag header value", func() {
 				Example("123")
 			})
-			Attribute("project_id", String, "Project ID", func() {
-				Example("123")
-			})
 			Attribute("version", String, "Version of the API", func() {
 				Enum("1")
 				Example("1")
 			})
+			ProjectIDAttribute()
 		})
 
 		Error("NotFound", NotFoundError, "Resource not found")
@@ -258,10 +221,10 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			DELETE("/projects/{project_id}")
+			DELETE("/projects/{id}")
 			Params(func() {
 				Param("version:v")
-				Param("project_id")
+				Param("id")
 			})
 			Header("bearer_token:Authorization")
 			Header("etag:ETag")

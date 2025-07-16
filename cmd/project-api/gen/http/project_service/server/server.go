@@ -65,9 +65,9 @@ func New(
 		Mounts: []*MountPoint{
 			{"GetProjects", "GET", "/projects"},
 			{"CreateProject", "POST", "/projects"},
-			{"GetOneProject", "GET", "/projects/{project_id}"},
-			{"UpdateProject", "PUT", "/projects/{project_id}"},
-			{"DeleteProject", "DELETE", "/projects/{project_id}"},
+			{"GetOneProject", "GET", "/projects/{id}"},
+			{"UpdateProject", "PUT", "/projects/{id}"},
+			{"DeleteProject", "DELETE", "/projects/{id}"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"Serve gen/http/openapi3.json", "GET", "/openapi.json"},
@@ -228,7 +228,7 @@ func MountGetOneProjectHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_id}", f)
+	mux.Handle("GET", "/projects/{id}", f)
 }
 
 // NewGetOneProjectHandler creates a HTTP handler which loads the HTTP request
@@ -279,7 +279,7 @@ func MountUpdateProjectHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("PUT", "/projects/{project_id}", f)
+	mux.Handle("PUT", "/projects/{id}", f)
 }
 
 // NewUpdateProjectHandler creates a HTTP handler which loads the HTTP request
@@ -330,7 +330,7 @@ func MountDeleteProjectHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("DELETE", "/projects/{project_id}", f)
+	mux.Handle("DELETE", "/projects/{id}", f)
 }
 
 // NewDeleteProjectHandler creates a HTTP handler which loads the HTTP request

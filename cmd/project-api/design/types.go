@@ -12,26 +12,59 @@ import (
 var Project = Type("Project", func() {
 	Description("A representation of LFX Projects.")
 
-	Attribute("id", String, "Project ID -- v2 id, not related to v1 id directly", func() {
-		Example("123")
-	})
+	// Attributes
+	ProjectIDAttribute()
+	ProjectSlugAttribute()
+	ProjectDescriptionAttribute()
+	ProjectNameAttribute()
+	ProjectManagersAttribute()
+})
 
+//
+// Project attributes
+//
+
+// ProjectIDAttribute is the DSL attribute for a project ID.
+func ProjectIDAttribute() {
+	Attribute("id", String, "Project ID -- v2 id, not related to v1 id directly", func() {
+		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")
+		Format(FormatUUID)
+	})
+}
+
+// ProjectSlugAttribute is the DSL attribute for a project slug.
+func ProjectSlugAttribute() {
 	Attribute("slug", String, "Project slug, a short slugified name of the project", func() {
 		Example("project-slug")
+		Format(FormatRegexp)
+		Pattern(`^[a-z][a-z0-9_\-]*[a-z0-9]$`)
 	})
+}
 
-	Attribute("description", String, "A description of the project", func() {
-		Example("project foo is a project about bar")
-	})
-
+// ProjectNameAttribute is the DSL attribute for a project name.
+func ProjectNameAttribute() {
 	Attribute("name", String, "The pretty name of the project", func() {
 		Example("Foo Foundation")
 	})
+}
 
-	Attribute("managers", ArrayOf(String), "A list of project managers", func() {
+// ProjectDescriptionAttribute is the DSL attribute for a project description.
+func ProjectDescriptionAttribute() {
+	Attribute("description", String, "A description of the project", func() {
+		Example("project foo is a project about bar")
+	})
+}
+
+// ProjectManagersAttribute is the DSL attribute for a project managers.
+func ProjectManagersAttribute() {
+	Attribute("managers", ArrayOf(String), "A list of project managers by their user IDs", func() {
 		Example([]string{"user123", "user456"})
 	})
-})
+}
+
+//
+// Error types
+//
 
 // BadRequestError is the DSL type for a bad request error.
 var BadRequestError = Type("BadRequestError", func() {

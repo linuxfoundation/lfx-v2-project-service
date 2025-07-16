@@ -13,23 +13,16 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
-// GetProjectsRequestBody is the type of the "project-service" service
-// "get-projects" endpoint HTTP request body.
-type GetProjectsRequestBody struct {
-	// Page size
-	PageSize int `form:"page_size" json:"page_size" xml:"page_size"`
-}
-
 // CreateProjectRequestBody is the type of the "project-service" service
 // "create-project" endpoint HTTP request body.
 type CreateProjectRequestBody struct {
 	// Project slug, a short slugified name of the project
 	Slug string `form:"slug" json:"slug" xml:"slug"`
 	// A description of the project
-	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	Description string `form:"description" json:"description" xml:"description"`
 	// The pretty name of the project
 	Name string `form:"name" json:"name" xml:"name"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers" json:"managers" xml:"managers"`
 }
 
@@ -38,8 +31,6 @@ type CreateProjectRequestBody struct {
 type GetProjectsResponseBody struct {
 	// Resources found
 	Projects []*ProjectResponseBody `form:"projects,omitempty" json:"projects,omitempty" xml:"projects,omitempty"`
-	// Opaque token if more results are available
-	PageToken *string `form:"page_token,omitempty" json:"page_token,omitempty" xml:"page_token,omitempty"`
 }
 
 // CreateProjectResponseBody is the type of the "project-service" service
@@ -53,7 +44,7 @@ type CreateProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
 }
 
@@ -72,7 +63,7 @@ type UpdateProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
 }
 
@@ -276,23 +267,8 @@ type ProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers
+	// A list of project managers by their user IDs
 	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
-}
-
-// NewGetProjectsRequestBody builds the HTTP request body from the payload of
-// the "get-projects" endpoint of the "project-service" service.
-func NewGetProjectsRequestBody(p *projectservice.GetProjectsPayload) *GetProjectsRequestBody {
-	body := &GetProjectsRequestBody{
-		PageSize: p.PageSize,
-	}
-	{
-		var zero int
-		if body.PageSize == zero {
-			body.PageSize = 10
-		}
-	}
-	return body
 }
 
 // NewCreateProjectRequestBody builds the HTTP request body from the payload of
@@ -317,9 +293,7 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 // NewGetProjectsResultOK builds a "project-service" service "get-projects"
 // endpoint result from a HTTP "OK" response.
 func NewGetProjectsResultOK(body *GetProjectsResponseBody, cacheControl *string) *projectservice.GetProjectsResult {
-	v := &projectservice.GetProjectsResult{
-		PageToken: body.PageToken,
-	}
+	v := &projectservice.GetProjectsResult{}
 	v.Projects = make([]*projectservice.Project, len(body.Projects))
 	for i, val := range body.Projects {
 		v.Projects[i] = unmarshalProjectResponseBodyToProjectserviceProject(val)
@@ -605,6 +579,58 @@ func ValidateGetProjectsResponseBody(body *GetProjectsResponseBody) (err error) 
 	if body.Projects == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("projects", "body"))
 	}
+	for _, e := range body.Projects {
+		if e != nil {
+			if err2 := ValidateProjectResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	return
+}
+
+// ValidateCreateProjectResponseBody runs the validations defined on
+// Create-ProjectResponseBody
+func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err error) {
+	if body.ID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	return
+}
+
+// ValidateGetOneProjectResponseBody runs the validations defined on
+// Get-One-ProjectResponseBody
+func ValidateGetOneProjectResponseBody(body *GetOneProjectResponseBody) (err error) {
+	if body.ID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	return
+}
+
+// ValidateUpdateProjectResponseBody runs the validations defined on
+// Update-ProjectResponseBody
+func ValidateUpdateProjectResponseBody(body *UpdateProjectResponseBody) (err error) {
+	if body.ID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
 	return
 }
 
@@ -832,6 +858,21 @@ func ValidateReadyzServiceUnavailableResponseBody(body *ReadyzServiceUnavailable
 	}
 	if body.Message == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateProjectResponseBody runs the validations defined on
+// ProjectResponseBody
+func ValidateProjectResponseBody(body *ProjectResponseBody) (err error) {
+	if body.ID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	return
 }

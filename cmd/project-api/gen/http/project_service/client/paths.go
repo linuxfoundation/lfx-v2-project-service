@@ -23,18 +23,18 @@ func CreateProjectProjectServicePath() string {
 }
 
 // GetOneProjectProjectServicePath returns the URL path to the project-service service get-one-project HTTP endpoint.
-func GetOneProjectProjectServicePath(projectID string) string {
-	return fmt.Sprintf("/projects/%v", projectID)
+func GetOneProjectProjectServicePath(id string) string {
+	return fmt.Sprintf("/projects/%v", id)
 }
 
 // UpdateProjectProjectServicePath returns the URL path to the project-service service update-project HTTP endpoint.
-func UpdateProjectProjectServicePath(projectID string) string {
-	return fmt.Sprintf("/projects/%v", projectID)
+func UpdateProjectProjectServicePath(id string) string {
+	return fmt.Sprintf("/projects/%v", id)
 }
 
 // DeleteProjectProjectServicePath returns the URL path to the project-service service delete-project HTTP endpoint.
-func DeleteProjectProjectServicePath(projectID string) string {
-	return fmt.Sprintf("/projects/%v", projectID)
+func DeleteProjectProjectServicePath(id string) string {
+	return fmt.Sprintf("/projects/%v", id)
 }
 
 // ReadyzProjectServicePath returns the URL path to the project-service service readyz HTTP endpoint.
