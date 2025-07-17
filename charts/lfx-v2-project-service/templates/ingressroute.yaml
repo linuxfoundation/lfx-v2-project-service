@@ -13,11 +13,11 @@ spec:
   routes:
     - kind: Rule
       match: >-
-        Host(`{{.Values.ingress.hostname}}`)
+        Host(`{{.Values.ingress.hostname}}`) &&
+        (Path(`/projects`) || PathPrefix(`/projects/`) || Path(`/livez`) || Path(`/readyz`))
       priority: 10
-      # TODO: add heimdall middleware once it is working - currently it causes a 403
-      # middlewares:
-      #   - name: heimdall
+      middlewares:
+        - name: heimdall
       services:
         - kind: Service
           name: lfx-v2-project-service

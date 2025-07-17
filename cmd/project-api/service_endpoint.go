@@ -528,8 +528,8 @@ func (s *ProjectsService) Livez(_ context.Context) ([]byte, error) {
 // JWTAuth implements Auther interface for the JWT security scheme.
 func (s *ProjectsService) JWTAuth(ctx context.Context, bearerToken string, _ *security.JWTScheme) (context.Context, error) {
 	// Parse the Heimdall-authorized principal from the token.
-	// TODO: handle error
 	principal, _ := s.auth.parsePrincipal(ctx, bearerToken, s.logger)
+	// TODO: handle error
 	// if err != nil {
 	// 	return ctx, err
 	// }

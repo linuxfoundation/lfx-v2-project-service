@@ -8,7 +8,21 @@ metadata:
   namespace: lfx
 spec:
   rules:
-    - id: "rule:lfx:lfx-v2-project-service"
+    - id: "rule:lfx:lfx-v2-project-service:health"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /livez
+          - path: /readyz
+      execute:
+        - authenticator: anonymous_authenticator
+        - authorizer: allow_all
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects"
       match:
         methods:
           - GET
@@ -19,10 +33,15 @@ spec:
           - path: /projects
           - path: /projects/:id
       execute:
-        - authenticator: authelia
+        #- authenticator: authelia
         - authenticator: anonymous_authenticator
-        - contextualizer: authelia_userinfo
+        #- contextualizer: authelia_userinfo
         - authorizer: allow_all
+        # - authorizer: openfga_check
+        #   config:
+        #     values:
+        #       relation: manager
+        #       object: "project:111"
         - finalizer: create_jwt
           config:
             values:

@@ -20,7 +20,7 @@ const (
 	// PS256 is the default for Heimdall's JWT finalizer.
 	signatureAlgorithm = validator.PS256
 	defaultIssuer      = "heimdall"
-	defaultAudience    = "query-svc"
+	defaultAudience    = "lfx-v2-project-service"
 )
 
 var (
@@ -107,7 +107,7 @@ func (j *jwtAuth) parsePrincipal(ctx context.Context, token string, logger *slog
 		// dropping the suffix of the 3rd error's String() method could be more
 		// accurate to error boundaries, but could also expose tertiary errors if
 		// errors are not wrapped with Go 1.13 `%w` semantics.
-		logger.With(errKey, err).WarnContext(ctx, "authorization failed")
+		logger.With("default_audience", defaultAudience).With("default_issuer", defaultIssuer).With(errKey, err).WarnContext(ctx, "authorization failed")
 		errString := err.Error()
 		firstColon := strings.Index(errString, ":")
 		if firstColon != -1 && firstColon+1 < len(errString) {
