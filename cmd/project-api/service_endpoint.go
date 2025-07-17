@@ -529,7 +529,8 @@ func (s *ProjectsService) Livez(_ context.Context) ([]byte, error) {
 func (s *ProjectsService) JWTAuth(ctx context.Context, bearerToken string, _ *security.JWTScheme) (context.Context, error) {
 	// Parse the Heimdall-authorized principal from the token.
 	principal, _ := s.auth.parsePrincipal(ctx, bearerToken, s.logger)
-	// TODO: handle error
+	// TODO: handle error once we have figured out why it fails when running the service locally outside of the helm chart deployment
+	// Error: failed to deserialize token claims: error getting the keys from the key func: could not decode jwks: EOF
 	// if err != nil {
 	// 	return ctx, err
 	// }

@@ -283,7 +283,8 @@ func main() {
 
 	// Load mock data
 	if err := client.LoadMockData(ctx, config.NumProjects); err != nil {
-		log.Fatalf("Failed to load mock data: %v", err)
+		log.Printf("Failed to load mock data: %v", err)
+		return
 	}
 
 	log.Println("Mock data loading completed successfully!")

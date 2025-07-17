@@ -18,9 +18,6 @@ DISABLE_LINTERS:
   # yamllint is sufficient for us.
   - YAML_PRETTIER
 DISABLE_ERRORS_LINTERS:
-  # Include grammar checks only as warnings.
-  - SPELL_PROSELINT
-  - SPELL_VALE
   # This may be informative but doesn't need to break the build.
   - COPYPASTE_JSCPD
   # TBD! Need to work through these.

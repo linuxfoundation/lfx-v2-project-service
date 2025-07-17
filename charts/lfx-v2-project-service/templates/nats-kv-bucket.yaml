@@ -1,15 +1,17 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 ---
+{{- if .Values.nats.projects_kv_bucket.creation }}
 apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue
 metadata:
   name: projects
   namespace: lfx
 spec:
-  bucket: projects
-  history: 20
-  storage: file
-  maxValueSize: 10485760 # 10MB
-  maxBytes: 1073741824 # 1GB
-  compression: true
+  bucket: {{ .Values.nats.projects_kv_bucket.name }}
+  history: {{ .Values.nats.projects_kv_bucket.history }}
+  storage: {{ .Values.nats.projects_kv_bucket.storage }}
+  maxValueSize: {{ .Values.nats.projects_kv_bucket.maxValueSize }}
+  maxBytes: {{ .Values.nats.projects_kv_bucket.maxBytes }}
+  compression: {{ .Values.nats.projects_kv_bucket.compression }}
+{{- end }}
