@@ -395,17 +395,8 @@ func EncodeUpdateProjectResponse(encoder func(context.Context, http.ResponseWrit
 func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
 	return func(r *http.Request) (any, error) {
 		var (
-			body struct {
-				// Project slug, a short slugified name of the project
-				Slug *string `form:"slug" json:"slug" xml:"slug"`
-				// A description of the project
-				Description *string `form:"description" json:"description" xml:"description"`
-				// The pretty name of the project
-				Name *string `form:"name" json:"name" xml:"name"`
-				// A list of project managers by their user IDs
-				Managers []string `form:"managers" json:"managers" xml:"managers"`
-			}
-			err error
+			body UpdateProjectRequestBody
+			err  error
 		)
 		err = decoder(r).Decode(&body)
 		if err != nil {
@@ -418,12 +409,7 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 			}
 			return nil, goa.DecodePayloadError(err.Error())
 		}
-		if body.Slug != nil {
-			err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
-		}
-		if body.Slug != nil {
-			err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
-		}
+		err = ValidateUpdateProjectRequestBody(&body)
 		if err != nil {
 			return nil, err
 		}
@@ -458,7 +444,7 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewUpdateProjectPayload(body, id, version, bearerToken, etag)
+		payload := NewUpdateProjectPayload(&body, id, version, bearerToken, etag)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -727,11 +713,19 @@ func marshalProjectserviceProjectToProjectResponseBody(v *projectservice.Project
 		Slug:        v.Slug,
 		Description: v.Description,
 		Name:        v.Name,
+		Public:      v.Public,
+		ParentUID:   v.ParentUID,
 	}
-	if v.Managers != nil {
-		res.Managers = make([]string, len(v.Managers))
-		for i, val := range v.Managers {
-			res.Managers[i] = val
+	if v.Auditors != nil {
+		res.Auditors = make([]string, len(v.Auditors))
+		for i, val := range v.Auditors {
+			res.Auditors[i] = val
+		}
+	}
+	if v.Writers != nil {
+		res.Writers = make([]string, len(v.Writers))
+		for i, val := range v.Writers {
+			res.Writers[i] = val
 		}
 	}
 

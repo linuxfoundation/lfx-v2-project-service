@@ -60,7 +60,7 @@ func TestHandleProjectGetName(t *testing.T) {
 			name:      "success",
 			projectID: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
 			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				projectData := `{"uid":"550e8400-e29b-41d4-a716-446655440000","slug":"test-project","name":"Test Project","description":"Test description","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
+				projectData := `{"uid":"550e8400-e29b-41d4-a716-446655440000","slug":"test-project","name":"Test Project","description":"Test description","public":true,"parent_uid":"","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				service.projectsKV.(*MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&MockKeyValueEntry{value: []byte(projectData)}, nil)
 			},
 			expectedError: false,

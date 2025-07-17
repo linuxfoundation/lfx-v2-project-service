@@ -126,7 +126,6 @@ paths:
                         - slug
                         - description
                         - name
-                        - managers
             responses:
                 "200":
                     description: OK response.
@@ -254,35 +253,15 @@ paths:
                   description: ETag header value
                   required: false
                   type: string
-                - name: object
+                - name: Update-ProjectRequestBody
                   in: body
                   required: true
                   schema:
-                    type: object
-                    properties:
-                        description:
-                            type: string
-                            description: A description of the project
-                            example: project foo is a project about bar
-                        managers:
-                            type: array
-                            items:
-                                type: string
-                                example: Qui est temporibus in cupiditate quod.
-                            description: A list of project managers by their user IDs
-                            example:
-                                - user123
-                                - user456
-                        name:
-                            type: string
-                            description: The pretty name of the project
-                            example: Foo Foundation
-                        slug:
-                            type: string
-                            description: Project slug, a short slugified name of the project
-                            example: project-slug
-                            format: regexp
-                            pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                    $ref: '#/definitions/ProjectServiceUpdateProjectRequestBody'
+                    required:
+                        - slug
+                        - description
+                        - name
             responses:
                 "200":
                     description: OK response.
@@ -490,6 +469,15 @@ definitions:
         title: Project
         type: object
         properties:
+            auditors:
+                type: array
+                items:
+                    type: string
+                    example: Ex architecto repellat non earum cumque illo.
+                description: A list of project auditors by their user IDs
+                example:
+                    - user123
+                    - user456
             description:
                 type: string
                 description: A description of the project
@@ -499,73 +487,107 @@ definitions:
                 description: Project ID -- v2 id, not related to v1 id directly
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 format: uuid
-            managers:
-                type: array
-                items:
-                    type: string
-                    example: Ex architecto repellat non earum cumque illo.
-                description: A list of project managers by their user IDs
-                example:
-                    - user123
-                    - user456
             name:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+            parent_uid:
+                type: string
+                description: The UID of the parent project, should be empty if there is none
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public:
+                type: boolean
+                description: Whether the project is public
+                example: true
             slug:
                 type: string
                 description: Project slug, a short slugified name of the project
                 example: project-slug
                 format: regexp
                 pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+            writers:
+                type: array
+                items:
+                    type: string
+                    example: Est et.
+                description: A list of project writers by their user IDs
+                example:
+                    - user123
+                    - user456
         description: A representation of LFX Projects.
         example:
-            description: project foo is a project about bar
-            id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            managers:
+            auditors:
                 - user123
                 - user456
+            description: project foo is a project about bar
+            id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             name: Foo Foundation
+            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public: true
             slug: project-slug
+            writers:
+                - user123
+                - user456
     ProjectServiceCreateProjectRequestBody:
         title: ProjectServiceCreateProjectRequestBody
         type: object
         properties:
+            auditors:
+                type: array
+                items:
+                    type: string
+                    example: Quia aut vero consequatur qui.
+                description: A list of project auditors by their user IDs
+                example:
+                    - user123
+                    - user456
             description:
                 type: string
                 description: A description of the project
                 example: project foo is a project about bar
-            managers:
-                type: array
-                items:
-                    type: string
-                    example: Aperiam minus incidunt quia aut vero.
-                description: A list of project managers by their user IDs
-                example:
-                    - user123
-                    - user456
             name:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+            parent_uid:
+                type: string
+                description: The UID of the parent project, should be empty if there is none
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public:
+                type: boolean
+                description: Whether the project is public
+                example: true
             slug:
                 type: string
                 description: Project slug, a short slugified name of the project
                 example: project-slug
                 format: regexp
                 pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+            writers:
+                type: array
+                items:
+                    type: string
+                    example: Temporibus in cupiditate quod consequatur quo.
+                description: A list of project writers by their user IDs
+                example:
+                    - user123
+                    - user456
         example:
-            description: project foo is a project about bar
-            managers:
+            auditors:
                 - user123
                 - user456
+            description: project foo is a project about bar
             name: Foo Foundation
+            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public: true
             slug: project-slug
+            writers:
+                - user123
+                - user456
         required:
             - slug
             - description
             - name
-            - managers
     ProjectServiceGetOneProjectResponseBody:
         title: ProjectServiceGetOneProjectResponseBody
         $ref: '#/definitions/Project'
@@ -579,45 +601,142 @@ definitions:
                     $ref: '#/definitions/Project'
                 description: Resources found
                 example:
-                    - description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      managers:
+                    - auditors:
                         - user123
                         - user456
-                      name: Foo Foundation
-                      slug: project-slug
-                    - description: project foo is a project about bar
+                      description: project foo is a project about bar
                       id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      managers:
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      writers:
                         - user123
                         - user456
-                      name: Foo Foundation
-                      slug: project-slug
-                    - description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      managers:
+                    - auditors:
                         - user123
                         - user456
+                      description: project foo is a project about bar
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
                       slug: project-slug
+                      writers:
+                        - user123
+                        - user456
+                    - auditors:
+                        - user123
+                        - user456
+                      description: project foo is a project about bar
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      writers:
+                        - user123
+                        - user456
+                    - auditors:
+                        - user123
+                        - user456
+                      description: project foo is a project about bar
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      writers:
+                        - user123
+                        - user456
         example:
             projects:
-                - description: project foo is a project about bar
-                  id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  managers:
+                - auditors:
                     - user123
                     - user456
-                  name: Foo Foundation
-                  slug: project-slug
-                - description: project foo is a project about bar
+                  description: project foo is a project about bar
                   id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  managers:
+                  name: Foo Foundation
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  public: true
+                  slug: project-slug
+                  writers:
                     - user123
                     - user456
+                - auditors:
+                    - user123
+                    - user456
+                  description: project foo is a project about bar
+                  id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                   name: Foo Foundation
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  public: true
                   slug: project-slug
+                  writers:
+                    - user123
+                    - user456
         required:
             - projects
+    ProjectServiceUpdateProjectRequestBody:
+        title: ProjectServiceUpdateProjectRequestBody
+        type: object
+        properties:
+            auditors:
+                type: array
+                items:
+                    type: string
+                    example: Voluptatibus dolores et.
+                description: A list of project auditors by their user IDs
+                example:
+                    - user123
+                    - user456
+            description:
+                type: string
+                description: A description of the project
+                example: project foo is a project about bar
+            name:
+                type: string
+                description: The pretty name of the project
+                example: Foo Foundation
+            parent_uid:
+                type: string
+                description: The UID of the parent project, should be empty if there is none
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public:
+                type: boolean
+                description: Whether the project is public
+                example: true
+            slug:
+                type: string
+                description: Project slug, a short slugified name of the project
+                example: project-slug
+                format: regexp
+                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+            writers:
+                type: array
+                items:
+                    type: string
+                    example: Eum ipsam.
+                description: A list of project writers by their user IDs
+                example:
+                    - user123
+                    - user456
+        example:
+            auditors:
+                - user123
+                - user456
+            description: project foo is a project about bar
+            name: Foo Foundation
+            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public: true
+            slug: project-slug
+            writers:
+                - user123
+                - user456
+        required:
+            - slug
+            - description
+            - name
     ServiceUnavailableError:
         title: ServiceUnavailableError
         type: object

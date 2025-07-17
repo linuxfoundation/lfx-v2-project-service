@@ -12,7 +12,10 @@ type ProjectDB struct {
 	Slug        string    `json:"slug"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	Managers    []string  `json:"managers"`
+	Public      bool      `json:"public"`
+	ParentUID   string    `json:"parent_uid"`
+	Auditors    []string  `json:"auditors"`
+	Writers     []string  `json:"writers"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

@@ -80,7 +80,7 @@ go run tools/load_mock_data/main.go [flags]
 
 ## Generated Data
 
-The script generates realistic project data including:
+The script generates project data including:
 
 ### Project Names
 - Random selection of 10 hard-coded project names (e.g. Project 1, Project 2)
@@ -88,8 +88,8 @@ The script generates realistic project data including:
 ### Descriptions
 - Random selection of 10 hard-coded project descriptions (e.g. A test description 1)
 
-### Managers
-- Random selection of 1-3 managers from a predefined list (e.g. user123, admin001)
+### Auditors and Writers
+- Random selection of 1-3 auditors and writers from a predefined list (e.g. user123, admin001)
 
 ### Slugs
 - Automatically generated from project names

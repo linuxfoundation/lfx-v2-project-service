@@ -17,7 +17,10 @@ var Project = Type("Project", func() {
 	ProjectSlugAttribute()
 	ProjectDescriptionAttribute()
 	ProjectNameAttribute()
-	ProjectManagersAttribute()
+	ProjectPublicAttribute()
+	ProjectParentUIDAttribute()
+	ProjectAuditorsAttribute()
+	ProjectWritersAttribute()
 })
 
 //
@@ -55,9 +58,32 @@ func ProjectDescriptionAttribute() {
 	})
 }
 
-// ProjectManagersAttribute is the DSL attribute for a project managers.
-func ProjectManagersAttribute() {
-	Attribute("managers", ArrayOf(String), "A list of project managers by their user IDs", func() {
+// ProjectPublicAttribute is the DSL attribute for a project public flag.
+func ProjectPublicAttribute() {
+	Attribute("public", Boolean, "Whether the project is public", func() {
+		Example(true)
+	})
+}
+
+// ProjectParentUIDAttribute is the DSL attribute for a project parent UID.
+func ProjectParentUIDAttribute() {
+	Attribute("parent_uid", String, "The UID of the parent project, should be empty if there is none", func() {
+		// No Format(FormatUUID) is included because this attribute can be an empty string if there is no parent project.
+		// However, the attribute should in practice be a UUID. There is server code to validate this.
+		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")
+	})
+}
+
+// ProjectAuditorsAttribute is the DSL attribute for a project auditors.
+func ProjectAuditorsAttribute() {
+	Attribute("auditors", ArrayOf(String), "A list of project auditors by their user IDs", func() {
+		Example([]string{"user123", "user456"})
+	})
+}
+
+// ProjectWritersAttribute is the DSL attribute for a project writers.
+func ProjectWritersAttribute() {
+	Attribute("writers", ArrayOf(String), "A list of project writers by their user IDs", func() {
 		Example([]string{"user123", "user456"})
 	})
 }

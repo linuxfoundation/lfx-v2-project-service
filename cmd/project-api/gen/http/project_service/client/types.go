@@ -22,8 +22,33 @@ type CreateProjectRequestBody struct {
 	Description string `form:"description" json:"description" xml:"description"`
 	// The pretty name of the project
 	Name string `form:"name" json:"name" xml:"name"`
-	// A list of project managers by their user IDs
-	Managers []string `form:"managers" json:"managers" xml:"managers"`
+	// Whether the project is public
+	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project writers by their user IDs
+	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+}
+
+// UpdateProjectRequestBody is the type of the "project-service" service
+// "update-project" endpoint HTTP request body.
+type UpdateProjectRequestBody struct {
+	// Project slug, a short slugified name of the project
+	Slug string `form:"slug" json:"slug" xml:"slug"`
+	// A description of the project
+	Description string `form:"description" json:"description" xml:"description"`
+	// The pretty name of the project
+	Name string `form:"name" json:"name" xml:"name"`
+	// Whether the project is public
+	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project writers by their user IDs
+	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
@@ -44,8 +69,14 @@ type CreateProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers by their user IDs
-	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
+	// Whether the project is public
+	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project writers by their user IDs
+	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 }
 
 // GetOneProjectResponseBody is the type of the "project-service" service
@@ -63,8 +94,14 @@ type UpdateProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers by their user IDs
-	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
+	// Whether the project is public
+	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project writers by their user IDs
+	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 }
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
@@ -267,8 +304,14 @@ type ProjectResponseBody struct {
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// The pretty name of the project
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// A list of project managers by their user IDs
-	Managers []string `form:"managers,omitempty" json:"managers,omitempty" xml:"managers,omitempty"`
+	// Whether the project is public
+	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project writers by their user IDs
+	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 }
 
 // NewCreateProjectRequestBody builds the HTTP request body from the payload of
@@ -278,14 +321,45 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 		Slug:        p.Slug,
 		Description: p.Description,
 		Name:        p.Name,
+		Public:      p.Public,
+		ParentUID:   p.ParentUID,
 	}
-	if p.Managers != nil {
-		body.Managers = make([]string, len(p.Managers))
-		for i, val := range p.Managers {
-			body.Managers[i] = val
+	if p.Auditors != nil {
+		body.Auditors = make([]string, len(p.Auditors))
+		for i, val := range p.Auditors {
+			body.Auditors[i] = val
 		}
-	} else {
-		body.Managers = []string{}
+	}
+	if p.Writers != nil {
+		body.Writers = make([]string, len(p.Writers))
+		for i, val := range p.Writers {
+			body.Writers[i] = val
+		}
+	}
+	return body
+}
+
+// NewUpdateProjectRequestBody builds the HTTP request body from the payload of
+// the "update-project" endpoint of the "project-service" service.
+func NewUpdateProjectRequestBody(p *projectservice.UpdateProjectPayload) *UpdateProjectRequestBody {
+	body := &UpdateProjectRequestBody{
+		Slug:        p.Slug,
+		Description: p.Description,
+		Name:        p.Name,
+		Public:      p.Public,
+		ParentUID:   p.ParentUID,
+	}
+	if p.Auditors != nil {
+		body.Auditors = make([]string, len(p.Auditors))
+		for i, val := range p.Auditors {
+			body.Auditors[i] = val
+		}
+	}
+	if p.Writers != nil {
+		body.Writers = make([]string, len(p.Writers))
+		for i, val := range p.Writers {
+			body.Writers[i] = val
+		}
 	}
 	return body
 }
@@ -344,11 +418,19 @@ func NewCreateProjectProjectOK(body *CreateProjectResponseBody) *projectservice.
 		Slug:        body.Slug,
 		Description: body.Description,
 		Name:        body.Name,
+		Public:      body.Public,
+		ParentUID:   body.ParentUID,
 	}
-	if body.Managers != nil {
-		v.Managers = make([]string, len(body.Managers))
-		for i, val := range body.Managers {
-			v.Managers[i] = val
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
+		}
+	}
+	if body.Writers != nil {
+		v.Writers = make([]string, len(body.Writers))
+		for i, val := range body.Writers {
+			v.Writers[i] = val
 		}
 	}
 
@@ -407,11 +489,19 @@ func NewGetOneProjectResultOK(body *GetOneProjectResponseBody, etag *string) *pr
 		Slug:        body.Slug,
 		Description: body.Description,
 		Name:        body.Name,
+		Public:      body.Public,
+		ParentUID:   body.ParentUID,
 	}
-	if body.Managers != nil {
-		v.Managers = make([]string, len(body.Managers))
-		for i, val := range body.Managers {
-			v.Managers[i] = val
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
+		}
+	}
+	if body.Writers != nil {
+		v.Writers = make([]string, len(body.Writers))
+		for i, val := range body.Writers {
+			v.Writers[i] = val
 		}
 	}
 	res := &projectservice.GetOneProjectResult{
@@ -463,11 +553,19 @@ func NewUpdateProjectProjectOK(body *UpdateProjectResponseBody) *projectservice.
 		Slug:        body.Slug,
 		Description: body.Description,
 		Name:        body.Name,
+		Public:      body.Public,
+		ParentUID:   body.ParentUID,
 	}
-	if body.Managers != nil {
-		v.Managers = make([]string, len(body.Managers))
-		for i, val := range body.Managers {
-			v.Managers[i] = val
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
+		}
+	}
+	if body.Writers != nil {
+		v.Writers = make([]string, len(body.Writers))
+		for i, val := range body.Writers {
+			v.Writers[i] = val
 		}
 	}
 

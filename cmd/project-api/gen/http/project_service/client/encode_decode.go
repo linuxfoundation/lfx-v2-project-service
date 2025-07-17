@@ -498,7 +498,7 @@ func EncodeUpdateProjectRequest(encoder func(*http.Request) goahttp.Encoder) fun
 			values.Add("v", *p.Version)
 		}
 		req.URL.RawQuery = values.Encode()
-		body := p
+		body := NewUpdateProjectRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
 			return goahttp.ErrEncodingError("project-service", "update-project", err)
 		}
@@ -878,11 +878,19 @@ func unmarshalProjectResponseBodyToProjectserviceProject(v *ProjectResponseBody)
 		Slug:        v.Slug,
 		Description: v.Description,
 		Name:        v.Name,
+		Public:      v.Public,
+		ParentUID:   v.ParentUID,
 	}
-	if v.Managers != nil {
-		res.Managers = make([]string, len(v.Managers))
-		for i, val := range v.Managers {
-			res.Managers[i] = val
+	if v.Auditors != nil {
+		res.Auditors = make([]string, len(v.Auditors))
+		for i, val := range v.Auditors {
+			res.Auditors[i] = val
+		}
+	}
+	if v.Writers != nil {
+		res.Writers = make([]string, len(v.Writers))
+		for i, val := range v.Writers {
+			res.Writers[i] = val
 		}
 	}
 

@@ -55,8 +55,8 @@ func TestGetProjects(t *testing.T) {
 				mockKV.On("ListKeys", mock.Anything).Return(mockLister, nil)
 
 				// Mock project entries
-				project1Data := `{"uid":"project-1","slug":"test-1","name":"Test Project 1","description":"Test 1","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
-				project2Data := `{"uid":"project-2","slug":"test-2","name":"Test Project 2","description":"Test 2","managers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
+				project1Data := `{"uid":"project-1","slug":"test-1","name":"Test Project 1","description":"Test 1","public":true,"parent_uid":"","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
+				project2Data := `{"uid":"project-2","slug":"test-2","name":"Test Project 2","description":"Test 2","public":false,"parent_uid":"parent-uid","auditors":["user2"],"writers":["user3"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(project1Data)}, nil)
 				mockKV.On("Get", mock.Anything, "project-2").Return(&MockKeyValueEntry{value: []byte(project2Data)}, nil)
@@ -69,14 +69,20 @@ func TestGetProjects(t *testing.T) {
 						Slug:        stringPtr("test-1"),
 						Name:        stringPtr("Test Project 1"),
 						Description: stringPtr("Test 1"),
-						Managers:    []string{"user1"},
+						Public:      boolPtr(true),
+						ParentUID:   stringPtr(""),
+						Auditors:    []string{"user1"},
+						Writers:     []string{"user2"},
 					},
 					{
 						ID:          stringPtr("project-2"),
 						Slug:        stringPtr("test-2"),
 						Name:        stringPtr("Test Project 2"),
 						Description: stringPtr("Test 2"),
-						Managers:    []string{"user2"},
+						Public:      boolPtr(false),
+						ParentUID:   stringPtr("parent-uid"),
+						Auditors:    []string{"user2"},
+						Writers:     []string{"user3"},
 					},
 				},
 			},
@@ -137,7 +143,10 @@ func TestGetProjects(t *testing.T) {
 						if expectedProject.Description != nil {
 							assert.Equal(t, *expectedProject.Description, *actualProject.Description)
 						}
-						assert.Equal(t, expectedProject.Managers, actualProject.Managers)
+						assert.Equal(t, expectedProject.Public, actualProject.Public)
+						assert.Equal(t, expectedProject.ParentUID, actualProject.ParentUID)
+						assert.Equal(t, expectedProject.Auditors, actualProject.Auditors)
+						assert.Equal(t, expectedProject.Writers, actualProject.Writers)
 					}
 				}
 			}
@@ -158,7 +167,10 @@ func TestCreateProject(t *testing.T) {
 				Slug:        "test-project",
 				Name:        "Test Project",
 				Description: "Test description",
-				Managers:    []string{"user1", "user2"},
+				Public:      boolPtr(true),
+				ParentUID:   stringPtr(""),
+				Auditors:    []string{"user1", "user2"},
+				Writers:     []string{"user3", "user4"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockNats := service.natsConn.(*MockNATSConn)
@@ -173,12 +185,46 @@ func TestCreateProject(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			name: "invalid parent UID",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:        "test-project",
+				Name:        "Test Project",
+				Description: "Test description",
+				Public:      boolPtr(true),
+				ParentUID:   stringPtr("invalid-parent-uid"),
+				Auditors:    []string{"user1"},
+				Writers:     []string{"user2"},
+			},
+			setupMocks:    func(_ *ProjectsService) {},
+			expectedError: true,
+		},
+		{
+			name: "parent project not found",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:        "test-project",
+				Name:        "Test Project",
+				Description: "Test description",
+				Public:      boolPtr(true),
+				ParentUID:   stringPtr("787620d0-d7de-449a-b0bf-9d28b13da818"),
+				Auditors:    []string{"user1"},
+				Writers:     []string{"user2"},
+			},
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.projectsKV.(*MockKeyValue)
+				mockKV.On("Get", mock.Anything, "787620d0-d7de-449a-b0bf-9d28b13da818").Return(&MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
+			},
+			expectedError: true,
+		},
+		{
 			name: "slug already exists",
 			payload: &projsvc.CreateProjectPayload{
 				Slug:        "existing-project",
 				Name:        "Test Project",
 				Description: "Test description",
-				Managers:    []string{"user1"},
+				Public:      boolPtr(true),
+				ParentUID:   stringPtr(""),
+				Auditors:    []string{"user1"},
+				Writers:     []string{"user2"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*MockKeyValue)
@@ -192,7 +238,10 @@ func TestCreateProject(t *testing.T) {
 				Slug:        "test-project",
 				Name:        "Test Project",
 				Description: "Test description",
-				Managers:    []string{"user1"},
+				Public:      boolPtr(true),
+				ParentUID:   stringPtr(""),
+				Auditors:    []string{"user1"},
+				Writers:     []string{"user2"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*MockKeyValue)
@@ -217,7 +266,10 @@ func TestCreateProject(t *testing.T) {
 				assert.Equal(t, tt.payload.Slug, *result.Slug)
 				assert.Equal(t, tt.payload.Name, *result.Name)
 				assert.Equal(t, tt.payload.Description, *result.Description)
-				assert.Equal(t, tt.payload.Managers, result.Managers)
+				assert.Equal(t, tt.payload.Public, result.Public)
+				assert.Equal(t, tt.payload.ParentUID, result.ParentUID)
+				assert.Equal(t, tt.payload.Auditors, result.Auditors)
+				assert.Equal(t, tt.payload.Writers, result.Writers)
 				assert.NotEmpty(t, *result.ID)
 			}
 		})
@@ -238,7 +290,7 @@ func TestGetOneProject(t *testing.T) {
 				ID: stringPtr("project-1"),
 			},
 			setupMocks: func(mockKV *MockKeyValue) {
-				projectData := `{"uid":"project-1","slug":"test-1","name":"Test Project","description":"Test description","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
+				projectData := `{"uid":"project-1","slug":"test-1","name":"Test Project","description":"Test description","public":true,"parent_uid":"","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(projectData), revision: 123}, nil)
 			},
 			expectedError: false,
@@ -305,13 +357,16 @@ func TestUpdateProject(t *testing.T) {
 				Slug:        "updated-slug",
 				Name:        "Updated Project",
 				Description: "Updated description",
-				Managers:    []string{"user1", "user2"},
+				Public:      boolPtr(true),
+				ParentUID:   stringPtr(""),
+				Auditors:    []string{"user1", "user2"},
+				Writers:     []string{"user3", "user4"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockNats := service.natsConn.(*MockNATSConn)
 				mockKV := service.projectsKV.(*MockKeyValue)
 				// Mock getting existing project
-				projectData := `{"uid":"project-1","slug":"old-slug","name":"Old Project","description":"Old description","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
+				projectData := `{"uid":"project-1","slug":"old-slug","name":"Old Project","description":"Old description","public":false,"parent_uid":"parent-uid","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(projectData), revision: 1}, nil)
 				// Mock updating project
 				mockKV.On("Update", mock.Anything, "project-1", mock.Anything, uint64(1)).Return(uint64(1), nil)
@@ -334,12 +389,46 @@ func TestUpdateProject(t *testing.T) {
 			expectedError: true,
 		},
 		{
+			name: "invalid parent UID",
+			payload: &projsvc.UpdateProjectPayload{
+				ID:        stringPtr("project-1"),
+				Slug:      "test",
+				Name:      "Test",
+				Public:    boolPtr(true),
+				ParentUID: stringPtr("invalid-parent-uid"),
+				Auditors:  []string{"user1"},
+				Writers:   []string{"user2"},
+			},
+			setupMocks:    func(_ *ProjectsService) {},
+			expectedError: true,
+		},
+		{
+			name: "parent project not found",
+			payload: &projsvc.UpdateProjectPayload{
+				ID:        stringPtr("project-1"),
+				Slug:      "test",
+				Name:      "Test",
+				Public:    boolPtr(true),
+				ParentUID: stringPtr("787620d0-d7de-449a-b0bf-9d28b13da818"),
+				Auditors:  []string{"user1"},
+				Writers:   []string{"user2"},
+			},
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.projectsKV.(*MockKeyValue)
+				mockKV.On("Get", mock.Anything, "787620d0-d7de-449a-b0bf-9d28b13da818").Return(&MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
+			},
+			expectedError: true,
+		},
+		{
 			name: "project not found",
 			payload: &projsvc.UpdateProjectPayload{
-				ID:       stringPtr("nonexistent"),
-				Slug:     "test",
-				Name:     "Test",
-				Managers: []string{"user1"},
+				ID:        stringPtr("nonexistent"),
+				Slug:      "test",
+				Name:      "Test",
+				Public:    boolPtr(true),
+				ParentUID: stringPtr(""),
+				Auditors:  []string{"user1"},
+				Writers:   []string{"user2"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*MockKeyValue)
@@ -364,7 +453,10 @@ func TestUpdateProject(t *testing.T) {
 					assert.Equal(t, tt.payload.Slug, *result.Slug)
 					assert.Equal(t, tt.payload.Name, *result.Name)
 					assert.Equal(t, tt.payload.Description, *result.Description)
-					assert.Equal(t, tt.payload.Managers, result.Managers)
+					assert.Equal(t, tt.payload.Public, result.Public)
+					assert.Equal(t, tt.payload.ParentUID, result.ParentUID)
+					assert.Equal(t, tt.payload.Auditors, result.Auditors)
+					assert.Equal(t, tt.payload.Writers, result.Writers)
 				}
 			}
 		})
@@ -388,7 +480,7 @@ func TestDeleteProject(t *testing.T) {
 				mockNats := service.natsConn.(*MockNATSConn)
 				mockKV := service.projectsKV.(*MockKeyValue)
 				// Mock getting existing project
-				projectData := `{"uid":"project-1","slug":"test","name":"Test Project","description":"Test","managers":["user1"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
+				projectData := `{"uid":"project-1","slug":"test","name":"Test Project","description":"Test","public":false,"parent_uid":"parent-uid","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				mockKV.On("Get", mock.Anything, "project-1").Return(&MockKeyValueEntry{value: []byte(projectData), revision: 1}, nil)
 				// Mock deleting project
 				mockKV.On("Delete", mock.Anything, "project-1", mock.Anything).Return(nil)
@@ -545,6 +637,11 @@ func TestJWTAuth(t *testing.T) {
 // Helper function to create string pointers
 func stringPtr(s string) *string {
 	return &s
+}
+
+// Helper function to create boolean pointers
+func boolPtr(b bool) *bool {
+	return &b
 }
 
 // Test cleanup

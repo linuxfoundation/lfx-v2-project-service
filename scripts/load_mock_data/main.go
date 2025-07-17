@@ -26,7 +26,10 @@ type ProjectData struct {
 	Slug        string   `json:"slug"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
-	Managers    []string `json:"managers"`
+	Public      bool     `json:"public"`
+	ParentUID   string   `json:"parent_uid"`
+	Auditors    []string `json:"auditors"`
+	Writers     []string `json:"writers"`
 }
 
 // ProjectResponse represents the response from the API
@@ -35,7 +38,10 @@ type ProjectResponse struct {
 	Slug        *string  `json:"slug,omitempty"`
 	Name        *string  `json:"name,omitempty"`
 	Description *string  `json:"description,omitempty"`
-	Managers    []string `json:"managers,omitempty"`
+	Public      *bool    `json:"public,omitempty"`
+	ParentUID   *string  `json:"parent_uid,omitempty"`
+	Auditors    []string `json:"auditors,omitempty"`
+	Writers     []string `json:"writers,omitempty"`
 }
 
 // Config holds the configuration for the script
@@ -90,21 +96,39 @@ func (pg *ProjectGenerator) GenerateProject(index int) ProjectData {
 	// Generate slug from name
 	slug := generateSlug(name)
 
-	// Generate random managers (1-3 managers)
-	numManagers, _ := rand.Int(rand.Reader, big.NewInt(3))
-	numManagers.Add(numManagers, big.NewInt(1))
+	// Generate random public flag
+	publicInt, _ := rand.Int(rand.Reader, big.NewInt(2))
+	publicInt.Add(publicInt, big.NewInt(1))
+	public := publicInt.Int64() == 1
 
-	managers := make([]string, numManagers.Int64())
-	for i := range managers {
-		managerIndex, _ := rand.Int(rand.Reader, big.NewInt(int64(len(pg.managerIDs))))
-		managers[i] = pg.managerIDs[managerIndex.Int64()]
+	// Generate random auditors (1-3 auditors)
+	numAuditors, _ := rand.Int(rand.Reader, big.NewInt(3))
+	numAuditors.Add(numAuditors, big.NewInt(1))
+
+	auditors := make([]string, numAuditors.Int64())
+	for i := range auditors {
+		auditorIndex, _ := rand.Int(rand.Reader, big.NewInt(int64(len(pg.managerIDs))))
+		auditors[i] = pg.managerIDs[auditorIndex.Int64()]
+	}
+
+	// Generate random writers (1-3 writers)
+	numWriters, _ := rand.Int(rand.Reader, big.NewInt(3))
+	numWriters.Add(numWriters, big.NewInt(1))
+
+	writers := make([]string, numWriters.Int64())
+	for i := range writers {
+		writerIndex, _ := rand.Int(rand.Reader, big.NewInt(int64(len(pg.managerIDs))))
+		writers[i] = pg.managerIDs[writerIndex.Int64()]
 	}
 
 	return ProjectData{
 		Slug:        slug,
 		Name:        name,
 		Description: description,
-		Managers:    managers,
+		Public:      public,
+		ParentUID:   "",
+		Auditors:    auditors,
+		Writers:     writers,
 	}
 }
 
@@ -163,7 +187,10 @@ func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData)
 		Slug:        project.Slug,
 		Name:        project.Name,
 		Description: project.Description,
-		Managers:    project.Managers,
+		Public:      &project.Public,
+		ParentUID:   &project.ParentUID,
+		Auditors:    project.Auditors,
+		Writers:     project.Writers,
 	}
 
 	// Marshal the payload
@@ -171,7 +198,10 @@ func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData)
 		"slug":        payload.Slug,
 		"name":        payload.Name,
 		"description": payload.Description,
-		"managers":    payload.Managers,
+		"public":      payload.Public,
+		"parent_uid":  payload.ParentUID,
+		"auditors":    payload.Auditors,
+		"writers":     payload.Writers,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)

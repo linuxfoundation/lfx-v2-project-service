@@ -68,27 +68,42 @@ paths:
                                 $ref: '#/components/schemas/GetProjectsResponseBody'
                             example:
                                 projects:
-                                    - description: project foo is a project about bar
-                                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      managers:
+                                    - auditors:
                                         - user123
                                         - user456
-                                      name: Foo Foundation
-                                      slug: project-slug
-                                    - description: project foo is a project about bar
+                                      description: project foo is a project about bar
                                       id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      managers:
+                                      name: Foo Foundation
+                                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                      public: true
+                                      slug: project-slug
+                                      writers:
                                         - user123
                                         - user456
-                                      name: Foo Foundation
-                                      slug: project-slug
-                                    - description: project foo is a project about bar
-                                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      managers:
+                                    - auditors:
                                         - user123
                                         - user456
+                                      description: project foo is a project about bar
+                                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       name: Foo Foundation
+                                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                      public: true
                                       slug: project-slug
+                                      writers:
+                                        - user123
+                                        - user456
+                                    - auditors:
+                                        - user123
+                                        - user456
+                                      description: project foo is a project about bar
+                                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                      name: Foo Foundation
+                                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                      public: true
+                                      slug: project-slug
+                                      writers:
+                                        - user123
+                                        - user456
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -143,12 +158,17 @@ paths:
                         schema:
                             $ref: '#/components/schemas/CreateProjectRequestBody'
                         example:
-                            description: project foo is a project about bar
-                            managers:
+                            auditors:
                                 - user123
                                 - user456
+                            description: project foo is a project about bar
                             name: Foo Foundation
+                            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                            public: true
                             slug: project-slug
+                            writers:
+                                - user123
+                                - user456
             responses:
                 "200":
                     description: OK response.
@@ -157,13 +177,18 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Project'
                             example:
-                                description: project foo is a project about bar
-                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                managers:
+                                auditors:
                                     - user123
                                     - user456
+                                description: project foo is a project about bar
+                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 name: Foo Foundation
+                                parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                public: true
                                 slug: project-slug
+                                writers:
+                                    - user123
+                                    - user456
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -318,20 +343,25 @@ paths:
                             schema:
                                 type: string
                                 description: ETag header value
-                                example: Doloribus ratione debitis molestiae ut dolorum id.
-                            example: Magnam quos eos expedita voluptas et quibusdam.
+                                example: Sequi laboriosam quis quas.
+                            example: Rerum odio omnis ipsum.
                     content:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Project'
                             example:
-                                description: project foo is a project about bar
-                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                managers:
+                                auditors:
                                     - user123
                                     - user456
+                                description: project foo is a project about bar
+                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 name: Foo Foundation
+                                parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                public: true
                                 slug: project-slug
+                                writers:
+                                    - user123
+                                    - user456
                 "404":
                     description: 'NotFound: Resource not found'
                     content:
@@ -403,45 +433,19 @@ paths:
                 content:
                     application/json:
                         schema:
-                            type: object
-                            properties:
-                                description:
-                                    type: string
-                                    description: A description of the project
-                                    example: project foo is a project about bar
-                                managers:
-                                    type: array
-                                    items:
-                                        type: string
-                                        example: Aperiam omnis tenetur.
-                                    description: A list of project managers by their user IDs
-                                    example:
-                                        - user123
-                                        - user456
-                                name:
-                                    type: string
-                                    description: The pretty name of the project
-                                    example: Foo Foundation
-                                slug:
-                                    type: string
-                                    description: Project slug, a short slugified name of the project
-                                    example: project-slug
-                                    format: regexp
-                                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
-                            example:
-                                description: project foo is a project about bar
-                                managers:
-                                    - user123
-                                    - user456
-                                name: Foo Foundation
-                                slug: project-slug
+                            $ref: '#/components/schemas/CreateProjectRequestBody'
                         example:
-                            description: project foo is a project about bar
-                            managers:
+                            auditors:
                                 - user123
                                 - user456
+                            description: project foo is a project about bar
                             name: Foo Foundation
+                            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                            public: true
                             slug: project-slug
+                            writers:
+                                - user123
+                                - user456
             responses:
                 "200":
                     description: OK response.
@@ -450,13 +454,18 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Project'
                             example:
-                                description: project foo is a project about bar
-                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                managers:
+                                auditors:
                                     - user123
                                     - user456
+                                description: project foo is a project about bar
+                                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 name: Foo Foundation
+                                parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                public: true
                                 slug: project-slug
+                                writers:
+                                    - user123
+                                    - user456
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -560,41 +569,62 @@ components:
         CreateProjectRequestBody:
             type: object
             properties:
+                auditors:
+                    type: array
+                    items:
+                        type: string
+                        example: Quae ex voluptate voluptatem magnam quos eos.
+                    description: A list of project auditors by their user IDs
+                    example:
+                        - user123
+                        - user456
                 description:
                     type: string
                     description: A description of the project
                     example: project foo is a project about bar
-                managers:
-                    type: array
-                    items:
-                        type: string
-                        example: Eum ipsam.
-                    description: A list of project managers by their user IDs
-                    example:
-                        - user123
-                        - user456
                 name:
                     type: string
                     description: The pretty name of the project
                     example: Foo Foundation
+                parent_uid:
+                    type: string
+                    description: The UID of the parent project, should be empty if there is none
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                public:
+                    type: boolean
+                    description: Whether the project is public
+                    example: true
                 slug:
                     type: string
                     description: Project slug, a short slugified name of the project
                     example: project-slug
                     format: regexp
                     pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                writers:
+                    type: array
+                    items:
+                        type: string
+                        example: Voluptas et quibusdam veritatis sed quis.
+                    description: A list of project writers by their user IDs
+                    example:
+                        - user123
+                        - user456
             example:
-                description: project foo is a project about bar
-                managers:
+                auditors:
                     - user123
                     - user456
+                description: project foo is a project about bar
                 name: Foo Foundation
+                parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                public: true
                 slug: project-slug
+                writers:
+                    - user123
+                    - user456
             required:
                 - slug
                 - description
                 - name
-                - managers
         GetProjectsResponseBody:
             type: object
             properties:
@@ -604,43 +634,104 @@ components:
                         $ref: '#/components/schemas/Project'
                     description: Resources found
                     example:
-                        - description: project foo is a project about bar
-                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          managers:
+                        - auditors:
                             - user123
                             - user456
-                          name: Foo Foundation
-                          slug: project-slug
-                        - description: project foo is a project about bar
+                          description: project foo is a project about bar
                           id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          managers:
+                          name: Foo Foundation
+                          parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          public: true
+                          slug: project-slug
+                          writers:
                             - user123
                             - user456
-                          name: Foo Foundation
-                          slug: project-slug
-                        - description: project foo is a project about bar
-                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          managers:
+                        - auditors:
                             - user123
                             - user456
+                          description: project foo is a project about bar
+                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           name: Foo Foundation
+                          parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          public: true
                           slug: project-slug
+                          writers:
+                            - user123
+                            - user456
+                        - auditors:
+                            - user123
+                            - user456
+                          description: project foo is a project about bar
+                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          name: Foo Foundation
+                          parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          public: true
+                          slug: project-slug
+                          writers:
+                            - user123
+                            - user456
+                        - auditors:
+                            - user123
+                            - user456
+                          description: project foo is a project about bar
+                          id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          name: Foo Foundation
+                          parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          public: true
+                          slug: project-slug
+                          writers:
+                            - user123
+                            - user456
             example:
                 projects:
-                    - description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      managers:
+                    - auditors:
                         - user123
                         - user456
-                      name: Foo Foundation
-                      slug: project-slug
-                    - description: project foo is a project about bar
+                      description: project foo is a project about bar
                       id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      managers:
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      writers:
                         - user123
                         - user456
+                    - auditors:
+                        - user123
+                        - user456
+                      description: project foo is a project about bar
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
                       slug: project-slug
+                      writers:
+                        - user123
+                        - user456
+                    - auditors:
+                        - user123
+                        - user456
+                      description: project foo is a project about bar
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      writers:
+                        - user123
+                        - user456
+                    - auditors:
+                        - user123
+                        - user456
+                      description: project foo is a project about bar
+                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      writers:
+                        - user123
+                        - user456
             required:
                 - projects
         InternalServerError:
@@ -680,6 +771,15 @@ components:
         Project:
             type: object
             properties:
+                auditors:
+                    type: array
+                    items:
+                        type: string
+                        example: Aperiam omnis tenetur.
+                    description: A list of project auditors by their user IDs
+                    example:
+                        - user123
+                        - user456
                 description:
                     type: string
                     description: A description of the project
@@ -689,34 +789,47 @@ components:
                     description: Project ID -- v2 id, not related to v1 id directly
                     example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                     format: uuid
-                managers:
-                    type: array
-                    items:
-                        type: string
-                        example: Quo illo voluptatibus.
-                    description: A list of project managers by their user IDs
-                    example:
-                        - user123
-                        - user456
                 name:
                     type: string
                     description: The pretty name of the project
                     example: Foo Foundation
+                parent_uid:
+                    type: string
+                    description: The UID of the parent project, should be empty if there is none
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                public:
+                    type: boolean
+                    description: Whether the project is public
+                    example: true
                 slug:
                     type: string
                     description: Project slug, a short slugified name of the project
                     example: project-slug
                     format: regexp
                     pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+                writers:
+                    type: array
+                    items:
+                        type: string
+                        example: Doloribus ratione debitis molestiae ut dolorum id.
+                    description: A list of project writers by their user IDs
+                    example:
+                        - user123
+                        - user456
             description: A representation of LFX Projects.
             example:
-                description: project foo is a project about bar
-                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                managers:
+                auditors:
                     - user123
                     - user456
+                description: project foo is a project about bar
+                id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 name: Foo Foundation
+                parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                public: true
                 slug: project-slug
+                writers:
+                    - user123
+                    - user456
         ServiceUnavailableError:
             type: object
             properties:

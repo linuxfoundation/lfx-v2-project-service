@@ -53,10 +53,7 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 	{
 		err = json.Unmarshal([]byte(projectServiceCreateProjectBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"description\": \"project foo is a project about bar\",\n      \"managers\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"name\": \"Foo Foundation\",\n      \"slug\": \"project-slug\"\n   }'")
-		}
-		if body.Managers == nil {
-			err = goa.MergeErrors(err, goa.MissingFieldError("managers", "body"))
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"description\": \"project foo is a project about bar\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"slug\": \"project-slug\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
@@ -86,14 +83,20 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		Slug:        body.Slug,
 		Description: body.Description,
 		Name:        body.Name,
+		Public:      body.Public,
+		ParentUID:   body.ParentUID,
 	}
-	if body.Managers != nil {
-		v.Managers = make([]string, len(body.Managers))
-		for i, val := range body.Managers {
-			v.Managers[i] = val
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
 		}
-	} else {
-		v.Managers = []string{}
+	}
+	if body.Writers != nil {
+		v.Writers = make([]string, len(body.Writers))
+		for i, val := range body.Writers {
+			v.Writers[i] = val
+		}
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -143,20 +146,16 @@ func BuildGetOneProjectPayload(projectServiceGetOneProjectID string, projectServ
 // update-project endpoint from CLI flags.
 func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectServiceUpdateProjectID string, projectServiceUpdateProjectVersion string, projectServiceUpdateProjectBearerToken string, projectServiceUpdateProjectEtag string) (*projectservice.UpdateProjectPayload, error) {
 	var err error
-	var body struct {
-		// Project slug, a short slugified name of the project
-		Slug *string `form:"slug" json:"slug" xml:"slug"`
-		// A description of the project
-		Description *string `form:"description" json:"description" xml:"description"`
-		// The pretty name of the project
-		Name *string `form:"name" json:"name" xml:"name"`
-		// A list of project managers by their user IDs
-		Managers []string `form:"managers" json:"managers" xml:"managers"`
-	}
+	var body UpdateProjectRequestBody
 	{
 		err = json.Unmarshal([]byte(projectServiceUpdateProjectBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"description\": \"project foo is a project about bar\",\n      \"managers\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"name\": \"Foo Foundation\",\n      \"slug\": \"project-slug\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"description\": \"project foo is a project about bar\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"slug\": \"project-slug\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
+		}
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		if err != nil {
+			return nil, err
 		}
 	}
 	var id string
@@ -191,20 +190,23 @@ func BuildUpdateProjectPayload(projectServiceUpdateProjectBody string, projectSe
 			etag = &projectServiceUpdateProjectEtag
 		}
 	}
-	v := &projectservice.UpdateProjectPayload{}
-	if body.Slug != nil {
-		v.Slug = *body.Slug
+	v := &projectservice.UpdateProjectPayload{
+		Slug:        body.Slug,
+		Description: body.Description,
+		Name:        body.Name,
+		Public:      body.Public,
+		ParentUID:   body.ParentUID,
 	}
-	if body.Description != nil {
-		v.Description = *body.Description
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
+		}
 	}
-	if body.Name != nil {
-		v.Name = *body.Name
-	}
-	if body.Managers != nil {
-		v.Managers = make([]string, len(body.Managers))
-		for i, val := range body.Managers {
-			v.Managers[i] = val
+	if body.Writers != nil {
+		v.Writers = make([]string, len(body.Writers))
+		for i, val := range body.Writers {
+			v.Writers[i] = val
 		}
 	}
 	v.ID = &id

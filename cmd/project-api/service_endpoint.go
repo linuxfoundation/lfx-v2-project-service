@@ -91,7 +91,10 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		Slug:        &payload.Slug,
 		Description: &payload.Description,
 		Name:        &payload.Name,
-		Managers:    payload.Managers,
+		Public:      payload.Public,
+		ParentUID:   payload.ParentUID,
+		Auditors:    payload.Auditors,
+		Writers:     payload.Writers,
 	}
 
 	if s.natsConn == nil || s.projectsKV == nil {
@@ -100,6 +103,32 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Code:    "503",
 			Message: "service unavailable",
 		}
+	}
+
+	// Validate that the parent UID is a valid UUID and is an existing project UID.
+	if project.ParentUID != nil && *project.ParentUID != "" {
+		if _, err := uuid.Parse(*project.ParentUID); err != nil {
+			reqLogger.With(errKey, err).Error("invalid parent UID")
+			return nil, &projsvc.BadRequestError{
+				Code:    "400",
+				Message: "invalid parent UID",
+			}
+		}
+		if _, err := s.projectsKV.Get(ctx, *project.ParentUID); err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				reqLogger.With(errKey, err).Error("parent project not found")
+				return nil, &projsvc.BadRequestError{
+					Code:    "400",
+					Message: "parent project not found",
+				}
+			}
+			reqLogger.With(errKey, err).Error("error getting parent project from NATS KV store")
+			return nil, &projsvc.InternalServerError{
+				Code:    "500",
+				Message: "error getting parent project from NATS KV store",
+			}
+		}
+
 	}
 
 	projectDB := ConvertToDBProject(project)
@@ -284,6 +313,32 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 		}
 	}
 
+	// Validate that the parent UID is a valid UUID and is an existing project UID.
+	if payload.ParentUID != nil && *payload.ParentUID != "" {
+		if _, err := uuid.Parse(*payload.ParentUID); err != nil {
+			reqLogger.With(errKey, err).Error("invalid parent UID")
+			return nil, &projsvc.BadRequestError{
+				Code:    "400",
+				Message: "invalid parent UID",
+			}
+		}
+		if _, err := s.projectsKV.Get(ctx, *payload.ParentUID); err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				reqLogger.With(errKey, err).Error("parent project not found")
+				return nil, &projsvc.BadRequestError{
+					Code:    "400",
+					Message: "parent project not found",
+				}
+			}
+			reqLogger.With(errKey, err).Error("error getting parent project from NATS KV store")
+			return nil, &projsvc.InternalServerError{
+				Code:    "500",
+				Message: "error getting parent project from NATS KV store",
+			}
+		}
+
+	}
+
 	// Check if the project exists
 	_, err = s.projectsKV.Get(ctx, *payload.ID)
 	if err != nil {
@@ -307,7 +362,10 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 		Slug:        &payload.Slug,
 		Description: &payload.Description,
 		Name:        &payload.Name,
-		Managers:    payload.Managers,
+		Public:      payload.Public,
+		ParentUID:   payload.ParentUID,
+		Auditors:    payload.Auditors,
+		Writers:     payload.Writers,
 	}
 	projectDB := ConvertToDBProject(project)
 	projectDBBytes, err := json.Marshal(projectDB)

@@ -81,8 +81,14 @@ type CreateProjectPayload struct {
 	Description string
 	// The pretty name of the project
 	Name string
-	// A list of project managers by their user IDs
-	Managers []string
+	// Whether the project is public
+	Public *bool
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string
+	// A list of project auditors by their user IDs
+	Auditors []string
+	// A list of project writers by their user IDs
+	Writers []string
 }
 
 // DeleteProjectPayload is the payload type of the project-service service
@@ -160,8 +166,14 @@ type Project struct {
 	Description *string
 	// The pretty name of the project
 	Name *string
-	// A list of project managers by their user IDs
-	Managers []string
+	// Whether the project is public
+	Public *bool
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string
+	// A list of project auditors by their user IDs
+	Auditors []string
+	// A list of project writers by their user IDs
+	Writers []string
 }
 
 type ServiceUnavailableError struct {
@@ -188,8 +200,14 @@ type UpdateProjectPayload struct {
 	Description string
 	// The pretty name of the project
 	Name string
-	// A list of project managers by their user IDs
-	Managers []string
+	// Whether the project is public
+	Public *bool
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string
+	// A list of project auditors by their user IDs
+	Auditors []string
+	// A list of project writers by their user IDs
+	Writers []string
 }
 
 // Error returns an error description.

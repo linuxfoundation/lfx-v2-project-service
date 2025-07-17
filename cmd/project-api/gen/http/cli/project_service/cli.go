@@ -236,13 +236,19 @@ Create a new project.
 
 Example:
     %[1]s project-service create-project --body '{
-      "description": "project foo is a project about bar",
-      "managers": [
+      "auditors": [
          "user123",
          "user456"
       ],
+      "description": "project foo is a project about bar",
       "name": "Foo Foundation",
-      "slug": "project-slug"
+      "parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
+      "public": true,
+      "slug": "project-slug",
+      "writers": [
+         "user123",
+         "user456"
+      ]
    }' --version "1" --bearer-token "eyJhbGci..."
 `, os.Args[0])
 }
@@ -272,13 +278,19 @@ Update an existing project.
 
 Example:
     %[1]s project-service update-project --body '{
-      "description": "project foo is a project about bar",
-      "managers": [
+      "auditors": [
          "user123",
          "user456"
       ],
+      "description": "project foo is a project about bar",
       "name": "Foo Foundation",
-      "slug": "project-slug"
+      "parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
+      "public": true,
+      "slug": "project-slug",
+      "writers": [
+         "user123",
+         "user456"
+      ]
    }' --id "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
 `, os.Args[0])
 }

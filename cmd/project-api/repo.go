@@ -12,14 +12,33 @@ import (
 
 // ConvertToDBProject converts a project service project to a project database representation.
 func ConvertToDBProject(project *projsvc.Project) *kvstore.ProjectDB {
+	if project == nil {
+		return new(kvstore.ProjectDB)
+	}
+
 	currentTime := time.Now()
 
 	p := new(kvstore.ProjectDB)
-	p.UID = *project.ID
-	p.Slug = *project.Slug
-	p.Name = *project.Name
-	p.Description = *project.Description
-	p.Managers = project.Managers
+	if project.ID != nil {
+		p.UID = *project.ID
+	}
+	if project.Slug != nil {
+		p.Slug = *project.Slug
+	}
+	if project.Name != nil {
+		p.Name = *project.Name
+	}
+	if project.Description != nil {
+		p.Description = *project.Description
+	}
+	if project.Public != nil {
+		p.Public = *project.Public
+	}
+	if project.ParentUID != nil {
+		p.ParentUID = *project.ParentUID
+	}
+	p.Auditors = project.Auditors
+	p.Writers = project.Writers
 	p.CreatedAt = currentTime
 	p.UpdatedAt = currentTime
 
@@ -33,6 +52,9 @@ func ConvertToServiceProject(p *kvstore.ProjectDB) *projsvc.Project {
 		Slug:        &p.Slug,
 		Name:        &p.Name,
 		Description: &p.Description,
-		Managers:    p.Managers,
+		Public:      &p.Public,
+		ParentUID:   &p.ParentUID,
+		Auditors:    p.Auditors,
+		Writers:     p.Writers,
 	}
 }
