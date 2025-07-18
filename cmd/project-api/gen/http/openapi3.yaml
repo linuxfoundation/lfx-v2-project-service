@@ -170,8 +170,8 @@ paths:
                                 - user123
                                 - user456
             responses:
-                "200":
-                    description: OK response.
+                "201":
+                    description: Created response.
                     content:
                         application/json:
                             schema:

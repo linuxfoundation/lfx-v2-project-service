@@ -6,8 +6,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
 )
@@ -42,8 +44,8 @@ func (m *NatsMsg) Subject() string {
 // HandleNatsMessage is the entrypoint NATS handler for all subjects handled by the service.
 func (s *ProjectsService) HandleNatsMessage(msg INatsMsg) {
 	subject := msg.Subject()
-	msgLogger := s.logger.With("subject", subject)
-	msgLogger.DebugContext(context.Background(), "handling NATS message")
+	ctx := log.AppendCtx(context.Background(), slog.String("subject", subject))
+	slog.DebugContext(ctx, "handling NATS message")
 
 	var response []byte
 	var err error
@@ -51,67 +53,67 @@ func (s *ProjectsService) HandleNatsMessage(msg INatsMsg) {
 	case fmt.Sprintf("%s%s", s.lfxEnvironment, constants.ProjectGetNameSubject):
 		response, err = s.HandleProjectGetName(msg)
 		if err != nil {
-			s.logger.With(errKey, err).Error("error handling project get name")
+			slog.ErrorContext(ctx, "error handling project get name", errKey, err)
 			err = msg.Respond(nil)
 			if err != nil {
-				s.logger.With(errKey, err).Error("error responding to NATS message")
+				slog.ErrorContext(ctx, "error responding to NATS message", errKey, err)
 			}
 			return
 		}
 		err = msg.Respond(response)
 		if err != nil {
-			s.logger.With(errKey, err).Error("error responding to NATS message")
+			slog.ErrorContext(ctx, "error responding to NATS message", errKey, err)
 			return
 		}
 	case fmt.Sprintf("%s%s", s.lfxEnvironment, constants.ProjectSlugToUIDSubject):
 		response, err = s.HandleProjectSlugToUID(msg)
 		if err != nil {
-			s.logger.With(errKey, err).Error("error handling project slug to UID")
+			slog.ErrorContext(ctx, "error handling project slug to UID", errKey, err)
 			err = msg.Respond(nil)
 			if err != nil {
-				s.logger.With(errKey, err).Error("error responding to NATS message")
+				slog.ErrorContext(ctx, "error responding to NATS message", errKey, err)
 			}
 			return
 		}
 		err = msg.Respond(response)
 		if err != nil {
-			s.logger.With(errKey, err).Error("error responding to NATS message")
+			slog.ErrorContext(ctx, "error responding to NATS message", errKey, err)
 			return
 		}
 	default:
-		s.logger.With("subject", subject).Warn("unknown subject")
+		slog.WarnContext(ctx, "unknown subject")
 		err = msg.Respond(nil)
 		if err != nil {
-			s.logger.With(errKey, err).Error("error responding to NATS message")
+			slog.ErrorContext(ctx, "error responding to NATS message", errKey, err)
 			return
 		}
 	}
 
-	msgLogger.With("response", response).DebugContext(context.Background(), "responded to NATS message")
+	slog.DebugContext(ctx, "responded to NATS message", "response", response)
 }
 
 // HandleProjectGetName is the NATS handler for the project-get-name subject.
 func (s *ProjectsService) HandleProjectGetName(msg INatsMsg) ([]byte, error) {
 	projectID := string(msg.Data())
 
-	logger := s.logger.With("project_id", projectID).With("subject", constants.ProjectGetNameSubject)
+	ctx := log.AppendCtx(context.Background(), slog.String("project_id", projectID))
+	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectGetNameSubject))
 
 	// Validate that the project ID is a valid UUID.
 	_, err := uuid.Parse(projectID)
 	if err != nil {
-		logger.With(errKey, err).Error("error parsing project ID")
+		slog.ErrorContext(ctx, "error parsing project ID", errKey, err)
 		return nil, err
 	}
 
 	if s.projectsKV == nil {
-		logger.Error("NATS KV store not initialized")
+		slog.ErrorContext(ctx, "NATS KV store not initialized")
 		return nil, fmt.Errorf("NATS KV store not initialized")
 	}
 
-	ctx := context.Background()
 	project, err := s.projectsKV.Get(ctx, projectID)
 	if err != nil {
-		logger.With(errKey, err).Error("error getting project from NATS KV")
+		slog.ErrorContext(ctx, "error getting project from NATS KV", errKey, err)
 		return nil, err
 	}
 
@@ -122,17 +124,17 @@ func (s *ProjectsService) HandleProjectGetName(msg INatsMsg) ([]byte, error) {
 func (s *ProjectsService) HandleProjectSlugToUID(msg INatsMsg) ([]byte, error) {
 	projectSlug := string(msg.Data())
 
-	logger := s.logger.With("project_slug", projectSlug).With("subject", constants.ProjectSlugToUIDSubject)
+	ctx := log.AppendCtx(context.Background(), slog.String("project_slug", projectSlug))
+	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectSlugToUIDSubject))
 
 	if s.projectsKV == nil {
-		logger.Error("NATS KV store not initialized")
+		slog.ErrorContext(ctx, "NATS KV store not initialized")
 		return nil, fmt.Errorf("NATS KV store not initialized")
 	}
 
-	ctx := context.Background()
 	project, err := s.projectsKV.Get(ctx, fmt.Sprintf("slug/%s", projectSlug))
 	if err != nil {
-		logger.With(errKey, err).Error("error getting project from NATS KV")
+		slog.ErrorContext(ctx, "error getting project from NATS KV", errKey, err)
 		return nil, err
 	}
 

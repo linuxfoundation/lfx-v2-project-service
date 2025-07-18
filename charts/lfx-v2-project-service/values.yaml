@@ -3,6 +3,7 @@
 ---
 # ingress is the configuration for the ingress routing
 ingress:
+  # hostname is the hostname of the ingress
   hostname: lfx-api.k8s.orb.local
 
 # nats is the configuration for the NATS server

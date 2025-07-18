@@ -95,6 +95,16 @@ func setupJWTAuth(logger *slog.Logger) *jwtAuth {
 
 // parsePrincipal extracts the principal from the JWT claims.
 func (j *jwtAuth) parsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
+	// To avoid having to use a valid JWT token for local development, we can set the
+	// JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL environment variable to the principal
+	// we want to use for local development.
+	if mockLocalPrincipal := os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"); mockLocalPrincipal != "" {
+		logger.InfoContext(ctx, "JWT authentication is disabled, returning mock principal",
+			"principal", mockLocalPrincipal,
+		)
+		return mockLocalPrincipal, nil
+	}
+
 	if j.validator == nil {
 		return "", errors.New("JWT validator is not set up")
 	}

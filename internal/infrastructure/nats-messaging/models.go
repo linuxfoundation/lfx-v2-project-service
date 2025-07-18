@@ -9,8 +9,11 @@ type TransactionAction string
 
 // TransactionAction constants for the action of a project transaction.
 const (
+	// ActionCreated is the action for a resource creation transaction.
 	ActionCreated TransactionAction = "created"
+	// ActionUpdated is the action for a resource update transaction.
 	ActionUpdated TransactionAction = "updated"
+	// ActionDeleted is the action for a resource deletion transaction.
 	ActionDeleted TransactionAction = "deleted"
 )
 

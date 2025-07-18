@@ -13,7 +13,6 @@ import (
 
 // ProjectsService implements the projsvc.Service interface
 type ProjectsService struct {
-	logger         *slog.Logger
 	lfxEnvironment constants.LFXEnvironment
 	projectsKV     INatsKeyValue
 	natsConn       INatsConn

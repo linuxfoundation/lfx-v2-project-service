@@ -94,7 +94,7 @@ var _ = Service("project-service", func() {
 			POST("/projects")
 			Param("version:v")
 			Header("bearer_token:Authorization")
-			Response(StatusOK)
+			Response(StatusCreated)
 			Response("BadRequest", StatusBadRequest)
 			Response("Conflict", StatusConflict)
 			Response("InternalServerError", StatusInternalServerError)

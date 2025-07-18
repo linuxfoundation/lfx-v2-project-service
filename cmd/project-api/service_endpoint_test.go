@@ -24,9 +24,7 @@ func setupService() *ProjectsService {
 	if os.Getenv("DEBUG") == "true" {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
-	logger := slog.Default()
 	service := &ProjectsService{
-		logger:         logger,
 		lfxEnvironment: constants.LFXEnvironmentDev,
 		natsConn:       &MockNATSConn{},
 		projectsKV:     &MockKeyValue{},
@@ -610,7 +608,7 @@ func TestJWTAuth(t *testing.T) {
 			name:          "invalid token",
 			bearerToken:   "invalid.token",
 			schema:        &security.JWTScheme{},
-			expectedError: false, // TODO: expect an error after the auth is implemented
+			expectedError: true,
 			setupMocks: func(mockJwtAuth *MockJwtAuth) {
 				mockJwtAuth.On("parsePrincipal", mock.Anything, mock.Anything, mock.Anything).Return("", assert.AnError)
 			},

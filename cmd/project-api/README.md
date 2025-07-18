@@ -1,25 +1,28 @@
 # Project API
 
 This directory contains the Project API service. The service does a couple of things:
+
 - It serves HTTP requests via Traefik to perform CRUD operations on project data
 - It listens on a NATS connection for messages from external services to also perform operations on project data
 
 Applications with a BFF should use the REST API with HTTP requests to perform the needed operations on projects, while other resource API services should communicate with this service via NATS messages.
 
 This service contains the following API endpoints:
+
 - `/readyz`:
-    - `GET`: checks that the service is able to take in inbound requests
+  - `GET`: checks that the service is able to take in inbound requests
 - `/livez`:
-    - `GET`: checks that the service is alive
+  - `GET`: checks that the service is alive
 - `/projects`
-    - `GET`: fetch the list of projects (Note: this will be removed in favor of using the query service, once implemented)
-    - `POST` create a new project
+  - `GET`: fetch the list of projects (Note: this will be removed in favor of using the query service, once implemented)
+  - `POST` create a new project
 - `/projects/:id`
-    - `GET`: fetch a project by its UID
-    - `PUT`: update a project by its UID - only certain attributes can be updated, read the openapi spec for more details
-    - `DELETE`: delete a project by its UID
+  - `GET`: fetch a project by its UID
+  - `PUT`: update a project by its UID - only certain attributes can be updated, read the openapi spec for more details
+  - `DELETE`: delete a project by its UID
 
 This service handles the following NATS subjects:
+
 - `<lfx_environment>.lfx.projects-api.get_name`: Get a project name from a given project UID
 - `<lfx_environment>.lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
@@ -58,6 +61,7 @@ go install goa.design/goa/v3/cmd/goa@latest
 ```
 
 Verify the installation:
+
 ```bash
 goa version
 ```
@@ -76,6 +80,7 @@ goa gen github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/design
 ```
 
 This command generates:
+
 - HTTP server and client code
 - OpenAPI specification
 - Service interfaces and types
@@ -107,6 +112,9 @@ The service relies on some resources and external services being spun up prior t
 |LFX_ENVIRONMENT|the LFX environment (enum: prod, stg, dev)|dev|false|
 |LOG_LEVEL|the log level for outputted logs|info|false|
 |LOG_ADD_SOURCE|whether to add the source field to outputted logs|false|false|
+|JWKS_URL|the URL to the endpoint for verifying ID tokens and JWT access tokens||false|
+|AUDIENCE|the audience of the app that the JWT token should have set - for verification of the JWT token|lfx-v2-project-service|false|
+|JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL|a mocked auth principal value for local development (to avoid needing a valid JWT token)||false|
 
 #### 4. Development Workflow
 
@@ -115,10 +123,13 @@ The service relies on some resources and external services being spun up prior t
 2. **Regenerate code**: Run `make apigen` after design changes
 
 3. **Build the service**:
+
    ```bash
    make build
    ```
+
 4. **Run the service**:
+
    ```bash
    make run
 
@@ -127,11 +138,21 @@ The service relies on some resources and external services being spun up prior t
 
    # or run with the go command to set custom flags
    # -bind string   interface to bind on (default "*")
-   # -d	         enable debug logging (default false)
+   # -d          enable debug logging (default false)
    # -p    string   listen port (default "8080")
    go run
    ```
+
+   Once the service is running, make a request to the `/livez` endpoint to ensure that the service is alive.
+
+   ```bash
+    curl http://localhost:8080/livez
+   ```
+
+   You should get a 200 status code response with a text/plain content payload of `OK`.
+
 5. **Run tests**:
+
    ```bash
    make test
 
@@ -140,6 +161,7 @@ The service relies on some resources and external services being spun up prior t
    ```
 
 6. **Lint the code**
+
    ```bash
    # From the root of the directory, run megalinter (https://megalinter.io/latest/mega-linter-runner/) to ensure the code passes the linter checks. The CI/CD has a check that uses megalinter.
    npx mega-linter-runner .
@@ -164,14 +186,18 @@ The service relies on some resources and external services being spun up prior t
     ```
 
 ### Add new API endpoints
+
 Note: follow the [Development Workflow](#4-development-workflow) section on how to run the service code
+
 1. **Update design files**: Edit project file in `design/` to include specicification of the new endpoint with all of its supported parameters, responses, and errors, etc.
 2. **Regenerate code**: Run `make apigen` after design changes
 3. **Implement code**: Implement the new endpoint in `service_endpoint.go`. Follow similar standards of the other endpoint methods. Include tests for the new endpoint in `service_endpoint_test.go`.
 4. **Update heimdall ruleset**: Ensure that `/charts/lfx-v2-project-service/templates/ruleset.yaml` has the route and method for the endpoint set so that authentication is configured when deployed
 
 ### Add new message handlers
+
 Note: follow the [Development Workflow](#4-development-workflow) section on how to run the service code
+
 1. **Update main.go**: In `main.go` is the code for subscribing the service to specific NATS queue subjects. Add the subscription code in the `createNatsSubcriptions` function. If a new subject needs to be subscribed, add the subject to the `../pkg/constants` directory in a similiar fashion as the other subject names (so that it can be referenced by other services that need to send messages for the subject).
 2. **Update service_handler.go**: Implement the NATS message handler. Add a new function, such as `HandleProjectGetName` for handling messages with respect to getting the name of a project. The `HandleNatsMessage` function switch statement should also be updated to include the new subject and function call.
 3. **Update service_handler_test.go**: Add unit tests for the new handler function. Mock external service calls so that the tests are modular.

@@ -26,6 +26,7 @@ import (
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/http/project_service/server"
 	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/middleware"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
@@ -81,7 +82,6 @@ func main() {
 
 	// Generated service initialization.
 	svc := &ProjectsService{
-		logger:         logger,
 		lfxEnvironment: lfxEnvironment,
 		auth:           jwtAuth,
 	}
@@ -106,7 +106,7 @@ func main() {
 		return encoder
 	}
 
-	handler := genhttp.New(
+	genHttpServer := genhttp.New(
 		endpoints,
 		mux,
 		requestDecoder,
@@ -116,7 +116,15 @@ func main() {
 		http.FS(StaticFS))
 
 	// Mount the handler on the mux
-	genhttp.Mount(mux, handler)
+	genhttp.Mount(mux, genHttpServer)
+
+	var handler http.Handler = mux
+
+	// Add HTTP middleware
+	// Note: Order matters - RequestIDMiddleware should come first in the chain,
+	// so it should be the last middleware added to the handler since it is executed in reverse order.
+	handler = middleware.RequestLoggerMiddleware()(handler)
+	handler = middleware.RequestIDMiddleware()(handler)
 
 	// Create a wait group which is used to wait during graceful HTTP shutdown
 	// and NATS draining.
@@ -131,7 +139,7 @@ func main() {
 	}
 	httpServer := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
 	gracefulCloseWG.Add(1)
@@ -197,13 +205,13 @@ func main() {
 	svc.natsConn = natsConn
 
 	// Get the key-value store for projects.
-	svc.projectsKV, err = getKeyValueStore(ctx, svc, natsConn)
+	svc.projectsKV, err = getKeyValueStore(ctx, natsConn)
 	if err != nil {
 		return
 	}
 
 	// Create NATS subscriptions for the project service.
-	err = createNatsSubcriptions(svc, natsConn)
+	err = createNatsSubcriptions(ctx, svc, natsConn)
 	if err != nil {
 		return
 	}
@@ -245,27 +253,23 @@ func main() {
 }
 
 // getKeyValueStore creates a JetStream client and gets the key-value store for projects.
-func getKeyValueStore(ctx context.Context, svc *ProjectsService, natsConn *nats.Conn) (jetstream.KeyValue, error) {
+func getKeyValueStore(ctx context.Context, natsConn *nats.Conn) (jetstream.KeyValue, error) {
 	js, err := jetstream.New(natsConn)
 	if err != nil {
-		svc.logger.With("nats_url", natsConn.ConnectedUrl(), errKey, err).Error("error creating NATS JetStream client")
+		slog.ErrorContext(ctx, "error creating NATS JetStream client", "nats_url", natsConn.ConnectedUrl(), errKey, err)
 		return nil, err
 	}
 	projectsKV, err := js.KeyValue(ctx, constants.KVBucketNameProjects)
 	if err != nil {
-		svc.logger.With("nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjects).Error("error getting NATS JetStream key-value store")
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjects)
 		return nil, err
 	}
 	return projectsKV, nil
 }
 
 // createNatsSubcriptions creates the NATS subscriptions for the project service.
-func createNatsSubcriptions(svc *ProjectsService, natsConn *nats.Conn) error {
-	svc.logger.
-		With("nats_url", natsConn.ConnectedUrl()).
-		With("servers", natsConn.Servers()).
-		With("subjects", []string{constants.ProjectGetNameSubject, constants.ProjectSlugToUIDSubject}).
-		Info("subscribing to NATS subjects")
+func createNatsSubcriptions(ctx context.Context, svc *ProjectsService, natsConn *nats.Conn) error {
+	slog.InfoContext(ctx, "subscribing to NATS subjects", "nats_url", natsConn.ConnectedUrl(), "servers", natsConn.Servers(), "subjects", []string{constants.ProjectGetNameSubject, constants.ProjectSlugToUIDSubject})
 	queueName := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectsAPIQueue)
 
 	// Get project name subscription
@@ -274,7 +278,7 @@ func createNatsSubcriptions(svc *ProjectsService, natsConn *nats.Conn) error {
 		svc.HandleNatsMessage(&NatsMsg{msg})
 	})
 	if err != nil {
-		svc.logger.With(errKey, err).Error("error creating NATS queue subscription")
+		slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
 		return err
 	}
 
@@ -284,7 +288,7 @@ func createNatsSubcriptions(svc *ProjectsService, natsConn *nats.Conn) error {
 		svc.HandleNatsMessage(&NatsMsg{msg})
 	})
 	if err != nil {
-		svc.logger.With(errKey, err).Error("error creating NATS queue subscription")
+		slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
 		return err
 	}
 

@@ -8,8 +8,11 @@ type LFXEnvironment string
 
 // Constants for the environment names of the LFX platform.
 const (
-	LFXEnvironmentDev  LFXEnvironment = "dev"
-	LFXEnvironmentStg  LFXEnvironment = "stg"
+	// LFXEnvironmentDev is the development environment name of the LFX platform.
+	LFXEnvironmentDev LFXEnvironment = "dev"
+	// LFXEnvironmentStg is the staging environment name of the LFX platform.
+	LFXEnvironmentStg LFXEnvironment = "stg"
+	// LFXEnvironmentProd is the production environment name of the LFX platform.
 	LFXEnvironmentProd LFXEnvironment = "prod"
 )
 

@@ -57,7 +57,6 @@ func AppendCtx(parent context.Context, attr slog.Attr) context.Context {
 
 // InitStructureLogConfig sets the structured log behavior
 func InitStructureLogConfig() slog.Handler {
-
 	logOptions := &slog.HandlerOptions{}
 	var h slog.Handler
 

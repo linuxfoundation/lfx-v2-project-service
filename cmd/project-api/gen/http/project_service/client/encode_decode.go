@@ -222,7 +222,7 @@ func DecodeCreateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			defer resp.Body.Close()
 		}
 		switch resp.StatusCode {
-		case http.StatusOK:
+		case http.StatusCreated:
 			var (
 				body CreateProjectResponseBody
 				err  error
@@ -235,7 +235,7 @@ func DecodeCreateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			if err != nil {
 				return nil, goahttp.ErrValidationError("project-service", "create-project", err)
 			}
-			res := NewCreateProjectProjectOK(&body)
+			res := NewCreateProjectProjectCreated(&body)
 			return res, nil
 		case http.StatusBadRequest:
 			var (

@@ -127,8 +127,8 @@ paths:
                         - description
                         - name
             responses:
-                "200":
-                    description: OK response.
+                "201":
+                    description: Created response.
                     schema:
                         $ref: '#/definitions/Project'
                 "400":

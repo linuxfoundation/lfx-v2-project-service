@@ -410,9 +410,9 @@ func NewGetProjectsServiceUnavailable(body *GetProjectsServiceUnavailableRespons
 	return v
 }
 
-// NewCreateProjectProjectOK builds a "project-service" service
-// "create-project" endpoint result from a HTTP "OK" response.
-func NewCreateProjectProjectOK(body *CreateProjectResponseBody) *projectservice.Project {
+// NewCreateProjectProjectCreated builds a "project-service" service
+// "create-project" endpoint result from a HTTP "Created" response.
+func NewCreateProjectProjectCreated(body *CreateProjectResponseBody) *projectservice.Project {
 	v := &projectservice.Project{
 		ID:          body.ID,
 		Slug:        body.Slug,

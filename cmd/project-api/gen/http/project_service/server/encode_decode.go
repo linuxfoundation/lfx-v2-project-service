@@ -135,7 +135,7 @@ func EncodeCreateProjectResponse(encoder func(context.Context, http.ResponseWrit
 		res, _ := v.(*projectservice.Project)
 		enc := encoder(ctx, w)
 		body := NewCreateProjectResponseBody(res)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusCreated)
 		return enc.Encode(body)
 	}
 }

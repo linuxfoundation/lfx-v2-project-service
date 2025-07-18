@@ -83,15 +83,19 @@ go run tools/load_mock_data/main.go [flags]
 The script generates project data including:
 
 ### Project Names
+
 - Random selection of 10 hard-coded project names (e.g. Project 1, Project 2)
 
 ### Descriptions
+
 - Random selection of 10 hard-coded project descriptions (e.g. A test description 1)
 
 ### Auditors and Writers
+
 - Random selection of 1-3 auditors and writers from a predefined list (e.g. user123, admin001)
 
 ### Slugs
+
 - Automatically generated from project names
 - URL-friendly format following the pattern: `^[a-z][a-z0-9_\-]*[a-z0-9]$`
 - Ensures uniqueness by adding index numbers when needed
@@ -100,7 +104,7 @@ The script generates project data including:
 
 The script provides detailed logging of the creation process:
 
-```
+```text
 2024/01/15 10:30:00 Starting to create 10 projects...
 2024/01/15 10:30:01 Creating project 1/10: Project 1 (project-1)
 2024/01/15 10:30:01 Successfully created project: project-1

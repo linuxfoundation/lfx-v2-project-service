@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -15,6 +16,7 @@ import (
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
 	kvstore "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats-kv-store"
 	msg "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats-messaging"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go/jetstream"
 	"goa.design/goa/v3/security"
@@ -22,11 +24,8 @@ import (
 
 // GetProjects fetches all projects
 func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetProjectsPayload) (*projsvc.GetProjectsResult, error) {
-	reqLogger := s.logger.With("method", "GetProjects")
-	reqLogger.With("request", payload).DebugContext(ctx, "request")
-
 	if s.natsConn == nil || s.projectsKV == nil {
-		reqLogger.Error("NATS connection or KeyValue store not initialized")
+		slog.ErrorContext(ctx, "NATS connection or KeyValue store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
 			Message: "service unavailable",
@@ -35,7 +34,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 
 	keysLister, err := s.projectsKV.ListKeys(ctx)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error listing project keys from NATS KV store")
+		slog.ErrorContext(ctx, "error listing project keys from NATS KV store", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error listing project keys from NATS KV store",
@@ -50,7 +49,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 
 		entry, err := s.projectsKV.Get(ctx, key)
 		if err != nil {
-			reqLogger.With(errKey, err, "project_id", key).Error("error getting project from NATS KV store")
+			slog.ErrorContext(ctx, "error getting project from NATS KV store", errKey, err, "project_id", key)
 			return nil, &projsvc.InternalServerError{
 				Code:    "500",
 				Message: "error getting project from NATS KV store",
@@ -60,7 +59,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 		projectDB := kvstore.ProjectDB{}
 		err = json.Unmarshal(entry.Value(), &projectDB)
 		if err != nil {
-			reqLogger.With(errKey, err, "project_id", key).Error("error unmarshalling project from NATS KV store")
+			slog.ErrorContext(ctx, "error unmarshalling project from NATS KV store", errKey, err, "project_id", key)
 			return nil, &projsvc.InternalServerError{
 				Code:    "500",
 				Message: "error unmarshalling project from NATS KV store",
@@ -71,7 +70,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 
 	}
 
-	reqLogger.DebugContext(ctx, "returning projects", "projects", projects)
+	slog.DebugContext(ctx, "returning projects", "projects", projects)
 
 	return &projsvc.GetProjectsResult{
 		Projects:     projects,
@@ -82,9 +81,6 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 
 // Create a new project.
 func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.CreateProjectPayload) (*projsvc.Project, error) {
-	reqLogger := s.logger.With("method", "CreateProject")
-	reqLogger.With("request", payload).DebugContext(ctx, "request")
-
 	id := uuid.NewString() // TODO: what type of ID are we using for the project resource?
 	project := &projsvc.Project{
 		ID:          &id,
@@ -98,7 +94,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	if s.natsConn == nil || s.projectsKV == nil {
-		reqLogger.Error("NATS connection or KV store not initialized")
+		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
 			Message: "service unavailable",
@@ -108,7 +104,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
 	if project.ParentUID != nil && *project.ParentUID != "" {
 		if _, err := uuid.Parse(*project.ParentUID); err != nil {
-			reqLogger.With(errKey, err).Error("invalid parent UID")
+			slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
 			return nil, &projsvc.BadRequestError{
 				Code:    "400",
 				Message: "invalid parent UID",
@@ -116,13 +112,13 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		}
 		if _, err := s.projectsKV.Get(ctx, *project.ParentUID); err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				reqLogger.With(errKey, err).Error("parent project not found")
+				slog.ErrorContext(ctx, "parent project not found", errKey, err)
 				return nil, &projsvc.BadRequestError{
 					Code:    "400",
 					Message: "parent project not found",
 				}
 			}
-			reqLogger.With(errKey, err).Error("error getting parent project from NATS KV store")
+			slog.ErrorContext(ctx, "error getting parent project from NATS KV store", errKey, err)
 			return nil, &projsvc.InternalServerError{
 				Code:    "500",
 				Message: "error getting parent project from NATS KV store",
@@ -132,17 +128,17 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	projectDB := ConvertToDBProject(project)
-	reqLogger = reqLogger.With("project_id", projectDB.UID, "project_slug", projectDB.Slug)
+	slog.With("project_id", projectDB.UID, "project_slug", projectDB.Slug)
 	_, err := s.projectsKV.Put(ctx, fmt.Sprintf("slug/%s", projectDB.Slug), []byte(projectDB.UID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyExists) {
-			reqLogger.With(errKey, err).Warn("project already exists")
+			slog.WarnContext(ctx, "project already exists", errKey, err)
 			return nil, &projsvc.ConflictError{
 				Code:    "409",
 				Message: "project already exists",
 			}
 		}
-		reqLogger.With(errKey, err).Error("error putting project UID mapping into NATS KV store")
+		slog.ErrorContext(ctx, "error putting project UID mapping into NATS KV store", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error putting project UID mapping into NATS KV store",
@@ -151,7 +147,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	projectDBBytes, err := json.Marshal(projectDB)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error marshalling project into JSON")
+		slog.ErrorContext(ctx, "error marshalling project into JSON", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error marshalling project into JSON",
@@ -159,7 +155,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 	_, err = s.projectsKV.Put(ctx, projectDB.UID, projectDBBytes)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error putting project into NATS KV store")
+		slog.ErrorContext(ctx, "error putting project into NATS KV store", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error putting project into NATS KV store",
@@ -180,7 +176,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	transactionBytes, err := json.Marshal(transaction)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error marshalling transaction into JSON")
+		slog.ErrorContext(ctx, "error marshalling transaction into JSON", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error marshalling transaction into JSON",
@@ -190,47 +186,44 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	// Send the transaction to the NATS server for the data indexing.
 	err = s.natsConn.Publish(subject, transactionBytes)
 	if err != nil {
-		reqLogger.With(errKey, err, "subject", subject).Error("error sending transaction to NATS")
+		slog.ErrorContext(ctx, "error sending transaction to NATS", errKey, err, "subject", subject)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error sending transaction to NATS",
 		}
 	}
-	reqLogger.With("subject", subject).DebugContext(ctx, "sent transaction to NATS for data indexing")
+	slog.DebugContext(ctx, "sent transaction to NATS for data indexing", "subject", subject)
 
 	// Send the transaction to the NATS server for the access control updates.
 	subject = fmt.Sprintf("%s%s", s.lfxEnvironment, constants.UpdateAccessProjectSubject)
 	err = s.natsConn.Publish(subject, projectDBBytes)
 	if err != nil {
-		reqLogger.With(errKey, err, "subject", subject).Error("error sending transaction to NATS")
+		slog.ErrorContext(ctx, "error sending transaction to NATS", errKey, err, "subject", subject)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error sending transaction to NATS",
 		}
 	}
-	reqLogger.With("subject", subject).DebugContext(ctx, "sent transaction to NATS for access control updates")
+	slog.DebugContext(ctx, "sent transaction to NATS for access control updates", "subject", subject)
 
-	reqLogger.With("project", project).DebugContext(ctx, "returning created project")
+	slog.DebugContext(ctx, "returning created project", "project", project)
 
 	return project, nil
 }
 
 // Get a single project.
 func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.GetOneProjectPayload) (*projsvc.GetOneProjectResult, error) {
-	reqLogger := s.logger.With("method", "GetOneProject")
-	reqLogger.With("request", payload).DebugContext(ctx, "request")
-
 	if payload == nil || payload.ID == nil {
-		reqLogger.Warn("project ID is required")
+		slog.WarnContext(ctx, "project ID is required")
 		return nil, &projsvc.BadRequestError{
 			Code:    "400",
 			Message: "project ID is required",
 		}
 	}
-	reqLogger = reqLogger.With("project_id", *payload.ID)
 
+	ctx = log.AppendCtx(ctx, slog.String("project_id", *payload.ID))
 	if s.natsConn == nil || s.projectsKV == nil {
-		reqLogger.Error("NATS connection or KV store not initialized")
+		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
 			Message: "service unavailable",
@@ -240,13 +233,13 @@ func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.Ge
 	entry, err := s.projectsKV.Get(ctx, *payload.ID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			reqLogger.With(errKey, err).Warn("project not found")
+			slog.WarnContext(ctx, "project not found", errKey, err)
 			return nil, &projsvc.NotFoundError{
 				Code:    "404",
 				Message: "project not found",
 			}
 		}
-		reqLogger.With(errKey, err).Error("error getting project from NATS KV store")
+		slog.ErrorContext(ctx, "error getting project from NATS KV store", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error getting project from NATS KV store",
@@ -256,7 +249,7 @@ func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.Ge
 	projectDB := kvstore.ProjectDB{}
 	err = json.Unmarshal(entry.Value(), &projectDB)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error unmarshalling project from NATS KV store")
+		slog.ErrorContext(ctx, "error unmarshalling project from NATS KV store", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error unmarshalling project from NATS KV store",
@@ -269,7 +262,7 @@ func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.Ge
 	revisionStr := strconv.FormatUint(revision, 10)
 	ctx = context.WithValue(ctx, constants.ETagContextID, revisionStr)
 
-	reqLogger.DebugContext(ctx, "returning project", "project", project, "revision", revision)
+	slog.DebugContext(ctx, "returning project", "project", project, "revision", revision)
 
 	return &projsvc.GetOneProjectResult{
 		Project: project,
@@ -279,18 +272,15 @@ func (s *ProjectsService) GetOneProject(ctx context.Context, payload *projsvc.Ge
 
 // Update a project.
 func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.UpdateProjectPayload) (*projsvc.Project, error) {
-	reqLogger := s.logger.With("method", "UpdateProject")
-	reqLogger.With("request", payload).DebugContext(ctx, "request")
-
 	if payload == nil || payload.ID == nil {
-		reqLogger.Warn("project ID is required")
+		slog.WarnContext(ctx, "project ID is required")
 		return nil, &projsvc.BadRequestError{
 			Code:    "400",
 			Message: "project ID is required",
 		}
 	}
 	if payload.Etag == nil {
-		reqLogger.Warn("ETag header is missing")
+		slog.WarnContext(ctx, "ETag header is missing")
 		return nil, &projsvc.BadRequestError{
 			Code:    "400",
 			Message: "ETag header is missing",
@@ -298,15 +288,16 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 	}
 	revision, err := strconv.ParseUint(*payload.Etag, 10, 64)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error parsing ETag")
+		slog.ErrorContext(ctx, "error parsing ETag", errKey, err)
 		return nil, &projsvc.BadRequestError{
 			Code:    "400",
 			Message: "error parsing ETag header",
 		}
 	}
+	ctx = log.AppendCtx(ctx, slog.String("project_id", *payload.ID))
 
 	if s.natsConn == nil || s.projectsKV == nil {
-		reqLogger.Error("NATS connection or KV store not initialized")
+		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, &projsvc.ServiceUnavailableError{
 			Code:    "503",
 			Message: "service unavailable",
@@ -316,7 +307,7 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
 	if payload.ParentUID != nil && *payload.ParentUID != "" {
 		if _, err := uuid.Parse(*payload.ParentUID); err != nil {
-			reqLogger.With(errKey, err).Error("invalid parent UID")
+			slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
 			return nil, &projsvc.BadRequestError{
 				Code:    "400",
 				Message: "invalid parent UID",
@@ -324,13 +315,13 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 		}
 		if _, err := s.projectsKV.Get(ctx, *payload.ParentUID); err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				reqLogger.With(errKey, err).Error("parent project not found")
+				slog.ErrorContext(ctx, "parent project not found", errKey, err)
 				return nil, &projsvc.BadRequestError{
 					Code:    "400",
 					Message: "parent project not found",
 				}
 			}
-			reqLogger.With(errKey, err).Error("error getting parent project from NATS KV store")
+			slog.ErrorContext(ctx, "error getting parent project from NATS KV store", errKey, err)
 			return nil, &projsvc.InternalServerError{
 				Code:    "500",
 				Message: "error getting parent project from NATS KV store",
@@ -343,13 +334,13 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 	_, err = s.projectsKV.Get(ctx, *payload.ID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			reqLogger.With(errKey, err).Warn("project not found")
+			slog.WarnContext(ctx, "project not found", errKey, err)
 			return nil, &projsvc.NotFoundError{
 				Code:    "404",
 				Message: "project not found",
 			}
 		}
-		reqLogger.With(errKey, err).Error("error getting project from NATS KV store")
+		slog.ErrorContext(ctx, "error getting project from NATS KV store", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error getting project from NATS KV store",
@@ -370,7 +361,7 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 	projectDB := ConvertToDBProject(project)
 	projectDBBytes, err := json.Marshal(projectDB)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error marshalling project into JSON")
+		slog.ErrorContext(ctx, "error marshalling project into JSON", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error marshalling project into JSON",
@@ -379,13 +370,13 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 	_, err = s.projectsKV.Update(ctx, *payload.ID, projectDBBytes, revision)
 	if err != nil {
 		if strings.Contains(err.Error(), "wrong last sequence") {
-			reqLogger.With(errKey, err).Warn("etag header is invalid")
+			slog.WarnContext(ctx, "etag header is invalid", errKey, err)
 			return nil, &projsvc.BadRequestError{
 				Code:    "400",
 				Message: "etag header is invalid",
 			}
 		}
-		reqLogger.With(errKey, err).Error("error updating project in NATS KV store")
+		slog.ErrorContext(ctx, "error updating project in NATS KV store", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error updating project in NATS KV store",
@@ -406,7 +397,7 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 
 	transactionBytes, err := json.Marshal(transaction)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error marshalling transaction into JSON")
+		slog.ErrorContext(ctx, "error marshalling transaction into JSON", errKey, err)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error marshalling transaction into JSON",
@@ -416,45 +407,42 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 	// Send the transaction to the NATS server for the data indexing.
 	err = s.natsConn.Publish(subject, transactionBytes)
 	if err != nil {
-		reqLogger.With(errKey, err, "subject", subject).Error("error sending transaction to NATS")
+		slog.ErrorContext(ctx, "error sending transaction to NATS", errKey, err, "subject", subject)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error sending transaction to NATS",
 		}
 	}
-	reqLogger.With("subject", subject).DebugContext(ctx, "sent transaction to NATS for data indexing")
+	slog.DebugContext(ctx, "sent transaction to NATS for data indexing", "subject", subject)
 
 	// Send the transaction to the NATS server for the access control updates.
 	subject = fmt.Sprintf("%s%s", s.lfxEnvironment, constants.UpdateAccessProjectSubject)
 	err = s.natsConn.Publish(subject, projectDBBytes)
 	if err != nil {
-		reqLogger.With(errKey, err, "subject", subject).Error("error sending transaction to NATS")
+		slog.ErrorContext(ctx, "error sending transaction to NATS", errKey, err, "subject", subject)
 		return nil, &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error sending transaction to NATS",
 		}
 	}
-	reqLogger.With("subject", subject).DebugContext(ctx, "sent transaction to NATS for access control updates")
+	slog.DebugContext(ctx, "sent transaction to NATS for access control updates", "subject", subject)
 
-	reqLogger.With("project", project).DebugContext(ctx, "returning updated project")
+	slog.DebugContext(ctx, "returning updated project", "project", project)
 
 	return project, nil
 }
 
 // Delete a project.
 func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.DeleteProjectPayload) error {
-	reqLogger := s.logger.With("method", "DeleteProject")
-	reqLogger.With("request", payload).DebugContext(ctx, "request")
-
 	if payload == nil || payload.ID == nil {
-		reqLogger.Warn("project ID is required")
+		slog.WarnContext(ctx, "project ID is required")
 		return &projsvc.BadRequestError{
 			Code:    "400",
 			Message: "project ID is required",
 		}
 	}
 	if payload.Etag == nil {
-		reqLogger.Warn("ETag header is missing")
+		slog.WarnContext(ctx, "ETag header is missing")
 		return &projsvc.BadRequestError{
 			Code:    "400",
 			Message: "ETag header is missing",
@@ -462,17 +450,18 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	}
 	revision, err := strconv.ParseUint(*payload.Etag, 10, 64)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error parsing ETag")
+		slog.ErrorContext(ctx, "error parsing ETag", errKey, err)
 		return &projsvc.BadRequestError{
 			Code:    "400",
 			Message: "error parsing ETag header",
 		}
 	}
 
-	reqLogger = reqLogger.With("project_id", *payload.ID).With("etag", revision)
+	ctx = log.AppendCtx(ctx, slog.String("project_id", *payload.ID))
+	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
 
 	if s.natsConn == nil || s.projectsKV == nil {
-		reqLogger.Error("NATS connection or KV store not initialized")
+		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return &projsvc.ServiceUnavailableError{
 			Code:    "503",
 			Message: "service unavailable",
@@ -483,7 +472,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	_, err = s.projectsKV.Get(ctx, *payload.ID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			reqLogger.With(errKey, err).Warn("project not found")
+			slog.WarnContext(ctx, "project not found", errKey, err)
 			return &projsvc.NotFoundError{
 				Code:    "404",
 				Message: "project not found",
@@ -495,13 +484,13 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	err = s.projectsKV.Delete(ctx, *payload.ID, jetstream.LastRevision(revision))
 	if err != nil {
 		if strings.Contains(err.Error(), "wrong last sequence") {
-			reqLogger.With(errKey, err).Warn("etag header is invalid")
+			slog.WarnContext(ctx, "etag header is invalid", errKey, err)
 			return &projsvc.BadRequestError{
 				Code:    "400",
 				Message: "etag header is invalid",
 			}
 		}
-		reqLogger.With(errKey, err).Error("error deleting project from NATS KV store")
+		slog.ErrorContext(ctx, "error deleting project from NATS KV store", errKey, err)
 		return &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error deleting project from NATS KV store",
@@ -522,7 +511,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	transactionBytes, err := json.Marshal(transaction)
 	if err != nil {
-		reqLogger.With(errKey, err).Error("error marshalling transaction into JSON")
+		slog.ErrorContext(ctx, "error marshalling transaction into JSON", errKey, err)
 		return &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error marshalling transaction into JSON",
@@ -532,27 +521,27 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	// Send the transaction to the NATS server for the data indexing.
 	err = s.natsConn.Publish(subject, transactionBytes)
 	if err != nil {
-		reqLogger.With(errKey, err, "subject", subject).Error("error sending transaction to NATS")
+		slog.ErrorContext(ctx, "error sending transaction to NATS", errKey, err, "subject", subject)
 		return &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error sending transaction to NATS",
 		}
 	}
-	reqLogger.With("subject", subject).DebugContext(ctx, "sent transaction to NATS for data indexing")
+	slog.DebugContext(ctx, "sent transaction to NATS for data indexing", "subject", subject)
 
 	// Send the transaction to the NATS server for the access control updates.
 	subject = fmt.Sprintf("%s%s", s.lfxEnvironment, constants.DeleteAllAccessSubject)
 	err = s.natsConn.Publish(subject, []byte(*payload.ID))
 	if err != nil {
-		reqLogger.With(errKey, err, "subject", subject).Error("error sending transaction to NATS")
+		slog.ErrorContext(ctx, "error sending transaction to NATS", errKey, err, "subject", subject)
 		return &projsvc.InternalServerError{
 			Code:    "500",
 			Message: "error sending transaction to NATS",
 		}
 	}
-	reqLogger.With("subject", subject).DebugContext(ctx, "sent transaction to NATS for access control deletion")
+	slog.DebugContext(ctx, "sent transaction to NATS for access control deletion", "subject", subject)
 
-	reqLogger.With("project_id", *payload.ID).DebugContext(ctx, "deleted project")
+	slog.DebugContext(ctx, "deleted project", "project_id", *payload.ID)
 
 	return nil
 }
@@ -586,12 +575,10 @@ func (s *ProjectsService) Livez(_ context.Context) ([]byte, error) {
 // JWTAuth implements Auther interface for the JWT security scheme.
 func (s *ProjectsService) JWTAuth(ctx context.Context, bearerToken string, _ *security.JWTScheme) (context.Context, error) {
 	// Parse the Heimdall-authorized principal from the token.
-	principal, _ := s.auth.parsePrincipal(ctx, bearerToken, s.logger)
-	// TODO: handle error once we have figured out why it fails when running the service locally outside of the helm chart deployment
-	// Error: failed to deserialize token claims: error getting the keys from the key func: could not decode jwks: EOF
-	// if err != nil {
-	// 	return ctx, err
-	// }
+	principal, err := s.auth.parsePrincipal(ctx, bearerToken, slog.Default())
+	if err != nil {
+		return ctx, err
+	}
 	// Return a new context containing the principal as a value.
 	return context.WithValue(ctx, constants.PrincipalContextID, principal), nil
 }
