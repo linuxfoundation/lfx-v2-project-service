@@ -29,6 +29,13 @@ nats:
     # compression is a boolean to determine if the KV bucket should be compressed
     compression: true
 
+# openfga is the configuration for the OpenFGA server
+openfga:
+  # enabled is a boolean to determine if the OpenFGA server should be enabled for authorization
+  # Note: If it is disabled, then the project service will allow all requests
+  # (Disabling OpenFGA should only be used for local development).
+  enabled: true
+
 # heimdall is the configuration for the heimdall middleware
 heimdall:
   enabled: true

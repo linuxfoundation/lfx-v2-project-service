@@ -27,21 +27,64 @@ spec:
         methods:
           - GET
           - POST
-          - PUT
-          - DELETE
         routes:
           - path: /projects
-          - path: /projects/:id
       execute:
         #- authenticator: authelia
         - authenticator: anonymous_authenticator
         #- contextualizer: authelia_userinfo
         - authorizer: allow_all
-        # - authorizer: openfga_check
-        #   config:
-        #     values:
-        #       relation: manager
-        #       object: "project:111"
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects:get_single"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /projects/:id
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: viewer
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects:single_project_write"
+      match:
+        methods:
+          - PUT
+          - DELETE
+        routes:
+          - path: /projects/:id
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
         - finalizer: create_jwt
           config:
             values:

@@ -185,6 +185,38 @@ The service relies on some resources and external services being spun up prior t
     curl http://lfx-api.k8s.orb.local/livez
     ```
 
+### Authorization with OpenFGA
+
+When deployed via Kubernetes, the project service uses OpenFGA for fine-grained authorization control. The authorization is handled by Heimdall middleware before requests reach the service.
+
+#### Configuration
+
+OpenFGA authorization is controlled by the `openfga.enabled` value in the Helm chart:
+
+```yaml
+# In values.yaml or via --set flag
+openfga:
+  enabled: true  # Enable OpenFGA authorization (default)
+  # enabled: false  # Disable for local development only
+```
+
+#### Authorization Rules
+
+When OpenFGA is enabled, the following authorization checks are enforced:
+
+- **GET /projects** - No OpenFGA check (returns list of all projects)
+- **POST /projects** - No OpenFGA check (authenticated users can create projects)
+- **GET /projects/:id** - Requires `viewer` relation on the specific project
+- **PUT /projects/:id** and **DELETE /projects/:id** - Requires `writer` relation on the specific project
+
+#### Local Development
+
+For local development without OpenFGA:
+
+1. Set `openfga.enabled: false` in your Helm values
+2. All requests will be allowed through (after JWT authentication)
+3. **Warning**: Never disable OpenFGA in production environments
+
 ### Add new API endpoints
 
 Note: follow the [Development Workflow](#4-development-workflow) section on how to run the service code
@@ -192,7 +224,7 @@ Note: follow the [Development Workflow](#4-development-workflow) section on how 
 1. **Update design files**: Edit project file in `design/` to include specicification of the new endpoint with all of its supported parameters, responses, and errors, etc.
 2. **Regenerate code**: Run `make apigen` after design changes
 3. **Implement code**: Implement the new endpoint in `service_endpoint.go`. Follow similar standards of the other endpoint methods. Include tests for the new endpoint in `service_endpoint_test.go`.
-4. **Update heimdall ruleset**: Ensure that `/charts/lfx-v2-project-service/templates/ruleset.yaml` has the route and method for the endpoint set so that authentication is configured when deployed
+4. **Update heimdall ruleset**: Ensure that `/charts/lfx-v2-project-service/templates/ruleset.yaml` has the route and method for the endpoint set so that authentication is configured when deployed. If the endpoint modifies data (PUT, DELETE, PATCH), consider adding OpenFGA authorization checks in the ruleset for proper access control
 
 ### Add new message handlers
 

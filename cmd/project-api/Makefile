@@ -29,7 +29,7 @@ LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X 
 TEST_FLAGS=-v -race -cover
 TEST_TIMEOUT=5m
 
-.PHONY: all help deps apigen build run debug test test-verbose test-coverage clean lint fmt check verify docker helm-install helm-uninstall
+.PHONY: all help deps apigen build run debug test test-verbose test-coverage test-integration test-authorization clean lint fmt check verify docker helm-install helm-uninstall
 
 # Default target
 all: clean deps apigen fmt lint test build
@@ -46,6 +46,8 @@ help:
 	@echo "  test           - Run unit tests"
 	@echo "  test-verbose   - Run tests with verbose output"
 	@echo "  test-coverage  - Run tests with coverage report"
+	@echo "  test-integration - Run integration tests (requires build tags)"
+	@echo "  test-authorization - Run authorization integration test script"
 	@echo "  clean          - Remove generated files and binaries"
 	@echo "  lint           - Run golangci-lint"
 	@echo "  fmt            - Format Go code"
@@ -106,6 +108,20 @@ test-coverage:
 	go tool cover -html=coverage/coverage.out -o coverage/coverage.html
 	@echo "==> Coverage report: coverage/coverage.html"
 
+# Run integration tests
+test-integration:
+	@echo "==> Running integration tests..."
+	go test $(TEST_FLAGS) -timeout $(TEST_TIMEOUT) -tags=integration ./...
+
+# Run authorization integration test script
+test-authorization:
+	@echo "==> Running authorization integration tests..."
+	@if [ ! -f ../../test/authorization_test.sh ]; then \
+		echo "Authorization test script not found at ../../test/authorization_test.sh"; \
+		exit 1; \
+	fi
+	@../../test/authorization_test.sh
+
 # Clean build artifacts
 clean:
 	@echo "==> Cleaning build artifacts..."
@@ -160,6 +176,11 @@ docker:
 helm-install:
 	@echo "==> Installing Helm chart..."
 	helm upgrade --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
+	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
+
+helm-install-reuse:
+	@echo "==> Installing Helm chart with reuse..."
+	helm upgrade --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE) --reuse-values
 	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
 
 # Uninstall Helm chart
