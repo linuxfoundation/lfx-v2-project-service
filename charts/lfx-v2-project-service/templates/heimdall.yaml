@@ -8,6 +8,6 @@ metadata:
   namespace: lfx
 spec:
   forwardAuth:
-    address: "http://heimdall.lfx.svc.cluster.local:4456"
+    address: {{ .Values.heimdall.url }}
     authResponseHeaders:
       - Authorization

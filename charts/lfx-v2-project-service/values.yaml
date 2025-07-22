@@ -9,13 +9,16 @@ ingress:
 # nats is the configuration for the NATS server
 nats:
   # url is the URL of the NATS server
-  url: nats://nats.lfx.svc.cluster.local:4222
+  url: nats://lfx-platform-nats.lfx.svc.cluster.local:4222
 
   # projects_kv_bucket is the configuration for the KV bucket for storing projects
   projects_kv_bucket:
     # creation is a boolean to determine if the KV bucket should be created via the helm chart.
     # set it to false if you want to use an existing KV bucket.
-    creation: false
+    creation: true
+    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
+    # set it to false if you want the bucket to be deleted when the chart is uninstalled
+    keep: true
     # name is the name of the KV bucket for storing projects
     name: projects
     # history is the number of history entries to keep for the KV bucket
@@ -39,118 +42,4 @@ openfga:
 # heimdall is the configuration for the heimdall middleware
 heimdall:
   enabled: true
-
-  env:
-    CLIENT_SECRET:
-      secretKeyRef:
-        name: heimdall-secrets
-        key: heimdall_client_secret
-
-  mechanisms:
-    authenticators:
-      - id: anonymous_authenticator
-        type: anonymous
-        config:
-          subject: "_anonymous"
-      - id: authelia
-        type: oauth2_introspection
-        config:
-          metadata_endpoint:
-            url: http://auth.k8s.orb.local/.well-known/oauth-authorization-server
-            resolved_endpoints:
-              introspection_endpoint:
-                auth:
-                  type: basic_auth
-                  config:
-                    user: heimdall
-                    password: ${CLIENT_SECRET}
-          assertions:
-            audience:
-              - "http://lfx-api.k8s.orb.local/"
-          subject:
-            # Authelia doesn't provide a "sub" claim for client_credentials token
-            # introspection. Use a GJSON query to extract either the username or
-            # the client_id. Client IDs can collide with usernames (and GJSON
-            # doesn't let us do array concatenation to add a literal prefix), so
-            # the `sub` claim should NOT be used downstream.
-            id: '[username,client_id].0'
-    contextualizers:
-      - id: authelia_userinfo
-        type: generic
-        config:
-          endpoint:
-            url: http://auth.k8s.orb.local/api/oidc/userinfo
-            method: GET
-          forward_headers:
-            - Authorization
-          # Continuing on error is needed if this contextualizer is used in any
-          # rulesets that support anonymous access.
-          continue_pipeline_on_error: true
-    authorizers:
-      - id: allow_all
-        type: allow
-      - id: deny_all
-        type: deny
-      - id: openfga_check
-        type: remote
-        config:
-          endpoint: ${FGA_CHECK_ENDPOINT}
-          values:
-            # Most of the `values` are provided by the matching rule, but the
-            # `model_id` needs to be set by an environment variable.
-            model_id: ${FGA_MODEL_ID}
-          payload: |
-            {
-              "authorization_model_id": "{{ .Values.model_id }}",
-              "tuple_key": {
-                "user": {{
-                  list
-                    "user:"
-                    (
-                      eq .Subject.ID "_anonymous"
-                      | ternary
-                        "_anonymous"
-                        (or
-                          .Subject.Attributes.username
-                          (list "clients@" .Subject.Attributes.client_id | join ""))
-                    )
-                  | join "" | quote
-                }},
-                "relation": "{{ .Values.relation }}",
-                "object": "{{ .Values.object }}"
-              }
-            }
-          expressions:
-            - expression: |
-                Payload.allowed == true
-    finalizers:
-      - id: create_jwt
-        type: jwt
-        config:
-          signer:
-            key_store:
-              path: /secrets/signer.pem
-          claims: |
-            {
-              "principal": {{
-                eq .Subject.ID "_anonymous"
-                | ternary
-                  "_anonymous"
-                  (or
-                    .Subject.Attributes.username
-                    (list "clients@" .Subject.Attributes.client_id | join ""))
-                | quote
-              }}
-              {{ if .Outputs.authelia_userinfo.email -}},
-              "email": {{ quote .Outputs.authelia_userinfo.email }}
-              {{ end -}}
-              {{ if .Values.aud -}},
-              "aud": {{ quote .Values.aud }}
-              {{ end -}}
-            }
-
-  default_rule:
-    execute:
-      - authenticator: anonymous_authenticator
-      - authorizer: deny_all
-      - finalizer: create_jwt
+  url: http://heimdall.lfx.svc.cluster.local:4456

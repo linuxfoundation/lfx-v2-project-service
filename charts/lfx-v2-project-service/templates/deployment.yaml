@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: linuxfoundation/lfx-v2-project-service:0.1.0
+          image: linuxfoundation/lfx-v2-project-service:{{ .Chart.AppVersion }}
           securityContext:
             allowPrivilegeEscalation: false
           imagePullPolicy: Never  # The image is expected to exist locally with the same name and tag. It is not deployed to a registry.

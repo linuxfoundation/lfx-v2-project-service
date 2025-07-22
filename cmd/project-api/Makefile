@@ -178,10 +178,11 @@ helm-install:
 	helm upgrade --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
 	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
 
-helm-install-reuse:
-	@echo "==> Installing Helm chart with reuse..."
-	helm upgrade --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE) --reuse-values
-	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
+# Print templates for Helm chart
+helm-templates:
+	@echo "==> Printing templates for Helm chart..."
+	helm template $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
+	@echo "==> Templates printed for Helm chart: $(HELM_RELEASE_NAME)"
 
 # Uninstall Helm chart
 helm-uninstall:

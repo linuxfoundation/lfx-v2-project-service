@@ -93,7 +93,7 @@ The service relies on some resources and external services being spun up prior t
 - [NATS service](https://docs.nats.io/): ensure you have a NATS server instance running and set the `NATS_URL` environment variable with the URL of the server
 
     ```bash
-    export NATS_URL=nats://nats.lfx.svc.cluster.local:4222
+    export NATS_URL=nats://lfx-platform-nats.lfx.svc.cluster.local:4222
     ```
 
 - [NATS key-value bucket](https://docs.nats.io/nats-concepts/jetstream/key-value-store): once you have a NATS service running, you need to create a bucket used by the project service.
