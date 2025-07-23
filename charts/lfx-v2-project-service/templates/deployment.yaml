@@ -1,0 +1,48 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lfx-v2-project-service
+  namespace: lfx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lfx-v2-project-service
+  template:
+    metadata:
+      labels:
+        app: lfx-v2-project-service
+    spec:
+      containers:
+        - name: app
+          image: linuxfoundation/lfx-v2-project-service:{{ .Chart.AppVersion }}
+          securityContext:
+            allowPrivilegeEscalation: false
+          imagePullPolicy: Never  # The image is expected to exist locally with the same name and tag. It is not deployed to a registry.
+          env:
+            - name: NATS_URL
+              value: {{.Values.nats.url}}
+          ports:
+            - containerPort: 8080
+              name: web
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: web
+            failureThreshold: 3
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: web
+            failureThreshold: 1
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: web
+            failureThreshold: 30
+            periodSeconds: 1

@@ -1,0 +1,91 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: heimdall.dadrus.github.com/v1alpha4
+kind: RuleSet
+metadata:
+  name: lfx-v2-project-service
+  namespace: lfx
+spec:
+  rules:
+    - id: "rule:lfx:lfx-v2-project-service:health"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /livez
+          - path: /readyz
+      execute:
+        - authenticator: anonymous_authenticator
+        - authorizer: allow_all
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects"
+      match:
+        methods:
+          - GET
+          - POST
+        routes:
+          - path: /projects
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        - authorizer: allow_all
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects:get_single"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /projects/:id
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: viewer
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects:single_project_write"
+      match:
+        methods:
+          - PUT
+          - DELETE
+        routes:
+          - path: /projects/:id
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
