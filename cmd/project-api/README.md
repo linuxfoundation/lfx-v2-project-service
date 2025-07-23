@@ -35,7 +35,8 @@ This service handles the following NATS subjects:
 ├── gen/                            # Goa generated implementation code (not committed)
 ├── main.go                         # Dependency injection and startup
 ├── service.go                      # Base service implementation
-├── service_endpoint.go             # Service implementation of REST API endpoints
+├── service_endpoint.go             # Service implementation of health check endpoints
+├── service_endpoint_project.go     # Service implementation of project REST API endpoints
 ├── service_handler.go              # Service implementation of NATS handlers
 ├── repo.go                         # Interface with data stores
 ├── mock.go                         # Service mocks for tests
@@ -221,9 +222,9 @@ For local development without OpenFGA:
 
 Note: follow the [Development Workflow](#4-development-workflow) section on how to run the service code
 
-1. **Update design files**: Edit project file in `design/` to include specicification of the new endpoint with all of its supported parameters, responses, and errors, etc.
+1. **Update design files**: Edit project file in `design/` to include specification of the new endpoint with all of its supported parameters, responses, and errors, etc.
 2. **Regenerate code**: Run `make apigen` after design changes
-3. **Implement code**: Implement the new endpoint in `service_endpoint.go`. Follow similar standards of the other endpoint methods. Include tests for the new endpoint in `service_endpoint_test.go`.
+3. **Implement code**: Implement the new endpoint in `service_endpoint_project.go` (for project-related endpoints) or create a new `service_endpoint_*.go` file for other resource types. Follow similar standards of the other endpoint methods. Include tests for the new endpoint in the corresponding `*_test.go` file.
 4. **Update heimdall ruleset**: Ensure that `/charts/lfx-v2-project-service/templates/ruleset.yaml` has the route and method for the endpoint set so that authentication is configured when deployed. If the endpoint modifies data (PUT, DELETE, PATCH), consider adding OpenFGA authorization checks in the ruleset for proper access control
 
 ### Add new message handlers

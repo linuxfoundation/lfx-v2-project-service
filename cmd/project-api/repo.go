@@ -7,18 +7,18 @@ import (
 	"time"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
-	kvstore "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats-kv-store"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 )
 
 // ConvertToDBProject converts a project service project to a project database representation.
-func ConvertToDBProject(project *projsvc.Project) *kvstore.ProjectDB {
+func ConvertToDBProject(project *projsvc.Project) *nats.ProjectDB {
 	if project == nil {
-		return new(kvstore.ProjectDB)
+		return new(nats.ProjectDB)
 	}
 
 	currentTime := time.Now()
 
-	p := new(kvstore.ProjectDB)
+	p := new(nats.ProjectDB)
 	if project.ID != nil {
 		p.UID = *project.ID
 	}
@@ -46,7 +46,7 @@ func ConvertToDBProject(project *projsvc.Project) *kvstore.ProjectDB {
 }
 
 // ConvertToServiceProject converts a project database representation to a project service project.
-func ConvertToServiceProject(p *kvstore.ProjectDB) *projsvc.Project {
+func ConvertToServiceProject(p *nats.ProjectDB) *projsvc.Project {
 	return &projsvc.Project{
 		ID:          &p.UID,
 		Slug:        &p.Slug,

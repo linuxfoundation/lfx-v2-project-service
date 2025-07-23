@@ -160,26 +160,8 @@ func TestMiddlewareIntegration(t *testing.T) {
 
 // Helper function to extract request ID from context
 func getRequestIDFromContext(ctx context.Context) string {
-	if requestID, ok := ctx.Value(constants.RequestIDHeader).(string); ok {
+	if requestID, ok := ctx.Value(constants.RequestIDContextID).(string); ok {
 		return requestID
 	}
 	return ""
-}
-
-// Benchmark tests
-func BenchmarkRequestIDMiddleware(b *testing.B) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		getRequestIDFromContext(r.Context())
-		w.WriteHeader(http.StatusOK)
-	})
-
-	middleware := RequestIDMiddleware()
-	wrappedHandler := middleware(handler)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/test", nil)
-		rec := httptest.NewRecorder()
-		wrappedHandler.ServeHTTP(rec, req)
-	}
 }

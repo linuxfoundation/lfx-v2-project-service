@@ -50,7 +50,7 @@ type jwtAuth struct {
 	validator *validator.Validator
 }
 
-func setupJWTAuth(logger *slog.Logger) *jwtAuth {
+func setupJWTAuth() *jwtAuth {
 	// Set up Heimdall JWKS key provider.
 	jwksEnv := os.Getenv("JWKS_URL")
 	if jwksEnv == "" {
@@ -58,14 +58,14 @@ func setupJWTAuth(logger *slog.Logger) *jwtAuth {
 	}
 	jwksURL, err := url.Parse(jwksEnv)
 	if err != nil {
-		logger.With(errKey, err).Error("invalid JWKS_URL")
+		slog.With(errKey, err).Error("invalid JWKS_URL")
 		os.Exit(1)
 	}
 	var issuer *url.URL
 	issuer, err = url.Parse(defaultIssuer)
 	if err != nil {
 		// This shouldn't happen; a bare hostname is a valid URL.
-		logger.Error("unexpected URL parsing of default issuer")
+		slog.Error("unexpected URL parsing of default issuer")
 		os.Exit(1)
 	}
 	provider := jwks.NewCachingProvider(issuer, 5*time.Minute, jwks.WithCustomJWKSURI(jwksURL))
@@ -84,7 +84,7 @@ func setupJWTAuth(logger *slog.Logger) *jwtAuth {
 		validator.WithAllowedClockSkew(5*time.Second),
 	)
 	if err != nil {
-		logger.With(errKey, err).Error("failed to set up the Heimdall JWT validator")
+		slog.With(errKey, err).Error("failed to set up the Heimdall JWT validator")
 		os.Exit(1)
 	}
 

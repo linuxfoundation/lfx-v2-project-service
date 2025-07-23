@@ -34,8 +34,8 @@ import (
 var StaticFS embed.FS
 
 const (
-	errKey            = "error"
-	defaultListenPort = "8080"
+	// errKey is the key for the error field in the slog.
+	errKey = "error"
 	// gracefulShutdownSeconds should be higher than NATS client
 	// request timeout, and lower than the pod or liveness probe's
 	// terminationGracePeriodSeconds.
@@ -43,18 +43,50 @@ const (
 )
 
 func main() {
-	// Allow overriding the port by environmental variable as well as command
-	// line argument.
-	defaultPort := os.Getenv("PORT")
-	if defaultPort == "" {
-		defaultPort = defaultListenPort
+	env := parseEnv()
+	flags := parseFlags(env.Port)
+
+	log.InitStructureLogConfig()
+
+	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
+	jwtAuth := setupJWTAuth()
+
+	// Generated service initialization.
+	svc := &ProjectsService{
+		lfxEnvironment: env.LFXEnvironment,
+		auth:           jwtAuth,
 	}
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
+
+	gracefulCloseWG := sync.WaitGroup{}
+
+	httpServer := setupHTTPServer(flags, svc, &gracefulCloseWG)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	natsConn, err := setupNATS(ctx, env, svc, &gracefulCloseWG, done)
+	if err != nil {
+		slog.With(errKey, err).Error("error setting up NATS")
+		return
 	}
-	lfxEnvironmentStr := os.Getenv("LFX_ENVIRONMENT")
-	lfxEnvironment := constants.ParseLFXEnvironment(lfxEnvironmentStr)
+
+	// This next line blocks until SIGINT or SIGTERM is received.
+	<-done
+
+	gracefulShutdown(httpServer, natsConn, &gracefulCloseWG, cancel)
+
+}
+
+// flags are the command line flags for the project service.
+type flags struct {
+	Debug bool
+	Port  string
+	Bind  string
+}
+
+func parseFlags(defaultPort string) flags {
 	var debug = flag.Bool("d", false, "enable debug logging")
 	var port = flag.String("p", defaultPort, "listen port")
 	var bind = flag.String("bind", "*", "interface to bind on")
@@ -65,7 +97,7 @@ func main() {
 	}
 	flag.Parse()
 
-	// Set the log level environment variable used by [log.InitStructureLogConfig]
+	// Based on the debug flag, set the log level environment variable used by [log.InitStructureLogConfig]
 	if *debug {
 		err := os.Setenv("LOG_LEVEL", "debug")
 		if err != nil {
@@ -73,19 +105,39 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	// Set up the logger
-	log.InitStructureLogConfig()
-	logger := slog.Default()
 
-	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
-	jwtAuth := setupJWTAuth(logger)
-
-	// Generated service initialization.
-	svc := &ProjectsService{
-		lfxEnvironment: lfxEnvironment,
-		auth:           jwtAuth,
+	return flags{
+		Debug: *debug,
+		Port:  *port,
+		Bind:  *bind,
 	}
+}
 
+// environment are the environment variables for the project service.
+type environment struct {
+	LFXEnvironment constants.LFXEnvironment
+	NatsURL        string
+	Port           string
+}
+
+func parseEnv() environment {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
+	}
+	lfxEnvironment := constants.ParseLFXEnvironment(os.Getenv("LFX_ENVIRONMENT"))
+	return environment{
+		LFXEnvironment: lfxEnvironment,
+		NatsURL:        natsURL,
+		Port:           port,
+	}
+}
+
+func setupHTTPServer(flags flags, svc *ProjectsService, gracefulCloseWG *sync.WaitGroup) *http.Server {
 	// Wrap it in the generated endpoints
 	endpoints := genquerysvc.NewEndpoints(svc)
 
@@ -125,17 +177,14 @@ func main() {
 	// so it should be the last middleware added to the handler since it is executed in reverse order.
 	handler = middleware.RequestLoggerMiddleware()(handler)
 	handler = middleware.RequestIDMiddleware()(handler)
-
-	// Create a wait group which is used to wait during graceful HTTP shutdown
-	// and NATS draining.
-	gracefulCloseWG := sync.WaitGroup{}
+	handler = middleware.AuthorizationMiddleware()(handler)
 
 	// Set up http listener in a goroutine using provided command line parameters.
 	var addr string
-	if *bind == "*" {
-		addr = ":" + *port
+	if flags.Bind == "*" {
+		addr = ":" + flags.Port
 	} else {
-		addr = *bind + ":" + *port
+		addr = flags.Bind + ":" + flags.Port
 	}
 	httpServer := &http.Server{
 		Addr:              addr,
@@ -144,10 +193,10 @@ func main() {
 	}
 	gracefulCloseWG.Add(1)
 	go func() {
-		logger.With("addr", addr).Debug("starting http server, listening on port " + *port)
+		slog.With("addr", addr).Debug("starting http server, listening on port " + flags.Port)
 		err := httpServer.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
-			logger.With(errKey, err).Error("http listener error")
+			slog.With(errKey, err).Error("http listener error")
 			os.Exit(1)
 		}
 		// Because ErrServerClosed is *immediately* returned when Shutdown is
@@ -155,27 +204,25 @@ func main() {
 		// the wait group.
 	}()
 
-	// Support graceful shutdown.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	return httpServer
+}
 
+func setupNATS(ctx context.Context, env environment, svc *ProjectsService, gracefulCloseWG *sync.WaitGroup, done chan os.Signal) (*nats.Conn, error) {
 	// Create NATS connection.
 	gracefulCloseWG.Add(1)
 	var err error
-	logger.With("nats_url", natsURL).Info("attempting to connect to NATS")
+	slog.With("nats_url", env.NatsURL).Info("attempting to connect to NATS")
 	natsConn, err := nats.Connect(
-		natsURL,
+		env.NatsURL,
 		nats.DrainTimeout(gracefulShutdownSeconds*time.Second),
 		nats.ConnectHandler(func(_ *nats.Conn) {
-			logger.With("nats_url", natsURL).Info("NATS connection established")
+			slog.With("nats_url", env.NatsURL).Info("NATS connection established")
 		}),
 		nats.ErrorHandler(func(_ *nats.Conn, s *nats.Subscription, err error) {
 			if s != nil {
-				logger.With(errKey, err, "subject", s.Subject, "queue", s.Queue).Error("async NATS error")
+				slog.With(errKey, err, "subject", s.Subject, "queue", s.Queue).Error("async NATS error")
 			} else {
-				logger.With(errKey, err).Error("async NATS error outside subscription")
+				slog.With(errKey, err).Error("async NATS error outside subscription")
 			}
 		}),
 		nats.ClosedHandler(func(_ *nats.Conn) {
@@ -183,13 +230,13 @@ func main() {
 				// If our parent background context has already been canceled, this is
 				// a graceful shutdown. Decrement the wait group but do not exit, to
 				// allow other graceful shutdown steps to complete.
-				logger.With("nats_url", natsURL).Info("NATS connection closed gracefully")
+				slog.With("nats_url", env.NatsURL).Info("NATS connection closed gracefully")
 				gracefulCloseWG.Done()
 				return
 			}
 			// Otherwise, this handler means that max reconnect attempts have been
 			// exhausted.
-			logger.With("nats_url", natsURL).Error("NATS max-reconnects exhausted; connection closed")
+			slog.With("nats_url", env.NatsURL).Error("NATS max-reconnects exhausted; connection closed")
 			// Send a synthetic interrupt and give any graceful-shutdown tasks 5
 			// seconds to clean up.
 			done <- os.Interrupt
@@ -199,57 +246,24 @@ func main() {
 		}),
 	)
 	if err != nil {
-		logger.With("nats_url", natsURL, errKey, err).Error("error creating NATS client")
-		return
+		slog.With("nats_url", env.NatsURL, errKey, err).Error("error creating NATS client")
+		return nil, err
 	}
 	svc.natsConn = natsConn
 
 	// Get the key-value store for projects.
 	svc.projectsKV, err = getKeyValueStore(ctx, natsConn)
 	if err != nil {
-		return
+		return natsConn, err
 	}
 
 	// Create NATS subscriptions for the project service.
 	err = createNatsSubcriptions(ctx, svc, natsConn)
 	if err != nil {
-		return
+		return natsConn, err
 	}
 
-	// This next line blocks until SIGINT or SIGTERM is received.
-	<-done
-
-	// Cancel the background context.
-	cancel()
-
-	go func() {
-		// Run the HTTP shutdown in a goroutine so the NATS draining can also start.
-		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownSeconds*time.Second)
-		defer cancel()
-
-		logger.With("addr", httpServer.Addr).Info("shutting down http server")
-		if err := httpServer.Shutdown(ctx); err != nil {
-			logger.With(errKey, err).Error("http shutdown error")
-		}
-		// Decrement the wait group.
-		gracefulCloseWG.Done()
-	}()
-
-	// Drain the NATS connection, which will drain all subscriptions, then close the
-	// connection when complete.
-	if !natsConn.IsClosed() && !natsConn.IsDraining() {
-		logger.Info("draining NATS connections")
-		if err := natsConn.Drain(); err != nil {
-			logger.With(errKey, err).Error("error draining NATS connection")
-			// Skip waiting or checking error channel.
-			return
-		}
-	}
-
-	// Wait for the HTTP graceful shutdown and for the NATS connection to be
-	// closed (see nats.Connect options for the timeout and the handler that
-	// decrements the wait group).
-	gracefulCloseWG.Wait()
+	return natsConn, nil
 }
 
 // getKeyValueStore creates a JetStream client and gets the key-value store for projects.
@@ -293,4 +307,38 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsService, natsConn 
 	}
 
 	return nil
+}
+
+func gracefulShutdown(httpServer *http.Server, natsConn *nats.Conn, gracefulCloseWG *sync.WaitGroup, cancel context.CancelFunc) {
+	// Cancel the background context.
+	cancel()
+
+	go func() {
+		// Run the HTTP shutdown in a goroutine so the NATS draining can also start.
+		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownSeconds*time.Second)
+		defer cancel()
+
+		slog.With("addr", httpServer.Addr).Info("shutting down http server")
+		if err := httpServer.Shutdown(ctx); err != nil {
+			slog.With(errKey, err).Error("http shutdown error")
+		}
+		// Decrement the wait group.
+		gracefulCloseWG.Done()
+	}()
+
+	// Drain the NATS connection, which will drain all subscriptions, then close the
+	// connection when complete.
+	if !natsConn.IsClosed() && !natsConn.IsDraining() {
+		slog.Info("draining NATS connections")
+		if err := natsConn.Drain(); err != nil {
+			slog.With(errKey, err).Error("error draining NATS connection")
+			// Skip waiting or checking error channel.
+			return
+		}
+	}
+
+	// Wait for the HTTP graceful shutdown and for the NATS connection to be
+	// closed (see nats.Connect options for the timeout and the handler that
+	// decrements the wait group).
+	gracefulCloseWG.Wait()
 }

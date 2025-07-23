@@ -106,20 +106,3 @@ func TestResponseWriterWrapper(t *testing.T) {
 	assertion.Equal(len(content), n)
 	assertion.Equal(content, rec.Body.Bytes())
 }
-
-func BenchmarkRequestLoggerMiddleware(b *testing.B) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	})
-
-	middleware := RequestLoggerMiddleware()
-	wrappedHandler := middleware(handler)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest("GET", "/test", nil)
-		rec := httptest.NewRecorder()
-		wrappedHandler.ServeHTTP(rec, req)
-	}
-}
