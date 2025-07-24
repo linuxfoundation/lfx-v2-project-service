@@ -132,7 +132,7 @@ func EncodeGetProjectsError(encoder func(context.Context, http.ResponseWriter) g
 // project-service create-project endpoint.
 func EncodeCreateProjectResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*projectservice.ProjectBase)
+		res, _ := v.(*projectservice.ProjectFull)
 		enc := encoder(ctx, w)
 		body := NewCreateProjectResponseBody(res)
 		w.WriteHeader(http.StatusCreated)
@@ -669,6 +669,10 @@ func DecodeUpdateProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Re
 			}
 			return nil, goa.DecodePayloadError(err.Error())
 		}
+		err = ValidateUpdateProjectSettingsRequestBody(&body)
+		if err != nil {
+			return nil, err
+		}
 
 		var (
 			uid         string
@@ -961,11 +965,11 @@ func EncodeLivezResponse(encoder func(context.Context, http.ResponseWriter) goah
 	}
 }
 
-// marshalProjectserviceProjectBaseToProjectBaseResponseBody builds a value of
-// type *ProjectBaseResponseBody from a value of type
-// *projectservice.ProjectBase.
-func marshalProjectserviceProjectBaseToProjectBaseResponseBody(v *projectservice.ProjectBase) *ProjectBaseResponseBody {
-	res := &ProjectBaseResponseBody{
+// marshalProjectserviceProjectFullToProjectFullResponseBody builds a value of
+// type *ProjectFullResponseBody from a value of type
+// *projectservice.ProjectFull.
+func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice.ProjectFull) *ProjectFullResponseBody {
+	res := &ProjectFullResponseBody{
 		UID:                        v.UID,
 		Slug:                       v.Slug,
 		Description:                v.Description,
@@ -975,16 +979,37 @@ func marshalProjectserviceProjectBaseToProjectBaseResponseBody(v *projectservice
 		Stage:                      v.Stage,
 		Category:                   v.Category,
 		CharterURL:                 v.CharterURL,
+		LegalEntityType:            v.LegalEntityType,
+		LegalEntityName:            v.LegalEntityName,
+		LegalParentUID:             v.LegalParentUID,
 		EntityDissolutionDate:      v.EntityDissolutionDate,
 		EntityFormationDocumentURL: v.EntityFormationDocumentURL,
 		AutojoinEnabled:            v.AutojoinEnabled,
 		FormationDate:              v.FormationDate,
+		LogoURL:                    v.LogoURL,
+		RepositoryURL:              v.RepositoryURL,
+		WebsiteURL:                 v.WebsiteURL,
+		CreatedAt:                  v.CreatedAt,
+		UpdatedAt:                  v.UpdatedAt,
+		MissionStatement:           v.MissionStatement,
 		AnnouncementDate:           v.AnnouncementDate,
 	}
 	if v.FundingModel != nil {
 		res.FundingModel = make([]string, len(v.FundingModel))
 		for i, val := range v.FundingModel {
 			res.FundingModel[i] = val
+		}
+	}
+	if v.Writers != nil {
+		res.Writers = make([]string, len(v.Writers))
+		for i, val := range v.Writers {
+			res.Writers[i] = val
+		}
+	}
+	if v.Auditors != nil {
+		res.Auditors = make([]string, len(v.Auditors))
+		for i, val := range v.Auditors {
+			res.Auditors[i] = val
 		}
 	}
 

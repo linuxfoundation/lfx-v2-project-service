@@ -53,7 +53,7 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 	{
 		err = json.Unmarshal([]byte(projectServiceCreateProjectBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"legal_entity_name\": \"Example Foundation LLC\",\n      \"legal_entity_type\": \"Subproject\",\n      \"legal_parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"repository_url\": \"https://example.com/project\",\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\",\n      \"website_url\": \"https://example.com\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
@@ -75,6 +75,14 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		if body.CharterURL != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
 		}
+		if body.LegalEntityType != nil {
+			if !(*body.LegalEntityType == "Subproject" || *body.LegalEntityType == "Incorporated Entity" || *body.LegalEntityType == "Series LLC" || *body.LegalEntityType == "Unofficial Subproject" || *body.LegalEntityType == "Internal Allocation" || *body.LegalEntityType == "None") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.legal_entity_type", *body.LegalEntityType, []any{"Subproject", "Incorporated Entity", "Series LLC", "Unofficial Subproject", "Internal Allocation", "None"}))
+			}
+		}
+		if body.LegalParentUID != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.legal_parent_uid", *body.LegalParentUID, goa.FormatUUID))
+		}
 		if body.EntityDissolutionDate != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
 		}
@@ -83,6 +91,15 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		}
 		if body.FormationDate != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
+		}
+		if body.LogoURL != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+		}
+		if body.RepositoryURL != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
+		}
+		if body.WebsiteURL != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 		}
 		if body.AnnouncementDate != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
@@ -118,10 +135,16 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		Stage:                      body.Stage,
 		Category:                   body.Category,
 		CharterURL:                 body.CharterURL,
+		LegalEntityType:            body.LegalEntityType,
+		LegalEntityName:            body.LegalEntityName,
+		LegalParentUID:             body.LegalParentUID,
 		EntityDissolutionDate:      body.EntityDissolutionDate,
 		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
 		AutojoinEnabled:            body.AutojoinEnabled,
 		FormationDate:              body.FormationDate,
+		LogoURL:                    body.LogoURL,
+		RepositoryURL:              body.RepositoryURL,
+		WebsiteURL:                 body.WebsiteURL,
 		AnnouncementDate:           body.AnnouncementDate,
 		MissionStatement:           body.MissionStatement,
 	}
@@ -233,7 +256,7 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 	{
 		err = json.Unmarshal([]byte(projectServiceUpdateProjectBaseBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"legal_entity_name\": \"Example Foundation LLC\",\n      \"legal_entity_type\": \"Subproject\",\n      \"legal_parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"repository_url\": \"https://example.com/project\",\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\",\n      \"website_url\": \"https://example.com\"\n   }'")
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
@@ -255,6 +278,14 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 		if body.CharterURL != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
 		}
+		if body.LegalEntityType != nil {
+			if !(*body.LegalEntityType == "Subproject" || *body.LegalEntityType == "Incorporated Entity" || *body.LegalEntityType == "Series LLC" || *body.LegalEntityType == "Unofficial Subproject" || *body.LegalEntityType == "Internal Allocation" || *body.LegalEntityType == "None") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.legal_entity_type", *body.LegalEntityType, []any{"Subproject", "Incorporated Entity", "Series LLC", "Unofficial Subproject", "Internal Allocation", "None"}))
+			}
+		}
+		if body.LegalParentUID != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.legal_parent_uid", *body.LegalParentUID, goa.FormatUUID))
+		}
 		if body.EntityDissolutionDate != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
 		}
@@ -264,8 +295,14 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 		if body.FormationDate != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
 		}
-		if body.AnnouncementDate != nil {
-			err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+		if body.LogoURL != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+		}
+		if body.RepositoryURL != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
+		}
+		if body.WebsiteURL != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 		}
 		if err != nil {
 			return nil, err
@@ -312,11 +349,16 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 		Stage:                      body.Stage,
 		Category:                   body.Category,
 		CharterURL:                 body.CharterURL,
+		LegalEntityType:            body.LegalEntityType,
+		LegalEntityName:            body.LegalEntityName,
+		LegalParentUID:             body.LegalParentUID,
 		EntityDissolutionDate:      body.EntityDissolutionDate,
 		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
 		AutojoinEnabled:            body.AutojoinEnabled,
 		FormationDate:              body.FormationDate,
-		AnnouncementDate:           body.AnnouncementDate,
+		LogoURL:                    body.LogoURL,
+		RepositoryURL:              body.RepositoryURL,
+		WebsiteURL:                 body.WebsiteURL,
 	}
 	if body.FundingModel != nil {
 		v.FundingModel = make([]string, len(body.FundingModel))
@@ -340,7 +382,7 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 	{
 		err = json.Unmarshal([]byte(projectServiceUpdateProjectSettingsBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
 		}
 	}
 	var uid string
@@ -377,6 +419,7 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 	}
 	v := &projectservice.UpdateProjectSettingsPayload{
 		MissionStatement: body.MissionStatement,
+		AnnouncementDate: body.AnnouncementDate,
 	}
 	if body.Writers != nil {
 		v.Writers = make([]string, len(body.Writers))

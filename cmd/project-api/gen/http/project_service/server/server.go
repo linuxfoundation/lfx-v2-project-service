@@ -68,9 +68,9 @@ func New(
 			{"GetProjects", "GET", "/projects"},
 			{"CreateProject", "POST", "/projects"},
 			{"GetOneProjectBase", "GET", "/projects/{uid}"},
-			{"GetOneProjectSettings", "GET", "/projects/{uid}"},
+			{"GetOneProjectSettings", "GET", "/projects/{uid}/settings"},
 			{"UpdateProjectBase", "PUT", "/projects/{uid}"},
-			{"UpdateProjectSettings", "PUT", "/projects/{uid}"},
+			{"UpdateProjectSettings", "PUT", "/projects/{uid}/settings"},
 			{"DeleteProject", "DELETE", "/projects/{uid}"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
@@ -290,7 +290,7 @@ func MountGetOneProjectSettingsHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{uid}", f)
+	mux.Handle("GET", "/projects/{uid}/settings", f)
 }
 
 // NewGetOneProjectSettingsHandler creates a HTTP handler which loads the HTTP
@@ -394,7 +394,7 @@ func MountUpdateProjectSettingsHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("PUT", "/projects/{uid}", f)
+	mux.Handle("PUT", "/projects/{uid}/settings", f)
 }
 
 // NewUpdateProjectSettingsHandler creates a HTTP handler which loads the HTTP

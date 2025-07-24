@@ -66,13 +66,13 @@ func (c *Client) GetProjects(ctx context.Context, p *GetProjectsPayload) (res *G
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
-func (c *Client) CreateProject(ctx context.Context, p *CreateProjectPayload) (res *ProjectBase, err error) {
+func (c *Client) CreateProject(ctx context.Context, p *CreateProjectPayload) (res *ProjectFull, err error) {
 	var ires any
 	ires, err = c.CreateProjectEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*ProjectBase), nil
+	return ires.(*ProjectFull), nil
 }
 
 // GetOneProjectBase calls the "get-one-project-base" endpoint of the

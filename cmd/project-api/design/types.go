@@ -31,12 +31,24 @@ func VersionAttribute() {
 	})
 }
 
+// ProjectFull is the DSL type for a project full.
+var ProjectFull = Type("ProjectFull", func() {
+	Description("A full representation of LF Projects with sub-objects populated.")
+
+	ProjectBaseAttributes()
+	ProjectSettingsAttributes()
+})
+
 // ProjectBase is the DSL type for a project base.
 var ProjectBase = Type("ProjectBase", func() {
 	Description("A base representation of LF Projects without sub-objects.")
 
-	// Attributes
-	ProjectIDAttribute()
+	ProjectBaseAttributes()
+})
+
+// ProjectBaseAttributes is the DSL attributes for a project base.
+func ProjectBaseAttributes() {
+	ProjectUIDAttribute()
 	ProjectSlugAttribute()
 	ProjectDescriptionAttribute()
 	ProjectNameAttribute()
@@ -46,31 +58,42 @@ var ProjectBase = Type("ProjectBase", func() {
 	ProjectCategoryAttribute()
 	ProjectFundingModelAttribute()
 	ProjectCharterURLAttribute()
+	ProjectLegalEntityTypeAttribute()
+	ProjectLegalEntityNameAttribute()
+	ProjectLegalParentUIDAttribute()
 	ProjectEntityDissolutionDateAttribute()
 	ProjectEntityFormationDocumentURLAttribute()
 	ProjectAutojoinEnabledAttribute()
 	ProjectFormationDateAttribute()
-	ProjectAnnouncementDateAttribute()
-})
+	ProjectLogoURLAttribute()
+	ProjectRepositoryURLAttribute()
+	ProjectWebsiteURLAttribute()
+}
 
 // ProjectSettings is the DSL type for a project settings.
 var ProjectSettings = Type("ProjectSettings", func() {
 	Description("A representation of LF Project settings.")
 
-	// Attributes
+	ProjectSettingsAttributes()
+})
+
+// ProjectSettingsAttributes is the DSL attributes for a project settings.
+func ProjectSettingsAttributes() {
+	ProjectUIDAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
 	ProjectMissionStatementAttribute()
+	ProjectAnnouncementDateAttribute()
 	ProjectWritersAttribute()
 	ProjectAuditorsAttribute()
-})
+}
 
 //
 // Project attributes
 //
 
-// ProjectIDAttribute is the DSL attribute for a project ID.
-func ProjectIDAttribute() {
+// ProjectUIDAttribute is the DSL attribute for a project UID.
+func ProjectUIDAttribute() {
 	Attribute("uid", String, "Project UID -- v2 uid, not related to v1 id directly", func() {
 		// Read-only attribute
 		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")

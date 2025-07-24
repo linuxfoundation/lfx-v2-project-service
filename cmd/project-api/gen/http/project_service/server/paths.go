@@ -29,7 +29,7 @@ func GetOneProjectBaseProjectServicePath(uid string) string {
 
 // GetOneProjectSettingsProjectServicePath returns the URL path to the project-service service get-one-project-settings HTTP endpoint.
 func GetOneProjectSettingsProjectServicePath(uid string) string {
-	return fmt.Sprintf("/projects/%v", uid)
+	return fmt.Sprintf("/projects/%v/settings", uid)
 }
 
 // UpdateProjectBaseProjectServicePath returns the URL path to the project-service service update-project-base HTTP endpoint.
@@ -39,7 +39,7 @@ func UpdateProjectBaseProjectServicePath(uid string) string {
 
 // UpdateProjectSettingsProjectServicePath returns the URL path to the project-service service update-project-settings HTTP endpoint.
 func UpdateProjectSettingsProjectServicePath(uid string) string {
-	return fmt.Sprintf("/projects/%v", uid)
+	return fmt.Sprintf("/projects/%v/settings", uid)
 }
 
 // DeleteProjectProjectServicePath returns the URL path to the project-service service delete-project HTTP endpoint.

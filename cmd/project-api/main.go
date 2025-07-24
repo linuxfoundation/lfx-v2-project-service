@@ -251,13 +251,13 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsService, grace
 	}
 	svc.natsConn = natsConn
 
-	// Get the key-value store for projects.
-	svc.projectsKV, err = getKeyValueStore(ctx, natsConn)
+	// Get the key-value stores for the service.
+	svc.kvBuckets, err = getKeyValueStores(ctx, natsConn)
 	if err != nil {
 		return natsConn, err
 	}
 
-	// Create NATS subscriptions for the project service.
+	// Create NATS subscriptions for the service.
 	err = createNatsSubcriptions(ctx, svc, natsConn)
 	if err != nil {
 		return natsConn, err
@@ -266,19 +266,30 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsService, grace
 	return natsConn, nil
 }
 
-// getKeyValueStore creates a JetStream client and gets the key-value store for projects.
-func getKeyValueStore(ctx context.Context, natsConn *nats.Conn) (jetstream.KeyValue, error) {
+// getKeyValueStores creates a JetStream client and gets the key-value store for projects.
+func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (KVBuckets, error) {
+	kvBuckets := KVBuckets{}
+
 	js, err := jetstream.New(natsConn)
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating NATS JetStream client", "nats_url", natsConn.ConnectedUrl(), errKey, err)
-		return nil, err
+		return kvBuckets, err
 	}
 	projectsKV, err := js.KeyValue(ctx, constants.KVBucketNameProjects)
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjects)
-		return nil, err
+		return kvBuckets, err
 	}
-	return projectsKV, nil
+	kvBuckets.Projects = projectsKV
+
+	projectSettingsKV, err := js.KeyValue(ctx, constants.KVBucketNameProjectSettings)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjectSettings)
+		return kvBuckets, err
+	}
+	kvBuckets.ProjectSettings = projectSettingsKV
+
+	return kvBuckets, nil
 }
 
 // createNatsSubcriptions creates the NATS subscriptions for the project service.

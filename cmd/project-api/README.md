@@ -17,9 +17,12 @@ This service contains the following API endpoints:
   - `GET`: fetch the list of projects (Note: this will be removed in favor of using the query service, once implemented)
   - `POST` create a new project
 - `/projects/:id`
-  - `GET`: fetch a project by its UID
-  - `PUT`: update a project by its UID - only certain attributes can be updated, read the openapi spec for more details
+  - `GET`: fetch a project's base information by its UID
+  - `PUT`: update a project's base information by its UID - only certain attributes can be updated, read the openapi spec for more details
   - `DELETE`: delete a project by its UID
+- `/projects/:id/settings`
+  - `GET`: fetch a project's settings information by its UID
+  - `PUT`: update a project's settings by its UID
 
 This service handles the following NATS subjects:
 
@@ -102,6 +105,7 @@ The service relies on some resources and external services being spun up prior t
     ```bash
     # if using the nats cli tool
     nats kv add projects --history=20 --storage=file --max-value-size=10485760 --max-bucket-size=1073741824
+    nats kv add project-settings --history=20 --storage=file --max-value-size=10485760 --max-bucket-size=1073741824
     ```
 
 #### 3. Export environment variables
@@ -206,9 +210,12 @@ openfga:
 When OpenFGA is enabled, the following authorization checks are enforced:
 
 - **GET /projects** - No OpenFGA check (returns list of all projects)
-- **POST /projects** - No OpenFGA check (authenticated users can create projects)
+- **POST /projects** - Requires `writer` relation on the parent project (if parent_uid is specified)
 - **GET /projects/:id** - Requires `viewer` relation on the specific project
-- **PUT /projects/:id** and **DELETE /projects/:id** - Requires `writer` relation on the specific project
+- **GET /projects/:id/settings** - Requires `auditor` relation on the specific project
+- **PUT /projects/:id** - Requires `writer` relation on the specific project
+- **PUT /projects/:id/settings** - Requires `writer` relation on the specific project
+- **DELETE /projects/:id** - Requires `owner` relation on the specific project
 
 #### Local Development
 

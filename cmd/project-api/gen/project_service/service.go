@@ -19,7 +19,7 @@ type Service interface {
 	// Get all projects.
 	GetProjects(context.Context, *GetProjectsPayload) (res *GetProjectsResult, err error)
 	// Create a new project.
-	CreateProject(context.Context, *CreateProjectPayload) (res *ProjectBase, err error)
+	CreateProject(context.Context, *CreateProjectPayload) (res *ProjectFull, err error)
 	// Get a single project's base information.
 	GetOneProjectBase(context.Context, *GetOneProjectBasePayload) (res *GetOneProjectBaseResult, err error)
 	// Get a single project's settings.
@@ -97,6 +97,12 @@ type CreateProjectPayload struct {
 	FundingModel []string
 	// The URL of the project charter document
 	CharterURL *string
+	// The legal entity type of the project
+	LegalEntityType *string
+	// The legal entity name of the project
+	LegalEntityName *string
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string
 	// The URL of the project entity formation document
@@ -105,6 +111,12 @@ type CreateProjectPayload struct {
 	AutojoinEnabled *bool
 	// The date the project was formed
 	FormationDate *string
+	// The URL of the project logo
+	LogoURL *string
+	// The URL of the project repository
+	RepositoryURL *string
+	// The URL of the project website
+	WebsiteURL *string
 	// The date the project was announced
 	AnnouncementDate *string
 	// The mission statement of the project
@@ -179,7 +191,7 @@ type GetProjectsPayload struct {
 // get-projects method.
 type GetProjectsResult struct {
 	// Resources found
-	Projects []*ProjectBase
+	Projects []*ProjectFull
 	// Cache control header
 	CacheControl *string
 }
@@ -198,8 +210,8 @@ type NotFoundError struct {
 	Message string
 }
 
-// ProjectBase is the result type of the project-service service create-project
-// method.
+// ProjectBase is the result type of the project-service service
+// update-project-base method.
 type ProjectBase struct {
 	// Project UID -- v2 uid, not related to v1 id directly
 	UID *string
@@ -221,6 +233,12 @@ type ProjectBase struct {
 	FundingModel []string
 	// The URL of the project charter document
 	CharterURL *string
+	// The legal entity type of the project
+	LegalEntityType *string
+	// The legal entity name of the project
+	LegalEntityName *string
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string
 	// The URL of the project entity formation document
@@ -229,19 +247,84 @@ type ProjectBase struct {
 	AutojoinEnabled *bool
 	// The date the project was formed
 	FormationDate *string
-	// The date the project was announced
-	AnnouncementDate *string
+	// The URL of the project logo
+	LogoURL *string
+	// The URL of the project repository
+	RepositoryURL *string
+	// The URL of the project website
+	WebsiteURL *string
 }
 
-// ProjectSettings is the result type of the project-service service
-// update-project-settings method.
-type ProjectSettings struct {
+// ProjectFull is the result type of the project-service service create-project
+// method.
+type ProjectFull struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
+	// Project slug, a short slugified name of the project
+	Slug *string
+	// A description of the project
+	Description *string
+	// The pretty name of the project
+	Name *string
+	// Whether the project is public
+	Public *bool
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string
+	// The stage of the project
+	Stage *string
+	// The category of the project
+	Category *string
+	// A list of funding models for the project
+	FundingModel []string
+	// The URL of the project charter document
+	CharterURL *string
+	// The legal entity type of the project
+	LegalEntityType *string
+	// The legal entity name of the project
+	LegalEntityName *string
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool
+	// The date the project was formed
+	FormationDate *string
+	// The URL of the project logo
+	LogoURL *string
+	// The URL of the project repository
+	RepositoryURL *string
+	// The URL of the project website
+	WebsiteURL *string
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
 	UpdatedAt *string
 	// The mission statement of the project
 	MissionStatement *string
+	// The date the project was announced
+	AnnouncementDate *string
+	// A list of project writers by their user IDs
+	Writers []string
+	// A list of project auditors by their user IDs
+	Auditors []string
+}
+
+// ProjectSettings is the result type of the project-service service
+// update-project-settings method.
+type ProjectSettings struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
+	// The date and time the project was created
+	CreatedAt *string
+	// The date and time the project was last updated
+	UpdatedAt *string
+	// The mission statement of the project
+	MissionStatement *string
+	// The date the project was announced
+	AnnouncementDate *string
 	// A list of project writers by their user IDs
 	Writers []string
 	// A list of project auditors by their user IDs
@@ -284,6 +367,12 @@ type UpdateProjectBasePayload struct {
 	FundingModel []string
 	// The URL of the project charter document
 	CharterURL *string
+	// The legal entity type of the project
+	LegalEntityType *string
+	// The legal entity name of the project
+	LegalEntityName *string
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string
 	// The URL of the project entity formation document
@@ -292,8 +381,12 @@ type UpdateProjectBasePayload struct {
 	AutojoinEnabled *bool
 	// The date the project was formed
 	FormationDate *string
-	// The date the project was announced
-	AnnouncementDate *string
+	// The URL of the project logo
+	LogoURL *string
+	// The URL of the project repository
+	RepositoryURL *string
+	// The URL of the project website
+	WebsiteURL *string
 }
 
 // UpdateProjectSettingsPayload is the payload type of the project-service
@@ -309,6 +402,8 @@ type UpdateProjectSettingsPayload struct {
 	UID *string
 	// The mission statement of the project
 	MissionStatement *string
+	// The date the project was announced
+	AnnouncementDate *string
 	// A list of project writers by their user IDs
 	Writers []string
 	// A list of project auditors by their user IDs

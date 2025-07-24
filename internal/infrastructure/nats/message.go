@@ -18,8 +18,8 @@ type MessageBuilder struct {
 	LfxEnvironment constants.LFXEnvironment
 }
 
-// SendIndexingTransaction sends the transaction to the NATS server for the data indexing.
-func (m *MessageBuilder) SendIndexProjectTransaction(ctx context.Context, action TransactionAction, data []byte) error {
+// SendIndexProject sends the transaction to the NATS server for the project indexing.
+func (m *MessageBuilder) SendIndexProject(ctx context.Context, action TransactionAction, data []byte) error {
 	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.IndexProjectSubject)
 
 	headers := make(map[string]string)
@@ -38,7 +38,7 @@ func (m *MessageBuilder) SendIndexProjectTransaction(ctx context.Context, action
 
 	transactionBytes, err := json.Marshal(transaction)
 	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling transaction into JSON", constants.ErrKey, err)
+		slog.ErrorContext(ctx, "error marshalling transaction into JSON", constants.ErrKey, err, "subject", subject)
 		return err
 	}
 
@@ -51,8 +51,41 @@ func (m *MessageBuilder) SendIndexProjectTransaction(ctx context.Context, action
 	return nil
 }
 
-// SendUpdateAccessTransaction sends the transaction to the NATS server for the access control updates.
-func (m *MessageBuilder) SendUpdateAccessProjectTransaction(ctx context.Context, data []byte) error {
+// SendIndexProjectSettings sends the transaction to the NATS server for the project settings indexing.
+func (m *MessageBuilder) SendIndexProjectSettings(ctx context.Context, action TransactionAction, data []byte) error {
+	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.IndexProjectSettingsSubject)
+
+	headers := make(map[string]string)
+	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
+		headers["authorization"] = authorization
+	}
+	if principal, ok := ctx.Value(constants.PrincipalContextID).(string); ok {
+		headers["x-on-behalf-of"] = principal
+	}
+
+	transaction := ProjectTransaction{
+		Action:  action,
+		Headers: headers,
+		Data:    data,
+	}
+
+	transactionBytes, err := json.Marshal(transaction)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling transaction into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	err = m.NatsConn.Publish(subject, transactionBytes)
+	if err != nil {
+		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+	slog.DebugContext(ctx, "sent transaction to NATS for data indexing", "subject", subject)
+	return nil
+}
+
+// SendUpdateAccessProject sends the transaction to the NATS server for the access control updates.
+func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data []byte) error {
 	// Send the transaction to the NATS server for the access control updates.
 	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.UpdateAccessProjectSubject)
 	err := m.NatsConn.Publish(subject, data)
@@ -64,10 +97,36 @@ func (m *MessageBuilder) SendUpdateAccessProjectTransaction(ctx context.Context,
 	return nil
 }
 
-// SendDeleteAllAccessProjectTransaction sends the transaction to the NATS server for the access control deletion.
-func (m *MessageBuilder) SendDeleteAllAccessProjectTransaction(ctx context.Context, data []byte) error {
+// SendUpdateAccessProjectSettings sends the transaction to the NATS server for the access control updates.
+func (m *MessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, data []byte) error {
+	// Send the transaction to the NATS server for the access control updates.
+	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.UpdateAccessProjectSettingsSubject)
+	err := m.NatsConn.Publish(subject, data)
+	if err != nil {
+		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+	slog.DebugContext(ctx, "sent transaction to NATS for project access control updates", "subject", subject)
+	return nil
+}
+
+// SendDeleteAllAccessProject sends the transaction to the NATS server for the access control deletion.
+func (m *MessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data []byte) error {
 	// Send the transaction to the NATS server for the access control deletion.
 	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.DeleteAllAccessSubject)
+	err := m.NatsConn.Publish(subject, data)
+	if err != nil {
+		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+	slog.DebugContext(ctx, "sent transaction to NATS for project access control deletion", "subject", subject)
+	return nil
+}
+
+// SendDeleteAllAccessProjectSettings sends the transaction to the NATS server for the access control deletion.
+func (m *MessageBuilder) SendDeleteAllAccessProjectSettings(ctx context.Context, data []byte) error {
+	// Send the transaction to the NATS server for the access control deletion.
+	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.DeleteAllAccessProjectSettingsSubject)
 	err := m.NatsConn.Publish(subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)

@@ -7,21 +7,37 @@ package constants
 const (
 	// KVBucketNameProjects is the name of the KV bucket for projects.
 	KVBucketNameProjects = "projects"
+
+	// KVBucketNameProjectSettings is the name of the KV bucket for project settings.
+	KVBucketNameProjectSettings = "project-settings"
 )
 
 // NATS subjects that the project service sends messages about.
 const (
 	// IndexProjectSubject is the subject for the project indexing.
 	// The subject is of the form: <lfx_environment>.lfx.index.project
+	// TODO: remove the <lfx_environment>. since it isn't needed. The subjects should just be lfx.* for all subjects.
 	IndexProjectSubject = ".lfx.index.project"
+
+	// IndexProjectSettingsSubject is the subject for the project settings indexing.
+	// The subject is of the form: <lfx_environment>.lfx.index.project_settings
+	IndexProjectSettingsSubject = ".lfx.index.project_settings"
 
 	// UpdateAccessProjectSubject is the subject for the project access control updates.
 	// The subject is of the form: <lfx_environment>.lfx.update_access.project
 	UpdateAccessProjectSubject = ".lfx.update_access.project"
 
+	// UpdateAccessProjectSettingsSubject is the subject for the project settings access control updates.
+	// The subject is of the form: <lfx_environment>.lfx.update_access.project_settings
+	UpdateAccessProjectSettingsSubject = ".lfx.update_access.project_settings"
+
 	// DeleteAllAccessSubject is the subject for the project access control deletion.
 	// The subject is of the form: <lfx_environment>.lfx.delete_all_access.project
 	DeleteAllAccessSubject = ".lfx.delete_all_access.project"
+
+	// DeleteAllAccessProjectSettingsSubject is the subject for the project settings access control deletion.
+	// The subject is of the form: <lfx_environment>.lfx.delete_all_access.project_settings
+	DeleteAllAccessProjectSettingsSubject = ".lfx.delete_all_access.project_settings"
 )
 
 // NATS wildcard subjects that the project service handles messages about.

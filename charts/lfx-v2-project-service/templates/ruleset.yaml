@@ -22,11 +22,38 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects"
+    - id: "rule:lfx:lfx-v2-project-service:create_projects"
+      match:
+        methods:
+          - POST
+        routes:
+          - path: /projects
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        # TODO: update this authorizer check once we have a way to get the parent_uid from the request body.
+        # Check that user has writer permission on the parent project
+        # The parent_uid field in the request body determines which parent project to check
+        # Note: Projects without a parent_uid are denied at the authorization level
+        - authorizer: allow_all
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    # TODO: remove this rule once we remove the list projects endpoint.
+    # It is not meant to be used by applications, it should only be used
+    # in local development, therefore the authorizer allows all requests.
+    - id: "rule:lfx:lfx-v2-project-service:list_projects"
       match:
         methods:
           - GET
-          - POST
         routes:
           - path: /projects
       execute:
@@ -38,7 +65,7 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects:get_single"
+    - id: "rule:lfx:lfx-v2-project-service:projects:get_single_project_base"
       match:
         methods:
           - GET
@@ -63,11 +90,35 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects:single_project_write"
+    - id: "rule:lfx:lfx-v2-project-service:projects:get_single_project_settings"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /projects/:id/settings
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: auditor
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects:update_single_project"
       match:
         methods:
           - PUT
-          - DELETE
         routes:
           - path: /projects/:id
       execute:
@@ -79,6 +130,56 @@ spec:
           config:
             values:
               relation: writer
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects:update_single_project_settings"
+      match:
+        methods:
+          - PUT
+        routes:
+          - path: /projects/:id/settings
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+    - id: "rule:lfx:lfx-v2-project-service:projects:delete_single_project"
+      match:
+        methods:
+          - DELETE
+        routes:
+          - path: /projects/:id
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: owner
               object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
         {{- else -}}
         # When OpenFGA is disabled, allow all requests

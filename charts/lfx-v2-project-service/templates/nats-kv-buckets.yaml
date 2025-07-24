@@ -1,0 +1,40 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+{{- if .Values.nats.kv_bucket_project_base.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_project_base.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_project_base.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_project_base.name }}
+  history: {{ .Values.nats.kv_bucket_project_base.history }}
+  storage: {{ .Values.nats.kv_bucket_project_base.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_project_base.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_project_base.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_project_base.compression }}
+{{- end }}
+---
+{{- if .Values.nats.kv_bucket_project_settings.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_project_settings.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_project_settings.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_project_settings.name }}
+  history: {{ .Values.nats.kv_bucket_project_settings.history }}
+  storage: {{ .Values.nats.kv_bucket_project_settings.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_project_settings.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_project_settings.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_project_settings.compression }}
+{{- end }}

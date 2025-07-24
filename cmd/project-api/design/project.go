@@ -29,7 +29,7 @@ var _ = Service("project-service", func() {
 		})
 
 		Result(func() {
-			Attribute("projects", ArrayOf(ProjectBase), "Resources found", func() {})
+			Attribute("projects", ArrayOf(ProjectFull), "Resources found", func() {})
 			Attribute("cache_control", String, "Cache control header", func() {
 				Example("public, max-age=300")
 			})
@@ -70,10 +70,16 @@ var _ = Service("project-service", func() {
 			ProjectCategoryAttribute()
 			ProjectFundingModelAttribute()
 			ProjectCharterURLAttribute()
+			ProjectLegalEntityTypeAttribute()
+			ProjectLegalEntityNameAttribute()
+			ProjectLegalParentUIDAttribute()
 			ProjectEntityDissolutionDateAttribute()
 			ProjectEntityFormationDocumentURLAttribute()
 			ProjectAutojoinEnabledAttribute()
 			ProjectFormationDateAttribute()
+			ProjectLogoURLAttribute()
+			ProjectRepositoryURLAttribute()
+			ProjectWebsiteURLAttribute()
 			ProjectAnnouncementDateAttribute()
 			ProjectMissionStatementAttribute()
 			ProjectWritersAttribute()
@@ -84,7 +90,7 @@ var _ = Service("project-service", func() {
 			Required("slug", "description", "name")
 		})
 
-		Result(ProjectBase)
+		Result(ProjectFull)
 
 		Error("BadRequest", BadRequestError, "Bad request")
 		Error("Conflict", ConflictError, "Conflict")
@@ -111,7 +117,7 @@ var _ = Service("project-service", func() {
 		Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			ProjectIDAttribute()
+			ProjectUIDAttribute()
 		})
 
 		Result(func() {
@@ -147,7 +153,7 @@ var _ = Service("project-service", func() {
 		Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			ProjectIDAttribute()
+			ProjectUIDAttribute()
 		})
 
 		Result(func() {
@@ -161,7 +167,7 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			GET("/projects/{uid}")
+			GET("/projects/{uid}/settings")
 			Param("version:v")
 			Param("uid")
 			Header("bearer_token:Authorization")
@@ -184,7 +190,7 @@ var _ = Service("project-service", func() {
 			BearerTokenAttribute()
 			EtagAttribute()
 			VersionAttribute()
-			ProjectIDAttribute()
+			ProjectUIDAttribute()
 			ProjectSlugAttribute()
 			ProjectDescriptionAttribute()
 			ProjectNameAttribute()
@@ -194,11 +200,16 @@ var _ = Service("project-service", func() {
 			ProjectCategoryAttribute()
 			ProjectFundingModelAttribute()
 			ProjectCharterURLAttribute()
+			ProjectLegalEntityTypeAttribute()
+			ProjectLegalEntityNameAttribute()
+			ProjectLegalParentUIDAttribute()
 			ProjectEntityDissolutionDateAttribute()
 			ProjectEntityFormationDocumentURLAttribute()
 			ProjectAutojoinEnabledAttribute()
 			ProjectFormationDateAttribute()
-			ProjectAnnouncementDateAttribute()
+			ProjectLogoURLAttribute()
+			ProjectRepositoryURLAttribute()
+			ProjectWebsiteURLAttribute()
 			Required("slug", "description", "name")
 		})
 
@@ -234,8 +245,9 @@ var _ = Service("project-service", func() {
 			BearerTokenAttribute()
 			EtagAttribute()
 			VersionAttribute()
-			ProjectIDAttribute()
+			ProjectUIDAttribute()
 			ProjectMissionStatementAttribute()
+			ProjectAnnouncementDateAttribute()
 			ProjectWritersAttribute()
 			ProjectAuditorsAttribute()
 		})
@@ -248,7 +260,7 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			PUT("/projects/{uid}")
+			PUT("/projects/{uid}/settings")
 			Params(func() {
 				Param("version:v")
 				Param("uid")
@@ -272,7 +284,7 @@ var _ = Service("project-service", func() {
 			BearerTokenAttribute()
 			EtagAttribute()
 			VersionAttribute()
-			ProjectIDAttribute()
+			ProjectUIDAttribute()
 		})
 
 		Error("NotFound", NotFoundError, "Resource not found")

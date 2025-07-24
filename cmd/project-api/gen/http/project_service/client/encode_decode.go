@@ -235,7 +235,7 @@ func DecodeCreateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			if err != nil {
 				return nil, goahttp.ErrValidationError("project-service", "create-project", err)
 			}
-			res := NewCreateProjectProjectBaseCreated(&body)
+			res := NewCreateProjectProjectFullCreated(&body)
 			return res, nil
 		case http.StatusBadRequest:
 			var (
@@ -1182,11 +1182,11 @@ func DecodeLivezResponse(decoder func(*http.Response) goahttp.Decoder, restoreBo
 	}
 }
 
-// unmarshalProjectBaseResponseBodyToProjectserviceProjectBase builds a value
-// of type *projectservice.ProjectBase from a value of type
-// *ProjectBaseResponseBody.
-func unmarshalProjectBaseResponseBodyToProjectserviceProjectBase(v *ProjectBaseResponseBody) *projectservice.ProjectBase {
-	res := &projectservice.ProjectBase{
+// unmarshalProjectFullResponseBodyToProjectserviceProjectFull builds a value
+// of type *projectservice.ProjectFull from a value of type
+// *ProjectFullResponseBody.
+func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullResponseBody) *projectservice.ProjectFull {
+	res := &projectservice.ProjectFull{
 		UID:                        v.UID,
 		Slug:                       v.Slug,
 		Description:                v.Description,
@@ -1196,16 +1196,37 @@ func unmarshalProjectBaseResponseBodyToProjectserviceProjectBase(v *ProjectBaseR
 		Stage:                      v.Stage,
 		Category:                   v.Category,
 		CharterURL:                 v.CharterURL,
+		LegalEntityType:            v.LegalEntityType,
+		LegalEntityName:            v.LegalEntityName,
+		LegalParentUID:             v.LegalParentUID,
 		EntityDissolutionDate:      v.EntityDissolutionDate,
 		EntityFormationDocumentURL: v.EntityFormationDocumentURL,
 		AutojoinEnabled:            v.AutojoinEnabled,
 		FormationDate:              v.FormationDate,
+		LogoURL:                    v.LogoURL,
+		RepositoryURL:              v.RepositoryURL,
+		WebsiteURL:                 v.WebsiteURL,
+		CreatedAt:                  v.CreatedAt,
+		UpdatedAt:                  v.UpdatedAt,
+		MissionStatement:           v.MissionStatement,
 		AnnouncementDate:           v.AnnouncementDate,
 	}
 	if v.FundingModel != nil {
 		res.FundingModel = make([]string, len(v.FundingModel))
 		for i, val := range v.FundingModel {
 			res.FundingModel[i] = val
+		}
+	}
+	if v.Writers != nil {
+		res.Writers = make([]string, len(v.Writers))
+		for i, val := range v.Writers {
+			res.Writers[i] = val
+		}
+	}
+	if v.Auditors != nil {
+		res.Auditors = make([]string, len(v.Auditors))
+		for i, val := range v.Auditors {
+			res.Auditors[i] = val
 		}
 	}
 

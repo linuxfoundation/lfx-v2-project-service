@@ -34,6 +34,12 @@ type CreateProjectRequestBody struct {
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The legal entity type of the project
+	LegalEntityType *string `form:"legal_entity_type,omitempty" json:"legal_entity_type,omitempty" xml:"legal_entity_type,omitempty"`
+	// The legal entity name of the project
+	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
@@ -42,6 +48,12 @@ type CreateProjectRequestBody struct {
 	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
 	// The date the project was formed
 	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The URL of the project logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// The URL of the project repository
+	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
+	// The URL of the project website
+	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// The mission statement of the project
@@ -73,6 +85,12 @@ type UpdateProjectBaseRequestBody struct {
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The legal entity type of the project
+	LegalEntityType *string `form:"legal_entity_type,omitempty" json:"legal_entity_type,omitempty" xml:"legal_entity_type,omitempty"`
+	// The legal entity name of the project
+	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
@@ -81,8 +99,12 @@ type UpdateProjectBaseRequestBody struct {
 	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
 	// The date the project was formed
 	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
-	// The date the project was announced
-	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+	// The URL of the project logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// The URL of the project repository
+	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
+	// The URL of the project website
+	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
 }
 
 // UpdateProjectSettingsRequestBody is the type of the "project-service"
@@ -90,6 +112,8 @@ type UpdateProjectBaseRequestBody struct {
 type UpdateProjectSettingsRequestBody struct {
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers by their user IDs
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project auditors by their user IDs
@@ -100,7 +124,7 @@ type UpdateProjectSettingsRequestBody struct {
 // "get-projects" endpoint HTTP response body.
 type GetProjectsResponseBody struct {
 	// Resources found
-	Projects []*ProjectBaseResponseBody `form:"projects,omitempty" json:"projects,omitempty" xml:"projects,omitempty"`
+	Projects []*ProjectFullResponseBody `form:"projects,omitempty" json:"projects,omitempty" xml:"projects,omitempty"`
 }
 
 // CreateProjectResponseBody is the type of the "project-service" service
@@ -126,6 +150,12 @@ type CreateProjectResponseBody struct {
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The legal entity type of the project
+	LegalEntityType *string `form:"legal_entity_type,omitempty" json:"legal_entity_type,omitempty" xml:"legal_entity_type,omitempty"`
+	// The legal entity name of the project
+	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
@@ -134,8 +164,24 @@ type CreateProjectResponseBody struct {
 	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
 	// The date the project was formed
 	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The URL of the project logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// The URL of the project repository
+	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
+	// The URL of the project website
+	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+	// The mission statement of the project
+	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+	// A list of project writers by their user IDs
+	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // GetOneProjectBaseResponseBody is the type of the "project-service" service
@@ -169,6 +215,12 @@ type UpdateProjectBaseResponseBody struct {
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The legal entity type of the project
+	LegalEntityType *string `form:"legal_entity_type,omitempty" json:"legal_entity_type,omitempty" xml:"legal_entity_type,omitempty"`
+	// The legal entity name of the project
+	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
@@ -177,19 +229,27 @@ type UpdateProjectBaseResponseBody struct {
 	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
 	// The date the project was formed
 	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
-	// The date the project was announced
-	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+	// The URL of the project logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// The URL of the project repository
+	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
+	// The URL of the project website
+	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
 }
 
 // UpdateProjectSettingsResponseBody is the type of the "project-service"
 // service "update-project-settings" endpoint HTTP response body.
 type UpdateProjectSettingsResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers by their user IDs
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project auditors by their user IDs
@@ -456,6 +516,62 @@ type ReadyzServiceUnavailableResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
+// ProjectFullResponseBody is used to define fields on response body types.
+type ProjectFullResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project slug, a short slugified name of the project
+	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
+	// A description of the project
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// The pretty name of the project
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Whether the project is public
+	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// The UID of the parent project, should be empty if there is none
+	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// The stage of the project
+	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
+	// The category of the project
+	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// A list of funding models for the project
+	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// The URL of the project charter document
+	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The legal entity type of the project
+	LegalEntityType *string `form:"legal_entity_type,omitempty" json:"legal_entity_type,omitempty" xml:"legal_entity_type,omitempty"`
+	// The legal entity name of the project
+	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
+	// The date the project was formed
+	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The URL of the project logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// The URL of the project repository
+	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
+	// The URL of the project website
+	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+	// The mission statement of the project
+	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+	// A list of project writers by their user IDs
+	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+}
+
 // ProjectBaseResponseBody is used to define fields on response body types.
 type ProjectBaseResponseBody struct {
 	// Project UID -- v2 uid, not related to v1 id directly
@@ -478,6 +594,12 @@ type ProjectBaseResponseBody struct {
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
 	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The legal entity type of the project
+	LegalEntityType *string `form:"legal_entity_type,omitempty" json:"legal_entity_type,omitempty" xml:"legal_entity_type,omitempty"`
+	// The legal entity name of the project
+	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
+	// The UID of the legal parent entity, should be empty if there is none
+	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
 	// The date the project entity was dissolved
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
@@ -486,18 +608,26 @@ type ProjectBaseResponseBody struct {
 	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
 	// The date the project was formed
 	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
-	// The date the project was announced
-	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+	// The URL of the project logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// The URL of the project repository
+	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
+	// The URL of the project website
+	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
 }
 
 // ProjectSettingsResponseBody is used to define fields on response body types.
 type ProjectSettingsResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers by their user IDs
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project auditors by their user IDs
@@ -516,10 +646,16 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 		Stage:                      p.Stage,
 		Category:                   p.Category,
 		CharterURL:                 p.CharterURL,
+		LegalEntityType:            p.LegalEntityType,
+		LegalEntityName:            p.LegalEntityName,
+		LegalParentUID:             p.LegalParentUID,
 		EntityDissolutionDate:      p.EntityDissolutionDate,
 		EntityFormationDocumentURL: p.EntityFormationDocumentURL,
 		AutojoinEnabled:            p.AutojoinEnabled,
 		FormationDate:              p.FormationDate,
+		LogoURL:                    p.LogoURL,
+		RepositoryURL:              p.RepositoryURL,
+		WebsiteURL:                 p.WebsiteURL,
 		AnnouncementDate:           p.AnnouncementDate,
 		MissionStatement:           p.MissionStatement,
 	}
@@ -557,11 +693,16 @@ func NewUpdateProjectBaseRequestBody(p *projectservice.UpdateProjectBasePayload)
 		Stage:                      p.Stage,
 		Category:                   p.Category,
 		CharterURL:                 p.CharterURL,
+		LegalEntityType:            p.LegalEntityType,
+		LegalEntityName:            p.LegalEntityName,
+		LegalParentUID:             p.LegalParentUID,
 		EntityDissolutionDate:      p.EntityDissolutionDate,
 		EntityFormationDocumentURL: p.EntityFormationDocumentURL,
 		AutojoinEnabled:            p.AutojoinEnabled,
 		FormationDate:              p.FormationDate,
-		AnnouncementDate:           p.AnnouncementDate,
+		LogoURL:                    p.LogoURL,
+		RepositoryURL:              p.RepositoryURL,
+		WebsiteURL:                 p.WebsiteURL,
 	}
 	if p.FundingModel != nil {
 		body.FundingModel = make([]string, len(p.FundingModel))
@@ -578,6 +719,7 @@ func NewUpdateProjectBaseRequestBody(p *projectservice.UpdateProjectBasePayload)
 func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettingsPayload) *UpdateProjectSettingsRequestBody {
 	body := &UpdateProjectSettingsRequestBody{
 		MissionStatement: p.MissionStatement,
+		AnnouncementDate: p.AnnouncementDate,
 	}
 	if p.Writers != nil {
 		body.Writers = make([]string, len(p.Writers))
@@ -598,9 +740,9 @@ func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettings
 // endpoint result from a HTTP "OK" response.
 func NewGetProjectsResultOK(body *GetProjectsResponseBody, cacheControl *string) *projectservice.GetProjectsResult {
 	v := &projectservice.GetProjectsResult{}
-	v.Projects = make([]*projectservice.ProjectBase, len(body.Projects))
+	v.Projects = make([]*projectservice.ProjectFull, len(body.Projects))
 	for i, val := range body.Projects {
-		v.Projects[i] = unmarshalProjectBaseResponseBodyToProjectserviceProjectBase(val)
+		v.Projects[i] = unmarshalProjectFullResponseBodyToProjectserviceProjectFull(val)
 	}
 	v.CacheControl = cacheControl
 
@@ -640,10 +782,10 @@ func NewGetProjectsServiceUnavailable(body *GetProjectsServiceUnavailableRespons
 	return v
 }
 
-// NewCreateProjectProjectBaseCreated builds a "project-service" service
+// NewCreateProjectProjectFullCreated builds a "project-service" service
 // "create-project" endpoint result from a HTTP "Created" response.
-func NewCreateProjectProjectBaseCreated(body *CreateProjectResponseBody) *projectservice.ProjectBase {
-	v := &projectservice.ProjectBase{
+func NewCreateProjectProjectFullCreated(body *CreateProjectResponseBody) *projectservice.ProjectFull {
+	v := &projectservice.ProjectFull{
 		UID:                        body.UID,
 		Slug:                       body.Slug,
 		Description:                body.Description,
@@ -653,16 +795,37 @@ func NewCreateProjectProjectBaseCreated(body *CreateProjectResponseBody) *projec
 		Stage:                      body.Stage,
 		Category:                   body.Category,
 		CharterURL:                 body.CharterURL,
+		LegalEntityType:            body.LegalEntityType,
+		LegalEntityName:            body.LegalEntityName,
+		LegalParentUID:             body.LegalParentUID,
 		EntityDissolutionDate:      body.EntityDissolutionDate,
 		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
 		AutojoinEnabled:            body.AutojoinEnabled,
 		FormationDate:              body.FormationDate,
+		LogoURL:                    body.LogoURL,
+		RepositoryURL:              body.RepositoryURL,
+		WebsiteURL:                 body.WebsiteURL,
+		CreatedAt:                  body.CreatedAt,
+		UpdatedAt:                  body.UpdatedAt,
+		MissionStatement:           body.MissionStatement,
 		AnnouncementDate:           body.AnnouncementDate,
 	}
 	if body.FundingModel != nil {
 		v.FundingModel = make([]string, len(body.FundingModel))
 		for i, val := range body.FundingModel {
 			v.FundingModel[i] = val
+		}
+	}
+	if body.Writers != nil {
+		v.Writers = make([]string, len(body.Writers))
+		for i, val := range body.Writers {
+			v.Writers[i] = val
+		}
+	}
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
 		}
 	}
 
@@ -726,11 +889,16 @@ func NewGetOneProjectBaseResultOK(body *GetOneProjectBaseResponseBody, etag *str
 		Stage:                      body.Stage,
 		Category:                   body.Category,
 		CharterURL:                 body.CharterURL,
+		LegalEntityType:            body.LegalEntityType,
+		LegalEntityName:            body.LegalEntityName,
+		LegalParentUID:             body.LegalParentUID,
 		EntityDissolutionDate:      body.EntityDissolutionDate,
 		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
 		AutojoinEnabled:            body.AutojoinEnabled,
 		FormationDate:              body.FormationDate,
-		AnnouncementDate:           body.AnnouncementDate,
+		LogoURL:                    body.LogoURL,
+		RepositoryURL:              body.RepositoryURL,
+		WebsiteURL:                 body.WebsiteURL,
 	}
 	if body.FundingModel != nil {
 		v.FundingModel = make([]string, len(body.FundingModel))
@@ -783,9 +951,11 @@ func NewGetOneProjectBaseServiceUnavailable(body *GetOneProjectBaseServiceUnavai
 // "get-one-project-settings" endpoint result from a HTTP "OK" response.
 func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, etag *string) *projectservice.GetOneProjectSettingsResult {
 	v := &projectservice.ProjectSettings{
+		UID:              body.UID,
 		CreatedAt:        body.CreatedAt,
 		UpdatedAt:        body.UpdatedAt,
 		MissionStatement: body.MissionStatement,
+		AnnouncementDate: body.AnnouncementDate,
 	}
 	if body.Writers != nil {
 		v.Writers = make([]string, len(body.Writers))
@@ -853,11 +1023,16 @@ func NewUpdateProjectBaseProjectBaseOK(body *UpdateProjectBaseResponseBody) *pro
 		Stage:                      body.Stage,
 		Category:                   body.Category,
 		CharterURL:                 body.CharterURL,
+		LegalEntityType:            body.LegalEntityType,
+		LegalEntityName:            body.LegalEntityName,
+		LegalParentUID:             body.LegalParentUID,
 		EntityDissolutionDate:      body.EntityDissolutionDate,
 		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
 		AutojoinEnabled:            body.AutojoinEnabled,
 		FormationDate:              body.FormationDate,
-		AnnouncementDate:           body.AnnouncementDate,
+		LogoURL:                    body.LogoURL,
+		RepositoryURL:              body.RepositoryURL,
+		WebsiteURL:                 body.WebsiteURL,
 	}
 	if body.FundingModel != nil {
 		v.FundingModel = make([]string, len(body.FundingModel))
@@ -917,9 +1092,11 @@ func NewUpdateProjectBaseServiceUnavailable(body *UpdateProjectBaseServiceUnavai
 // "update-project-settings" endpoint result from a HTTP "OK" response.
 func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsResponseBody) *projectservice.ProjectSettings {
 	v := &projectservice.ProjectSettings{
+		UID:              body.UID,
 		CreatedAt:        body.CreatedAt,
 		UpdatedAt:        body.UpdatedAt,
 		MissionStatement: body.MissionStatement,
+		AnnouncementDate: body.AnnouncementDate,
 	}
 	if body.Writers != nil {
 		v.Writers = make([]string, len(body.Writers))
@@ -1044,7 +1221,7 @@ func ValidateGetProjectsResponseBody(body *GetProjectsResponseBody) (err error) 
 	}
 	for _, e := range body.Projects {
 		if e != nil {
-			if err2 := ValidateProjectBaseResponseBody(e); err2 != nil {
+			if err2 := ValidateProjectFullResponseBody(e); err2 != nil {
 				err = goa.MergeErrors(err, err2)
 			}
 		}
@@ -1082,6 +1259,14 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 	if body.CharterURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
 	}
+	if body.LegalEntityType != nil {
+		if !(*body.LegalEntityType == "Subproject" || *body.LegalEntityType == "Incorporated Entity" || *body.LegalEntityType == "Series LLC" || *body.LegalEntityType == "Unofficial Subproject" || *body.LegalEntityType == "Internal Allocation" || *body.LegalEntityType == "None") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.legal_entity_type", *body.LegalEntityType, []any{"Subproject", "Incorporated Entity", "Series LLC", "Unofficial Subproject", "Internal Allocation", "None"}))
+		}
+	}
+	if body.LegalParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.legal_parent_uid", *body.LegalParentUID, goa.FormatUUID))
+	}
 	if body.EntityDissolutionDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
 	}
@@ -1090,6 +1275,21 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 	}
 	if body.FormationDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
+	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.RepositoryURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
+	}
+	if body.WebsiteURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
@@ -1127,6 +1327,14 @@ func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) 
 	if body.CharterURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
 	}
+	if body.LegalEntityType != nil {
+		if !(*body.LegalEntityType == "Subproject" || *body.LegalEntityType == "Incorporated Entity" || *body.LegalEntityType == "Series LLC" || *body.LegalEntityType == "Unofficial Subproject" || *body.LegalEntityType == "Internal Allocation" || *body.LegalEntityType == "None") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.legal_entity_type", *body.LegalEntityType, []any{"Subproject", "Incorporated Entity", "Series LLC", "Unofficial Subproject", "Internal Allocation", "None"}))
+		}
+	}
+	if body.LegalParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.legal_parent_uid", *body.LegalParentUID, goa.FormatUUID))
+	}
 	if body.EntityDissolutionDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
 	}
@@ -1136,8 +1344,14 @@ func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) 
 	if body.FormationDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
 	}
-	if body.AnnouncementDate != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.RepositoryURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
+	}
+	if body.WebsiteURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 	}
 	return
 }
@@ -1145,11 +1359,17 @@ func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) 
 // ValidateGetOneProjectSettingsResponseBody runs the validations defined on
 // Get-One-Project-SettingsResponseBody
 func ValidateGetOneProjectSettingsResponseBody(body *GetOneProjectSettingsResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }
@@ -1184,6 +1404,14 @@ func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) 
 	if body.CharterURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
 	}
+	if body.LegalEntityType != nil {
+		if !(*body.LegalEntityType == "Subproject" || *body.LegalEntityType == "Incorporated Entity" || *body.LegalEntityType == "Series LLC" || *body.LegalEntityType == "Unofficial Subproject" || *body.LegalEntityType == "Internal Allocation" || *body.LegalEntityType == "None") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.legal_entity_type", *body.LegalEntityType, []any{"Subproject", "Incorporated Entity", "Series LLC", "Unofficial Subproject", "Internal Allocation", "None"}))
+		}
+	}
+	if body.LegalParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.legal_parent_uid", *body.LegalParentUID, goa.FormatUUID))
+	}
 	if body.EntityDissolutionDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
 	}
@@ -1193,8 +1421,14 @@ func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) 
 	if body.FormationDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
 	}
-	if body.AnnouncementDate != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.RepositoryURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
+	}
+	if body.WebsiteURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 	}
 	return
 }
@@ -1202,11 +1436,17 @@ func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) 
 // ValidateUpdateProjectSettingsResponseBody runs the validations defined on
 // Update-Project-SettingsResponseBody
 func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }
@@ -1527,6 +1767,74 @@ func ValidateReadyzServiceUnavailableResponseBody(body *ReadyzServiceUnavailable
 	return
 }
 
+// ValidateProjectFullResponseBody runs the validations defined on
+// ProjectFullResponseBody
+func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
+	}
+	if body.Slug != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	if body.Stage != nil {
+		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
+		}
+	}
+	if body.Category != nil {
+		if !(*body.Category == "Active" || *body.Category == "Adopted" || *body.Category == "Archived" || *body.Category == "At-Large" || *body.Category == "Early Adoption" || *body.Category == "Emeritus" || *body.Category == "Graduated" || *body.Category == "Growth" || *body.Category == "Idle" || *body.Category == "Impact" || *body.Category == "Incubating" || *body.Category == "Kanister" || *body.Category == "Mature" || *body.Category == "Pre-LFESS" || *body.Category == "Sandbox" || *body.Category == "SIG" || *body.Category == "Standards" || *body.Category == "TAC" || *body.Category == "Working Group" || *body.Category == "TAG" || *body.Category == "NONE") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.category", *body.Category, []any{"Active", "Adopted", "Archived", "At-Large", "Early Adoption", "Emeritus", "Graduated", "Growth", "Idle", "Impact", "Incubating", "Kanister", "Mature", "Pre-LFESS", "Sandbox", "SIG", "Standards", "TAC", "Working Group", "TAG", "NONE"}))
+		}
+	}
+	for _, e := range body.FundingModel {
+		if !(e == "Crowdfunding" || e == "Membership" || e == "Alternate Funding") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding_model[*]", e, []any{"Crowdfunding", "Membership", "Alternate Funding"}))
+		}
+	}
+	if body.CharterURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
+	}
+	if body.LegalEntityType != nil {
+		if !(*body.LegalEntityType == "Subproject" || *body.LegalEntityType == "Incorporated Entity" || *body.LegalEntityType == "Series LLC" || *body.LegalEntityType == "Unofficial Subproject" || *body.LegalEntityType == "Internal Allocation" || *body.LegalEntityType == "None") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.legal_entity_type", *body.LegalEntityType, []any{"Subproject", "Incorporated Entity", "Series LLC", "Unofficial Subproject", "Internal Allocation", "None"}))
+		}
+	}
+	if body.LegalParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.legal_parent_uid", *body.LegalParentUID, goa.FormatUUID))
+	}
+	if body.EntityDissolutionDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
+	}
+	if body.EntityFormationDocumentURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_formation_document_url", *body.EntityFormationDocumentURL, goa.FormatURI))
+	}
+	if body.FormationDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
+	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.RepositoryURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
+	}
+	if body.WebsiteURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
+	return
+}
+
 // ValidateProjectBaseResponseBody runs the validations defined on
 // ProjectBaseResponseBody
 func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) {
@@ -1557,6 +1865,14 @@ func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) 
 	if body.CharterURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
 	}
+	if body.LegalEntityType != nil {
+		if !(*body.LegalEntityType == "Subproject" || *body.LegalEntityType == "Incorporated Entity" || *body.LegalEntityType == "Series LLC" || *body.LegalEntityType == "Unofficial Subproject" || *body.LegalEntityType == "Internal Allocation" || *body.LegalEntityType == "None") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.legal_entity_type", *body.LegalEntityType, []any{"Subproject", "Incorporated Entity", "Series LLC", "Unofficial Subproject", "Internal Allocation", "None"}))
+		}
+	}
+	if body.LegalParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.legal_parent_uid", *body.LegalParentUID, goa.FormatUUID))
+	}
 	if body.EntityDissolutionDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
 	}
@@ -1566,8 +1882,14 @@ func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) 
 	if body.FormationDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
 	}
-	if body.AnnouncementDate != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.RepositoryURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
+	}
+	if body.WebsiteURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 	}
 	return
 }
@@ -1575,11 +1897,17 @@ func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) 
 // ValidateProjectSettingsResponseBody runs the validations defined on
 // ProjectSettingsResponseBody
 func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }

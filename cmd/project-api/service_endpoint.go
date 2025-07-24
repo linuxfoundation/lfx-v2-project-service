@@ -47,9 +47,16 @@ func createResponse(code int, message string) error {
 	}
 }
 
+// keyValueStoreReady checks if the key-value stores are ready for use
+// by checking if the stores are not nil in the code.
+// TODO: rename all references to kv bucket to kv store since store is more accurate from an application perspective
+func keyValueStoreReady(kvBuckets KVBuckets) bool {
+	return kvBuckets.Projects != nil && kvBuckets.ProjectSettings != nil
+}
+
 // Readyz checks if the service is able to take inbound requests.
 func (s *ProjectsService) Readyz(_ context.Context) ([]byte, error) {
-	if s.natsConn == nil || s.projectsKV == nil {
+	if s.natsConn == nil || !keyValueStoreReady(s.kvBuckets) {
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 	if !s.natsConn.IsConnected() {
