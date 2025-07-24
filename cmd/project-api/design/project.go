@@ -24,18 +24,12 @@ var _ = Service("project-service", func() {
 		Security(JWTAuth)
 
 		Payload(func() {
-			Token("bearer_token", String, func() {
-				Description("JWT token issued by Heimdall")
-				Example("eyJhbGci...")
-			})
-			Attribute("version", String, "Version of the API", func() {
-				Enum("1")
-				Example("1")
-			})
+			BearerTokenAttribute()
+			VersionAttribute()
 		})
 
 		Result(func() {
-			Attribute("projects", ArrayOf(Project), "Resources found", func() {})
+			Attribute("projects", ArrayOf(ProjectBase), "Resources found", func() {})
 			Attribute("cache_control", String, "Cache control header", func() {
 				Example("public, max-age=300")
 			})
@@ -65,25 +59,32 @@ var _ = Service("project-service", func() {
 		Security(JWTAuth)
 
 		Payload(func() {
-			Token("bearer_token", String, func() {
-				Description("JWT token issued by Heimdall")
-				Example("eyJhbGci...")
-			})
-			Attribute("version", String, "Version of the API", func() {
-				Enum("1")
-				Example("1")
-			})
+			BearerTokenAttribute()
+			VersionAttribute()
 			ProjectSlugAttribute()
 			ProjectDescriptionAttribute()
 			ProjectNameAttribute()
 			ProjectPublicAttribute()
 			ProjectParentUIDAttribute()
-			ProjectAuditorsAttribute()
+			ProjectStageAttribute()
+			ProjectCategoryAttribute()
+			ProjectFundingModelAttribute()
+			ProjectCharterURLAttribute()
+			ProjectEntityDissolutionDateAttribute()
+			ProjectEntityFormationDocumentURLAttribute()
+			ProjectAutojoinEnabledAttribute()
+			ProjectFormationDateAttribute()
+			ProjectAnnouncementDateAttribute()
+			ProjectMissionStatementAttribute()
 			ProjectWritersAttribute()
+			ProjectAuditorsAttribute()
+
+			// TODO: figure out what the required attributes are for projects
+			// Same requirements apply to PUT endpoints.
 			Required("slug", "description", "name")
 		})
 
-		Result(Project)
+		Result(ProjectBase)
 
 		Error("BadRequest", BadRequestError, "Bad request")
 		Error("Conflict", ConflictError, "Conflict")
@@ -102,26 +103,20 @@ var _ = Service("project-service", func() {
 		})
 	})
 
-	Method("get-one-project", func() {
-		Description("Get a single project.")
+	Method("get-one-project-base", func() {
+		Description("Get a single project's base information.")
 
 		Security(JWTAuth)
 
 		Payload(func() {
-			Token("bearer_token", String, func() {
-				Description("JWT token issued by Heimdall")
-				Example("eyJhbGci...")
-			})
-			Attribute("version", String, "Version of the API", func() {
-				Enum("1")
-				Example("1")
-			})
+			BearerTokenAttribute()
+			VersionAttribute()
 			ProjectIDAttribute()
 		})
 
 		Result(func() {
-			Attribute("project", Project)
-			Attribute("etag", String, "ETag header value")
+			Attribute("project", ProjectBase)
+			EtagAttribute()
 			Required("project")
 		})
 
@@ -130,9 +125,9 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			GET("/projects/{id}")
+			GET("/projects/{uid}")
 			Param("version:v")
-			Param("id")
+			Param("uid")
 			Header("bearer_token:Authorization")
 			Response(StatusOK, func() {
 				Body("project")
@@ -144,35 +139,70 @@ var _ = Service("project-service", func() {
 		})
 	})
 
-	Method("update-project", func() {
-		Description("Update an existing project.")
+	Method("get-one-project-settings", func() {
+		Description("Get a single project's settings.")
 
 		Security(JWTAuth)
 
 		Payload(func() {
-			Token("bearer_token", String, func() {
-				Description("JWT token issued by Heimdall")
-				Example("eyJhbGci...")
+			BearerTokenAttribute()
+			VersionAttribute()
+			ProjectIDAttribute()
+		})
+
+		Result(func() {
+			Attribute("project_settings", ProjectSettings)
+			EtagAttribute()
+			Required("project_settings")
+		})
+
+		Error("NotFound", NotFoundError, "Resource not found")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+
+		HTTP(func() {
+			GET("/projects/{uid}")
+			Param("version:v")
+			Param("uid")
+			Header("bearer_token:Authorization")
+			Response(StatusOK, func() {
+				Body("project_settings")
+				Header("etag:ETag")
 			})
-			Attribute("etag", String, "ETag header value", func() {
-				Example("123")
-			})
-			Attribute("version", String, "Version of the API", func() {
-				Enum("1")
-				Example("1")
-			})
+			Response("NotFound", StatusNotFound)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
+	Method("update-project-base", func() {
+		Description("Update an existing project's base information.")
+
+		Security(JWTAuth)
+
+		Payload(func() {
+			BearerTokenAttribute()
+			EtagAttribute()
+			VersionAttribute()
 			ProjectIDAttribute()
 			ProjectSlugAttribute()
 			ProjectDescriptionAttribute()
 			ProjectNameAttribute()
 			ProjectPublicAttribute()
 			ProjectParentUIDAttribute()
-			ProjectAuditorsAttribute()
-			ProjectWritersAttribute()
+			ProjectStageAttribute()
+			ProjectCategoryAttribute()
+			ProjectFundingModelAttribute()
+			ProjectCharterURLAttribute()
+			ProjectEntityDissolutionDateAttribute()
+			ProjectEntityFormationDocumentURLAttribute()
+			ProjectAutojoinEnabledAttribute()
+			ProjectFormationDateAttribute()
+			ProjectAnnouncementDateAttribute()
 			Required("slug", "description", "name")
 		})
 
-		Result(Project)
+		Result(ProjectBase)
 
 		Error("BadRequest", BadRequestError, "Bad request")
 		Error("NotFound", NotFoundError, "Resource not found")
@@ -180,10 +210,48 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			PUT("/projects/{id}")
+			PUT("/projects/{uid}")
 			Params(func() {
 				Param("version:v")
-				Param("id")
+				Param("uid")
+			})
+			Header("bearer_token:Authorization")
+			Header("etag:ETag")
+			Response(StatusOK)
+			Response("BadRequest", StatusBadRequest)
+			Response("NotFound", StatusNotFound)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
+	Method("update-project-settings", func() {
+		Description("Update an existing project's settings.")
+
+		Security(JWTAuth)
+
+		Payload(func() {
+			BearerTokenAttribute()
+			EtagAttribute()
+			VersionAttribute()
+			ProjectIDAttribute()
+			ProjectMissionStatementAttribute()
+			ProjectWritersAttribute()
+			ProjectAuditorsAttribute()
+		})
+
+		Result(ProjectSettings)
+
+		Error("BadRequest", BadRequestError, "Bad request")
+		Error("NotFound", NotFoundError, "Resource not found")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+
+		HTTP(func() {
+			PUT("/projects/{uid}")
+			Params(func() {
+				Param("version:v")
+				Param("uid")
 			})
 			Header("bearer_token:Authorization")
 			Header("etag:ETag")
@@ -201,17 +269,9 @@ var _ = Service("project-service", func() {
 		Security(JWTAuth)
 
 		Payload(func() {
-			Token("bearer_token", String, func() {
-				Description("JWT token issued by Heimdall")
-				Example("eyJhbGci...")
-			})
-			Attribute("etag", String, "ETag header value", func() {
-				Example("123")
-			})
-			Attribute("version", String, "Version of the API", func() {
-				Enum("1")
-				Example("1")
-			})
+			BearerTokenAttribute()
+			EtagAttribute()
+			VersionAttribute()
 			ProjectIDAttribute()
 		})
 
@@ -221,10 +281,10 @@ var _ = Service("project-service", func() {
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
 		HTTP(func() {
-			DELETE("/projects/{id}")
+			DELETE("/projects/{uid}")
 			Params(func() {
 				Param("version:v")
-				Param("id")
+				Param("uid")
 			})
 			Header("bearer_token:Authorization")
 			Header("etag:ETag")

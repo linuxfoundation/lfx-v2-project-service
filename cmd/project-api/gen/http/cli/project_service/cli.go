@@ -23,7 +23,7 @@ import (
 //
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() string {
-	return `project-service (get-projects|create-project|get-one-project|update-project|delete-project|readyz|livez)
+	return `project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|readyz|livez)
 `
 }
 
@@ -54,20 +54,32 @@ func ParseEndpoint(
 		projectServiceCreateProjectVersionFlag     = projectServiceCreateProjectFlags.String("version", "", "")
 		projectServiceCreateProjectBearerTokenFlag = projectServiceCreateProjectFlags.String("bearer-token", "", "")
 
-		projectServiceGetOneProjectFlags           = flag.NewFlagSet("get-one-project", flag.ExitOnError)
-		projectServiceGetOneProjectIDFlag          = projectServiceGetOneProjectFlags.String("id", "REQUIRED", "Project ID -- v2 id, not related to v1 id directly")
-		projectServiceGetOneProjectVersionFlag     = projectServiceGetOneProjectFlags.String("version", "", "")
-		projectServiceGetOneProjectBearerTokenFlag = projectServiceGetOneProjectFlags.String("bearer-token", "", "")
+		projectServiceGetOneProjectBaseFlags           = flag.NewFlagSet("get-one-project-base", flag.ExitOnError)
+		projectServiceGetOneProjectBaseUIDFlag         = projectServiceGetOneProjectBaseFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceGetOneProjectBaseVersionFlag     = projectServiceGetOneProjectBaseFlags.String("version", "", "")
+		projectServiceGetOneProjectBaseBearerTokenFlag = projectServiceGetOneProjectBaseFlags.String("bearer-token", "", "")
 
-		projectServiceUpdateProjectFlags           = flag.NewFlagSet("update-project", flag.ExitOnError)
-		projectServiceUpdateProjectBodyFlag        = projectServiceUpdateProjectFlags.String("body", "REQUIRED", "")
-		projectServiceUpdateProjectIDFlag          = projectServiceUpdateProjectFlags.String("id", "REQUIRED", "Project ID -- v2 id, not related to v1 id directly")
-		projectServiceUpdateProjectVersionFlag     = projectServiceUpdateProjectFlags.String("version", "", "")
-		projectServiceUpdateProjectBearerTokenFlag = projectServiceUpdateProjectFlags.String("bearer-token", "", "")
-		projectServiceUpdateProjectEtagFlag        = projectServiceUpdateProjectFlags.String("etag", "", "")
+		projectServiceGetOneProjectSettingsFlags           = flag.NewFlagSet("get-one-project-settings", flag.ExitOnError)
+		projectServiceGetOneProjectSettingsUIDFlag         = projectServiceGetOneProjectSettingsFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceGetOneProjectSettingsVersionFlag     = projectServiceGetOneProjectSettingsFlags.String("version", "", "")
+		projectServiceGetOneProjectSettingsBearerTokenFlag = projectServiceGetOneProjectSettingsFlags.String("bearer-token", "", "")
+
+		projectServiceUpdateProjectBaseFlags           = flag.NewFlagSet("update-project-base", flag.ExitOnError)
+		projectServiceUpdateProjectBaseBodyFlag        = projectServiceUpdateProjectBaseFlags.String("body", "REQUIRED", "")
+		projectServiceUpdateProjectBaseUIDFlag         = projectServiceUpdateProjectBaseFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceUpdateProjectBaseVersionFlag     = projectServiceUpdateProjectBaseFlags.String("version", "", "")
+		projectServiceUpdateProjectBaseBearerTokenFlag = projectServiceUpdateProjectBaseFlags.String("bearer-token", "", "")
+		projectServiceUpdateProjectBaseEtagFlag        = projectServiceUpdateProjectBaseFlags.String("etag", "", "")
+
+		projectServiceUpdateProjectSettingsFlags           = flag.NewFlagSet("update-project-settings", flag.ExitOnError)
+		projectServiceUpdateProjectSettingsBodyFlag        = projectServiceUpdateProjectSettingsFlags.String("body", "REQUIRED", "")
+		projectServiceUpdateProjectSettingsUIDFlag         = projectServiceUpdateProjectSettingsFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceUpdateProjectSettingsVersionFlag     = projectServiceUpdateProjectSettingsFlags.String("version", "", "")
+		projectServiceUpdateProjectSettingsBearerTokenFlag = projectServiceUpdateProjectSettingsFlags.String("bearer-token", "", "")
+		projectServiceUpdateProjectSettingsEtagFlag        = projectServiceUpdateProjectSettingsFlags.String("etag", "", "")
 
 		projectServiceDeleteProjectFlags           = flag.NewFlagSet("delete-project", flag.ExitOnError)
-		projectServiceDeleteProjectIDFlag          = projectServiceDeleteProjectFlags.String("id", "REQUIRED", "Project ID -- v2 id, not related to v1 id directly")
+		projectServiceDeleteProjectUIDFlag         = projectServiceDeleteProjectFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
 		projectServiceDeleteProjectVersionFlag     = projectServiceDeleteProjectFlags.String("version", "", "")
 		projectServiceDeleteProjectBearerTokenFlag = projectServiceDeleteProjectFlags.String("bearer-token", "", "")
 		projectServiceDeleteProjectEtagFlag        = projectServiceDeleteProjectFlags.String("etag", "", "")
@@ -79,8 +91,10 @@ func ParseEndpoint(
 	projectServiceFlags.Usage = projectServiceUsage
 	projectServiceGetProjectsFlags.Usage = projectServiceGetProjectsUsage
 	projectServiceCreateProjectFlags.Usage = projectServiceCreateProjectUsage
-	projectServiceGetOneProjectFlags.Usage = projectServiceGetOneProjectUsage
-	projectServiceUpdateProjectFlags.Usage = projectServiceUpdateProjectUsage
+	projectServiceGetOneProjectBaseFlags.Usage = projectServiceGetOneProjectBaseUsage
+	projectServiceGetOneProjectSettingsFlags.Usage = projectServiceGetOneProjectSettingsUsage
+	projectServiceUpdateProjectBaseFlags.Usage = projectServiceUpdateProjectBaseUsage
+	projectServiceUpdateProjectSettingsFlags.Usage = projectServiceUpdateProjectSettingsUsage
 	projectServiceDeleteProjectFlags.Usage = projectServiceDeleteProjectUsage
 	projectServiceReadyzFlags.Usage = projectServiceReadyzUsage
 	projectServiceLivezFlags.Usage = projectServiceLivezUsage
@@ -125,11 +139,17 @@ func ParseEndpoint(
 			case "create-project":
 				epf = projectServiceCreateProjectFlags
 
-			case "get-one-project":
-				epf = projectServiceGetOneProjectFlags
+			case "get-one-project-base":
+				epf = projectServiceGetOneProjectBaseFlags
 
-			case "update-project":
-				epf = projectServiceUpdateProjectFlags
+			case "get-one-project-settings":
+				epf = projectServiceGetOneProjectSettingsFlags
+
+			case "update-project-base":
+				epf = projectServiceUpdateProjectBaseFlags
+
+			case "update-project-settings":
+				epf = projectServiceUpdateProjectSettingsFlags
 
 			case "delete-project":
 				epf = projectServiceDeleteProjectFlags
@@ -171,15 +191,21 @@ func ParseEndpoint(
 			case "create-project":
 				endpoint = c.CreateProject()
 				data, err = projectservicec.BuildCreateProjectPayload(*projectServiceCreateProjectBodyFlag, *projectServiceCreateProjectVersionFlag, *projectServiceCreateProjectBearerTokenFlag)
-			case "get-one-project":
-				endpoint = c.GetOneProject()
-				data, err = projectservicec.BuildGetOneProjectPayload(*projectServiceGetOneProjectIDFlag, *projectServiceGetOneProjectVersionFlag, *projectServiceGetOneProjectBearerTokenFlag)
-			case "update-project":
-				endpoint = c.UpdateProject()
-				data, err = projectservicec.BuildUpdateProjectPayload(*projectServiceUpdateProjectBodyFlag, *projectServiceUpdateProjectIDFlag, *projectServiceUpdateProjectVersionFlag, *projectServiceUpdateProjectBearerTokenFlag, *projectServiceUpdateProjectEtagFlag)
+			case "get-one-project-base":
+				endpoint = c.GetOneProjectBase()
+				data, err = projectservicec.BuildGetOneProjectBasePayload(*projectServiceGetOneProjectBaseUIDFlag, *projectServiceGetOneProjectBaseVersionFlag, *projectServiceGetOneProjectBaseBearerTokenFlag)
+			case "get-one-project-settings":
+				endpoint = c.GetOneProjectSettings()
+				data, err = projectservicec.BuildGetOneProjectSettingsPayload(*projectServiceGetOneProjectSettingsUIDFlag, *projectServiceGetOneProjectSettingsVersionFlag, *projectServiceGetOneProjectSettingsBearerTokenFlag)
+			case "update-project-base":
+				endpoint = c.UpdateProjectBase()
+				data, err = projectservicec.BuildUpdateProjectBasePayload(*projectServiceUpdateProjectBaseBodyFlag, *projectServiceUpdateProjectBaseUIDFlag, *projectServiceUpdateProjectBaseVersionFlag, *projectServiceUpdateProjectBaseBearerTokenFlag, *projectServiceUpdateProjectBaseEtagFlag)
+			case "update-project-settings":
+				endpoint = c.UpdateProjectSettings()
+				data, err = projectservicec.BuildUpdateProjectSettingsPayload(*projectServiceUpdateProjectSettingsBodyFlag, *projectServiceUpdateProjectSettingsUIDFlag, *projectServiceUpdateProjectSettingsVersionFlag, *projectServiceUpdateProjectSettingsBearerTokenFlag, *projectServiceUpdateProjectSettingsEtagFlag)
 			case "delete-project":
 				endpoint = c.DeleteProject()
-				data, err = projectservicec.BuildDeleteProjectPayload(*projectServiceDeleteProjectIDFlag, *projectServiceDeleteProjectVersionFlag, *projectServiceDeleteProjectBearerTokenFlag, *projectServiceDeleteProjectEtagFlag)
+				data, err = projectservicec.BuildDeleteProjectPayload(*projectServiceDeleteProjectUIDFlag, *projectServiceDeleteProjectVersionFlag, *projectServiceDeleteProjectBearerTokenFlag, *projectServiceDeleteProjectEtagFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -204,8 +230,10 @@ Usage:
 COMMAND:
     get-projects: Get all projects.
     create-project: Create a new project.
-    get-one-project: Get a single project.
-    update-project: Update an existing project.
+    get-one-project-base: Get a single project's base information.
+    get-one-project-settings: Get a single project's settings.
+    update-project-base: Update an existing project's base information.
+    update-project-settings: Update an existing project's settings.
     delete-project: Delete an existing project.
     readyz: Check if the service is able to take inbound requests.
     livez: Check if the service is alive.
@@ -236,15 +264,27 @@ Create a new project.
 
 Example:
     %[1]s project-service create-project --body '{
+      "announcement_date": "2021-01-01",
       "auditors": [
          "user123",
          "user456"
       ],
+      "autojoin_enabled": false,
+      "category": "Active",
+      "charter_url": "https://example.com/charter.pdf",
       "description": "project foo is a project about bar",
+      "entity_dissolution_date": "2021-12-31",
+      "entity_formation_document_url": "https://example.com/formation.pdf",
+      "formation_date": "2021-01-01",
+      "funding_model": [
+         "Crowdfunding"
+      ],
+      "mission_statement": "The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.",
       "name": "Foo Foundation",
       "parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
       "public": true,
       "slug": "project-slug",
+      "stage": "Formation - Exploratory",
       "writers": [
          "user123",
          "user456"
@@ -253,59 +293,100 @@ Example:
 `, os.Args[0])
 }
 
-func projectServiceGetOneProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service get-one-project -id STRING -version STRING -bearer-token STRING
+func projectServiceGetOneProjectBaseUsage() {
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service get-one-project-base -uid STRING -version STRING -bearer-token STRING
 
-Get a single project.
-    -id STRING: Project ID -- v2 id, not related to v1 id directly
+Get a single project's base information.
+    -uid STRING: Project UID -- v2 uid, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
 
 Example:
-    %[1]s project-service get-one-project --id "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..."
+    %[1]s project-service get-one-project-base --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..."
 `, os.Args[0])
 }
 
-func projectServiceUpdateProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project -body JSON -id STRING -version STRING -bearer-token STRING -etag STRING
+func projectServiceGetOneProjectSettingsUsage() {
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service get-one-project-settings -uid STRING -version STRING -bearer-token STRING
 
-Update an existing project.
+Get a single project's settings.
+    -uid STRING: Project UID -- v2 uid, not related to v1 id directly
+    -version STRING: 
+    -bearer-token STRING: 
+
+Example:
+    %[1]s project-service get-one-project-settings --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..."
+`, os.Args[0])
+}
+
+func projectServiceUpdateProjectBaseUsage() {
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project-base -body JSON -uid STRING -version STRING -bearer-token STRING -etag STRING
+
+Update an existing project's base information.
     -body JSON: 
-    -id STRING: Project ID -- v2 id, not related to v1 id directly
+    -uid STRING: Project UID -- v2 uid, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
     -etag STRING: 
 
 Example:
-    %[1]s project-service update-project --body '{
-      "auditors": [
-         "user123",
-         "user456"
-      ],
+    %[1]s project-service update-project-base --body '{
+      "announcement_date": "2021-01-01",
+      "autojoin_enabled": false,
+      "category": "Active",
+      "charter_url": "https://example.com/charter.pdf",
       "description": "project foo is a project about bar",
+      "entity_dissolution_date": "2021-12-31",
+      "entity_formation_document_url": "https://example.com/formation.pdf",
+      "formation_date": "2021-01-01",
+      "funding_model": [
+         "Crowdfunding"
+      ],
       "name": "Foo Foundation",
       "parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
       "public": true,
       "slug": "project-slug",
-      "writers": [
-         "user123",
-         "user456"
-      ]
-   }' --id "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
+      "stage": "Formation - Exploratory"
+   }' --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
 `, os.Args[0])
 }
 
-func projectServiceDeleteProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service delete-project -id STRING -version STRING -bearer-token STRING -etag STRING
+func projectServiceUpdateProjectSettingsUsage() {
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project-settings -body JSON -uid STRING -version STRING -bearer-token STRING -etag STRING
 
-Delete an existing project.
-    -id STRING: Project ID -- v2 id, not related to v1 id directly
+Update an existing project's settings.
+    -body JSON: 
+    -uid STRING: Project UID -- v2 uid, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
     -etag STRING: 
 
 Example:
-    %[1]s project-service delete-project --id "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
+    %[1]s project-service update-project-settings --body '{
+      "auditors": [
+         "user123",
+         "user456"
+      ],
+      "mission_statement": "The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.",
+      "writers": [
+         "user123",
+         "user456"
+      ]
+   }' --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
+`, os.Args[0])
+}
+
+func projectServiceDeleteProjectUsage() {
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service delete-project -uid STRING -version STRING -bearer-token STRING -etag STRING
+
+Delete an existing project.
+    -uid STRING: Project UID -- v2 uid, not related to v1 id directly
+    -version STRING: 
+    -bearer-token STRING: 
+    -etag STRING: 
+
+Example:
+    %[1]s project-service delete-project --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --etag "123"
 `, os.Args[0])
 }
 

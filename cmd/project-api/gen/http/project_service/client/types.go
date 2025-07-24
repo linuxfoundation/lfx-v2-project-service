@@ -26,15 +26,35 @@ type CreateProjectRequestBody struct {
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
-	// A list of project auditors by their user IDs
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The stage of the project
+	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
+	// The category of the project
+	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// A list of funding models for the project
+	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// The URL of the project charter document
+	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
+	// The date the project was formed
+	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+	// The mission statement of the project
+	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// A list of project writers by their user IDs
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
-// UpdateProjectRequestBody is the type of the "project-service" service
-// "update-project" endpoint HTTP request body.
-type UpdateProjectRequestBody struct {
+// UpdateProjectBaseRequestBody is the type of the "project-service" service
+// "update-project-base" endpoint HTTP request body.
+type UpdateProjectBaseRequestBody struct {
 	// Project slug, a short slugified name of the project
 	Slug string `form:"slug" json:"slug" xml:"slug"`
 	// A description of the project
@@ -45,24 +65,49 @@ type UpdateProjectRequestBody struct {
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
-	// A list of project auditors by their user IDs
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The stage of the project
+	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
+	// The category of the project
+	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// A list of funding models for the project
+	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// The URL of the project charter document
+	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
+	// The date the project was formed
+	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+}
+
+// UpdateProjectSettingsRequestBody is the type of the "project-service"
+// service "update-project-settings" endpoint HTTP request body.
+type UpdateProjectSettingsRequestBody struct {
+	// The mission statement of the project
+	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// A list of project writers by their user IDs
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
 // "get-projects" endpoint HTTP response body.
 type GetProjectsResponseBody struct {
 	// Resources found
-	Projects []*ProjectResponseBody `form:"projects,omitempty" json:"projects,omitempty" xml:"projects,omitempty"`
+	Projects []*ProjectBaseResponseBody `form:"projects,omitempty" json:"projects,omitempty" xml:"projects,omitempty"`
 }
 
 // CreateProjectResponseBody is the type of the "project-service" service
 // "create-project" endpoint HTTP response body.
 type CreateProjectResponseBody struct {
-	// Project ID -- v2 id, not related to v1 id directly
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Project slug, a short slugified name of the project
 	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
 	// A description of the project
@@ -73,21 +118,39 @@ type CreateProjectResponseBody struct {
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
-	// A list of project auditors by their user IDs
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
-	// A list of project writers by their user IDs
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// The stage of the project
+	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
+	// The category of the project
+	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// A list of funding models for the project
+	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// The URL of the project charter document
+	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
+	// The date the project was formed
+	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 }
 
-// GetOneProjectResponseBody is the type of the "project-service" service
-// "get-one-project" endpoint HTTP response body.
-type GetOneProjectResponseBody ProjectResponseBody
+// GetOneProjectBaseResponseBody is the type of the "project-service" service
+// "get-one-project-base" endpoint HTTP response body.
+type GetOneProjectBaseResponseBody ProjectBaseResponseBody
 
-// UpdateProjectResponseBody is the type of the "project-service" service
-// "update-project" endpoint HTTP response body.
-type UpdateProjectResponseBody struct {
-	// Project ID -- v2 id, not related to v1 id directly
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+// GetOneProjectSettingsResponseBody is the type of the "project-service"
+// service "get-one-project-settings" endpoint HTTP response body.
+type GetOneProjectSettingsResponseBody ProjectSettingsResponseBody
+
+// UpdateProjectBaseResponseBody is the type of the "project-service" service
+// "update-project-base" endpoint HTTP response body.
+type UpdateProjectBaseResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Project slug, a short slugified name of the project
 	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
 	// A description of the project
@@ -98,10 +161,39 @@ type UpdateProjectResponseBody struct {
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
-	// A list of project auditors by their user IDs
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The stage of the project
+	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
+	// The category of the project
+	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// A list of funding models for the project
+	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// The URL of the project charter document
+	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
+	// The date the project was formed
+	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+}
+
+// UpdateProjectSettingsResponseBody is the type of the "project-service"
+// service "update-project-settings" endpoint HTTP response body.
+type UpdateProjectSettingsResponseBody struct {
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+	// The mission statement of the project
+	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// A list of project writers by their user IDs
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
@@ -174,70 +266,140 @@ type CreateProjectServiceUnavailableResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// GetOneProjectInternalServerErrorResponseBody is the type of the
-// "project-service" service "get-one-project" endpoint HTTP response body for
-// the "InternalServerError" error.
-type GetOneProjectInternalServerErrorResponseBody struct {
+// GetOneProjectBaseInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-one-project-base" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetOneProjectBaseInternalServerErrorResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// GetOneProjectNotFoundResponseBody is the type of the "project-service"
-// service "get-one-project" endpoint HTTP response body for the "NotFound"
+// GetOneProjectBaseNotFoundResponseBody is the type of the "project-service"
+// service "get-one-project-base" endpoint HTTP response body for the
+// "NotFound" error.
+type GetOneProjectBaseNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetOneProjectBaseServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-one-project-base" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type GetOneProjectBaseServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetOneProjectSettingsInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-one-project-settings" endpoint HTTP response
+// body for the "InternalServerError" error.
+type GetOneProjectSettingsInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetOneProjectSettingsNotFoundResponseBody is the type of the
+// "project-service" service "get-one-project-settings" endpoint HTTP response
+// body for the "NotFound" error.
+type GetOneProjectSettingsNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetOneProjectSettingsServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-one-project-settings" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type GetOneProjectSettingsServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectBaseBadRequestResponseBody is the type of the "project-service"
+// service "update-project-base" endpoint HTTP response body for the
+// "BadRequest" error.
+type UpdateProjectBaseBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectBaseInternalServerErrorResponseBody is the type of the
+// "project-service" service "update-project-base" endpoint HTTP response body
+// for the "InternalServerError" error.
+type UpdateProjectBaseInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UpdateProjectBaseNotFoundResponseBody is the type of the "project-service"
+// service "update-project-base" endpoint HTTP response body for the "NotFound"
 // error.
-type GetOneProjectNotFoundResponseBody struct {
+type UpdateProjectBaseNotFoundResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// GetOneProjectServiceUnavailableResponseBody is the type of the
-// "project-service" service "get-one-project" endpoint HTTP response body for
-// the "ServiceUnavailable" error.
-type GetOneProjectServiceUnavailableResponseBody struct {
+// UpdateProjectBaseServiceUnavailableResponseBody is the type of the
+// "project-service" service "update-project-base" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type UpdateProjectBaseServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// UpdateProjectBadRequestResponseBody is the type of the "project-service"
-// service "update-project" endpoint HTTP response body for the "BadRequest"
-// error.
-type UpdateProjectBadRequestResponseBody struct {
+// UpdateProjectSettingsBadRequestResponseBody is the type of the
+// "project-service" service "update-project-settings" endpoint HTTP response
+// body for the "BadRequest" error.
+type UpdateProjectSettingsBadRequestResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// UpdateProjectInternalServerErrorResponseBody is the type of the
-// "project-service" service "update-project" endpoint HTTP response body for
-// the "InternalServerError" error.
-type UpdateProjectInternalServerErrorResponseBody struct {
+// UpdateProjectSettingsInternalServerErrorResponseBody is the type of the
+// "project-service" service "update-project-settings" endpoint HTTP response
+// body for the "InternalServerError" error.
+type UpdateProjectSettingsInternalServerErrorResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// UpdateProjectNotFoundResponseBody is the type of the "project-service"
-// service "update-project" endpoint HTTP response body for the "NotFound"
-// error.
-type UpdateProjectNotFoundResponseBody struct {
+// UpdateProjectSettingsNotFoundResponseBody is the type of the
+// "project-service" service "update-project-settings" endpoint HTTP response
+// body for the "NotFound" error.
+type UpdateProjectSettingsNotFoundResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// UpdateProjectServiceUnavailableResponseBody is the type of the
-// "project-service" service "update-project" endpoint HTTP response body for
-// the "ServiceUnavailable" error.
-type UpdateProjectServiceUnavailableResponseBody struct {
+// UpdateProjectSettingsServiceUnavailableResponseBody is the type of the
+// "project-service" service "update-project-settings" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type UpdateProjectSettingsServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
@@ -294,10 +456,10 @@ type ReadyzServiceUnavailableResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// ProjectResponseBody is used to define fields on response body types.
-type ProjectResponseBody struct {
-	// Project ID -- v2 id, not related to v1 id directly
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+// ProjectBaseResponseBody is used to define fields on response body types.
+type ProjectBaseResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Project slug, a short slugified name of the project
 	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
 	// A description of the project
@@ -308,57 +470,125 @@ type ProjectResponseBody struct {
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
-	// A list of project auditors by their user IDs
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The stage of the project
+	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
+	// The category of the project
+	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// A list of funding models for the project
+	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
+	// The URL of the project charter document
+	CharterURL *string `form:"charter_url,omitempty" json:"charter_url,omitempty" xml:"charter_url,omitempty"`
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool `form:"autojoin_enabled,omitempty" json:"autojoin_enabled,omitempty" xml:"autojoin_enabled,omitempty"`
+	// The date the project was formed
+	FormationDate *string `form:"formation_date,omitempty" json:"formation_date,omitempty" xml:"formation_date,omitempty"`
+	// The date the project was announced
+	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
+}
+
+// ProjectSettingsResponseBody is used to define fields on response body types.
+type ProjectSettingsResponseBody struct {
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+	// The mission statement of the project
+	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// A list of project writers by their user IDs
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project auditors by their user IDs
+	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // NewCreateProjectRequestBody builds the HTTP request body from the payload of
 // the "create-project" endpoint of the "project-service" service.
 func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *CreateProjectRequestBody {
 	body := &CreateProjectRequestBody{
-		Slug:        p.Slug,
-		Description: p.Description,
-		Name:        p.Name,
-		Public:      p.Public,
-		ParentUID:   p.ParentUID,
+		Slug:                       p.Slug,
+		Description:                p.Description,
+		Name:                       p.Name,
+		Public:                     p.Public,
+		ParentUID:                  p.ParentUID,
+		Stage:                      p.Stage,
+		Category:                   p.Category,
+		CharterURL:                 p.CharterURL,
+		EntityDissolutionDate:      p.EntityDissolutionDate,
+		EntityFormationDocumentURL: p.EntityFormationDocumentURL,
+		AutojoinEnabled:            p.AutojoinEnabled,
+		FormationDate:              p.FormationDate,
+		AnnouncementDate:           p.AnnouncementDate,
+		MissionStatement:           p.MissionStatement,
 	}
-	if p.Auditors != nil {
-		body.Auditors = make([]string, len(p.Auditors))
-		for i, val := range p.Auditors {
-			body.Auditors[i] = val
+	if p.FundingModel != nil {
+		body.FundingModel = make([]string, len(p.FundingModel))
+		for i, val := range p.FundingModel {
+			body.FundingModel[i] = val
 		}
 	}
 	if p.Writers != nil {
 		body.Writers = make([]string, len(p.Writers))
 		for i, val := range p.Writers {
 			body.Writers[i] = val
+		}
+	}
+	if p.Auditors != nil {
+		body.Auditors = make([]string, len(p.Auditors))
+		for i, val := range p.Auditors {
+			body.Auditors[i] = val
 		}
 	}
 	return body
 }
 
-// NewUpdateProjectRequestBody builds the HTTP request body from the payload of
-// the "update-project" endpoint of the "project-service" service.
-func NewUpdateProjectRequestBody(p *projectservice.UpdateProjectPayload) *UpdateProjectRequestBody {
-	body := &UpdateProjectRequestBody{
-		Slug:        p.Slug,
-		Description: p.Description,
-		Name:        p.Name,
-		Public:      p.Public,
-		ParentUID:   p.ParentUID,
+// NewUpdateProjectBaseRequestBody builds the HTTP request body from the
+// payload of the "update-project-base" endpoint of the "project-service"
+// service.
+func NewUpdateProjectBaseRequestBody(p *projectservice.UpdateProjectBasePayload) *UpdateProjectBaseRequestBody {
+	body := &UpdateProjectBaseRequestBody{
+		Slug:                       p.Slug,
+		Description:                p.Description,
+		Name:                       p.Name,
+		Public:                     p.Public,
+		ParentUID:                  p.ParentUID,
+		Stage:                      p.Stage,
+		Category:                   p.Category,
+		CharterURL:                 p.CharterURL,
+		EntityDissolutionDate:      p.EntityDissolutionDate,
+		EntityFormationDocumentURL: p.EntityFormationDocumentURL,
+		AutojoinEnabled:            p.AutojoinEnabled,
+		FormationDate:              p.FormationDate,
+		AnnouncementDate:           p.AnnouncementDate,
 	}
-	if p.Auditors != nil {
-		body.Auditors = make([]string, len(p.Auditors))
-		for i, val := range p.Auditors {
-			body.Auditors[i] = val
+	if p.FundingModel != nil {
+		body.FundingModel = make([]string, len(p.FundingModel))
+		for i, val := range p.FundingModel {
+			body.FundingModel[i] = val
 		}
+	}
+	return body
+}
+
+// NewUpdateProjectSettingsRequestBody builds the HTTP request body from the
+// payload of the "update-project-settings" endpoint of the "project-service"
+// service.
+func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettingsPayload) *UpdateProjectSettingsRequestBody {
+	body := &UpdateProjectSettingsRequestBody{
+		MissionStatement: p.MissionStatement,
 	}
 	if p.Writers != nil {
 		body.Writers = make([]string, len(p.Writers))
 		for i, val := range p.Writers {
 			body.Writers[i] = val
+		}
+	}
+	if p.Auditors != nil {
+		body.Auditors = make([]string, len(p.Auditors))
+		for i, val := range p.Auditors {
+			body.Auditors[i] = val
 		}
 	}
 	return body
@@ -368,9 +598,9 @@ func NewUpdateProjectRequestBody(p *projectservice.UpdateProjectPayload) *Update
 // endpoint result from a HTTP "OK" response.
 func NewGetProjectsResultOK(body *GetProjectsResponseBody, cacheControl *string) *projectservice.GetProjectsResult {
 	v := &projectservice.GetProjectsResult{}
-	v.Projects = make([]*projectservice.Project, len(body.Projects))
+	v.Projects = make([]*projectservice.ProjectBase, len(body.Projects))
 	for i, val := range body.Projects {
-		v.Projects[i] = unmarshalProjectResponseBodyToProjectserviceProject(val)
+		v.Projects[i] = unmarshalProjectBaseResponseBodyToProjectserviceProjectBase(val)
 	}
 	v.CacheControl = cacheControl
 
@@ -410,27 +640,29 @@ func NewGetProjectsServiceUnavailable(body *GetProjectsServiceUnavailableRespons
 	return v
 }
 
-// NewCreateProjectProjectCreated builds a "project-service" service
+// NewCreateProjectProjectBaseCreated builds a "project-service" service
 // "create-project" endpoint result from a HTTP "Created" response.
-func NewCreateProjectProjectCreated(body *CreateProjectResponseBody) *projectservice.Project {
-	v := &projectservice.Project{
-		ID:          body.ID,
-		Slug:        body.Slug,
-		Description: body.Description,
-		Name:        body.Name,
-		Public:      body.Public,
-		ParentUID:   body.ParentUID,
+func NewCreateProjectProjectBaseCreated(body *CreateProjectResponseBody) *projectservice.ProjectBase {
+	v := &projectservice.ProjectBase{
+		UID:                        body.UID,
+		Slug:                       body.Slug,
+		Description:                body.Description,
+		Name:                       body.Name,
+		Public:                     body.Public,
+		ParentUID:                  body.ParentUID,
+		Stage:                      body.Stage,
+		Category:                   body.Category,
+		CharterURL:                 body.CharterURL,
+		EntityDissolutionDate:      body.EntityDissolutionDate,
+		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
+		AutojoinEnabled:            body.AutojoinEnabled,
+		FormationDate:              body.FormationDate,
+		AnnouncementDate:           body.AnnouncementDate,
 	}
-	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
-		for i, val := range body.Auditors {
-			v.Auditors[i] = val
-		}
-	}
-	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
-		for i, val := range body.Writers {
-			v.Writers[i] = val
+	if body.FundingModel != nil {
+		v.FundingModel = make([]string, len(body.FundingModel))
+		for i, val := range body.FundingModel {
+			v.FundingModel[i] = val
 		}
 	}
 
@@ -481,30 +713,32 @@ func NewCreateProjectServiceUnavailable(body *CreateProjectServiceUnavailableRes
 	return v
 }
 
-// NewGetOneProjectResultOK builds a "project-service" service
-// "get-one-project" endpoint result from a HTTP "OK" response.
-func NewGetOneProjectResultOK(body *GetOneProjectResponseBody, etag *string) *projectservice.GetOneProjectResult {
-	v := &projectservice.Project{
-		ID:          body.ID,
-		Slug:        body.Slug,
-		Description: body.Description,
-		Name:        body.Name,
-		Public:      body.Public,
-		ParentUID:   body.ParentUID,
+// NewGetOneProjectBaseResultOK builds a "project-service" service
+// "get-one-project-base" endpoint result from a HTTP "OK" response.
+func NewGetOneProjectBaseResultOK(body *GetOneProjectBaseResponseBody, etag *string) *projectservice.GetOneProjectBaseResult {
+	v := &projectservice.ProjectBase{
+		UID:                        body.UID,
+		Slug:                       body.Slug,
+		Description:                body.Description,
+		Name:                       body.Name,
+		Public:                     body.Public,
+		ParentUID:                  body.ParentUID,
+		Stage:                      body.Stage,
+		Category:                   body.Category,
+		CharterURL:                 body.CharterURL,
+		EntityDissolutionDate:      body.EntityDissolutionDate,
+		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
+		AutojoinEnabled:            body.AutojoinEnabled,
+		FormationDate:              body.FormationDate,
+		AnnouncementDate:           body.AnnouncementDate,
 	}
-	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
-		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+	if body.FundingModel != nil {
+		v.FundingModel = make([]string, len(body.FundingModel))
+		for i, val := range body.FundingModel {
+			v.FundingModel[i] = val
 		}
 	}
-	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
-		for i, val := range body.Writers {
-			v.Writers[i] = val
-		}
-	}
-	res := &projectservice.GetOneProjectResult{
+	res := &projectservice.GetOneProjectBaseResult{
 		Project: v,
 	}
 	res.Etag = etag
@@ -512,9 +746,9 @@ func NewGetOneProjectResultOK(body *GetOneProjectResponseBody, etag *string) *pr
 	return res
 }
 
-// NewGetOneProjectInternalServerError builds a project-service service
-// get-one-project endpoint InternalServerError error.
-func NewGetOneProjectInternalServerError(body *GetOneProjectInternalServerErrorResponseBody) *projectservice.InternalServerError {
+// NewGetOneProjectBaseInternalServerError builds a project-service service
+// get-one-project-base endpoint InternalServerError error.
+func NewGetOneProjectBaseInternalServerError(body *GetOneProjectBaseInternalServerErrorResponseBody) *projectservice.InternalServerError {
 	v := &projectservice.InternalServerError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -523,9 +757,9 @@ func NewGetOneProjectInternalServerError(body *GetOneProjectInternalServerErrorR
 	return v
 }
 
-// NewGetOneProjectNotFound builds a project-service service get-one-project
-// endpoint NotFound error.
-func NewGetOneProjectNotFound(body *GetOneProjectNotFoundResponseBody) *projectservice.NotFoundError {
+// NewGetOneProjectBaseNotFound builds a project-service service
+// get-one-project-base endpoint NotFound error.
+func NewGetOneProjectBaseNotFound(body *GetOneProjectBaseNotFoundResponseBody) *projectservice.NotFoundError {
 	v := &projectservice.NotFoundError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -534,9 +768,9 @@ func NewGetOneProjectNotFound(body *GetOneProjectNotFoundResponseBody) *projects
 	return v
 }
 
-// NewGetOneProjectServiceUnavailable builds a project-service service
-// get-one-project endpoint ServiceUnavailable error.
-func NewGetOneProjectServiceUnavailable(body *GetOneProjectServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+// NewGetOneProjectBaseServiceUnavailable builds a project-service service
+// get-one-project-base endpoint ServiceUnavailable error.
+func NewGetOneProjectBaseServiceUnavailable(body *GetOneProjectBaseServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
 	v := &projectservice.ServiceUnavailableError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -545,22 +779,13 @@ func NewGetOneProjectServiceUnavailable(body *GetOneProjectServiceUnavailableRes
 	return v
 }
 
-// NewUpdateProjectProjectOK builds a "project-service" service
-// "update-project" endpoint result from a HTTP "OK" response.
-func NewUpdateProjectProjectOK(body *UpdateProjectResponseBody) *projectservice.Project {
-	v := &projectservice.Project{
-		ID:          body.ID,
-		Slug:        body.Slug,
-		Description: body.Description,
-		Name:        body.Name,
-		Public:      body.Public,
-		ParentUID:   body.ParentUID,
-	}
-	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
-		for i, val := range body.Auditors {
-			v.Auditors[i] = val
-		}
+// NewGetOneProjectSettingsResultOK builds a "project-service" service
+// "get-one-project-settings" endpoint result from a HTTP "OK" response.
+func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, etag *string) *projectservice.GetOneProjectSettingsResult {
+	v := &projectservice.ProjectSettings{
+		CreatedAt:        body.CreatedAt,
+		UpdatedAt:        body.UpdatedAt,
+		MissionStatement: body.MissionStatement,
 	}
 	if body.Writers != nil {
 		v.Writers = make([]string, len(body.Writers))
@@ -568,24 +793,23 @@ func NewUpdateProjectProjectOK(body *UpdateProjectResponseBody) *projectservice.
 			v.Writers[i] = val
 		}
 	}
-
-	return v
-}
-
-// NewUpdateProjectBadRequest builds a project-service service update-project
-// endpoint BadRequest error.
-func NewUpdateProjectBadRequest(body *UpdateProjectBadRequestResponseBody) *projectservice.BadRequestError {
-	v := &projectservice.BadRequestError{
-		Code:    *body.Code,
-		Message: *body.Message,
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
+		}
 	}
+	res := &projectservice.GetOneProjectSettingsResult{
+		ProjectSettings: v,
+	}
+	res.Etag = etag
 
-	return v
+	return res
 }
 
-// NewUpdateProjectInternalServerError builds a project-service service
-// update-project endpoint InternalServerError error.
-func NewUpdateProjectInternalServerError(body *UpdateProjectInternalServerErrorResponseBody) *projectservice.InternalServerError {
+// NewGetOneProjectSettingsInternalServerError builds a project-service service
+// get-one-project-settings endpoint InternalServerError error.
+func NewGetOneProjectSettingsInternalServerError(body *GetOneProjectSettingsInternalServerErrorResponseBody) *projectservice.InternalServerError {
 	v := &projectservice.InternalServerError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -594,9 +818,9 @@ func NewUpdateProjectInternalServerError(body *UpdateProjectInternalServerErrorR
 	return v
 }
 
-// NewUpdateProjectNotFound builds a project-service service update-project
-// endpoint NotFound error.
-func NewUpdateProjectNotFound(body *UpdateProjectNotFoundResponseBody) *projectservice.NotFoundError {
+// NewGetOneProjectSettingsNotFound builds a project-service service
+// get-one-project-settings endpoint NotFound error.
+func NewGetOneProjectSettingsNotFound(body *GetOneProjectSettingsNotFoundResponseBody) *projectservice.NotFoundError {
 	v := &projectservice.NotFoundError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -605,9 +829,150 @@ func NewUpdateProjectNotFound(body *UpdateProjectNotFoundResponseBody) *projects
 	return v
 }
 
-// NewUpdateProjectServiceUnavailable builds a project-service service
-// update-project endpoint ServiceUnavailable error.
-func NewUpdateProjectServiceUnavailable(body *UpdateProjectServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+// NewGetOneProjectSettingsServiceUnavailable builds a project-service service
+// get-one-project-settings endpoint ServiceUnavailable error.
+func NewGetOneProjectSettingsServiceUnavailable(body *GetOneProjectSettingsServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectBaseProjectBaseOK builds a "project-service" service
+// "update-project-base" endpoint result from a HTTP "OK" response.
+func NewUpdateProjectBaseProjectBaseOK(body *UpdateProjectBaseResponseBody) *projectservice.ProjectBase {
+	v := &projectservice.ProjectBase{
+		UID:                        body.UID,
+		Slug:                       body.Slug,
+		Description:                body.Description,
+		Name:                       body.Name,
+		Public:                     body.Public,
+		ParentUID:                  body.ParentUID,
+		Stage:                      body.Stage,
+		Category:                   body.Category,
+		CharterURL:                 body.CharterURL,
+		EntityDissolutionDate:      body.EntityDissolutionDate,
+		EntityFormationDocumentURL: body.EntityFormationDocumentURL,
+		AutojoinEnabled:            body.AutojoinEnabled,
+		FormationDate:              body.FormationDate,
+		AnnouncementDate:           body.AnnouncementDate,
+	}
+	if body.FundingModel != nil {
+		v.FundingModel = make([]string, len(body.FundingModel))
+		for i, val := range body.FundingModel {
+			v.FundingModel[i] = val
+		}
+	}
+
+	return v
+}
+
+// NewUpdateProjectBaseBadRequest builds a project-service service
+// update-project-base endpoint BadRequest error.
+func NewUpdateProjectBaseBadRequest(body *UpdateProjectBaseBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectBaseInternalServerError builds a project-service service
+// update-project-base endpoint InternalServerError error.
+func NewUpdateProjectBaseInternalServerError(body *UpdateProjectBaseInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectBaseNotFound builds a project-service service
+// update-project-base endpoint NotFound error.
+func NewUpdateProjectBaseNotFound(body *UpdateProjectBaseNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectBaseServiceUnavailable builds a project-service service
+// update-project-base endpoint ServiceUnavailable error.
+func NewUpdateProjectBaseServiceUnavailable(body *UpdateProjectBaseServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectSettingsProjectSettingsOK builds a "project-service" service
+// "update-project-settings" endpoint result from a HTTP "OK" response.
+func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsResponseBody) *projectservice.ProjectSettings {
+	v := &projectservice.ProjectSettings{
+		CreatedAt:        body.CreatedAt,
+		UpdatedAt:        body.UpdatedAt,
+		MissionStatement: body.MissionStatement,
+	}
+	if body.Writers != nil {
+		v.Writers = make([]string, len(body.Writers))
+		for i, val := range body.Writers {
+			v.Writers[i] = val
+		}
+	}
+	if body.Auditors != nil {
+		v.Auditors = make([]string, len(body.Auditors))
+		for i, val := range body.Auditors {
+			v.Auditors[i] = val
+		}
+	}
+
+	return v
+}
+
+// NewUpdateProjectSettingsBadRequest builds a project-service service
+// update-project-settings endpoint BadRequest error.
+func NewUpdateProjectSettingsBadRequest(body *UpdateProjectSettingsBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectSettingsInternalServerError builds a project-service service
+// update-project-settings endpoint InternalServerError error.
+func NewUpdateProjectSettingsInternalServerError(body *UpdateProjectSettingsInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectSettingsNotFound builds a project-service service
+// update-project-settings endpoint NotFound error.
+func NewUpdateProjectSettingsNotFound(body *UpdateProjectSettingsNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectSettingsServiceUnavailable builds a project-service service
+// update-project-settings endpoint ServiceUnavailable error.
+func NewUpdateProjectSettingsServiceUnavailable(body *UpdateProjectSettingsServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
 	v := &projectservice.ServiceUnavailableError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -679,7 +1044,7 @@ func ValidateGetProjectsResponseBody(body *GetProjectsResponseBody) (err error) 
 	}
 	for _, e := range body.Projects {
 		if e != nil {
-			if err2 := ValidateProjectResponseBody(e); err2 != nil {
+			if err2 := ValidateProjectBaseResponseBody(e); err2 != nil {
 				err = goa.MergeErrors(err, err2)
 			}
 		}
@@ -690,44 +1055,158 @@ func ValidateGetProjectsResponseBody(body *GetProjectsResponseBody) (err error) 
 // ValidateCreateProjectResponseBody runs the validations defined on
 // Create-ProjectResponseBody
 func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err error) {
-	if body.ID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	if body.Stage != nil {
+		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
+		}
+	}
+	if body.Category != nil {
+		if !(*body.Category == "Active" || *body.Category == "Adopted" || *body.Category == "Archived" || *body.Category == "At-Large" || *body.Category == "Early Adoption" || *body.Category == "Emeritus" || *body.Category == "Graduated" || *body.Category == "Growth" || *body.Category == "Idle" || *body.Category == "Impact" || *body.Category == "Incubating" || *body.Category == "Kanister" || *body.Category == "Mature" || *body.Category == "Pre-LFESS" || *body.Category == "Sandbox" || *body.Category == "SIG" || *body.Category == "Standards" || *body.Category == "TAC" || *body.Category == "Working Group" || *body.Category == "TAG" || *body.Category == "NONE") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.category", *body.Category, []any{"Active", "Adopted", "Archived", "At-Large", "Early Adoption", "Emeritus", "Graduated", "Growth", "Idle", "Impact", "Incubating", "Kanister", "Mature", "Pre-LFESS", "Sandbox", "SIG", "Standards", "TAC", "Working Group", "TAG", "NONE"}))
+		}
+	}
+	for _, e := range body.FundingModel {
+		if !(e == "Crowdfunding" || e == "Membership" || e == "Alternate Funding") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding_model[*]", e, []any{"Crowdfunding", "Membership", "Alternate Funding"}))
+		}
+	}
+	if body.CharterURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
+	}
+	if body.EntityDissolutionDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
+	}
+	if body.EntityFormationDocumentURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_formation_document_url", *body.EntityFormationDocumentURL, goa.FormatURI))
+	}
+	if body.FormationDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }
 
-// ValidateGetOneProjectResponseBody runs the validations defined on
-// Get-One-ProjectResponseBody
-func ValidateGetOneProjectResponseBody(body *GetOneProjectResponseBody) (err error) {
-	if body.ID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+// ValidateGetOneProjectBaseResponseBody runs the validations defined on
+// Get-One-Project-BaseResponseBody
+func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	if body.Stage != nil {
+		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
+		}
+	}
+	if body.Category != nil {
+		if !(*body.Category == "Active" || *body.Category == "Adopted" || *body.Category == "Archived" || *body.Category == "At-Large" || *body.Category == "Early Adoption" || *body.Category == "Emeritus" || *body.Category == "Graduated" || *body.Category == "Growth" || *body.Category == "Idle" || *body.Category == "Impact" || *body.Category == "Incubating" || *body.Category == "Kanister" || *body.Category == "Mature" || *body.Category == "Pre-LFESS" || *body.Category == "Sandbox" || *body.Category == "SIG" || *body.Category == "Standards" || *body.Category == "TAC" || *body.Category == "Working Group" || *body.Category == "TAG" || *body.Category == "NONE") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.category", *body.Category, []any{"Active", "Adopted", "Archived", "At-Large", "Early Adoption", "Emeritus", "Graduated", "Growth", "Idle", "Impact", "Incubating", "Kanister", "Mature", "Pre-LFESS", "Sandbox", "SIG", "Standards", "TAC", "Working Group", "TAG", "NONE"}))
+		}
+	}
+	for _, e := range body.FundingModel {
+		if !(e == "Crowdfunding" || e == "Membership" || e == "Alternate Funding") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding_model[*]", e, []any{"Crowdfunding", "Membership", "Alternate Funding"}))
+		}
+	}
+	if body.CharterURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
+	}
+	if body.EntityDissolutionDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
+	}
+	if body.EntityFormationDocumentURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_formation_document_url", *body.EntityFormationDocumentURL, goa.FormatURI))
+	}
+	if body.FormationDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }
 
-// ValidateUpdateProjectResponseBody runs the validations defined on
-// Update-ProjectResponseBody
-func ValidateUpdateProjectResponseBody(body *UpdateProjectResponseBody) (err error) {
-	if body.ID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+// ValidateGetOneProjectSettingsResponseBody runs the validations defined on
+// Get-One-Project-SettingsResponseBody
+func ValidateGetOneProjectSettingsResponseBody(body *GetOneProjectSettingsResponseBody) (err error) {
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateUpdateProjectBaseResponseBody runs the validations defined on
+// Update-Project-BaseResponseBody
+func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	if body.Stage != nil {
+		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
+		}
+	}
+	if body.Category != nil {
+		if !(*body.Category == "Active" || *body.Category == "Adopted" || *body.Category == "Archived" || *body.Category == "At-Large" || *body.Category == "Early Adoption" || *body.Category == "Emeritus" || *body.Category == "Graduated" || *body.Category == "Growth" || *body.Category == "Idle" || *body.Category == "Impact" || *body.Category == "Incubating" || *body.Category == "Kanister" || *body.Category == "Mature" || *body.Category == "Pre-LFESS" || *body.Category == "Sandbox" || *body.Category == "SIG" || *body.Category == "Standards" || *body.Category == "TAC" || *body.Category == "Working Group" || *body.Category == "TAG" || *body.Category == "NONE") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.category", *body.Category, []any{"Active", "Adopted", "Archived", "At-Large", "Early Adoption", "Emeritus", "Graduated", "Growth", "Idle", "Impact", "Incubating", "Kanister", "Mature", "Pre-LFESS", "Sandbox", "SIG", "Standards", "TAC", "Working Group", "TAG", "NONE"}))
+		}
+	}
+	for _, e := range body.FundingModel {
+		if !(e == "Crowdfunding" || e == "Membership" || e == "Alternate Funding") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding_model[*]", e, []any{"Crowdfunding", "Membership", "Alternate Funding"}))
+		}
+	}
+	if body.CharterURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
+	}
+	if body.EntityDissolutionDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
+	}
+	if body.EntityFormationDocumentURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_formation_document_url", *body.EntityFormationDocumentURL, goa.FormatURI))
+	}
+	if body.FormationDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
+	return
+}
+
+// ValidateUpdateProjectSettingsResponseBody runs the validations defined on
+// Update-Project-SettingsResponseBody
+func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsResponseBody) (err error) {
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
 	return
 }
@@ -816,9 +1295,9 @@ func ValidateCreateProjectServiceUnavailableResponseBody(body *CreateProjectServ
 	return
 }
 
-// ValidateGetOneProjectInternalServerErrorResponseBody runs the validations
-// defined on get-one-project_InternalServerError_response_body
-func ValidateGetOneProjectInternalServerErrorResponseBody(body *GetOneProjectInternalServerErrorResponseBody) (err error) {
+// ValidateGetOneProjectBaseInternalServerErrorResponseBody runs the
+// validations defined on get-one-project-base_InternalServerError_response_body
+func ValidateGetOneProjectBaseInternalServerErrorResponseBody(body *GetOneProjectBaseInternalServerErrorResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -828,9 +1307,9 @@ func ValidateGetOneProjectInternalServerErrorResponseBody(body *GetOneProjectInt
 	return
 }
 
-// ValidateGetOneProjectNotFoundResponseBody runs the validations defined on
-// get-one-project_NotFound_response_body
-func ValidateGetOneProjectNotFoundResponseBody(body *GetOneProjectNotFoundResponseBody) (err error) {
+// ValidateGetOneProjectBaseNotFoundResponseBody runs the validations defined
+// on get-one-project-base_NotFound_response_body
+func ValidateGetOneProjectBaseNotFoundResponseBody(body *GetOneProjectBaseNotFoundResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -840,9 +1319,9 @@ func ValidateGetOneProjectNotFoundResponseBody(body *GetOneProjectNotFoundRespon
 	return
 }
 
-// ValidateGetOneProjectServiceUnavailableResponseBody runs the validations
-// defined on get-one-project_ServiceUnavailable_response_body
-func ValidateGetOneProjectServiceUnavailableResponseBody(body *GetOneProjectServiceUnavailableResponseBody) (err error) {
+// ValidateGetOneProjectBaseServiceUnavailableResponseBody runs the validations
+// defined on get-one-project-base_ServiceUnavailable_response_body
+func ValidateGetOneProjectBaseServiceUnavailableResponseBody(body *GetOneProjectBaseServiceUnavailableResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -852,9 +1331,10 @@ func ValidateGetOneProjectServiceUnavailableResponseBody(body *GetOneProjectServ
 	return
 }
 
-// ValidateUpdateProjectBadRequestResponseBody runs the validations defined on
-// update-project_BadRequest_response_body
-func ValidateUpdateProjectBadRequestResponseBody(body *UpdateProjectBadRequestResponseBody) (err error) {
+// ValidateGetOneProjectSettingsInternalServerErrorResponseBody runs the
+// validations defined on
+// get-one-project-settings_InternalServerError_response_body
+func ValidateGetOneProjectSettingsInternalServerErrorResponseBody(body *GetOneProjectSettingsInternalServerErrorResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -864,9 +1344,9 @@ func ValidateUpdateProjectBadRequestResponseBody(body *UpdateProjectBadRequestRe
 	return
 }
 
-// ValidateUpdateProjectInternalServerErrorResponseBody runs the validations
-// defined on update-project_InternalServerError_response_body
-func ValidateUpdateProjectInternalServerErrorResponseBody(body *UpdateProjectInternalServerErrorResponseBody) (err error) {
+// ValidateGetOneProjectSettingsNotFoundResponseBody runs the validations
+// defined on get-one-project-settings_NotFound_response_body
+func ValidateGetOneProjectSettingsNotFoundResponseBody(body *GetOneProjectSettingsNotFoundResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -876,9 +1356,10 @@ func ValidateUpdateProjectInternalServerErrorResponseBody(body *UpdateProjectInt
 	return
 }
 
-// ValidateUpdateProjectNotFoundResponseBody runs the validations defined on
-// update-project_NotFound_response_body
-func ValidateUpdateProjectNotFoundResponseBody(body *UpdateProjectNotFoundResponseBody) (err error) {
+// ValidateGetOneProjectSettingsServiceUnavailableResponseBody runs the
+// validations defined on
+// get-one-project-settings_ServiceUnavailable_response_body
+func ValidateGetOneProjectSettingsServiceUnavailableResponseBody(body *GetOneProjectSettingsServiceUnavailableResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -888,9 +1369,95 @@ func ValidateUpdateProjectNotFoundResponseBody(body *UpdateProjectNotFoundRespon
 	return
 }
 
-// ValidateUpdateProjectServiceUnavailableResponseBody runs the validations
-// defined on update-project_ServiceUnavailable_response_body
-func ValidateUpdateProjectServiceUnavailableResponseBody(body *UpdateProjectServiceUnavailableResponseBody) (err error) {
+// ValidateUpdateProjectBaseBadRequestResponseBody runs the validations defined
+// on update-project-base_BadRequest_response_body
+func ValidateUpdateProjectBaseBadRequestResponseBody(body *UpdateProjectBaseBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectBaseInternalServerErrorResponseBody runs the
+// validations defined on update-project-base_InternalServerError_response_body
+func ValidateUpdateProjectBaseInternalServerErrorResponseBody(body *UpdateProjectBaseInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectBaseNotFoundResponseBody runs the validations defined
+// on update-project-base_NotFound_response_body
+func ValidateUpdateProjectBaseNotFoundResponseBody(body *UpdateProjectBaseNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectBaseServiceUnavailableResponseBody runs the validations
+// defined on update-project-base_ServiceUnavailable_response_body
+func ValidateUpdateProjectBaseServiceUnavailableResponseBody(body *UpdateProjectBaseServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectSettingsBadRequestResponseBody runs the validations
+// defined on update-project-settings_BadRequest_response_body
+func ValidateUpdateProjectSettingsBadRequestResponseBody(body *UpdateProjectSettingsBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectSettingsInternalServerErrorResponseBody runs the
+// validations defined on
+// update-project-settings_InternalServerError_response_body
+func ValidateUpdateProjectSettingsInternalServerErrorResponseBody(body *UpdateProjectSettingsInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectSettingsNotFoundResponseBody runs the validations
+// defined on update-project-settings_NotFound_response_body
+func ValidateUpdateProjectSettingsNotFoundResponseBody(body *UpdateProjectSettingsNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectSettingsServiceUnavailableResponseBody runs the
+// validations defined on
+// update-project-settings_ServiceUnavailable_response_body
+func ValidateUpdateProjectSettingsServiceUnavailableResponseBody(body *UpdateProjectSettingsServiceUnavailableResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -960,17 +1527,59 @@ func ValidateReadyzServiceUnavailableResponseBody(body *ReadyzServiceUnavailable
 	return
 }
 
-// ValidateProjectResponseBody runs the validations defined on
-// ProjectResponseBody
-func ValidateProjectResponseBody(body *ProjectResponseBody) (err error) {
-	if body.ID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.id", *body.ID, goa.FormatUUID))
+// ValidateProjectBaseResponseBody runs the validations defined on
+// ProjectBaseResponseBody
+func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	if body.Stage != nil {
+		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
+		}
+	}
+	if body.Category != nil {
+		if !(*body.Category == "Active" || *body.Category == "Adopted" || *body.Category == "Archived" || *body.Category == "At-Large" || *body.Category == "Early Adoption" || *body.Category == "Emeritus" || *body.Category == "Graduated" || *body.Category == "Growth" || *body.Category == "Idle" || *body.Category == "Impact" || *body.Category == "Incubating" || *body.Category == "Kanister" || *body.Category == "Mature" || *body.Category == "Pre-LFESS" || *body.Category == "Sandbox" || *body.Category == "SIG" || *body.Category == "Standards" || *body.Category == "TAC" || *body.Category == "Working Group" || *body.Category == "TAG" || *body.Category == "NONE") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.category", *body.Category, []any{"Active", "Adopted", "Archived", "At-Large", "Early Adoption", "Emeritus", "Graduated", "Growth", "Idle", "Impact", "Incubating", "Kanister", "Mature", "Pre-LFESS", "Sandbox", "SIG", "Standards", "TAC", "Working Group", "TAG", "NONE"}))
+		}
+	}
+	for _, e := range body.FundingModel {
+		if !(e == "Crowdfunding" || e == "Membership" || e == "Alternate Funding") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding_model[*]", e, []any{"Crowdfunding", "Membership", "Alternate Funding"}))
+		}
+	}
+	if body.CharterURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.charter_url", *body.CharterURL, goa.FormatURI))
+	}
+	if body.EntityDissolutionDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_dissolution_date", *body.EntityDissolutionDate, goa.FormatDate))
+	}
+	if body.EntityFormationDocumentURL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.entity_formation_document_url", *body.EntityFormationDocumentURL, goa.FormatURI))
+	}
+	if body.FormationDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.formation_date", *body.FormationDate, goa.FormatDate))
+	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
+	return
+}
+
+// ValidateProjectSettingsResponseBody runs the validations defined on
+// ProjectSettingsResponseBody
+func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err error) {
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
 	return
 }

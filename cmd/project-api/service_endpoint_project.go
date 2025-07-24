@@ -69,7 +69,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 
 // Create a new project.
 func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.CreateProjectPayload) (*projsvc.Project, error) {
-	id := uuid.NewString() // TODO: what type of ID are we using for the project resource?
+	id := uuid.NewString()
 	project := &projsvc.Project{
 		ID:          &id,
 		Slug:        &payload.Slug,

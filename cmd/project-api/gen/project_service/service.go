@@ -19,11 +19,15 @@ type Service interface {
 	// Get all projects.
 	GetProjects(context.Context, *GetProjectsPayload) (res *GetProjectsResult, err error)
 	// Create a new project.
-	CreateProject(context.Context, *CreateProjectPayload) (res *Project, err error)
-	// Get a single project.
-	GetOneProject(context.Context, *GetOneProjectPayload) (res *GetOneProjectResult, err error)
-	// Update an existing project.
-	UpdateProject(context.Context, *UpdateProjectPayload) (res *Project, err error)
+	CreateProject(context.Context, *CreateProjectPayload) (res *ProjectBase, err error)
+	// Get a single project's base information.
+	GetOneProjectBase(context.Context, *GetOneProjectBasePayload) (res *GetOneProjectBaseResult, err error)
+	// Get a single project's settings.
+	GetOneProjectSettings(context.Context, *GetOneProjectSettingsPayload) (res *GetOneProjectSettingsResult, err error)
+	// Update an existing project's base information.
+	UpdateProjectBase(context.Context, *UpdateProjectBasePayload) (res *ProjectBase, err error)
+	// Update an existing project's settings.
+	UpdateProjectSettings(context.Context, *UpdateProjectSettingsPayload) (res *ProjectSettings, err error)
 	// Delete an existing project.
 	DeleteProject(context.Context, *DeleteProjectPayload) (err error)
 	// Check if the service is able to take inbound requests.
@@ -52,7 +56,7 @@ const ServiceName = "project-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [7]string{"get-projects", "create-project", "get-one-project", "update-project", "delete-project", "readyz", "livez"}
+var MethodNames = [9]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "readyz", "livez"}
 
 type BadRequestError struct {
 	// HTTP status code
@@ -85,10 +89,30 @@ type CreateProjectPayload struct {
 	Public *bool
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string
-	// A list of project auditors by their user IDs
-	Auditors []string
+	// The stage of the project
+	Stage *string
+	// The category of the project
+	Category *string
+	// A list of funding models for the project
+	FundingModel []string
+	// The URL of the project charter document
+	CharterURL *string
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool
+	// The date the project was formed
+	FormationDate *string
+	// The date the project was announced
+	AnnouncementDate *string
+	// The mission statement of the project
+	MissionStatement *string
 	// A list of project writers by their user IDs
 	Writers []string
+	// A list of project auditors by their user IDs
+	Auditors []string
 }
 
 // DeleteProjectPayload is the payload type of the project-service service
@@ -100,25 +124,44 @@ type DeleteProjectPayload struct {
 	Etag *string
 	// Version of the API
 	Version *string
-	// Project ID -- v2 id, not related to v1 id directly
-	ID *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
 }
 
-// GetOneProjectPayload is the payload type of the project-service service
-// get-one-project method.
-type GetOneProjectPayload struct {
+// GetOneProjectBasePayload is the payload type of the project-service service
+// get-one-project-base method.
+type GetOneProjectBasePayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// Project ID -- v2 id, not related to v1 id directly
-	ID *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
 }
 
-// GetOneProjectResult is the result type of the project-service service
-// get-one-project method.
-type GetOneProjectResult struct {
-	Project *Project
+// GetOneProjectBaseResult is the result type of the project-service service
+// get-one-project-base method.
+type GetOneProjectBaseResult struct {
+	Project *ProjectBase
+	// ETag header value
+	Etag *string
+}
+
+// GetOneProjectSettingsPayload is the payload type of the project-service
+// service get-one-project-settings method.
+type GetOneProjectSettingsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
+}
+
+// GetOneProjectSettingsResult is the result type of the project-service
+// service get-one-project-settings method.
+type GetOneProjectSettingsResult struct {
+	ProjectSettings *ProjectSettings
 	// ETag header value
 	Etag *string
 }
@@ -136,7 +179,7 @@ type GetProjectsPayload struct {
 // get-projects method.
 type GetProjectsResult struct {
 	// Resources found
-	Projects []*Project
+	Projects []*ProjectBase
 	// Cache control header
 	CacheControl *string
 }
@@ -155,11 +198,11 @@ type NotFoundError struct {
 	Message string
 }
 
-// Project is the result type of the project-service service create-project
+// ProjectBase is the result type of the project-service service create-project
 // method.
-type Project struct {
-	// Project ID -- v2 id, not related to v1 id directly
-	ID *string
+type ProjectBase struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
 	// Project slug, a short slugified name of the project
 	Slug *string
 	// A description of the project
@@ -170,10 +213,39 @@ type Project struct {
 	Public *bool
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string
-	// A list of project auditors by their user IDs
-	Auditors []string
+	// The stage of the project
+	Stage *string
+	// The category of the project
+	Category *string
+	// A list of funding models for the project
+	FundingModel []string
+	// The URL of the project charter document
+	CharterURL *string
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool
+	// The date the project was formed
+	FormationDate *string
+	// The date the project was announced
+	AnnouncementDate *string
+}
+
+// ProjectSettings is the result type of the project-service service
+// update-project-settings method.
+type ProjectSettings struct {
+	// The date and time the project was created
+	CreatedAt *string
+	// The date and time the project was last updated
+	UpdatedAt *string
+	// The mission statement of the project
+	MissionStatement *string
 	// A list of project writers by their user IDs
 	Writers []string
+	// A list of project auditors by their user IDs
+	Auditors []string
 }
 
 type ServiceUnavailableError struct {
@@ -183,17 +255,17 @@ type ServiceUnavailableError struct {
 	Message string
 }
 
-// UpdateProjectPayload is the payload type of the project-service service
-// update-project method.
-type UpdateProjectPayload struct {
+// UpdateProjectBasePayload is the payload type of the project-service service
+// update-project-base method.
+type UpdateProjectBasePayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
 	// ETag header value
 	Etag *string
 	// Version of the API
 	Version *string
-	// Project ID -- v2 id, not related to v1 id directly
-	ID *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
 	// Project slug, a short slugified name of the project
 	Slug string
 	// A description of the project
@@ -204,10 +276,43 @@ type UpdateProjectPayload struct {
 	Public *bool
 	// The UID of the parent project, should be empty if there is none
 	ParentUID *string
-	// A list of project auditors by their user IDs
-	Auditors []string
+	// The stage of the project
+	Stage *string
+	// The category of the project
+	Category *string
+	// A list of funding models for the project
+	FundingModel []string
+	// The URL of the project charter document
+	CharterURL *string
+	// The date the project entity was dissolved
+	EntityDissolutionDate *string
+	// The URL of the project entity formation document
+	EntityFormationDocumentURL *string
+	// Whether autojoin is enabled for the project
+	AutojoinEnabled *bool
+	// The date the project was formed
+	FormationDate *string
+	// The date the project was announced
+	AnnouncementDate *string
+}
+
+// UpdateProjectSettingsPayload is the payload type of the project-service
+// service update-project-settings method.
+type UpdateProjectSettingsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// ETag header value
+	Etag *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
+	// The mission statement of the project
+	MissionStatement *string
 	// A list of project writers by their user IDs
 	Writers []string
+	// A list of project auditors by their user IDs
+	Auditors []string
 }
 
 // Error returns an error description.

@@ -132,7 +132,7 @@ func EncodeGetProjectsError(encoder func(context.Context, http.ResponseWriter) g
 // project-service create-project endpoint.
 func EncodeCreateProjectResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*projectservice.Project)
+		res, _ := v.(*projectservice.ProjectBase)
 		enc := encoder(ctx, w)
 		body := NewCreateProjectResponseBody(res)
 		w.WriteHeader(http.StatusCreated)
@@ -265,13 +265,13 @@ func EncodeCreateProjectError(encoder func(context.Context, http.ResponseWriter)
 	}
 }
 
-// EncodeGetOneProjectResponse returns an encoder for responses returned by the
-// project-service get-one-project endpoint.
-func EncodeGetOneProjectResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+// EncodeGetOneProjectBaseResponse returns an encoder for responses returned by
+// the project-service get-one-project-base endpoint.
+func EncodeGetOneProjectBaseResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*projectservice.GetOneProjectResult)
+		res, _ := v.(*projectservice.GetOneProjectBaseResult)
 		enc := encoder(ctx, w)
-		body := NewGetOneProjectResponseBody(res)
+		body := NewGetOneProjectBaseResponseBody(res)
 		if res.Etag != nil {
 			w.Header().Set("Etag", *res.Etag)
 		}
@@ -280,20 +280,20 @@ func EncodeGetOneProjectResponse(encoder func(context.Context, http.ResponseWrit
 	}
 }
 
-// DecodeGetOneProjectRequest returns a decoder for requests sent to the
-// project-service get-one-project endpoint.
-func DecodeGetOneProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
+// DecodeGetOneProjectBaseRequest returns a decoder for requests sent to the
+// project-service get-one-project-base endpoint.
+func DecodeGetOneProjectBaseRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
 	return func(r *http.Request) (any, error) {
 		var (
-			id          string
+			uid         string
 			version     *string
 			bearerToken *string
 			err         error
 
 			params = mux.Vars(r)
 		)
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -310,7 +310,7 @@ func DecodeGetOneProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewGetOneProjectPayload(id, version, bearerToken)
+		payload := NewGetOneProjectBasePayload(uid, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -323,9 +323,9 @@ func DecodeGetOneProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 	}
 }
 
-// EncodeGetOneProjectError returns an encoder for errors returned by the
-// get-one-project project-service endpoint.
-func EncodeGetOneProjectError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+// EncodeGetOneProjectBaseError returns an encoder for errors returned by the
+// get-one-project-base project-service endpoint.
+func EncodeGetOneProjectBaseError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en goa.GoaErrorNamer
@@ -341,7 +341,7 @@ func EncodeGetOneProjectError(encoder func(context.Context, http.ResponseWriter)
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewGetOneProjectInternalServerErrorResponseBody(res)
+				body = NewGetOneProjectBaseInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -354,7 +354,7 @@ func EncodeGetOneProjectError(encoder func(context.Context, http.ResponseWriter)
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewGetOneProjectNotFoundResponseBody(res)
+				body = NewGetOneProjectBaseNotFoundResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
@@ -367,7 +367,7 @@ func EncodeGetOneProjectError(encoder func(context.Context, http.ResponseWriter)
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewGetOneProjectServiceUnavailableResponseBody(res)
+				body = NewGetOneProjectBaseServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -378,24 +378,137 @@ func EncodeGetOneProjectError(encoder func(context.Context, http.ResponseWriter)
 	}
 }
 
-// EncodeUpdateProjectResponse returns an encoder for responses returned by the
-// project-service update-project endpoint.
-func EncodeUpdateProjectResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+// EncodeGetOneProjectSettingsResponse returns an encoder for responses
+// returned by the project-service get-one-project-settings endpoint.
+func EncodeGetOneProjectSettingsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*projectservice.Project)
+		res, _ := v.(*projectservice.GetOneProjectSettingsResult)
 		enc := encoder(ctx, w)
-		body := NewUpdateProjectResponseBody(res)
+		body := NewGetOneProjectSettingsResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
 }
 
-// DecodeUpdateProjectRequest returns a decoder for requests sent to the
-// project-service update-project endpoint.
-func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
+// DecodeGetOneProjectSettingsRequest returns a decoder for requests sent to
+// the project-service get-one-project-settings endpoint.
+func DecodeGetOneProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
 	return func(r *http.Request) (any, error) {
 		var (
-			body UpdateProjectRequestBody
+			uid         string
+			version     *string
+			bearerToken *string
+			err         error
+
+			params = mux.Vars(r)
+		)
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		versionRaw := r.URL.Query().Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewGetOneProjectSettingsPayload(uid, version, bearerToken)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeGetOneProjectSettingsError returns an encoder for errors returned by
+// the get-one-project-settings project-service endpoint.
+func EncodeGetOneProjectSettingsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "InternalServerError":
+			var res *projectservice.InternalServerError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetOneProjectSettingsInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "NotFound":
+			var res *projectservice.NotFoundError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetOneProjectSettingsNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *projectservice.ServiceUnavailableError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetOneProjectSettingsServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeUpdateProjectBaseResponse returns an encoder for responses returned by
+// the project-service update-project-base endpoint.
+func EncodeUpdateProjectBaseResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*projectservice.ProjectBase)
+		enc := encoder(ctx, w)
+		body := NewUpdateProjectBaseResponseBody(res)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeUpdateProjectBaseRequest returns a decoder for requests sent to the
+// project-service update-project-base endpoint.
+func DecodeUpdateProjectBaseRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			body UpdateProjectBaseRequestBody
 			err  error
 		)
 		err = decoder(r).Decode(&body)
@@ -409,21 +522,21 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 			}
 			return nil, goa.DecodePayloadError(err.Error())
 		}
-		err = ValidateUpdateProjectRequestBody(&body)
+		err = ValidateUpdateProjectBaseRequestBody(&body)
 		if err != nil {
 			return nil, err
 		}
 
 		var (
-			id          string
+			uid         string
 			version     *string
 			bearerToken *string
 			etag        *string
 
 			params = mux.Vars(r)
 		)
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -444,7 +557,7 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewUpdateProjectPayload(&body, id, version, bearerToken, etag)
+		payload := NewUpdateProjectBasePayload(&body, uid, version, bearerToken, etag)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -457,9 +570,9 @@ func DecodeUpdateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 	}
 }
 
-// EncodeUpdateProjectError returns an encoder for errors returned by the
-// update-project project-service endpoint.
-func EncodeUpdateProjectError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+// EncodeUpdateProjectBaseError returns an encoder for errors returned by the
+// update-project-base project-service endpoint.
+func EncodeUpdateProjectBaseError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en goa.GoaErrorNamer
@@ -475,7 +588,7 @@ func EncodeUpdateProjectError(encoder func(context.Context, http.ResponseWriter)
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateProjectBadRequestResponseBody(res)
+				body = NewUpdateProjectBaseBadRequestResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
@@ -488,7 +601,7 @@ func EncodeUpdateProjectError(encoder func(context.Context, http.ResponseWriter)
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateProjectInternalServerErrorResponseBody(res)
+				body = NewUpdateProjectBaseInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -501,7 +614,7 @@ func EncodeUpdateProjectError(encoder func(context.Context, http.ResponseWriter)
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateProjectNotFoundResponseBody(res)
+				body = NewUpdateProjectBaseNotFoundResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
@@ -514,7 +627,150 @@ func EncodeUpdateProjectError(encoder func(context.Context, http.ResponseWriter)
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateProjectServiceUnavailableResponseBody(res)
+				body = NewUpdateProjectBaseServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeUpdateProjectSettingsResponse returns an encoder for responses
+// returned by the project-service update-project-settings endpoint.
+func EncodeUpdateProjectSettingsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*projectservice.ProjectSettings)
+		enc := encoder(ctx, w)
+		body := NewUpdateProjectSettingsResponseBody(res)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeUpdateProjectSettingsRequest returns a decoder for requests sent to
+// the project-service update-project-settings endpoint.
+func DecodeUpdateProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
+	return func(r *http.Request) (any, error) {
+		var (
+			body UpdateProjectSettingsRequestBody
+			err  error
+		)
+		err = decoder(r).Decode(&body)
+		if err != nil {
+			if err == io.EOF {
+				return nil, goa.MissingPayloadError()
+			}
+			var gerr *goa.ServiceError
+			if errors.As(err, &gerr) {
+				return nil, gerr
+			}
+			return nil, goa.DecodePayloadError(err.Error())
+		}
+
+		var (
+			uid         string
+			version     *string
+			bearerToken *string
+			etag        *string
+
+			params = mux.Vars(r)
+		)
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		versionRaw := r.URL.Query().Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		etagRaw := r.Header.Get("ETag")
+		if etagRaw != "" {
+			etag = &etagRaw
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewUpdateProjectSettingsPayload(&body, uid, version, bearerToken, etag)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeUpdateProjectSettingsError returns an encoder for errors returned by
+// the update-project-settings project-service endpoint.
+func EncodeUpdateProjectSettingsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "BadRequest":
+			var res *projectservice.BadRequestError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateProjectSettingsBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "InternalServerError":
+			var res *projectservice.InternalServerError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateProjectSettingsInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "NotFound":
+			var res *projectservice.NotFoundError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateProjectSettingsNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *projectservice.ServiceUnavailableError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateProjectSettingsServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -539,7 +795,7 @@ func EncodeDeleteProjectResponse(encoder func(context.Context, http.ResponseWrit
 func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (any, error) {
 	return func(r *http.Request) (any, error) {
 		var (
-			id          string
+			uid         string
 			version     *string
 			bearerToken *string
 			etag        *string
@@ -547,8 +803,8 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 
 			params = mux.Vars(r)
 		)
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -569,7 +825,7 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewDeleteProjectPayload(id, version, bearerToken, etag)
+		payload := NewDeleteProjectPayload(uid, version, bearerToken, etag)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -705,27 +961,30 @@ func EncodeLivezResponse(encoder func(context.Context, http.ResponseWriter) goah
 	}
 }
 
-// marshalProjectserviceProjectToProjectResponseBody builds a value of type
-// *ProjectResponseBody from a value of type *projectservice.Project.
-func marshalProjectserviceProjectToProjectResponseBody(v *projectservice.Project) *ProjectResponseBody {
-	res := &ProjectResponseBody{
-		ID:          v.ID,
-		Slug:        v.Slug,
-		Description: v.Description,
-		Name:        v.Name,
-		Public:      v.Public,
-		ParentUID:   v.ParentUID,
+// marshalProjectserviceProjectBaseToProjectBaseResponseBody builds a value of
+// type *ProjectBaseResponseBody from a value of type
+// *projectservice.ProjectBase.
+func marshalProjectserviceProjectBaseToProjectBaseResponseBody(v *projectservice.ProjectBase) *ProjectBaseResponseBody {
+	res := &ProjectBaseResponseBody{
+		UID:                        v.UID,
+		Slug:                       v.Slug,
+		Description:                v.Description,
+		Name:                       v.Name,
+		Public:                     v.Public,
+		ParentUID:                  v.ParentUID,
+		Stage:                      v.Stage,
+		Category:                   v.Category,
+		CharterURL:                 v.CharterURL,
+		EntityDissolutionDate:      v.EntityDissolutionDate,
+		EntityFormationDocumentURL: v.EntityFormationDocumentURL,
+		AutojoinEnabled:            v.AutojoinEnabled,
+		FormationDate:              v.FormationDate,
+		AnnouncementDate:           v.AnnouncementDate,
 	}
-	if v.Auditors != nil {
-		res.Auditors = make([]string, len(v.Auditors))
-		for i, val := range v.Auditors {
-			res.Auditors[i] = val
-		}
-	}
-	if v.Writers != nil {
-		res.Writers = make([]string, len(v.Writers))
-		for i, val := range v.Writers {
-			res.Writers[i] = val
+	if v.FundingModel != nil {
+		res.FundingModel = make([]string, len(v.FundingModel))
+		for i, val := range v.FundingModel {
+			res.FundingModel[i] = val
 		}
 	}
 

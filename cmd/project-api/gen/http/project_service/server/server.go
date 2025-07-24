@@ -20,15 +20,17 @@ import (
 
 // Server lists the project-service service endpoint HTTP handlers.
 type Server struct {
-	Mounts              []*MountPoint
-	GetProjects         http.Handler
-	CreateProject       http.Handler
-	GetOneProject       http.Handler
-	UpdateProject       http.Handler
-	DeleteProject       http.Handler
-	Readyz              http.Handler
-	Livez               http.Handler
-	GenHTTPOpenapi3JSON http.Handler
+	Mounts                []*MountPoint
+	GetProjects           http.Handler
+	CreateProject         http.Handler
+	GetOneProjectBase     http.Handler
+	GetOneProjectSettings http.Handler
+	UpdateProjectBase     http.Handler
+	UpdateProjectSettings http.Handler
+	DeleteProject         http.Handler
+	Readyz                http.Handler
+	Livez                 http.Handler
+	GenHTTPOpenapi3JSON   http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -65,21 +67,25 @@ func New(
 		Mounts: []*MountPoint{
 			{"GetProjects", "GET", "/projects"},
 			{"CreateProject", "POST", "/projects"},
-			{"GetOneProject", "GET", "/projects/{id}"},
-			{"UpdateProject", "PUT", "/projects/{id}"},
-			{"DeleteProject", "DELETE", "/projects/{id}"},
+			{"GetOneProjectBase", "GET", "/projects/{uid}"},
+			{"GetOneProjectSettings", "GET", "/projects/{uid}"},
+			{"UpdateProjectBase", "PUT", "/projects/{uid}"},
+			{"UpdateProjectSettings", "PUT", "/projects/{uid}"},
+			{"DeleteProject", "DELETE", "/projects/{uid}"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"Serve gen/http/openapi3.json", "GET", "/openapi.json"},
 		},
-		GetProjects:         NewGetProjectsHandler(e.GetProjects, mux, decoder, encoder, errhandler, formatter),
-		CreateProject:       NewCreateProjectHandler(e.CreateProject, mux, decoder, encoder, errhandler, formatter),
-		GetOneProject:       NewGetOneProjectHandler(e.GetOneProject, mux, decoder, encoder, errhandler, formatter),
-		UpdateProject:       NewUpdateProjectHandler(e.UpdateProject, mux, decoder, encoder, errhandler, formatter),
-		DeleteProject:       NewDeleteProjectHandler(e.DeleteProject, mux, decoder, encoder, errhandler, formatter),
-		Readyz:              NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
-		Livez:               NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
-		GenHTTPOpenapi3JSON: http.FileServer(fileSystemGenHTTPOpenapi3JSON),
+		GetProjects:           NewGetProjectsHandler(e.GetProjects, mux, decoder, encoder, errhandler, formatter),
+		CreateProject:         NewCreateProjectHandler(e.CreateProject, mux, decoder, encoder, errhandler, formatter),
+		GetOneProjectBase:     NewGetOneProjectBaseHandler(e.GetOneProjectBase, mux, decoder, encoder, errhandler, formatter),
+		GetOneProjectSettings: NewGetOneProjectSettingsHandler(e.GetOneProjectSettings, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectBase:     NewUpdateProjectBaseHandler(e.UpdateProjectBase, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectSettings: NewUpdateProjectSettingsHandler(e.UpdateProjectSettings, mux, decoder, encoder, errhandler, formatter),
+		DeleteProject:         NewDeleteProjectHandler(e.DeleteProject, mux, decoder, encoder, errhandler, formatter),
+		Readyz:                NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
+		Livez:                 NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
+		GenHTTPOpenapi3JSON:   http.FileServer(fileSystemGenHTTPOpenapi3JSON),
 	}
 }
 
@@ -90,8 +96,10 @@ func (s *Server) Service() string { return "project-service" }
 func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.GetProjects = m(s.GetProjects)
 	s.CreateProject = m(s.CreateProject)
-	s.GetOneProject = m(s.GetOneProject)
-	s.UpdateProject = m(s.UpdateProject)
+	s.GetOneProjectBase = m(s.GetOneProjectBase)
+	s.GetOneProjectSettings = m(s.GetOneProjectSettings)
+	s.UpdateProjectBase = m(s.UpdateProjectBase)
+	s.UpdateProjectSettings = m(s.UpdateProjectSettings)
 	s.DeleteProject = m(s.DeleteProject)
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
@@ -104,8 +112,10 @@ func (s *Server) MethodNames() []string { return projectservice.MethodNames[:] }
 func Mount(mux goahttp.Muxer, h *Server) {
 	MountGetProjectsHandler(mux, h.GetProjects)
 	MountCreateProjectHandler(mux, h.CreateProject)
-	MountGetOneProjectHandler(mux, h.GetOneProject)
-	MountUpdateProjectHandler(mux, h.UpdateProject)
+	MountGetOneProjectBaseHandler(mux, h.GetOneProjectBase)
+	MountGetOneProjectSettingsHandler(mux, h.GetOneProjectSettings)
+	MountUpdateProjectBaseHandler(mux, h.UpdateProjectBase)
+	MountUpdateProjectSettingsHandler(mux, h.UpdateProjectSettings)
 	MountDeleteProjectHandler(mux, h.DeleteProject)
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
@@ -219,21 +229,22 @@ func NewCreateProjectHandler(
 	})
 }
 
-// MountGetOneProjectHandler configures the mux to serve the "project-service"
-// service "get-one-project" endpoint.
-func MountGetOneProjectHandler(mux goahttp.Muxer, h http.Handler) {
+// MountGetOneProjectBaseHandler configures the mux to serve the
+// "project-service" service "get-one-project-base" endpoint.
+func MountGetOneProjectBaseHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{id}", f)
+	mux.Handle("GET", "/projects/{uid}", f)
 }
 
-// NewGetOneProjectHandler creates a HTTP handler which loads the HTTP request
-// and calls the "project-service" service "get-one-project" endpoint.
-func NewGetOneProjectHandler(
+// NewGetOneProjectBaseHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "get-one-project-base"
+// endpoint.
+func NewGetOneProjectBaseHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -242,13 +253,13 @@ func NewGetOneProjectHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeGetOneProjectRequest(mux, decoder)
-		encodeResponse = EncodeGetOneProjectResponse(encoder)
-		encodeError    = EncodeGetOneProjectError(encoder, formatter)
+		decodeRequest  = DecodeGetOneProjectBaseRequest(mux, decoder)
+		encodeResponse = EncodeGetOneProjectBaseResponse(encoder)
+		encodeError    = EncodeGetOneProjectBaseError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "get-one-project")
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-one-project-base")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -270,21 +281,22 @@ func NewGetOneProjectHandler(
 	})
 }
 
-// MountUpdateProjectHandler configures the mux to serve the "project-service"
-// service "update-project" endpoint.
-func MountUpdateProjectHandler(mux goahttp.Muxer, h http.Handler) {
+// MountGetOneProjectSettingsHandler configures the mux to serve the
+// "project-service" service "get-one-project-settings" endpoint.
+func MountGetOneProjectSettingsHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("PUT", "/projects/{id}", f)
+	mux.Handle("GET", "/projects/{uid}", f)
 }
 
-// NewUpdateProjectHandler creates a HTTP handler which loads the HTTP request
-// and calls the "project-service" service "update-project" endpoint.
-func NewUpdateProjectHandler(
+// NewGetOneProjectSettingsHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "get-one-project-settings"
+// endpoint.
+func NewGetOneProjectSettingsHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -293,13 +305,117 @@ func NewUpdateProjectHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeUpdateProjectRequest(mux, decoder)
-		encodeResponse = EncodeUpdateProjectResponse(encoder)
-		encodeError    = EncodeUpdateProjectError(encoder, formatter)
+		decodeRequest  = DecodeGetOneProjectSettingsRequest(mux, decoder)
+		encodeResponse = EncodeGetOneProjectSettingsResponse(encoder)
+		encodeError    = EncodeGetOneProjectSettingsError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "update-project")
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-one-project-settings")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			errhandler(ctx, w, err)
+		}
+	})
+}
+
+// MountUpdateProjectBaseHandler configures the mux to serve the
+// "project-service" service "update-project-base" endpoint.
+func MountUpdateProjectBaseHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("PUT", "/projects/{uid}", f)
+}
+
+// NewUpdateProjectBaseHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "update-project-base"
+// endpoint.
+func NewUpdateProjectBaseHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeUpdateProjectBaseRequest(mux, decoder)
+		encodeResponse = EncodeUpdateProjectBaseResponse(encoder)
+		encodeError    = EncodeUpdateProjectBaseError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-project-base")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			errhandler(ctx, w, err)
+		}
+	})
+}
+
+// MountUpdateProjectSettingsHandler configures the mux to serve the
+// "project-service" service "update-project-settings" endpoint.
+func MountUpdateProjectSettingsHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("PUT", "/projects/{uid}", f)
+}
+
+// NewUpdateProjectSettingsHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "update-project-settings"
+// endpoint.
+func NewUpdateProjectSettingsHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeUpdateProjectSettingsRequest(mux, decoder)
+		encodeResponse = EncodeUpdateProjectSettingsResponse(encoder)
+		encodeError    = EncodeUpdateProjectSettingsError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-project-settings")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -330,7 +446,7 @@ func MountDeleteProjectHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("DELETE", "/projects/{id}", f)
+	mux.Handle("DELETE", "/projects/{uid}", f)
 }
 
 // NewDeleteProjectHandler creates a HTTP handler which loads the HTTP request

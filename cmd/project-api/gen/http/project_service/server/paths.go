@@ -22,19 +22,29 @@ func CreateProjectProjectServicePath() string {
 	return "/projects"
 }
 
-// GetOneProjectProjectServicePath returns the URL path to the project-service service get-one-project HTTP endpoint.
-func GetOneProjectProjectServicePath(id string) string {
-	return fmt.Sprintf("/projects/%v", id)
+// GetOneProjectBaseProjectServicePath returns the URL path to the project-service service get-one-project-base HTTP endpoint.
+func GetOneProjectBaseProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v", uid)
 }
 
-// UpdateProjectProjectServicePath returns the URL path to the project-service service update-project HTTP endpoint.
-func UpdateProjectProjectServicePath(id string) string {
-	return fmt.Sprintf("/projects/%v", id)
+// GetOneProjectSettingsProjectServicePath returns the URL path to the project-service service get-one-project-settings HTTP endpoint.
+func GetOneProjectSettingsProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v", uid)
+}
+
+// UpdateProjectBaseProjectServicePath returns the URL path to the project-service service update-project-base HTTP endpoint.
+func UpdateProjectBaseProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v", uid)
+}
+
+// UpdateProjectSettingsProjectServicePath returns the URL path to the project-service service update-project-settings HTTP endpoint.
+func UpdateProjectSettingsProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v", uid)
 }
 
 // DeleteProjectProjectServicePath returns the URL path to the project-service service delete-project HTTP endpoint.
-func DeleteProjectProjectServicePath(id string) string {
-	return fmt.Sprintf("/projects/%v", id)
+func DeleteProjectProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v", uid)
 }
 
 // ReadyzProjectServicePath returns the URL path to the project-service service readyz HTTP endpoint.

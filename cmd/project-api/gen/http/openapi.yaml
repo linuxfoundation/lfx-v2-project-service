@@ -130,7 +130,7 @@ paths:
                 "201":
                     description: Created response.
                     schema:
-                        $ref: '#/definitions/Project'
+                        $ref: '#/definitions/ProjectBase'
                 "400":
                     description: Bad Request response.
                     schema:
@@ -163,13 +163,13 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
-    /projects/{id}:
+    /projects/{uid}:
         get:
             tags:
                 - project-service
-            summary: get-one-project project-service
-            description: Get a single project.
-            operationId: project-service#get-one-project
+            summary: get-one-project-settings project-service
+            description: Get a single project's settings.
+            operationId: project-service#get-one-project-settings
             parameters:
                 - name: v
                   in: query
@@ -178,9 +178,9 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: id
+                - name: uid
                   in: path
-                  description: Project ID -- v2 id, not related to v1 id directly
+                  description: Project UID -- v2 uid, not related to v1 id directly
                   required: true
                   type: string
                   format: uuid
@@ -193,7 +193,7 @@ paths:
                 "200":
                     description: OK response.
                     schema:
-                        $ref: '#/definitions/ProjectServiceGetOneProjectResponseBody'
+                        $ref: '#/definitions/ProjectServiceGetOneProjectSettingsResponseBody'
                     headers:
                         ETag:
                             description: ETag header value
@@ -226,9 +226,9 @@ paths:
         put:
             tags:
                 - project-service
-            summary: update-project project-service
-            description: Update an existing project.
-            operationId: project-service#update-project
+            summary: update-project-settings project-service
+            description: Update an existing project's settings.
+            operationId: project-service#update-project-settings
             parameters:
                 - name: v
                   in: query
@@ -237,9 +237,9 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: id
+                - name: uid
                   in: path
-                  description: Project ID -- v2 id, not related to v1 id directly
+                  description: Project UID -- v2 uid, not related to v1 id directly
                   required: true
                   type: string
                   format: uuid
@@ -253,20 +253,16 @@ paths:
                   description: ETag header value
                   required: false
                   type: string
-                - name: Update-ProjectRequestBody
+                - name: Update-Project-SettingsRequestBody
                   in: body
                   required: true
                   schema:
-                    $ref: '#/definitions/ProjectServiceUpdateProjectRequestBody'
-                    required:
-                        - slug
-                        - description
-                        - name
+                    $ref: '#/definitions/ProjectServiceUpdateProjectSettingsRequestBody'
             responses:
                 "200":
                     description: OK response.
                     schema:
-                        $ref: '#/definitions/Project'
+                        $ref: '#/definitions/ProjectSettings'
                 "400":
                     description: Bad Request response.
                     schema:
@@ -313,9 +309,9 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: id
+                - name: uid
                   in: path
-                  description: Project ID -- v2 id, not related to v1 id directly
+                  description: Project UID -- v2 uid, not related to v1 id directly
                   required: true
                   type: string
                   format: uuid
@@ -465,10 +461,144 @@ definitions:
         required:
             - code
             - message
-    Project:
-        title: Project
+    ProjectBase:
+        title: ProjectBase
         type: object
         properties:
+            announcement_date:
+                type: string
+                description: The date the project was announced
+                example: "2021-01-01"
+                format: date
+            autojoin_enabled:
+                type: boolean
+                description: Whether autojoin is enabled for the project
+                example: false
+            category:
+                type: string
+                description: The category of the project
+                example: Active
+                enum:
+                    - Active
+                    - Adopted
+                    - Archived
+                    - At-Large
+                    - Early Adoption
+                    - Emeritus
+                    - Graduated
+                    - Growth
+                    - Idle
+                    - Impact
+                    - Incubating
+                    - Kanister
+                    - Mature
+                    - Pre-LFESS
+                    - Sandbox
+                    - SIG
+                    - Standards
+                    - TAC
+                    - Working Group
+                    - TAG
+                    - NONE
+            charter_url:
+                type: string
+                description: The URL of the project charter document
+                example: https://example.com/charter.pdf
+                format: uri
+            description:
+                type: string
+                description: A description of the project
+                example: project foo is a project about bar
+            entity_dissolution_date:
+                type: string
+                description: The date the project entity was dissolved
+                example: "2021-12-31"
+                format: date
+            entity_formation_document_url:
+                type: string
+                description: The URL of the project entity formation document
+                example: https://example.com/formation.pdf
+                format: uri
+            formation_date:
+                type: string
+                description: The date the project was formed
+                example: "2021-01-01"
+                format: date
+            funding_model:
+                type: array
+                items:
+                    type: string
+                    example: Membership
+                    enum:
+                        - Crowdfunding
+                        - Membership
+                        - Alternate Funding
+                description: A list of funding models for the project
+                example:
+                    - Crowdfunding
+            name:
+                type: string
+                description: The pretty name of the project
+                example: Foo Foundation
+            parent_uid:
+                type: string
+                description: The UID of the parent project, should be empty if there is none
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public:
+                type: boolean
+                description: Whether the project is public
+                example: true
+            slug:
+                type: string
+                description: Project slug, a short slugified name of the project
+                example: project-slug
+                format: regexp
+                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+            stage:
+                type: string
+                description: The stage of the project
+                example: Formation - Exploratory
+                enum:
+                    - Formation - Exploratory
+                    - Formation - Engaged
+                    - Active
+                    - Archived
+                    - Formation - On Hold
+                    - Formation - Disengaged
+                    - Formation - Confidential
+                    - Prospect
+            uid:
+                type: string
+                description: Project UID -- v2 uid, not related to v1 id directly
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+        description: A base representation of LF Projects without sub-objects.
+        example:
+            announcement_date: "2021-01-01"
+            autojoin_enabled: false
+            category: Active
+            charter_url: https://example.com/charter.pdf
+            description: project foo is a project about bar
+            entity_dissolution_date: "2021-12-31"
+            entity_formation_document_url: https://example.com/formation.pdf
+            formation_date: "2021-01-01"
+            funding_model:
+                - Crowdfunding
+            name: Foo Foundation
+            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public: true
+            slug: project-slug
+            stage: Formation - Exploratory
+            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+    ProjectServiceCreateProjectRequestBody:
+        title: ProjectServiceCreateProjectRequestBody
+        type: object
+        properties:
+            announcement_date:
+                type: string
+                description: The date the project was announced
+                example: "2021-01-01"
+                format: date
             auditors:
                 type: array
                 items:
@@ -478,15 +608,76 @@ definitions:
                 example:
                     - user123
                     - user456
+            autojoin_enabled:
+                type: boolean
+                description: Whether autojoin is enabled for the project
+                example: false
+            category:
+                type: string
+                description: The category of the project
+                example: Active
+                enum:
+                    - Active
+                    - Adopted
+                    - Archived
+                    - At-Large
+                    - Early Adoption
+                    - Emeritus
+                    - Graduated
+                    - Growth
+                    - Idle
+                    - Impact
+                    - Incubating
+                    - Kanister
+                    - Mature
+                    - Pre-LFESS
+                    - Sandbox
+                    - SIG
+                    - Standards
+                    - TAC
+                    - Working Group
+                    - TAG
+                    - NONE
+            charter_url:
+                type: string
+                description: The URL of the project charter document
+                example: https://example.com/charter.pdf
+                format: uri
             description:
                 type: string
                 description: A description of the project
                 example: project foo is a project about bar
-            id:
+            entity_dissolution_date:
                 type: string
-                description: Project ID -- v2 id, not related to v1 id directly
-                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                format: uuid
+                description: The date the project entity was dissolved
+                example: "2021-12-31"
+                format: date
+            entity_formation_document_url:
+                type: string
+                description: The URL of the project entity formation document
+                example: https://example.com/formation.pdf
+                format: uri
+            formation_date:
+                type: string
+                description: The date the project was formed
+                example: "2021-01-01"
+                format: date
+            funding_model:
+                type: array
+                items:
+                    type: string
+                    example: Membership
+                    enum:
+                        - Crowdfunding
+                        - Membership
+                        - Alternate Funding
+                description: A list of funding models for the project
+                example:
+                    - Crowdfunding
+            mission_statement:
+                type: string
+                description: The mission statement of the project
+                example: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
             name:
                 type: string
                 description: The pretty name of the project
@@ -505,6 +696,390 @@ definitions:
                 example: project-slug
                 format: regexp
                 pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+            stage:
+                type: string
+                description: The stage of the project
+                example: Formation - Exploratory
+                enum:
+                    - Formation - Exploratory
+                    - Formation - Engaged
+                    - Active
+                    - Archived
+                    - Formation - On Hold
+                    - Formation - Disengaged
+                    - Formation - Confidential
+                    - Prospect
+            writers:
+                type: array
+                items:
+                    type: string
+                    example: Vitae qui quis consequatur et qui.
+                description: A list of project writers by their user IDs
+                example:
+                    - user123
+                    - user456
+        example:
+            announcement_date: "2021-01-01"
+            auditors:
+                - user123
+                - user456
+            autojoin_enabled: false
+            category: Active
+            charter_url: https://example.com/charter.pdf
+            description: project foo is a project about bar
+            entity_dissolution_date: "2021-12-31"
+            entity_formation_document_url: https://example.com/formation.pdf
+            formation_date: "2021-01-01"
+            funding_model:
+                - Crowdfunding
+            mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            name: Foo Foundation
+            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public: true
+            slug: project-slug
+            stage: Formation - Exploratory
+            writers:
+                - user123
+                - user456
+        required:
+            - slug
+            - description
+            - name
+    ProjectServiceGetOneProjectBaseResponseBody:
+        title: ProjectServiceGetOneProjectBaseResponseBody
+        $ref: '#/definitions/ProjectBase'
+    ProjectServiceGetOneProjectSettingsResponseBody:
+        title: ProjectServiceGetOneProjectSettingsResponseBody
+        $ref: '#/definitions/ProjectSettings'
+    ProjectServiceGetProjectsResponseBody:
+        title: ProjectServiceGetProjectsResponseBody
+        type: object
+        properties:
+            projects:
+                type: array
+                items:
+                    $ref: '#/definitions/ProjectBase'
+                description: Resources found
+                example:
+                    - announcement_date: "2021-01-01"
+                      autojoin_enabled: false
+                      category: Active
+                      charter_url: https://example.com/charter.pdf
+                      description: project foo is a project about bar
+                      entity_dissolution_date: "2021-12-31"
+                      entity_formation_document_url: https://example.com/formation.pdf
+                      formation_date: "2021-01-01"
+                      funding_model:
+                        - Crowdfunding
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      stage: Formation - Exploratory
+                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    - announcement_date: "2021-01-01"
+                      autojoin_enabled: false
+                      category: Active
+                      charter_url: https://example.com/charter.pdf
+                      description: project foo is a project about bar
+                      entity_dissolution_date: "2021-12-31"
+                      entity_formation_document_url: https://example.com/formation.pdf
+                      formation_date: "2021-01-01"
+                      funding_model:
+                        - Crowdfunding
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      stage: Formation - Exploratory
+                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    - announcement_date: "2021-01-01"
+                      autojoin_enabled: false
+                      category: Active
+                      charter_url: https://example.com/charter.pdf
+                      description: project foo is a project about bar
+                      entity_dissolution_date: "2021-12-31"
+                      entity_formation_document_url: https://example.com/formation.pdf
+                      formation_date: "2021-01-01"
+                      funding_model:
+                        - Crowdfunding
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      stage: Formation - Exploratory
+                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    - announcement_date: "2021-01-01"
+                      autojoin_enabled: false
+                      category: Active
+                      charter_url: https://example.com/charter.pdf
+                      description: project foo is a project about bar
+                      entity_dissolution_date: "2021-12-31"
+                      entity_formation_document_url: https://example.com/formation.pdf
+                      formation_date: "2021-01-01"
+                      funding_model:
+                        - Crowdfunding
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      slug: project-slug
+                      stage: Formation - Exploratory
+                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+        example:
+            projects:
+                - announcement_date: "2021-01-01"
+                  autojoin_enabled: false
+                  category: Active
+                  charter_url: https://example.com/charter.pdf
+                  description: project foo is a project about bar
+                  entity_dissolution_date: "2021-12-31"
+                  entity_formation_document_url: https://example.com/formation.pdf
+                  formation_date: "2021-01-01"
+                  funding_model:
+                    - Crowdfunding
+                  name: Foo Foundation
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  public: true
+                  slug: project-slug
+                  stage: Formation - Exploratory
+                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - announcement_date: "2021-01-01"
+                  autojoin_enabled: false
+                  category: Active
+                  charter_url: https://example.com/charter.pdf
+                  description: project foo is a project about bar
+                  entity_dissolution_date: "2021-12-31"
+                  entity_formation_document_url: https://example.com/formation.pdf
+                  formation_date: "2021-01-01"
+                  funding_model:
+                    - Crowdfunding
+                  name: Foo Foundation
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  public: true
+                  slug: project-slug
+                  stage: Formation - Exploratory
+                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - announcement_date: "2021-01-01"
+                  autojoin_enabled: false
+                  category: Active
+                  charter_url: https://example.com/charter.pdf
+                  description: project foo is a project about bar
+                  entity_dissolution_date: "2021-12-31"
+                  entity_formation_document_url: https://example.com/formation.pdf
+                  formation_date: "2021-01-01"
+                  funding_model:
+                    - Crowdfunding
+                  name: Foo Foundation
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  public: true
+                  slug: project-slug
+                  stage: Formation - Exploratory
+                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - announcement_date: "2021-01-01"
+                  autojoin_enabled: false
+                  category: Active
+                  charter_url: https://example.com/charter.pdf
+                  description: project foo is a project about bar
+                  entity_dissolution_date: "2021-12-31"
+                  entity_formation_document_url: https://example.com/formation.pdf
+                  formation_date: "2021-01-01"
+                  funding_model:
+                    - Crowdfunding
+                  name: Foo Foundation
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  public: true
+                  slug: project-slug
+                  stage: Formation - Exploratory
+                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+        required:
+            - projects
+    ProjectServiceUpdateProjectBaseRequestBody:
+        title: ProjectServiceUpdateProjectBaseRequestBody
+        type: object
+        properties:
+            announcement_date:
+                type: string
+                description: The date the project was announced
+                example: "2021-01-01"
+                format: date
+            autojoin_enabled:
+                type: boolean
+                description: Whether autojoin is enabled for the project
+                example: false
+            category:
+                type: string
+                description: The category of the project
+                example: Active
+                enum:
+                    - Active
+                    - Adopted
+                    - Archived
+                    - At-Large
+                    - Early Adoption
+                    - Emeritus
+                    - Graduated
+                    - Growth
+                    - Idle
+                    - Impact
+                    - Incubating
+                    - Kanister
+                    - Mature
+                    - Pre-LFESS
+                    - Sandbox
+                    - SIG
+                    - Standards
+                    - TAC
+                    - Working Group
+                    - TAG
+                    - NONE
+            charter_url:
+                type: string
+                description: The URL of the project charter document
+                example: https://example.com/charter.pdf
+                format: uri
+            description:
+                type: string
+                description: A description of the project
+                example: project foo is a project about bar
+            entity_dissolution_date:
+                type: string
+                description: The date the project entity was dissolved
+                example: "2021-12-31"
+                format: date
+            entity_formation_document_url:
+                type: string
+                description: The URL of the project entity formation document
+                example: https://example.com/formation.pdf
+                format: uri
+            formation_date:
+                type: string
+                description: The date the project was formed
+                example: "2021-01-01"
+                format: date
+            funding_model:
+                type: array
+                items:
+                    type: string
+                    example: Membership
+                    enum:
+                        - Crowdfunding
+                        - Membership
+                        - Alternate Funding
+                description: A list of funding models for the project
+                example:
+                    - Crowdfunding
+            name:
+                type: string
+                description: The pretty name of the project
+                example: Foo Foundation
+            parent_uid:
+                type: string
+                description: The UID of the parent project, should be empty if there is none
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public:
+                type: boolean
+                description: Whether the project is public
+                example: true
+            slug:
+                type: string
+                description: Project slug, a short slugified name of the project
+                example: project-slug
+                format: regexp
+                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
+            stage:
+                type: string
+                description: The stage of the project
+                example: Formation - Exploratory
+                enum:
+                    - Formation - Exploratory
+                    - Formation - Engaged
+                    - Active
+                    - Archived
+                    - Formation - On Hold
+                    - Formation - Disengaged
+                    - Formation - Confidential
+                    - Prospect
+        example:
+            announcement_date: "2021-01-01"
+            autojoin_enabled: false
+            category: Active
+            charter_url: https://example.com/charter.pdf
+            description: project foo is a project about bar
+            entity_dissolution_date: "2021-12-31"
+            entity_formation_document_url: https://example.com/formation.pdf
+            formation_date: "2021-01-01"
+            funding_model:
+                - Crowdfunding
+            name: Foo Foundation
+            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            public: true
+            slug: project-slug
+            stage: Formation - Exploratory
+        required:
+            - slug
+            - description
+            - name
+    ProjectServiceUpdateProjectSettingsRequestBody:
+        title: ProjectServiceUpdateProjectSettingsRequestBody
+        type: object
+        properties:
+            auditors:
+                type: array
+                items:
+                    type: string
+                    example: Quo illo voluptatibus.
+                description: A list of project auditors by their user IDs
+                example:
+                    - user123
+                    - user456
+            mission_statement:
+                type: string
+                description: The mission statement of the project
+                example: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            writers:
+                type: array
+                items:
+                    type: string
+                    example: In cupiditate quod.
+                description: A list of project writers by their user IDs
+                example:
+                    - user123
+                    - user456
+        example:
+            auditors:
+                - user123
+                - user456
+            mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            writers:
+                - user123
+                - user456
+    ProjectSettings:
+        title: ProjectSettings
+        type: object
+        properties:
+            auditors:
+                type: array
+                items:
+                    type: string
+                    example: Minus incidunt quia aut vero consequatur qui.
+                description: A list of project auditors by their user IDs
+                example:
+                    - user123
+                    - user456
+            created_at:
+                type: string
+                description: The date and time the project was created
+                example: "2021-01-01T00:00:00Z"
+                format: date-time
+            mission_statement:
+                type: string
+                description: The mission statement of the project
+                example: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            updated_at:
+                type: string
+                description: The date and time the project was last updated
+                example: "2021-01-01T00:00:00Z"
+                format: date-time
             writers:
                 type: array
                 items:
@@ -514,229 +1089,17 @@ definitions:
                 example:
                     - user123
                     - user456
-        description: A representation of LFX Projects.
+        description: A representation of LF Project settings.
         example:
             auditors:
                 - user123
                 - user456
-            description: project foo is a project about bar
-            id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            name: Foo Foundation
-            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            public: true
-            slug: project-slug
+            created_at: "2021-01-01T00:00:00Z"
+            mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            updated_at: "2021-01-01T00:00:00Z"
             writers:
                 - user123
                 - user456
-    ProjectServiceCreateProjectRequestBody:
-        title: ProjectServiceCreateProjectRequestBody
-        type: object
-        properties:
-            auditors:
-                type: array
-                items:
-                    type: string
-                    example: Quia aut vero consequatur qui.
-                description: A list of project auditors by their user IDs
-                example:
-                    - user123
-                    - user456
-            description:
-                type: string
-                description: A description of the project
-                example: project foo is a project about bar
-            name:
-                type: string
-                description: The pretty name of the project
-                example: Foo Foundation
-            parent_uid:
-                type: string
-                description: The UID of the parent project, should be empty if there is none
-                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            public:
-                type: boolean
-                description: Whether the project is public
-                example: true
-            slug:
-                type: string
-                description: Project slug, a short slugified name of the project
-                example: project-slug
-                format: regexp
-                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
-            writers:
-                type: array
-                items:
-                    type: string
-                    example: Temporibus in cupiditate quod consequatur quo.
-                description: A list of project writers by their user IDs
-                example:
-                    - user123
-                    - user456
-        example:
-            auditors:
-                - user123
-                - user456
-            description: project foo is a project about bar
-            name: Foo Foundation
-            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            public: true
-            slug: project-slug
-            writers:
-                - user123
-                - user456
-        required:
-            - slug
-            - description
-            - name
-    ProjectServiceGetOneProjectResponseBody:
-        title: ProjectServiceGetOneProjectResponseBody
-        $ref: '#/definitions/Project'
-    ProjectServiceGetProjectsResponseBody:
-        title: ProjectServiceGetProjectsResponseBody
-        type: object
-        properties:
-            projects:
-                type: array
-                items:
-                    $ref: '#/definitions/Project'
-                description: Resources found
-                example:
-                    - auditors:
-                        - user123
-                        - user456
-                      description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      slug: project-slug
-                      writers:
-                        - user123
-                        - user456
-                    - auditors:
-                        - user123
-                        - user456
-                      description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      slug: project-slug
-                      writers:
-                        - user123
-                        - user456
-                    - auditors:
-                        - user123
-                        - user456
-                      description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      slug: project-slug
-                      writers:
-                        - user123
-                        - user456
-                    - auditors:
-                        - user123
-                        - user456
-                      description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      slug: project-slug
-                      writers:
-                        - user123
-                        - user456
-        example:
-            projects:
-                - auditors:
-                    - user123
-                    - user456
-                  description: project foo is a project about bar
-                  id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  name: Foo Foundation
-                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  public: true
-                  slug: project-slug
-                  writers:
-                    - user123
-                    - user456
-                - auditors:
-                    - user123
-                    - user456
-                  description: project foo is a project about bar
-                  id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  name: Foo Foundation
-                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  public: true
-                  slug: project-slug
-                  writers:
-                    - user123
-                    - user456
-        required:
-            - projects
-    ProjectServiceUpdateProjectRequestBody:
-        title: ProjectServiceUpdateProjectRequestBody
-        type: object
-        properties:
-            auditors:
-                type: array
-                items:
-                    type: string
-                    example: Voluptatibus dolores et.
-                description: A list of project auditors by their user IDs
-                example:
-                    - user123
-                    - user456
-            description:
-                type: string
-                description: A description of the project
-                example: project foo is a project about bar
-            name:
-                type: string
-                description: The pretty name of the project
-                example: Foo Foundation
-            parent_uid:
-                type: string
-                description: The UID of the parent project, should be empty if there is none
-                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            public:
-                type: boolean
-                description: Whether the project is public
-                example: true
-            slug:
-                type: string
-                description: Project slug, a short slugified name of the project
-                example: project-slug
-                format: regexp
-                pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
-            writers:
-                type: array
-                items:
-                    type: string
-                    example: Eum ipsam.
-                description: A list of project writers by their user IDs
-                example:
-                    - user123
-                    - user456
-        example:
-            auditors:
-                - user123
-                - user456
-            description: project foo is a project about bar
-            name: Foo Foundation
-            parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            public: true
-            slug: project-slug
-            writers:
-                - user123
-                - user456
-        required:
-            - slug
-            - description
-            - name
     ServiceUnavailableError:
         title: ServiceUnavailableError
         type: object

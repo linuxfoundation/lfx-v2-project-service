@@ -235,7 +235,7 @@ func DecodeCreateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			if err != nil {
 				return nil, goahttp.ErrValidationError("project-service", "create-project", err)
 			}
-			res := NewCreateProjectProjectCreated(&body)
+			res := NewCreateProjectProjectBaseCreated(&body)
 			return res, nil
 		case http.StatusBadRequest:
 			var (
@@ -300,25 +300,26 @@ func DecodeCreateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 	}
 }
 
-// BuildGetOneProjectRequest instantiates a HTTP request object with method and
-// path set to call the "project-service" service "get-one-project" endpoint
-func (c *Client) BuildGetOneProjectRequest(ctx context.Context, v any) (*http.Request, error) {
+// BuildGetOneProjectBaseRequest instantiates a HTTP request object with method
+// and path set to call the "project-service" service "get-one-project-base"
+// endpoint
+func (c *Client) BuildGetOneProjectBaseRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		id string
+		uid string
 	)
 	{
-		p, ok := v.(*projectservice.GetOneProjectPayload)
+		p, ok := v.(*projectservice.GetOneProjectBasePayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("project-service", "get-one-project", "*projectservice.GetOneProjectPayload", v)
+			return nil, goahttp.ErrInvalidType("project-service", "get-one-project-base", "*projectservice.GetOneProjectBasePayload", v)
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.UID != nil {
+			uid = *p.UID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetOneProjectProjectServicePath(id)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetOneProjectBaseProjectServicePath(uid)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("project-service", "get-one-project", u.String(), err)
+		return nil, goahttp.ErrInvalidURL("project-service", "get-one-project-base", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -327,13 +328,13 @@ func (c *Client) BuildGetOneProjectRequest(ctx context.Context, v any) (*http.Re
 	return req, nil
 }
 
-// EncodeGetOneProjectRequest returns an encoder for requests sent to the
-// project-service get-one-project server.
-func EncodeGetOneProjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+// EncodeGetOneProjectBaseRequest returns an encoder for requests sent to the
+// project-service get-one-project-base server.
+func EncodeGetOneProjectBaseRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
-		p, ok := v.(*projectservice.GetOneProjectPayload)
+		p, ok := v.(*projectservice.GetOneProjectBasePayload)
 		if !ok {
-			return goahttp.ErrInvalidType("project-service", "get-one-project", "*projectservice.GetOneProjectPayload", v)
+			return goahttp.ErrInvalidType("project-service", "get-one-project-base", "*projectservice.GetOneProjectBasePayload", v)
 		}
 		if p.BearerToken != nil {
 			head := *p.BearerToken
@@ -352,15 +353,15 @@ func EncodeGetOneProjectRequest(encoder func(*http.Request) goahttp.Encoder) fun
 	}
 }
 
-// DecodeGetOneProjectResponse returns a decoder for responses returned by the
-// project-service get-one-project endpoint. restoreBody controls whether the
-// response body should be restored after having been read.
-// DecodeGetOneProjectResponse may return the following errors:
+// DecodeGetOneProjectBaseResponse returns a decoder for responses returned by
+// the project-service get-one-project-base endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeGetOneProjectBaseResponse may return the following errors:
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
 //   - error: internal error
-func DecodeGetOneProjectResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeGetOneProjectBaseResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -377,16 +378,16 @@ func DecodeGetOneProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var (
-				body GetOneProjectResponseBody
+				body GetOneProjectBaseResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-base", err)
 			}
-			err = ValidateGetOneProjectResponseBody(&body)
+			err = ValidateGetOneProjectBaseResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-base", err)
 			}
 			var (
 				etag *string
@@ -395,76 +396,77 @@ func DecodeGetOneProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 			if etagRaw != "" {
 				etag = &etagRaw
 			}
-			res := NewGetOneProjectResultOK(&body, etag)
+			res := NewGetOneProjectBaseResultOK(&body, etag)
 			return res, nil
 		case http.StatusInternalServerError:
 			var (
-				body GetOneProjectInternalServerErrorResponseBody
+				body GetOneProjectBaseInternalServerErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-base", err)
 			}
-			err = ValidateGetOneProjectInternalServerErrorResponseBody(&body)
+			err = ValidateGetOneProjectBaseInternalServerErrorResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-base", err)
 			}
-			return nil, NewGetOneProjectInternalServerError(&body)
+			return nil, NewGetOneProjectBaseInternalServerError(&body)
 		case http.StatusNotFound:
 			var (
-				body GetOneProjectNotFoundResponseBody
+				body GetOneProjectBaseNotFoundResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-base", err)
 			}
-			err = ValidateGetOneProjectNotFoundResponseBody(&body)
+			err = ValidateGetOneProjectBaseNotFoundResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-base", err)
 			}
-			return nil, NewGetOneProjectNotFound(&body)
+			return nil, NewGetOneProjectBaseNotFound(&body)
 		case http.StatusServiceUnavailable:
 			var (
-				body GetOneProjectServiceUnavailableResponseBody
+				body GetOneProjectBaseServiceUnavailableResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-base", err)
 			}
-			err = ValidateGetOneProjectServiceUnavailableResponseBody(&body)
+			err = ValidateGetOneProjectBaseServiceUnavailableResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "get-one-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-base", err)
 			}
-			return nil, NewGetOneProjectServiceUnavailable(&body)
+			return nil, NewGetOneProjectBaseServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("project-service", "get-one-project", resp.StatusCode, string(body))
+			return nil, goahttp.ErrInvalidResponse("project-service", "get-one-project-base", resp.StatusCode, string(body))
 		}
 	}
 }
 
-// BuildUpdateProjectRequest instantiates a HTTP request object with method and
-// path set to call the "project-service" service "update-project" endpoint
-func (c *Client) BuildUpdateProjectRequest(ctx context.Context, v any) (*http.Request, error) {
+// BuildGetOneProjectSettingsRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "get-one-project-settings" endpoint
+func (c *Client) BuildGetOneProjectSettingsRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		id string
+		uid string
 	)
 	{
-		p, ok := v.(*projectservice.UpdateProjectPayload)
+		p, ok := v.(*projectservice.GetOneProjectSettingsPayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("project-service", "update-project", "*projectservice.UpdateProjectPayload", v)
+			return nil, goahttp.ErrInvalidType("project-service", "get-one-project-settings", "*projectservice.GetOneProjectSettingsPayload", v)
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.UID != nil {
+			uid = *p.UID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectProjectServicePath(id)}
-	req, err := http.NewRequest("PUT", u.String(), nil)
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetOneProjectSettingsProjectServicePath(uid)}
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("project-service", "update-project", u.String(), err)
+		return nil, goahttp.ErrInvalidURL("project-service", "get-one-project-settings", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -473,13 +475,160 @@ func (c *Client) BuildUpdateProjectRequest(ctx context.Context, v any) (*http.Re
 	return req, nil
 }
 
-// EncodeUpdateProjectRequest returns an encoder for requests sent to the
-// project-service update-project server.
-func EncodeUpdateProjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+// EncodeGetOneProjectSettingsRequest returns an encoder for requests sent to
+// the project-service get-one-project-settings server.
+func EncodeGetOneProjectSettingsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
-		p, ok := v.(*projectservice.UpdateProjectPayload)
+		p, ok := v.(*projectservice.GetOneProjectSettingsPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("project-service", "update-project", "*projectservice.UpdateProjectPayload", v)
+			return goahttp.ErrInvalidType("project-service", "get-one-project-settings", "*projectservice.GetOneProjectSettingsPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeGetOneProjectSettingsResponse returns a decoder for responses returned
+// by the project-service get-one-project-settings endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeGetOneProjectSettingsResponse may return the following errors:
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeGetOneProjectSettingsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body GetOneProjectSettingsResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-settings", err)
+			}
+			err = ValidateGetOneProjectSettingsResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-settings", err)
+			}
+			var (
+				etag *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			res := NewGetOneProjectSettingsResultOK(&body, etag)
+			return res, nil
+		case http.StatusInternalServerError:
+			var (
+				body GetOneProjectSettingsInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-settings", err)
+			}
+			err = ValidateGetOneProjectSettingsInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-settings", err)
+			}
+			return nil, NewGetOneProjectSettingsInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body GetOneProjectSettingsNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-settings", err)
+			}
+			err = ValidateGetOneProjectSettingsNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-settings", err)
+			}
+			return nil, NewGetOneProjectSettingsNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body GetOneProjectSettingsServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-one-project-settings", err)
+			}
+			err = ValidateGetOneProjectSettingsServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-one-project-settings", err)
+			}
+			return nil, NewGetOneProjectSettingsServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "get-one-project-settings", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildUpdateProjectBaseRequest instantiates a HTTP request object with method
+// and path set to call the "project-service" service "update-project-base"
+// endpoint
+func (c *Client) BuildUpdateProjectBaseRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*projectservice.UpdateProjectBasePayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "update-project-base", "*projectservice.UpdateProjectBasePayload", v)
+		}
+		if p.UID != nil {
+			uid = *p.UID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectBaseProjectServicePath(uid)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "update-project-base", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateProjectBaseRequest returns an encoder for requests sent to the
+// project-service update-project-base server.
+func EncodeUpdateProjectBaseRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.UpdateProjectBasePayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "update-project-base", "*projectservice.UpdateProjectBasePayload", v)
 		}
 		if p.BearerToken != nil {
 			head := *p.BearerToken
@@ -498,24 +647,24 @@ func EncodeUpdateProjectRequest(encoder func(*http.Request) goahttp.Encoder) fun
 			values.Add("v", *p.Version)
 		}
 		req.URL.RawQuery = values.Encode()
-		body := NewUpdateProjectRequestBody(p)
+		body := NewUpdateProjectBaseRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
-			return goahttp.ErrEncodingError("project-service", "update-project", err)
+			return goahttp.ErrEncodingError("project-service", "update-project-base", err)
 		}
 		return nil
 	}
 }
 
-// DecodeUpdateProjectResponse returns a decoder for responses returned by the
-// project-service update-project endpoint. restoreBody controls whether the
-// response body should be restored after having been read.
-// DecodeUpdateProjectResponse may return the following errors:
+// DecodeUpdateProjectBaseResponse returns a decoder for responses returned by
+// the project-service update-project-base endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeUpdateProjectBaseResponse may return the following errors:
 //   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
 //   - error: internal error
-func DecodeUpdateProjectResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeUpdateProjectBaseResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -532,78 +681,241 @@ func DecodeUpdateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var (
-				body UpdateProjectResponseBody
+				body UpdateProjectBaseResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "update-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-base", err)
 			}
-			err = ValidateUpdateProjectResponseBody(&body)
+			err = ValidateUpdateProjectBaseResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "update-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
 			}
-			res := NewUpdateProjectProjectOK(&body)
+			res := NewUpdateProjectBaseProjectBaseOK(&body)
 			return res, nil
 		case http.StatusBadRequest:
 			var (
-				body UpdateProjectBadRequestResponseBody
+				body UpdateProjectBaseBadRequestResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "update-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-base", err)
 			}
-			err = ValidateUpdateProjectBadRequestResponseBody(&body)
+			err = ValidateUpdateProjectBaseBadRequestResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "update-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
 			}
-			return nil, NewUpdateProjectBadRequest(&body)
+			return nil, NewUpdateProjectBaseBadRequest(&body)
 		case http.StatusInternalServerError:
 			var (
-				body UpdateProjectInternalServerErrorResponseBody
+				body UpdateProjectBaseInternalServerErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "update-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-base", err)
 			}
-			err = ValidateUpdateProjectInternalServerErrorResponseBody(&body)
+			err = ValidateUpdateProjectBaseInternalServerErrorResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "update-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
 			}
-			return nil, NewUpdateProjectInternalServerError(&body)
+			return nil, NewUpdateProjectBaseInternalServerError(&body)
 		case http.StatusNotFound:
 			var (
-				body UpdateProjectNotFoundResponseBody
+				body UpdateProjectBaseNotFoundResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "update-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-base", err)
 			}
-			err = ValidateUpdateProjectNotFoundResponseBody(&body)
+			err = ValidateUpdateProjectBaseNotFoundResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "update-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
 			}
-			return nil, NewUpdateProjectNotFound(&body)
+			return nil, NewUpdateProjectBaseNotFound(&body)
 		case http.StatusServiceUnavailable:
 			var (
-				body UpdateProjectServiceUnavailableResponseBody
+				body UpdateProjectBaseServiceUnavailableResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "update-project", err)
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-base", err)
 			}
-			err = ValidateUpdateProjectServiceUnavailableResponseBody(&body)
+			err = ValidateUpdateProjectBaseServiceUnavailableResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("project-service", "update-project", err)
+				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
 			}
-			return nil, NewUpdateProjectServiceUnavailable(&body)
+			return nil, NewUpdateProjectBaseServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("project-service", "update-project", resp.StatusCode, string(body))
+			return nil, goahttp.ErrInvalidResponse("project-service", "update-project-base", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildUpdateProjectSettingsRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "update-project-settings" endpoint
+func (c *Client) BuildUpdateProjectSettingsRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*projectservice.UpdateProjectSettingsPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "update-project-settings", "*projectservice.UpdateProjectSettingsPayload", v)
+		}
+		if p.UID != nil {
+			uid = *p.UID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateProjectSettingsProjectServicePath(uid)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "update-project-settings", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateProjectSettingsRequest returns an encoder for requests sent to
+// the project-service update-project-settings server.
+func EncodeUpdateProjectSettingsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.UpdateProjectSettingsPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "update-project-settings", "*projectservice.UpdateProjectSettingsPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.Etag != nil {
+			head := *p.Etag
+			req.Header.Set("ETag", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewUpdateProjectSettingsRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("project-service", "update-project-settings", err)
+		}
+		return nil
+	}
+}
+
+// DecodeUpdateProjectSettingsResponse returns a decoder for responses returned
+// by the project-service update-project-settings endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeUpdateProjectSettingsResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUpdateProjectSettingsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body UpdateProjectSettingsResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-settings", err)
+			}
+			err = ValidateUpdateProjectSettingsResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
+			}
+			res := NewUpdateProjectSettingsProjectSettingsOK(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body UpdateProjectSettingsBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-settings", err)
+			}
+			err = ValidateUpdateProjectSettingsBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
+			}
+			return nil, NewUpdateProjectSettingsBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UpdateProjectSettingsInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-settings", err)
+			}
+			err = ValidateUpdateProjectSettingsInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
+			}
+			return nil, NewUpdateProjectSettingsInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body UpdateProjectSettingsNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-settings", err)
+			}
+			err = ValidateUpdateProjectSettingsNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
+			}
+			return nil, NewUpdateProjectSettingsNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UpdateProjectSettingsServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-settings", err)
+			}
+			err = ValidateUpdateProjectSettingsServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
+			}
+			return nil, NewUpdateProjectSettingsServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "update-project-settings", resp.StatusCode, string(body))
 		}
 	}
 }
@@ -612,18 +924,18 @@ func DecodeUpdateProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 // path set to call the "project-service" service "delete-project" endpoint
 func (c *Client) BuildDeleteProjectRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		id string
+		uid string
 	)
 	{
 		p, ok := v.(*projectservice.DeleteProjectPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("project-service", "delete-project", "*projectservice.DeleteProjectPayload", v)
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.UID != nil {
+			uid = *p.UID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteProjectProjectServicePath(id)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteProjectProjectServicePath(uid)}
 	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("project-service", "delete-project", u.String(), err)
@@ -870,27 +1182,30 @@ func DecodeLivezResponse(decoder func(*http.Response) goahttp.Decoder, restoreBo
 	}
 }
 
-// unmarshalProjectResponseBodyToProjectserviceProject builds a value of type
-// *projectservice.Project from a value of type *ProjectResponseBody.
-func unmarshalProjectResponseBodyToProjectserviceProject(v *ProjectResponseBody) *projectservice.Project {
-	res := &projectservice.Project{
-		ID:          v.ID,
-		Slug:        v.Slug,
-		Description: v.Description,
-		Name:        v.Name,
-		Public:      v.Public,
-		ParentUID:   v.ParentUID,
+// unmarshalProjectBaseResponseBodyToProjectserviceProjectBase builds a value
+// of type *projectservice.ProjectBase from a value of type
+// *ProjectBaseResponseBody.
+func unmarshalProjectBaseResponseBodyToProjectserviceProjectBase(v *ProjectBaseResponseBody) *projectservice.ProjectBase {
+	res := &projectservice.ProjectBase{
+		UID:                        v.UID,
+		Slug:                       v.Slug,
+		Description:                v.Description,
+		Name:                       v.Name,
+		Public:                     v.Public,
+		ParentUID:                  v.ParentUID,
+		Stage:                      v.Stage,
+		Category:                   v.Category,
+		CharterURL:                 v.CharterURL,
+		EntityDissolutionDate:      v.EntityDissolutionDate,
+		EntityFormationDocumentURL: v.EntityFormationDocumentURL,
+		AutojoinEnabled:            v.AutojoinEnabled,
+		FormationDate:              v.FormationDate,
+		AnnouncementDate:           v.AnnouncementDate,
 	}
-	if v.Auditors != nil {
-		res.Auditors = make([]string, len(v.Auditors))
-		for i, val := range v.Auditors {
-			res.Auditors[i] = val
-		}
-	}
-	if v.Writers != nil {
-		res.Writers = make([]string, len(v.Writers))
-		for i, val := range v.Writers {
-			res.Writers[i] = val
+	if v.FundingModel != nil {
+		res.FundingModel = make([]string, len(v.FundingModel))
+		for i, val := range v.FundingModel {
+			res.FundingModel[i] = val
 		}
 	}
 

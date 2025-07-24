@@ -16,25 +16,29 @@ import (
 
 // Client is the "project-service" service client.
 type Client struct {
-	GetProjectsEndpoint   goa.Endpoint
-	CreateProjectEndpoint goa.Endpoint
-	GetOneProjectEndpoint goa.Endpoint
-	UpdateProjectEndpoint goa.Endpoint
-	DeleteProjectEndpoint goa.Endpoint
-	ReadyzEndpoint        goa.Endpoint
-	LivezEndpoint         goa.Endpoint
+	GetProjectsEndpoint           goa.Endpoint
+	CreateProjectEndpoint         goa.Endpoint
+	GetOneProjectBaseEndpoint     goa.Endpoint
+	GetOneProjectSettingsEndpoint goa.Endpoint
+	UpdateProjectBaseEndpoint     goa.Endpoint
+	UpdateProjectSettingsEndpoint goa.Endpoint
+	DeleteProjectEndpoint         goa.Endpoint
+	ReadyzEndpoint                goa.Endpoint
+	LivezEndpoint                 goa.Endpoint
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProject, updateProject, deleteProject, readyz, livez goa.Endpoint) *Client {
+func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, readyz, livez goa.Endpoint) *Client {
 	return &Client{
-		GetProjectsEndpoint:   getProjects,
-		CreateProjectEndpoint: createProject,
-		GetOneProjectEndpoint: getOneProject,
-		UpdateProjectEndpoint: updateProject,
-		DeleteProjectEndpoint: deleteProject,
-		ReadyzEndpoint:        readyz,
-		LivezEndpoint:         livez,
+		GetProjectsEndpoint:           getProjects,
+		CreateProjectEndpoint:         createProject,
+		GetOneProjectBaseEndpoint:     getOneProjectBase,
+		GetOneProjectSettingsEndpoint: getOneProjectSettings,
+		UpdateProjectBaseEndpoint:     updateProjectBase,
+		UpdateProjectSettingsEndpoint: updateProjectSettings,
+		DeleteProjectEndpoint:         deleteProject,
+		ReadyzEndpoint:                readyz,
+		LivezEndpoint:                 livez,
 	}
 }
 
@@ -62,46 +66,79 @@ func (c *Client) GetProjects(ctx context.Context, p *GetProjectsPayload) (res *G
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
-func (c *Client) CreateProject(ctx context.Context, p *CreateProjectPayload) (res *Project, err error) {
+func (c *Client) CreateProject(ctx context.Context, p *CreateProjectPayload) (res *ProjectBase, err error) {
 	var ires any
 	ires, err = c.CreateProjectEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*Project), nil
+	return ires.(*ProjectBase), nil
 }
 
-// GetOneProject calls the "get-one-project" endpoint of the "project-service"
-// service.
-// GetOneProject may return the following errors:
+// GetOneProjectBase calls the "get-one-project-base" endpoint of the
+// "project-service" service.
+// GetOneProjectBase may return the following errors:
 //   - "NotFound" (type *NotFoundError): Resource not found
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
-func (c *Client) GetOneProject(ctx context.Context, p *GetOneProjectPayload) (res *GetOneProjectResult, err error) {
+func (c *Client) GetOneProjectBase(ctx context.Context, p *GetOneProjectBasePayload) (res *GetOneProjectBaseResult, err error) {
 	var ires any
-	ires, err = c.GetOneProjectEndpoint(ctx, p)
+	ires, err = c.GetOneProjectBaseEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*GetOneProjectResult), nil
+	return ires.(*GetOneProjectBaseResult), nil
 }
 
-// UpdateProject calls the "update-project" endpoint of the "project-service"
-// service.
-// UpdateProject may return the following errors:
+// GetOneProjectSettings calls the "get-one-project-settings" endpoint of the
+// "project-service" service.
+// GetOneProjectSettings may return the following errors:
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) GetOneProjectSettings(ctx context.Context, p *GetOneProjectSettingsPayload) (res *GetOneProjectSettingsResult, err error) {
+	var ires any
+	ires, err = c.GetOneProjectSettingsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*GetOneProjectSettingsResult), nil
+}
+
+// UpdateProjectBase calls the "update-project-base" endpoint of the
+// "project-service" service.
+// UpdateProjectBase may return the following errors:
 //   - "BadRequest" (type *BadRequestError): Bad request
 //   - "NotFound" (type *NotFoundError): Resource not found
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
-func (c *Client) UpdateProject(ctx context.Context, p *UpdateProjectPayload) (res *Project, err error) {
+func (c *Client) UpdateProjectBase(ctx context.Context, p *UpdateProjectBasePayload) (res *ProjectBase, err error) {
 	var ires any
-	ires, err = c.UpdateProjectEndpoint(ctx, p)
+	ires, err = c.UpdateProjectBaseEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*Project), nil
+	return ires.(*ProjectBase), nil
+}
+
+// UpdateProjectSettings calls the "update-project-settings" endpoint of the
+// "project-service" service.
+// UpdateProjectSettings may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateProjectSettings(ctx context.Context, p *UpdateProjectSettingsPayload) (res *ProjectSettings, err error) {
+	var ires any
+	ires, err = c.UpdateProjectSettingsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ProjectSettings), nil
 }
 
 // DeleteProject calls the "delete-project" endpoint of the "project-service"
