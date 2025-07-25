@@ -24,12 +24,12 @@ import (
 
 // GetProjects fetches all projects
 func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetProjectsPayload) (*projsvc.GetProjectsResult, error) {
-	if s.natsConn == nil || s.kvBuckets.Projects == nil {
+	if s.natsConn == nil || s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS connection or KeyValue store not initialized")
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 
-	keysLister, err := s.kvBuckets.Projects.ListKeys(ctx)
+	keysLister, err := s.kvStores.Projects.ListKeys(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "error listing project keys from NATS KV store", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error listing project keys from NATS KV store")
@@ -42,7 +42,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 			continue
 		}
 
-		entry, err := s.kvBuckets.Projects.Get(ctx, key)
+		entry, err := s.kvStores.Projects.Get(ctx, key)
 		if err != nil {
 			slog.ErrorContext(ctx, "error getting project from NATS KV store", errKey, err, "project_uid", key)
 			return nil, createResponse(http.StatusInternalServerError, "error getting project from NATS KV store")
@@ -59,7 +59,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 	}
 
 	// Then, collect project settings data
-	settingsKeysLister, err := s.kvBuckets.ProjectSettings.ListKeys(ctx)
+	settingsKeysLister, err := s.kvStores.ProjectSettings.ListKeys(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "error listing project settings keys from NATS KV store", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error listing project settings keys from NATS KV store")
@@ -67,7 +67,7 @@ func (s *ProjectsService) GetProjects(ctx context.Context, payload *projsvc.GetP
 
 	projectsSettingsMap := make(map[string]*nats.ProjectSettingsDB)
 	for key := range settingsKeysLister.Keys() {
-		entry, err := s.kvBuckets.ProjectSettings.Get(ctx, key)
+		entry, err := s.kvStores.ProjectSettings.Get(ctx, key)
 		if err != nil {
 			slog.ErrorContext(ctx, "error getting project settings from NATS KV store", errKey, err, "project_uid", key)
 			// Continue if settings not found - some projects might not have settings yet
@@ -136,7 +136,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		Auditors:         payload.Auditors,
 	}
 
-	if s.natsConn == nil || s.kvBuckets.Projects == nil {
+	if s.natsConn == nil || s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
@@ -147,7 +147,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
 			return nil, createResponse(http.StatusBadRequest, "invalid parent UID")
 		}
-		if _, err := s.kvBuckets.Projects.Get(ctx, *project.ParentUID); err != nil {
+		if _, err := s.kvStores.Projects.Get(ctx, *project.ParentUID); err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				slog.ErrorContext(ctx, "parent project not found", errKey, err)
 				return nil, createResponse(http.StatusBadRequest, "parent project not found")
@@ -159,7 +159,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	// Check if the project slug is taken. No two projects should have the same slug.
-	_, err := s.kvBuckets.Projects.Get(ctx, fmt.Sprintf("slug/%s", *project.Slug))
+	_, err := s.kvStores.Projects.Get(ctx, fmt.Sprintf("slug/%s", *project.Slug))
 	if err == nil {
 		// Slug already exists, return conflict
 		slog.WarnContext(ctx, "project slug already exists", "slug", project.Slug)
@@ -179,7 +179,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	slog.With("project_uid", projectDB.UID, "project_slug", projectDB.Slug)
-	_, err = s.kvBuckets.Projects.Put(ctx, fmt.Sprintf("slug/%s", projectDB.Slug), []byte(projectDB.UID))
+	_, err = s.kvStores.Projects.Put(ctx, fmt.Sprintf("slug/%s", projectDB.Slug), []byte(projectDB.UID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyExists) {
 			slog.WarnContext(ctx, "project already exists", errKey, err)
@@ -194,7 +194,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		slog.ErrorContext(ctx, "error marshalling project into JSON", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error marshalling project into JSON")
 	}
-	_, err = s.kvBuckets.Projects.Put(ctx, projectDB.UID, projectDBBytes)
+	_, err = s.kvStores.Projects.Put(ctx, projectDB.UID, projectDBBytes)
 	if err != nil {
 		slog.ErrorContext(ctx, "error putting project into NATS KV store", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error putting project into NATS KV store")
@@ -212,7 +212,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		slog.ErrorContext(ctx, "error marshalling project into JSON", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error marshalling project into JSON")
 	}
-	_, err = s.kvBuckets.ProjectSettings.Put(ctx, projectSettingsDB.UID, projectSettingsDBBytes)
+	_, err = s.kvStores.ProjectSettings.Put(ctx, projectSettingsDB.UID, projectSettingsDBBytes)
 	if err != nil {
 		slog.ErrorContext(ctx, "error putting project settings into NATS KV store", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error putting project settings into NATS KV store")
@@ -261,12 +261,12 @@ func (s *ProjectsService) GetOneProjectBase(ctx context.Context, payload *projsv
 	}
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
-	if s.natsConn == nil || s.kvBuckets.Projects == nil {
+	if s.natsConn == nil || s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 
-	entry, err := s.kvBuckets.Projects.Get(ctx, *payload.UID)
+	entry, err := s.kvStores.Projects.Get(ctx, *payload.UID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			slog.WarnContext(ctx, "project not found", errKey, err)
@@ -305,13 +305,13 @@ func (s *ProjectsService) GetOneProjectSettings(ctx context.Context, payload *pr
 	}
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
-	if s.natsConn == nil || s.kvBuckets.Projects == nil {
+	if s.natsConn == nil || s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 
 	// Check if the project exists
-	_, err := s.kvBuckets.Projects.Get(ctx, *payload.UID)
+	_, err := s.kvStores.Projects.Get(ctx, *payload.UID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			slog.WarnContext(ctx, "project not found", errKey, err)
@@ -321,7 +321,7 @@ func (s *ProjectsService) GetOneProjectSettings(ctx context.Context, payload *pr
 		return nil, createResponse(http.StatusInternalServerError, "error getting project from NATS KV store")
 	}
 
-	entry, err := s.kvBuckets.ProjectSettings.Get(ctx, *payload.UID)
+	entry, err := s.kvStores.ProjectSettings.Get(ctx, *payload.UID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			slog.WarnContext(ctx, "project not found", errKey, err)
@@ -369,14 +369,14 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
 
-	if s.natsConn == nil || s.kvBuckets.Projects == nil {
+	if s.natsConn == nil || s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 
 	// Check if the project exists
 	// TODO: have all calls to key-value stores be interfaced via a package instead of direct calls in the service code
-	entryProject, err := s.kvBuckets.Projects.Get(ctx, *payload.UID)
+	entryProject, err := s.kvStores.Projects.Get(ctx, *payload.UID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			slog.WarnContext(ctx, "project not found", errKey, err)
@@ -396,7 +396,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// If the project slug is being changed, check if the requested slug is taken.
 	// No two projects should have the same slug.
 	if existingProjectDB.Slug != payload.Slug {
-		_, err = s.kvBuckets.Projects.Get(ctx, fmt.Sprintf("slug/%s", payload.Slug))
+		_, err = s.kvStores.Projects.Get(ctx, fmt.Sprintf("slug/%s", payload.Slug))
 		if err == nil {
 			// Slug already exists, return conflict
 			slog.WarnContext(ctx, "project slug already exists", "slug", payload.Slug)
@@ -415,7 +415,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
 			return nil, createResponse(http.StatusBadRequest, "invalid parent UID")
 		}
-		if _, err := s.kvBuckets.Projects.Get(ctx, *payload.ParentUID); err != nil {
+		if _, err := s.kvStores.Projects.Get(ctx, *payload.ParentUID); err != nil {
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				slog.ErrorContext(ctx, "parent project not found", errKey, err)
 				return nil, createResponse(http.StatusBadRequest, "parent project not found")
@@ -458,7 +458,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		slog.ErrorContext(ctx, "error marshalling project into JSON", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error marshalling project into JSON")
 	}
-	_, err = s.kvBuckets.Projects.Update(ctx, *payload.UID, projectDBBytes, revision)
+	_, err = s.kvStores.Projects.Update(ctx, *payload.UID, projectDBBytes, revision)
 	if err != nil {
 		if strings.Contains(err.Error(), "wrong last sequence") {
 			slog.WarnContext(ctx, "etag header is invalid", errKey, err)
@@ -509,13 +509,13 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	}
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
 
-	if s.natsConn == nil || s.kvBuckets.Projects == nil {
+	if s.natsConn == nil || s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 
 	// Check if the project exists
-	_, err = s.kvBuckets.Projects.Get(ctx, *payload.UID)
+	_, err = s.kvStores.Projects.Get(ctx, *payload.UID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			slog.WarnContext(ctx, "project not found", errKey, err)
@@ -543,7 +543,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		slog.ErrorContext(ctx, "error marshalling project into JSON", errKey, err)
 		return nil, createResponse(http.StatusInternalServerError, "error marshalling project into JSON")
 	}
-	_, err = s.kvBuckets.ProjectSettings.Update(ctx, *payload.UID, projectSettingsDBBytes, revision)
+	_, err = s.kvStores.ProjectSettings.Update(ctx, *payload.UID, projectSettingsDBBytes, revision)
 	if err != nil {
 		if strings.Contains(err.Error(), "wrong last sequence") {
 			slog.WarnContext(ctx, "etag header is invalid", errKey, err)
@@ -596,13 +596,13 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
 
-	if s.natsConn == nil || s.kvBuckets.Projects == nil {
+	if s.natsConn == nil || s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS connection or KV store not initialized")
 		return createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 
 	// Check if the project exists
-	_, err = s.kvBuckets.Projects.Get(ctx, *payload.UID)
+	_, err = s.kvStores.Projects.Get(ctx, *payload.UID)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			slog.WarnContext(ctx, "project not found", errKey, err)
@@ -611,7 +611,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	}
 
 	// Delete the project from the NATS KV store
-	err = s.kvBuckets.Projects.Delete(ctx, *payload.UID, jetstream.LastRevision(revision))
+	err = s.kvStores.Projects.Delete(ctx, *payload.UID, jetstream.LastRevision(revision))
 	if err != nil {
 		if strings.Contains(err.Error(), "wrong last sequence") {
 			slog.WarnContext(ctx, "etag header is invalid", errKey, err)

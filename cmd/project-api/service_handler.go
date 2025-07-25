@@ -106,12 +106,12 @@ func (s *ProjectsService) HandleProjectGetName(msg INatsMsg) ([]byte, error) {
 		return nil, err
 	}
 
-	if s.kvBuckets.Projects == nil {
+	if s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS KV store not initialized")
 		return nil, fmt.Errorf("NATS KV store not initialized")
 	}
 
-	project, err := s.kvBuckets.Projects.Get(ctx, projectID)
+	project, err := s.kvStores.Projects.Get(ctx, projectID)
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting project from NATS KV", errKey, err)
 		return nil, err
@@ -128,12 +128,12 @@ func (s *ProjectsService) HandleProjectSlugToUID(msg INatsMsg) ([]byte, error) {
 	ctx := log.AppendCtx(context.Background(), slog.String("project_slug", projectSlug))
 	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectSlugToUIDSubject))
 
-	if s.kvBuckets.Projects == nil {
+	if s.kvStores.Projects == nil {
 		slog.ErrorContext(ctx, "NATS KV store not initialized")
 		return nil, fmt.Errorf("NATS KV store not initialized")
 	}
 
-	project, err := s.kvBuckets.Projects.Get(ctx, fmt.Sprintf("slug/%s", projectSlug))
+	project, err := s.kvStores.Projects.Get(ctx, fmt.Sprintf("slug/%s", projectSlug))
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting project from NATS KV", errKey, err)
 		return nil, err

@@ -38,7 +38,7 @@ func TestReadyz(t *testing.T) {
 		{
 			name: "NATS KV not initialized",
 			setupMocks: func(service *ProjectsService) {
-				service.kvBuckets.Projects = nil
+				service.kvStores.Projects = nil
 			},
 			expectedError: true,
 		},

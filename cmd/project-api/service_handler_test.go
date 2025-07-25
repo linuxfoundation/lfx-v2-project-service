@@ -62,7 +62,7 @@ func TestHandleProjectGetName(t *testing.T) {
 			projectID: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
 			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				projectData := `{"uid":"550e8400-e29b-41d4-a716-446655440000","slug":"test-project","name":"Test Project","description":"Test description","public":true,"parent_uid":"","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
-				service.kvBuckets.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(nats.NewMockKeyValueEntry([]byte(projectData), 123), nil)
+				service.kvStores.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(nats.NewMockKeyValueEntry([]byte(projectData), 123), nil)
 			},
 			expectedError: false,
 		},
@@ -78,7 +78,7 @@ func TestHandleProjectGetName(t *testing.T) {
 			name:      "NATS KV not initialized",
 			projectID: "550e8400-e29b-41d4-a716-446655440000",
 			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.kvBuckets.Projects = nil
+				service.kvStores.Projects = nil
 			},
 			expectedError: true,
 		},
@@ -86,7 +86,7 @@ func TestHandleProjectGetName(t *testing.T) {
 			name:      "error getting project",
 			projectID: "550e8400-e29b-41d4-a716-446655440000",
 			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.kvBuckets.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&nats.MockKeyValueEntry{}, assert.AnError)
+				service.kvStores.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&nats.MockKeyValueEntry{}, assert.AnError)
 			},
 			expectedError: true,
 		},
@@ -110,7 +110,7 @@ func TestHandleProjectGetName(t *testing.T) {
 
 			// For success case, verify that the mock was called as expected
 			if tt.name == "success" {
-				service.kvBuckets.Projects.(*nats.MockKeyValue).AssertExpectations(t)
+				service.kvStores.Projects.(*nats.MockKeyValue).AssertExpectations(t)
 			}
 		})
 	}
@@ -129,7 +129,7 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 			projectSlug: "test-project",
 			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
 				projectUID := "550e8400-e29b-41d4-a716-446655440000"
-				service.kvBuckets.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(nats.NewMockKeyValueEntry([]byte(projectUID), 123), nil)
+				service.kvStores.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(nats.NewMockKeyValueEntry([]byte(projectUID), 123), nil)
 			},
 			expectedError: false,
 		},
@@ -137,7 +137,7 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 			name:        "NATS KV not initialized",
 			projectSlug: "test-project",
 			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.kvBuckets.Projects = nil
+				service.kvStores.Projects = nil
 			},
 			expectedError: true,
 		},
@@ -145,7 +145,7 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 			name:        "error getting project",
 			projectSlug: "test-project",
 			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.kvBuckets.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(&nats.MockKeyValueEntry{}, assert.AnError)
+				service.kvStores.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(&nats.MockKeyValueEntry{}, assert.AnError)
 			},
 			expectedError: true,
 		},
@@ -169,7 +169,7 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 
 			// For success case, verify that the mock was called as expected
 			if tt.name == "success" {
-				service.kvBuckets.Projects.(*nats.MockKeyValue).AssertExpectations(t)
+				service.kvStores.Projects.(*nats.MockKeyValue).AssertExpectations(t)
 			}
 		})
 	}
@@ -212,7 +212,7 @@ func TestHandleNatsMessage(t *testing.T) {
 			} else {
 				msg.On("Respond", mock.Anything).Return(nil).Once()
 				// Set up a generic expectation for the Get method to avoid mock panics
-				service.kvBuckets.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, mock.Anything).Return(&nats.MockKeyValueEntry{}, nil)
+				service.kvStores.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, mock.Anything).Return(&nats.MockKeyValueEntry{}, nil)
 			}
 
 			assert.NotPanics(t, func() {

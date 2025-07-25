@@ -5,11 +5,11 @@ package constants
 
 // NATS Key-Value store bucket names.
 const (
-	// KVBucketNameProjects is the name of the KV bucket for projects.
-	KVBucketNameProjects = "projects"
+	// KVStoreNameProjects is the name of the KV store for projects.
+	KVStoreNameProjects = "projects"
 
-	// KVBucketNameProjectSettings is the name of the KV bucket for project settings.
-	KVBucketNameProjectSettings = "project-settings"
+	// KVStoreNameProjectSettings is the name of the KV store for project settings.
+	KVStoreNameProjectSettings = "project-settings"
 )
 
 // NATS subjects that the project service sends messages about.

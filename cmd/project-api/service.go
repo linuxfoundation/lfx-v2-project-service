@@ -14,13 +14,13 @@ import (
 // ProjectsService implements the projsvc.Service interface
 type ProjectsService struct {
 	lfxEnvironment constants.LFXEnvironment
-	kvBuckets      KVBuckets
+	kvStores       KVStores
 	natsConn       nats.INatsConn
 	auth           IJwtAuth
 }
 
-// KVBuckets is a collection of NATS KV buckets for the service.
-type KVBuckets struct {
+// KVStores is a collection of NATS KV stores for the service.
+type KVStores struct {
 	Projects        nats.INatsKeyValue
 	ProjectSettings nats.INatsKeyValue
 }

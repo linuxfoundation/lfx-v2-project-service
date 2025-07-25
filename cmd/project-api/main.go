@@ -252,7 +252,7 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsService, grace
 	svc.natsConn = natsConn
 
 	// Get the key-value stores for the service.
-	svc.kvBuckets, err = getKeyValueStores(ctx, natsConn)
+	svc.kvStores, err = getKeyValueStores(ctx, natsConn)
 	if err != nil {
 		return natsConn, err
 	}
@@ -267,29 +267,29 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsService, grace
 }
 
 // getKeyValueStores creates a JetStream client and gets the key-value store for projects.
-func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (KVBuckets, error) {
-	kvBuckets := KVBuckets{}
+func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (KVStores, error) {
+	kvStores := KVStores{}
 
 	js, err := jetstream.New(natsConn)
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating NATS JetStream client", "nats_url", natsConn.ConnectedUrl(), errKey, err)
-		return kvBuckets, err
+		return kvStores, err
 	}
-	projectsKV, err := js.KeyValue(ctx, constants.KVBucketNameProjects)
+	projectsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjects)
 	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjects)
-		return kvBuckets, err
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjects)
+		return kvStores, err
 	}
-	kvBuckets.Projects = projectsKV
+	kvStores.Projects = projectsKV
 
-	projectSettingsKV, err := js.KeyValue(ctx, constants.KVBucketNameProjectSettings)
+	projectSettingsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectSettings)
 	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjectSettings)
-		return kvBuckets, err
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectSettings)
+		return kvStores, err
 	}
-	kvBuckets.ProjectSettings = projectSettingsKV
+	kvStores.ProjectSettings = projectSettingsKV
 
-	return kvBuckets, nil
+	return kvStores, nil
 }
 
 // createNatsSubcriptions creates the NATS subscriptions for the project service.
