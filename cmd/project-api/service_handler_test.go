@@ -55,6 +55,7 @@ func TestHandleProjectGetName(t *testing.T) {
 		name          string
 		projectID     string
 		setupMocks    func(*ProjectsService, *MockNatsMsg)
+		expectedName  string
 		expectedError bool
 	}{
 		{
@@ -64,6 +65,7 @@ func TestHandleProjectGetName(t *testing.T) {
 				projectData := `{"uid":"550e8400-e29b-41d4-a716-446655440000","slug":"test-project","name":"Test Project","description":"Test description","public":true,"parent_uid":"","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
 				service.kvStores.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(nats.NewMockKeyValueEntry([]byte(projectData), 123), nil)
 			},
+			expectedName:  "Test Project",
 			expectedError: false,
 		},
 		{
@@ -122,6 +124,7 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 		name          string
 		projectSlug   string
 		setupMocks    func(*ProjectsService, *MockNatsMsg)
+		expectedUID   string
 		expectedError bool
 	}{
 		{
@@ -131,6 +134,7 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 				projectUID := "550e8400-e29b-41d4-a716-446655440000"
 				service.kvStores.Projects.(*nats.MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(nats.NewMockKeyValueEntry([]byte(projectUID), 123), nil)
 			},
+			expectedUID:   "550e8400-e29b-41d4-a716-446655440000",
 			expectedError: false,
 		},
 		{
@@ -159,11 +163,12 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 
 			// Test that the function doesn't panic and handles the message
 			assert.NotPanics(t, func() {
-				_, err := service.HandleProjectSlugToUID(msg)
+				uid, err := service.HandleProjectSlugToUID(msg)
 				if tt.expectedError {
 					assert.Error(t, err)
 				} else {
 					assert.NoError(t, err)
+					assert.Equal(t, tt.expectedUID, string(uid))
 				}
 			})
 

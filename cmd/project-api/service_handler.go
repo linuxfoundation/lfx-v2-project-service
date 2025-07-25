@@ -5,10 +5,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
+	internalnats "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
@@ -111,14 +113,20 @@ func (s *ProjectsService) HandleProjectGetName(msg INatsMsg) ([]byte, error) {
 		return nil, fmt.Errorf("NATS KV store not initialized")
 	}
 
-	project, err := s.kvStores.Projects.Get(ctx, projectID)
+	entryProject, err := s.kvStores.Projects.Get(ctx, projectID)
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting project from NATS KV", errKey, err)
 		return nil, err
 	}
 
-	// TODO: return the project name instead of the full project object
-	return project.Value(), nil
+	projectDB := internalnats.ProjectBaseDB{}
+	err = json.Unmarshal(entryProject.Value(), &projectDB)
+	if err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling project from NATS KV", errKey, err)
+		return nil, err
+	}
+
+	return []byte(projectDB.Name), nil
 }
 
 // HandleProjectSlugToUID is the NATS handler for the project-slug-to-uid subject.
