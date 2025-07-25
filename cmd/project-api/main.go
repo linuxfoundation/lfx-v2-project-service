@@ -10,7 +10,6 @@ import (
 	"embed"
 	_ "expvar"
 	"flag"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -53,8 +52,7 @@ func main() {
 
 	// Generated service initialization.
 	svc := &ProjectsService{
-		lfxEnvironment: env.LFXEnvironment,
-		auth:           jwtAuth,
+		auth: jwtAuth,
 	}
 
 	gracefulCloseWG := sync.WaitGroup{}
@@ -115,9 +113,8 @@ func parseFlags(defaultPort string) flags {
 
 // environment are the environment variables for the project service.
 type environment struct {
-	LFXEnvironment constants.LFXEnvironment
-	NatsURL        string
-	Port           string
+	NatsURL string
+	Port    string
 }
 
 func parseEnv() environment {
@@ -129,11 +126,9 @@ func parseEnv() environment {
 	if natsURL == "" {
 		natsURL = "nats://localhost:4222"
 	}
-	lfxEnvironment := constants.ParseLFXEnvironment(os.Getenv("LFX_ENVIRONMENT"))
 	return environment{
-		LFXEnvironment: lfxEnvironment,
-		NatsURL:        natsURL,
-		Port:           port,
+		NatsURL: natsURL,
+		Port:    port,
 	}
 }
 
@@ -295,10 +290,10 @@ func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (KVStores, erro
 // createNatsSubcriptions creates the NATS subscriptions for the project service.
 func createNatsSubcriptions(ctx context.Context, svc *ProjectsService, natsConn *nats.Conn) error {
 	slog.InfoContext(ctx, "subscribing to NATS subjects", "nats_url", natsConn.ConnectedUrl(), "servers", natsConn.Servers(), "subjects", []string{constants.ProjectGetNameSubject, constants.ProjectSlugToUIDSubject})
-	queueName := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectsAPIQueue)
+	queueName := constants.ProjectsAPIQueue
 
 	// Get project name subscription
-	projectGetNameSubject := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectGetNameSubject)
+	projectGetNameSubject := constants.ProjectGetNameSubject
 	_, err := natsConn.QueueSubscribe(projectGetNameSubject, queueName, func(msg *nats.Msg) {
 		svc.HandleNatsMessage(&NatsMsg{msg})
 	})
@@ -308,7 +303,7 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsService, natsConn 
 	}
 
 	// Get project slug to UID subscription
-	projectSlugToUIDSubject := fmt.Sprintf("%s%s", svc.lfxEnvironment, constants.ProjectSlugToUIDSubject)
+	projectSlugToUIDSubject := constants.ProjectSlugToUIDSubject
 	_, err = natsConn.QueueSubscribe(projectSlugToUIDSubject, queueName, func(msg *nats.Msg) {
 		svc.HandleNatsMessage(&NatsMsg{msg})
 	})

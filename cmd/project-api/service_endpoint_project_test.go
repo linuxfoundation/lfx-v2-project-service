@@ -25,10 +25,9 @@ func setupService() *ProjectsService {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 	service := &ProjectsService{
-		lfxEnvironment: constants.LFXEnvironmentDev,
-		natsConn:       &nats.MockNATSConn{},
-		kvStores:       KVStores{Projects: &nats.MockKeyValue{}, ProjectSettings: &nats.MockKeyValue{}},
-		auth:           &MockJwtAuth{},
+		natsConn: &nats.MockNATSConn{},
+		kvStores: KVStores{Projects: &nats.MockKeyValue{}, ProjectSettings: &nats.MockKeyValue{}},
+		auth:     &MockJwtAuth{},
 	}
 
 	return service
@@ -195,10 +194,10 @@ func TestCreateProject(t *testing.T) {
 				mockSettingsKV.On("Put", mock.Anything, mock.Anything, mock.Anything).Return(uint64(1), nil)
 
 				// Mock NATS messages
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.UpdateAccessProjectSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSettingsSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.UpdateAccessProjectSettingsSubject), mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.UpdateAccessProjectSettingsSubject, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -489,8 +488,8 @@ func TestUpdateProject(t *testing.T) {
 				mockKV.On("Get", mock.Anything, "project-1").Return(nats.NewMockKeyValueEntry([]byte(projectData), 1), nil)
 				// Mock updating project
 				mockKV.On("Update", mock.Anything, "project-1", mock.Anything, uint64(1)).Return(uint64(1), nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.UpdateAccessProjectSubject), mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -616,8 +615,8 @@ func TestUpdateProjectSettings(t *testing.T) {
 				mockSettingsKV.On("Update", mock.Anything, "project-1", mock.Anything, uint64(2)).Return(uint64(3), nil)
 
 				// Mock NATS messages
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSettingsSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.UpdateAccessProjectSettingsSubject), mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.UpdateAccessProjectSettingsSubject, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
@@ -719,10 +718,10 @@ func TestDeleteProject(t *testing.T) {
 				mockKV.On("Get", mock.Anything, "project-1").Return(nats.NewMockKeyValueEntry([]byte(projectData), 1), nil)
 				// Mock deleting project
 				mockKV.On("Delete", mock.Anything, "project-1", mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.DeleteAllAccessSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.DeleteAllAccessProjectSettingsSubject), mock.Anything).Return(nil)
-				mockNats.On("Publish", fmt.Sprintf("%s%s", service.lfxEnvironment, constants.IndexProjectSettingsSubject), mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.DeleteAllAccessSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.DeleteAllAccessProjectSettingsSubject, mock.Anything).Return(nil)
+				mockNats.On("Publish", constants.IndexProjectSettingsSubject, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},

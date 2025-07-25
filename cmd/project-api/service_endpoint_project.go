@@ -219,8 +219,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	messageBuilder := nats.MessageBuilder{
-		NatsConn:       s.natsConn,
-		LfxEnvironment: s.lfxEnvironment,
+		NatsConn: s.natsConn,
 	}
 
 	g := new(errgroup.Group)
@@ -469,8 +468,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 
 	messageBuilder := nats.MessageBuilder{
-		NatsConn:       s.natsConn,
-		LfxEnvironment: s.lfxEnvironment,
+		NatsConn: s.natsConn,
 	}
 
 	g := new(errgroup.Group)
@@ -554,8 +552,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	}
 
 	messageBuilder := nats.MessageBuilder{
-		NatsConn:       s.natsConn,
-		LfxEnvironment: s.lfxEnvironment,
+		NatsConn: s.natsConn,
 	}
 
 	g := new(errgroup.Group)
@@ -622,8 +619,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	}
 
 	messageBuilder := nats.MessageBuilder{
-		NatsConn:       s.natsConn,
-		LfxEnvironment: s.lfxEnvironment,
+		NatsConn: s.natsConn,
 	}
 
 	g := new(errgroup.Group)

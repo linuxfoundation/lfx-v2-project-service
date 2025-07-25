@@ -16,7 +16,7 @@ spec:
     - kind: Rule
       match: >-
         Host(`{{.Values.ingress.hostname}}`) &&
-        (Path(`/projects`) || PathPrefix(`/projects`) || Path(`/livez`) || Path(`/readyz`))
+        (Path(`/projects`) || PathPrefix(`/projects`))
       priority: 10
       middlewares:
         {{- if .Values.heimdall.enabled }}

@@ -52,7 +52,7 @@ func (s *ProjectsService) HandleNatsMessage(msg INatsMsg) {
 	var response []byte
 	var err error
 	switch subject {
-	case fmt.Sprintf("%s%s", s.lfxEnvironment, constants.ProjectGetNameSubject):
+	case constants.ProjectGetNameSubject:
 		response, err = s.HandleProjectGetName(msg)
 		if err != nil {
 			slog.ErrorContext(ctx, "error handling project get name", errKey, err)
@@ -67,7 +67,7 @@ func (s *ProjectsService) HandleNatsMessage(msg INatsMsg) {
 			slog.ErrorContext(ctx, "error responding to NATS message", errKey, err)
 			return
 		}
-	case fmt.Sprintf("%s%s", s.lfxEnvironment, constants.ProjectSlugToUIDSubject):
+	case constants.ProjectSlugToUIDSubject:
 		response, err = s.HandleProjectSlugToUID(msg)
 		if err != nil {
 			slog.ErrorContext(ctx, "error handling project slug to UID", errKey, err)

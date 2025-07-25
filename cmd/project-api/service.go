@@ -8,15 +8,13 @@ import (
 	"log/slog"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
 // ProjectsService implements the projsvc.Service interface
 type ProjectsService struct {
-	lfxEnvironment constants.LFXEnvironment
-	kvStores       KVStores
-	natsConn       nats.INatsConn
-	auth           IJwtAuth
+	kvStores KVStores
+	natsConn nats.INatsConn
+	auth     IJwtAuth
 }
 
 // KVStores is a collection of NATS KV stores for the service.

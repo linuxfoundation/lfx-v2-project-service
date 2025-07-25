@@ -4,7 +4,6 @@
 package main
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
@@ -190,13 +189,13 @@ func TestHandleNatsMessage(t *testing.T) {
 	}{
 		{
 			name:    "project get name routes and responds",
-			subject: fmt.Sprintf("%s%s", constants.LFXEnvironmentDev, constants.IndexProjectSubject),
+			subject: constants.ProjectGetNameSubject,
 			data:    []byte("some-id"),
 			wantNil: false,
 		},
 		{
 			name:    "project slug to UID routes and responds",
-			subject: fmt.Sprintf("%s%s", constants.LFXEnvironmentDev, constants.UpdateAccessProjectSubject),
+			subject: constants.ProjectSlugToUIDSubject,
 			data:    []byte("some-slug"),
 			wantNil: false,
 		},

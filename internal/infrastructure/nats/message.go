@@ -6,7 +6,6 @@ package nats
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -14,13 +13,12 @@ import (
 
 // MessageBuilder is the builder for the transaction and sends it to the NATS server.
 type MessageBuilder struct {
-	NatsConn       INatsConn
-	LfxEnvironment constants.LFXEnvironment
+	NatsConn INatsConn
 }
 
 // SendIndexProject sends the transaction to the NATS server for the project indexing.
 func (m *MessageBuilder) SendIndexProject(ctx context.Context, action TransactionAction, data []byte) error {
-	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.IndexProjectSubject)
+	subject := constants.IndexProjectSubject
 
 	headers := make(map[string]string)
 	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
@@ -53,7 +51,7 @@ func (m *MessageBuilder) SendIndexProject(ctx context.Context, action Transactio
 
 // SendIndexProjectSettings sends the transaction to the NATS server for the project settings indexing.
 func (m *MessageBuilder) SendIndexProjectSettings(ctx context.Context, action TransactionAction, data []byte) error {
-	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.IndexProjectSettingsSubject)
+	subject := constants.IndexProjectSettingsSubject
 
 	headers := make(map[string]string)
 	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
@@ -87,7 +85,7 @@ func (m *MessageBuilder) SendIndexProjectSettings(ctx context.Context, action Tr
 // SendUpdateAccessProject sends the transaction to the NATS server for the access control updates.
 func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data []byte) error {
 	// Send the transaction to the NATS server for the access control updates.
-	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.UpdateAccessProjectSubject)
+	subject := constants.UpdateAccessProjectSubject
 	err := m.NatsConn.Publish(subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)
@@ -100,7 +98,7 @@ func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data []byt
 // SendUpdateAccessProjectSettings sends the transaction to the NATS server for the access control updates.
 func (m *MessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, data []byte) error {
 	// Send the transaction to the NATS server for the access control updates.
-	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.UpdateAccessProjectSettingsSubject)
+	subject := constants.UpdateAccessProjectSettingsSubject
 	err := m.NatsConn.Publish(subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)
@@ -113,7 +111,7 @@ func (m *MessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, da
 // SendDeleteAllAccessProject sends the transaction to the NATS server for the access control deletion.
 func (m *MessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data []byte) error {
 	// Send the transaction to the NATS server for the access control deletion.
-	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.DeleteAllAccessSubject)
+	subject := constants.DeleteAllAccessSubject
 	err := m.NatsConn.Publish(subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)
@@ -126,7 +124,7 @@ func (m *MessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data []
 // SendDeleteAllAccessProjectSettings sends the transaction to the NATS server for the access control deletion.
 func (m *MessageBuilder) SendDeleteAllAccessProjectSettings(ctx context.Context, data []byte) error {
 	// Send the transaction to the NATS server for the access control deletion.
-	subject := fmt.Sprintf("%s%s", m.LfxEnvironment, constants.DeleteAllAccessProjectSettingsSubject)
+	subject := constants.DeleteAllAccessProjectSettingsSubject
 	err := m.NatsConn.Publish(subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending transaction to NATS", constants.ErrKey, err, "subject", subject)
