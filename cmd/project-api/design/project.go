@@ -217,6 +217,7 @@ var _ = Service("project-service", func() {
 
 		Error("BadRequest", BadRequestError, "Bad request")
 		Error("NotFound", NotFoundError, "Resource not found")
+		Error("Conflict", ConflictError, "Conflict")
 		Error("InternalServerError", InternalServerError, "Internal server error")
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
 
@@ -231,6 +232,7 @@ var _ = Service("project-service", func() {
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)
+			Response("Conflict", StatusConflict)
 			Response("InternalServerError", StatusInternalServerError)
 			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})

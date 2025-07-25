@@ -660,6 +660,7 @@ func EncodeUpdateProjectBaseRequest(encoder func(*http.Request) goahttp.Encoder)
 // whether the response body should be restored after having been read.
 // DecodeUpdateProjectBaseResponse may return the following errors:
 //   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
@@ -708,6 +709,20 @@ func DecodeUpdateProjectBaseResponse(decoder func(*http.Response) goahttp.Decode
 				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
 			}
 			return nil, NewUpdateProjectBaseBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateProjectBaseConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-base", err)
+			}
+			err = ValidateUpdateProjectBaseConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-base", err)
+			}
+			return nil, NewUpdateProjectBaseConflict(&body)
 		case http.StatusInternalServerError:
 			var (
 				body UpdateProjectBaseInternalServerErrorResponseBody

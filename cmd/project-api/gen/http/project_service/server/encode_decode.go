@@ -593,6 +593,19 @@ func EncodeUpdateProjectBaseError(encoder func(context.Context, http.ResponseWri
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
+		case "Conflict":
+			var res *projectservice.ConflictError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateProjectBaseConflictResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusConflict)
+			return enc.Encode(body)
 		case "InternalServerError":
 			var res *projectservice.InternalServerError
 			errors.As(v, &res)

@@ -396,6 +396,16 @@ type UpdateProjectBaseBadRequestResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
+// UpdateProjectBaseConflictResponseBody is the type of the "project-service"
+// service "update-project-base" endpoint HTTP response body for the "Conflict"
+// error.
+type UpdateProjectBaseConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
 // UpdateProjectBaseInternalServerErrorResponseBody is the type of the
 // "project-service" service "update-project-base" endpoint HTTP response body
 // for the "InternalServerError" error.
@@ -1055,6 +1065,17 @@ func NewUpdateProjectBaseBadRequest(body *UpdateProjectBaseBadRequestResponseBod
 	return v
 }
 
+// NewUpdateProjectBaseConflict builds a project-service service
+// update-project-base endpoint Conflict error.
+func NewUpdateProjectBaseConflict(body *UpdateProjectBaseConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
 // NewUpdateProjectBaseInternalServerError builds a project-service service
 // update-project-base endpoint InternalServerError error.
 func NewUpdateProjectBaseInternalServerError(body *UpdateProjectBaseInternalServerErrorResponseBody) *projectservice.InternalServerError {
@@ -1612,6 +1633,18 @@ func ValidateGetOneProjectSettingsServiceUnavailableResponseBody(body *GetOnePro
 // ValidateUpdateProjectBaseBadRequestResponseBody runs the validations defined
 // on update-project-base_BadRequest_response_body
 func ValidateUpdateProjectBaseBadRequestResponseBody(body *UpdateProjectBaseBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectBaseConflictResponseBody runs the validations defined
+// on update-project-base_Conflict_response_body
+func ValidateUpdateProjectBaseConflictResponseBody(body *UpdateProjectBaseConflictResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}

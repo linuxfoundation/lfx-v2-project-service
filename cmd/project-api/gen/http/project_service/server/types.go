@@ -396,6 +396,16 @@ type UpdateProjectBaseBadRequestResponseBody struct {
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
+// UpdateProjectBaseConflictResponseBody is the type of the "project-service"
+// service "update-project-base" endpoint HTTP response body for the "Conflict"
+// error.
+type UpdateProjectBaseConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
 // UpdateProjectBaseInternalServerErrorResponseBody is the type of the
 // "project-service" service "update-project-base" endpoint HTTP response body
 // for the "InternalServerError" error.
@@ -963,6 +973,17 @@ func NewGetOneProjectSettingsServiceUnavailableResponseBody(res *projectservice.
 // "project-service" service.
 func NewUpdateProjectBaseBadRequestResponseBody(res *projectservice.BadRequestError) *UpdateProjectBaseBadRequestResponseBody {
 	body := &UpdateProjectBaseBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateProjectBaseConflictResponseBody builds the HTTP response body from
+// the result of the "update-project-base" endpoint of the "project-service"
+// service.
+func NewUpdateProjectBaseConflictResponseBody(res *projectservice.ConflictError) *UpdateProjectBaseConflictResponseBody {
+	body := &UpdateProjectBaseConflictResponseBody{
 		Code:    res.Code,
 		Message: res.Message,
 	}

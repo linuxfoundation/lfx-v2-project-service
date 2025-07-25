@@ -158,7 +158,18 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	}
 
-	// TODO: check if the project slug is taken. No two projects should	have the same slug.
+	// Check if the project slug is taken. No two projects should have the same slug.
+	_, err := s.kvBuckets.Projects.Get(ctx, fmt.Sprintf("slug/%s", *project.Slug))
+	if err == nil {
+		// Slug already exists, return conflict
+		slog.WarnContext(ctx, "project slug already exists", "slug", project.Slug)
+		return nil, createResponse(http.StatusConflict, "project slug already exists")
+	}
+	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		// Some other error occurred while checking slug
+		slog.ErrorContext(ctx, "error checking project slug availability", errKey, err)
+		return nil, createResponse(http.StatusInternalServerError, "error checking project slug availability")
+	}
 
 	// Store the project in the NATS KV store along with a mapping of the slug to the UID.
 	projectDB, err := ConvertToDBProjectBase(project)
@@ -363,6 +374,41 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
 	}
 
+	// Check if the project exists
+	// TODO: have all calls to key-value stores be interfaced via a package instead of direct calls in the service code
+	entryProject, err := s.kvBuckets.Projects.Get(ctx, *payload.UID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			slog.WarnContext(ctx, "project not found", errKey, err)
+			return nil, createResponse(http.StatusNotFound, "project not found")
+		}
+		slog.ErrorContext(ctx, "error getting project from NATS KV store", errKey, err)
+		return nil, createResponse(http.StatusInternalServerError, "error getting project from NATS KV store")
+	}
+
+	existingProjectDB := nats.ProjectBaseDB{}
+	err = json.Unmarshal(entryProject.Value(), &existingProjectDB)
+	if err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling project from NATS KV store", errKey, err)
+		return nil, createResponse(http.StatusInternalServerError, "error unmarshalling project from NATS KV store")
+	}
+
+	// If the project slug is being changed, check if the requested slug is taken.
+	// No two projects should have the same slug.
+	if existingProjectDB.Slug != payload.Slug {
+		_, err = s.kvBuckets.Projects.Get(ctx, fmt.Sprintf("slug/%s", payload.Slug))
+		if err == nil {
+			// Slug already exists, return conflict
+			slog.WarnContext(ctx, "project slug already exists", "slug", payload.Slug)
+			return nil, createResponse(http.StatusConflict, "project slug already exists")
+		}
+		if !errors.Is(err, jetstream.ErrKeyNotFound) {
+			// Some other error occurred while checking slug
+			slog.ErrorContext(ctx, "error checking project slug availability", errKey, err)
+			return nil, createResponse(http.StatusInternalServerError, "error checking project slug availability")
+		}
+	}
+
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
 	if payload.ParentUID != nil && *payload.ParentUID != "" {
 		if _, err := uuid.Parse(*payload.ParentUID); err != nil {
@@ -377,19 +423,6 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			slog.ErrorContext(ctx, "error getting parent project from NATS KV store", errKey, err)
 			return nil, createResponse(http.StatusInternalServerError, "error getting parent project from NATS KV store")
 		}
-
-	}
-
-	// Check if the project exists
-	// TODO: have all calls to key-value stores be interfaced via a package instead of direct calls in the service code
-	_, err = s.kvBuckets.Projects.Get(ctx, *payload.UID)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			slog.WarnContext(ctx, "project not found", errKey, err)
-			return nil, createResponse(http.StatusNotFound, "project not found")
-		}
-		slog.ErrorContext(ctx, "error getting project from NATS KV store", errKey, err)
-		return nil, createResponse(http.StatusInternalServerError, "error getting project from NATS KV store")
 	}
 
 	// Update the project in the NATS KV store

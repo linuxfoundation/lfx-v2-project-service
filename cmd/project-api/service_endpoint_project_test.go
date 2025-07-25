@@ -186,6 +186,7 @@ func TestCreateProject(t *testing.T) {
 				mockProjectsKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
 				mockSettingsKV := service.kvBuckets.ProjectSettings.(*nats.MockKeyValue)
 
+				mockProjectsKV.On("Get", mock.Anything, "slug/test-project").Return(&nats.MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
 				// Mock successful slug mapping creation
 				mockProjectsKV.On("Put", mock.Anything, "slug/test-project", mock.Anything).Return(uint64(1), nil)
 				// Mock successful project creation
@@ -245,7 +246,9 @@ func TestCreateProject(t *testing.T) {
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
-				mockKV.On("Put", mock.Anything, "slug/existing-project", mock.Anything).Return(uint64(1), jetstream.ErrKeyExists)
+				// Mock slug check - slug already exists (Get succeeds)
+				existingProjectUID := "existing-project-uid"
+				mockKV.On("Get", mock.Anything, "slug/existing-project").Return(nats.NewMockKeyValueEntry([]byte(existingProjectUID), 1), nil)
 			},
 			expectedError: true,
 		},
@@ -262,6 +265,7 @@ func TestCreateProject(t *testing.T) {
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
+				mockKV.On("Get", mock.Anything, "slug/test-project").Return(&nats.MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
 				mockKV.On("Put", mock.Anything, "slug/test-project", mock.Anything).Return(uint64(1), assert.AnError)
 			},
 			expectedError: true,
@@ -481,6 +485,7 @@ func TestUpdateProject(t *testing.T) {
 				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
 				// Mock getting existing project
 				projectData := `{"uid":"project-1","slug":"old-slug","name":"Old Project","description":"Old description","public":false,"parent_uid":"parent-uid","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
+				mockKV.On("Get", mock.Anything, "slug/updated-slug").Return(&nats.MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
 				mockKV.On("Get", mock.Anything, "project-1").Return(nats.NewMockKeyValueEntry([]byte(projectData), 1), nil)
 				// Mock updating project
 				mockKV.On("Update", mock.Anything, "project-1", mock.Anything, uint64(1)).Return(uint64(1), nil)
@@ -499,6 +504,33 @@ func TestUpdateProject(t *testing.T) {
 				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
 				mockKV.On("Get", mock.Anything, "project-1").Return(nats.NewMockKeyValueEntry([]byte("test"), 1), nil)
 				mockKV.On("Update", mock.Anything, "project-1", mock.Anything, uint64(1)).Return(uint64(1), assert.AnError)
+			},
+			expectedError: true,
+		},
+		{
+			name: "project not found",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       stringPtr("nonexistent"),
+				Slug:      "test",
+				Name:      "Test",
+				Public:    boolPtr(true),
+				ParentUID: stringPtr(""),
+			},
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
+				mockKV.On("Get", mock.Anything, "nonexistent").Return(&nats.MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
+			},
+			expectedError: true,
+		},
+		{
+			name: "project slug already exists",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:  stringPtr("project-1"),
+				Slug: "existing-project",
+			},
+			setupMocks: func(service *ProjectsService) {
+				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
+				mockKV.On("Get", mock.Anything, "slug/existing-project").Return(nats.NewMockKeyValueEntry([]byte("existing-project-uid"), 1), nil)
 			},
 			expectedError: true,
 		},
@@ -526,21 +558,6 @@ func TestUpdateProject(t *testing.T) {
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
 				mockKV.On("Get", mock.Anything, "787620d0-d7de-449a-b0bf-9d28b13da818").Return(&nats.MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
-			},
-			expectedError: true,
-		},
-		{
-			name: "project not found",
-			payload: &projsvc.UpdateProjectBasePayload{
-				UID:       stringPtr("nonexistent"),
-				Slug:      "test",
-				Name:      "Test",
-				Public:    boolPtr(true),
-				ParentUID: stringPtr(""),
-			},
-			setupMocks: func(service *ProjectsService) {
-				mockKV := service.kvBuckets.Projects.(*nats.MockKeyValue)
-				mockKV.On("Get", mock.Anything, "nonexistent").Return(&nats.MockKeyValueEntry{}, jetstream.ErrKeyNotFound)
 			},
 			expectedError: true,
 		},
