@@ -18,6 +18,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
 // setupAPI creates a new ProjectsAPI with mocked dependencies.
@@ -43,14 +44,6 @@ func setupAPI() (*ProjectsAPI, *domain.MockProjectRepository, *domain.MockMessag
 	return api, mockRepo, mockMessageBuilder
 }
 
-// Helper functions
-func stringPtr(s string) *string {
-	return &s
-}
-
-func boolPtr(b bool) *bool {
-	return &b
-}
 
 func TestGetProjects(t *testing.T) {
 	tests := []struct {
@@ -142,8 +135,8 @@ func TestCreateProject(t *testing.T) {
 				Slug:        "test-project",
 				Name:        "Test Project",
 				Description: "Test description",
-				Public:      boolPtr(true),
-				ParentUID:   stringPtr(""),
+				Public:      misc.BoolPtr(true),
+				ParentUID:   misc.StringPtr(""),
 				Writers:     []string{"user1", "user2"},
 				Auditors:    []string{"user3", "user4"},
 			},
@@ -166,8 +159,8 @@ func TestCreateProject(t *testing.T) {
 				Slug:        "existing-project",
 				Name:        "Test Project",
 				Description: "Test description",
-				Public:      boolPtr(true),
-				ParentUID:   stringPtr(""),
+				Public:      misc.BoolPtr(true),
+				ParentUID:   misc.StringPtr(""),
 				Auditors:    []string{"user1"},
 				Writers:     []string{"user2"},
 			},

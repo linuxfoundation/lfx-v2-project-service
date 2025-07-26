@@ -109,6 +109,9 @@ func (m *MockKeyValue) Put(ctx context.Context, key string, value []byte) (uint6
 // Get is a mock method for the [INatsKeyValue] interface.
 func (m *MockKeyValue) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
 	args := m.Called(ctx, key)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(jetstream.KeyValueEntry), args.Error(1)
 }
 
@@ -127,6 +130,9 @@ func (m *MockKeyValue) Delete(ctx context.Context, key string, opts ...jetstream
 // ListKeys is a mock method for the [INatsKeyValue] interface.
 func (m *MockKeyValue) ListKeys(ctx context.Context, _ ...jetstream.WatchOpt) (jetstream.KeyLister, error) {
 	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(jetstream.KeyLister), args.Error(1)
 }
 

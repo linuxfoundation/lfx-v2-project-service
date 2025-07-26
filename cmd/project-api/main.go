@@ -51,7 +51,12 @@ func main() {
 	log.InitStructureLogConfig()
 
 	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
-	jwtAuth, err := auth.NewJWTAuth()
+	jwtAuthConfig := auth.JWTAuthConfig{
+		JWKSURL:            os.Getenv("JWKS_URL"),
+		Audience:           os.Getenv("AUDIENCE"),
+		MockLocalPrincipal: os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"),
+	}
+	jwtAuth, err := auth.NewJWTAuth(jwtAuthConfig)
 	if err != nil {
 		slog.With(errKey, err).Error("error setting up JWT authentication")
 		os.Exit(1)

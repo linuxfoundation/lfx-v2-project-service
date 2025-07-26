@@ -7,3 +7,8 @@ package misc
 func StringPtr(s string) *string {
 	return &s
 }
+
+// BoolPtr converts a bool to a pointer to a bool.
+func BoolPtr(b bool) *bool {
+	return &b
+}

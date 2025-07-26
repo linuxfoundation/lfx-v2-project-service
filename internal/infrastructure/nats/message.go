@@ -29,10 +29,16 @@ func (m *MessageBuilder) SendIndexProject(ctx context.Context, action models.Mes
 		headers["x-on-behalf-of"] = principal
 	}
 
+	var jsonData any
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling data into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
 	message := models.ProjectMessage{
 		Action:  action,
 		Headers: headers,
-		Data:    data,
+		Data:    jsonData,
 	}
 
 	messageBytes, err := json.Marshal(message)
@@ -62,10 +68,16 @@ func (m *MessageBuilder) SendIndexProjectSettings(ctx context.Context, action mo
 		headers["x-on-behalf-of"] = principal
 	}
 
+	var jsonData any
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling data into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
 	message := models.ProjectMessage{
 		Action:  action,
 		Headers: headers,
-		Data:    data,
+		Data:    jsonData,
 	}
 
 	messageBytes, err := json.Marshal(message)
@@ -85,9 +97,35 @@ func (m *MessageBuilder) SendIndexProjectSettings(ctx context.Context, action mo
 
 // SendUpdateAccessProject sends the message to the NATS server for the access control updates.
 func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data []byte) error {
-	// Send the message to the NATS server for the access control updates.
 	subject := constants.UpdateAccessProjectSubject
-	err := m.NatsConn.Publish(subject, data)
+
+	headers := make(map[string]string)
+	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
+		headers["authorization"] = authorization
+	}
+	if principal, ok := ctx.Value(constants.PrincipalContextID).(string); ok {
+		headers["x-on-behalf-of"] = principal
+	}
+
+	var jsonData any
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling data into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	message := models.ProjectMessage{
+		Action:  models.ActionUpdated,
+		Headers: headers,
+		Data:    jsonData,
+	}
+
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling message into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	err = m.NatsConn.Publish(subject, messageBytes)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending message to NATS", constants.ErrKey, err, "subject", subject)
 		return err
@@ -98,9 +136,35 @@ func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data []byt
 
 // SendUpdateAccessProjectSettings sends the message to the NATS server for the access control updates.
 func (m *MessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, data []byte) error {
-	// Send the message to the NATS server for the access control updates.
 	subject := constants.UpdateAccessProjectSettingsSubject
-	err := m.NatsConn.Publish(subject, data)
+
+	headers := make(map[string]string)
+	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
+		headers["authorization"] = authorization
+	}
+	if principal, ok := ctx.Value(constants.PrincipalContextID).(string); ok {
+		headers["x-on-behalf-of"] = principal
+	}
+
+	var jsonData any
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling data into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	message := models.ProjectMessage{
+		Action:  models.ActionUpdated,
+		Headers: headers,
+		Data:    jsonData,
+	}
+
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling message into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	err = m.NatsConn.Publish(subject, messageBytes)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending message to NATS", constants.ErrKey, err, "subject", subject)
 		return err
@@ -111,9 +175,35 @@ func (m *MessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, da
 
 // SendDeleteAllAccessProject sends the message to the NATS server for the access control deletion.
 func (m *MessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data []byte) error {
-	// Send the message to the NATS server for the access control deletion.
 	subject := constants.DeleteAllAccessSubject
-	err := m.NatsConn.Publish(subject, data)
+
+	headers := make(map[string]string)
+	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
+		headers["authorization"] = authorization
+	}
+	if principal, ok := ctx.Value(constants.PrincipalContextID).(string); ok {
+		headers["x-on-behalf-of"] = principal
+	}
+
+	var jsonData any
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling data into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	message := models.ProjectMessage{
+		Action:  models.ActionDeleted,
+		Headers: headers,
+		Data:    jsonData,
+	}
+
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling message into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	err = m.NatsConn.Publish(subject, messageBytes)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending message to NATS", constants.ErrKey, err, "subject", subject)
 		return err
@@ -124,9 +214,35 @@ func (m *MessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data []
 
 // SendDeleteAllAccessProjectSettings sends the message to the NATS server for the access control deletion.
 func (m *MessageBuilder) SendDeleteAllAccessProjectSettings(ctx context.Context, data []byte) error {
-	// Send the message to the NATS server for the access control deletion.
 	subject := constants.DeleteAllAccessProjectSettingsSubject
-	err := m.NatsConn.Publish(subject, data)
+
+	headers := make(map[string]string)
+	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
+		headers["authorization"] = authorization
+	}
+	if principal, ok := ctx.Value(constants.PrincipalContextID).(string); ok {
+		headers["x-on-behalf-of"] = principal
+	}
+
+	var jsonData any
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling data into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	message := models.ProjectMessage{
+		Action:  models.ActionDeleted,
+		Headers: headers,
+		Data:    jsonData,
+	}
+
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling message into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	err = m.NatsConn.Publish(subject, messageBytes)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending message to NATS", constants.ErrKey, err, "subject", subject)
 		return err

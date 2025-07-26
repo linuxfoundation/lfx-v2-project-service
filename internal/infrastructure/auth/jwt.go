@@ -8,7 +8,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -22,7 +21,18 @@ const (
 	signatureAlgorithm = validator.PS256
 	defaultIssuer      = "heimdall"
 	defaultAudience    = "lfx-v2-project-service"
+	defaultJWKSURL     = "http://heimdall:4457/.well-known/jwks"
 )
+
+// JWTAuthConfig holds the configuration parameters for JWT authentication.
+type JWTAuthConfig struct {
+	// JWKSURL is the URL to the JSON Web Key Set endpoint
+	JWKSURL string
+	// Audience is the intended audience for the JWT token
+	Audience string
+	// MockLocalPrincipal is used for local development to bypass JWT validation
+	MockLocalPrincipal string
+}
 
 var (
 	// Factory for custom JWT claims target.
@@ -49,6 +59,7 @@ func (c *HeimdallClaims) Validate(_ context.Context) error {
 
 type JWTAuth struct {
 	validator *validator.Validator
+	config    JWTAuthConfig
 }
 
 // IJWTAuth is a JWT authentication interface needed for the [ProjectsService].
@@ -56,13 +67,19 @@ type IJWTAuth interface {
 	ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error)
 }
 
-func NewJWTAuth() (*JWTAuth, error) {
-	// Set up Heimdall JWKS key provider.
-	jwksEnv := os.Getenv("JWKS_URL")
-	if jwksEnv == "" {
-		jwksEnv = "http://heimdall:4457/.well-known/jwks"
+func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
+	// Set up defaults if not provided
+	jwksURLStr := config.JWKSURL
+	if jwksURLStr == "" {
+		jwksURLStr = defaultJWKSURL
 	}
-	jwksURL, err := url.Parse(jwksEnv)
+	audience := config.Audience
+	if audience == "" {
+		audience = defaultAudience
+	}
+
+	// Set up Heimdall JWKS key provider.
+	jwksURL, err := url.Parse(jwksURLStr)
 	if err != nil {
 		slog.With(constants.ErrKey, err).Error("invalid JWKS_URL")
 		return nil, err
@@ -77,10 +94,6 @@ func NewJWTAuth() (*JWTAuth, error) {
 	provider := jwks.NewCachingProvider(issuer, 5*time.Minute, jwks.WithCustomJWKSURI(jwksURL))
 
 	// Set up the JWT validator.
-	audience := os.Getenv("AUDIENCE")
-	if audience == "" {
-		audience = defaultAudience
-	}
 	jwtValidator, err := validator.New(
 		provider.KeyFunc,
 		signatureAlgorithm,
@@ -96,19 +109,19 @@ func NewJWTAuth() (*JWTAuth, error) {
 
 	return &JWTAuth{
 		validator: jwtValidator,
+		config:    config,
 	}, nil
 }
 
 // ParsePrincipal extracts the principal from the JWT claims.
 func (j *JWTAuth) ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
-	// To avoid having to use a valid JWT token for local development, we can set the
-	// JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL environment variable to the principal
-	// we want to use for local development.
-	if mockLocalPrincipal := os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"); mockLocalPrincipal != "" {
+	// To avoid having to use a valid JWT token for local development, we can use the
+	// MockLocalPrincipal configuration parameter.
+	if j.config.MockLocalPrincipal != "" {
 		logger.InfoContext(ctx, "JWT authentication is disabled, returning mock principal",
-			"principal", mockLocalPrincipal,
+			"principal", j.config.MockLocalPrincipal,
 		)
-		return mockLocalPrincipal, nil
+		return j.config.MockLocalPrincipal, nil
 	}
 
 	if j.validator == nil {
