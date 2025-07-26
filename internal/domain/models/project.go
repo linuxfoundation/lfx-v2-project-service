@@ -1,18 +1,54 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
-package main
+package models
 
 import (
 	"time"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
-// ConvertToServiceProjectFull merges ProjectBase and ProjectSettings into ProjectFull
-func ConvertToServiceProjectFull(base *nats.ProjectBaseDB, settings *nats.ProjectSettingsDB) *projsvc.ProjectFull {
+// ProjectBase is the key-value store representation of a project base.
+type ProjectBase struct {
+	UID                        string     `json:"uid"`
+	Slug                       string     `json:"slug"`
+	Name                       string     `json:"name"`
+	Description                string     `json:"description"`
+	Public                     bool       `json:"public"`
+	ParentUID                  string     `json:"parent_uid"`
+	Stage                      string     `json:"stage"`
+	Category                   string     `json:"category"`
+	LegalEntityType            string     `json:"legal_entity_type"`
+	LegalEntityName            string     `json:"legal_entity_name"`
+	LegalParentUID             string     `json:"legal_parent_uid"`
+	FundingModel               []string   `json:"funding_model"`
+	EntityDissolutionDate      *time.Time `json:"entity_dissolution_date"`
+	EntityFormationDocumentURL string     `json:"entity_formation_document_url"`
+	FormationDate              *time.Time `json:"formation_date"`
+	AutojoinEnabled            bool       `json:"autojoin_enabled"`
+	CharterURL                 string     `json:"charter_url"`
+	LogoURL                    string     `json:"logo_url"`
+	WebsiteURL                 string     `json:"website_url"`
+	RepositoryURL              string     `json:"repository_url"`
+	CreatedAt                  *time.Time `json:"created_at"`
+	UpdatedAt                  *time.Time `json:"updated_at"`
+}
+
+// ProjectSettings is the key-value store representation of a project settings.
+type ProjectSettings struct {
+	UID              string     `json:"uid"`
+	MissionStatement string     `json:"mission_statement"`
+	AnnouncementDate *time.Time `json:"announcement_date"`
+	Auditors         []string   `json:"auditors"`
+	Writers          []string   `json:"writers"`
+	CreatedAt        *time.Time `json:"created_at"`
+	UpdatedAt        *time.Time `json:"updated_at"`
+}
+
+// ConvertToProjectFull merges ProjectBase and ProjectSettings into ProjectFull
+func ConvertToProjectFull(base *ProjectBase, settings *ProjectSettings) *projsvc.ProjectFull {
 	if base == nil {
 		return nil
 	}
@@ -68,14 +104,14 @@ func ConvertToServiceProjectFull(base *nats.ProjectBaseDB, settings *nats.Projec
 }
 
 // ConvertToDBProjectBase converts a project service project to a project database representation.
-func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*nats.ProjectBaseDB, error) {
+func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*ProjectBase, error) {
 	if project == nil {
-		return new(nats.ProjectBaseDB), nil
+		return new(ProjectBase), nil
 	}
 
 	currentTime := time.Now().UTC()
 
-	p := new(nats.ProjectBaseDB)
+	p := new(ProjectBase)
 	if project.UID != nil {
 		p.UID = *project.UID
 	}
@@ -151,7 +187,7 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*nats.ProjectBaseDB, 
 }
 
 // ConvertToServiceProject converts a project database representation to a project service project.
-func ConvertToServiceProjectBase(p *nats.ProjectBaseDB) *projsvc.ProjectBase {
+func ConvertToServiceProjectBase(p *ProjectBase) *projsvc.ProjectBase {
 	project := &projsvc.ProjectBase{
 		UID:                        &p.UID,
 		Slug:                       &p.Slug,
@@ -185,14 +221,14 @@ func ConvertToServiceProjectBase(p *nats.ProjectBaseDB) *projsvc.ProjectBase {
 }
 
 // ConvertToDBProjectSettings converts a project settings service representation to a database representation.
-func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*nats.ProjectSettingsDB, error) {
+func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*ProjectSettings, error) {
 	if settings == nil {
-		return new(nats.ProjectSettingsDB), nil
+		return new(ProjectSettings), nil
 	}
 
 	currentTime := time.Now().UTC()
 
-	s := new(nats.ProjectSettingsDB)
+	s := new(ProjectSettings)
 	if settings.UID != nil {
 		s.UID = *settings.UID
 	}
@@ -219,7 +255,7 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*nats.Projec
 }
 
 // ConvertToServiceProjectSettings converts a project settings database representation to a service representation.
-func ConvertToServiceProjectSettings(s *nats.ProjectSettingsDB) *projsvc.ProjectSettings {
+func ConvertToServiceProjectSettings(s *ProjectSettings) *projsvc.ProjectSettings {
 	settings := &projsvc.ProjectSettings{
 		UID:              &s.UID,
 		MissionStatement: &s.MissionStatement,

@@ -17,11 +17,14 @@ The LFX v2 Project Service is a RESTful API service that manages projects within
 │       ├── gen/                    # Generated code from Goa design
 │       └── design/                 # API design specifications
 ├── internal/                       # Internal service packages
-│   ├── domain/                     # Domain logic layer
-│   ├── service/                    # Business logic layer
+│   ├── domain/                     # Domain logic layer (business logic)
+│   │   └── models/                 # Domain models and entities
+│   ├── service/                    # Service logic layer (service implementations)
+│   ├── infrastructure/             # Infrastructure layer
+│   │   ├── auth/                   # Authentication abstractions
+│   │   └── nats/                   # NATS messaging and repository implementation
 │   ├── middleware/                 # HTTP middleware components
-│   └── infrastructure/             # Infrastructure layer
-│       └── nats/                   # NATS messaging infrastructure
+│   └── log/                        # Logging utilities
 └── pkg/                            # Shared packages
     └── constants/                  # Shared constants and configurations
 ```
@@ -29,6 +32,7 @@ The LFX v2 Project Service is a RESTful API service that manages projects within
 ## Key Features
 
 - **RESTful API**: Full CRUD operations for project management
+- **Clean Architecture**: Follows clean architecture principles with clear separation of domain, service, and infrastructure layers
 - **NATS Integration**: Event-driven architecture using NATS for messaging and key-value storage
 - **Authorization**: JWT-based authentication with Heimdall middleware integration
 - **OpenFGA Support**: Fine-grained authorization control (configurable)

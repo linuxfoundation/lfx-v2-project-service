@@ -47,25 +47,16 @@ func createResponse(code int, message string) error {
 	}
 }
 
-// keyValueStoreReady checks if the key-value stores are ready for use
-// by checking if the stores are not nil in the code.
-func keyValueStoreReady(kvStores KVStores) bool {
-	return kvStores.Projects != nil && kvStores.ProjectSettings != nil
-}
-
 // Readyz checks if the service is able to take inbound requests.
-func (s *ProjectsService) Readyz(_ context.Context) ([]byte, error) {
-	if s.natsConn == nil || !keyValueStoreReady(s.kvStores) {
+func (s *ProjectsAPI) Readyz(_ context.Context) ([]byte, error) {
+	if !s.service.ServiceReady() {
 		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
-	}
-	if !s.natsConn.IsConnected() {
-		return nil, createResponse(http.StatusServiceUnavailable, "NATS connection not established")
 	}
 	return []byte("OK\n"), nil
 }
 
 // Livez checks if the service is alive.
-func (s *ProjectsService) Livez(_ context.Context) ([]byte, error) {
+func (s *ProjectsAPI) Livez(_ context.Context) ([]byte, error) {
 	// This always returns as long as the service is still running. As this
 	// endpoint is expected to be used as a Kubernetes liveness check, this
 	// service must likewise self-detect non-recoverable errors and
@@ -74,9 +65,13 @@ func (s *ProjectsService) Livez(_ context.Context) ([]byte, error) {
 }
 
 // JWTAuth implements Auther interface for the JWT security scheme.
-func (s *ProjectsService) JWTAuth(ctx context.Context, bearerToken string, _ *security.JWTScheme) (context.Context, error) {
+func (s *ProjectsAPI) JWTAuth(ctx context.Context, bearerToken string, _ *security.JWTScheme) (context.Context, error) {
+	if !s.service.ServiceReady() {
+		return nil, createResponse(http.StatusServiceUnavailable, "service unavailable")
+	}
+
 	// Parse the Heimdall-authorized principal from the token.
-	principal, err := s.auth.parsePrincipal(ctx, bearerToken, slog.Default())
+	principal, err := s.service.Auth.ParsePrincipal(ctx, bearerToken, slog.Default())
 	if err != nil {
 		return ctx, err
 	}

@@ -1,7 +1,7 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
-package main
+package auth
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
 const (
@@ -46,11 +47,16 @@ func (c *HeimdallClaims) Validate(_ context.Context) error {
 	return nil
 }
 
-type jwtAuth struct {
+type JWTAuth struct {
 	validator *validator.Validator
 }
 
-func setupJWTAuth() *jwtAuth {
+// IJWTAuth is a JWT authentication interface needed for the [ProjectsService].
+type IJWTAuth interface {
+	ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error)
+}
+
+func NewJWTAuth() (*JWTAuth, error) {
 	// Set up Heimdall JWKS key provider.
 	jwksEnv := os.Getenv("JWKS_URL")
 	if jwksEnv == "" {
@@ -58,15 +64,15 @@ func setupJWTAuth() *jwtAuth {
 	}
 	jwksURL, err := url.Parse(jwksEnv)
 	if err != nil {
-		slog.With(errKey, err).Error("invalid JWKS_URL")
-		os.Exit(1)
+		slog.With(constants.ErrKey, err).Error("invalid JWKS_URL")
+		return nil, err
 	}
 	var issuer *url.URL
 	issuer, err = url.Parse(defaultIssuer)
 	if err != nil {
 		// This shouldn't happen; a bare hostname is a valid URL.
 		slog.Error("unexpected URL parsing of default issuer")
-		os.Exit(1)
+		return nil, err
 	}
 	provider := jwks.NewCachingProvider(issuer, 5*time.Minute, jwks.WithCustomJWKSURI(jwksURL))
 
@@ -84,17 +90,17 @@ func setupJWTAuth() *jwtAuth {
 		validator.WithAllowedClockSkew(5*time.Second),
 	)
 	if err != nil {
-		slog.With(errKey, err).Error("failed to set up the Heimdall JWT validator")
-		os.Exit(1)
+		slog.With(constants.ErrKey, err).Error("failed to set up the Heimdall JWT validator")
+		return nil, err
 	}
 
-	return &jwtAuth{
+	return &JWTAuth{
 		validator: jwtValidator,
-	}
+	}, nil
 }
 
-// parsePrincipal extracts the principal from the JWT claims.
-func (j *jwtAuth) parsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
+// ParsePrincipal extracts the principal from the JWT claims.
+func (j *JWTAuth) ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
 	// To avoid having to use a valid JWT token for local development, we can set the
 	// JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL environment variable to the principal
 	// we want to use for local development.
@@ -117,7 +123,7 @@ func (j *jwtAuth) parsePrincipal(ctx context.Context, token string, logger *slog
 		// dropping the suffix of the 3rd error's String() method could be more
 		// accurate to error boundaries, but could also expose tertiary errors if
 		// errors are not wrapped with Go 1.13 `%w` semantics.
-		logger.With("default_audience", defaultAudience).With("default_issuer", defaultIssuer).With(errKey, err).WarnContext(ctx, "authorization failed")
+		logger.With("default_audience", defaultAudience).With("default_issuer", defaultIssuer).With(constants.ErrKey, err).WarnContext(ctx, "authorization failed")
 		errString := err.Error()
 		firstColon := strings.Index(errString, ":")
 		if firstColon != -1 && firstColon+1 < len(errString) {

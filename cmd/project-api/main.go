@@ -24,8 +24,11 @@ import (
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/http/project_service/server"
 	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
+	internalnats "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/middleware"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
@@ -48,12 +51,15 @@ func main() {
 	log.InitStructureLogConfig()
 
 	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
-	jwtAuth := setupJWTAuth()
+	jwtAuth, err := auth.NewJWTAuth()
+	if err != nil {
+		slog.With(errKey, err).Error("error setting up JWT authentication")
+		os.Exit(1)
+	}
 
 	// Generated service initialization.
-	svc := &ProjectsService{
-		auth: jwtAuth,
-	}
+	service := service.NewProjectsService(nil, jwtAuth)
+	svc := NewProjectsAPI(service)
 
 	gracefulCloseWG := sync.WaitGroup{}
 
@@ -132,7 +138,7 @@ func parseEnv() environment {
 	}
 }
 
-func setupHTTPServer(flags flags, svc *ProjectsService, gracefulCloseWG *sync.WaitGroup) *http.Server {
+func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup) *http.Server {
 	// Wrap it in the generated endpoints
 	endpoints := genquerysvc.NewEndpoints(svc)
 
@@ -202,7 +208,7 @@ func setupHTTPServer(flags flags, svc *ProjectsService, gracefulCloseWG *sync.Wa
 	return httpServer
 }
 
-func setupNATS(ctx context.Context, env environment, svc *ProjectsService, gracefulCloseWG *sync.WaitGroup, done chan os.Signal) (*nats.Conn, error) {
+func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup, done chan os.Signal) (*nats.Conn, error) {
 	// Create NATS connection.
 	gracefulCloseWG.Add(1)
 	var err error
@@ -244,12 +250,15 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsService, grace
 		slog.With("nats_url", env.NatsURL, errKey, err).Error("error creating NATS client")
 		return nil, err
 	}
-	svc.natsConn = natsConn
 
 	// Get the key-value stores for the service.
-	svc.kvStores, err = getKeyValueStores(ctx, natsConn)
+	svc.service.ProjectRepository, err = getKeyValueStores(ctx, natsConn)
 	if err != nil {
 		return natsConn, err
+	}
+
+	svc.service.MessageBuilder = &internalnats.MessageBuilder{
+		NatsConn: natsConn,
 	}
 
 	// Create NATS subscriptions for the service.
@@ -262,8 +271,8 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsService, grace
 }
 
 // getKeyValueStores creates a JetStream client and gets the key-value store for projects.
-func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (KVStores, error) {
-	kvStores := KVStores{}
+func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (*internalnats.NatsRepository, error) {
+	kvStores := &internalnats.NatsRepository{}
 
 	js, err := jetstream.New(natsConn)
 	if err != nil {
@@ -288,14 +297,15 @@ func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (KVStores, erro
 }
 
 // createNatsSubcriptions creates the NATS subscriptions for the project service.
-func createNatsSubcriptions(ctx context.Context, svc *ProjectsService, natsConn *nats.Conn) error {
+func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nats.Conn) error {
 	slog.InfoContext(ctx, "subscribing to NATS subjects", "nats_url", natsConn.ConnectedUrl(), "servers", natsConn.Servers(), "subjects", []string{constants.ProjectGetNameSubject, constants.ProjectSlugToUIDSubject})
 	queueName := constants.ProjectsAPIQueue
 
 	// Get project name subscription
 	projectGetNameSubject := constants.ProjectGetNameSubject
 	_, err := natsConn.QueueSubscribe(projectGetNameSubject, queueName, func(msg *nats.Msg) {
-		svc.HandleNatsMessage(&NatsMsg{msg})
+		natsMsg := &internalnats.NatsMsg{Msg: msg}
+		svc.service.HandleMessage(natsMsg)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
@@ -305,7 +315,8 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsService, natsConn 
 	// Get project slug to UID subscription
 	projectSlugToUIDSubject := constants.ProjectSlugToUIDSubject
 	_, err = natsConn.QueueSubscribe(projectSlugToUIDSubject, queueName, func(msg *nats.Msg) {
-		svc.HandleNatsMessage(&NatsMsg{msg})
+		natsMsg := &internalnats.NatsMsg{Msg: msg}
+		svc.service.HandleMessage(natsMsg)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)

@@ -7,8 +7,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 )
 
 // INatsConn is a NATS connection interface needed for the [ProjectsService].
@@ -32,6 +35,55 @@ func (m *MockNATSConn) IsConnected() bool {
 func (m *MockNATSConn) Publish(subj string, data []byte) error {
 	args := m.Called(subj, data)
 	return args.Error(0)
+}
+
+// INatsMsg is an interface for [nats.Msg] that allows for mocking.
+type INatsMsg interface {
+	Respond(data []byte) error
+	Data() []byte
+	Subject() string
+}
+
+// NatsMsg is a wrapper around [nats.Msg] that implements [INatsMsg].
+type NatsMsg struct {
+	*nats.Msg
+}
+
+// Respond implements [INatsMsg.Respond].
+func (m *NatsMsg) Respond(data []byte) error {
+	return m.Msg.Respond(data)
+}
+
+// Data implements [INatsMsg.Data].
+func (m *NatsMsg) Data() []byte {
+	return m.Msg.Data
+}
+
+// Subject implements [INatsMsg.Subject].
+func (m *NatsMsg) Subject() string {
+	return m.Msg.Subject
+}
+
+// Ensure NatsMsg implements domain.Message interface
+var _ domain.Message = (*NatsMsg)(nil)
+
+type MockNatsMsg struct {
+	mock.Mock
+	data    []byte
+	subject string
+}
+
+func (m *MockNatsMsg) Respond(data []byte) error {
+	args := m.Called(data)
+	return args.Error(0)
+}
+
+func (m *MockNatsMsg) Data() []byte {
+	return m.data
+}
+
+func (m *MockNatsMsg) Subject() string {
+	return m.subject
 }
 
 // INatsKeyValue is a NATS KV interface needed for the [ProjectsService].

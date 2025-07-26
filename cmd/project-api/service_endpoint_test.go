@@ -7,38 +7,45 @@ import (
 	"context"
 	"testing"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"goa.design/goa/v3/security"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 )
 
 func TestReadyz(t *testing.T) {
 	tests := []struct {
 		name          string
-		setupMocks    func(*ProjectsService)
+		setupMocks    func(*service.ProjectsService)
 		expectedError bool
 		expectedBody  string
 	}{
 		{
 			name: "service ready",
-			setupMocks: func(service *ProjectsService) {
-				service.natsConn.(*nats.MockNATSConn).On("IsConnected").Return(true)
+			setupMocks: func(projectService *service.ProjectsService) {
+				// Mock repository and message builder as ready
+				projectService.ProjectRepository = &domain.MockProjectRepository{}
+				projectService.MessageBuilder = &domain.MockMessageBuilder{}
 			},
 			expectedError: false,
 			expectedBody:  "OK\n",
 		},
 		{
-			name: "NATS not connected",
-			setupMocks: func(service *ProjectsService) {
-				service.natsConn.(*nats.MockNATSConn).On("IsConnected").Return(false)
+			name: "repository not initialized",
+			setupMocks: func(projectService *service.ProjectsService) {
+				projectService.ProjectRepository = nil
+				projectService.MessageBuilder = &domain.MockMessageBuilder{}
 			},
 			expectedError: true,
 		},
 		{
-			name: "NATS KV not initialized",
-			setupMocks: func(service *ProjectsService) {
-				service.kvStores.Projects = nil
+			name: "message builder not initialized",
+			setupMocks: func(projectService *service.ProjectsService) {
+				projectService.ProjectRepository = &domain.MockProjectRepository{}
+				projectService.MessageBuilder = nil
 			},
 			expectedError: true,
 		},
@@ -46,10 +53,10 @@ func TestReadyz(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := setupService()
-			tt.setupMocks(service)
+			api, _, _ := setupAPI()
+			tt.setupMocks(api.service)
 
-			result, err := service.Readyz(context.Background())
+			result, err := api.Readyz(context.Background())
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -62,9 +69,9 @@ func TestReadyz(t *testing.T) {
 }
 
 func TestLivez(t *testing.T) {
-	service := &ProjectsService{}
+	api := &ProjectsAPI{}
 
-	result, err := service.Livez(context.Background())
+	result, err := api.Livez(context.Background())
 
 	assert.NoError(t, err)
 	assert.Equal(t, "OK\n", string(result))
@@ -76,7 +83,7 @@ func TestJWTAuth(t *testing.T) {
 		bearerToken   string
 		schema        *security.JWTScheme
 		expectedError bool
-		setupMocks    func(*MockJwtAuth)
+		setupMocks    func(*auth.MockJWTAuth)
 	}{
 		{
 			name: "valid token",
@@ -84,8 +91,8 @@ func TestJWTAuth(t *testing.T) {
 			bearerToken:   "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.iOeNU4dAFFeBwNj6qdhdvm-IvDQrTa6R22lQVJVuWJxorJfeQww5Nwsra0PjaOYhAMj9jNMO5YLmud8U7iQ5gJK2zYyepeSuXhfSi8yjFZfRiSkelqSkU19I-Ja8aQBDbqXf2SAWA8mHF8VS3F08rgEaLCyv98fLLH4vSvsJGf6ueZSLKDVXz24rZRXGWtYYk_OYYTVgR1cg0BLCsuCvqZvHleImJKiWmtS0-CymMO4MMjCy_FIl6I56NqLE9C87tUVpo1mT-kbg5cHDD8I7MjCW5Iii5dethB4Vid3mZ6emKjVYgXrtkOQ-JyGMh6fnQxEFN1ft33GX2eRHluK9eg",
 			schema:        &security.JWTScheme{},
 			expectedError: false,
-			setupMocks: func(mockJwtAuth *MockJwtAuth) {
-				mockJwtAuth.On("parsePrincipal", mock.Anything, mock.Anything, mock.Anything).Return("user1", nil)
+			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
+				mockJwtAuth.On("ParsePrincipal", mock.Anything, mock.Anything, mock.Anything).Return("user1", nil)
 			},
 		},
 		{
@@ -93,18 +100,18 @@ func TestJWTAuth(t *testing.T) {
 			bearerToken:   "invalid.token",
 			schema:        &security.JWTScheme{},
 			expectedError: true,
-			setupMocks: func(mockJwtAuth *MockJwtAuth) {
-				mockJwtAuth.On("parsePrincipal", mock.Anything, mock.Anything, mock.Anything).Return("", assert.AnError)
+			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
+				mockJwtAuth.On("ParsePrincipal", mock.Anything, mock.Anything, mock.Anything).Return("", assert.AnError)
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := setupService()
-			tt.setupMocks(service.auth.(*MockJwtAuth))
+			api, _, _ := setupAPI()
+			tt.setupMocks(api.service.Auth.(*auth.MockJWTAuth))
 
-			ctx, err := service.JWTAuth(context.Background(), tt.bearerToken, tt.schema)
+			ctx, err := api.JWTAuth(context.Background(), tt.bearerToken, tt.schema)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -114,16 +121,6 @@ func TestJWTAuth(t *testing.T) {
 			}
 		})
 	}
-}
-
-// Helper function to create string pointers
-func stringPtr(s string) *string {
-	return &s
-}
-
-// Helper function to create boolean pointers
-func boolPtr(b bool) *bool {
-	return &b
 }
 
 // Test cleanup

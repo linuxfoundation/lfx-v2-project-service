@@ -37,14 +37,50 @@ This service handles the following NATS subjects:
 │   └── types.go                    # Goa models
 ├── gen/                            # Goa generated implementation code (not committed)
 ├── main.go                         # Dependency injection and startup
-├── service.go                      # Base service implementation
-├── service_endpoint.go             # Service implementation of health check endpoints
-├── service_endpoint_project.go     # Service implementation of project REST API endpoints
-├── service_handler.go              # Service implementation of NATS handlers
-├── repo.go                         # Interface with data stores
-├── mock.go                         # Service mocks for tests
-└── jwt.go                          # API authentication with Heimdall
+├── service.go                      # ProjectsAPI implementation (presentation layer)
+├── service_endpoint.go             # Health check endpoints implementation
+├── service_endpoint_project.go     # Project REST API endpoints implementation
+└── service_handler.go              # NATS message handlers implementation
+
+# Dependencies from internal/ packages:
+# - internal/service/              # Business logic layer
+# - internal/domain/               # Domain interfaces and models
+# - internal/infrastructure/       # Infrastructure implementations (NATS, Auth)
 ```
+
+## Architecture
+
+This service follows clean architecture principles with clear separation of concerns:
+
+### Layers
+
+1. **Presentation Layer** (`cmd/project-api/`)
+   - `ProjectsAPI` struct implements the Goa-generated service interface
+   - HTTP endpoint handlers (`service_endpoint_project.go`)
+   - NATS message handlers (`service_handler.go`)
+   - Dependency injection and startup (`main.go`)
+
+2. **Service Layer** (`internal/service/`)
+   - `ProjectsService` contains core business logic
+   - Orchestrates operations between domain and infrastructure
+
+3. **Domain Layer** (`internal/domain/`)
+   - Domain models (`models/`)
+   - Repository interfaces (`repository.go`)
+   - Message handling interfaces (`message.go`)
+   - Domain-specific errors and validation
+
+4. **Infrastructure Layer** (`internal/infrastructure/`)
+   - NATS repository implementation (`nats/repository.go`)
+   - JWT authentication implementation (`auth/jwt.go`)
+   - External service integrations
+
+### Key Benefits
+
+- **Database Independence**: Can switch from NATS to PostgreSQL without changing business logic
+- **Testability**: Each layer can be tested in isolation using mocks
+- **Maintainability**: Clear separation of concerns and dependency direction
+- **Flexibility**: Easy to add new storage backends or external services
 
 ## Development
 
