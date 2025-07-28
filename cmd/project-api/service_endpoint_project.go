@@ -76,7 +76,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		Description: &payload.Description,
 		Name:        &payload.Name,
 		Public:      payload.Public,
-		ParentUID:   payload.ParentUID,
+		ParentUID:   &payload.ParentUID,
 		Auditors:    payload.Auditors,
 		Writers:     payload.Writers,
 	}
@@ -87,20 +87,21 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
-	if project.ParentUID != nil && *project.ParentUID != "" {
-		if _, err := uuid.Parse(*project.ParentUID); err != nil {
-			slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
-			return nil, createResponse(http.StatusBadRequest, "invalid parent UID")
+	if payload.ParentUID == "" {
+		slog.ErrorContext(ctx, "parent UID is required and cannot be empty")
+		return nil, createResponse(http.StatusBadRequest, "parent UID is required and cannot be empty")
+	}
+	if _, err := uuid.Parse(payload.ParentUID); err != nil {
+		slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
+		return nil, createResponse(http.StatusBadRequest, "invalid parent UID")
+	}
+	if _, err := s.projectsKV.Get(ctx, payload.ParentUID); err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			slog.ErrorContext(ctx, "parent project not found", errKey, err)
+			return nil, createResponse(http.StatusBadRequest, "parent project not found")
 		}
-		if _, err := s.projectsKV.Get(ctx, *project.ParentUID); err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				slog.ErrorContext(ctx, "parent project not found", errKey, err)
-				return nil, createResponse(http.StatusBadRequest, "parent project not found")
-			}
-			slog.ErrorContext(ctx, "error getting parent project from NATS KV store", errKey, err)
-			return nil, createResponse(http.StatusInternalServerError, "error getting parent project from NATS KV store")
-		}
-
+		slog.ErrorContext(ctx, "error getting parent project from NATS KV store", errKey, err)
+		return nil, createResponse(http.StatusInternalServerError, "error getting parent project from NATS KV store")
 	}
 
 	projectDB := ConvertToDBProject(project)
@@ -217,20 +218,21 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 	}
 
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
-	if payload.ParentUID != nil && *payload.ParentUID != "" {
-		if _, err := uuid.Parse(*payload.ParentUID); err != nil {
-			slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
-			return nil, createResponse(http.StatusBadRequest, "invalid parent UID")
+	if payload.ParentUID == "" {
+		slog.ErrorContext(ctx, "parent UID is required and cannot be empty")
+		return nil, createResponse(http.StatusBadRequest, "parent UID is required and cannot be empty")
+	}
+	if _, err := uuid.Parse(payload.ParentUID); err != nil {
+		slog.ErrorContext(ctx, "invalid parent UID", errKey, err)
+		return nil, createResponse(http.StatusBadRequest, "invalid parent UID")
+	}
+	if _, err := s.projectsKV.Get(ctx, payload.ParentUID); err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			slog.ErrorContext(ctx, "parent project not found", errKey, err)
+			return nil, createResponse(http.StatusBadRequest, "parent project not found")
 		}
-		if _, err := s.projectsKV.Get(ctx, *payload.ParentUID); err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				slog.ErrorContext(ctx, "parent project not found", errKey, err)
-				return nil, createResponse(http.StatusBadRequest, "parent project not found")
-			}
-			slog.ErrorContext(ctx, "error getting parent project from NATS KV store", errKey, err)
-			return nil, createResponse(http.StatusInternalServerError, "error getting parent project from NATS KV store")
-		}
-
+		slog.ErrorContext(ctx, "error getting parent project from NATS KV store", errKey, err)
+		return nil, createResponse(http.StatusInternalServerError, "error getting parent project from NATS KV store")
 	}
 
 	// Check if the project exists
@@ -251,7 +253,7 @@ func (s *ProjectsService) UpdateProject(ctx context.Context, payload *projsvc.Up
 		Description: &payload.Description,
 		Name:        &payload.Name,
 		Public:      payload.Public,
-		ParentUID:   payload.ParentUID,
+		ParentUID:   &payload.ParentUID,
 		Auditors:    payload.Auditors,
 		Writers:     payload.Writers,
 	}

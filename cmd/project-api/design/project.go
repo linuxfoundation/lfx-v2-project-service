@@ -80,7 +80,7 @@ var _ = Service("project-service", func() {
 			ProjectParentUIDAttribute()
 			ProjectAuditorsAttribute()
 			ProjectWritersAttribute()
-			Required("slug", "description", "name")
+			Required("slug", "description", "name", "parent_uid")
 		})
 
 		Result(Project)
@@ -169,7 +169,7 @@ var _ = Service("project-service", func() {
 			ProjectParentUIDAttribute()
 			ProjectAuditorsAttribute()
 			ProjectWritersAttribute()
-			Required("slug", "description", "name")
+			Required("slug", "description", "name", "parent_uid")
 		})
 
 		Result(Project)

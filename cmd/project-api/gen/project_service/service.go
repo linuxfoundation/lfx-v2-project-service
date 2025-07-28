@@ -83,8 +83,8 @@ type CreateProjectPayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
-	// The UID of the parent project, should be empty if there is none
-	ParentUID *string
+	// The UID of the parent project, required and must be a valid UUID
+	ParentUID string
 	// A list of project auditors by their user IDs
 	Auditors []string
 	// A list of project writers by their user IDs
@@ -168,7 +168,7 @@ type Project struct {
 	Name *string
 	// Whether the project is public
 	Public *bool
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string
 	// A list of project auditors by their user IDs
 	Auditors []string
@@ -202,8 +202,8 @@ type UpdateProjectPayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
-	// The UID of the parent project, should be empty if there is none
-	ParentUID *string
+	// The UID of the parent project, required and must be a valid UUID
+	ParentUID string
 	// A list of project auditors by their user IDs
 	Auditors []string
 	// A list of project writers by their user IDs

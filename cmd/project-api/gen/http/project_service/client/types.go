@@ -24,8 +24,8 @@ type CreateProjectRequestBody struct {
 	Name string `form:"name" json:"name" xml:"name"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
-	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// The UID of the parent project, required and must be a valid UUID
+	ParentUID string `form:"parent_uid" json:"parent_uid" xml:"parent_uid"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// A list of project writers by their user IDs
@@ -43,8 +43,8 @@ type UpdateProjectRequestBody struct {
 	Name string `form:"name" json:"name" xml:"name"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
-	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
+	// The UID of the parent project, required and must be a valid UUID
+	ParentUID string `form:"parent_uid" json:"parent_uid" xml:"parent_uid"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// A list of project writers by their user IDs
@@ -71,7 +71,7 @@ type CreateProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
@@ -96,7 +96,7 @@ type UpdateProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
@@ -306,7 +306,7 @@ type ProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`

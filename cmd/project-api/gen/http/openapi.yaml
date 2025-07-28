@@ -126,6 +126,7 @@ paths:
                         - slug
                         - description
                         - name
+                        - parent_uid
             responses:
                 "201":
                     description: Created response.
@@ -262,6 +263,7 @@ paths:
                         - slug
                         - description
                         - name
+                        - parent_uid
             responses:
                 "200":
                     description: OK response.
@@ -493,7 +495,7 @@ definitions:
                 example: Foo Foundation
             parent_uid:
                 type: string
-                description: The UID of the parent project, should be empty if there is none
+                description: The UID of the parent project, required and must be a valid UUID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             public:
                 type: boolean
@@ -551,7 +553,7 @@ definitions:
                 example: Foo Foundation
             parent_uid:
                 type: string
-                description: The UID of the parent project, should be empty if there is none
+                description: The UID of the parent project, required and must be a valid UUID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             public:
                 type: boolean
@@ -588,6 +590,7 @@ definitions:
             - slug
             - description
             - name
+            - parent_uid
     ProjectServiceGetOneProjectResponseBody:
         title: ProjectServiceGetOneProjectResponseBody
         $ref: '#/definitions/Project'
@@ -700,7 +703,7 @@ definitions:
                 example: Foo Foundation
             parent_uid:
                 type: string
-                description: The UID of the parent project, should be empty if there is none
+                description: The UID of the parent project, required and must be a valid UUID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             public:
                 type: boolean
@@ -737,6 +740,7 @@ definitions:
             - slug
             - description
             - name
+            - parent_uid
     ServiceUnavailableError:
         title: ServiceUnavailableError
         type: object
