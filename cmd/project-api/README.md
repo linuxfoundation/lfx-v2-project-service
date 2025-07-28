@@ -26,8 +26,8 @@ This service contains the following API endpoints:
 
 This service handles the following NATS subjects:
 
-- `<lfx_environment>.lfx.projects-api.get_name`: Get a project name from a given project UID
-- `<lfx_environment>.lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
+- `lfx.projects-api.get_name`: Get a project name from a given project UID
+- `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
 ## File Structure
 
@@ -150,7 +150,6 @@ The service relies on some resources and external services being spun up prior t
 |-----------------------|--------------------|-----------|-----|
 |PORT|the port for http requests to the project service API|8080|false|
 |NATS_URL|the URL of the nats server instance|nats://localhost:4222|false|
-|LFX_ENVIRONMENT|the LFX environment (enum: prod, stg, dev)|dev|false|
 |LOG_LEVEL|the log level for outputted logs|info|false|
 |LOG_ADD_SOURCE|whether to add the source field to outputted logs|false|false|
 |JWKS_URL|the URL to the endpoint for verifying ID tokens and JWT access tokens||false|

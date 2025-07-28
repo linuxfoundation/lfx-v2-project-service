@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -80,6 +79,47 @@ func TestMessageBuilder_SendIndexProject(t *testing.T) {
 			setupCtx:    backgroundCtx,
 			wantErr:     true,
 			expectedErr: errors.New("nats connection error"),
+		},
+		{
+			name:   "complex nested json with mapstructure",
+			action: models.ActionCreated,
+			data:   []byte(`{"uid": "test-project", "metadata": {"tags": ["tag1", "tag2"], "count": 42}, "active": true}`),
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
+					var msg models.ProjectMessage
+					err := json.Unmarshal(data, &msg)
+					if err != nil {
+						return false
+					}
+					// Verify the data is properly converted to map[string]any
+					dataMap, ok := msg.Data.(map[string]interface{})
+					if !ok {
+						return false
+					}
+					// Check nested structure
+					metadata, ok := dataMap["metadata"].(map[string]interface{})
+					if !ok {
+						return false
+					}
+					tags, ok := metadata["tags"].([]interface{})
+					if !ok || len(tags) != 2 {
+						return false
+					}
+					return dataMap["uid"] == "test-project" && dataMap["active"] == true
+				})).Return(nil)
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  false,
+		},
+		{
+			name:   "invalid json data",
+			action: models.ActionCreated,
+			data:   []byte(`{invalid json`),
+			setupMocks: func(mockConn *MockNATSConn) {
+				// Should not reach publish due to JSON error
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  true,
 		},
 	}
 
@@ -174,11 +214,7 @@ func TestMessageBuilder_SendUpdateAccessProject(t *testing.T) {
 			name: "successful send update access project message",
 			data: []byte(`{"uid": "test-project"}`),
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.UpdateAccessProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectMessage
-					err := json.Unmarshal(data, &msg)
-					return err == nil && msg.Action == models.ActionUpdated
-				})).Return(nil)
+				mockConn.On("Publish", constants.UpdateAccessProjectSubject, []byte(`{"uid": "test-project"}`)).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -225,11 +261,7 @@ func TestMessageBuilder_SendUpdateAccessProjectSettings(t *testing.T) {
 			name: "successful send update access project settings message",
 			data: []byte(`{"uid": "test-project"}`),
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.UpdateAccessProjectSettingsSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectMessage
-					err := json.Unmarshal(data, &msg)
-					return err == nil && msg.Action == models.ActionUpdated
-				})).Return(nil)
+				mockConn.On("Publish", constants.UpdateAccessProjectSettingsSubject, []byte(`{"uid": "test-project"}`)).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -276,11 +308,7 @@ func TestMessageBuilder_SendDeleteAllAccessProject(t *testing.T) {
 			name: "successful send delete all access project message",
 			data: []byte(`{"uid": "test-project"}`),
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.DeleteAllAccessSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectMessage
-					err := json.Unmarshal(data, &msg)
-					return err == nil && msg.Action == models.ActionDeleted
-				})).Return(nil)
+				mockConn.On("Publish", constants.DeleteAllAccessSubject, []byte(`{"uid": "test-project"}`)).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -327,11 +355,7 @@ func TestMessageBuilder_SendDeleteAllAccessProjectSettings(t *testing.T) {
 			name: "successful send delete all access project settings message",
 			data: []byte(`{"uid": "test-project"}`),
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.DeleteAllAccessProjectSettingsSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectMessage
-					err := json.Unmarshal(data, &msg)
-					return err == nil && msg.Action == models.ActionDeleted
-				})).Return(nil)
+				mockConn.On("Publish", constants.DeleteAllAccessProjectSettingsSubject, []byte(`{"uid": "test-project"}`)).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -381,8 +405,8 @@ func TestMessageBuilder_ContextHandling(t *testing.T) {
 				return false
 			}
 
-			return msg.Headers["authorization"] == expectedAuth &&
-				msg.Headers["x-on-behalf-of"] == expectedPrincipal
+			return msg.Headers[constants.AuthorizationHeader] == expectedAuth &&
+				msg.Headers[constants.XOnBehalfOfHeader] == expectedPrincipal
 		})).Return(nil)
 
 		builder := &MessageBuilder{
@@ -426,28 +450,54 @@ func TestMessageBuilder_ContextHandling(t *testing.T) {
 
 func TestMessageBuilder_MessageConstruction(t *testing.T) {
 	tests := []struct {
-		name         string
-		action       models.MessageAction
-		data         []byte
-		expectedData interface{}
+		name           string
+		action         models.MessageAction
+		data           []byte
+		expectedResult interface{}
+		wantErr        bool
 	}{
 		{
-			name:         "message with string data",
-			action:       models.ActionCreated,
-			data:         []byte(`"simple string"`),
-			expectedData: []byte(`"simple string"`),
+			name:   "message with simple object",
+			action: models.ActionCreated,
+			data:   []byte(`{"message": "simple string"}`),
+			expectedResult: map[string]interface{}{
+				"message": "simple string",
+			},
 		},
 		{
-			name:         "message with object data",
-			action:       models.ActionUpdated,
-			data:         []byte(`{"uid": "test", "name": "Test Project"}`),
-			expectedData: []byte(`{"uid": "test", "name": "Test Project"}`),
+			name:   "message with object data",
+			action: models.ActionUpdated,
+			data:   []byte(`{"uid": "test", "name": "Test Project"}`),
+			expectedResult: map[string]interface{}{
+				"uid":  "test",
+				"name": "Test Project",
+			},
 		},
 		{
-			name:         "message with array data",
-			action:       models.ActionDeleted,
-			data:         []byte(`["item1", "item2"]`),
-			expectedData: []byte(`["item1", "item2"]`),
+			name:   "message with array in object",
+			action: models.ActionDeleted,
+			data:   []byte(`{"items": ["item1", "item2"]}`),
+			expectedResult: map[string]interface{}{
+				"items": []interface{}{"item1", "item2"},
+			},
+		},
+		{
+			name:   "message with nested object",
+			action: models.ActionUpdated,
+			data:   []byte(`{"project": {"name": "test", "tags": ["go", "nats"]}, "count": 5}`),
+			expectedResult: map[string]interface{}{
+				"project": map[string]interface{}{
+					"name": "test",
+					"tags": []interface{}{"go", "nats"},
+				},
+				"count": float64(5), // JSON numbers are float64
+			},
+		},
+		{
+			name:    "message with invalid json",
+			action:  models.ActionCreated,
+			data:    []byte(`{invalid`),
+			wantErr: true,
 		},
 	}
 
@@ -455,48 +505,35 @@ func TestMessageBuilder_MessageConstruction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockConn := &MockNATSConn{}
 
-			mockConn.On("Publish", mock.Anything, mock.MatchedBy(func(data []byte) bool {
-				var msg models.ProjectMessage
-				err := json.Unmarshal(data, &msg)
-				if err != nil {
-					return false
-				}
+			if !tt.wantErr {
+				mockConn.On("Publish", mock.Anything, mock.MatchedBy(func(data []byte) bool {
+					var msg models.ProjectMessage
+					err := json.Unmarshal(data, &msg)
+					if err != nil {
+						return false
+					}
 
-				// Verify action
-				if msg.Action != tt.action {
-					return false
-				}
+					// Verify action
+					if msg.Action != tt.action {
+						return false
+					}
 
-				// Verify data field matches expected
-				msgDataBytes, err := json.Marshal(msg.Data)
-				if err != nil {
-					return false
-				}
-
-				expectedDataStr, ok := tt.expectedData.([]byte)
-				if !ok {
-					return false
-				}
-
-				// For robust comparison, unmarshal both and compare as objects
-				var msgDataObj, expectedDataObj any
-				if err := json.Unmarshal(msgDataBytes, &msgDataObj); err != nil {
-					return false
-				}
-				if err := json.Unmarshal(expectedDataStr, &expectedDataObj); err != nil {
-					return false
-				}
-
-				// Use deep comparison instead of string comparison
-				return fmt.Sprintf("%v", msgDataObj) == fmt.Sprintf("%v", expectedDataObj)
-			})).Return(nil)
+					// Compare the actual data with expected
+					return assert.ObjectsAreEqual(tt.expectedResult, msg.Data)
+				})).Return(nil)
+			}
 
 			builder := &MessageBuilder{
 				NatsConn: mockConn,
 			}
 
 			err := builder.SendIndexProject(context.Background(), tt.action, tt.data)
-			assert.NoError(t, err)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 
 			mockConn.AssertExpectations(t)
 		})
@@ -530,8 +567,8 @@ func TestMessageBuilder_Integration(t *testing.T) {
 
 		// Verify the message structure
 		assert.Equal(t, models.ActionCreated, publishedMessage.Action)
-		assert.Equal(t, "Bearer integration-token", publishedMessage.Headers["authorization"])
-		assert.Equal(t, "integration-user", publishedMessage.Headers["x-on-behalf-of"])
+		assert.Equal(t, "Bearer integration-token", publishedMessage.Headers[constants.AuthorizationHeader])
+		assert.Equal(t, "integration-user", publishedMessage.Headers[constants.XOnBehalfOfHeader])
 
 		// Verify data by marshaling both and comparing
 		actualDataBytes, err := json.Marshal(publishedMessage.Data)
@@ -544,4 +581,124 @@ func TestMessageBuilder_Integration(t *testing.T) {
 
 		mockConn.AssertExpectations(t)
 	})
+}
+
+func TestMessageBuilder_MapstructureDecoding(t *testing.T) {
+	tests := []struct {
+		name         string
+		data         []byte
+		expectedData map[string]interface{}
+	}{
+		{
+			name: "simple struct with json tags",
+			data: []byte(`{"uid": "123", "project_name": "Test"}`),
+			expectedData: map[string]interface{}{
+				"uid":          "123",
+				"project_name": "Test",
+			},
+		},
+		{
+			name: "nested struct with arrays",
+			data: []byte(`{"metadata": {"tags": ["go", "nats"], "version": 1}, "active": true}`),
+			expectedData: map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"tags":    []interface{}{"go", "nats"},
+					"version": float64(1),
+				},
+				"active": true,
+			},
+		},
+		{
+			name: "mixed types",
+			data: []byte(`{"string": "text", "number": 42, "bool": false, "null": null, "array": [1, 2, 3]}`),
+			expectedData: map[string]interface{}{
+				"string": "text",
+				"number": float64(42),
+				"bool":   false,
+				"null":   nil,
+				"array":  []interface{}{float64(1), float64(2), float64(3)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+
+			mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
+				var msg models.ProjectMessage
+				err := json.Unmarshal(data, &msg)
+				if err != nil {
+					return false
+				}
+
+				// Verify data is properly decoded
+				dataMap, ok := msg.Data.(map[string]interface{})
+				if !ok {
+					return false
+				}
+
+				// Deep comparison of maps
+				return assert.ObjectsAreEqual(tt.expectedData, dataMap)
+			})).Return(nil)
+
+			builder := &MessageBuilder{
+				NatsConn: mockConn,
+			}
+
+			err := builder.SendIndexProject(context.Background(), models.ActionCreated, tt.data)
+			assert.NoError(t, err)
+
+			mockConn.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMessageBuilder_ErrorHandling(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "invalid json",
+			data:    []byte(`{"unclosed`),
+			wantErr: true,
+			errMsg:  "unexpected end of JSON input",
+		},
+		{
+			name:    "empty data",
+			data:    []byte(``),
+			wantErr: true,
+			errMsg:  "unexpected end of JSON input",
+		},
+		{
+			name:    "null data",
+			data:    nil,
+			wantErr: true,
+			errMsg:  "unexpected end of JSON input",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+
+			builder := &MessageBuilder{
+				NatsConn: mockConn,
+			}
+
+			err := builder.SendIndexProject(context.Background(), models.ActionCreated, tt.data)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errMsg)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockConn.AssertExpectations(t)
+		})
+	}
 }

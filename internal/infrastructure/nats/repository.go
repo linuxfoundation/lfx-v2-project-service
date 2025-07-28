@@ -263,7 +263,6 @@ func (s *NatsRepository) CreateProject(ctx context.Context, projectBase *models.
 	// Store the project base data
 	_, err = s.putProjectBase(ctx, projectBase)
 	if err != nil {
-		// TODO: should we clean up the slug mapping?
 		return domain.ErrInternal
 	}
 

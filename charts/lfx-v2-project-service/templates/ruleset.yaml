@@ -4,8 +4,8 @@
 apiVersion: heimdall.dadrus.github.com/v1alpha4
 kind: RuleSet
 metadata:
-  name: lfx-v2-project-service
-  namespace: lfx
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
 spec:
   rules:
     - id: "rule:lfx:lfx-v2-project-service:health"
@@ -22,7 +22,8 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:create_projects"
+
+    - id: "rule:lfx:lfx-v2-project-service:projects:create"
       match:
         methods:
           - POST
@@ -47,10 +48,11 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
+
     # TODO: remove this rule once we remove the list projects endpoint.
     # It is not meant to be used by applications, it should only be used
     # in local development, therefore the authorizer allows all requests.
-    - id: "rule:lfx:lfx-v2-project-service:list_projects"
+    - id: "rule:lfx:lfx-v2-project-service:projects:list"
       match:
         methods:
           - GET
@@ -65,7 +67,8 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects:get_single_project_base"
+
+    - id: "rule:lfx:lfx-v2-project-service:projects:project:get"
       match:
         methods:
           - GET
@@ -90,7 +93,60 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects:get_single_project_settings"
+
+    - id: "rule:lfx:lfx-v2-project-service:projects:update"
+      match:
+        methods:
+          - PUT
+        routes:
+          - path: /projects/:id
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+
+    - id: "rule:lfx:lfx-v2-project-service:projects:delete"
+      match:
+        methods:
+          - DELETE
+        routes:
+          - path: /projects/:id
+      execute:
+        #- authenticator: authelia
+        - authenticator: anonymous_authenticator
+        #- contextualizer: authelia_userinfo
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: owner
+              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
+        {{- else -}}
+        # When OpenFGA is disabled, allow all requests
+        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-project-service
+
+    - id: "rule:lfx:lfx-v2-project-service:project_settings:get"
       match:
         methods:
           - GET
@@ -115,32 +171,8 @@ spec:
           config:
             values:
               aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects:update_single_project"
-      match:
-        methods:
-          - PUT
-        routes:
-          - path: /projects/:id
-      execute:
-        #- authenticator: authelia
-        - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: writer
-              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
-        {{- else -}}
-        # When OpenFGA is disabled, allow all requests
-        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects:update_single_project_settings"
+
+    - id: "rule:lfx:lfx-v2-project-service:project_settings:update"
       match:
         methods:
           - PUT
@@ -155,31 +187,6 @@ spec:
           config:
             values:
               relation: writer
-              object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
-        {{- else -}}
-        # When OpenFGA is disabled, allow all requests
-        # (Only meant for *local development* because OpenFGA should be enabled when deployed)
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: lfx-v2-project-service
-    - id: "rule:lfx:lfx-v2-project-service:projects:delete_single_project"
-      match:
-        methods:
-          - DELETE
-        routes:
-          - path: /projects/:id
-      execute:
-        #- authenticator: authelia
-        - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: owner
               object: "project:{{ "{{- .Request.URL.Captures.id -}}" }}"
         {{- else -}}
         # When OpenFGA is disabled, allow all requests

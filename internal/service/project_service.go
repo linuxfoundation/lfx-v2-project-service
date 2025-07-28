@@ -16,10 +16,9 @@ type ProjectsService struct {
 }
 
 // NewProjectsService creates a new ProjectsService.
-func NewProjectsService(repo domain.ProjectRepository, auth auth.IJWTAuth) *ProjectsService {
+func NewProjectsService(auth auth.IJWTAuth) *ProjectsService {
 	return &ProjectsService{
-		ProjectRepository: repo,
-		Auth:              auth,
+		Auth: auth,
 	}
 }
 

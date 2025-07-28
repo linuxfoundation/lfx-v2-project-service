@@ -63,7 +63,7 @@ func main() {
 	}
 
 	// Generated service initialization.
-	service := service.NewProjectsService(nil, jwtAuth)
+	service := service.NewProjectsService(jwtAuth)
 	svc := NewProjectsAPI(service)
 
 	gracefulCloseWG := sync.WaitGroup{}

@@ -15,37 +15,23 @@ import (
 func TestNewProjectsService(t *testing.T) {
 	tests := []struct {
 		name string
-		repo domain.ProjectRepository
 		auth auth.IJWTAuth
 	}{
 		{
 			name: "create service with valid dependencies",
-			repo: &domain.MockProjectRepository{},
-			auth: &auth.MockJWTAuth{},
-		},
-		{
-			name: "create service with nil repository",
-			repo: nil,
 			auth: &auth.MockJWTAuth{},
 		},
 		{
 			name: "create service with nil auth",
-			repo: &domain.MockProjectRepository{},
-			auth: nil,
-		},
-		{
-			name: "create service with both nil",
-			repo: nil,
 			auth: nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := NewProjectsService(tt.repo, tt.auth)
+			service := NewProjectsService(tt.auth)
 
 			assert.NotNil(t, service)
-			assert.Equal(t, tt.repo, service.ProjectRepository)
 			assert.Equal(t, tt.auth, service.Auth)
 			assert.Nil(t, service.MessageBuilder) // Should be set separately
 		})
@@ -130,7 +116,8 @@ func TestProjectsService_Dependencies(t *testing.T) {
 		mockAuth := &auth.MockJWTAuth{}
 		mockBuilder := &domain.MockMessageBuilder{}
 
-		service := NewProjectsService(mockRepo, mockAuth)
+		service := NewProjectsService(mockAuth)
+		service.ProjectRepository = mockRepo
 		service.MessageBuilder = mockBuilder
 
 		// Verify dependencies are correctly set
@@ -153,7 +140,8 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	mockBuilder := &domain.MockMessageBuilder{}
 	mockAuth := &auth.MockJWTAuth{}
 
-	service := NewProjectsService(mockRepo, mockAuth)
+	service := NewProjectsService(mockAuth)
+	service.ProjectRepository = mockRepo
 	service.MessageBuilder = mockBuilder
 
 	return service, mockRepo, mockBuilder, mockAuth

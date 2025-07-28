@@ -4,17 +4,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: lfx-v2-project-service
-  namespace: lfx
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: lfx-v2-project-service
+      app: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: lfx-v2-project-service
+        app: {{ .Chart.Name }}
     spec:
       containers:
         - name: app

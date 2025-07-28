@@ -203,7 +203,6 @@ func TestEndpoint(t *testing.T) {
 |----------|-------------|---------|----------|
 | `PORT` | HTTP listen port | 8080 | No |
 | `NATS_URL` | NATS server URL | nats://localhost:4222 | No |
-| `LFX_ENVIRONMENT` | Environment (prod/stg/dev) | dev | No |
 | `LOG_LEVEL` | Log level | info | No |
 | `JWKS_URL` | JWT verification endpoint | - | No |
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
