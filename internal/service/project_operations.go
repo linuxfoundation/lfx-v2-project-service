@@ -141,7 +141,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	slog.With("project_uid", projectDB.UID, "project_slug", projectDB.Slug)
 	err = s.ProjectRepository.CreateProject(ctx, projectDB, projectSettingsDB)
 	if err != nil {
-		if err.Error() == "project slug already exists" {
+		if errors.Is(err, domain.ErrProjectSlugExists) {
 			return nil, domain.ErrProjectSlugExists
 		}
 		return nil, domain.ErrInternal
@@ -338,10 +338,10 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// Update the project in the repository
 	err = s.ProjectRepository.UpdateProjectBase(ctx, projectDB, revision)
 	if err != nil {
-		if err.Error() == "project slug already exists" {
+		if errors.Is(err, domain.ErrProjectSlugExists) {
 			return nil, domain.ErrProjectSlugExists
 		}
-		if err.Error() == "revision mismatch" {
+		if errors.Is(err, domain.ErrRevisionMismatch) {
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
 			return nil, domain.ErrRevisionMismatch
 		}
@@ -429,7 +429,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	// Update the project settings using the store
 	err = s.ProjectRepository.UpdateProjectSettings(ctx, projectSettingsDB, revision)
 	if err != nil {
-		if err.Error() == "revision mismatch" {
+		if errors.Is(err, domain.ErrRevisionMismatch) {
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
 			return nil, domain.ErrRevisionMismatch
 		}
@@ -489,7 +489,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	// Delete the project using the store
 	err = s.ProjectRepository.DeleteProject(ctx, *payload.UID, revision)
 	if err != nil {
-		if err.Error() == "revision mismatch" {
+		if errors.Is(err, domain.ErrRevisionMismatch) {
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}

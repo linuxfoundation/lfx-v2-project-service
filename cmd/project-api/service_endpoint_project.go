@@ -15,17 +15,17 @@ import (
 func handleError(err error) error {
 	switch err {
 	case domain.ErrServiceUnavailable:
-		return createResponse(http.StatusServiceUnavailable, "service unavailable")
+		return createResponse(http.StatusServiceUnavailable, domain.ErrServiceUnavailable)
 	case domain.ErrValidationFailed:
-		return createResponse(http.StatusBadRequest, "validation failed")
+		return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 	case domain.ErrRevisionMismatch:
-		return createResponse(http.StatusBadRequest, "etag is invalid")
+		return createResponse(http.StatusBadRequest, domain.ErrRevisionMismatch)
 	case domain.ErrProjectNotFound:
-		return createResponse(http.StatusNotFound, "project not found")
+		return createResponse(http.StatusNotFound, domain.ErrProjectNotFound)
 	case domain.ErrProjectSlugExists:
-		return createResponse(http.StatusConflict, "project slug already exists")
+		return createResponse(http.StatusConflict, domain.ErrProjectSlugExists)
 	case domain.ErrInternal, domain.ErrUnmarshal:
-		return createResponse(http.StatusInternalServerError, "internal server error")
+		return createResponse(http.StatusInternalServerError, domain.ErrInternal)
 	}
 	return err
 }

@@ -257,11 +257,11 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 
 func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 	tests := []struct {
-		name        string
+		name         string
 		setupService func() *ProjectsService
-		subject     string
-		messageData []byte
-		description string
+		subject      string
+		messageData  []byte
+		description  string
 	}{
 		{
 			name: "service not ready",

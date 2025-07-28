@@ -70,7 +70,7 @@ func TestNewJWTAuth(t *testing.T) {
 		expectNil bool
 	}{
 		{
-			name: "successful initialization with defaults",
+			name:   "successful initialization with defaults",
 			config: JWTAuthConfig{
 				// Use default values (empty strings)
 			},

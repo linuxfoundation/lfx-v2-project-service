@@ -17,6 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// backgroundCtx is a reusable function that returns context.Background()
+// to satisfy the gocritic unlambda linter rule
+var backgroundCtx = context.Background
+
 func TestMessageBuilder_SendIndexProject(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -63,10 +67,8 @@ func TestMessageBuilder_SendIndexProject(t *testing.T) {
 					return msg.Action == models.ActionUpdated && len(msg.Headers) == 0
 				})).Return(nil)
 			},
-			setupCtx: func() context.Context {
-				return context.Background()
-			},
-			wantErr: false,
+			setupCtx: backgroundCtx,
+			wantErr:  false,
 		},
 		{
 			name:   "nats publish error",
@@ -75,9 +77,7 @@ func TestMessageBuilder_SendIndexProject(t *testing.T) {
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(errors.New("nats connection error"))
 			},
-			setupCtx: func() context.Context {
-				return context.Background()
-			},
+			setupCtx:    backgroundCtx,
 			wantErr:     true,
 			expectedErr: errors.New("nats connection error"),
 		},
@@ -111,11 +111,11 @@ func TestMessageBuilder_SendIndexProject(t *testing.T) {
 
 func TestMessageBuilder_SendIndexProjectSettings(t *testing.T) {
 	tests := []struct {
-		name        string
-		action      models.MessageAction
-		data        []byte
-		setupMocks  func(*MockNATSConn)
-		wantErr     bool
+		name       string
+		action     models.MessageAction
+		data       []byte
+		setupMocks func(*MockNATSConn)
+		wantErr    bool
 	}{
 		{
 			name:   "successful send index project settings message",
@@ -382,7 +382,7 @@ func TestMessageBuilder_ContextHandling(t *testing.T) {
 			}
 
 			return msg.Headers["authorization"] == expectedAuth &&
-				   msg.Headers["x-on-behalf-of"] == expectedPrincipal
+				msg.Headers["x-on-behalf-of"] == expectedPrincipal
 		})).Return(nil)
 
 		builder := &MessageBuilder{

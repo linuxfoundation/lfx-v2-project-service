@@ -44,7 +44,6 @@ func setupAPI() (*ProjectsAPI, *domain.MockProjectRepository, *domain.MockMessag
 	return api, mockRepo, mockMessageBuilder
 }
 
-
 func TestGetProjects(t *testing.T) {
 	tests := []struct {
 		name           string

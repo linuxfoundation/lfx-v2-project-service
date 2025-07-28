@@ -314,11 +314,11 @@ func TestNatsRepository_CreateProject(t *testing.T) {
 
 func TestNatsRepository_ProjectExists(t *testing.T) {
 	tests := []struct {
-		name        string
-		projectUID  string
-		setupMocks  func(*MockKeyValue)
-		expected    bool
-		wantErr     bool
+		name       string
+		projectUID string
+		setupMocks func(*MockKeyValue)
+		expected   bool
+		wantErr    bool
 	}{
 		{
 			name:       "project exists",
@@ -445,11 +445,11 @@ func TestNatsRepository_ListAllProjects(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name               string
-		setupMocks         func(*MockKeyValue, *MockKeyValue)
-		expectedBaseCount  int
-		expectedSettCount  int
-		wantErr            bool
+		name              string
+		setupMocks        func(*MockKeyValue, *MockKeyValue)
+		expectedBaseCount int
+		expectedSettCount int
+		wantErr           bool
 	}{
 		{
 			name: "successful list all projects",
@@ -516,4 +516,3 @@ func TestNatsRepository_ListAllProjects(t *testing.T) {
 		})
 	}
 }
-

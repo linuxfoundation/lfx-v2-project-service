@@ -54,9 +54,9 @@ func TestNewProjectsService(t *testing.T) {
 
 func TestProjectsService_ServiceReady(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupService   func() *ProjectsService
-		expectedReady  bool
+		name          string
+		setupService  func() *ProjectsService
+		expectedReady bool
 	}{
 		{
 			name: "service ready with all dependencies",
