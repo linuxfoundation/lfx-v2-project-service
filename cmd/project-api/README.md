@@ -188,11 +188,11 @@ The service relies on some resources and external services being spun up prior t
 
 8. **Insert Root Project**
 
-All projects that are created require a `parent_uid` to be set. This means that if there are no existing projects, it is impossible to create a new project. To resolve this, you can insert a root project when developing locally using [the root_project_setup tooling](../../scripts/root_project_setup/README.md).
+All projects that are created require a `parent_uid` to be set. This means that if there are no existing projects, it is impossible to create a new project. To resolve this, you can insert a root project when developing locally using [the root_project_setup tooling](../../scripts/root-project-setup/README.md).
 
 This will create a root project with a randomly generated UID and a slug of `ROOT` which is expected to be used as the root of the project hierarchy.
 
-The [helm chart](./charts/lfx-v2-project-service/README.md) runs this automatically as an init container.
+The [helm chart](../../charts/lfx-v2-project-service/README.md) runs this automatically as an init container.
 
 ```bash
 
