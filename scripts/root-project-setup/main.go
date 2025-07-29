@@ -93,10 +93,10 @@ func setupRootProject(ctx context.Context, env environment) error {
 	}
 
 	// Check if ROOT project already exists
-	if exists, err := rootProjectExists(ctx, projectsKV); err != nil {
+	if p, err := getRootProject(ctx, projectsKV); err != nil {
 		return err
-	} else if exists {
-		slog.Info("ROOT project already exists, nothing to do")
+	} else if p != nil {
+		slog.With("project", p).Info("ROOT project already exists, nothing to do")
 		return nil
 	}
 
@@ -118,29 +118,36 @@ func getKeyValueStore(ctx context.Context, natsConn *nats.Conn) (jetstream.KeyVa
 	return projectsKV, nil
 }
 
-func rootProjectExists(ctx context.Context, projectsKV jetstream.KeyValue) (bool, error) {
+func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*natsModels.ProjectDB, error) {
 	// Try to get the ROOT project by slug
 	uidEntry, err := projectsKV.Get(ctx, rootProjectSlugKey)
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {
-			return false, nil
+			return nil, err
 		}
 		slog.ErrorContext(ctx, "error checking for ROOT project existence", errKey, err)
-		return false, err
+		return nil, err
 	}
 
 	// Try to get the ROOT project by UID from slug -> UID mapping
-	_, err = projectsKV.Get(ctx, string(uidEntry.Value()))
+	p, err := projectsKV.Get(ctx, string(uidEntry.Value()))
 	if err != nil {
 		if err == jetstream.ErrKeyNotFound {
 			slog.ErrorContext(ctx, "ROOT project UID not found in KV store but slug key was", errKey, err)
-			return false, errors.New("ROOT project UID not found in KV store")
+			return nil, errors.New("ROOT project UID not found in KV store")
 		}
 		slog.ErrorContext(ctx, "error checking for ROOT project existence by UID", errKey, err)
-		return false, err
+		return nil, err
 	}
 
-	return true, nil
+	var projectDB *natsModels.ProjectDB
+	err = json.Unmarshal(p.Value(), &projectDB)
+	if err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling project from NATS KV store", errKey, err, "project_id", uidEntry.Value())
+		return nil, err
+	}
+
+	return projectDB, nil
 }
 
 func createRootProject(ctx context.Context, projectsKV jetstream.KeyValue) error {
