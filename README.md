@@ -46,7 +46,7 @@ To create a new release of the project service:
    change is made to the chart manifests or configuration:
    ```yaml
    version: 0.2.0  # Increment this version
-   appVersion: "latest"  # Keep this as "latest"
+   appVersion: "development"  # Keep this as "development"
    ```
 
 2. **After the pull request is merged**, create a GitHub release and choose the
@@ -62,11 +62,9 @@ To create a new release of the project service:
    - Sign the chart with Cosign
    - Generate SLSA provenance
 
-   All of these steps are handled by the consolidated `ko-build-tag.yaml` workflow.
-
 ### Important Notes
 
-- The `appVersion` in `Chart.yaml` should always remain `"latest"` in the committed code.
+- The `appVersion` in `Chart.yaml` should always remain `"development"` in the committed code.
 - During the release process, the `ko-build-tag.yaml` workflow automatically overrides the `appVersion` with the actual tag version (e.g., `v0.2.0` becomes `0.2.0`).
 - Only update the chart `version` field when making releases - this represents the Helm chart version.
 - The container image tags are automatically managed by the consolidated CI/CD pipeline using the git tag.
