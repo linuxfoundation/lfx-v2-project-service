@@ -4,7 +4,7 @@
 # image is the configuration for the container images
 image:
   # repository is the container image repository
-  repository: linuxfoundation/lfx-v2-project-service
+  repository: ghcr.io/linuxfoundation/lfx-v2-project-service/project-api
   # tag is the container image tag (overrides appVersion from Chart.yaml)
   tag: ""
   # pullPolicy is the image pull policy
@@ -13,7 +13,7 @@ image:
 # initImage is the configuration for the init container image
 initImage:
   # repository is the init container image repository
-  repository: linuxfoundation/root-project-setup
+  repository: ghcr.io/linuxfoundation/lfx-v2-project-service/root-project-setup
   # tag is the init container image tag (overrides appVersion from Chart.yaml)
   tag: ""
   # pullPolicy is the init container image pull policy

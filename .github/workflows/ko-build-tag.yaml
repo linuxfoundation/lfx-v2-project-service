@@ -27,11 +27,6 @@ jobs:
       chart_name: ${{ steps.prepare.outputs.chart_name }}
       chart_version: ${{ steps.prepare.outputs.chart_version }}
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
-        with:
-          egress-policy: audit
-
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
@@ -47,10 +42,12 @@ jobs:
             echo "chart_name=$CHART_NAME"
             echo "chart_version=$CHART_VERSION"
           } >> "$GITHUB_OUTPUT"
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
       - name: Setup Ko
         uses: ko-build/setup-ko@v0.8
         with:
@@ -78,28 +75,13 @@ jobs:
     permissions:
       contents: write
       packages: write
-      pages: write
       id-token: write
     outputs:
       digest: ${{ steps.publish-ghcr.outputs.digest }}
       image_name: ${{ steps.publish-ghcr.outputs.image_name }}
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
-        with:
-          egress-policy: audit
-
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Publish Helm Chart to GH Pages
-        uses: stefanprodan/helm-gh-pages@0ad2bb377311d61ac04ad9eb6f252fb68e207260 # v1.7.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          target_dir: charts
-          linting: off
-          chart_version: ${{ needs.publish.outputs.chart_version }}
-          app_version: ${{ needs.publish.outputs.app_version }}
 
       - name: Publish Chart to GHCR
         id: publish-ghcr
