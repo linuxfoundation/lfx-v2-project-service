@@ -26,15 +26,20 @@ jobs:
       - uses: ko-build/setup-ko@v0.8
         with:
           version: v0.17.1
+      - name: generate version without v
+        id: version-no-v
+        run: echo version="${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api \
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.ref_name }} \
+            -t ${{ steps.version-no-v.outputs.version }} \
             --sbom spdx
       - run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/scripts/root-project-setup \
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.ref_name }} \
+            -t ${{ steps.version-no-v.outputs.version }} \
             --sbom spdx
