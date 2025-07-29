@@ -51,6 +51,7 @@ type Config struct {
 	NumProjects int
 	Version     string
 	Timeout     time.Duration
+	ParentUID   string
 }
 
 // ProjectGenerator generates random project data
@@ -82,7 +83,7 @@ func NewProjectGenerator() *ProjectGenerator {
 }
 
 // GenerateProject creates a random project with the given index
-func (pg *ProjectGenerator) GenerateProject(index int) ProjectData {
+func (pg *ProjectGenerator) GenerateProject(index int, parentUID string) ProjectData {
 	// Generate a random project number (1 to 100000)
 	projectNumber, _ := rand.Int(rand.Reader, big.NewInt(100000))
 	projectNumber.Add(projectNumber, big.NewInt(1)) // Add 1 to make range 1-100000
@@ -126,7 +127,7 @@ func (pg *ProjectGenerator) GenerateProject(index int) ProjectData {
 		Name:        name,
 		Description: description,
 		Public:      public,
-		ParentUID:   "",
+		ParentUID:   parentUID,
 		Auditors:    auditors,
 		Writers:     writers,
 	}
@@ -188,7 +189,7 @@ func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData)
 		Name:        project.Name,
 		Description: project.Description,
 		Public:      &project.Public,
-		ParentUID:   &project.ParentUID,
+		ParentUID:   project.ParentUID,
 		Auditors:    project.Auditors,
 		Writers:     project.Writers,
 	}
@@ -248,7 +249,7 @@ func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData)
 }
 
 // LoadMockData loads the specified number of projects
-func (pc *ProjectClient) LoadMockData(ctx context.Context, numProjects int) error {
+func (pc *ProjectClient) LoadMockData(ctx context.Context, numProjects int, parentUID string) error {
 	generator := NewProjectGenerator()
 
 	log.Printf("Starting to create %d projects...", numProjects)
@@ -257,7 +258,7 @@ func (pc *ProjectClient) LoadMockData(ctx context.Context, numProjects int) erro
 	errorCount := 0
 
 	for i := 0; i < numProjects; i++ {
-		project := generator.GenerateProject(i)
+		project := generator.GenerateProject(i, parentUID)
 
 		log.Printf("Creating project %d/%d: %s (%s)", i+1, numProjects, project.Name, project.Slug)
 
@@ -287,12 +288,16 @@ func main() {
 		numProjects = flag.Int("num-projects", 10, "Number of projects to create")
 		version     = flag.String("version", "1", "API version")
 		timeout     = flag.Duration("timeout", 30*time.Second, "Request timeout")
+		parentUID   = flag.String("parent-uid", "", "Parent UID for all generated projects")
 	)
 	flag.Parse()
 
 	// Validate required parameters
 	if *numProjects <= 0 {
 		log.Fatal("Number of projects must be greater than 0.")
+	}
+	if *parentUID == "" {
+		log.Fatal("Parent UID is required. Use -parent-uid flag to specify the parent UID for all generated projects.")
 	}
 
 	// Create configuration
@@ -302,6 +307,7 @@ func main() {
 		NumProjects: *numProjects,
 		Version:     *version,
 		Timeout:     *timeout,
+		ParentUID:   *parentUID,
 	}
 
 	// Create client
@@ -312,7 +318,7 @@ func main() {
 	defer cancel()
 
 	// Load mock data
-	if err := client.LoadMockData(ctx, config.NumProjects); err != nil {
+	if err := client.LoadMockData(ctx, config.NumProjects, config.ParentUID); err != nil {
 		log.Printf("Failed to load mock data: %v", err)
 		return
 	}

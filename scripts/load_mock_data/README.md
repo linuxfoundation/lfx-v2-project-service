@@ -37,22 +37,25 @@ go run tools/load_mock_data/main.go [flags]
 
 ```bash
 # Create 10 projects with default settings
-./bin/load_mock_data -bearer-token "your-jwt-token-here"
+./bin/load_mock_data -bearer-token "your-jwt-token-here" -parent-uid "root-project-uid"
 
 # Create 5 projects
-./bin/load_mock_data -bearer-token "your-jwt-token-here" -num-projects 5
+./bin/load_mock_data -bearer-token "your-jwt-token-here" -parent-uid "root-project-uid" -num-projects 5
 
 # Use a different API endpoint
-./bin/load_mock_data -bearer-token "your-jwt-token-here" -api-url "http://api.example.com/projects"
+./bin/load_mock_data -bearer-token "your-jwt-token-here" -parent-uid "root-project-uid" -api-url "http://api.example.com/projects"
 ```
 
 ### Command Line Flags
 
 | Flag | Description | Default | Required |
 |------|-------------|---------|----------|
+| `-parent-uid` | Parent UID for all generated projects | "" | **Yes** |
 | `-bearer-token` | JWT Bearer token for authentication | "" | No |
 | `-num-projects` | Number of projects to create | 10 | No |
-| `-api-url` | Project service API URL | | No |
+<!-- markdownlint-disable-next-line MD034 -->
+<!-- markdown-link-check-disable-next-line -->
+| `-api-url` | Project service API URL | "http://localhost:8080/projects" | No |
 | `-version` | API version | "1" | No |
 | `-timeout` | Request timeout | "30s" | No |
 
@@ -61,18 +64,21 @@ go run tools/load_mock_data/main.go [flags]
 ```bash
 # Create 100 projects with custom timeout
 ./bin/load_mock_data \
+  -parent-uid "root-project-uid" \
   -bearer-token "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -num-projects 100 \
   -timeout 60s
 
 # Create 5 projects using staging API
 ./bin/load_mock_data \
+  -parent-uid "root-project-uid" \
   -bearer-token "your-token" \
   -num-projects 5 \
   -api-url "https://staging-api.example.com/projects"
 
 # Create 25 projects with API version 2
 ./bin/load_mock_data \
+  -parent-uid "root-project-uid" \
   -bearer-token "your-token" \
   -num-projects 25 \
   -version "2"

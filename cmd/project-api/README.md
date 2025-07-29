@@ -186,6 +186,14 @@ The service relies on some resources and external services being spun up prior t
     curl http://lfx-api.k8s.orb.local/livez
     ```
 
+8. **Insert Root Project**
+
+All projects that are created require a `parent_uid` to be set. This means that if there are no existing projects, it is impossible to create a new project. To resolve this, you can insert a root project when developing locally using [the root_project_setup tooling](../../scripts/root-project-setup/README.md).
+
+This will create a root project with a randomly generated UID and a slug of `ROOT` which is expected to be used as the root of the project hierarchy.
+
+The [helm chart](../../charts/lfx-v2-project-service) runs this automatically as an init container.
+
 ### Authorization with OpenFGA
 
 When deployed via Kubernetes, the project service uses OpenFGA for fine-grained authorization control. The authorization is handled by Heimdall middleware before requests reach the service.

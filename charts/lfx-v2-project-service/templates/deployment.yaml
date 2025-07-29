@@ -46,3 +46,11 @@ spec:
               port: web
             failureThreshold: 30
             periodSeconds: 1
+      initContainers:
+        - name: root-project-setup
+          # TODO: Fix this container image name
+          image: linuxfoundation/root-project-setup:{{ .Chart.AppVersion }}
+          imagePullPolicy: Never  # The image is expected to exist locally with the same name
+          env:
+            - name: NATS_URL
+              value: {{.Values.nats.url}}

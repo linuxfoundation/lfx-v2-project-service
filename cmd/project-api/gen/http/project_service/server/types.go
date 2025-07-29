@@ -24,7 +24,7 @@ type CreateProjectRequestBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
@@ -43,7 +43,7 @@ type UpdateProjectRequestBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
@@ -71,7 +71,7 @@ type CreateProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
@@ -96,7 +96,7 @@ type UpdateProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
@@ -306,7 +306,7 @@ type ProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
@@ -625,7 +625,7 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 		Description: *body.Description,
 		Name:        *body.Name,
 		Public:      body.Public,
-		ParentUID:   body.ParentUID,
+		ParentUID:   *body.ParentUID,
 	}
 	if body.Auditors != nil {
 		v.Auditors = make([]string, len(body.Auditors))
@@ -664,7 +664,7 @@ func NewUpdateProjectPayload(body *UpdateProjectRequestBody, id string, version 
 		Description: *body.Description,
 		Name:        *body.Name,
 		Public:      body.Public,
-		ParentUID:   body.ParentUID,
+		ParentUID:   *body.ParentUID,
 	}
 	if body.Auditors != nil {
 		v.Auditors = make([]string, len(body.Auditors))
@@ -710,6 +710,9 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
+	if body.ParentUID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("parent_uid", "body"))
+	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
@@ -730,6 +733,9 @@ func ValidateUpdateProjectRequestBody(body *UpdateProjectRequestBody) (err error
 	}
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ParentUID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("parent_uid", "body"))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
