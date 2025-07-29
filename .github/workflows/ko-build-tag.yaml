@@ -60,7 +60,7 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.ref_name }} \
             -t ${{ steps.prepare.outputs.app_version }} \
-            -t development \
+            -t latest \
             --sbom spdx
 
       - name: Build and publish root-project-setup image
@@ -70,7 +70,7 @@ jobs:
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.ref_name }} \
             -t ${{ steps.prepare.outputs.app_version }} \
-            -t development \
+            -t latest \
             --sbom spdx
 
   release-helm-chart:
