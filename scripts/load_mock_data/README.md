@@ -53,6 +53,8 @@ go run tools/load_mock_data/main.go [flags]
 | `-parent-uid` | Parent UID for all generated projects | "" | **Yes** |
 | `-bearer-token` | JWT Bearer token for authentication | "" | No |
 | `-num-projects` | Number of projects to create | 10 | No |
+<!-- markdownlint-disable-next-line MD034 -->
+<!-- markdown-link-check-disable-next-line -->
 | `-api-url` | Project service API URL | "http://localhost:8080/projects" | No |
 | `-version` | API version | "1" | No |
 | `-timeout` | Request timeout | "30s" | No |

@@ -192,7 +192,7 @@ All projects that are created require a `parent_uid` to be set. This means that 
 
 This will create a root project with a randomly generated UID and a slug of `ROOT` which is expected to be used as the root of the project hierarchy.
 
-The [helm chart](../../charts/lfx-v2-project-service/README.md) runs this automatically as an init container.
+The [helm chart](../../charts/lfx-v2-project-service) runs this automatically as an init container.
 
 ```bash
 
