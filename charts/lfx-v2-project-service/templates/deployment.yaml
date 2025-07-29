@@ -18,12 +18,13 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/linuxfoundation/lfx-v2-project-service/project-api:{{ .Chart.AppVersion }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           securityContext:
             allowPrivilegeEscalation: false
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: NATS_URL
-              value: {{.Values.nats.url}}
+              value: {{ .Values.nats.url }}
           ports:
             - containerPort: 8080
               name: web
@@ -47,8 +48,8 @@ spec:
             periodSeconds: 1
       initContainers:
         - name: root-project-setup
-          # TODO: Fix this container image name
-          image: ghcr.io/linuxfoundation/lfx-v2-project-service/root-project-setup:{{ .Chart.AppVersion }}
+          image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.initImage.pullPolicy }}
           env:
             - name: NATS_URL
-              value: {{.Values.nats.url}}
+              value: {{ .Values.nats.url }}

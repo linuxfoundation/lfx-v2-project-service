@@ -1,6 +1,24 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 ---
+# image is the configuration for the container images
+image:
+  # repository is the container image repository
+  repository: ghcr.io/linuxfoundation/lfx-v2-project-service/project-api
+  # tag is the container image tag (overrides appVersion from Chart.yaml)
+  tag: ""
+  # pullPolicy is the image pull policy
+  pullPolicy: IfNotPresent
+
+# initImage is the configuration for the init container image
+initImage:
+  # repository is the init container image repository
+  repository: ghcr.io/linuxfoundation/lfx-v2-project-service/root-project-setup
+  # tag is the init container image tag (overrides appVersion from Chart.yaml)
+  tag: ""
+  # pullPolicy is the init container image pull policy
+  pullPolicy: IfNotPresent
+
 # ingress is the configuration for the ingress routing
 ingress:
   # hostname is the hostname of the ingress

@@ -3,7 +3,7 @@
 ---
 name: Publish Main
 
-'on':
+"on":
   push:
     branches:
       - main
@@ -32,10 +32,12 @@ jobs:
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
+            -t development \
             --sbom spdx
       - run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/scripts/root-project-setup \
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
+            -t development \
             --sbom spdx
