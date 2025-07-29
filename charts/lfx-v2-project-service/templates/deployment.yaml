@@ -18,13 +18,13 @@ spec:
     spec:
       containers:
         - name: app
-          image: linuxfoundation/lfx-v2-project-service:{{ .Chart.AppVersion }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           securityContext:
             allowPrivilegeEscalation: false
-          imagePullPolicy: Never  # The image is expected to exist locally with the same name and tag. It is not deployed to a registry.
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: NATS_URL
-              value: {{.Values.nats.url}}
+              value: {{ .Values.nats.url }}
           ports:
             - containerPort: 8080
               name: web
@@ -48,9 +48,8 @@ spec:
             periodSeconds: 1
       initContainers:
         - name: root-project-setup
-          # TODO: Fix this container image name
-          image: linuxfoundation/root-project-setup:{{ .Chart.AppVersion }}
-          imagePullPolicy: Never  # The image is expected to exist locally with the same name
+          image: "{{ .Values.initImage.repository }}:{{ .Values.initImage.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.initImage.pullPolicy }}
           env:
             - name: NATS_URL
-              value: {{.Values.nats.url}}
+              value: {{ .Values.nats.url }}
