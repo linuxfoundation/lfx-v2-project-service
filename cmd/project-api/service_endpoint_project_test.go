@@ -429,14 +429,14 @@ func TestUpdateProject(t *testing.T) {
 		{
 			name: "invalid parent UID",
 			payload: &projsvc.UpdateProjectPayload{
-				ID:        stringPtr("project-1"),
-				Slug:      "test",
-				Name:      "Test",
+				ID:          stringPtr("project-1"),
+				Slug:        "test",
+				Name:        "Test",
 				Description: "Test",
-				Public:    boolPtr(true),
-				ParentUID: "invalid-parent-uid",
-				Auditors:  []string{"user1"},
-				Writers:   []string{"user2"},
+				Public:      boolPtr(true),
+				ParentUID:   "invalid-parent-uid",
+				Auditors:    []string{"user1"},
+				Writers:     []string{"user2"},
 			},
 			setupMocks:    func(_ *ProjectsService) {},
 			expectedError: true,
@@ -444,14 +444,14 @@ func TestUpdateProject(t *testing.T) {
 		{
 			name: "parent project not found",
 			payload: &projsvc.UpdateProjectPayload{
-				ID:        stringPtr("project-1"),
-				Slug:      "test",
-				Name:      "Test",
+				ID:          stringPtr("project-1"),
+				Slug:        "test",
+				Name:        "Test",
 				Description: "Test",
-				Public:    boolPtr(true),
-				ParentUID: "787620d0-d7de-449a-b0bf-9d28b13da818",
-				Auditors:  []string{"user1"},
-				Writers:   []string{"user2"},
+				Public:      boolPtr(true),
+				ParentUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
+				Auditors:    []string{"user1"},
+				Writers:     []string{"user2"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*nats.MockKeyValue)
@@ -462,14 +462,14 @@ func TestUpdateProject(t *testing.T) {
 		{
 			name: "project not found",
 			payload: &projsvc.UpdateProjectPayload{
-				ID:        stringPtr("nonexistent"),
-				Slug:      "test",
-				Name:      "Test",
+				ID:          stringPtr("nonexistent"),
+				Slug:        "test",
+				Name:        "Test",
 				Description: "Test",
-				Public:    boolPtr(true),
-				ParentUID: "787620d0-d7de-449a-b0bf-9d28b13da818",
-				Auditors:  []string{"user1"},
-				Writers:   []string{"user2"},
+				Public:      boolPtr(true),
+				ParentUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
+				Auditors:    []string{"user1"},
+				Writers:     []string{"user2"},
 			},
 			setupMocks: func(service *ProjectsService) {
 				mockKV := service.projectsKV.(*nats.MockKeyValue)
