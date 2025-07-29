@@ -297,7 +297,7 @@ func main() {
 		log.Fatal("Number of projects must be greater than 0.")
 	}
 	if *parentUID == "" {
-		log.Fatal("Parent UID is required. Use --parent-uid flag to specify the parent UID for all generated projects.")
+		log.Fatal("Parent UID is required. Use -parent-uid flag to specify the parent UID for all generated projects.")
 	}
 
 	// Create configuration
