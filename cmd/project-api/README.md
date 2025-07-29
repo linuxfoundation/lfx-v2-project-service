@@ -194,8 +194,6 @@ This will create a root project with a randomly generated UID and a slug of `ROO
 
 The [helm chart](../../charts/lfx-v2-project-service) runs this automatically as an init container.
 
-```bash
-
 ### Authorization with OpenFGA
 
 When deployed via Kubernetes, the project service uses OpenFGA for fine-grained authorization control. The authorization is handled by Heimdall middleware before requests reach the service.
