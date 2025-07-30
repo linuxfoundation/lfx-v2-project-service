@@ -63,7 +63,9 @@ func main() {
 	}
 
 	// Generated service initialization.
-	service := service.NewProjectsService(jwtAuth)
+	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
+		SkipEtagValidation: env.SkipEtagValidation,
+	})
 	svc := NewProjectsAPI(service)
 
 	gracefulCloseWG := sync.WaitGroup{}
@@ -124,8 +126,9 @@ func parseFlags(defaultPort string) flags {
 
 // environment are the environment variables for the project service.
 type environment struct {
-	NatsURL string
-	Port    string
+	NatsURL            string
+	Port               string
+	SkipEtagValidation bool
 }
 
 func parseEnv() environment {
@@ -137,9 +140,15 @@ func parseEnv() environment {
 	if natsURL == "" {
 		natsURL = "nats://localhost:4222"
 	}
+	skipEtagValidation := false
+	skipEtagValidationStr := os.Getenv("SKIP_ETAG_VALIDATION")
+	if skipEtagValidationStr == "true" {
+		skipEtagValidation = true
+	}
 	return environment{
-		NatsURL: natsURL,
-		Port:    port,
+		NatsURL:            natsURL,
+		Port:               port,
+		SkipEtagValidation: skipEtagValidation,
 	}
 }
 

@@ -5,10 +5,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
@@ -16,6 +16,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -147,25 +148,21 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, domain.ErrInternal
 	}
 
-	// Send messages for indexing and access control
-	projectDBBytes, _ := json.Marshal(projectDB)
-	projectSettingsDBBytes, _ := json.Marshal(projectSettingsDB)
-
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProject(ctx, models.ActionCreated, projectDBBytes)
+		return s.MessageBuilder.SendIndexProject(ctx, models.ActionCreated, *projectDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProject(ctx, projectDBBytes)
+		return s.MessageBuilder.SendUpdateAccessProject(ctx, *projectDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionCreated, projectSettingsDBBytes)
+		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionCreated, *projectSettingsDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProjectSettings(ctx, projectSettingsDBBytes)
+		return s.MessageBuilder.SendUpdateAccessProjectSettings(ctx, *projectSettingsDB)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -278,16 +275,54 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		slog.WarnContext(ctx, "project UID is required")
 		return nil, domain.ErrValidationFailed
 	}
-	if payload.Etag == nil {
-		slog.WarnContext(ctx, "ETag header is missing")
-		return nil, domain.ErrValidationFailed
+
+	var revision uint64
+	var err error
+	if !s.Config.SkipEtagValidation {
+		if payload.Etag == nil {
+			slog.WarnContext(ctx, "ETag header is missing")
+			return nil, domain.ErrValidationFailed
+		}
+		revision, err = strconv.ParseUint(*payload.Etag, 10, 64)
+		if err != nil {
+			slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
+			return nil, domain.ErrValidationFailed
+		}
+	} else {
+		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
+		_, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
 	}
-	revision, err := strconv.ParseUint(*payload.Etag, 10, 64)
-	if err != nil {
-		slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
-		return nil, domain.ErrValidationFailed
-	}
+
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
+	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
+
+	// Check if the project exists and use some of the existing project data for the update.
+	existingProjectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+	if err != nil {
+		if errors.Is(err, domain.ErrProjectNotFound) {
+			slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
+			return nil, domain.ErrProjectNotFound
+		}
+		slog.ErrorContext(ctx, "error checking if project exists", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	// Check if the new slug is already taken
+	if payload.Slug != existingProjectDB.Slug {
+		newSlugExists, err := s.ProjectRepository.ProjectSlugExists(ctx, payload.Slug)
+		if err != nil {
+			slog.ErrorContext(ctx, "error checking if new slug exists", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
+		if newSlugExists {
+			// The slug is already taken
+			return nil, domain.ErrProjectSlugExists
+		}
+	}
 
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
 	if payload.ParentUID != nil && *payload.ParentUID != "" {
@@ -307,6 +342,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 
 	// Prepare the updated project
+	currentTime := time.Now().UTC()
 	project := &projsvc.ProjectBase{
 		UID:                        payload.UID,
 		Slug:                       &payload.Slug,
@@ -328,7 +364,12 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		LogoURL:                    payload.LogoURL,
 		WebsiteURL:                 payload.WebsiteURL,
 		RepositoryURL:              payload.RepositoryURL,
+		UpdatedAt:                  misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
+	if existingProjectDB.CreatedAt != nil {
+		project.CreatedAt = misc.StringPtr(existingProjectDB.CreatedAt.Format(time.RFC3339))
+	}
+
 	projectDB, err := models.ConvertToDBProjectBase(project)
 	if err != nil {
 		slog.ErrorContext(ctx, "error converting project to DB project", constants.ErrKey, err)
@@ -338,15 +379,9 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// Update the project in the repository
 	err = s.ProjectRepository.UpdateProjectBase(ctx, projectDB, revision)
 	if err != nil {
-		if errors.Is(err, domain.ErrProjectSlugExists) {
-			return nil, domain.ErrProjectSlugExists
-		}
 		if errors.Is(err, domain.ErrRevisionMismatch) {
 			slog.WarnContext(ctx, "etag header is invalid", constants.ErrKey, err)
 			return nil, domain.ErrRevisionMismatch
-		}
-		if errors.Is(err, domain.ErrProjectNotFound) {
-			return nil, domain.ErrProjectNotFound
 		}
 		if errors.Is(err, domain.ErrInternal) {
 			slog.ErrorContext(ctx, "error updating project in store", constants.ErrKey, err)
@@ -355,16 +390,13 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrInternal
 	}
 
-	// Send messages for indexing and access control
-	projectDBBytes, _ := json.Marshal(projectDB)
-
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProject(ctx, models.ActionUpdated, projectDBBytes)
+		return s.MessageBuilder.SendIndexProject(ctx, models.ActionUpdated, *projectDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProject(ctx, projectDBBytes)
+		return s.MessageBuilder.SendUpdateAccessProject(ctx, *projectDB)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -390,16 +422,30 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		slog.WarnContext(ctx, "project UID is required")
 		return nil, domain.ErrValidationFailed
 	}
-	if payload.Etag == nil {
-		slog.WarnContext(ctx, "ETag header is missing")
-		return nil, domain.ErrValidationFailed
+
+	var revision uint64
+	var err error
+	if !s.Config.SkipEtagValidation {
+		if payload.Etag == nil {
+			slog.WarnContext(ctx, "ETag header is missing")
+			return nil, domain.ErrValidationFailed
+		}
+		revision, err = strconv.ParseUint(*payload.Etag, 10, 64)
+		if err != nil {
+			slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
+			return nil, domain.ErrValidationFailed
+		}
+	} else {
+		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
+		_, revision, err = s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
 	}
-	revision, err := strconv.ParseUint(*payload.Etag, 10, 64)
-	if err != nil {
-		slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
-		return nil, domain.ErrValidationFailed
-	}
+
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
+	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
 
 	// Check if the project exists
 	exists, err := s.ProjectRepository.ProjectExists(ctx, *payload.UID)
@@ -412,14 +458,31 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrProjectNotFound
 	}
 
+	// Get the existing project settings
+	existingProjectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
+	if err != nil {
+		if errors.Is(err, domain.ErrProjectNotFound) {
+			slog.WarnContext(ctx, "project settings not found", constants.ErrKey, err)
+			return nil, domain.ErrProjectNotFound
+		}
+		slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
 	// Prepare the updated project settings
+	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
 		UID:              payload.UID,
 		MissionStatement: payload.MissionStatement,
 		AnnouncementDate: payload.AnnouncementDate,
 		Writers:          payload.Writers,
 		Auditors:         payload.Auditors,
+		UpdatedAt:        misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
+	if existingProjectSettingsDB.CreatedAt != nil {
+		projectSettings.CreatedAt = misc.StringPtr(existingProjectSettingsDB.CreatedAt.Format(time.RFC3339))
+	}
+
 	projectSettingsDB, err := models.ConvertToDBProjectSettings(projectSettings)
 	if err != nil {
 		slog.ErrorContext(ctx, "error converting project settings to DB project settings", constants.ErrKey, err)
@@ -440,16 +503,13 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
-	// Send messages for indexing and access control
-	projectSettingsDBBytes, _ := json.Marshal(projectSettingsDB)
-
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionUpdated, projectSettingsDBBytes)
+		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionUpdated, *projectSettingsDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProjectSettings(ctx, projectSettingsDBBytes)
+		return s.MessageBuilder.SendUpdateAccessProjectSettings(ctx, *projectSettingsDB)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -473,14 +533,26 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		slog.WarnContext(ctx, "project UID is required")
 		return domain.ErrValidationFailed
 	}
-	if payload.Etag == nil {
-		slog.WarnContext(ctx, "ETag header is missing")
-		return domain.ErrValidationFailed
-	}
-	revision, err := strconv.ParseUint(*payload.Etag, 10, 64)
-	if err != nil {
-		slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
-		return domain.ErrValidationFailed
+
+	var revision uint64
+	var err error
+	if !s.Config.SkipEtagValidation {
+		if payload.Etag == nil {
+			slog.WarnContext(ctx, "ETag header is missing")
+			return domain.ErrValidationFailed
+		}
+		revision, err = strconv.ParseUint(*payload.Etag, 10, 64)
+		if err != nil {
+			slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
+			return domain.ErrValidationFailed
+		}
+	} else {
+		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
+		_, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
+			return domain.ErrInternal
+		}
 	}
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
@@ -506,19 +578,19 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProject(ctx, models.ActionDeleted, []byte(*payload.UID))
+		return s.MessageBuilder.SendDeleteIndexProject(ctx, *payload.UID)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendDeleteAllAccessProject(ctx, []byte(*payload.UID))
+		return s.MessageBuilder.SendDeleteAllAccessProject(ctx, *payload.UID)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendDeleteAllAccessProjectSettings(ctx, []byte(*payload.UID))
+		return s.MessageBuilder.SendDeleteAllAccessProjectSettings(ctx, *payload.UID)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionDeleted, []byte(*payload.UID))
+		return s.MessageBuilder.SendDeleteIndexProjectSettings(ctx, *payload.UID)
 	})
 
 	if err := g.Wait(); err != nil {

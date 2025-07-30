@@ -112,32 +112,42 @@ type MockMessageBuilder struct {
 	mock.Mock
 }
 
-func (m *MockMessageBuilder) SendIndexProject(ctx context.Context, action models.MessageAction, data []byte) error {
+func (m *MockMessageBuilder) SendIndexProject(ctx context.Context, action models.MessageAction, data models.ProjectBase) error {
 	args := m.Called(ctx, action, data)
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendIndexProjectSettings(ctx context.Context, action models.MessageAction, data []byte) error {
+func (m *MockMessageBuilder) SendDeleteIndexProject(ctx context.Context, data string) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *MockMessageBuilder) SendIndexProjectSettings(ctx context.Context, action models.MessageAction, data models.ProjectSettings) error {
 	args := m.Called(ctx, action, data)
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendUpdateAccessProject(ctx context.Context, data []byte) error {
+func (m *MockMessageBuilder) SendDeleteIndexProjectSettings(ctx context.Context, data string) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, data []byte) error {
+func (m *MockMessageBuilder) SendUpdateAccessProject(ctx context.Context, data models.ProjectBase) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data []byte) error {
+func (m *MockMessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, data models.ProjectSettings) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendDeleteAllAccessProjectSettings(ctx context.Context, data []byte) error {
+func (m *MockMessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data string) error {
+	args := m.Called(ctx, data)
+	return args.Error(0)
+}
+
+func (m *MockMessageBuilder) SendDeleteAllAccessProjectSettings(ctx context.Context, data string) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }

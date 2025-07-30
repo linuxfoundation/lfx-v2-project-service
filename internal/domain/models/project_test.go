@@ -291,25 +291,25 @@ func TestConvertToProjectFull(t *testing.T) {
 			},
 			settings: nil,
 			expected: &projsvc.ProjectFull{
-				UID:                        misc.StringPtr("test-uid"),
-				Slug:                       misc.StringPtr("test-slug"),
-				Name:                       misc.StringPtr("Test Project"),
-				Description:                misc.StringPtr("Test Description"),
-				Public:                     misc.BoolPtr(false),
-				ParentUID:                  misc.StringPtr(""),
-				Stage:                      misc.StringPtr(""),
-				Category:                   misc.StringPtr(""),
-				LegalEntityType:            misc.StringPtr(""),
-				LegalEntityName:            misc.StringPtr(""),
-				LegalParentUID:             misc.StringPtr(""),
-				EntityFormationDocumentURL: misc.StringPtr(""),
-				AutojoinEnabled:            misc.BoolPtr(false),
-				CharterURL:                 misc.StringPtr(""),
-				LogoURL:                    misc.StringPtr(""),
-				WebsiteURL:                 misc.StringPtr(""),
-				RepositoryURL:              misc.StringPtr(""),
-				CreatedAt:                  misc.StringPtr(now.Format(time.RFC3339)),
-				UpdatedAt:                  misc.StringPtr(now.Format(time.RFC3339)),
+				UID:             misc.StringPtr("test-uid"),
+				Slug:            misc.StringPtr("test-slug"),
+				Name:            misc.StringPtr("Test Project"),
+				Description:     misc.StringPtr("Test Description"),
+				Public:          misc.BoolPtr(false),
+				ParentUID:       nil, // Empty string becomes nil
+				Stage:           nil, // Empty string becomes nil
+				Category:        nil, // Empty string becomes nil
+				LegalEntityType: nil, // Empty string becomes nil
+				LegalEntityName: nil, // Empty string becomes nil
+				LegalParentUID:  nil, // Empty string becomes nil
+				EntityFormationDocumentURL: nil, // Empty string becomes nil
+				AutojoinEnabled:             misc.BoolPtr(false),
+				CharterURL:                  nil, // Empty string becomes nil
+				LogoURL:                     nil, // Empty string becomes nil
+				WebsiteURL:                  nil, // Empty string becomes nil
+				RepositoryURL:               nil, // Empty string becomes nil
+				CreatedAt:                   misc.StringPtr(now.Format(time.RFC3339)),
+				UpdatedAt:                   misc.StringPtr(now.Format(time.RFC3339)),
 			},
 		},
 		{
@@ -464,6 +464,25 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				AnnouncementDate: misc.StringPtr("2023-06-01"),
 				Writers:          []string{"writer1", "writer2"},
 				Auditors:         []string{"auditor1", "auditor2"},
+			},
+		},
+		{
+			name: "project settings with empty fields",
+			input: &ProjectSettings{
+				UID:              "test-uid",
+				MissionStatement: "", // Empty string
+				Writers:          []string{}, // Empty slice
+				Auditors:         []string{}, // Empty slice
+				CreatedAt:        &now,
+				UpdatedAt:        &now,
+			},
+			expected: &projsvc.ProjectSettings{
+				UID:              misc.StringPtr("test-uid"),
+				MissionStatement: nil, // Empty string becomes nil
+				Writers:          nil, // Empty slice becomes nil
+				Auditors:         nil, // Empty slice becomes nil
+				CreatedAt:        misc.StringPtr(now.Format(time.RFC3339)),
+				UpdatedAt:        misc.StringPtr(now.Format(time.RFC3339)),
 			},
 		},
 	}

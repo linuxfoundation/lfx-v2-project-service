@@ -53,26 +53,59 @@ func ConvertToProjectFull(base *ProjectBase, settings *ProjectSettings) *projsvc
 		return nil
 	}
 
-	// Start with base fields
+	// Start with required fields
 	full := &projsvc.ProjectFull{
-		UID:                        &base.UID,
-		Slug:                       &base.Slug,
-		Name:                       &base.Name,
-		Description:                &base.Description,
-		Public:                     &base.Public,
-		ParentUID:                  &base.ParentUID,
-		Stage:                      &base.Stage,
-		Category:                   &base.Category,
-		LegalEntityType:            &base.LegalEntityType,
-		LegalEntityName:            &base.LegalEntityName,
-		LegalParentUID:             &base.LegalParentUID,
-		FundingModel:               base.FundingModel,
-		CharterURL:                 &base.CharterURL,
-		LogoURL:                    &base.LogoURL,
-		WebsiteURL:                 &base.WebsiteURL,
-		RepositoryURL:              &base.RepositoryURL,
-		EntityFormationDocumentURL: &base.EntityFormationDocumentURL,
-		AutojoinEnabled:            &base.AutojoinEnabled,
+		UID:  &base.UID,
+		Slug: &base.Slug,
+		// Public and AutojoinEnabled are always included as they're booleans with meaningful zero values
+		Public:          &base.Public,
+		AutojoinEnabled: &base.AutojoinEnabled,
+	}
+
+	// Only set string fields if they're not empty
+	if base.Name != "" {
+		full.Name = &base.Name
+	}
+	if base.Description != "" {
+		full.Description = &base.Description
+	}
+	if base.ParentUID != "" {
+		full.ParentUID = &base.ParentUID
+	}
+	if base.Stage != "" {
+		full.Stage = &base.Stage
+	}
+	if base.Category != "" {
+		full.Category = &base.Category
+	}
+	if base.LegalEntityType != "" {
+		full.LegalEntityType = &base.LegalEntityType
+	}
+	if base.LegalEntityName != "" {
+		full.LegalEntityName = &base.LegalEntityName
+	}
+	if base.LegalParentUID != "" {
+		full.LegalParentUID = &base.LegalParentUID
+	}
+	if base.CharterURL != "" {
+		full.CharterURL = &base.CharterURL
+	}
+	if base.LogoURL != "" {
+		full.LogoURL = &base.LogoURL
+	}
+	if base.WebsiteURL != "" {
+		full.WebsiteURL = &base.WebsiteURL
+	}
+	if base.RepositoryURL != "" {
+		full.RepositoryURL = &base.RepositoryURL
+	}
+	if base.EntityFormationDocumentURL != "" {
+		full.EntityFormationDocumentURL = &base.EntityFormationDocumentURL
+	}
+
+	// Only set array fields if they're not empty
+	if len(base.FundingModel) > 0 {
+		full.FundingModel = base.FundingModel
 	}
 	// Handle base fields that are pointers
 	if base.CreatedAt != nil {
@@ -90,9 +123,18 @@ func ConvertToProjectFull(base *ProjectBase, settings *ProjectSettings) *projsvc
 
 	// Add settings fields if available
 	if settings != nil {
-		full.MissionStatement = &settings.MissionStatement
-		full.Writers = settings.Writers
-		full.Auditors = settings.Auditors
+		// Only set string fields if they're not empty
+		if settings.MissionStatement != "" {
+			full.MissionStatement = &settings.MissionStatement
+		}
+
+		// Only set array fields if they're not empty
+		if len(settings.Writers) > 0 {
+			full.Writers = settings.Writers
+		}
+		if len(settings.Auditors) > 0 {
+			full.Auditors = settings.Auditors
+		}
 
 		// Handle settings fields that are pointers
 		if settings.AnnouncementDate != nil {
@@ -180,8 +222,24 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*ProjectBase, error) 
 	if project.RepositoryURL != nil {
 		p.RepositoryURL = *project.RepositoryURL
 	}
-	p.CreatedAt = &currentTime
-	p.UpdatedAt = &currentTime
+	if project.CreatedAt != nil {
+		createdAt, err := time.Parse(time.RFC3339, *project.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		p.CreatedAt = &createdAt
+	} else {
+		p.CreatedAt = &currentTime
+	}
+	if project.UpdatedAt != nil {
+		updatedAt, err := time.Parse(time.RFC3339, *project.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		p.UpdatedAt = &updatedAt
+	} else {
+		p.UpdatedAt = &currentTime
+	}
 
 	return p, nil
 }
@@ -189,32 +247,72 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*ProjectBase, error) 
 // ConvertToServiceProject converts a project database representation to a project service project.
 func ConvertToServiceProjectBase(p *ProjectBase) *projsvc.ProjectBase {
 	project := &projsvc.ProjectBase{
-		UID:                        &p.UID,
-		Slug:                       &p.Slug,
-		Name:                       &p.Name,
-		Description:                &p.Description,
-		Public:                     &p.Public,
-		ParentUID:                  &p.ParentUID,
-		Stage:                      &p.Stage,
-		Category:                   &p.Category,
-		LegalEntityType:            &p.LegalEntityType,
-		LegalEntityName:            &p.LegalEntityName,
-		LegalParentUID:             &p.LegalParentUID,
-		FundingModel:               p.FundingModel,
-		EntityFormationDocumentURL: &p.EntityFormationDocumentURL,
-		AutojoinEnabled:            &p.AutojoinEnabled,
-		CharterURL:                 &p.CharterURL,
-		LogoURL:                    &p.LogoURL,
-		WebsiteURL:                 &p.WebsiteURL,
-		RepositoryURL:              &p.RepositoryURL,
+		UID:  &p.UID,
+		Slug: &p.Slug,
+		// Public is always included as it's a boolean with a meaningful zero value
+		Public: &p.Public,
+		// AutojoinEnabled is always included as it's a boolean with a meaningful zero value
+		AutojoinEnabled: &p.AutojoinEnabled,
 	}
 
-	// Handle base fields that are pointers
+	// Only set string fields if they're not empty
+	if p.Name != "" {
+		project.Name = &p.Name
+	}
+	if p.Description != "" {
+		project.Description = &p.Description
+	}
+	if p.ParentUID != "" {
+		project.ParentUID = &p.ParentUID
+	}
+	if p.Stage != "" {
+		project.Stage = &p.Stage
+	}
+	if p.Category != "" {
+		project.Category = &p.Category
+	}
+	if p.LegalEntityType != "" {
+		project.LegalEntityType = &p.LegalEntityType
+	}
+	if p.LegalEntityName != "" {
+		project.LegalEntityName = &p.LegalEntityName
+	}
+	if p.LegalParentUID != "" {
+		project.LegalParentUID = &p.LegalParentUID
+	}
+	if p.EntityFormationDocumentURL != "" {
+		project.EntityFormationDocumentURL = &p.EntityFormationDocumentURL
+	}
+	if p.CharterURL != "" {
+		project.CharterURL = &p.CharterURL
+	}
+	if p.LogoURL != "" {
+		project.LogoURL = &p.LogoURL
+	}
+	if p.WebsiteURL != "" {
+		project.WebsiteURL = &p.WebsiteURL
+	}
+	if p.RepositoryURL != "" {
+		project.RepositoryURL = &p.RepositoryURL
+	}
+
+	// Only set array fields if they're not empty
+	if len(p.FundingModel) > 0 {
+		project.FundingModel = p.FundingModel
+	}
+
+	// Handle date fields that are pointers
 	if p.EntityDissolutionDate != nil {
 		project.EntityDissolutionDate = misc.StringPtr(p.EntityDissolutionDate.Format(time.DateOnly))
 	}
 	if p.FormationDate != nil {
 		project.FormationDate = misc.StringPtr(p.FormationDate.Format(time.DateOnly))
+	}
+	if p.CreatedAt != nil {
+		project.CreatedAt = misc.StringPtr(p.CreatedAt.Format(time.RFC3339))
+	}
+	if p.UpdatedAt != nil {
+		project.UpdatedAt = misc.StringPtr(p.UpdatedAt.Format(time.RFC3339))
 	}
 
 	return project
@@ -248,8 +346,24 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*ProjectSett
 	if settings.Auditors != nil {
 		s.Auditors = settings.Auditors
 	}
-	s.CreatedAt = &currentTime
-	s.UpdatedAt = &currentTime
+	if settings.CreatedAt != nil {
+		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		s.CreatedAt = &createdAt
+	} else {
+		s.CreatedAt = &currentTime
+	}
+	if settings.UpdatedAt != nil {
+		updatedAt, err := time.Parse(time.RFC3339, *settings.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		s.UpdatedAt = &updatedAt
+	} else {
+		s.UpdatedAt = &currentTime
+	}
 
 	return s, nil
 }
@@ -257,10 +371,20 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*ProjectSett
 // ConvertToServiceProjectSettings converts a project settings database representation to a service representation.
 func ConvertToServiceProjectSettings(s *ProjectSettings) *projsvc.ProjectSettings {
 	settings := &projsvc.ProjectSettings{
-		UID:              &s.UID,
-		MissionStatement: &s.MissionStatement,
-		Writers:          s.Writers,
-		Auditors:         s.Auditors,
+		UID: &s.UID,
+	}
+
+	// Only set string fields if they're not empty
+	if s.MissionStatement != "" {
+		settings.MissionStatement = &s.MissionStatement
+	}
+
+	// Only set array fields if they're not empty
+	if len(s.Writers) > 0 {
+		settings.Writers = s.Writers
+	}
+	if len(s.Auditors) > 0 {
+		settings.Auditors = s.Auditors
 	}
 
 	// Handle settings fields that are pointers

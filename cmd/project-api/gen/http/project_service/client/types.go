@@ -235,6 +235,10 @@ type UpdateProjectBaseResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // UpdateProjectSettingsResponseBody is the type of the "project-service"
@@ -242,10 +246,6 @@ type UpdateProjectBaseResponseBody struct {
 type UpdateProjectSettingsResponseBody struct {
 	// Project UID -- v2 uid, not related to v1 id directly
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// The date and time the project was created
-	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
-	// The date and time the project was last updated
-	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
@@ -254,6 +254,10 @@ type UpdateProjectSettingsResponseBody struct {
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
@@ -624,16 +628,16 @@ type ProjectBaseResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // ProjectSettingsResponseBody is used to define fields on response body types.
 type ProjectSettingsResponseBody struct {
 	// Project UID -- v2 uid, not related to v1 id directly
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// The date and time the project was created
-	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
-	// The date and time the project was last updated
-	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
@@ -642,6 +646,10 @@ type ProjectSettingsResponseBody struct {
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // NewCreateProjectRequestBody builds the HTTP request body from the payload of
@@ -909,6 +917,8 @@ func NewGetOneProjectBaseResultOK(body *GetOneProjectBaseResponseBody, etag *str
 		LogoURL:                    body.LogoURL,
 		RepositoryURL:              body.RepositoryURL,
 		WebsiteURL:                 body.WebsiteURL,
+		CreatedAt:                  body.CreatedAt,
+		UpdatedAt:                  body.UpdatedAt,
 	}
 	if body.FundingModel != nil {
 		v.FundingModel = make([]string, len(body.FundingModel))
@@ -962,10 +972,10 @@ func NewGetOneProjectBaseServiceUnavailable(body *GetOneProjectBaseServiceUnavai
 func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, etag *string) *projectservice.GetOneProjectSettingsResult {
 	v := &projectservice.ProjectSettings{
 		UID:              body.UID,
-		CreatedAt:        body.CreatedAt,
-		UpdatedAt:        body.UpdatedAt,
 		MissionStatement: body.MissionStatement,
 		AnnouncementDate: body.AnnouncementDate,
+		CreatedAt:        body.CreatedAt,
+		UpdatedAt:        body.UpdatedAt,
 	}
 	if body.Writers != nil {
 		v.Writers = make([]string, len(body.Writers))
@@ -1043,6 +1053,8 @@ func NewUpdateProjectBaseProjectBaseOK(body *UpdateProjectBaseResponseBody) *pro
 		LogoURL:                    body.LogoURL,
 		RepositoryURL:              body.RepositoryURL,
 		WebsiteURL:                 body.WebsiteURL,
+		CreatedAt:                  body.CreatedAt,
+		UpdatedAt:                  body.UpdatedAt,
 	}
 	if body.FundingModel != nil {
 		v.FundingModel = make([]string, len(body.FundingModel))
@@ -1114,10 +1126,10 @@ func NewUpdateProjectBaseServiceUnavailable(body *UpdateProjectBaseServiceUnavai
 func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsResponseBody) *projectservice.ProjectSettings {
 	v := &projectservice.ProjectSettings{
 		UID:              body.UID,
-		CreatedAt:        body.CreatedAt,
-		UpdatedAt:        body.UpdatedAt,
 		MissionStatement: body.MissionStatement,
 		AnnouncementDate: body.AnnouncementDate,
+		CreatedAt:        body.CreatedAt,
+		UpdatedAt:        body.UpdatedAt,
 	}
 	if body.Writers != nil {
 		v.Writers = make([]string, len(body.Writers))
@@ -1374,6 +1386,12 @@ func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) 
 	if body.WebsiteURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
 	return
 }
 
@@ -1383,14 +1401,14 @@ func ValidateGetOneProjectSettingsResponseBody(body *GetOneProjectSettingsRespon
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
-	}
-	if body.AnnouncementDate != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }
@@ -1451,6 +1469,12 @@ func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) 
 	if body.WebsiteURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
 	return
 }
 
@@ -1460,14 +1484,14 @@ func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsRespon
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
-	}
-	if body.AnnouncementDate != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }
@@ -1924,6 +1948,12 @@ func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) 
 	if body.WebsiteURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website_url", *body.WebsiteURL, goa.FormatURI))
 	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
 	return
 }
 
@@ -1933,14 +1963,14 @@ func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
+	if body.AnnouncementDate != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
-	}
-	if body.AnnouncementDate != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	return
 }

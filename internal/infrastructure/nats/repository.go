@@ -303,16 +303,6 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 
 	// If the slug is changing, update the slug mapping
 	if existingProject.Slug != projectBase.Slug {
-		// Check if the new slug is already taken
-		exists, err := s.ProjectSlugExists(ctx, projectBase.Slug)
-		if err != nil {
-			return err
-		}
-		if exists {
-			// The slug is already taken
-			return domain.ErrProjectSlugExists
-		}
-
 		// Delete the old slug mapping
 		err = s.deleteProjectSlugMapping(ctx, existingProject.Slug)
 		if err != nil {
@@ -376,6 +366,7 @@ func (s *NatsRepository) GetProjectSettingsWithRevision(ctx context.Context, pro
 	if err != nil {
 		return nil, 0, err
 	}
+	slog.InfoContext(ctx, "GetProjectSettingsWithRevision", "revision", entry.Revision())
 
 	projectSettingsDB, err := s.getProjectSettingsUnmarshal(ctx, entry)
 	if err != nil {
@@ -392,13 +383,10 @@ func (s *NatsRepository) updateProjectSettings(ctx context.Context, projectSetti
 		return err
 	}
 
+	slog.InfoContext(ctx, "updateProjectSettings", "revision", revision)
+
 	_, err = s.ProjectSettings.Update(ctx, projectSettings.UID, projectSettingsBytes, revision)
 	if err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
-			slog.WarnContext(ctx, "revision mismatch", constants.ErrKey, err)
-			return errors.New("revision mismatch")
-		}
-		slog.ErrorContext(ctx, "error updating project settings in NATS KV store", constants.ErrKey, err)
 		return err
 	}
 
@@ -409,7 +397,11 @@ func (s *NatsRepository) updateProjectSettings(ctx context.Context, projectSetti
 func (s *NatsRepository) UpdateProjectSettings(ctx context.Context, projectSettings *models.ProjectSettings, revision uint64) error {
 	err := s.updateProjectSettings(ctx, projectSettings, revision)
 	if err != nil {
-		return err
+		if strings.Contains(err.Error(), "wrong last sequence") {
+			slog.WarnContext(ctx, "revision mismatch", constants.ErrKey, err)
+			return domain.ErrRevisionMismatch
+		}
+		return domain.ErrInternal
 	}
 
 	return nil

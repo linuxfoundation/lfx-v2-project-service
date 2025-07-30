@@ -13,16 +13,24 @@ type ProjectsService struct {
 	ProjectRepository domain.ProjectRepository
 	MessageBuilder    domain.MessageBuilder
 	Auth              auth.IJWTAuth
+	Config            ServiceConfig
 }
 
 // NewProjectsService creates a new ProjectsService.
-func NewProjectsService(auth auth.IJWTAuth) *ProjectsService {
+func NewProjectsService(auth auth.IJWTAuth, config ServiceConfig) *ProjectsService {
 	return &ProjectsService{
-		Auth: auth,
+		Auth:   auth,
+		Config: config,
 	}
 }
 
 // ServiceReady checks if the service is ready for use.
 func (s *ProjectsService) ServiceReady() bool {
 	return s.ProjectRepository != nil && s.MessageBuilder != nil
+}
+
+// ServiceConfig is the configuration for the ProjectsService.
+type ServiceConfig struct {
+	// SkipEtagValidation is a flag to skip the Etag validation - only meant for local development.
+	SkipEtagValidation bool
 }

@@ -68,6 +68,8 @@ func ProjectBaseAttributes() {
 	ProjectLogoURLAttribute()
 	ProjectRepositoryURLAttribute()
 	ProjectWebsiteURLAttribute()
+	ProjectCreatedAtAttribute()
+	ProjectUpdatedAtAttribute()
 }
 
 // ProjectSettings is the DSL type for a project settings.
@@ -80,12 +82,12 @@ var ProjectSettings = Type("ProjectSettings", func() {
 // ProjectSettingsAttributes is the DSL attributes for a project settings.
 func ProjectSettingsAttributes() {
 	ProjectUIDAttribute()
-	ProjectCreatedAtAttribute()
-	ProjectUpdatedAtAttribute()
 	ProjectMissionStatementAttribute()
 	ProjectAnnouncementDateAttribute()
 	ProjectWritersAttribute()
 	ProjectAuditorsAttribute()
+	ProjectCreatedAtAttribute()
+	ProjectUpdatedAtAttribute()
 }
 
 //

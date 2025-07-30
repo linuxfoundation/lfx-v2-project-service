@@ -23,10 +23,12 @@ type MessageHandler interface {
 
 // MessageBuilder is a interface for the message builder.
 type MessageBuilder interface {
-	SendIndexProject(ctx context.Context, action models.MessageAction, data []byte) error
-	SendIndexProjectSettings(ctx context.Context, action models.MessageAction, data []byte) error
-	SendUpdateAccessProject(ctx context.Context, data []byte) error
-	SendUpdateAccessProjectSettings(ctx context.Context, data []byte) error
-	SendDeleteAllAccessProject(ctx context.Context, data []byte) error
-	SendDeleteAllAccessProjectSettings(ctx context.Context, data []byte) error
+	SendIndexProject(ctx context.Context, action models.MessageAction, data models.ProjectBase) error
+	SendDeleteIndexProject(ctx context.Context, data string) error
+	SendIndexProjectSettings(ctx context.Context, action models.MessageAction, data models.ProjectSettings) error
+	SendDeleteIndexProjectSettings(ctx context.Context, data string) error
+	SendUpdateAccessProject(ctx context.Context, data models.ProjectBase) error
+	SendUpdateAccessProjectSettings(ctx context.Context, data models.ProjectSettings) error
+	SendDeleteAllAccessProject(ctx context.Context, data string) error
+	SendDeleteAllAccessProjectSettings(ctx context.Context, data string) error
 }

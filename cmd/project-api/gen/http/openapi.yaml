@@ -643,6 +643,11 @@ definitions:
                 description: The URL of the project charter document
                 example: https://example.com/charter.pdf
                 format: uri
+            created_at:
+                type: string
+                description: The date and time the project was created
+                example: "2021-01-01T00:00:00Z"
+                format: date-time
             description:
                 type: string
                 description: A description of the project
@@ -740,6 +745,11 @@ definitions:
                 description: Project UID -- v2 uid, not related to v1 id directly
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 format: uuid
+            updated_at:
+                type: string
+                description: The date and time the project was last updated
+                example: "2021-01-01T00:00:00Z"
+                format: date-time
             website_url:
                 type: string
                 description: The URL of the project website
@@ -750,6 +760,7 @@ definitions:
             autojoin_enabled: false
             category: Active
             charter_url: https://example.com/charter.pdf
+            created_at: "2021-01-01T00:00:00Z"
             description: project foo is a project about bar
             entity_dissolution_date: "2021-12-31"
             entity_formation_document_url: https://example.com/formation.pdf
@@ -767,6 +778,7 @@ definitions:
             slug: project-slug
             stage: Formation - Exploratory
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            updated_at: "2021-01-01T00:00:00Z"
             website_url: https://example.com
     ProjectFull:
         title: ProjectFull

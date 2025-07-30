@@ -29,7 +29,7 @@ func TestNewProjectsService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := NewProjectsService(tt.auth)
+			service := NewProjectsService(tt.auth, ServiceConfig{})
 
 			assert.NotNil(t, service)
 			assert.Equal(t, tt.auth, service.Auth)
@@ -116,7 +116,7 @@ func TestProjectsService_Dependencies(t *testing.T) {
 		mockAuth := &auth.MockJWTAuth{}
 		mockBuilder := &domain.MockMessageBuilder{}
 
-		service := NewProjectsService(mockAuth)
+		service := NewProjectsService(mockAuth, ServiceConfig{})
 		service.ProjectRepository = mockRepo
 		service.MessageBuilder = mockBuilder
 
@@ -140,7 +140,7 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	mockBuilder := &domain.MockMessageBuilder{}
 	mockAuth := &auth.MockJWTAuth{}
 
-	service := NewProjectsService(mockAuth)
+	service := NewProjectsService(mockAuth, ServiceConfig{})
 	service.ProjectRepository = mockRepo
 	service.MessageBuilder = mockBuilder
 

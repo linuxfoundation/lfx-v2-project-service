@@ -253,6 +253,10 @@ type ProjectBase struct {
 	RepositoryURL *string
 	// The URL of the project website
 	WebsiteURL *string
+	// The date and time the project was created
+	CreatedAt *string
+	// The date and time the project was last updated
+	UpdatedAt *string
 }
 
 // ProjectFull is the result type of the project-service service create-project
@@ -317,10 +321,6 @@ type ProjectFull struct {
 type ProjectSettings struct {
 	// Project UID -- v2 uid, not related to v1 id directly
 	UID *string
-	// The date and time the project was created
-	CreatedAt *string
-	// The date and time the project was last updated
-	UpdatedAt *string
 	// The mission statement of the project
 	MissionStatement *string
 	// The date the project was announced
@@ -329,6 +329,10 @@ type ProjectSettings struct {
 	Writers []string
 	// A list of project auditors by their user IDs
 	Auditors []string
+	// The date and time the project was created
+	CreatedAt *string
+	// The date and time the project was last updated
+	UpdatedAt *string
 }
 
 type ServiceUnavailableError struct {

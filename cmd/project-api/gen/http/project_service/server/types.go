@@ -235,6 +235,10 @@ type UpdateProjectBaseResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // UpdateProjectSettingsResponseBody is the type of the "project-service"
@@ -242,10 +246,6 @@ type UpdateProjectBaseResponseBody struct {
 type UpdateProjectSettingsResponseBody struct {
 	// Project UID -- v2 uid, not related to v1 id directly
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// The date and time the project was created
-	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
-	// The date and time the project was last updated
-	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
@@ -254,6 +254,10 @@ type UpdateProjectSettingsResponseBody struct {
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
@@ -624,16 +628,16 @@ type ProjectBaseResponseBody struct {
 	RepositoryURL *string `form:"repository_url,omitempty" json:"repository_url,omitempty" xml:"repository_url,omitempty"`
 	// The URL of the project website
 	WebsiteURL *string `form:"website_url,omitempty" json:"website_url,omitempty" xml:"website_url,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // ProjectSettingsResponseBody is used to define fields on response body types.
 type ProjectSettingsResponseBody struct {
 	// Project UID -- v2 uid, not related to v1 id directly
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// The date and time the project was created
-	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
-	// The date and time the project was last updated
-	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
@@ -642,6 +646,10 @@ type ProjectSettingsResponseBody struct {
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project auditors by their user IDs
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The date and time the project was created
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // NewGetProjectsResponseBody builds the HTTP response body from the result of
@@ -732,6 +740,8 @@ func NewGetOneProjectBaseResponseBody(res *projectservice.GetOneProjectBaseResul
 		LogoURL:                    res.Project.LogoURL,
 		RepositoryURL:              res.Project.RepositoryURL,
 		WebsiteURL:                 res.Project.WebsiteURL,
+		CreatedAt:                  res.Project.CreatedAt,
+		UpdatedAt:                  res.Project.UpdatedAt,
 	}
 	if res.Project.FundingModel != nil {
 		body.FundingModel = make([]string, len(res.Project.FundingModel))
@@ -748,10 +758,10 @@ func NewGetOneProjectBaseResponseBody(res *projectservice.GetOneProjectBaseResul
 func NewGetOneProjectSettingsResponseBody(res *projectservice.GetOneProjectSettingsResult) *GetOneProjectSettingsResponseBody {
 	body := &GetOneProjectSettingsResponseBody{
 		UID:              res.ProjectSettings.UID,
-		CreatedAt:        res.ProjectSettings.CreatedAt,
-		UpdatedAt:        res.ProjectSettings.UpdatedAt,
 		MissionStatement: res.ProjectSettings.MissionStatement,
 		AnnouncementDate: res.ProjectSettings.AnnouncementDate,
+		CreatedAt:        res.ProjectSettings.CreatedAt,
+		UpdatedAt:        res.ProjectSettings.UpdatedAt,
 	}
 	if res.ProjectSettings.Writers != nil {
 		body.Writers = make([]string, len(res.ProjectSettings.Writers))
@@ -792,6 +802,8 @@ func NewUpdateProjectBaseResponseBody(res *projectservice.ProjectBase) *UpdatePr
 		LogoURL:                    res.LogoURL,
 		RepositoryURL:              res.RepositoryURL,
 		WebsiteURL:                 res.WebsiteURL,
+		CreatedAt:                  res.CreatedAt,
+		UpdatedAt:                  res.UpdatedAt,
 	}
 	if res.FundingModel != nil {
 		body.FundingModel = make([]string, len(res.FundingModel))
@@ -808,10 +820,10 @@ func NewUpdateProjectBaseResponseBody(res *projectservice.ProjectBase) *UpdatePr
 func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *UpdateProjectSettingsResponseBody {
 	body := &UpdateProjectSettingsResponseBody{
 		UID:              res.UID,
-		CreatedAt:        res.CreatedAt,
-		UpdatedAt:        res.UpdatedAt,
 		MissionStatement: res.MissionStatement,
 		AnnouncementDate: res.AnnouncementDate,
+		CreatedAt:        res.CreatedAt,
+		UpdatedAt:        res.UpdatedAt,
 	}
 	if res.Writers != nil {
 		body.Writers = make([]string, len(res.Writers))

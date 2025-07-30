@@ -173,6 +173,8 @@ The service uses NATS for:
 - Write one function tests containing multiple test cases that focus on a single function
 - Focus on testing exported functions of packages
 - Unit tests should be alongside the implementation code with the same file name with a suffix of `*_test.go`
+- **IMPORTANT**: Each function should have exactly ONE corresponding test function (e.g., `SendIndexProject` → `TestMessageBuilder_SendIndexProject`) which can have multiple tests cases within it.
+- Add test cases within existing test functions if the function you are trying to test already has one rather than creating new test functions
 
 ### Example Test Structure
 

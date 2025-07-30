@@ -21,4 +21,6 @@ type ProjectMessage struct {
 	Action  MessageAction     `json:"action"`
 	Headers map[string]string `json:"headers"`
 	Data    any               `json:"data"`
+	// Tags is a list of tags to be set on the indexed resource for search.
+	Tags []string `json:"tags"`
 }
