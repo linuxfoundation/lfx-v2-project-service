@@ -12,7 +12,7 @@ GOA_VERSION=v3
 
 # Docker variables
 DOCKER_IMAGE=linuxfoundation/lfx-v2-project-service
-DOCKER_TAG=0.1.0
+DOCKER_TAG=0.2.0
 
 # Helm variables
 HELM_CHART_PATH=../../charts/lfx-v2-project-service
