@@ -80,10 +80,10 @@ func TestMessageBuilder_SendIndexProject(t *testing.T) {
 						return false
 					}
 					expectedTags := []string{"test-uid", "Test Project", "test-project", "Test Description"}
-					return len(msg.Tags) == len(expectedTags) && 
-						msg.Tags[0] == expectedTags[0] && 
-						msg.Tags[1] == expectedTags[1] && 
-						msg.Tags[2] == expectedTags[2] && 
+					return len(msg.Tags) == len(expectedTags) &&
+						msg.Tags[0] == expectedTags[0] &&
+						msg.Tags[1] == expectedTags[1] &&
+						msg.Tags[2] == expectedTags[2] &&
 						msg.Tags[3] == expectedTags[3]
 				})).Return(nil)
 			},
@@ -162,8 +162,8 @@ func TestMessageBuilder_SendIndexProjectSettings(t *testing.T) {
 						return false
 					}
 					expectedTags := []string{"test-uid", "Test Mission"}
-					return len(msg.Tags) == len(expectedTags) && 
-						msg.Tags[0] == expectedTags[0] && 
+					return len(msg.Tags) == len(expectedTags) &&
+						msg.Tags[0] == expectedTags[0] &&
 						msg.Tags[1] == expectedTags[1]
 				})).Return(nil)
 			},

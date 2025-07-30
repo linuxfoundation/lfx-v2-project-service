@@ -213,7 +213,7 @@ func TestAuthorizationMiddlewareConcurrency(t *testing.T) {
 		// Simulate some processing time
 		time.Sleep(10 * time.Millisecond)
 		auth := getAuthorizationFromContext(r.Context())
-		w.Write([]byte(auth))
+		w.Write([]byte(auth)) //nolint:errcheck
 	})
 
 	middleware := AuthorizationMiddleware()

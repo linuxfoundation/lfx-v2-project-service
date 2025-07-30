@@ -133,7 +133,7 @@ clean:
 lint:
 	@echo "==> Running linter..."
 	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run ./...; \
+		golangci-lint run ../../...; \
 	else \
 		echo "golangci-lint not found. Run 'make deps' to install it."; \
 		exit 1; \
