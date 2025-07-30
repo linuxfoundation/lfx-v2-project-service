@@ -34,10 +34,21 @@ app:
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""
 
-# ingress is the configuration for the ingress routing
-ingress:
-  # hostname is the hostname of the ingress
+# gatewayAPI is the configuration for Gateway API routing
+gatewayAPI:
+  # enabled controls whether to use Gateway API HTTPRoute
+  enabled: true
+  # hostname is the hostname for routing
   hostname: lfx-api.k8s.orb.local
+  # parentGateway specifies the platform Gateway to attach to
+  parentGateway:
+    name: lfx-platform-gateway
+    namespace: lfx
+
+# service is the configuration for the Kubernetes service
+service:
+  # port is the service port
+  port: 8080
 
 # nats is the configuration for the NATS server
 nats:
