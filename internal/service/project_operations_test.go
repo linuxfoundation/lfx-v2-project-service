@@ -183,7 +183,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			payload: &projsvc.CreateProjectPayload{
 				Slug:      "test-project",
 				Name:      "Test Project",
-				ParentUID: misc.StringPtr("invalid-uuid"),
+				ParentUID: "invalid-uuid",
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				// Slug check happens first, then validation

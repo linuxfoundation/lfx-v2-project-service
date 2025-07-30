@@ -1042,7 +1042,7 @@ components:
                     example: Foo Foundation
                 parent_uid:
                     type: string
-                    description: The UID of the parent project, should be empty if there is none
+                    description: The UID of the parent project, required and must be a valid UUID
                     example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 public:
                     type: boolean
@@ -1119,6 +1119,7 @@ components:
                 - slug
                 - description
                 - name
+                - parent_uid
         GetProjectsResponseBody:
             type: object
             properties:
@@ -1395,7 +1396,7 @@ components:
                     example: Foo Foundation
                 parent_uid:
                     type: string
-                    description: The UID of the parent project, should be empty if there is none
+                    description: The UID of the parent project, required and must be a valid UUID
                     example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 public:
                     type: boolean
@@ -1588,7 +1589,7 @@ components:
                     example: Foo Foundation
                 parent_uid:
                     type: string
-                    description: The UID of the parent project, should be empty if there is none
+                    description: The UID of the parent project, required and must be a valid UUID
                     example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 public:
                     type: boolean
@@ -1850,7 +1851,7 @@ components:
                     example: Foo Foundation
                 parent_uid:
                     type: string
-                    description: The UID of the parent project, should be empty if there is none
+                    description: The UID of the parent project, required and must be a valid UUID
                     example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 public:
                     type: boolean
@@ -1910,6 +1911,7 @@ components:
                 - slug
                 - description
                 - name
+                - parent_uid
         UpdateProjectSettingsRequestBody:
             type: object
             properties:

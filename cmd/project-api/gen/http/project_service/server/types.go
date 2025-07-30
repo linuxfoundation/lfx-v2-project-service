@@ -24,7 +24,7 @@ type CreateProjectRequestBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
@@ -75,7 +75,7 @@ type UpdateProjectBaseRequestBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
@@ -140,7 +140,7 @@ type CreateProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
@@ -205,7 +205,7 @@ type UpdateProjectBaseResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
@@ -542,7 +542,7 @@ type ProjectFullResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
@@ -598,7 +598,7 @@ type ProjectBaseResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
@@ -1149,7 +1149,7 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 		Description:                *body.Description,
 		Name:                       *body.Name,
 		Public:                     body.Public,
-		ParentUID:                  body.ParentUID,
+		ParentUID:                  *body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
 		CharterURL:                 body.CharterURL,
@@ -1220,7 +1220,7 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 		Description:                *body.Description,
 		Name:                       *body.Name,
 		Public:                     body.Public,
-		ParentUID:                  body.ParentUID,
+		ParentUID:                  *body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
 		CharterURL:                 body.CharterURL,
@@ -1300,6 +1300,9 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
+	if body.ParentUID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("parent_uid", "body"))
+	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))
 	}
@@ -1367,6 +1370,9 @@ func ValidateUpdateProjectBaseRequestBody(body *UpdateProjectBaseRequestBody) (e
 	}
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ParentUID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("parent_uid", "body"))
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", *body.Slug, goa.FormatRegexp))

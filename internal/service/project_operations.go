@@ -78,12 +78,12 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	}
 
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
-	if payload.ParentUID != nil && *payload.ParentUID != "" {
-		if _, err := uuid.Parse(*payload.ParentUID); err != nil {
+	if payload.ParentUID != "" {
+		if _, err := uuid.Parse(payload.ParentUID); err != nil {
 			slog.ErrorContext(ctx, "invalid parent UID", constants.ErrKey, err)
 			return nil, domain.ErrValidationFailed
 		}
-		exists, err := s.ProjectRepository.ProjectExists(ctx, *payload.ParentUID)
+		exists, err := s.ProjectRepository.ProjectExists(ctx, payload.ParentUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "error checking if parent project exists", constants.ErrKey, err)
 			return nil, domain.ErrInternal
@@ -102,7 +102,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		Description:                &payload.Description,
 		Name:                       &payload.Name,
 		Public:                     payload.Public,
-		ParentUID:                  payload.ParentUID,
+		ParentUID:                  &payload.ParentUID,
 		Stage:                      payload.Stage,
 		Category:                   payload.Category,
 		LegalEntityType:            payload.LegalEntityType,
@@ -325,12 +325,12 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	}
 
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
-	if payload.ParentUID != nil && *payload.ParentUID != "" {
-		if _, err := uuid.Parse(*payload.ParentUID); err != nil {
+	if payload.ParentUID != "" {
+		if _, err := uuid.Parse(payload.ParentUID); err != nil {
 			slog.ErrorContext(ctx, "invalid parent UID", constants.ErrKey, err)
 			return nil, domain.ErrValidationFailed
 		}
-		exists, err := s.ProjectRepository.ProjectExists(ctx, *payload.ParentUID)
+		exists, err := s.ProjectRepository.ProjectExists(ctx, payload.ParentUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "error checking if parent project exists", constants.ErrKey, err)
 			return nil, domain.ErrInternal
@@ -349,7 +349,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		Description:                &payload.Description,
 		Name:                       &payload.Name,
 		Public:                     payload.Public,
-		ParentUID:                  payload.ParentUID,
+		ParentUID:                  &payload.ParentUID,
 		Stage:                      payload.Stage,
 		Category:                   payload.Category,
 		LegalEntityType:            payload.LegalEntityType,

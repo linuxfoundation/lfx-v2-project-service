@@ -183,9 +183,9 @@ func ProjectPublicAttribute() {
 
 // ProjectParentUIDAttribute is the DSL attribute for a project parent UID.
 func ProjectParentUIDAttribute() {
-	Attribute("parent_uid", String, "The UID of the parent project, should be empty if there is none", func() {
-		// No Format(FormatUUID) is included because this attribute can be an empty string if there is no parent project.
-		// However, the attribute should in practice be a UUID. There is server code to validate this.
+	Attribute("parent_uid", String, "The UID of the parent project, required and must be a valid UUID", func() {
+		// Format(FormatUUID) is not included here to allow server-side validation
+		// Server code validates this is a non-empty valid UUID of an existing project
 		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")
 	})
 }

@@ -87,8 +87,8 @@ type CreateProjectPayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
-	// The UID of the parent project, should be empty if there is none
-	ParentUID *string
+	// The UID of the parent project, required and must be a valid UUID
+	ParentUID string
 	// The stage of the project
 	Stage *string
 	// The category of the project
@@ -223,7 +223,7 @@ type ProjectBase struct {
 	Name *string
 	// Whether the project is public
 	Public *bool
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string
 	// The stage of the project
 	Stage *string
@@ -272,7 +272,7 @@ type ProjectFull struct {
 	Name *string
 	// Whether the project is public
 	Public *bool
-	// The UID of the parent project, should be empty if there is none
+	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string
 	// The stage of the project
 	Stage *string
@@ -361,8 +361,8 @@ type UpdateProjectBasePayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
-	// The UID of the parent project, should be empty if there is none
-	ParentUID *string
+	// The UID of the parent project, required and must be a valid UUID
+	ParentUID string
 	// The stage of the project
 	Stage *string
 	// The category of the project

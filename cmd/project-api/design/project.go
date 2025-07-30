@@ -87,7 +87,7 @@ var _ = Service("project-service", func() {
 
 			// TODO: figure out what the required attributes are for projects
 			// Same requirements apply to PUT endpoints.
-			Required("slug", "description", "name")
+			Required("slug", "description", "name", "parent_uid")
 		})
 
 		Result(ProjectFull)
@@ -210,7 +210,7 @@ var _ = Service("project-service", func() {
 			ProjectLogoURLAttribute()
 			ProjectRepositoryURLAttribute()
 			ProjectWebsiteURLAttribute()
-			Required("slug", "description", "name")
+			Required("slug", "description", "name", "parent_uid")
 		})
 
 		Result(ProjectBase)

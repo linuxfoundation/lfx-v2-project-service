@@ -135,11 +135,13 @@ func TestCreateProject(t *testing.T) {
 				Name:        "Test Project",
 				Description: "Test description",
 				Public:      misc.BoolPtr(true),
-				ParentUID:   misc.StringPtr(""),
+				ParentUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
 				Writers:     []string{"user1", "user2"},
 				Auditors:    []string{"user3", "user4"},
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
+				// Mock parent project exists (for ParentUID validation)
+				mockRepo.On("ProjectExists", mock.Anything, "787620d0-d7de-449a-b0bf-9d28b13da818").Return(true, nil)
 				// Mock slug doesn't exist
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
 				// Mock successful project creation
@@ -159,7 +161,7 @@ func TestCreateProject(t *testing.T) {
 				Name:        "Test Project",
 				Description: "Test description",
 				Public:      misc.BoolPtr(true),
-				ParentUID:   misc.StringPtr(""),
+				ParentUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
 				Auditors:    []string{"user1"},
 				Writers:     []string{"user2"},
 			},
