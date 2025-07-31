@@ -6,8 +6,8 @@
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: lfx-v2-project-service
-  namespace: lfx
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
 spec:
   entryPoints:
     - web
@@ -16,7 +16,7 @@ spec:
     - kind: Rule
       match: >-
         Host(`{{.Values.ingress.hostname}}`) &&
-        (Path(`/projects`) || PathPrefix(`/projects/`) || Path(`/livez`) || Path(`/readyz`))
+        (Path(`/projects`) || PathPrefix(`/projects`))
       priority: 10
       middlewares:
         {{- if .Values.heimdall.enabled }}
@@ -24,5 +24,5 @@ spec:
         {{- end }}
       services:
         - kind: Service
-          name: lfx-v2-project-service
+          name: {{ .Chart.Name }}
           port: web

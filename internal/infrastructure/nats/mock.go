@@ -7,8 +7,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 )
 
 // INatsConn is a NATS connection interface needed for the [ProjectsService].
@@ -34,6 +37,55 @@ func (m *MockNATSConn) Publish(subj string, data []byte) error {
 	return args.Error(0)
 }
 
+// INatsMsg is an interface for [nats.Msg] that allows for mocking.
+type INatsMsg interface {
+	Respond(data []byte) error
+	Data() []byte
+	Subject() string
+}
+
+// NatsMsg is a wrapper around [nats.Msg] that implements [INatsMsg].
+type NatsMsg struct {
+	*nats.Msg
+}
+
+// Respond implements [INatsMsg.Respond].
+func (m *NatsMsg) Respond(data []byte) error {
+	return m.Msg.Respond(data)
+}
+
+// Data implements [INatsMsg.Data].
+func (m *NatsMsg) Data() []byte {
+	return m.Msg.Data
+}
+
+// Subject implements [INatsMsg.Subject].
+func (m *NatsMsg) Subject() string {
+	return m.Msg.Subject
+}
+
+// Ensure NatsMsg implements domain.Message interface
+var _ domain.Message = (*NatsMsg)(nil)
+
+type MockNatsMsg struct {
+	mock.Mock
+	data    []byte
+	subject string
+}
+
+func (m *MockNatsMsg) Respond(data []byte) error {
+	args := m.Called(data)
+	return args.Error(0)
+}
+
+func (m *MockNatsMsg) Data() []byte {
+	return m.data
+}
+
+func (m *MockNatsMsg) Subject() string {
+	return m.subject
+}
+
 // INatsKeyValue is a NATS KV interface needed for the [ProjectsService].
 type INatsKeyValue interface {
 	ListKeys(context.Context, ...jetstream.WatchOpt) (jetstream.KeyLister, error)
@@ -57,6 +109,9 @@ func (m *MockKeyValue) Put(ctx context.Context, key string, value []byte) (uint6
 // Get is a mock method for the [INatsKeyValue] interface.
 func (m *MockKeyValue) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
 	args := m.Called(ctx, key)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(jetstream.KeyValueEntry), args.Error(1)
 }
 
@@ -75,6 +130,9 @@ func (m *MockKeyValue) Delete(ctx context.Context, key string, opts ...jetstream
 // ListKeys is a mock method for the [INatsKeyValue] interface.
 func (m *MockKeyValue) ListKeys(ctx context.Context, _ ...jetstream.WatchOpt) (jetstream.KeyLister, error) {
 	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).(jetstream.KeyLister), args.Error(1)
 }
 

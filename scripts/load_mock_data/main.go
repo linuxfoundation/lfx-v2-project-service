@@ -228,7 +228,7 @@ func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {

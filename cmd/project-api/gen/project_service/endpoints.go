@@ -17,13 +17,15 @@ import (
 
 // Endpoints wraps the "project-service" service endpoints.
 type Endpoints struct {
-	GetProjects   goa.Endpoint
-	CreateProject goa.Endpoint
-	GetOneProject goa.Endpoint
-	UpdateProject goa.Endpoint
-	DeleteProject goa.Endpoint
-	Readyz        goa.Endpoint
-	Livez         goa.Endpoint
+	GetProjects           goa.Endpoint
+	CreateProject         goa.Endpoint
+	GetOneProjectBase     goa.Endpoint
+	GetOneProjectSettings goa.Endpoint
+	UpdateProjectBase     goa.Endpoint
+	UpdateProjectSettings goa.Endpoint
+	DeleteProject         goa.Endpoint
+	Readyz                goa.Endpoint
+	Livez                 goa.Endpoint
 }
 
 // NewEndpoints wraps the methods of the "project-service" service with
@@ -32,13 +34,15 @@ func NewEndpoints(s Service) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
 	return &Endpoints{
-		GetProjects:   NewGetProjectsEndpoint(s, a.JWTAuth),
-		CreateProject: NewCreateProjectEndpoint(s, a.JWTAuth),
-		GetOneProject: NewGetOneProjectEndpoint(s, a.JWTAuth),
-		UpdateProject: NewUpdateProjectEndpoint(s, a.JWTAuth),
-		DeleteProject: NewDeleteProjectEndpoint(s, a.JWTAuth),
-		Readyz:        NewReadyzEndpoint(s),
-		Livez:         NewLivezEndpoint(s),
+		GetProjects:           NewGetProjectsEndpoint(s, a.JWTAuth),
+		CreateProject:         NewCreateProjectEndpoint(s, a.JWTAuth),
+		GetOneProjectBase:     NewGetOneProjectBaseEndpoint(s, a.JWTAuth),
+		GetOneProjectSettings: NewGetOneProjectSettingsEndpoint(s, a.JWTAuth),
+		UpdateProjectBase:     NewUpdateProjectBaseEndpoint(s, a.JWTAuth),
+		UpdateProjectSettings: NewUpdateProjectSettingsEndpoint(s, a.JWTAuth),
+		DeleteProject:         NewDeleteProjectEndpoint(s, a.JWTAuth),
+		Readyz:                NewReadyzEndpoint(s),
+		Livez:                 NewLivezEndpoint(s),
 	}
 }
 
@@ -47,8 +51,10 @@ func NewEndpoints(s Service) *Endpoints {
 func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.GetProjects = m(e.GetProjects)
 	e.CreateProject = m(e.CreateProject)
-	e.GetOneProject = m(e.GetOneProject)
-	e.UpdateProject = m(e.UpdateProject)
+	e.GetOneProjectBase = m(e.GetOneProjectBase)
+	e.GetOneProjectSettings = m(e.GetOneProjectSettings)
+	e.UpdateProjectBase = m(e.UpdateProjectBase)
+	e.UpdateProjectSettings = m(e.UpdateProjectSettings)
 	e.DeleteProject = m(e.DeleteProject)
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
@@ -100,11 +106,11 @@ func NewCreateProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.End
 	}
 }
 
-// NewGetOneProjectEndpoint returns an endpoint function that calls the method
-// "get-one-project" of service "project-service".
-func NewGetOneProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+// NewGetOneProjectBaseEndpoint returns an endpoint function that calls the
+// method "get-one-project-base" of service "project-service".
+func NewGetOneProjectBaseEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
-		p := req.(*GetOneProjectPayload)
+		p := req.(*GetOneProjectBasePayload)
 		var err error
 		sc := security.JWTScheme{
 			Name:           "jwt",
@@ -119,15 +125,15 @@ func NewGetOneProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.End
 		if err != nil {
 			return nil, err
 		}
-		return s.GetOneProject(ctx, p)
+		return s.GetOneProjectBase(ctx, p)
 	}
 }
 
-// NewUpdateProjectEndpoint returns an endpoint function that calls the method
-// "update-project" of service "project-service".
-func NewUpdateProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+// NewGetOneProjectSettingsEndpoint returns an endpoint function that calls the
+// method "get-one-project-settings" of service "project-service".
+func NewGetOneProjectSettingsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
-		p := req.(*UpdateProjectPayload)
+		p := req.(*GetOneProjectSettingsPayload)
 		var err error
 		sc := security.JWTScheme{
 			Name:           "jwt",
@@ -142,7 +148,53 @@ func NewUpdateProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.End
 		if err != nil {
 			return nil, err
 		}
-		return s.UpdateProject(ctx, p)
+		return s.GetOneProjectSettings(ctx, p)
+	}
+}
+
+// NewUpdateProjectBaseEndpoint returns an endpoint function that calls the
+// method "update-project-base" of service "project-service".
+func NewUpdateProjectBaseEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateProjectBasePayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateProjectBase(ctx, p)
+	}
+}
+
+// NewUpdateProjectSettingsEndpoint returns an endpoint function that calls the
+// method "update-project-settings" of service "project-service".
+func NewUpdateProjectSettingsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateProjectSettingsPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateProjectSettings(ctx, p)
 	}
 }
 

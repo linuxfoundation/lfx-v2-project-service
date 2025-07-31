@@ -4,89 +4,69 @@
 package main
 
 import (
-	"fmt"
 	"testing"
+	"time"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
-type MockNatsMsg struct {
-	mock.Mock
-	data    []byte
-	subject string
+// setupServiceForMessageHandling creates a service for testing message handlers
+func setupServiceForMessageHandling() (*service.ProjectsService, *domain.MockProjectRepository) {
+	mockRepo := &domain.MockProjectRepository{}
+	mockMsg := &domain.MockMessageBuilder{}
+
+	return &service.ProjectsService{
+		ProjectRepository: mockRepo,
+		MessageBuilder:    mockMsg,
+	}, mockRepo
 }
 
-func (m *MockNatsMsg) Respond(data []byte) error {
-	args := m.Called(data)
-	return args.Error(0)
-}
-
-func (m *MockNatsMsg) Data() []byte {
-	return m.data
-}
-
-func (m *MockNatsMsg) Subject() string {
-	return m.subject
-}
-
-// CreateMockNatsMsg creates a mock NATS message that can be used in tests
-func CreateMockNatsMsg(data []byte) *MockNatsMsg {
-	msg := MockNatsMsg{
-		data: data,
-	}
-	return &msg
-}
-
-// CreateMockNatsMsgWithSubject creates a mock NATS message with a specific subject
-func CreateMockNatsMsgWithSubject(data []byte, subject string) *MockNatsMsg {
-	msg := MockNatsMsg{
-		data:    data,
-		subject: subject,
-	}
-	return &msg
-}
-
-// TestHandleProjectGetName tests the [HandleProjectGetName] function.
+// TestHandleProjectGetName tests the HandleProjectGetName function.
 func TestHandleProjectGetName(t *testing.T) {
 	tests := []struct {
 		name          string
 		projectID     string
-		setupMocks    func(*ProjectsService, *MockNatsMsg)
+		setupMocks    func(*domain.MockProjectRepository)
+		expectedName  string
 		expectedError bool
 	}{
 		{
 			name:      "success",
 			projectID: "550e8400-e29b-41d4-a716-446655440000", // Valid UUID
-			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				projectData := `{"uid":"550e8400-e29b-41d4-a716-446655440000","slug":"test-project","name":"Test Project","description":"Test description","public":true,"parent_uid":"","auditors":["user1"],"writers":["user2"],"created_at":"2023-01-01T00:00:00Z","updated_at":"2023-01-01T00:00:00Z"}`
-				service.projectsKV.(*nats.MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(nats.NewMockKeyValueEntry([]byte(projectData), 123), nil)
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				now := time.Now()
+				project := &models.ProjectBase{
+					UID:       "550e8400-e29b-41d4-a716-446655440000",
+					Slug:      "test-project",
+					Name:      "Test Project",
+					Public:    true,
+					CreatedAt: &now,
+					UpdatedAt: &now,
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(project, nil)
 			},
+			expectedName:  "Test Project",
 			expectedError: false,
 		},
 		{
 			name:      "invalid UUID",
 			projectID: "invalid-uuid",
-			setupMocks: func(_ *ProjectsService, _ *MockNatsMsg) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
 				// No mocks needed for invalid UUID case
 			},
 			expectedError: true,
 		},
 		{
-			name:      "NATS KV not initialized",
+			name:      "project not found",
 			projectID: "550e8400-e29b-41d4-a716-446655440000",
-			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.projectsKV = nil
-			},
-			expectedError: true,
-		},
-		{
-			name:      "error getting project",
-			projectID: "550e8400-e29b-41d4-a716-446655440000",
-			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.projectsKV.(*nats.MockKeyValue).On("Get", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(&nats.MockKeyValueEntry{}, assert.AnError)
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectBase", mock.Anything, "550e8400-e29b-41d4-a716-446655440000").Return(nil, domain.ErrProjectNotFound)
 			},
 			expectedError: true,
 		},
@@ -94,58 +74,49 @@ func TestHandleProjectGetName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := setupService()
-			msg := CreateMockNatsMsg([]byte(tt.projectID))
-			tt.setupMocks(service, msg)
+			service, mockRepo := setupServiceForMessageHandling()
+			tt.setupMocks(mockRepo)
 
-			// Test that the function doesn't panic and handles the message
-			assert.NotPanics(t, func() {
-				_, err := service.HandleProjectGetName(msg)
-				if tt.expectedError {
-					assert.Error(t, err)
-				} else {
-					assert.NoError(t, err)
-				}
-			})
+			msg := domain.NewMockMessage([]byte(tt.projectID), constants.ProjectGetNameSubject)
 
-			// For success case, verify that the mock was called as expected
-			if tt.name == "success" {
-				service.projectsKV.(*nats.MockKeyValue).AssertExpectations(t)
+			result, err := service.HandleProjectGetName(msg)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedName, string(result))
 			}
+
+			mockRepo.AssertExpectations(t)
 		})
 	}
 }
 
-// TestHandleProjectSlugToUID tests the [HandleProjectSlugToUID] function.
+// TestHandleProjectSlugToUID tests the HandleProjectSlugToUID function.
 func TestHandleProjectSlugToUID(t *testing.T) {
 	tests := []struct {
 		name          string
 		projectSlug   string
-		setupMocks    func(*ProjectsService, *MockNatsMsg)
+		setupMocks    func(*domain.MockProjectRepository)
+		expectedUID   string
 		expectedError bool
 	}{
 		{
 			name:        "success",
 			projectSlug: "test-project",
-			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
 				projectUID := "550e8400-e29b-41d4-a716-446655440000"
-				service.projectsKV.(*nats.MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(nats.NewMockKeyValueEntry([]byte(projectUID), 123), nil)
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").Return(projectUID, nil)
 			},
+			expectedUID:   "550e8400-e29b-41d4-a716-446655440000",
 			expectedError: false,
 		},
 		{
-			name:        "NATS KV not initialized",
-			projectSlug: "test-project",
-			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.projectsKV = nil
-			},
-			expectedError: true,
-		},
-		{
-			name:        "error getting project",
-			projectSlug: "test-project",
-			setupMocks: func(service *ProjectsService, _ *MockNatsMsg) {
-				service.projectsKV.(*nats.MockKeyValue).On("Get", mock.Anything, "slug/test-project").Return(&nats.MockKeyValueEntry{}, assert.AnError)
+			name:        "project not found",
+			projectSlug: "nonexistent-project",
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "nonexistent-project").Return("", domain.ErrProjectNotFound)
 			},
 			expectedError: true,
 		},
@@ -153,30 +124,27 @@ func TestHandleProjectSlugToUID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := setupService()
-			msg := CreateMockNatsMsg([]byte(tt.projectSlug))
-			tt.setupMocks(service, msg)
+			service, mockRepo := setupServiceForMessageHandling()
+			tt.setupMocks(mockRepo)
 
-			// Test that the function doesn't panic and handles the message
-			assert.NotPanics(t, func() {
-				_, err := service.HandleProjectSlugToUID(msg)
-				if tt.expectedError {
-					assert.Error(t, err)
-				} else {
-					assert.NoError(t, err)
-				}
-			})
+			msg := domain.NewMockMessage([]byte(tt.projectSlug), constants.ProjectSlugToUIDSubject)
 
-			// For success case, verify that the mock was called as expected
-			if tt.name == "success" {
-				service.projectsKV.(*nats.MockKeyValue).AssertExpectations(t)
+			result, err := service.HandleProjectSlugToUID(msg)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedUID, string(result))
 			}
+
+			mockRepo.AssertExpectations(t)
 		})
 	}
 }
 
-// TestHandleNatsMessage tests the [HandleNatsMessage] function.
-func TestHandleNatsMessage(t *testing.T) {
+// TestHandleMessage tests the HandleMessage function.
+func TestHandleMessage(t *testing.T) {
 	tests := []struct {
 		name    string
 		subject string
@@ -185,14 +153,14 @@ func TestHandleNatsMessage(t *testing.T) {
 	}{
 		{
 			name:    "project get name routes and responds",
-			subject: fmt.Sprintf("%s%s", constants.LFXEnvironmentDev, constants.IndexProjectSubject),
-			data:    []byte("some-id"),
+			subject: constants.ProjectGetNameSubject,
+			data:    []byte("550e8400-e29b-41d4-a716-446655440000"),
 			wantNil: false,
 		},
 		{
 			name:    "project slug to UID routes and responds",
-			subject: fmt.Sprintf("%s%s", constants.LFXEnvironmentDev, constants.UpdateAccessProjectSubject),
-			data:    []byte("some-slug"),
+			subject: constants.ProjectSlugToUIDSubject,
+			data:    []byte("test-slug"),
 			wantNil: false,
 		},
 		{
@@ -205,18 +173,33 @@ func TestHandleNatsMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := setupService()
-			msg := CreateMockNatsMsgWithSubject(tt.data, tt.subject)
-			if tt.wantNil {
-				msg.On("Respond", []byte(nil)).Return(nil).Once()
-			} else {
+			service, mockRepo := setupServiceForMessageHandling()
+			msg := domain.NewMockMessage(tt.data, tt.subject)
+
+			if !tt.wantNil {
+				// Set up mock expectations for known subjects
+				switch tt.subject {
+				case constants.ProjectGetNameSubject:
+					now := time.Now()
+					project := &models.ProjectBase{
+						UID:       "550e8400-e29b-41d4-a716-446655440000",
+						Name:      "Test Project",
+						CreatedAt: &now,
+						UpdatedAt: &now,
+					}
+					mockRepo.On("GetProjectBase", mock.Anything, mock.Anything).Return(project, nil)
+				case constants.ProjectSlugToUIDSubject:
+					mockRepo.On("GetProjectUIDFromSlug", mock.Anything, mock.Anything).Return("test-uid", nil)
+				default:
+					// No mock expectations for unknown subjects
+				}
 				msg.On("Respond", mock.Anything).Return(nil).Once()
-				// Set up a generic expectation for the Get method to avoid mock panics
-				service.projectsKV.(*nats.MockKeyValue).On("Get", mock.Anything, mock.Anything).Return(&nats.MockKeyValueEntry{}, nil)
+			} else {
+				msg.On("Respond", []byte(nil)).Return(nil).Once()
 			}
 
 			assert.NotPanics(t, func() {
-				service.HandleNatsMessage(msg)
+				service.HandleMessage(msg)
 			})
 
 			msg.AssertExpectations(t)

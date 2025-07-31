@@ -26,13 +26,21 @@ type Client struct {
 	// create-project endpoint.
 	CreateProjectDoer goahttp.Doer
 
-	// GetOneProject Doer is the HTTP client used to make requests to the
-	// get-one-project endpoint.
-	GetOneProjectDoer goahttp.Doer
+	// GetOneProjectBase Doer is the HTTP client used to make requests to the
+	// get-one-project-base endpoint.
+	GetOneProjectBaseDoer goahttp.Doer
 
-	// UpdateProject Doer is the HTTP client used to make requests to the
-	// update-project endpoint.
-	UpdateProjectDoer goahttp.Doer
+	// GetOneProjectSettings Doer is the HTTP client used to make requests to the
+	// get-one-project-settings endpoint.
+	GetOneProjectSettingsDoer goahttp.Doer
+
+	// UpdateProjectBase Doer is the HTTP client used to make requests to the
+	// update-project-base endpoint.
+	UpdateProjectBaseDoer goahttp.Doer
+
+	// UpdateProjectSettings Doer is the HTTP client used to make requests to the
+	// update-project-settings endpoint.
+	UpdateProjectSettingsDoer goahttp.Doer
 
 	// DeleteProject Doer is the HTTP client used to make requests to the
 	// delete-project endpoint.
@@ -65,18 +73,20 @@ func NewClient(
 	restoreBody bool,
 ) *Client {
 	return &Client{
-		GetProjectsDoer:     doer,
-		CreateProjectDoer:   doer,
-		GetOneProjectDoer:   doer,
-		UpdateProjectDoer:   doer,
-		DeleteProjectDoer:   doer,
-		ReadyzDoer:          doer,
-		LivezDoer:           doer,
-		RestoreResponseBody: restoreBody,
-		scheme:              scheme,
-		host:                host,
-		decoder:             dec,
-		encoder:             enc,
+		GetProjectsDoer:           doer,
+		CreateProjectDoer:         doer,
+		GetOneProjectBaseDoer:     doer,
+		GetOneProjectSettingsDoer: doer,
+		UpdateProjectBaseDoer:     doer,
+		UpdateProjectSettingsDoer: doer,
+		DeleteProjectDoer:         doer,
+		ReadyzDoer:                doer,
+		LivezDoer:                 doer,
+		RestoreResponseBody:       restoreBody,
+		scheme:                    scheme,
+		host:                      host,
+		decoder:                   dec,
+		encoder:                   enc,
 	}
 }
 
@@ -128,15 +138,15 @@ func (c *Client) CreateProject() goa.Endpoint {
 	}
 }
 
-// GetOneProject returns an endpoint that makes HTTP requests to the
-// project-service service get-one-project server.
-func (c *Client) GetOneProject() goa.Endpoint {
+// GetOneProjectBase returns an endpoint that makes HTTP requests to the
+// project-service service get-one-project-base server.
+func (c *Client) GetOneProjectBase() goa.Endpoint {
 	var (
-		encodeRequest  = EncodeGetOneProjectRequest(c.encoder)
-		decodeResponse = DecodeGetOneProjectResponse(c.decoder, c.RestoreResponseBody)
+		encodeRequest  = EncodeGetOneProjectBaseRequest(c.encoder)
+		decodeResponse = DecodeGetOneProjectBaseResponse(c.decoder, c.RestoreResponseBody)
 	)
 	return func(ctx context.Context, v any) (any, error) {
-		req, err := c.BuildGetOneProjectRequest(ctx, v)
+		req, err := c.BuildGetOneProjectBaseRequest(ctx, v)
 		if err != nil {
 			return nil, err
 		}
@@ -144,23 +154,23 @@ func (c *Client) GetOneProject() goa.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		resp, err := c.GetOneProjectDoer.Do(req)
+		resp, err := c.GetOneProjectBaseDoer.Do(req)
 		if err != nil {
-			return nil, goahttp.ErrRequestError("project-service", "get-one-project", err)
+			return nil, goahttp.ErrRequestError("project-service", "get-one-project-base", err)
 		}
 		return decodeResponse(resp)
 	}
 }
 
-// UpdateProject returns an endpoint that makes HTTP requests to the
-// project-service service update-project server.
-func (c *Client) UpdateProject() goa.Endpoint {
+// GetOneProjectSettings returns an endpoint that makes HTTP requests to the
+// project-service service get-one-project-settings server.
+func (c *Client) GetOneProjectSettings() goa.Endpoint {
 	var (
-		encodeRequest  = EncodeUpdateProjectRequest(c.encoder)
-		decodeResponse = DecodeUpdateProjectResponse(c.decoder, c.RestoreResponseBody)
+		encodeRequest  = EncodeGetOneProjectSettingsRequest(c.encoder)
+		decodeResponse = DecodeGetOneProjectSettingsResponse(c.decoder, c.RestoreResponseBody)
 	)
 	return func(ctx context.Context, v any) (any, error) {
-		req, err := c.BuildUpdateProjectRequest(ctx, v)
+		req, err := c.BuildGetOneProjectSettingsRequest(ctx, v)
 		if err != nil {
 			return nil, err
 		}
@@ -168,9 +178,57 @@ func (c *Client) UpdateProject() goa.Endpoint {
 		if err != nil {
 			return nil, err
 		}
-		resp, err := c.UpdateProjectDoer.Do(req)
+		resp, err := c.GetOneProjectSettingsDoer.Do(req)
 		if err != nil {
-			return nil, goahttp.ErrRequestError("project-service", "update-project", err)
+			return nil, goahttp.ErrRequestError("project-service", "get-one-project-settings", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UpdateProjectBase returns an endpoint that makes HTTP requests to the
+// project-service service update-project-base server.
+func (c *Client) UpdateProjectBase() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateProjectBaseRequest(c.encoder)
+		decodeResponse = DecodeUpdateProjectBaseResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateProjectBaseRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateProjectBaseDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "update-project-base", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UpdateProjectSettings returns an endpoint that makes HTTP requests to the
+// project-service service update-project-settings server.
+func (c *Client) UpdateProjectSettings() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateProjectSettingsRequest(c.encoder)
+		decodeResponse = DecodeUpdateProjectSettingsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateProjectSettingsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateProjectSettingsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "update-project-settings", err)
 		}
 		return decodeResponse(resp)
 	}

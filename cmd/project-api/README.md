@@ -17,14 +17,17 @@ This service contains the following API endpoints:
   - `GET`: fetch the list of projects (Note: this will be removed in favor of using the query service, once implemented)
   - `POST` create a new project
 - `/projects/:id`
-  - `GET`: fetch a project by its UID
-  - `PUT`: update a project by its UID - only certain attributes can be updated, read the openapi spec for more details
+  - `GET`: fetch a project's base information by its UID
+  - `PUT`: update a project's base information by its UID - only certain attributes can be updated, read the openapi spec for more details
   - `DELETE`: delete a project by its UID
+- `/projects/:id/settings`
+  - `GET`: fetch a project's settings information by its UID
+  - `PUT`: update a project's settings by its UID
 
 This service handles the following NATS subjects:
 
-- `<lfx_environment>.lfx.projects-api.get_name`: Get a project name from a given project UID
-- `<lfx_environment>.lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
+- `lfx.projects-api.get_name`: Get a project name from a given project UID
+- `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
 ## File Structure
 
@@ -34,14 +37,50 @@ This service handles the following NATS subjects:
 │   └── types.go                    # Goa models
 ├── gen/                            # Goa generated implementation code (not committed)
 ├── main.go                         # Dependency injection and startup
-├── service.go                      # Base service implementation
-├── service_endpoint.go             # Service implementation of health check endpoints
-├── service_endpoint_project.go     # Service implementation of project REST API endpoints
-├── service_handler.go              # Service implementation of NATS handlers
-├── repo.go                         # Interface with data stores
-├── mock.go                         # Service mocks for tests
-└── jwt.go                          # API authentication with Heimdall
+├── service.go                      # ProjectsAPI implementation (presentation layer)
+├── service_endpoint.go             # Health check endpoints implementation
+├── service_endpoint_project.go     # Project REST API endpoints implementation
+└── service_handler.go              # NATS message handlers implementation
+
+# Dependencies from internal/ packages:
+# - internal/service/              # Business logic layer
+# - internal/domain/               # Domain interfaces and models
+# - internal/infrastructure/       # Infrastructure implementations (NATS, Auth)
 ```
+
+## Architecture
+
+This service follows clean architecture principles with clear separation of concerns:
+
+### Layers
+
+1. **Presentation Layer** (`cmd/project-api/`)
+   - `ProjectsAPI` struct implements the Goa-generated service interface
+   - HTTP endpoint handlers (`service_endpoint_project.go`)
+   - NATS message handlers (`service_handler.go`)
+   - Dependency injection and startup (`main.go`)
+
+2. **Service Layer** (`internal/service/`)
+   - `ProjectsService` contains core business logic
+   - Orchestrates operations between domain and infrastructure
+
+3. **Domain Layer** (`internal/domain/`)
+   - Domain models (`models/`)
+   - Repository interfaces (`repository.go`)
+   - Message handling interfaces (`message.go`)
+   - Domain-specific errors and validation
+
+4. **Infrastructure Layer** (`internal/infrastructure/`)
+   - NATS repository implementation (`nats/repository.go`)
+   - JWT authentication implementation (`auth/jwt.go`)
+   - External service integrations
+
+### Key Benefits
+
+- **Database Independence**: Can switch from NATS to PostgreSQL without changing business logic
+- **Testability**: Each layer can be tested in isolation using mocks
+- **Maintainability**: Clear separation of concerns and dependency direction
+- **Flexibility**: Easy to add new storage backends or external services
 
 ## Development
 
@@ -102,6 +141,7 @@ The service relies on some resources and external services being spun up prior t
     ```bash
     # if using the nats cli tool
     nats kv add projects --history=20 --storage=file --max-value-size=10485760 --max-bucket-size=1073741824
+    nats kv add project-settings --history=20 --storage=file --max-value-size=10485760 --max-bucket-size=1073741824
     ```
 
 #### 3. Export environment variables
@@ -110,7 +150,6 @@ The service relies on some resources and external services being spun up prior t
 |-----------------------|--------------------|-----------|-----|
 |PORT|the port for http requests to the project service API|8080|false|
 |NATS_URL|the URL of the nats server instance|nats://localhost:4222|false|
-|LFX_ENVIRONMENT|the LFX environment (enum: prod, stg, dev)|dev|false|
 |LOG_LEVEL|the log level for outputted logs|info|false|
 |LOG_ADD_SOURCE|whether to add the source field to outputted logs|false|false|
 |JWKS_URL|the URL to the endpoint for verifying ID tokens and JWT access tokens||false|
@@ -214,9 +253,12 @@ openfga:
 When OpenFGA is enabled, the following authorization checks are enforced:
 
 - **GET /projects** - No OpenFGA check (returns list of all projects)
-- **POST /projects** - No OpenFGA check (authenticated users can create projects)
+- **POST /projects** - Requires `writer` relation on the parent project (if parent_uid is specified)
 - **GET /projects/:id** - Requires `viewer` relation on the specific project
-- **PUT /projects/:id** and **DELETE /projects/:id** - Requires `writer` relation on the specific project
+- **GET /projects/:id/settings** - Requires `auditor` relation on the specific project
+- **PUT /projects/:id** - Requires `writer` relation on the specific project
+- **PUT /projects/:id/settings** - Requires `writer` relation on the specific project
+- **DELETE /projects/:id** - Requires `owner` relation on the specific project
 
 #### Local Development
 

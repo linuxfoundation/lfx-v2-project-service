@@ -12,7 +12,7 @@ GOA_VERSION=v3
 
 # Docker variables
 DOCKER_IMAGE=linuxfoundation/lfx-v2-project-service
-DOCKER_TAG=0.1.0
+DOCKER_TAG=0.2.0
 
 # Helm variables
 HELM_CHART_PATH=../../charts/lfx-v2-project-service
@@ -133,7 +133,7 @@ clean:
 lint:
 	@echo "==> Running linter..."
 	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run ./...; \
+		golangci-lint run ../../...; \
 	else \
 		echo "golangci-lint not found. Run 'make deps' to install it."; \
 		exit 1; \
@@ -175,7 +175,7 @@ docker:
 # Install Helm chart
 helm-install:
 	@echo "==> Installing Helm chart..."
-	helm upgrade --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
+	helm upgrade --force --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
 	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
 
 # Print templates for Helm chart

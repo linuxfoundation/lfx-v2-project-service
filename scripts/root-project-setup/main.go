@@ -17,7 +17,7 @@ import (
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	natsModels "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
@@ -110,20 +110,21 @@ func getKeyValueStore(ctx context.Context, natsConn *nats.Conn) (jetstream.KeyVa
 		slog.ErrorContext(ctx, "error creating NATS JetStream client", "nats_url", natsConn.ConnectedUrl(), errKey, err)
 		return nil, err
 	}
-	projectsKV, err := js.KeyValue(ctx, constants.KVBucketNameProjects)
+	projectsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjects)
 	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVBucketNameProjects)
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVStoreNameProjects)
 		return nil, err
 	}
 	return projectsKV, nil
 }
 
-func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*natsModels.ProjectDB, error) {
+func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*models.ProjectBase, error) {
 	// Try to get the ROOT project by slug
 	uidEntry, err := projectsKV.Get(ctx, rootProjectSlugKey)
 	if err != nil {
+		// The root project not existing isn't an error we care about, it just means we need to create it.
 		if err == jetstream.ErrKeyNotFound {
-			return nil, err
+			return nil, nil
 		}
 		slog.ErrorContext(ctx, "error checking for ROOT project existence", errKey, err)
 		return nil, err
@@ -140,7 +141,7 @@ func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*natsMo
 		return nil, err
 	}
 
-	var projectDB *natsModels.ProjectDB
+	var projectDB *models.ProjectBase
 	err = json.Unmarshal(p.Value(), &projectDB)
 	if err != nil {
 		slog.ErrorContext(ctx, "error unmarshalling project from NATS KV store", errKey, err, "project_id", uidEntry.Value())
@@ -151,18 +152,16 @@ func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*natsMo
 }
 
 func createRootProject(ctx context.Context, projectsKV jetstream.KeyValue) error {
-	now := time.Now()
-	rootProject := natsModels.ProjectDB{
+	currentTimeFmt := time.Now().UTC()
+	rootProject := models.ProjectBase{
 		UID:         uuid.New().String(),
 		Slug:        rootProjectSlug,
 		Name:        rootProjectSlug,
 		Description: rootProjectDesc,
 		Public:      false,
 		ParentUID:   "",
-		Auditors:    []string{},
-		Writers:     []string{},
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		CreatedAt:   &currentTimeFmt,
+		UpdatedAt:   &currentTimeFmt,
 	}
 
 	projectJSON, err := json.Marshal(rootProject)
