@@ -34,16 +34,19 @@ app:
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""
 
-# gatewayAPI is the configuration for Gateway API routing
-gatewayAPI:
-  # enabled controls whether to use Gateway API HTTPRoute
-  enabled: true
-  # hostname is the hostname for routing
-  hostname: lfx-api.k8s.orb.local
-  # parentGateway specifies the platform Gateway to attach to
-  parentGateway:
+# traefik is the configuration for Traefik Gateway API routing
+traefik:
+  # gateway specifies the platform Gateway to attach to
+  gateway:
     name: lfx-platform-gateway
     namespace: lfx
+
+# lfx is the configuration for LFX platform
+lfx:
+  # domain is the base domain for routing
+  domain: k8s.orb.local
+  # namespace is the target namespace for deployment
+  namespace: lfx
 
 # service is the configuration for the Kubernetes service
 service:
