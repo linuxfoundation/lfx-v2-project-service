@@ -10,10 +10,17 @@ import (
 // FieldByTag retrieves the value of a field by its tag type and value from a struct.
 // Returns the field value and a boolean indicating if the field was found.
 func FieldByTag(obj any, tagType, tagValue string) (any, bool) {
+	if obj == nil {
+		return nil, false
+	}
+	
 	v := reflect.ValueOf(obj)
 	t := reflect.TypeOf(obj)
 
 	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil, false
+		}
 		v = v.Elem()
 		t = t.Elem()
 	}
@@ -26,7 +33,11 @@ func FieldByTag(obj any, tagType, tagValue string) (any, bool) {
 		field := t.Field(i)
 		tag := field.Tag.Get(tagType)
 		if tag == tagValue {
-			return v.Field(i).Interface(), true
+			fieldValue := v.Field(i)
+			if !fieldValue.CanInterface() {
+				return nil, false
+			}
+			return fieldValue.Interface(), true
 		}
 	}
 	return nil, false

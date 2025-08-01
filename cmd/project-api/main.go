@@ -312,7 +312,7 @@ func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (*internalnats.
 
 // createNatsSubcriptions creates the NATS subscriptions for the project service.
 func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nats.Conn) error {
-	slog.InfoContext(ctx, "subscribing to NATS subjects", "nats_url", natsConn.ConnectedUrl(), "servers", natsConn.Servers(), "subjects", []string{constants.ProjectGetNameSubject, constants.ProjectSlugToUIDSubject})
+	slog.InfoContext(ctx, "subscribing to NATS subjects", "nats_url", natsConn.ConnectedUrl(), "servers", natsConn.Servers())
 	queueName := constants.ProjectsAPIQueue
 
 	for _, subject := range []string{

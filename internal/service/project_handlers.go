@@ -93,7 +93,13 @@ func (s *ProjectsService) handleProjectGetAttribute(ctx context.Context, msg dom
 		return nil, fmt.Errorf("attribute %s not found", getAttribute)
 	}
 
-	return fmt.Appendf(nil, "%v", value), nil
+	strValue, ok := value.(string)
+	if !ok {
+		slog.ErrorContext(ctx, "project attribute is not a string", constants.ErrKey, fmt.Errorf("attribute %s is not a string", getAttribute))
+		return nil, fmt.Errorf("attribute %s is not a string", getAttribute)
+	}
+
+	return []byte(strValue), nil
 }
 
 // HandleProjectGetName is the message handler for the project-get-name subject.
