@@ -27,6 +27,7 @@ This service contains the following API endpoints:
 This service handles the following NATS subjects:
 
 - `lfx.projects-api.get_name`: Get a project name from a given project UID
+- `lfx.projects-api.get_slug`: Get a project slug from a given project UID
 - `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
 ## File Structure

@@ -315,26 +315,23 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 	slog.InfoContext(ctx, "subscribing to NATS subjects", "nats_url", natsConn.ConnectedUrl(), "servers", natsConn.Servers(), "subjects", []string{constants.ProjectGetNameSubject, constants.ProjectSlugToUIDSubject})
 	queueName := constants.ProjectsAPIQueue
 
-	// Get project name subscription
-	projectGetNameSubject := constants.ProjectGetNameSubject
-	_, err := natsConn.QueueSubscribe(projectGetNameSubject, queueName, func(msg *nats.Msg) {
-		natsMsg := &internalnats.NatsMsg{Msg: msg}
-		svc.service.HandleMessage(natsMsg)
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
-		return err
-	}
-
-	// Get project slug to UID subscription
-	projectSlugToUIDSubject := constants.ProjectSlugToUIDSubject
-	_, err = natsConn.QueueSubscribe(projectSlugToUIDSubject, queueName, func(msg *nats.Msg) {
-		natsMsg := &internalnats.NatsMsg{Msg: msg}
-		svc.service.HandleMessage(natsMsg)
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
-		return err
+	for _, subject := range []string{
+		// Get project name subscription
+		constants.ProjectGetNameSubject,
+		// Get project slug subscription
+		constants.ProjectGetSlugSubject,
+		// Get project slug to UID subscription
+		constants.ProjectSlugToUIDSubject,
+	} {
+		slog.With("subject", subject, "queue", queueName).Debug("subscribing to NATS subject")
+		_, err := natsConn.QueueSubscribe(subject, queueName, func(msg *nats.Msg) {
+			natsMsg := &internalnats.NatsMsg{Msg: msg}
+			svc.service.HandleMessage(ctx, natsMsg)
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
+			return err
+		}
 	}
 
 	return nil

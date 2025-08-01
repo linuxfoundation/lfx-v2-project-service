@@ -4,6 +4,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 )
 
 func TestProjectsService_HandleMessage(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name        string
 		subject     string
@@ -74,7 +78,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			}
 
 			// Call HandleMessage
-			service.HandleMessage(mockMsg)
+			service.HandleMessage(ctx, mockMsg)
 
 			// Verify expectations
 			if tt.expectCalls {
@@ -88,6 +92,9 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 }
 
 func TestProjectsService_HandleProjectGetName(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name        string
 		messageData []byte
@@ -159,7 +166,7 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 
 			mockMsg := newMockMessage(constants.ProjectGetNameSubject, tt.messageData)
 
-			response, err := service.HandleProjectGetName(mockMsg)
+			response, err := service.HandleProjectGetName(ctx, mockMsg)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -178,6 +185,9 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 }
 
 func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name        string
 		messageData []byte
@@ -237,7 +247,7 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 
 			mockMsg := newMockMessage(constants.ProjectSlugToUIDSubject, tt.messageData)
 
-			response, err := service.HandleProjectSlugToUID(mockMsg)
+			response, err := service.HandleProjectSlugToUID(ctx, mockMsg)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -256,6 +266,9 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 }
 
 func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name         string
 		setupService func() *ProjectsService
@@ -305,7 +318,7 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 
 			// Should not panic
 			assert.NotPanics(t, func() {
-				service.HandleMessage(mockMsg)
+				service.HandleMessage(ctx, mockMsg)
 			})
 
 			if mockRepo, ok := service.ProjectRepository.(*domain.MockProjectRepository); ok {
@@ -316,6 +329,9 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 }
 
 func TestProjectsService_MessageHandling_Integration(t *testing.T) {
+
+	ctx := context.Background()
+
 	t.Run("end to end message handling", func(t *testing.T) {
 		service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
 
@@ -342,7 +358,7 @@ func TestProjectsService_MessageHandling_Integration(t *testing.T) {
 		})).Return(nil)
 
 		// Execute
-		service.HandleMessage(mockMsg)
+		service.HandleMessage(ctx, mockMsg)
 
 		// Verify all expectations
 		mockRepo.AssertExpectations(t)
