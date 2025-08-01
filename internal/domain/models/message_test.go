@@ -39,15 +39,15 @@ func TestMessageActionConstants(t *testing.T) {
 	}
 }
 
-func TestProjectMessage(t *testing.T) {
+func TestProjectIndexerMessage(t *testing.T) {
 	tests := []struct {
 		name    string
-		message ProjectMessage
-		verify  func(t *testing.T, msg ProjectMessage)
+		message ProjectIndexerMessage
+		verify  func(t *testing.T, msg ProjectIndexerMessage)
 	}{
 		{
 			name: "project message with all fields",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: ActionCreated,
 				Headers: map[string]string{
 					"request-id": "test-request-123",
@@ -59,7 +59,7 @@ func TestProjectMessage(t *testing.T) {
 					"name": "Test Project",
 				},
 			},
-			verify: func(t *testing.T, msg ProjectMessage) {
+			verify: func(t *testing.T, msg ProjectIndexerMessage) {
 				assert.Equal(t, ActionCreated, msg.Action)
 				assert.Equal(t, "test-request-123", msg.Headers["request-id"])
 				assert.Equal(t, "user-456", msg.Headers["user-id"])
@@ -75,11 +75,11 @@ func TestProjectMessage(t *testing.T) {
 		},
 		{
 			name: "project message with minimal fields",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: ActionDeleted,
 				Data:   "simple-data",
 			},
-			verify: func(t *testing.T, msg ProjectMessage) {
+			verify: func(t *testing.T, msg ProjectIndexerMessage) {
 				assert.Equal(t, ActionDeleted, msg.Action)
 				assert.Nil(t, msg.Headers)
 				assert.Equal(t, "simple-data", msg.Data)
@@ -87,14 +87,14 @@ func TestProjectMessage(t *testing.T) {
 		},
 		{
 			name: "project message with nil data",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: ActionUpdated,
 				Headers: map[string]string{
 					"correlation-id": "corr-123",
 				},
 				Data: nil,
 			},
-			verify: func(t *testing.T, msg ProjectMessage) {
+			verify: func(t *testing.T, msg ProjectIndexerMessage) {
 				assert.Equal(t, ActionUpdated, msg.Action)
 				assert.Equal(t, "corr-123", msg.Headers["correlation-id"])
 				assert.Nil(t, msg.Data)
@@ -102,7 +102,7 @@ func TestProjectMessage(t *testing.T) {
 		},
 		{
 			name: "project message with complex data structure",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: ActionCreated,
 				Data: struct {
 					ProjectUID string   `json:"project_uid"`
@@ -123,7 +123,7 @@ func TestProjectMessage(t *testing.T) {
 					},
 				},
 			},
-			verify: func(t *testing.T, msg ProjectMessage) {
+			verify: func(t *testing.T, msg ProjectIndexerMessage) {
 				assert.Equal(t, ActionCreated, msg.Action)
 				assert.NotNil(t, msg.Data)
 				// Verify the data structure is preserved
@@ -174,15 +174,15 @@ func TestMessageActionString(t *testing.T) {
 	}
 }
 
-func TestProjectMessageValidation(t *testing.T) {
+func TestProjectIndexerMessageValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		message ProjectMessage
+		message ProjectIndexerMessage
 		isValid bool
 	}{
 		{
 			name: "valid message with required fields",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: ActionCreated,
 				Data:   "some-data",
 			},
@@ -190,7 +190,7 @@ func TestProjectMessageValidation(t *testing.T) {
 		},
 		{
 			name: "valid message with all fields",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: ActionUpdated,
 				Headers: map[string]string{
 					"key": "value",
@@ -203,7 +203,7 @@ func TestProjectMessageValidation(t *testing.T) {
 		},
 		{
 			name: "message with empty action",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: "",
 				Data:   "some-data",
 			},
@@ -211,7 +211,7 @@ func TestProjectMessageValidation(t *testing.T) {
 		},
 		{
 			name: "message with unknown action",
-			message: ProjectMessage{
+			message: ProjectIndexerMessage{
 				Action: MessageAction("unknown"),
 				Data:   "some-data",
 			},

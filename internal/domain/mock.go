@@ -132,22 +132,12 @@ func (m *MockMessageBuilder) SendDeleteIndexProjectSettings(ctx context.Context,
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendUpdateAccessProject(ctx context.Context, data models.ProjectBase) error {
-	args := m.Called(ctx, data)
-	return args.Error(0)
-}
-
-func (m *MockMessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, data models.ProjectSettings) error {
+func (m *MockMessageBuilder) SendUpdateAccessProject(ctx context.Context, data models.ProjectAccessMessage) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }
 
 func (m *MockMessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data string) error {
-	args := m.Called(ctx, data)
-	return args.Error(0)
-}
-
-func (m *MockMessageBuilder) SendDeleteAllAccessProjectSettings(ctx context.Context, data string) error {
 	args := m.Called(ctx, data)
 	return args.Error(0)
 }

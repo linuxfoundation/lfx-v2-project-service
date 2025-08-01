@@ -87,13 +87,13 @@ func setupRootProject(ctx context.Context, env environment) error {
 	defer natsConn.Close()
 
 	// Get the key-value store for projects
-	projectsKV, err := getKeyValueStore(ctx, natsConn)
+	kv, err := getKeyValueStore(ctx, natsConn)
 	if err != nil {
 		return err
 	}
 
 	// Check if ROOT project already exists
-	if p, err := getRootProject(ctx, projectsKV); err != nil {
+	if p, err := getRootProject(ctx, kv.Projects); err != nil {
 		return err
 	} else if p != nil {
 		slog.With("project", p).Info("ROOT project already exists, nothing to do")
@@ -101,21 +101,35 @@ func setupRootProject(ctx context.Context, env environment) error {
 	}
 
 	// Create the ROOT project
-	return createRootProject(ctx, projectsKV)
+	return createRootProject(ctx, kv)
 }
 
-func getKeyValueStore(ctx context.Context, natsConn *nats.Conn) (jetstream.KeyValue, error) {
+type kvBuckets struct {
+	Projects        jetstream.KeyValue
+	ProjectSettings jetstream.KeyValue
+}
+
+func getKeyValueStore(ctx context.Context, natsConn *nats.Conn) (kvBuckets, error) {
+	kv := kvBuckets{}
+
 	js, err := jetstream.New(natsConn)
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating NATS JetStream client", "nats_url", natsConn.ConnectedUrl(), errKey, err)
-		return nil, err
+		return kv, err
 	}
 	projectsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjects)
 	if err != nil {
 		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVStoreNameProjects)
-		return nil, err
+		return kv, err
 	}
-	return projectsKV, nil
+	projectSettingsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectSettings)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "bucket", constants.KVStoreNameProjectSettings)
+		return kv, err
+	}
+	kv.Projects = projectsKV
+	kv.ProjectSettings = projectSettingsKV
+	return kv, nil
 }
 
 func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*models.ProjectBase, error) {
@@ -151,7 +165,7 @@ func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*models
 	return projectDB, nil
 }
 
-func createRootProject(ctx context.Context, projectsKV jetstream.KeyValue) error {
+func createRootProject(ctx context.Context, kv kvBuckets) error {
 	currentTimeFmt := time.Now().UTC()
 	rootProject := models.ProjectBase{
 		UID:         uuid.New().String(),
@@ -163,6 +177,14 @@ func createRootProject(ctx context.Context, projectsKV jetstream.KeyValue) error
 		CreatedAt:   &currentTimeFmt,
 		UpdatedAt:   &currentTimeFmt,
 	}
+	rootProjectSettings := models.ProjectSettings{
+		UID:              rootProject.UID,
+		MissionStatement: rootProjectDesc,
+		Writers:          []string{},
+		Auditors:         []string{},
+		CreatedAt:        &currentTimeFmt,
+		UpdatedAt:        &currentTimeFmt,
+	}
 
 	projectJSON, err := json.Marshal(rootProject)
 	if err != nil {
@@ -170,17 +192,30 @@ func createRootProject(ctx context.Context, projectsKV jetstream.KeyValue) error
 		return err
 	}
 
+	projectSettingsJSON, err := json.Marshal(rootProjectSettings)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshaling ROOT project settings", errKey, err)
+		return err
+	}
+
 	// insert slug/ROOT -> UID mapping
-	_, err = projectsKV.Put(ctx, rootProjectSlugKey, []byte(rootProject.UID))
+	_, err = kv.Projects.Put(ctx, rootProjectSlugKey, []byte(rootProject.UID))
 	if err != nil {
 		slog.ErrorContext(ctx, "error storing ROOT project in KV store", errKey, err)
 		return err
 	}
 
-	// insert via UID
-	_, err = projectsKV.Put(ctx, string(rootProject.UID), projectJSON)
+	// insert project base via UID
+	_, err = kv.Projects.Put(ctx, string(rootProject.UID), projectJSON)
 	if err != nil {
 		slog.ErrorContext(ctx, "error storing ROOT project in KV store", errKey, err)
+		return err
+	}
+
+	// insert project settings via UID
+	_, err = kv.ProjectSettings.Put(ctx, string(rootProject.UID), projectSettingsJSON)
+	if err != nil {
+		slog.ErrorContext(ctx, "error storing ROOT project settings in KV store", errKey, err)
 		return err
 	}
 

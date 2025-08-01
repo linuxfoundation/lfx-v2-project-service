@@ -88,7 +88,7 @@ func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
 	issuer, err = url.Parse(defaultIssuer)
 	if err != nil {
 		// This shouldn't happen; a bare hostname is a valid URL.
-		slog.Error("unexpected URL parsing of default issuer")
+		slog.Error("unexpected URL parsing of default issuer", constants.ErrKey, err)
 		return nil, err
 	}
 	provider := jwks.NewCachingProvider(issuer, 5*time.Minute, jwks.WithCustomJWKSURI(jwksURL))
@@ -136,7 +136,11 @@ func (j *JWTAuth) ParsePrincipal(ctx context.Context, token string, logger *slog
 		// dropping the suffix of the 3rd error's String() method could be more
 		// accurate to error boundaries, but could also expose tertiary errors if
 		// errors are not wrapped with Go 1.13 `%w` semantics.
-		logger.With("default_audience", defaultAudience).With("default_issuer", defaultIssuer).With(constants.ErrKey, err).WarnContext(ctx, "authorization failed")
+		logger.WarnContext(ctx, "authorization failed",
+			"default_audience", defaultAudience,
+			"default_issuer", defaultIssuer,
+			constants.ErrKey, err,
+		)
 		errString := err.Error()
 		firstColon := strings.Index(errString, ":")
 		if firstColon != -1 && firstColon+1 < len(errString) {
@@ -162,6 +166,11 @@ func (j *JWTAuth) ParsePrincipal(ctx context.Context, token string, logger *slog
 		// This should never happen.
 		return "", errors.New("failed to get custom authorization claims")
 	}
+
+	logger.DebugContext(ctx, "JWT principal parsed",
+		"principal", customClaims.Principal,
+		"email", customClaims.Email,
+	)
 
 	return customClaims.Principal, nil
 }

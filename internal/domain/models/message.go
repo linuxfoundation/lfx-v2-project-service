@@ -16,11 +16,21 @@ const (
 	ActionDeleted MessageAction = "deleted"
 )
 
-// ProjectMessage is a NATS message schema for sending messages related to projects CRUD operations.
-type ProjectMessage struct {
+// ProjectIndexerMessage is a NATS message schema for sending messages related to projects CRUD operations.
+type ProjectIndexerMessage struct {
 	Action  MessageAction     `json:"action"`
 	Headers map[string]string `json:"headers"`
 	Data    any               `json:"data"`
 	// Tags is a list of tags to be set on the indexed resource for search.
 	Tags []string `json:"tags"`
+}
+
+// ProjectAccessMessage is the schema for the data in the message sent to the fga-sync service.
+// These are the fields that the fga-sync service needs in order to update the OpenFGA permissions.
+type ProjectAccessMessage struct {
+	UID       string   `json:"uid"`
+	Public    bool     `json:"public"`
+	ParentUID string   `json:"parent_uid"`
+	Writers   []string `json:"writers"`
+	Auditors  []string `json:"auditors"`
 }

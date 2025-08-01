@@ -71,7 +71,7 @@ func (m *MessageBuilder) sendIndexerMessage(ctx context.Context, subject string,
 
 	// TODO: use the model from the indexer service to keep the message body consistent.
 	// Ticket https://linuxfoundation.atlassian.net/browse/LFXV2-147
-	message := models.ProjectMessage{
+	message := models.ProjectIndexerMessage{
 		Action:  action,
 		Headers: headers,
 		Data:    payload,
@@ -131,7 +131,7 @@ func (m *MessageBuilder) SendDeleteIndexProjectSettings(ctx context.Context, dat
 }
 
 // SendUpdateAccessProject sends the message to the NATS server for the access control updates.
-func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data models.ProjectBase) error {
+func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data models.ProjectAccessMessage) error {
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error marshalling data into JSON", constants.ErrKey, err)
@@ -141,23 +141,7 @@ func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data model
 	return m.sendMessage(ctx, constants.UpdateAccessProjectSubject, dataBytes)
 }
 
-// SendUpdateAccessProjectSettings sends the message to the NATS server for the access control updates.
-func (m *MessageBuilder) SendUpdateAccessProjectSettings(ctx context.Context, data models.ProjectSettings) error {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling data into JSON", constants.ErrKey, err)
-		return err
-	}
-
-	return m.sendMessage(ctx, constants.UpdateAccessProjectSettingsSubject, dataBytes)
-}
-
 // SendDeleteAllAccessProject sends the message to the NATS server for the access control deletion.
 func (m *MessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data string) error {
 	return m.sendMessage(ctx, constants.DeleteAllAccessSubject, []byte(data))
-}
-
-// SendDeleteAllAccessProjectSettings sends the message to the NATS server for the access control deletion.
-func (m *MessageBuilder) SendDeleteAllAccessProjectSettings(ctx context.Context, data string) error {
-	return m.sendMessage(ctx, constants.DeleteAllAccessProjectSettingsSubject, []byte(data))
 }
