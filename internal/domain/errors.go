@@ -9,6 +9,8 @@ import "errors"
 var (
 	// ErrProjectNotFound is returned when a project is not found.
 	ErrProjectNotFound = errors.New("project not found")
+	// ErrInvalidParentProject is returned when a parent project is invalid.
+	ErrInvalidParentProject = errors.New("invalid parent project")
 	// ErrProjectSlugExists is returned when a project slug already exists.
 	ErrProjectSlugExists = errors.New("project slug already exists")
 	// ErrInternal is returned when an internal error occurs.

@@ -90,7 +90,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		}
 		if !exists {
 			slog.ErrorContext(ctx, "parent project not found", constants.ErrKey, err)
-			return nil, domain.ErrProjectNotFound
+			return nil, domain.ErrInvalidParentProject
 		}
 	}
 
@@ -154,15 +154,17 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProject(ctx, *projectDB)
-	})
-
-	g.Go(func() error {
 		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionCreated, *projectSettingsDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProjectSettings(ctx, *projectSettingsDB)
+		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
+			UID:       projectDB.UID,
+			Public:    projectDB.Public,
+			ParentUID: projectDB.ParentUID,
+			Writers:   projectSettingsDB.Writers,
+			Auditors:  projectSettingsDB.Auditors,
+		})
 	})
 
 	if err := g.Wait(); err != nil {
@@ -292,6 +294,10 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
 		_, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
 		if err != nil {
+			if errors.Is(err, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
+				return nil, domain.ErrProjectNotFound
+			}
 			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
 			return nil, domain.ErrInternal
 		}
@@ -390,13 +396,25 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrInternal
 	}
 
+	projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
 	g := new(errgroup.Group)
 	g.Go(func() error {
 		return s.MessageBuilder.SendIndexProject(ctx, models.ActionUpdated, *projectDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProject(ctx, *projectDB)
+		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
+			UID:       projectDB.UID,
+			Public:    projectDB.Public,
+			ParentUID: projectDB.ParentUID,
+			Writers:   projectSettingsDB.Writers,
+			Auditors:  projectSettingsDB.Auditors,
+		})
 	})
 
 	if err := g.Wait(); err != nil {
@@ -503,13 +521,25 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
+	projectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
 	g := new(errgroup.Group)
 	g.Go(func() error {
 		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionUpdated, *projectSettingsDB)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProjectSettings(ctx, *projectSettingsDB)
+		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
+			UID:       projectDB.UID,
+			Public:    projectDB.Public,
+			ParentUID: projectDB.ParentUID,
+			Writers:   projectSettingsDB.Writers,
+			Auditors:  projectSettingsDB.Auditors,
+		})
 	})
 
 	if err := g.Wait(); err != nil {
@@ -550,6 +580,10 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
 		_, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
 		if err != nil {
+			if errors.Is(err, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
+				return domain.ErrProjectNotFound
+			}
 			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
 			return domain.ErrInternal
 		}
@@ -582,15 +616,11 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendDeleteAllAccessProject(ctx, *payload.UID)
-	})
-
-	g.Go(func() error {
-		return s.MessageBuilder.SendDeleteAllAccessProjectSettings(ctx, *payload.UID)
-	})
-
-	g.Go(func() error {
 		return s.MessageBuilder.SendDeleteIndexProjectSettings(ctx, *payload.UID)
+	})
+
+	g.Go(func() error {
+		return s.MessageBuilder.SendDeleteAllAccessProject(ctx, *payload.UID)
 	})
 
 	if err := g.Wait(); err != nil {
