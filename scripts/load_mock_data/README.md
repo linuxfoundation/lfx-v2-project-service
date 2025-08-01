@@ -155,7 +155,7 @@ To avoid overwhelming the API, the script includes a 100ms delay between project
 To see more detailed information, you can modify the script to include debug logging or use Go's built-in logging flags:
 
 ```bash
-go run -v tools/load_mock_data/main.go -bearer-token "your-token"
+go run -v scripts/load_mock_data/main.go -bearer-token "your-token"
 ```
 
 ## Contributing
