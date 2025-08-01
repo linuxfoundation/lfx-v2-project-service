@@ -10,10 +10,10 @@ import (
 
 // Test struct for testing purposes
 type TestStruct struct {
-	Name      string `json:"name" xml:"fullname"`
-	Age       int    `json:"age"`
-	Email     string `json:"email"`
-	IsActive  bool   `json:"is_active"`
+	Name       string `json:"name" xml:"fullname"`
+	Age        int    `json:"age"`
+	Email      string `json:"email"`
+	IsActive   bool   `json:"is_active"`
 	unexported string `custom:"unexported_tag"`
 }
 
@@ -332,7 +332,7 @@ func TestFieldByTagEdgeCases(t *testing.T) {
 // Benchmark test to measure performance
 func BenchmarkFieldByTag(b *testing.B) {
 	obj := TestStruct{Name: "John", Age: 30, Email: "john@example.com", IsActive: true}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		FieldByTag(obj, "json", "email")
@@ -341,7 +341,7 @@ func BenchmarkFieldByTag(b *testing.B) {
 
 func BenchmarkFieldByTagPointer(b *testing.B) {
 	obj := &TestStruct{Name: "John", Age: 30, Email: "john@example.com", IsActive: true}
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		FieldByTag(obj, "json", "email")

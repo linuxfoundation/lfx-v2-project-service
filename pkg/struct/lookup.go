@@ -13,7 +13,7 @@ func FieldByTag(obj any, tagType, tagValue string) (any, bool) {
 	if obj == nil {
 		return nil, false
 	}
-	
+
 	v := reflect.ValueOf(obj)
 	t := reflect.TypeOf(obj)
 
