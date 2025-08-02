@@ -231,7 +231,7 @@ func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData)
 	defer resp.Body.Close() //nolint:errcheck
 
 	// Check response status
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusCreated {
 		var errorResp map[string]interface{}
 		if err := json.NewDecoder(resp.Body).Decode(&errorResp); err != nil {
 			return nil, fmt.Errorf("request failed with status %d", resp.StatusCode)
