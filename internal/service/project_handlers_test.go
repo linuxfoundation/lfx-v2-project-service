@@ -4,6 +4,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 )
 
 func TestProjectsService_HandleMessage(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name        string
 		subject     string
@@ -33,6 +37,25 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 					&models.ProjectBase{
 						UID:       "01234567-89ab-cdef-0123-456789abcdef",
 						Name:      "Test Project",
+						CreatedAt: &now,
+						UpdatedAt: &now,
+					},
+					nil,
+				)
+			},
+			expectCalls: true,
+		},
+		{
+			name:        "handle project get slug message",
+			subject:     constants.ProjectGetSlugSubject,
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				now := time.Now()
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectBase{
+						UID:       "01234567-89ab-cdef-0123-456789abcdef",
+						Name:      "Test Project",
+						Slug:      "test-project-slug",
 						CreatedAt: &now,
 						UpdatedAt: &now,
 					},
@@ -74,7 +97,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			}
 
 			// Call HandleMessage
-			service.HandleMessage(mockMsg)
+			service.HandleMessage(ctx, mockMsg)
 
 			// Verify expectations
 			if tt.expectCalls {
@@ -88,6 +111,9 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 }
 
 func TestProjectsService_HandleProjectGetName(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name        string
 		messageData []byte
@@ -159,7 +185,92 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 
 			mockMsg := newMockMessage(constants.ProjectGetNameSubject, tt.messageData)
 
-			response, err := service.HandleProjectGetName(mockMsg)
+			response, err := service.HandleProjectGetName(ctx, mockMsg)
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Nil(t, response)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, response)
+				if tt.validate != nil {
+					tt.validate(t, response)
+				}
+			}
+
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestProjectsService_HandleProjectGetSlug(t *testing.T) {
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		messageData []byte
+		setupMocks  func(*domain.MockProjectRepository)
+		expectedErr bool
+		validate    func(*testing.T, []byte)
+	}{
+		{
+			name:        "successful get project slug",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				now := time.Now()
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectBase{
+						UID:       "01234567-89ab-cdef-0123-456789abcdef",
+						Name:      "Test Project Name",
+						Slug:      "test-project-slug",
+						CreatedAt: &now,
+						UpdatedAt: &now,
+					},
+					nil,
+				)
+			},
+			expectedErr: false,
+			validate: func(t *testing.T, response []byte) {
+				assert.Equal(t, "test-project-slug", string(response))
+			},
+		},
+		{
+			name:        "project not found",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
+					nil, domain.ErrProjectNotFound,
+				)
+			},
+			expectedErr: true,
+		},
+		{
+			name:        "invalid UUID format",
+			messageData: []byte("invalid-uuid-format"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				// No repo calls expected for invalid UUID
+			},
+			expectedErr: true,
+		},
+		{
+			name:        "empty project UID",
+			messageData: []byte(""),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				// No repo calls expected for empty UID
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, mockRepo, _, _ := setupServiceForTesting()
+			tt.setupMocks(mockRepo)
+
+			mockMsg := newMockMessage(constants.ProjectGetSlugSubject, tt.messageData)
+
+			response, err := service.HandleProjectGetSlug(ctx, mockMsg)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -178,6 +289,9 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 }
 
 func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name        string
 		messageData []byte
@@ -237,7 +351,7 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 
 			mockMsg := newMockMessage(constants.ProjectSlugToUIDSubject, tt.messageData)
 
-			response, err := service.HandleProjectSlugToUID(mockMsg)
+			response, err := service.HandleProjectSlugToUID(ctx, mockMsg)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
@@ -256,6 +370,9 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 }
 
 func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
+
+	ctx := context.Background()
+
 	tests := []struct {
 		name         string
 		setupService func() *ProjectsService
@@ -305,7 +422,7 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 
 			// Should not panic
 			assert.NotPanics(t, func() {
-				service.HandleMessage(mockMsg)
+				service.HandleMessage(ctx, mockMsg)
 			})
 
 			if mockRepo, ok := service.ProjectRepository.(*domain.MockProjectRepository); ok {
@@ -316,6 +433,9 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 }
 
 func TestProjectsService_MessageHandling_Integration(t *testing.T) {
+
+	ctx := context.Background()
+
 	t.Run("end to end message handling", func(t *testing.T) {
 		service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
 
@@ -342,7 +462,7 @@ func TestProjectsService_MessageHandling_Integration(t *testing.T) {
 		})).Return(nil)
 
 		// Execute
-		service.HandleMessage(mockMsg)
+		service.HandleMessage(ctx, mockMsg)
 
 		// Verify all expectations
 		mockRepo.AssertExpectations(t)

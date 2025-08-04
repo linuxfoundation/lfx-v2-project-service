@@ -22,13 +22,13 @@ This Go script allows you to insert project mock data via the project service AP
 From the project root directory:
 
 ```bash
-go build -o bin/load_mock_data tools/load_mock_data/main.go
+go build -o bin/load_mock_data scripts/load_mock_data/main.go
 ```
 
 Or run directly:
 
 ```bash
-go run tools/load_mock_data/main.go [flags]
+go run scripts/load_mock_data/main.go [flags]
 ```
 
 ## Usage
@@ -155,7 +155,7 @@ To avoid overwhelming the API, the script includes a 100ms delay between project
 To see more detailed information, you can modify the script to include debug logging or use Go's built-in logging flags:
 
 ```bash
-go run -v tools/load_mock_data/main.go -bearer-token "your-token"
+go run -v scripts/load_mock_data/main.go -bearer-token "your-token"
 ```
 
 ## Contributing

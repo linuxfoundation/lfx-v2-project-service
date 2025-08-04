@@ -160,6 +160,7 @@ The service uses NATS for:
 
 // Inbound RPC (handled by this service)
 "lfx.projects-api.get_name"            // Get project name by UID
+"lfx.projects-api.get_slug"            // Get project slug by UID
 "lfx.projects-api.slug_to_uid"         // Convert slug to UID
 ```
 

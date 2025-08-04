@@ -27,6 +27,7 @@ This service contains the following API endpoints:
 This service handles the following NATS subjects:
 
 - `lfx.projects-api.get_name`: Get a project name from a given project UID
+- `lfx.projects-api.get_slug`: Get a project slug from a given project UID
 - `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
 ## File Structure
@@ -39,8 +40,7 @@ This service handles the following NATS subjects:
 ├── main.go                         # Dependency injection and startup
 ├── service.go                      # ProjectsAPI implementation (presentation layer)
 ├── service_endpoint.go             # Health check endpoints implementation
-├── service_endpoint_project.go     # Project REST API endpoints implementation
-└── service_handler.go              # NATS message handlers implementation
+└── service_endpoint_project.go     # Project REST API endpoints implementation
 
 # Dependencies from internal/ packages:
 # - internal/service/              # Business logic layer
@@ -57,11 +57,11 @@ This service follows clean architecture principles with clear separation of conc
 1. **Presentation Layer** (`cmd/project-api/`)
    - `ProjectsAPI` struct implements the Goa-generated service interface
    - HTTP endpoint handlers (`service_endpoint_project.go`)
-   - NATS message handlers (`service_handler.go`)
    - Dependency injection and startup (`main.go`)
 
 2. **Service Layer** (`internal/service/`)
    - `ProjectsService` contains core business logic
+   - Message handlers (`project_handlers.go`)
    - Orchestrates operations between domain and infrastructure
 
 3. **Domain Layer** (`internal/domain/`)
@@ -282,5 +282,5 @@ Note: follow the [Development Workflow](#4-development-workflow) section on how 
 Note: follow the [Development Workflow](#4-development-workflow) section on how to run the service code
 
 1. **Update main.go**: In `main.go` is the code for subscribing the service to specific NATS queue subjects. Add the subscription code in the `createNatsSubcriptions` function. If a new subject needs to be subscribed, add the subject to the `../pkg/constants` directory in a similiar fashion as the other subject names (so that it can be referenced by other services that need to send messages for the subject).
-2. **Update service_handler.go**: Implement the NATS message handler. Add a new function, such as `HandleProjectGetName` for handling messages with respect to getting the name of a project. The `HandleNatsMessage` function switch statement should also be updated to include the new subject and function call.
-3. **Update service_handler_test.go**: Add unit tests for the new handler function. Mock external service calls so that the tests are modular.
+2. **Update project_handlers.go**: Implement the NATS message handler in `internal/service/project_handlers.go`. Add a new function, such as `HandleProjectGetName` for handling messages with respect to getting the name of a project. The `HandleNatsMessage` function switch statement should also be updated to include the new subject and function call.
+3. **Update project_handlers_test.go**: Add unit tests for the new handler function in `internal/service/project_handlers_test.go`. Mock external service calls so that the tests are modular.

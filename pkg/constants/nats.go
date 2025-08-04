@@ -51,6 +51,9 @@ const (
 	// ProjectGetNameSubject is the subject for the project get name.
 	// The subject is of the form: lfx.projects-api.get_name
 	ProjectGetNameSubject = "lfx.projects-api.get_name"
+	// ProjectGetSlugSubject is the subject for the project get slug.
+	// The subject is of the form: lfx.projects-api.get_slug
+	ProjectGetSlugSubject = "lfx.projects-api.get_slug"
 	// ProjectSlugToUIDSubject is the subject for the project slug to UID.
 	// The subject is of the form: lfx.projects-api.slug_to_uid
 	ProjectSlugToUIDSubject = "lfx.projects-api.slug_to_uid"
