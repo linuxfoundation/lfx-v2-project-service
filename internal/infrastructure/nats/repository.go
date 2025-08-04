@@ -104,7 +104,6 @@ func (s *NatsRepository) GetProjectUIDFromSlug(ctx context.Context, projectSlug 
 	entry, err = s.Projects.Get(ctx, fmt.Sprintf("slug/%s", projectSlug))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
 			return "", domain.ErrProjectNotFound
 		}
 		slog.ErrorContext(ctx, "error getting project from NATS KV store", constants.ErrKey, err)

@@ -150,7 +150,6 @@ func TestCreateProject(t *testing.T) {
 				mockMsg.On("SendIndexProject", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
 				mockMsg.On("SendUpdateAccessProject", mock.Anything, mock.Anything).Return(nil)
 				mockMsg.On("SendIndexProjectSettings", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
-				mockMsg.On("SendUpdateAccessProjectSettings", mock.Anything, mock.Anything).Return(nil)
 			},
 			expectedError: false,
 		},
