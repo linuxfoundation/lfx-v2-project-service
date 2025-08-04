@@ -154,7 +154,6 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				mockBuilder.On("SendIndexProject", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
 				mockBuilder.On("SendUpdateAccessProject", mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendIndexProjectSettings", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
-				mockBuilder.On("SendUpdateAccessProjectSettings", mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {

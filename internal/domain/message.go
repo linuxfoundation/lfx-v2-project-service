@@ -27,8 +27,6 @@ type MessageBuilder interface {
 	SendDeleteIndexProject(ctx context.Context, data string) error
 	SendIndexProjectSettings(ctx context.Context, action models.MessageAction, data models.ProjectSettings) error
 	SendDeleteIndexProjectSettings(ctx context.Context, data string) error
-	SendUpdateAccessProject(ctx context.Context, data models.ProjectBase) error
-	SendUpdateAccessProjectSettings(ctx context.Context, data models.ProjectSettings) error
+	SendUpdateAccessProject(ctx context.Context, data models.ProjectAccessMessage) error
 	SendDeleteAllAccessProject(ctx context.Context, data string) error
-	SendDeleteAllAccessProjectSettings(ctx context.Context, data string) error
 }
