@@ -21,8 +21,8 @@ spec:
     - path:
         type: PathPrefix
         value: /projects/
-    filters:
     {{- if .Values.heimdall.enabled }}
+    filters:
     - type: ExtensionRef
       extensionRef:
         group: traefik.io
