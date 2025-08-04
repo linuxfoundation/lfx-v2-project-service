@@ -33,14 +33,3 @@ spec:
     backendRefs:
     - name: lfx-v2-project-service
       port: {{ .Values.service.port }}
-  # Health check endpoints (no authentication required)
-  - matches:
-    - path:
-        type: Exact
-        value: /livez
-    - path:
-        type: Exact
-        value: /readyz
-    backendRefs:
-    - name: lfx-v2-project-service
-      port: {{ .Values.service.port }}
