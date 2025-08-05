@@ -38,7 +38,7 @@ spec:
             - name: JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL
               value: {{ .Values.app.jwtAuthDisabledMockLocalPrincipal }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.service.port }}
               name: web
           livenessProbe:
             httpGet:
