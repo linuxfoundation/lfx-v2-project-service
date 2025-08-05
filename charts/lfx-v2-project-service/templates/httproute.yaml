@@ -6,6 +6,10 @@ kind: HTTPRoute
 metadata:
   name: lfx-v2-project-service
   namespace: {{ .Values.lfx.namespace }}
+  {{- with .Values.traefik.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   parentRefs:
   - name: {{ .Values.traefik.gateway.name }}
@@ -28,7 +32,6 @@ spec:
         group: traefik.io
         kind: Middleware
         name: heimdall
-        namespace: {{ .Values.traefik.gateway.namespace }}
     {{- end }}
     backendRefs:
     - name: lfx-v2-project-service

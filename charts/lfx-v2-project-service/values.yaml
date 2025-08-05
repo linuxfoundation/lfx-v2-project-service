@@ -36,6 +36,8 @@ app:
 
 # traefik is the configuration for Traefik Gateway API routing
 traefik:
+  # annotations to apply to Traefik resources
+  annotations: {}
   # gateway specifies the platform Gateway to attach to
   gateway:
     name: lfx-platform-gateway
