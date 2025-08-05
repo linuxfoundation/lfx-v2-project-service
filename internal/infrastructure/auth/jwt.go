@@ -18,7 +18,7 @@ import (
 
 const (
 	// PS256 is the default for Heimdall's JWT finalizer.
-	signatureAlgorithm = validator.PS512
+	signatureAlgorithm = validator.PS256
 	defaultIssuer      = "heimdall"
 	defaultAudience    = "http://lfx-api.k8s.orb.local"
 	defaultJWKSURL     = "http://heimdall:4457/.well-known/jwks"

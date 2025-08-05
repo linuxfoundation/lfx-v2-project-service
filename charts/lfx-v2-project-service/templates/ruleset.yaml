@@ -21,7 +21,7 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:projects:create"
       match:
@@ -50,7 +50,7 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
 
     # TODO: remove this rule once we remove the list projects endpoint.
     # It is not meant to be used by applications, it should only be used
@@ -72,7 +72,7 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:projects:project:get"
       match:
@@ -101,7 +101,7 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:projects:update"
       match:
@@ -130,7 +130,7 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:projects:delete"
       match:
@@ -159,7 +159,7 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:project_settings:get"
       match:
@@ -188,7 +188,7 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:project_settings:update"
       match:
@@ -217,4 +217,4 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-project-service
+              aud: {{ .Values.app.audience }}
