@@ -28,7 +28,6 @@ spec:
         group: traefik.io
         kind: Middleware
         name: heimdall
-        namespace: {{ .Values.traefik.gateway.namespace }}
     {{- end }}
     backendRefs:
     - name: lfx-v2-project-service
