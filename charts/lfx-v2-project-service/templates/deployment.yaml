@@ -17,19 +17,11 @@ spec:
         app: {{ .Chart.Name }}
     spec:
       containers:
-        {{- if .Values.image.useLocalImage }}
-        - name: app
-          image: linuxfoundation/lfx-v2-project-service:{{ .Chart.AppVersion }}
-          securityContext:
-            allowPrivilegeEscalation: false
-          imagePullPolicy: Never  # The image is expected to exist locally with the same name and tag. It is not deployed to a registry.
-        {{- else }}
         - name: app
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           securityContext:
             allowPrivilegeEscalation: false
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- end }}
           env:
             - name: NATS_URL
               value: {{ .Values.nats.url }}
