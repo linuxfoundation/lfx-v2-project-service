@@ -214,7 +214,7 @@ func TestJWTAuth_ParsePrincipal_ValidationErrors(t *testing.T) {
 func TestJWTAuth_Constants(t *testing.T) {
 	t.Run("verify constants", func(t *testing.T) {
 		assert.Equal(t, "heimdall", defaultIssuer)
-		assert.Equal(t, "http://lfx-api.k8s.orb.local", defaultAudience)
+		assert.Equal(t, "lfx-v2-project-service", defaultAudience)
 		assert.Equal(t, "http://heimdall:4457/.well-known/jwks", defaultJWKSURL)
 		assert.NotNil(t, signatureAlgorithm)
 	})
