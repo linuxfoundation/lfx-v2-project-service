@@ -30,9 +30,12 @@ spec:
         routes:
           - path: /projects
       execute:
-        #- authenticator: authelia
+        {{- if .Values.authelia.enabled }}
+        - authenticator: authelia
+        - contextualizer: authelia_userinfo
+        {{- else }}
         - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
+        {{- end }}
         {{- if .Values.openfga.enabled }}
         # TODO: update this authorizer check once we have a way to get the parent_uid from the request body.
         # Check that user has writer permission on the parent project
@@ -59,9 +62,12 @@ spec:
         routes:
           - path: /projects
       execute:
-        #- authenticator: authelia
+        {{- if .Values.authelia.enabled }}
+        - authenticator: authelia
+        - contextualizer: authelia_userinfo
+        {{- else }}
         - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
+        {{- end }}
         - authorizer: allow_all
         - finalizer: create_jwt
           config:
@@ -75,9 +81,12 @@ spec:
         routes:
           - path: /projects/:id
       execute:
-        #- authenticator: authelia
+        {{- if .Values.authelia.enabled }}
+        - authenticator: authelia
+        - contextualizer: authelia_userinfo
+        {{- else }}
         - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
+        {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
           config:
@@ -101,9 +110,12 @@ spec:
         routes:
           - path: /projects/:id
       execute:
-        #- authenticator: authelia
+        {{- if .Values.authelia.enabled }}
+        - authenticator: authelia
+        - contextualizer: authelia_userinfo
+        {{- else }}
         - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
+        {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
           config:
@@ -127,9 +139,12 @@ spec:
         routes:
           - path: /projects/:id
       execute:
-        #- authenticator: authelia
+        {{- if .Values.authelia.enabled }}
+        - authenticator: authelia
+        - contextualizer: authelia_userinfo
+        {{- else }}
         - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
+        {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
           config:
@@ -153,9 +168,12 @@ spec:
         routes:
           - path: /projects/:id/settings
       execute:
-        #- authenticator: authelia
+        {{- if .Values.authelia.enabled }}
+        - authenticator: authelia
+        - contextualizer: authelia_userinfo
+        {{- else }}
         - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
+        {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
           config:
@@ -179,9 +197,12 @@ spec:
         routes:
           - path: /projects/:id/settings
       execute:
-        #- authenticator: authelia
+        {{- if .Values.authelia.enabled }}
+        - authenticator: authelia
+        - contextualizer: authelia_userinfo
+        {{- else }}
         - authenticator: anonymous_authenticator
-        #- contextualizer: authelia_userinfo
+        {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
           config:
