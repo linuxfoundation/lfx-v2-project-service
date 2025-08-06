@@ -107,6 +107,11 @@ openfga:
   # (Disabling OpenFGA should only be used for local development).
   enabled: true
 
+# authelia is the configuration for the authelia middleware
+authelia:
+  # enabled is a boolean to determine if the authelia server should be enabled for authentication
+  enabled: true
+
 # heimdall is the configuration for the heimdall middleware
 heimdall:
   enabled: true
