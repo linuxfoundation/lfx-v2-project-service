@@ -112,6 +112,11 @@ authelia:
   # enabled is a boolean to determine if the authelia server should be enabled for authentication
   enabled: true
 
+# auth0 is the configuration for the auth0 middleware
+auth0:
+  # enabled is a boolean to determine if the auth0 server should be enabled for authentication
+  enabled: false
+
 # heimdall is the configuration for the heimdall middleware
 heimdall:
   enabled: true
