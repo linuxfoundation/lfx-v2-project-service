@@ -211,7 +211,12 @@ The service relies on some resources and external services being spun up prior t
 
     ```bash
     # Build the dockerfile (from the root of the repo)
-    docker build -t lfx-v2-project-service:<release_number> .
+    docker build -t linuxfoundation/lfx-v2-project-service:<release_number> .
+
+    # To use the local app image that was just built with docker build, you need to update
+    # the helm chart values.yaml to set the repository correctly with the image repository
+    # that was just created. The repository should be set to `linuxfoundation/lfx-v2-project-service`
+    # and the tag should be set the <release_number> value of the repository.
 
     # Install the helm chart for the service into the lfx namespace (from the root of the repo)
     helm install lfx-v2-project-service ./charts/lfx-v2-project-service/ -n lfx

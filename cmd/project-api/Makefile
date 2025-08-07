@@ -12,7 +12,7 @@ GOA_VERSION=v3
 
 # Docker variables
 DOCKER_IMAGE=linuxfoundation/lfx-v2-project-service
-DOCKER_TAG=0.2.0
+DOCKER_TAG=latest
 
 # Helm variables
 HELM_CHART_PATH=../../charts/lfx-v2-project-service
@@ -53,7 +53,7 @@ help:
 	@echo "  fmt            - Format Go code"
 	@echo "  check          - Run fmt and lint without modifying files"
 	@echo "  verify         - Verify API generation is up to date"
-	@echo "  docker         - Build Docker image"
+	@echo "  docker-build   - Build Docker image"
 	@echo "  helm-install   - Install Helm chart"
 	@echo "  helm-uninstall - Uninstall Helm chart"
 
@@ -167,7 +167,7 @@ verify: apigen
 	@echo "==> Generated code is up to date"
 
 # Build Docker image
-docker:
+docker-build:
 	@echo "==> Building Docker image..."
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f ../../Dockerfile ../../
 	@echo "==> Docker image built: $(DOCKER_IMAGE):$(DOCKER_TAG)"

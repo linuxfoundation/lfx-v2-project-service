@@ -33,6 +33,8 @@ app:
   # jwtAuthDisabledMockLocalPrincipal mocks auth for local development to use a set principal
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""
+  # use_oidc_contextualizer is a boolean to determine if the OIDC contextualizer should be used
+  use_oidc_contextualizer: true
 
 # traefik is the configuration for Traefik Gateway API routing
 traefik:
@@ -111,5 +113,5 @@ openfga:
 heimdall:
   enabled: true
   url: http://lfx-platform-heimdall.lfx.svc.cluster.local:4456
-  # jwksUrl is the JWKS URL for JWT verification
-  jwksUrl: http://lfx-platform-heimdall.lfx.svc.cluster.local:4456/.well-known/jwks
+  # jwksUrl is the JWKS URL for JWT verification (note: uses port 4457)
+  jwksUrl: http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks

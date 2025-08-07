@@ -5,5 +5,5 @@ apiVersion: v2
 name: lfx-v2-project-service
 description: LFX Platform V2 Project Service chart
 type: application
-version: 0.3.1
+version: 0.4.0
 appVersion: "latest"
