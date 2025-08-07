@@ -33,6 +33,8 @@ app:
   # jwtAuthDisabledMockLocalPrincipal mocks auth for local development to use a set principal
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""
+  # use_oidc_contextualizer is a boolean to determine if the OIDC contextualizer should be used
+  use_oidc_contextualizer: true
 
 # traefik is the configuration for Traefik Gateway API routing
 traefik:
@@ -106,16 +108,6 @@ openfga:
   # Note: If it is disabled, then the project service will allow all requests
   # (Disabling OpenFGA should only be used for local development).
   enabled: true
-
-# authelia is the configuration for the authelia middleware
-authelia:
-  # enabled is a boolean to determine if the authelia server should be enabled for authentication
-  enabled: true
-
-# auth0 is the configuration for the auth0 middleware
-auth0:
-  # enabled is a boolean to determine if the auth0 server should be enabled for authentication
-  enabled: false
 
 # heimdall is the configuration for the heimdall middleware
 heimdall:

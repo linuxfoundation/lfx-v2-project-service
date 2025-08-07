@@ -8,21 +8,6 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   rules:
-    - id: "rule:lfx:lfx-v2-project-service:health"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /livez
-          - path: /readyz
-      execute:
-        - authenticator: anonymous_authenticator
-        - authorizer: allow_all
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
     - id: "rule:lfx:lfx-v2-project-service:projects:create"
       match:
         methods:
@@ -30,12 +15,10 @@ spec:
         routes:
           - path: /projects
       execute:
+        - authenticator: oidc
         - authenticator: anonymous_authenticator
-        {{- if .Values.auth0.enabled }}
-        - authenticator: auth0
-        {{- else if .Values.authelia.enabled }}
-        - authenticator: authelia
-        - contextualizer: authelia_userinfo
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
         {{- end }}
         {{- if .Values.openfga.enabled }}
         # TODO: update this authorizer check once we have a way to get the parent_uid from the request body.
@@ -63,12 +46,10 @@ spec:
         routes:
           - path: /projects
       execute:
+        - authenticator: oidc
         - authenticator: anonymous_authenticator
-        {{- if .Values.auth0.enabled }}
-        - authenticator: auth0
-        {{- else if .Values.authelia.enabled }}
-        - authenticator: authelia
-        - contextualizer: authelia_userinfo
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
         {{- end }}
         - authorizer: allow_all
         - finalizer: create_jwt
@@ -83,12 +64,10 @@ spec:
         routes:
           - path: /projects/:id
       execute:
+        - authenticator: oidc
         - authenticator: anonymous_authenticator
-        {{- if .Values.auth0.enabled }}
-        - authenticator: auth0
-        {{- else if .Values.authelia.enabled }}
-        - authenticator: authelia
-        - contextualizer: authelia_userinfo
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
         {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
@@ -113,12 +92,10 @@ spec:
         routes:
           - path: /projects/:id
       execute:
+        - authenticator: oidc
         - authenticator: anonymous_authenticator
-        {{- if .Values.auth0.enabled }}
-        - authenticator: auth0
-        {{- else if .Values.authelia.enabled }}
-        - authenticator: authelia
-        - contextualizer: authelia_userinfo
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
         {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
@@ -143,12 +120,10 @@ spec:
         routes:
           - path: /projects/:id
       execute:
+        - authenticator: oidc
         - authenticator: anonymous_authenticator
-        {{- if .Values.auth0.enabled }}
-        - authenticator: auth0
-        {{- else if .Values.authelia.enabled }}
-        - authenticator: authelia
-        - contextualizer: authelia_userinfo
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
         {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
@@ -173,12 +148,10 @@ spec:
         routes:
           - path: /projects/:id/settings
       execute:
+        - authenticator: oidc
         - authenticator: anonymous_authenticator
-        {{- if .Values.auth0.enabled }}
-        - authenticator: auth0
-        {{- else if .Values.authelia.enabled }}
-        - authenticator: authelia
-        - contextualizer: authelia_userinfo
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
         {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
@@ -203,12 +176,10 @@ spec:
         routes:
           - path: /projects/:id/settings
       execute:
+        - authenticator: oidc
         - authenticator: anonymous_authenticator
-        {{- if .Values.auth0.enabled }}
-        - authenticator: auth0
-        {{- else if .Values.authelia.enabled }}
-        - authenticator: authelia
-        - contextualizer: authelia_userinfo
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
         {{- end }}
         {{- if .Values.openfga.enabled }}
         - authorizer: openfga_check
