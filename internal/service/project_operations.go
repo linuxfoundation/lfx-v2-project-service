@@ -119,11 +119,12 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		RepositoryURL:              payload.RepositoryURL,
 	}
 	projectSettings := &projsvc.ProjectSettings{
-		UID:              &id,
-		MissionStatement: payload.MissionStatement,
-		AnnouncementDate: payload.AnnouncementDate,
-		Writers:          payload.Writers,
-		Auditors:         payload.Auditors,
+		UID:                 &id,
+		MissionStatement:    payload.MissionStatement,
+		AnnouncementDate:    payload.AnnouncementDate,
+		Writers:             payload.Writers,
+		Auditors:            payload.Auditors,
+		MeetingCoordinators: payload.MeetingCoordinators,
 	}
 
 	projectDB, err := models.ConvertToDBProjectBase(project)
@@ -159,11 +160,12 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g.Go(func() error {
 		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
-			UID:       projectDB.UID,
-			Public:    projectDB.Public,
-			ParentUID: projectDB.ParentUID,
-			Writers:   projectSettingsDB.Writers,
-			Auditors:  projectSettingsDB.Auditors,
+			UID:                 projectDB.UID,
+			Public:              projectDB.Public,
+			ParentUID:           projectDB.ParentUID,
+			Writers:             projectSettingsDB.Writers,
+			Auditors:            projectSettingsDB.Auditors,
+			MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
 		})
 	})
 
@@ -409,11 +411,12 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	g.Go(func() error {
 		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
-			UID:       projectDB.UID,
-			Public:    projectDB.Public,
-			ParentUID: projectDB.ParentUID,
-			Writers:   projectSettingsDB.Writers,
-			Auditors:  projectSettingsDB.Auditors,
+			UID:                 projectDB.UID,
+			Public:              projectDB.Public,
+			ParentUID:           projectDB.ParentUID,
+			Writers:             projectSettingsDB.Writers,
+			Auditors:            projectSettingsDB.Auditors,
+			MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
 		})
 	})
 
@@ -490,12 +493,13 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
-		UID:              payload.UID,
-		MissionStatement: payload.MissionStatement,
-		AnnouncementDate: payload.AnnouncementDate,
-		Writers:          payload.Writers,
-		Auditors:         payload.Auditors,
-		UpdatedAt:        misc.StringPtr(currentTime.Format(time.RFC3339)),
+		UID:                 payload.UID,
+		MissionStatement:    payload.MissionStatement,
+		AnnouncementDate:    payload.AnnouncementDate,
+		Writers:             payload.Writers,
+		Auditors:            payload.Auditors,
+		MeetingCoordinators: payload.MeetingCoordinators,
+		UpdatedAt:           misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
 	if existingProjectSettingsDB.CreatedAt != nil {
 		projectSettings.CreatedAt = misc.StringPtr(existingProjectSettingsDB.CreatedAt.Format(time.RFC3339))
@@ -534,11 +538,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	g.Go(func() error {
 		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
-			UID:       projectDB.UID,
-			Public:    projectDB.Public,
-			ParentUID: projectDB.ParentUID,
-			Writers:   projectSettingsDB.Writers,
-			Auditors:  projectSettingsDB.Auditors,
+			UID:                 projectDB.UID,
+			Public:              projectDB.Public,
+			ParentUID:           projectDB.ParentUID,
+			Writers:             projectSettingsDB.Writers,
+			Auditors:            projectSettingsDB.Auditors,
+			MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
 		})
 	})
 

@@ -85,6 +85,7 @@ func ProjectSettingsAttributes() {
 	ProjectMissionStatementAttribute()
 	ProjectAnnouncementDateAttribute()
 	ProjectWritersAttribute()
+	ProjectMeetingCoordinatorsAttribute()
 	ProjectAuditorsAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
@@ -224,6 +225,17 @@ func ProjectAuditorsAttribute() {
 // ProjectWritersAttribute is the DSL attribute for a project writers.
 func ProjectWritersAttribute() {
 	Attribute("writers", ArrayOf(String), "A list of project writers by their user IDs", func() {
+		Example([]string{"user123", "user456"})
+	})
+}
+
+// ProjectMeetingCoordinatorsAttribute is the DSL attribute for a project meeting coordinators.
+func ProjectMeetingCoordinatorsAttribute() {
+	Attribute("meeting_coordinators", ArrayOf(String), func() {
+		Description(
+			"A list of project meeting coordinators by their user IDs. " +
+				"These users are responsible for managing meetings for the project.",
+		)
 		Example([]string{"user123", "user456"})
 	})
 }
