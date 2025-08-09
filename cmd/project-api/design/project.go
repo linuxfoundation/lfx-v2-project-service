@@ -83,6 +83,7 @@ var _ = Service("project-service", func() {
 			ProjectAnnouncementDateAttribute()
 			ProjectMissionStatementAttribute()
 			ProjectWritersAttribute()
+			ProjectMeetingCoordinatorsAttribute()
 			ProjectAuditorsAttribute()
 
 			// TODO: figure out what the required attributes are for projects
@@ -251,6 +252,7 @@ var _ = Service("project-service", func() {
 			ProjectMissionStatementAttribute()
 			ProjectAnnouncementDateAttribute()
 			ProjectWritersAttribute()
+			ProjectMeetingCoordinatorsAttribute()
 			ProjectAuditorsAttribute()
 		})
 

@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"strings"
 
-	projectservice "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	projectservice "github.com/linuxfoundation/lfx-v2-project-service/gen/project_service"
 	goahttp "goa.design/goa/v3/http"
 	goa "goa.design/goa/v3/pkg"
 )

@@ -146,17 +146,19 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 		{
 			name: "valid project settings conversion",
 			input: &projsvc.ProjectSettings{
-				UID:              misc.StringPtr("test-uid"),
-				MissionStatement: misc.StringPtr("Our mission is to test"),
-				AnnouncementDate: misc.StringPtr("2023-06-01"),
-				Writers:          []string{"writer1", "writer2"},
-				Auditors:         []string{"auditor1", "auditor2"},
+				UID:                 misc.StringPtr("test-uid"),
+				MissionStatement:    misc.StringPtr("Our mission is to test"),
+				AnnouncementDate:    misc.StringPtr("2023-06-01"),
+				Writers:             []string{"writer1", "writer2"},
+				Auditors:            []string{"auditor1", "auditor2"},
+				MeetingCoordinators: []string{"coordinator1", "coordinator2"},
 			},
 			expected: &ProjectSettings{
-				UID:              "test-uid",
-				MissionStatement: "Our mission is to test",
-				Writers:          []string{"writer1", "writer2"},
-				Auditors:         []string{"auditor1", "auditor2"},
+				UID:                 "test-uid",
+				MissionStatement:    "Our mission is to test",
+				Writers:             []string{"writer1", "writer2"},
+				Auditors:            []string{"auditor1", "auditor2"},
+				MeetingCoordinators: []string{"coordinator1", "coordinator2"},
 			},
 			wantErr: false,
 		},
@@ -203,6 +205,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			assert.Equal(t, tt.expected.MissionStatement, result.MissionStatement)
 			assert.Equal(t, tt.expected.Writers, result.Writers)
 			assert.Equal(t, tt.expected.Auditors, result.Auditors)
+			assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
 
 			// Verify timestamps are set for non-nil cases
 			if tt.expected.UID != "" {
@@ -248,34 +251,36 @@ func TestConvertToProjectFull(t *testing.T) {
 				UpdatedAt:       &now,
 			},
 			settings: &ProjectSettings{
-				UID:              "test-uid",
-				MissionStatement: "Our mission",
-				AnnouncementDate: &announcementDate,
-				Writers:          []string{"writer1"},
-				Auditors:         []string{"auditor1"},
+				UID:                 "test-uid",
+				MissionStatement:    "Our mission",
+				AnnouncementDate:    &announcementDate,
+				Writers:             []string{"writer1"},
+				Auditors:            []string{"auditor1"},
+				MeetingCoordinators: []string{"coordinator1"},
 			},
 			expected: &projsvc.ProjectFull{
-				UID:              misc.StringPtr("test-uid"),
-				Slug:             misc.StringPtr("test-slug"),
-				Name:             misc.StringPtr("Test Project"),
-				Description:      misc.StringPtr("Test Description"),
-				Public:           misc.BoolPtr(true),
-				ParentUID:        misc.StringPtr("parent-uid"),
-				Stage:            misc.StringPtr("incubating"),
-				Category:         misc.StringPtr("foundation"),
-				LegalEntityType:  misc.StringPtr("LLC"),
-				LegalEntityName:  misc.StringPtr("Test LLC"),
-				FundingModel:     []string{"donations"},
-				FormationDate:    misc.StringPtr("2020-01-15"),
-				AutojoinEnabled:  misc.BoolPtr(true),
-				CharterURL:       misc.StringPtr("https://example.com/charter"),
-				LogoURL:          misc.StringPtr("https://example.com/logo.png"),
-				WebsiteURL:       misc.StringPtr("https://example.com"),
-				RepositoryURL:    misc.StringPtr("https://github.com/test/repo"),
-				MissionStatement: misc.StringPtr("Our mission"),
-				AnnouncementDate: misc.StringPtr("2023-06-01"),
-				Writers:          []string{"writer1"},
-				Auditors:         []string{"auditor1"},
+				UID:                 misc.StringPtr("test-uid"),
+				Slug:                misc.StringPtr("test-slug"),
+				Name:                misc.StringPtr("Test Project"),
+				Description:         misc.StringPtr("Test Description"),
+				Public:              misc.BoolPtr(true),
+				ParentUID:           misc.StringPtr("parent-uid"),
+				Stage:               misc.StringPtr("incubating"),
+				Category:            misc.StringPtr("foundation"),
+				LegalEntityType:     misc.StringPtr("LLC"),
+				LegalEntityName:     misc.StringPtr("Test LLC"),
+				FundingModel:        []string{"donations"},
+				FormationDate:       misc.StringPtr("2020-01-15"),
+				AutojoinEnabled:     misc.BoolPtr(true),
+				CharterURL:          misc.StringPtr("https://example.com/charter"),
+				LogoURL:             misc.StringPtr("https://example.com/logo.png"),
+				WebsiteURL:          misc.StringPtr("https://example.com"),
+				RepositoryURL:       misc.StringPtr("https://github.com/test/repo"),
+				MissionStatement:    misc.StringPtr("Our mission"),
+				AnnouncementDate:    misc.StringPtr("2023-06-01"),
+				Writers:             []string{"writer1"},
+				Auditors:            []string{"auditor1"},
+				MeetingCoordinators: []string{"coordinator1"},
 			},
 		},
 		{
@@ -350,6 +355,7 @@ func TestConvertToProjectFull(t *testing.T) {
 			assert.Equal(t, tt.expected.AnnouncementDate, result.AnnouncementDate)
 			assert.Equal(t, tt.expected.Writers, result.Writers)
 			assert.Equal(t, tt.expected.Auditors, result.Auditors)
+			assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
 
 			if tt.expected.FormationDate != nil {
 				assert.Equal(t, tt.expected.FormationDate, result.FormationDate)
@@ -450,39 +456,43 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 		{
 			name: "complete project settings",
 			input: &ProjectSettings{
-				UID:              "test-uid",
-				MissionStatement: "Our mission",
-				AnnouncementDate: &announcementDate,
-				Writers:          []string{"writer1", "writer2"},
-				Auditors:         []string{"auditor1", "auditor2"},
-				CreatedAt:        &now,
-				UpdatedAt:        &now,
+				UID:                 "test-uid",
+				MissionStatement:    "Our mission",
+				AnnouncementDate:    &announcementDate,
+				Writers:             []string{"writer1", "writer2"},
+				Auditors:            []string{"auditor1", "auditor2"},
+				MeetingCoordinators: []string{"coordinator1", "coordinator2"},
+				CreatedAt:           &now,
+				UpdatedAt:           &now,
 			},
 			expected: &projsvc.ProjectSettings{
-				UID:              misc.StringPtr("test-uid"),
-				MissionStatement: misc.StringPtr("Our mission"),
-				AnnouncementDate: misc.StringPtr("2023-06-01"),
-				Writers:          []string{"writer1", "writer2"},
-				Auditors:         []string{"auditor1", "auditor2"},
+				UID:                 misc.StringPtr("test-uid"),
+				MissionStatement:    misc.StringPtr("Our mission"),
+				AnnouncementDate:    misc.StringPtr("2023-06-01"),
+				Writers:             []string{"writer1", "writer2"},
+				Auditors:            []string{"auditor1", "auditor2"},
+				MeetingCoordinators: []string{"coordinator1", "coordinator2"},
 			},
 		},
 		{
 			name: "project settings with empty fields",
 			input: &ProjectSettings{
-				UID:              "test-uid",
-				MissionStatement: "",         // Empty string
-				Writers:          []string{}, // Empty slice
-				Auditors:         []string{}, // Empty slice
-				CreatedAt:        &now,
-				UpdatedAt:        &now,
+				UID:                 "test-uid",
+				MissionStatement:    "",         // Empty string
+				Writers:             []string{}, // Empty slice
+				Auditors:            []string{}, // Empty slice
+				MeetingCoordinators: []string{}, // Empty slice
+				CreatedAt:           &now,
+				UpdatedAt:           &now,
 			},
 			expected: &projsvc.ProjectSettings{
-				UID:              misc.StringPtr("test-uid"),
-				MissionStatement: nil, // Empty string becomes nil
-				Writers:          nil, // Empty slice becomes nil
-				Auditors:         nil, // Empty slice becomes nil
-				CreatedAt:        misc.StringPtr(now.Format(time.RFC3339)),
-				UpdatedAt:        misc.StringPtr(now.Format(time.RFC3339)),
+				UID:                 misc.StringPtr("test-uid"),
+				MissionStatement:    nil, // Empty string becomes nil
+				Writers:             nil, // Empty slice becomes nil
+				Auditors:            nil, // Empty slice becomes nil
+				MeetingCoordinators: nil, // Empty slice becomes nil
+				CreatedAt:           misc.StringPtr(now.Format(time.RFC3339)),
+				UpdatedAt:           misc.StringPtr(now.Format(time.RFC3339)),
 			},
 		},
 	}
@@ -497,6 +507,7 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 			assert.Equal(t, tt.expected.AnnouncementDate, result.AnnouncementDate)
 			assert.Equal(t, tt.expected.Writers, result.Writers)
 			assert.Equal(t, tt.expected.Auditors, result.Auditors)
+			assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
 		})
 	}
 }

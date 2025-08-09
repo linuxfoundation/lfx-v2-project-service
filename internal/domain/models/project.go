@@ -38,13 +38,14 @@ type ProjectBase struct {
 
 // ProjectSettings is the key-value store representation of a project settings.
 type ProjectSettings struct {
-	UID              string     `json:"uid"`
-	MissionStatement string     `json:"mission_statement"`
-	AnnouncementDate *time.Time `json:"announcement_date"`
-	Auditors         []string   `json:"auditors"`
-	Writers          []string   `json:"writers"`
-	CreatedAt        *time.Time `json:"created_at"`
-	UpdatedAt        *time.Time `json:"updated_at"`
+	UID                 string     `json:"uid"`
+	MissionStatement    string     `json:"mission_statement"`
+	AnnouncementDate    *time.Time `json:"announcement_date"`
+	Auditors            []string   `json:"auditors"`
+	Writers             []string   `json:"writers"`
+	MeetingCoordinators []string   `json:"meeting_coordinators"`
+	CreatedAt           *time.Time `json:"created_at"`
+	UpdatedAt           *time.Time `json:"updated_at"`
 }
 
 // ConvertToProjectFull merges ProjectBase and ProjectSettings into ProjectFull
@@ -134,6 +135,9 @@ func ConvertToProjectFull(base *ProjectBase, settings *ProjectSettings) *projsvc
 		}
 		if len(settings.Auditors) > 0 {
 			full.Auditors = settings.Auditors
+		}
+		if len(settings.MeetingCoordinators) > 0 {
+			full.MeetingCoordinators = settings.MeetingCoordinators
 		}
 
 		// Handle settings fields that are pointers
@@ -346,6 +350,9 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*ProjectSett
 	if settings.Auditors != nil {
 		s.Auditors = settings.Auditors
 	}
+	if settings.MeetingCoordinators != nil {
+		s.MeetingCoordinators = settings.MeetingCoordinators
+	}
 	if settings.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
 		if err != nil {
@@ -385,6 +392,9 @@ func ConvertToServiceProjectSettings(s *ProjectSettings) *projsvc.ProjectSetting
 	}
 	if len(s.Auditors) > 0 {
 		settings.Auditors = s.Auditors
+	}
+	if len(s.MeetingCoordinators) > 0 {
+		settings.MeetingCoordinators = s.MeetingCoordinators
 	}
 
 	// Handle settings fields that are pointers

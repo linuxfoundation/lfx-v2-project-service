@@ -28,9 +28,10 @@ type ProjectIndexerMessage struct {
 // ProjectAccessMessage is the schema for the data in the message sent to the fga-sync service.
 // These are the fields that the fga-sync service needs in order to update the OpenFGA permissions.
 type ProjectAccessMessage struct {
-	UID       string   `json:"uid"`
-	Public    bool     `json:"public"`
-	ParentUID string   `json:"parent_uid"`
-	Writers   []string `json:"writers"`
-	Auditors  []string `json:"auditors"`
+	UID                 string   `json:"uid"`
+	Public              bool     `json:"public"`
+	ParentUID           string   `json:"parent_uid"`
+	Writers             []string `json:"writers"`
+	Auditors            []string `json:"auditors"`
+	MeetingCoordinators []string `json:"meeting_coordinators"`
 }
