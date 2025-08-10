@@ -4,6 +4,7 @@ bin/
 .env*
 coverage.out
 scratch/
+/charts/lfx-v2-project-service/values.local.yaml
 
 # Generated Goa files (anywhere in the repo)
 **/gen/

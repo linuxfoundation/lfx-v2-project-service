@@ -31,6 +31,7 @@ DOCKER_TAG=latest
 HELM_CHART_PATH=./charts/lfx-v2-project-service
 HELM_RELEASE_NAME=lfx-v2-project-service
 HELM_NAMESPACE=lfx
+HELM_LOCAL_VALUES_FILE=values.local.yaml
 
 # Default target
 .PHONY: all
@@ -57,6 +58,9 @@ help:
 	@echo "  verify         - Verify API generation is up to date"
 	@echo "  docker-build   - Build Docker image"
 	@echo "  helm-install   - Install Helm chart"
+	@echo "  helm-install-local - Install Helm chart with local values"
+	@echo "  helm-templates   - Print templates for Helm chart"
+	@echo "  helm-templates-local - Print templates for Helm chart with local values"
 	@echo "  helm-uninstall - Uninstall Helm chart"
 
 # Install dependencies
@@ -201,11 +205,25 @@ helm-install:
 	helm upgrade --force --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
 	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
 
+# Install Helm chart with local values
+.PHONY: helm-install-local
+helm-install-local:
+	@echo "==> Installing Helm chart..."
+	helm upgrade --force --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE) --values $(HELM_CHART_PATH)/$(HELM_LOCAL_VALUES_FILE)
+	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
+
 # Print templates for Helm chart
 .PHONY: helm-templates
 helm-templates:
 	@echo "==> Printing templates for Helm chart..."
 	helm template $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
+	@echo "==> Templates printed for Helm chart: $(HELM_RELEASE_NAME)"
+
+# Print templates for Helm chart with local values
+.PHONY: helm-templates-local
+helm-templates-local:
+	@echo "==> Printing templates for Helm chart..."
+	helm template $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE) --values $(HELM_CHART_PATH)/$(HELM_LOCAL_VALUES_FILE)
 	@echo "==> Templates printed for Helm chart: $(HELM_RELEASE_NAME)"
 
 # Uninstall Helm chart
