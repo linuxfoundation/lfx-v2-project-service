@@ -76,22 +76,19 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 #### 1. Generate API Code (REQUIRED after design changes)
 
 ```bash
-cd cmd/project-api
 make apigen
-# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o ../../api/project/v1
+# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o api/project/v1
 ```
 
 #### 2. Build the Service
 
 ```bash
-cd cmd/project-api
 make build
 ```
 
 #### 3. Run Tests
 
 ```bash
-cd cmd/project-api
 make test              # Run unit tests
 make test-verbose      # Verbose output
 make test-coverage     # Generate coverage report
@@ -101,21 +98,19 @@ make test-integration  # Run integration tests (requires -tags=integration)
 #### 4. Run the Service Locally
 
 ```bash
-cd cmd/project-api
 # Basic run
 make run
 
 # With debug logging
 make debug
 
-# With custom flags
-go run . -d -p 8080
+# With custom flags (direct go run)
+go run ./cmd/project-api -d -p 8080
 ```
 
 #### 5. Lint and Format Code
 
 ```bash
-cd cmd/project-api
 make fmt    # Format code
 make lint   # Run golangci-lint
 make check  # Check format and lint without modifying
@@ -136,7 +131,7 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 ### Adding New Endpoints
 
 1. Update `api/project/v1/design/project.go` with new method
-2. Run `make apigen` (from `cmd/project-api`) to regenerate code
+2. Run `make apigen` (from repository root) to regenerate code
 3. Implement the new method in `cmd/project-api/service_endpoint_project.go`
 4. Add tests in `cmd/project-api/service_endpoint_project_test.go`
 5. Update Heimdall ruleset in `charts/*/templates/ruleset.yaml`
