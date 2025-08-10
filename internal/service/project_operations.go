@@ -151,22 +151,35 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProject(ctx, models.ActionCreated, *projectDB)
+		msg := models.ProjectIndexerMessage{
+			Action: models.ActionCreated,
+			Data:   *projectDB,
+			Tags:   []string{projectDB.UID, projectDB.Name, projectDB.Slug, projectDB.Description},
+		}
+		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionCreated, *projectSettingsDB)
+		msg := models.ProjectSettingsIndexerMessage{
+			Action: models.ActionCreated,
+			Data:   *projectSettingsDB,
+			Tags:   []string{projectSettingsDB.UID, projectSettingsDB.MissionStatement},
+		}
+		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
-			UID:                 projectDB.UID,
-			Public:              projectDB.Public,
-			ParentUID:           projectDB.ParentUID,
-			Writers:             projectSettingsDB.Writers,
-			Auditors:            projectSettingsDB.Auditors,
-			MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
-		})
+		msg := models.ProjectAccessMessage{
+			Data: models.ProjectAccessData{
+				UID:                 projectDB.UID,
+				Public:              projectDB.Public,
+				ParentUID:           projectDB.ParentUID,
+				Writers:             projectSettingsDB.Writers,
+				Auditors:            projectSettingsDB.Auditors,
+				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
+			},
+		}
+		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -406,18 +419,26 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProject(ctx, models.ActionUpdated, *projectDB)
+		msg := models.ProjectIndexerMessage{
+			Action: models.ActionUpdated,
+			Data:   *projectDB,
+			Tags:   []string{projectDB.UID, projectDB.Name, projectDB.Slug, projectDB.Description},
+		}
+		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
-			UID:                 projectDB.UID,
-			Public:              projectDB.Public,
-			ParentUID:           projectDB.ParentUID,
-			Writers:             projectSettingsDB.Writers,
-			Auditors:            projectSettingsDB.Auditors,
-			MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
-		})
+		msg := models.ProjectAccessMessage{
+			Data: models.ProjectAccessData{
+				UID:                 projectDB.UID,
+				Public:              projectDB.Public,
+				ParentUID:           projectDB.ParentUID,
+				Writers:             projectSettingsDB.Writers,
+				Auditors:            projectSettingsDB.Auditors,
+				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
+			},
+		}
+		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -533,18 +554,26 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendIndexProjectSettings(ctx, models.ActionUpdated, *projectSettingsDB)
+		msg := models.ProjectSettingsIndexerMessage{
+			Action: models.ActionUpdated,
+			Data:   *projectSettingsDB,
+			Tags:   []string{projectSettingsDB.UID, projectSettingsDB.MissionStatement},
+		}
+		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendUpdateAccessProject(ctx, models.ProjectAccessMessage{
-			UID:                 projectDB.UID,
-			Public:              projectDB.Public,
-			ParentUID:           projectDB.ParentUID,
-			Writers:             projectSettingsDB.Writers,
-			Auditors:            projectSettingsDB.Auditors,
-			MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
-		})
+		msg := models.ProjectAccessMessage{
+			Data: models.ProjectAccessData{
+				UID:                 projectDB.UID,
+				Public:              projectDB.Public,
+				ParentUID:           projectDB.ParentUID,
+				Writers:             projectSettingsDB.Writers,
+				Auditors:            projectSettingsDB.Auditors,
+				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
+			},
+		}
+		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -617,15 +646,15 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.SendDeleteIndexProject(ctx, *payload.UID)
+		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendDeleteIndexProjectSettings(ctx, *payload.UID)
+		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendDeleteAllAccessProject(ctx, *payload.UID)
+		return s.MessageBuilder.PublishAccessMessage(ctx, constants.DeleteAllAccessSubject, *payload.UID)
 	})
 
 	if err := g.Wait(); err != nil {

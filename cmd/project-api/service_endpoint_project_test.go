@@ -147,9 +147,9 @@ func TestCreateProject(t *testing.T) {
 				// Mock successful project creation
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
 				// Mock message sending
-				mockMsg.On("SendIndexProject", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
-				mockMsg.On("SendUpdateAccessProject", mock.Anything, mock.Anything).Return(nil)
-				mockMsg.On("SendIndexProjectSettings", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
+				mockMsg.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectIndexerMessage")).Return(nil)
+				mockMsg.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectAccessMessage")).Return(nil)
+				mockMsg.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectSettingsIndexerMessage")).Return(nil)
 			},
 			expectedError: false,
 		},

@@ -6,6 +6,7 @@ package nats
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 
 	"github.com/go-viper/mapstructure/v2"
@@ -71,7 +72,7 @@ func (m *MessageBuilder) sendIndexerMessage(ctx context.Context, subject string,
 
 	// TODO: use the model from the indexer service to keep the message body consistent.
 	// Ticket https://linuxfoundation.atlassian.net/browse/LFXV2-147
-	message := models.ProjectIndexerMessage{
+	message := models.IndexerMessageEnvelope{
 		Action:  action,
 		Headers: headers,
 		Data:    payload,
@@ -89,59 +90,54 @@ func (m *MessageBuilder) sendIndexerMessage(ctx context.Context, subject string,
 	return m.sendMessage(ctx, subject, messageBytes)
 }
 
-// setIndexerTags sets the tags for the indexer.
-func (m *MessageBuilder) setIndexerTags(tags ...string) []string {
-	return tags
-}
 
-// SendIndexProject sends the message to the NATS server for the project indexing.
-func (m *MessageBuilder) SendIndexProject(ctx context.Context, action models.MessageAction, data models.ProjectBase) error {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling data into JSON", constants.ErrKey, err)
-		return err
+// PublishIndexerMessage publishes indexer messages to NATS for search indexing.
+func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject string, message interface{}) error {
+	switch msg := message.(type) {
+	case models.ProjectIndexerMessage:
+		dataBytes, err := json.Marshal(msg.Data)
+		if err != nil {
+			slog.ErrorContext(ctx, "error marshalling project data into JSON", constants.ErrKey, err)
+			return err
+		}
+		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags)
+	
+	case models.ProjectSettingsIndexerMessage:
+		dataBytes, err := json.Marshal(msg.Data)
+		if err != nil {
+			slog.ErrorContext(ctx, "error marshalling project settings data into JSON", constants.ErrKey, err)
+			return err
+		}
+		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags)
+	
+	case string:
+		// For delete operations, the message is just the UID string
+		return m.sendIndexerMessage(ctx, subject, models.ActionDeleted, []byte(msg), nil)
+	
+	default:
+		slog.ErrorContext(ctx, "unsupported indexer message type", "type", fmt.Sprintf("%T", message))
+		return fmt.Errorf("unsupported indexer message type: %T", message)
 	}
-
-	tags := m.setIndexerTags(data.UID, data.Name, data.Slug, data.Description)
-
-	return m.sendIndexerMessage(ctx, constants.IndexProjectSubject, action, dataBytes, tags)
 }
 
-// SendDeleteIndexProject sends the message to the NATS server for the project indexing.
-func (m *MessageBuilder) SendDeleteIndexProject(ctx context.Context, data string) error {
-	return m.sendIndexerMessage(ctx, constants.IndexProjectSubject, models.ActionDeleted, []byte(data), nil)
-}
-
-// SendIndexProjectSettings sends the message to the NATS server for the project settings indexing.
-func (m *MessageBuilder) SendIndexProjectSettings(ctx context.Context, action models.MessageAction, data models.ProjectSettings) error {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling data into JSON", constants.ErrKey, err)
-		return err
+// PublishAccessMessage publishes access control messages to NATS.
+func (m *MessageBuilder) PublishAccessMessage(ctx context.Context, subject string, message interface{}) error {
+	switch msg := message.(type) {
+	case models.ProjectAccessMessage:
+		dataBytes, err := json.Marshal(msg.Data)
+		if err != nil {
+			slog.ErrorContext(ctx, "error marshalling access message data into JSON", constants.ErrKey, err)
+			return err
+		}
+		return m.sendMessage(ctx, subject, dataBytes)
+	
+	case string:
+		// For delete operations, the message is just the UID string
+		return m.sendMessage(ctx, subject, []byte(msg))
+	
+	default:
+		slog.ErrorContext(ctx, "unsupported access message type", "type", fmt.Sprintf("%T", message))
+		return fmt.Errorf("unsupported access message type: %T", message)
 	}
-
-	tags := m.setIndexerTags(data.UID, data.MissionStatement)
-
-	return m.sendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, action, dataBytes, tags)
 }
 
-// SendDeleteIndexProjectSettings sends the message to the NATS server for the project settings indexing.
-func (m *MessageBuilder) SendDeleteIndexProjectSettings(ctx context.Context, data string) error {
-	return m.sendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, models.ActionDeleted, []byte(data), nil)
-}
-
-// SendUpdateAccessProject sends the message to the NATS server for the access control updates.
-func (m *MessageBuilder) SendUpdateAccessProject(ctx context.Context, data models.ProjectAccessMessage) error {
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		slog.ErrorContext(ctx, "error marshalling data into JSON", constants.ErrKey, err)
-		return err
-	}
-
-	return m.sendMessage(ctx, constants.UpdateAccessProjectSubject, dataBytes)
-}
-
-// SendDeleteAllAccessProject sends the message to the NATS server for the access control deletion.
-func (m *MessageBuilder) SendDeleteAllAccessProject(ctx context.Context, data string) error {
-	return m.sendMessage(ctx, constants.DeleteAllAccessSubject, []byte(data))
-}

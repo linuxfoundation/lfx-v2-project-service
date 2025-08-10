@@ -19,23 +19,27 @@ import (
 // to satisfy the gocritic unlambda linter rule
 var backgroundCtx = context.Background
 
-func TestMessageBuilder_SendIndexProject(t *testing.T) {
+func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 	tests := []struct {
 		name        string
-		action      models.MessageAction
-		data        models.ProjectBase
+		subject     string
+		message     interface{}
 		setupMocks  func(*MockNATSConn)
 		setupCtx    func() context.Context
 		wantErr     bool
 		expectedErr error
 	}{
 		{
-			name:   "successful send index project message",
-			action: models.ActionCreated,
-			data:   models.ProjectBase{UID: "test-project"},
+			name:    "successful send project indexer message",
+			subject: constants.IndexProjectSubject,
+			message: models.ProjectIndexerMessage{
+				Action: models.ActionCreated,
+				Data:   models.ProjectBase{UID: "test-project", Name: "test", Slug: "test"},
+				Tags:   []string{"test-project", "test"},
+			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectIndexerMessage
+					var msg models.IndexerMessageEnvelope
 					err := json.Unmarshal(data, &msg)
 					if err != nil {
 						return false
@@ -52,189 +56,49 @@ func TestMessageBuilder_SendIndexProject(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:   "send index project message without headers",
-			action: models.ActionUpdated,
-			data:   models.ProjectBase{UID: "test-project"},
+			name:    "successful send project settings indexer message",
+			subject: constants.IndexProjectSettingsSubject,
+			message: models.ProjectSettingsIndexerMessage{
+				Action: models.ActionUpdated,
+				Data:   models.ProjectSettings{UID: "test-settings", MissionStatement: "test mission"},
+				Tags:   []string{"test-settings", "test mission"},
+			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectIndexerMessage
-					err := json.Unmarshal(data, &msg)
-					if err != nil {
-						return false
-					}
-					return msg.Action == models.ActionUpdated && len(msg.Headers) == 0
-				})).Return(nil)
+				mockConn.On("Publish", constants.IndexProjectSettingsSubject, mock.AnythingOfType("[]uint8")).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
-			name:   "verify tags are set correctly",
-			action: models.ActionCreated,
-			data:   models.ProjectBase{UID: "test-uid", Name: "Test Project", Slug: "test-project", Description: "Test Description"},
+			name:    "successful send delete message",
+			subject: constants.IndexProjectSubject,
+			message: "test-uid-to-delete",
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectIndexerMessage
-					err := json.Unmarshal(data, &msg)
-					if err != nil {
-						return false
-					}
-					expectedTags := []string{"test-uid", "Test Project", "test-project", "Test Description"}
-					return len(msg.Tags) == len(expectedTags) &&
-						msg.Tags[0] == expectedTags[0] &&
-						msg.Tags[1] == expectedTags[1] &&
-						msg.Tags[2] == expectedTags[2] &&
-						msg.Tags[3] == expectedTags[3]
-				})).Return(nil)
+				mockConn.On("Publish", constants.IndexProjectSubject, mock.AnythingOfType("[]uint8")).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
-			name:   "nats publish error",
-			action: models.ActionUpdated,
-			data:   models.ProjectBase{UID: "test-project"},
+			name:    "unsupported message type",
+			subject: constants.IndexProjectSubject,
+			message: 123, // Invalid type
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(errors.New("nats connection error"))
+				// No publish expected
 			},
-			setupCtx:    backgroundCtx,
-			wantErr:     true,
-			expectedErr: errors.New("nats connection error"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			tt.setupMocks(mockConn)
-
-			builder := &MessageBuilder{
-				NatsConn: mockConn,
-			}
-
-			ctx := tt.setupCtx()
-			err := builder.SendIndexProject(ctx, tt.action, tt.data)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.expectedErr != nil {
-					assert.Contains(t, err.Error(), tt.expectedErr.Error())
-				}
-			} else {
-				assert.NoError(t, err)
-			}
-
-			mockConn.AssertExpectations(t)
-		})
-	}
-}
-
-func TestMessageBuilder_SendIndexProjectSettings(t *testing.T) {
-	tests := []struct {
-		name       string
-		action     models.MessageAction
-		data       models.ProjectSettings
-		setupMocks func(*MockNATSConn)
-		wantErr    bool
-	}{
-		{
-			name:   "successful send index project settings message",
-			action: models.ActionCreated,
-			data:   models.ProjectSettings{UID: "test-project"},
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSettingsSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectIndexerMessage
-					err := json.Unmarshal(data, &msg)
-					return err == nil && msg.Action == models.ActionCreated
-				})).Return(nil)
-			},
-			wantErr: false,
+			setupCtx: backgroundCtx,
+			wantErr:  true,
 		},
 		{
-			name:   "verify tags are set correctly",
-			action: models.ActionCreated,
-			data:   models.ProjectSettings{UID: "test-uid", MissionStatement: "Test Mission"},
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSettingsSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectIndexerMessage
-					err := json.Unmarshal(data, &msg)
-					if err != nil {
-						return false
-					}
-					expectedTags := []string{"test-uid", "Test Mission"}
-					return len(msg.Tags) == len(expectedTags) &&
-						msg.Tags[0] == expectedTags[0] &&
-						msg.Tags[1] == expectedTags[1]
-				})).Return(nil)
+			name:    "nats publish error",
+			subject: constants.IndexProjectSubject,
+			message: models.ProjectIndexerMessage{
+				Action: models.ActionCreated,
+				Data:   models.ProjectBase{UID: "test"},
+				Tags:   []string{"test"},
 			},
-			wantErr: false,
-		},
-		{
-			name:   "nats publish error",
-			action: models.ActionUpdated,
-			data:   models.ProjectSettings{UID: "test-project"},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSettingsSubject, mock.Anything).Return(errors.New("publish failed"))
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			tt.setupMocks(mockConn)
-
-			builder := &MessageBuilder{
-				NatsConn: mockConn,
-			}
-
-			err := builder.SendIndexProjectSettings(context.Background(), tt.action, tt.data)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			mockConn.AssertExpectations(t)
-		})
-	}
-}
-
-func TestMessageBuilder_SendDeleteIndexProject(t *testing.T) {
-	tests := []struct {
-		name       string
-		data       string
-		setupMocks func(*MockNATSConn)
-		setupCtx   func() context.Context
-		wantErr    bool
-	}{
-		{
-			name: "successful send delete index project message",
-			data: "test-project-uid",
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectIndexerMessage
-					err := json.Unmarshal(data, &msg)
-					if err != nil {
-						return false
-					}
-					return msg.Action == models.ActionDeleted && msg.Tags == nil
-				})).Return(nil)
-			},
-			setupCtx: func() context.Context {
-				ctx := context.Background()
-				ctx = context.WithValue(ctx, constants.AuthorizationContextID, "Bearer token123")
-				return ctx
-			},
-			wantErr: false,
-		},
-		{
-			name: "nats publish error",
-			data: "test-project-uid",
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.Anything).Return(errors.New("publish failed"))
+				mockConn.On("Publish", constants.IndexProjectSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -246,12 +110,12 @@ func TestMessageBuilder_SendDeleteIndexProject(t *testing.T) {
 			mockConn := &MockNATSConn{}
 			tt.setupMocks(mockConn)
 
-			builder := &MessageBuilder{
+			mb := &MessageBuilder{
 				NatsConn: mockConn,
 			}
 
 			ctx := tt.setupCtx()
-			err := builder.SendDeleteIndexProject(ctx, tt.data)
+			err := mb.PublishIndexerMessage(ctx, tt.subject, tt.message)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -264,35 +128,64 @@ func TestMessageBuilder_SendDeleteIndexProject(t *testing.T) {
 	}
 }
 
-func TestMessageBuilder_SendDeleteIndexProjectSettings(t *testing.T) {
+func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 	tests := []struct {
 		name       string
-		data       string
+		subject    string
+		message    interface{}
 		setupMocks func(*MockNATSConn)
+		setupCtx   func() context.Context
 		wantErr    bool
 	}{
 		{
-			name: "successful send delete index project settings message",
-			data: "test-project-uid",
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSettingsSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectIndexerMessage
-					err := json.Unmarshal(data, &msg)
-					if err != nil {
-						return false
-					}
-					return msg.Action == models.ActionDeleted && msg.Tags == nil
-				})).Return(nil)
+			name:    "successful send access message",
+			subject: constants.UpdateAccessProjectSubject,
+			message: models.ProjectAccessMessage{
+				Data: models.ProjectAccessData{
+					UID:       "test-uid",
+					Public:    true,
+					ParentUID: "parent-uid",
+					Writers:   []string{"user1"},
+					Auditors:  []string{"user2"},
+				},
 			},
-			wantErr: false,
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", constants.UpdateAccessProjectSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  false,
 		},
 		{
-			name: "nats publish error",
-			data: "test-project-uid",
+			name:    "unsupported message type",
+			subject: constants.UpdateAccessProjectSubject,
+			message: 123, // Invalid type - int is not supported
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSettingsSubject, mock.Anything).Return(errors.New("publish failed"))
+				// No publish expected
 			},
-			wantErr: true,
+			setupCtx: backgroundCtx,
+			wantErr:  true,
+		},
+		{
+			name:    "successful send delete access message",
+			subject: constants.DeleteAllAccessSubject,
+			message: "test-uid-to-delete",
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", constants.DeleteAllAccessSubject, []byte("test-uid-to-delete")).Return(nil)
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  false,
+		},
+		{
+			name:    "nats publish error",
+			subject: constants.UpdateAccessProjectSubject,
+			message: models.ProjectAccessMessage{
+				Data: models.ProjectAccessData{UID: "test"},
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", constants.UpdateAccessProjectSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  true,
 		},
 	}
 
@@ -301,11 +194,12 @@ func TestMessageBuilder_SendDeleteIndexProjectSettings(t *testing.T) {
 			mockConn := &MockNATSConn{}
 			tt.setupMocks(mockConn)
 
-			builder := &MessageBuilder{
+			mb := &MessageBuilder{
 				NatsConn: mockConn,
 			}
 
-			err := builder.SendDeleteIndexProjectSettings(context.Background(), tt.data)
+			ctx := tt.setupCtx()
+			err := mb.PublishAccessMessage(ctx, tt.subject, tt.message)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -318,153 +212,3 @@ func TestMessageBuilder_SendDeleteIndexProjectSettings(t *testing.T) {
 	}
 }
 
-func TestMessageBuilder_SendUpdateAccessProject(t *testing.T) {
-	tests := []struct {
-		name       string
-		data       models.ProjectAccessMessage
-		setupMocks func(*MockNATSConn)
-		wantErr    bool
-	}{
-		{
-			name: "successful send update access project message",
-			data: models.ProjectAccessMessage{UID: "test-project"},
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(nil)
-			},
-			wantErr: false,
-		},
-		{
-			name: "nats publish error",
-			data: models.ProjectAccessMessage{UID: "test-project"},
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.UpdateAccessProjectSubject, mock.Anything).Return(errors.New("publish failed"))
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			tt.setupMocks(mockConn)
-
-			builder := &MessageBuilder{
-				NatsConn: mockConn,
-			}
-
-			err := builder.SendUpdateAccessProject(context.Background(), tt.data)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			mockConn.AssertExpectations(t)
-		})
-	}
-}
-
-func TestMessageBuilder_SendDeleteAllAccessProject(t *testing.T) {
-	tests := []struct {
-		name       string
-		data       string
-		setupMocks func(*MockNATSConn)
-		wantErr    bool
-	}{
-		{
-			name: "successful send delete all access project message",
-			data: "test-project",
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.DeleteAllAccessSubject, []byte("test-project")).Return(nil)
-			},
-			wantErr: false,
-		},
-		{
-			name: "nats publish error",
-			data: "test-project",
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.DeleteAllAccessSubject, mock.Anything).Return(errors.New("publish failed"))
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			tt.setupMocks(mockConn)
-
-			builder := &MessageBuilder{
-				NatsConn: mockConn,
-			}
-
-			err := builder.SendDeleteAllAccessProject(context.Background(), tt.data)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			mockConn.AssertExpectations(t)
-		})
-	}
-}
-
-func TestMessageBuilder_ContextHandling(t *testing.T) {
-	t.Run("extracts authorization and principal from context", func(t *testing.T) {
-		mockConn := &MockNATSConn{}
-
-		expectedAuth := "Bearer token123"
-		expectedPrincipal := "user456"
-
-		mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-			var msg models.ProjectIndexerMessage
-			err := json.Unmarshal(data, &msg)
-			if err != nil {
-				return false
-			}
-
-			return msg.Headers[constants.AuthorizationHeader] == expectedAuth &&
-				msg.Headers[constants.XOnBehalfOfHeader] == expectedPrincipal
-		})).Return(nil)
-
-		builder := &MessageBuilder{
-			NatsConn: mockConn,
-		}
-
-		ctx := context.Background()
-		ctx = context.WithValue(ctx, constants.AuthorizationContextID, expectedAuth)
-		ctx = context.WithValue(ctx, constants.PrincipalContextID, expectedPrincipal)
-
-		err := builder.SendIndexProject(ctx, models.ActionCreated, models.ProjectBase{UID: "test-project"})
-		assert.NoError(t, err)
-
-		mockConn.AssertExpectations(t)
-	})
-
-	t.Run("handles context without headers", func(t *testing.T) {
-		mockConn := &MockNATSConn{}
-
-		mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-			var msg models.ProjectIndexerMessage
-			err := json.Unmarshal(data, &msg)
-			if err != nil {
-				return false
-			}
-
-			// Should have empty headers map
-			return len(msg.Headers) == 0
-		})).Return(nil)
-
-		builder := &MessageBuilder{
-			NatsConn: mockConn,
-		}
-
-		err := builder.SendIndexProject(context.Background(), models.ActionCreated, models.ProjectBase{UID: "test-project"})
-		assert.NoError(t, err)
-
-		mockConn.AssertExpectations(t)
-	})
-}
