@@ -15,7 +15,7 @@ import (
 func TestNewProjectsService(t *testing.T) {
 	tests := []struct {
 		name string
-		auth auth.IJWTAuth
+		auth domain.Authenticator
 	}{
 		{
 			name: "create service with valid dependencies",

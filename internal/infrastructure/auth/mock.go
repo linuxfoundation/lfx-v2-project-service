@@ -7,10 +7,11 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/stretchr/testify/mock"
 )
 
-// MockJWTAuth implements JWTAuth for testing
+// MockJWTAuth implements domain.Authenticator for testing
 type MockJWTAuth struct {
 	mock.Mock
 }
@@ -20,5 +21,5 @@ func (m *MockJWTAuth) ParsePrincipal(ctx context.Context, token string, logger *
 	return args.String(0), args.Error(1)
 }
 
-// Ensure MockJWTAuth implements IJWTAuth interface
-var _ IJWTAuth = (*MockJWTAuth)(nil)
+// Ensure MockJWTAuth implements domain.Authenticator interface
+var _ domain.Authenticator = (*MockJWTAuth)(nil)

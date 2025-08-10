@@ -211,4 +211,3 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 		})
 	}
 }
-

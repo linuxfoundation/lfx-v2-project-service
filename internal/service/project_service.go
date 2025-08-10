@@ -5,19 +5,18 @@ package service
 
 import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 )
 
 // ProjectsService implements the projsvc.Service interface and domain.MessageHandler
 type ProjectsService struct {
 	ProjectRepository domain.ProjectRepository
 	MessageBuilder    domain.MessageBuilder
-	Auth              auth.IJWTAuth
+	Auth              domain.Authenticator
 	Config            ServiceConfig
 }
 
 // NewProjectsService creates a new ProjectsService.
-func NewProjectsService(auth auth.IJWTAuth, config ServiceConfig) *ProjectsService {
+func NewProjectsService(auth domain.Authenticator, config ServiceConfig) *ProjectsService {
 	return &ProjectsService{
 		Auth:   auth,
 		Config: config,

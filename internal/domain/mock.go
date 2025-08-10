@@ -122,7 +122,6 @@ func (m *MockMessageBuilder) PublishAccessMessage(ctx context.Context, subject s
 	return args.Error(0)
 }
 
-
 // MockMessage implements Message for testing
 type MockMessage struct {
 	mock.Mock

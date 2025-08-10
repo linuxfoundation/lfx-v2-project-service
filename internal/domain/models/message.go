@@ -25,9 +25,9 @@ type ProjectIndexerMessage struct {
 
 // ProjectSettingsIndexerMessage is a type-safe NATS message for project settings indexing operations.
 type ProjectSettingsIndexerMessage struct {
-	Action MessageAction    `json:"action"`
-	Data   ProjectSettings  `json:"data"`
-	Tags   []string         `json:"tags"`
+	Action MessageAction   `json:"action"`
+	Data   ProjectSettings `json:"data"`
+	Tags   []string        `json:"tags"`
 }
 
 // IndexerMessageEnvelope is the actual message format sent to NATS for indexing operations.

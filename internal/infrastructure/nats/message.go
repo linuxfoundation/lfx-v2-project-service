@@ -90,7 +90,6 @@ func (m *MessageBuilder) sendIndexerMessage(ctx context.Context, subject string,
 	return m.sendMessage(ctx, subject, messageBytes)
 }
 
-
 // PublishIndexerMessage publishes indexer messages to NATS for search indexing.
 func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject string, message interface{}) error {
 	switch msg := message.(type) {
@@ -101,7 +100,7 @@ func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject stri
 			return err
 		}
 		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags)
-	
+
 	case models.ProjectSettingsIndexerMessage:
 		dataBytes, err := json.Marshal(msg.Data)
 		if err != nil {
@@ -109,11 +108,11 @@ func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject stri
 			return err
 		}
 		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags)
-	
+
 	case string:
 		// For delete operations, the message is just the UID string
 		return m.sendIndexerMessage(ctx, subject, models.ActionDeleted, []byte(msg), nil)
-	
+
 	default:
 		slog.ErrorContext(ctx, "unsupported indexer message type", "type", fmt.Sprintf("%T", message))
 		return fmt.Errorf("unsupported indexer message type: %T", message)
@@ -130,14 +129,13 @@ func (m *MessageBuilder) PublishAccessMessage(ctx context.Context, subject strin
 			return err
 		}
 		return m.sendMessage(ctx, subject, dataBytes)
-	
+
 	case string:
 		// For delete operations, the message is just the UID string
 		return m.sendMessage(ctx, subject, []byte(msg))
-	
+
 	default:
 		slog.ErrorContext(ctx, "unsupported access message type", "type", fmt.Sprintf("%T", message))
 		return fmt.Errorf("unsupported access message type: %T", message)
 	}
 }
-
