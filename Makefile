@@ -32,12 +32,12 @@ HELM_CHART_PATH=./charts/lfx-v2-project-service
 HELM_RELEASE_NAME=lfx-v2-project-service
 HELM_NAMESPACE=lfx
 
-.PHONY: all help deps apigen build run debug test test-verbose test-coverage clean lint fmt check verify docker-build helm-install helm-uninstall
-
 # Default target
+.PHONY: all
 all: clean deps apigen fmt lint test build
 
 # Help target
+.PHONY: help
 help:
 	@echo "Available targets:"
 	@echo "  all            - Run clean, deps, apigen, fmt, lint, test, and build"
@@ -52,13 +52,15 @@ help:
 	@echo "  clean          - Remove generated files and binaries"
 	@echo "  lint           - Run golangci-lint"
 	@echo "  fmt            - Format Go code"
-	@echo "  check          - Run fmt and lint without modifying files"
+	@echo "  check          - Run fmt, lint, and license check without modifying files"
+	@echo "  license-check  - Check for license headers (basic validation)"
 	@echo "  verify         - Verify API generation is up to date"
 	@echo "  docker-build   - Build Docker image"
 	@echo "  helm-install   - Install Helm chart"
 	@echo "  helm-uninstall - Uninstall Helm chart"
 
 # Install dependencies
+.PHONY: deps
 deps:
 	@echo "==> Installing dependencies..."
 	go mod download
@@ -69,12 +71,14 @@ deps:
 	}
 
 # Generate API code from design files
+.PHONY: apigen
 apigen: deps
 	@echo "==> Generating API code..."
 	goa gen $(DESIGN_MODULE) -o api/project/v1
 	@echo "==> API generation complete"
 
 # Build the binary
+.PHONY: build
 build: clean
 	@echo "==> Building $(BINARY_NAME)..."
 	@mkdir -p bin
@@ -82,26 +86,31 @@ build: clean
 	@echo "==> Build complete: $(BINARY_PATH)"
 
 # Run the service
+.PHONY: run
 run: apigen
 	@echo "==> Running $(BINARY_NAME)..."
 	go run $(LDFLAGS) $(CMD_PATH)
 
 # Run with debug logging
+.PHONY: debug
 debug: apigen
 	@echo "==> Running $(BINARY_NAME) in debug mode..."
 	go run $(LDFLAGS) $(CMD_PATH) -d
 
 # Run tests
+.PHONY: test
 test:
 	@echo "==> Running tests..."
 	go test $(TEST_FLAGS) -timeout $(TEST_TIMEOUT) ./...
 
 # Run tests with verbose output
+.PHONY: test-verbose
 test-verbose:
 	@echo "==> Running tests (verbose)..."
 	go test $(TEST_FLAGS) -v -timeout $(TEST_TIMEOUT) ./...
 
 # Run tests with coverage
+.PHONY: test-coverage
 test-coverage:
 	@echo "==> Running tests with coverage..."
 	@mkdir -p coverage
@@ -110,6 +119,7 @@ test-coverage:
 	@echo "==> Coverage report: coverage/coverage.html"
 
 # Clean build artifacts
+.PHONY: clean
 clean:
 	@echo "==> Cleaning build artifacts..."
 	@rm -rf bin/ coverage/
@@ -117,6 +127,7 @@ clean:
 	@echo "==> Clean complete"
 
 # Run linter
+.PHONY: lint
 lint:
 	@echo "==> Running linter..."
 	@if command -v golangci-lint >/dev/null 2>&1; then \
@@ -127,12 +138,33 @@ lint:
 	fi
 
 # Format code
+.PHONY: fmt
 fmt:
 	@echo "==> Formatting code..."
 	@go fmt ./...
 	@gofmt -s -w $(GO_FILES)
 
+# Check license headers (basic validation - full check runs in CI)
+.PHONY: license-check
+license-check:
+	@echo "==> Checking license headers (basic validation)..."
+	@missing_files=$$(find . -name "*.go" \
+		-not -path "./api/project/v1/gen/*" \
+		-not -path "./vendor/*" \
+		-exec sh -c 'head -10 "$$1" | grep -q "Copyright The Linux Foundation and each contributor to LFX" && head -10 "$$1" | grep -q "SPDX-License-Identifier: MIT" || echo "$$1"' _ {} \;); \
+	if [ -n "$$missing_files" ]; then \
+		echo "Files missing required license headers:"; \
+		echo "$$missing_files"; \
+		echo "Required headers:"; \
+		echo "  # Copyright The Linux Foundation and each contributor to LFX."; \
+		echo "  # SPDX-License-Identifier: MIT"; \
+		echo "Note: Full license validation runs in CI"; \
+		exit 1; \
+	fi
+	@echo "==> Basic license header check passed"
+
 # Check formatting and linting without modifying files
+.PHONY: check
 check:
 	@echo "==> Checking code format..."
 	@if [ -n "$$(gofmt -l $(GO_FILES))" ]; then \
@@ -142,8 +174,10 @@ check:
 	fi
 	@echo "==> Code format check passed"
 	@$(MAKE) lint
+	@$(MAKE) license-check
 
 # Verify that generated code is up to date
+.PHONY: verify
 verify: apigen
 	@echo "==> Verifying generated code is up to date..."
 	@if [ -n "$$(git status --porcelain api/project/v1/gen/)" ]; then \
@@ -154,24 +188,28 @@ verify: apigen
 	@echo "==> Generated code is up to date"
 
 # Build Docker image
+.PHONY: docker-build
 docker-build:
 	@echo "==> Building Docker image..."
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f Dockerfile .
 	@echo "==> Docker image built: $(DOCKER_IMAGE):$(DOCKER_TAG)"
 
 # Install Helm chart
+.PHONY: helm-install
 helm-install:
 	@echo "==> Installing Helm chart..."
 	helm upgrade --force --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
 	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
 
 # Print templates for Helm chart
+.PHONY: helm-templates
 helm-templates:
 	@echo "==> Printing templates for Helm chart..."
 	helm template $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE)
 	@echo "==> Templates printed for Helm chart: $(HELM_RELEASE_NAME)"
 
 # Uninstall Helm chart
+.PHONY: helm-uninstall
 helm-uninstall:
 	@echo "==> Uninstalling Helm chart..."
 	helm uninstall $(HELM_RELEASE_NAME) --namespace $(HELM_NAMESPACE)
