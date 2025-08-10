@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"goa.design/goa/v3/security"

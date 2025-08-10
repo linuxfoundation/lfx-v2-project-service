@@ -5,9 +5,9 @@
 BINARY_NAME=project-api
 BINARY_PATH=bin/$(BINARY_NAME)
 GO_MODULE=github.com/linuxfoundation/lfx-v2-project-service
-CMD_PATH=$(GO_MODULE)/cmd/project-api
-DESIGN_MODULE=$(CMD_PATH)/design
-GO_FILES=$(shell find . -name '*.go' -not -path './gen/*' -not -path './vendor/*')
+API_PATH=$(GO_MODULE)/api/project/v1
+DESIGN_MODULE=$(API_PATH)/design
+GO_FILES=$(shell find . -name '*.go' -not -path '../../api/project/v1/gen/*' -not -path './vendor/*')
 GOA_VERSION=v3
 
 # Docker variables
@@ -70,7 +70,7 @@ deps:
 # Generate API code from design files
 apigen: deps
 	@echo "==> Generating API code..."
-	goa gen $(DESIGN_MODULE)
+	goa gen $(DESIGN_MODULE) -o ../../api/project/v1
 	@echo "==> API generation complete"
 
 # Build the binary
@@ -159,9 +159,9 @@ check:
 # Verify that generated code is up to date
 verify: apigen
 	@echo "==> Verifying generated code is up to date..."
-	@if [ -n "$$(git status --porcelain gen/)" ]; then \
+	@if [ -n "$$(git status --porcelain ../../api/project/v1/gen/)" ]; then \
 		echo "Generated code is out of date. Run 'make apigen' and commit the changes."; \
-		git status --porcelain gen/; \
+		git status --porcelain ../../api/project/v1/gen/; \
 		exit 1; \
 	fi
 	@echo "==> Generated code is up to date"

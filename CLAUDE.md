@@ -24,12 +24,17 @@ The service follows **Clean Architecture** principles with clear separation of c
 ```text
 .github/                    # CI/CD workflow files for Github Actions
 
+api/                        # API contracts
+└── project/
+    └── v1/
+        ├── design/         # Goa API design specifications
+        └── gen/            # Generated code (gitignored)
+
 charts/                     # Helm charts containing kubernetes template files for deployments
 
-cmd/project-api/            # Presentation Layer (HTTP/NATS handlers)
-├── design/                 # Goa API design specifications
-├── gen/                    # Generated code (not committed)
+cmd/project-api/            # Presentation Layer (HTTP/NATS entry point)
 ├── service*.go            # HTTP and NATS handlers
+└── main.go                # Application entry point
 
 internal/                   # Core business logic
 ├── domain/                # Domain layer (interfaces, models, errors)
@@ -73,7 +78,7 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 ```bash
 cd cmd/project-api
 make apigen
-# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/design
+# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o ../../api/project/v1
 ```
 
 #### 2. Build the Service
@@ -120,20 +125,20 @@ make check  # Check format and lint without modifying
 
 The service uses Goa v3 for API code generation. This is **critical** to understand:
 
-1. **Design First**: API is defined in `cmd/project-api/design/` files
-2. **Generated Code**: Running `make apigen` generates:
+1. **Design First**: API is defined in `api/project/v1/design/` files
+2. **Generated Code**: Running `make apigen` generates to `api/project/v1/gen/`:
    - HTTP server/client code
    - Service interfaces
    - OpenAPI specifications
    - Type definitions
-3. **Implementation**: You implement the generated interfaces in `service*.go` files
+3. **Implementation**: You implement the generated interfaces in `cmd/project-api/service*.go` files
 
 ### Adding New Endpoints
 
-1. Update `design/project.go` with new method
-2. Run `make apigen` to regenerate code
-3. Implement the new method in `service_endpoint_project.go`
-4. Add tests in `service_endpoint_project_test.go`
+1. Update `api/project/v1/design/project.go` with new method
+2. Run `make apigen` (from `cmd/project-api`) to regenerate code
+3. Implement the new method in `cmd/project-api/service_endpoint_project.go`
+4. Add tests in `cmd/project-api/service_endpoint_project_test.go`
 5. Update Heimdall ruleset in `charts/*/templates/ruleset.yaml`
 
 ## NATS Messaging Patterns
@@ -377,7 +382,7 @@ Domain errors are mapped to HTTP status codes:
 2. **Check NATS Messages**: Use `nats sub "lfx.>"` to monitor all messages
 3. **Verify KV Data**: Use `nats kv get projects <uid>` to check stored data
 4. **HTTP Traces**: Middleware logs all requests with timing
-5. **Generated Code**: Check `gen/` directory for Goa-generated interfaces
+5. **Generated Code**: Check `api/project/v1/gen/` directory for Goa-generated interfaces
 
 ## Contributing Guidelines
 

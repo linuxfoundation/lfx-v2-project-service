@@ -3,6 +3,10 @@
 bin/
 .env*
 coverage.out
+scratch/
+
+# Generated Goa files (anywhere in the repo)
+**/gen/
 
 # Linter generated files
 megalinter-reports/

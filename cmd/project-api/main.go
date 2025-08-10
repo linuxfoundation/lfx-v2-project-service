@@ -7,7 +7,6 @@ package main
 
 import (
 	"context"
-	"embed"
 	_ "expvar"
 	"flag"
 	"log/slog"
@@ -22,8 +21,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	goahttp "goa.design/goa/v3/http"
 
-	genhttp "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/http/project_service/server"
-	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
+	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	internalnats "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
@@ -31,9 +30,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
-
-//go:embed gen/http/openapi3.json gen/http/openapi3.yaml
-var StaticFS embed.FS
 
 const (
 	// errKey is the key for the error field in the slog.
@@ -180,7 +176,8 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 		customEncoder,
 		nil,
 		nil,
-		http.FS(StaticFS))
+		nil,
+	)
 
 	// Mount the handler on the mux
 	genhttp.Mount(mux, genHttpServer)

@@ -11,11 +11,14 @@ The LFX v2 Project Service is a RESTful API service that manages projects within
 ```bash
 ├── .github/                        # Github files
 │   └── workflows/                  # Github Action workflow files
+├── api/                            # API contracts and specifications
+│   └── project/                    # Project service API
+│       └── v1/                     # API version 1
+│           ├── design/             # Goa API design specifications
+│           └── gen/                # Generated code from Goa design (gitignored)
 ├── charts/                         # Helm charts for running the service in kubernetes
 ├── cmd/                            # Services (main packages)
-│   └── project-api/                # Project service code
-│       ├── gen/                    # Generated code from Goa design
-│       └── design/                 # API design specifications
+│   └── project-api/                # Project service API entry point
 ├── internal/                       # Internal service packages
 │   ├── domain/                     # Domain logic layer (business logic)
 │   │   └── models/                 # Domain models and entities
@@ -48,6 +51,7 @@ To create a new release of the project service:
 
 1. **Update the chart version** in `charts/lfx-v2-project-service/Chart.yaml` prior to any project releases, or if any
    change is made to the chart manifests or configuration:
+
    ```yaml
    version: 0.2.0  # Increment this version
    appVersion: "latest"  # Keep this as "latest"
