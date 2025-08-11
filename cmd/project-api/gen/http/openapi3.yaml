@@ -964,7 +964,7 @@ components:
                     items:
                         type: string
                         example: Eum velit atque voluptates omnis.
-                    description: A list of project auditors by their user IDs
+                    description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
                         - user456
@@ -1064,7 +1064,7 @@ components:
                     items:
                         type: string
                         example: Porro doloremque sed culpa modi consequatur.
-                    description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
                         - user456
@@ -1118,7 +1118,7 @@ components:
                     items:
                         type: string
                         example: Iusto aut consequatur harum nisi dolorum ab.
-                    description: A list of project writers by their user IDs
+                    description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123
                         - user456
@@ -1598,7 +1598,7 @@ components:
                     items:
                         type: string
                         example: Rerum odio omnis ipsum.
-                    description: A list of project auditors by their user IDs
+                    description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
                         - user456
@@ -1703,7 +1703,7 @@ components:
                     items:
                         type: string
                         example: Nihil animi et suscipit.
-                    description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
                         - user456
@@ -1767,7 +1767,7 @@ components:
                     items:
                         type: string
                         example: Sequi laboriosam quis quas.
-                    description: A list of project writers by their user IDs
+                    description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123
                         - user456
@@ -1820,7 +1820,7 @@ components:
                     items:
                         type: string
                         example: Tenetur ut quia maiores fugiat.
-                    description: A list of project auditors by their user IDs
+                    description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
                         - user456
@@ -1834,7 +1834,7 @@ components:
                     items:
                         type: string
                         example: Dolorem vel.
-                    description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
                         - user456
@@ -1857,7 +1857,7 @@ components:
                     items:
                         type: string
                         example: Velit accusantium consequuntur sequi hic adipisci.
-                    description: A list of project writers by their user IDs
+                    description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123
                         - user456
@@ -2068,7 +2068,7 @@ components:
                     items:
                         type: string
                         example: Veritatis aspernatur earum.
-                    description: A list of project auditors by their user IDs
+                    description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
                         - user456
@@ -2077,7 +2077,7 @@ components:
                     items:
                         type: string
                         example: Occaecati excepturi.
-                    description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
                         - user456
@@ -2090,7 +2090,7 @@ components:
                     items:
                         type: string
                         example: Enim asperiores et aut a neque sunt.
-                    description: A list of project writers by their user IDs
+                    description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123
                         - user456

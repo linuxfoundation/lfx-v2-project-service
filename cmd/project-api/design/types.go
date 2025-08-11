@@ -217,14 +217,14 @@ func ProjectRepositoryURLAttribute() {
 
 // ProjectAuditorsAttribute is the DSL attribute for a project auditors.
 func ProjectAuditorsAttribute() {
-	Attribute("auditors", ArrayOf(String), "A list of project auditors by their user IDs", func() {
+	Attribute("auditors", ArrayOf(String), "A list of project auditors by their LFIDs (usernames)", func() {
 		Example([]string{"user123", "user456"})
 	})
 }
 
 // ProjectWritersAttribute is the DSL attribute for a project writers.
 func ProjectWritersAttribute() {
-	Attribute("writers", ArrayOf(String), "A list of project writers by their user IDs", func() {
+	Attribute("writers", ArrayOf(String), "A list of project writers by their LFIDs (usernames)", func() {
 		Example([]string{"user123", "user456"})
 	})
 }
@@ -233,7 +233,7 @@ func ProjectWritersAttribute() {
 func ProjectMeetingCoordinatorsAttribute() {
 	Attribute("meeting_coordinators", ArrayOf(String), func() {
 		Description(
-			"A list of project meeting coordinators by their user IDs. " +
+			"A list of project meeting coordinators by their LFIDs (usernames). " +
 				"These users are responsible for managing meetings for the project.",
 		)
 		Example([]string{"user123", "user456"})

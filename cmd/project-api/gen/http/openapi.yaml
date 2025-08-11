@@ -796,7 +796,7 @@ definitions:
                 items:
                     type: string
                     example: Cumque illo.
-                description: A list of project auditors by their user IDs
+                description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -901,7 +901,7 @@ definitions:
                 items:
                     type: string
                     example: Qui deleniti ex architecto repellat non.
-                description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
                     - user456
@@ -965,7 +965,7 @@ definitions:
                 items:
                     type: string
                     example: Voluptas fugit temporibus vitae qui quis consequatur.
-                description: A list of project writers by their user IDs
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1019,7 +1019,7 @@ definitions:
                 items:
                     type: string
                     example: Voluptatibus dolores et.
-                description: A list of project auditors by their user IDs
+                description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1119,7 +1119,7 @@ definitions:
                 items:
                     type: string
                     example: Temporibus in cupiditate quod consequatur quo.
-                description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
                     - user456
@@ -1173,7 +1173,7 @@ definitions:
                 items:
                     type: string
                     example: Minus incidunt quia aut vero consequatur qui.
-                description: A list of project writers by their user IDs
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1580,7 +1580,7 @@ definitions:
                 items:
                     type: string
                     example: Veritatis sed.
-                description: A list of project auditors by their user IDs
+                description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1589,7 +1589,7 @@ definitions:
                 items:
                     type: string
                     example: Voluptatem magnam quos eos expedita voluptas et.
-                description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
                     - user456
@@ -1602,7 +1602,7 @@ definitions:
                 items:
                     type: string
                     example: Sed quae ex.
-                description: A list of project writers by their user IDs
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1632,7 +1632,7 @@ definitions:
                 items:
                     type: string
                     example: Dolorum id.
-                description: A list of project auditors by their user IDs
+                description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1646,7 +1646,7 @@ definitions:
                 items:
                     type: string
                     example: Debitis molestiae.
-                description: A list of project meeting coordinators by their user IDs. These users are responsible for managing meetings for the project.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
                     - user456
@@ -1669,7 +1669,7 @@ definitions:
                 items:
                     type: string
                     example: Ipsam et aperiam omnis tenetur et doloribus.
-                description: A list of project writers by their user IDs
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
