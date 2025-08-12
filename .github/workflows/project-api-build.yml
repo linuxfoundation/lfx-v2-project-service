@@ -23,15 +23,12 @@ jobs:
 
       - name: Download Dependencies
         run: make deps
-        working-directory: cmd/project-api
 
       - name: Generate service code
         run: make apigen
-        working-directory: cmd/project-api
 
       - name: Build
         run: make build
-        working-directory: cmd/project-api
 
       - name: Test
         run: go test ./... -v

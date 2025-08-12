@@ -35,8 +35,9 @@ go.sum.bak
 # ==============================================================================
 # Generated code and build artifacts
 # ==============================================================================
-# Generated Goa files (anywhere in the repo)
+# Generated Goa files (anywhere in the repo except api/project/v1/gen)
 **/gen/
+!api/project/v1/gen/
 
 # Swagger/OpenAPI generated files
 swagger.json
