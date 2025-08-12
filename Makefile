@@ -62,6 +62,7 @@ help:
 	@echo "  helm-templates   - Print templates for Helm chart"
 	@echo "  helm-templates-local - Print templates for Helm chart with local values"
 	@echo "  helm-uninstall - Uninstall Helm chart"
+	@echo "  helm-restart   - Restart the deployment pod in Kubernetes"
 
 # Install dependencies
 .PHONY: deps
@@ -232,3 +233,10 @@ helm-uninstall:
 	@echo "==> Uninstalling Helm chart..."
 	helm uninstall $(HELM_RELEASE_NAME) --namespace $(HELM_NAMESPACE)
 	@echo "==> Helm chart uninstalled: $(HELM_RELEASE_NAME)"
+
+# Restart the deployment pod
+.PHONY: helm-restart
+helm-restart:
+	@echo "==> Restarting deployment pod..."
+	kubectl rollout restart deployment/$(HELM_RELEASE_NAME) --namespace $(HELM_NAMESPACE)
+	@echo "==> Deployment restarted: $(HELM_RELEASE_NAME)"

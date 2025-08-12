@@ -149,19 +149,21 @@ The service uses NATS for:
 - `projects`: Base project information
 - `project-settings`: Project settings (separated for access control)
 
-### Message Subjects
+### API Endpoints and Message Subjects
+
+Complete API endpoint documentation and NATS message handlers are now documented in README.md. Key RPC subjects handled by this service:
 
 ```go
+// Inbound RPC (handled by this service)
+"lfx.projects-api.get_name"            // Get project name by UID
+"lfx.projects-api.get_slug"            // Get project slug by UID
+"lfx.projects-api.slug_to_uid"         // Convert slug to UID
+
 // Outbound events (published by this service)
 "lfx.index.project"                    // Project created/updated
 "lfx.index.project_settings"           // Settings updated
 "lfx.update_access.project"            // Access control updates
 "lfx.delete_all_access.project"        // Access control deletion
-
-// Inbound RPC (handled by this service)
-"lfx.projects-api.get_name"            // Get project name by UID
-"lfx.projects-api.get_slug"            // Get project slug by UID
-"lfx.projects-api.slug_to_uid"         // Convert slug to UID
 ```
 
 ## Testing Patterns
@@ -225,35 +227,36 @@ When deployed, the service uses OpenFGA for authorization:
 
 ## Local Development Setup
 
-### 1. Start NATS with JetStream
+There are two main development setup options documented in DEVELOPMENT.md:
 
+### Option A: Full Platform Setup
+For integration testing with complete LFX stack:
+- Install lfx-platform Helm chart (includes NATS, Heimdall, OpenFGA, Authelia, Traefik)
+- Use `make helm-install-local` with values.local.yaml
+- Full authentication and authorization enabled
+
+### Option B: Minimal Setup
+For rapid development:
 ```bash
-# Using Docker
-docker run -p 4222:4222 nats:latest -js
+# Just run NATS locally
+docker run -d -p 4222:4222 nats:latest -js
 
 # Create KV stores
 nats kv add projects --history=20 --storage=file
 nats kv add project-settings --history=20 --storage=file
-```
 
-### 2. Run the Service
-
-```bash
-cd cmd/project-api
+# Run service with mock auth
 export NATS_URL=nats://localhost:4222
 export JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=test-user
 make run
 ```
 
-### 3. Test the API
+**Security Note**: Option B bypasses all authentication/authorization - only for local development.
 
-```bash
-# Health check
-curl http://localhost:8080/livez
-
-# Get projects (requires auth header in production)
-curl http://localhost:8080/projects?v=1
-```
+### New Helm Commands
+- `make helm-install-local`: Install with local values
+- `make helm-restart`: Restart deployment pod
+- `make docker-build`: Build Docker image
 
 ## Docker Build
 
@@ -379,13 +382,26 @@ Domain errors are mapped to HTTP status codes:
 4. **HTTP Traces**: Middleware logs all requests with timing
 5. **Generated Code**: Check `api/project/v1/gen/` directory for Goa-generated interfaces
 
+## Documentation Structure
+
+The project has a clear documentation hierarchy:
+
+- **README.md**: Project overview, quick start, API endpoints, deployment setup
+- **DEVELOPMENT.md**: Comprehensive developer guide with build/test/deploy workflows
+- **CLAUDE.md**: AI assistant instructions and technical details (this file)
+
+Key documentation patterns:
+- README focuses on getting the service running quickly
+- DEVELOPMENT.md covers the full development workflow
+- Avoid duplicating content between files - use cross-references instead
+
 ## Contributing Guidelines
 
 1. **Design First**: Update Goa design files before implementation
 2. **Test Coverage**: Write comprehensive unit tests
 3. **Mock External Deps**: Use mocks for repository and message builder
 4. **Follow Clean Architecture**: Respect layer boundaries
-5. **Update Docs**: Keep README files current
+5. **Update Docs**: Keep documentation current and avoid duplication
 6. **Lint Clean**: Ensure `make check` passes
 
 ## Resources
