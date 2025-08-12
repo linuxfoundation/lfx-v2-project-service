@@ -1238,6 +1238,12 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 			res.Writers[i] = val
 		}
 	}
+	if v.MeetingCoordinators != nil {
+		res.MeetingCoordinators = make([]string, len(v.MeetingCoordinators))
+		for i, val := range v.MeetingCoordinators {
+			res.MeetingCoordinators[i] = val
+		}
+	}
 	if v.Auditors != nil {
 		res.Auditors = make([]string, len(v.Auditors))
 		for i, val := range v.Auditors {

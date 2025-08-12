@@ -283,6 +283,10 @@ Example:
       "legal_entity_type": "Subproject",
       "legal_parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
       "logo_url": "https://example.com/logo.png",
+      "meeting_coordinators": [
+         "user123",
+         "user456"
+      ],
       "mission_statement": "The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.",
       "name": "Foo Foundation",
       "parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
@@ -376,6 +380,10 @@ Example:
     %[1]s project-service update-project-settings --body '{
       "announcement_date": "2021-01-01",
       "auditors": [
+         "user123",
+         "user456"
+      ],
+      "meeting_coordinators": [
          "user123",
          "user456"
       ],

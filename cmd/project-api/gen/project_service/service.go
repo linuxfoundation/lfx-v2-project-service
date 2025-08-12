@@ -121,9 +121,12 @@ type CreateProjectPayload struct {
 	AnnouncementDate *string
 	// The mission statement of the project
 	MissionStatement *string
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string
 }
 
@@ -310,9 +313,12 @@ type ProjectFull struct {
 	MissionStatement *string
 	// The date the project was announced
 	AnnouncementDate *string
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string
 }
 
@@ -325,9 +331,12 @@ type ProjectSettings struct {
 	MissionStatement *string
 	// The date the project was announced
 	AnnouncementDate *string
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string
 	// The date and time the project was created
 	CreatedAt *string
@@ -408,9 +417,12 @@ type UpdateProjectSettingsPayload struct {
 	MissionStatement *string
 	// The date the project was announced
 	AnnouncementDate *string
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string
 }
 

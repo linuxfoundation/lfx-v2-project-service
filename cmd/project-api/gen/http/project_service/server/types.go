@@ -58,9 +58,12 @@ type CreateProjectRequestBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
@@ -114,9 +117,12 @@ type UpdateProjectSettingsRequestBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
@@ -178,9 +184,12 @@ type CreateProjectResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
@@ -250,9 +259,12 @@ type UpdateProjectSettingsResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
@@ -580,9 +592,12 @@ type ProjectFullResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
@@ -642,9 +657,12 @@ type ProjectSettingsResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their user IDs
+	// A list of project writers by their LFIDs (usernames)
 	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project auditors by their user IDs
+	// A list of project meeting coordinators by their LFIDs (usernames). These
+	// users are responsible for managing meetings for the project.
+	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project auditors by their LFIDs (usernames)
 	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
@@ -705,6 +723,12 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 		body.Writers = make([]string, len(res.Writers))
 		for i, val := range res.Writers {
 			body.Writers[i] = val
+		}
+	}
+	if res.MeetingCoordinators != nil {
+		body.MeetingCoordinators = make([]string, len(res.MeetingCoordinators))
+		for i, val := range res.MeetingCoordinators {
+			body.MeetingCoordinators[i] = val
 		}
 	}
 	if res.Auditors != nil {
@@ -769,6 +793,12 @@ func NewGetOneProjectSettingsResponseBody(res *projectservice.GetOneProjectSetti
 			body.Writers[i] = val
 		}
 	}
+	if res.ProjectSettings.MeetingCoordinators != nil {
+		body.MeetingCoordinators = make([]string, len(res.ProjectSettings.MeetingCoordinators))
+		for i, val := range res.ProjectSettings.MeetingCoordinators {
+			body.MeetingCoordinators[i] = val
+		}
+	}
 	if res.ProjectSettings.Auditors != nil {
 		body.Auditors = make([]string, len(res.ProjectSettings.Auditors))
 		for i, val := range res.ProjectSettings.Auditors {
@@ -829,6 +859,12 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 		body.Writers = make([]string, len(res.Writers))
 		for i, val := range res.Writers {
 			body.Writers[i] = val
+		}
+	}
+	if res.MeetingCoordinators != nil {
+		body.MeetingCoordinators = make([]string, len(res.MeetingCoordinators))
+		for i, val := range res.MeetingCoordinators {
+			body.MeetingCoordinators[i] = val
 		}
 	}
 	if res.Auditors != nil {
@@ -1178,6 +1214,12 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 			v.Writers[i] = val
 		}
 	}
+	if body.MeetingCoordinators != nil {
+		v.MeetingCoordinators = make([]string, len(body.MeetingCoordinators))
+		for i, val := range body.MeetingCoordinators {
+			v.MeetingCoordinators[i] = val
+		}
+	}
 	if body.Auditors != nil {
 		v.Auditors = make([]string, len(body.Auditors))
 		for i, val := range body.Auditors {
@@ -1260,6 +1302,12 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 		v.Writers = make([]string, len(body.Writers))
 		for i, val := range body.Writers {
 			v.Writers[i] = val
+		}
+	}
+	if body.MeetingCoordinators != nil {
+		v.MeetingCoordinators = make([]string, len(body.MeetingCoordinators))
+		for i, val := range body.MeetingCoordinators {
+			v.MeetingCoordinators[i] = val
 		}
 	}
 	if body.Auditors != nil {

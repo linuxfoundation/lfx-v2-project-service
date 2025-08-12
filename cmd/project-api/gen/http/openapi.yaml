@@ -673,7 +673,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Membership
+                    example: Crowdfunding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -795,8 +795,8 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Qui deleniti ex architecto repellat non.
-                description: A list of project auditors by their user IDs
+                    example: Cumque illo.
+                description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -896,6 +896,15 @@ definitions:
                 description: The URL of the project logo
                 example: https://example.com/logo.png
                 format: uri
+            meeting_coordinators:
+                type: array
+                items:
+                    type: string
+                    example: Qui deleniti ex architecto repellat non.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
+                example:
+                    - user123
+                    - user456
             mission_statement:
                 type: string
                 description: The mission statement of the project
@@ -956,7 +965,7 @@ definitions:
                 items:
                     type: string
                     example: Voluptas fugit temporibus vitae qui quis consequatur.
-                description: A list of project writers by their user IDs
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -980,6 +989,9 @@ definitions:
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             logo_url: https://example.com/logo.png
+            meeting_coordinators:
+                - user123
+                - user456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
             name: Foo Foundation
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1006,8 +1018,8 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Minus incidunt quia aut vero consequatur qui.
-                description: A list of project auditors by their user IDs
+                    example: Voluptatibus dolores et.
+                description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1102,6 +1114,15 @@ definitions:
                 description: The URL of the project logo
                 example: https://example.com/logo.png
                 format: uri
+            meeting_coordinators:
+                type: array
+                items:
+                    type: string
+                    example: Temporibus in cupiditate quod consequatur quo.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
+                example:
+                    - user123
+                    - user456
             mission_statement:
                 type: string
                 description: The mission statement of the project
@@ -1151,8 +1172,8 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Est et.
-                description: A list of project writers by their user IDs
+                    example: Minus incidunt quia aut vero consequatur qui.
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1174,6 +1195,9 @@ definitions:
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             logo_url: https://example.com/logo.png
+            meeting_coordinators:
+                - user123
+                - user456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
             name: Foo Foundation
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1224,6 +1248,9 @@ definitions:
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
+                      meeting_coordinators:
+                        - user123
+                        - user456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1255,6 +1282,9 @@ definitions:
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
+                      meeting_coordinators:
+                        - user123
+                        - user456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1286,6 +1316,9 @@ definitions:
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
+                      meeting_coordinators:
+                        - user123
+                        - user456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1319,6 +1352,9 @@ definitions:
                   legal_entity_type: Subproject
                   legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                   logo_url: https://example.com/logo.png
+                  meeting_coordinators:
+                    - user123
+                    - user456
                   mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                   name: Foo Foundation
                   parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1350,37 +1386,9 @@ definitions:
                   legal_entity_type: Subproject
                   legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                   logo_url: https://example.com/logo.png
-                  mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                  name: Foo Foundation
-                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  public: true
-                  repository_url: https://example.com/project
-                  slug: project-slug
-                  stage: Formation - Exploratory
-                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  updated_at: "2021-01-01T00:00:00Z"
-                  website_url: https://example.com
-                  writers:
+                  meeting_coordinators:
                     - user123
                     - user456
-                - announcement_date: "2021-01-01"
-                  auditors:
-                    - user123
-                    - user456
-                  autojoin_enabled: false
-                  category: Active
-                  charter_url: https://example.com/charter.pdf
-                  created_at: "2021-01-01T00:00:00Z"
-                  description: project foo is a project about bar
-                  entity_dissolution_date: "2021-12-31"
-                  entity_formation_document_url: https://example.com/formation.pdf
-                  formation_date: "2021-01-01"
-                  funding_model:
-                    - Crowdfunding
-                  legal_entity_name: Example Foundation LLC
-                  legal_entity_type: Subproject
-                  legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  logo_url: https://example.com/logo.png
                   mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                   name: Foo Foundation
                   parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1458,7 +1466,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Membership
+                    example: Alternate Funding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -1571,8 +1579,17 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Et doloribus.
-                description: A list of project auditors by their user IDs
+                    example: Veritatis sed.
+                description: A list of project auditors by their LFIDs (usernames)
+                example:
+                    - user123
+                    - user456
+            meeting_coordinators:
+                type: array
+                items:
+                    type: string
+                    example: Voluptatem magnam quos eos expedita voluptas et.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
                     - user456
@@ -1584,14 +1601,17 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Perferendis eum ipsam et aperiam omnis.
-                description: A list of project writers by their user IDs
+                    example: Sed quae ex.
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
         example:
             announcement_date: "2021-01-01"
             auditors:
+                - user123
+                - user456
+            meeting_coordinators:
                 - user123
                 - user456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
@@ -1611,8 +1631,8 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Quo illo voluptatibus.
-                description: A list of project auditors by their user IDs
+                    example: Dolorum id.
+                description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1621,6 +1641,15 @@ definitions:
                 description: The date and time the project was created
                 example: "2021-01-01T00:00:00Z"
                 format: date-time
+            meeting_coordinators:
+                type: array
+                items:
+                    type: string
+                    example: Debitis molestiae.
+                description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
+                example:
+                    - user123
+                    - user456
             mission_statement:
                 type: string
                 description: The mission statement of the project
@@ -1639,8 +1668,8 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: In cupiditate quod.
-                description: A list of project writers by their user IDs
+                    example: Ipsam et aperiam omnis tenetur et doloribus.
+                description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
                     - user456
@@ -1651,6 +1680,9 @@ definitions:
                 - user123
                 - user456
             created_at: "2021-01-01T00:00:00Z"
+            meeting_coordinators:
+                - user123
+                - user456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2021-01-01T00:00:00Z"

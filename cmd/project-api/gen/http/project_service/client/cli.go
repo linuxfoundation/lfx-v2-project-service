@@ -53,7 +53,7 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 	{
 		err = json.Unmarshal([]byte(projectServiceCreateProjectBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"legal_entity_name\": \"Example Foundation LLC\",\n      \"legal_entity_type\": \"Subproject\",\n      \"legal_parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"repository_url\": \"https://example.com/project\",\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\",\n      \"website_url\": \"https://example.com\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"legal_entity_name\": \"Example Foundation LLC\",\n      \"legal_entity_type\": \"Subproject\",\n      \"legal_parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"meeting_coordinators\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"repository_url\": \"https://example.com/project\",\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\",\n      \"website_url\": \"https://example.com\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
@@ -158,6 +158,12 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		v.Writers = make([]string, len(body.Writers))
 		for i, val := range body.Writers {
 			v.Writers[i] = val
+		}
+	}
+	if body.MeetingCoordinators != nil {
+		v.MeetingCoordinators = make([]string, len(body.MeetingCoordinators))
+		for i, val := range body.MeetingCoordinators {
+			v.MeetingCoordinators[i] = val
 		}
 	}
 	if body.Auditors != nil {
@@ -382,7 +388,7 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 	{
 		err = json.Unmarshal([]byte(projectServiceUpdateProjectSettingsBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"meeting_coordinators\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
 		}
 	}
 	var uid string
@@ -425,6 +431,12 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 		v.Writers = make([]string, len(body.Writers))
 		for i, val := range body.Writers {
 			v.Writers[i] = val
+		}
+	}
+	if body.MeetingCoordinators != nil {
+		v.MeetingCoordinators = make([]string, len(body.MeetingCoordinators))
+		for i, val := range body.MeetingCoordinators {
+			v.MeetingCoordinators[i] = val
 		}
 	}
 	if body.Auditors != nil {
