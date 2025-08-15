@@ -296,13 +296,13 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	var revision uint64
 	var err error
 	if !s.Config.SkipEtagValidation {
-		if payload.Etag == nil {
-			slog.WarnContext(ctx, "ETag header is missing")
+		if payload.IfMatch == nil {
+			slog.WarnContext(ctx, "If-Match header is missing")
 			return nil, domain.ErrValidationFailed
 		}
-		revision, err = strconv.ParseUint(*payload.Etag, 10, 64)
+		revision, err = strconv.ParseUint(*payload.IfMatch, 10, 64)
 		if err != nil {
-			slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
+			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
 			return nil, domain.ErrValidationFailed
 		}
 	} else {
@@ -468,13 +468,13 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	var revision uint64
 	var err error
 	if !s.Config.SkipEtagValidation {
-		if payload.Etag == nil {
-			slog.WarnContext(ctx, "ETag header is missing")
+		if payload.IfMatch == nil {
+			slog.WarnContext(ctx, "If-Match header is missing")
 			return nil, domain.ErrValidationFailed
 		}
-		revision, err = strconv.ParseUint(*payload.Etag, 10, 64)
+		revision, err = strconv.ParseUint(*payload.IfMatch, 10, 64)
 		if err != nil {
-			slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
+			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
 			return nil, domain.ErrValidationFailed
 		}
 	} else {
@@ -601,13 +601,13 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	var revision uint64
 	var err error
 	if !s.Config.SkipEtagValidation {
-		if payload.Etag == nil {
-			slog.WarnContext(ctx, "ETag header is missing")
+		if payload.IfMatch == nil {
+			slog.WarnContext(ctx, "If-Match header is missing")
 			return domain.ErrValidationFailed
 		}
-		revision, err = strconv.ParseUint(*payload.Etag, 10, 64)
+		revision, err = strconv.ParseUint(*payload.IfMatch, 10, 64)
 		if err != nil {
-			slog.ErrorContext(ctx, "error parsing ETag", constants.ErrKey, err)
+			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
 			return domain.ErrValidationFailed
 		}
 	} else {
