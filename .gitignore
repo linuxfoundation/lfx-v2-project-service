@@ -1,9 +1,172 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
-bin/
-.env*
-coverage.out
 
+# ==============================================================================
+# Build artifacts and binaries
+# ==============================================================================
+bin/
+dist/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+project-api
+
+# ==============================================================================
+# Go specific files
+# ==============================================================================
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.out
+coverage/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Module download cache
+go.sum.bak
+
+# ==============================================================================
+# Generated code and build artifacts
+# ==============================================================================
+# Generated Goa files (anywhere in the repo except api/project/v1/gen)
+**/gen/
+!api/project/v1/gen/
+
+# Swagger/OpenAPI generated files
+swagger.json
+swagger.yaml
+
+# Protobuf generated files
+*.pb.go
+*_pb2.py
+*_pb2_grpc.py
+
+# ==============================================================================
+# Development and IDE files
+# ==============================================================================
+# Environment and configuration files
+.env*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# ==============================================================================
+# Testing and debugging
+# ==============================================================================
+# Test coverage reports
+cover.out
+cover.html
+coverage.html
+coverage.txt
+.coverage
+
+# Debug files
+debug
+debug.log
+*.pprof
+
+# ==============================================================================
+# Development tools and utilities
+# ==============================================================================
 # Linter generated files
 megalinter-reports/
 revive.log
+.golangci.yml.bak
+
+# Dependency directories
+vendor/
+
+# Temporary files
+tmp/
+temp/
+scratch/
+
+# ==============================================================================
+# Container and orchestration
+# ==============================================================================
+# Docker
+.dockerignore.bak
+docker-compose.override.yml
+
+# Kubernetes
+*.kubeconfig
+kubeconfig
+
+# Helm
+# Local development values - developers create their own
+/charts/lfx-v2-project-service/values.local.yaml
+/charts/lfx-v2-project-service/values.dev.yaml
+/charts/lfx-v2-project-service/values.personal.yaml
+/charts/*/values.local.yaml
+/charts/*/values.dev.yaml
+/charts/*/values.personal.yaml
+
+# ==============================================================================
+# Logs and runtime files
+# ==============================================================================
+*.log
+logs/
+log/
+
+# PID files
+*.pid
+
+# ==============================================================================
+# Security and secrets
+# ==============================================================================
+# Private keys and certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# Secret files
+secrets/
+.secrets/
+*.secret
+
+# ==============================================================================
+# Documentation and notes
+# ==============================================================================
+# Personal notes and TODO files
+TODO.personal
+NOTES.personal
+.todo
+.notes
+
+# ==============================================================================
+# Backup and temporary files
+# ==============================================================================
+*.bak
+*.backup
+*.orig
+*.tmp
+.#*
+#*#

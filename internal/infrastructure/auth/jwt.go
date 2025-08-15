@@ -13,6 +13,7 @@ import (
 
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
@@ -62,10 +63,8 @@ type JWTAuth struct {
 	config    JWTAuthConfig
 }
 
-// IJWTAuth is a JWT authentication interface needed for the [ProjectsService].
-type IJWTAuth interface {
-	ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error)
-}
+// Ensure JWTAuth implements domain.Authenticator interface
+var _ domain.Authenticator = (*JWTAuth)(nil)
 
 func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
 	// Set up defaults if not provided

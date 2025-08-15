@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
@@ -147,9 +147,9 @@ func TestCreateProject(t *testing.T) {
 				// Mock successful project creation
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
 				// Mock message sending
-				mockMsg.On("SendIndexProject", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
-				mockMsg.On("SendUpdateAccessProject", mock.Anything, mock.Anything).Return(nil)
-				mockMsg.On("SendIndexProjectSettings", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
+				mockMsg.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectIndexerMessage")).Return(nil)
+				mockMsg.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectAccessMessage")).Return(nil)
+				mockMsg.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectSettingsIndexerMessage")).Return(nil)
 			},
 			expectedError: false,
 		},

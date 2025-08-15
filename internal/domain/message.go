@@ -5,8 +5,6 @@ package domain
 
 import (
 	"context"
-
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
 // Message represents a domain message interface
@@ -21,12 +19,8 @@ type MessageHandler interface {
 	HandleMessage(ctx context.Context, msg Message)
 }
 
-// MessageBuilder is a interface for the message builder.
+// MessageBuilder is a generic interface for publishing messages to NATS.
 type MessageBuilder interface {
-	SendIndexProject(ctx context.Context, action models.MessageAction, data models.ProjectBase) error
-	SendDeleteIndexProject(ctx context.Context, data string) error
-	SendIndexProjectSettings(ctx context.Context, action models.MessageAction, data models.ProjectSettings) error
-	SendDeleteIndexProjectSettings(ctx context.Context, data string) error
-	SendUpdateAccessProject(ctx context.Context, data models.ProjectAccessMessage) error
-	SendDeleteAllAccessProject(ctx context.Context, data string) error
+	PublishIndexerMessage(ctx context.Context, subject string, message interface{}) error
+	PublishAccessMessage(ctx context.Context, subject string, message interface{}) error
 }

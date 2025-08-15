@@ -4,7 +4,8 @@
 //
 // Command:
 // $ goa gen
-// github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/design
+// github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o
+// api/project/v1
 
 package cli
 
@@ -14,7 +15,7 @@ import (
 	"net/http"
 	"os"
 
-	projectservicec "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/http/project_service/client"
+	projectservicec "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/client"
 	goahttp "goa.design/goa/v3/http"
 	goa "goa.design/goa/v3/pkg"
 )

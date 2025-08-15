@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	projsvc "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
@@ -151,9 +151,9 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
-				mockBuilder.On("SendIndexProject", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
-				mockBuilder.On("SendUpdateAccessProject", mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendIndexProjectSettings", mock.Anything, models.ActionCreated, mock.Anything).Return(nil)
+				mockBuilder.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectIndexerMessage")).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectAccessMessage")).Return(nil)
+				mockBuilder.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectSettingsIndexerMessage")).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {

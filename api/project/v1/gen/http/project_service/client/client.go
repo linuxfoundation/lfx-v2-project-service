@@ -4,7 +4,8 @@
 //
 // Command:
 // $ goa gen
-// github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/design
+// github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o
+// api/project/v1
 
 package client
 

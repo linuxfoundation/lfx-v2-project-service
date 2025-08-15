@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	projectservice "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 )
 
 // ProjectData represents the structure for creating a project

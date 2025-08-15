@@ -24,12 +24,17 @@ The service follows **Clean Architecture** principles with clear separation of c
 ```text
 .github/                    # CI/CD workflow files for Github Actions
 
+api/                        # API contracts
+└── project/
+    └── v1/
+        ├── design/         # Goa API design specifications
+        └── gen/            # Generated code (gitignored)
+
 charts/                     # Helm charts containing kubernetes template files for deployments
 
-cmd/project-api/            # Presentation Layer (HTTP/NATS handlers)
-├── design/                 # Goa API design specifications
-├── gen/                    # Generated code (not committed)
+cmd/project-api/            # Presentation Layer (HTTP/NATS entry point)
 ├── service*.go            # HTTP and NATS handlers
+└── main.go                # Application entry point
 
 internal/                   # Core business logic
 ├── domain/                # Domain layer (interfaces, models, errors)
@@ -71,22 +76,19 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 #### 1. Generate API Code (REQUIRED after design changes)
 
 ```bash
-cd cmd/project-api
 make apigen
-# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/design
+# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o api/project/v1
 ```
 
 #### 2. Build the Service
 
 ```bash
-cd cmd/project-api
 make build
 ```
 
 #### 3. Run Tests
 
 ```bash
-cd cmd/project-api
 make test              # Run unit tests
 make test-verbose      # Verbose output
 make test-coverage     # Generate coverage report
@@ -96,21 +98,19 @@ make test-integration  # Run integration tests (requires -tags=integration)
 #### 4. Run the Service Locally
 
 ```bash
-cd cmd/project-api
 # Basic run
 make run
 
 # With debug logging
 make debug
 
-# With custom flags
-go run . -d -p 8080
+# With custom flags (direct go run)
+go run ./cmd/project-api -d -p 8080
 ```
 
 #### 5. Lint and Format Code
 
 ```bash
-cd cmd/project-api
 make fmt    # Format code
 make lint   # Run golangci-lint
 make check  # Check format and lint without modifying
@@ -120,20 +120,20 @@ make check  # Check format and lint without modifying
 
 The service uses Goa v3 for API code generation. This is **critical** to understand:
 
-1. **Design First**: API is defined in `cmd/project-api/design/` files
-2. **Generated Code**: Running `make apigen` generates:
+1. **Design First**: API is defined in `api/project/v1/design/` files
+2. **Generated Code**: Running `make apigen` generates to `api/project/v1/gen/`:
    - HTTP server/client code
    - Service interfaces
    - OpenAPI specifications
    - Type definitions
-3. **Implementation**: You implement the generated interfaces in `service*.go` files
+3. **Implementation**: You implement the generated interfaces in `cmd/project-api/service*.go` files
 
 ### Adding New Endpoints
 
-1. Update `design/project.go` with new method
-2. Run `make apigen` to regenerate code
-3. Implement the new method in `service_endpoint_project.go`
-4. Add tests in `service_endpoint_project_test.go`
+1. Update `api/project/v1/design/project.go` with new method
+2. Run `make apigen` (from repository root) to regenerate code
+3. Implement the new method in `cmd/project-api/service_endpoint_project.go`
+4. Add tests in `cmd/project-api/service_endpoint_project_test.go`
 5. Update Heimdall ruleset in `charts/*/templates/ruleset.yaml`
 
 ## NATS Messaging Patterns
@@ -149,19 +149,24 @@ The service uses NATS for:
 - `projects`: Base project information
 - `project-settings`: Project settings (separated for access control)
 
-### Message Subjects
+### API Endpoints and Message Subjects
+
+Complete API endpoint documentation and NATS message handlers are now documented in README.md. Key RPC subjects handled by this service:
 
 ```go
-// Outbound events (published by this service)
-"lfx.index.project"                    // Project created/updated
-"lfx.index.project_settings"           // Settings updated
-"lfx.update_access.project"            // Access control updates
-"lfx.delete_all_access.project"        // Access control deletion
-
 // Inbound RPC (handled by this service)
+"lfx.projects-api.queue"               // Queue for projects API operations
 "lfx.projects-api.get_name"            // Get project name by UID
 "lfx.projects-api.get_slug"            // Get project slug by UID
 "lfx.projects-api.slug_to_uid"         // Convert slug to UID
+
+// Outbound events (published by this service)
+"lfx.index.project"                    // Project created/updated for indexing
+"lfx.index.project_settings"           // Settings updated for indexing
+"lfx.update_access.project"            // Project access control updates
+"lfx.update_access.project_settings"   // Project settings access control updates
+"lfx.delete_all_access.project"        // Project access control deletion
+"lfx.delete_all_access.project_settings" // Project settings access control deletion
 ```
 
 ## Testing Patterns
@@ -225,35 +230,36 @@ When deployed, the service uses OpenFGA for authorization:
 
 ## Local Development Setup
 
-### 1. Start NATS with JetStream
+There are two main development setup options documented in DEVELOPMENT.md:
 
+### Option A: Full Platform Setup
+For integration testing with complete LFX stack:
+- Install lfx-platform Helm chart (includes NATS, Heimdall, OpenFGA, Authelia, Traefik)
+- Use `make helm-install-local` with values.local.yaml
+- Full authentication and authorization enabled
+
+### Option B: Minimal Setup
+For rapid development:
 ```bash
-# Using Docker
-docker run -p 4222:4222 nats:latest -js
+# Just run NATS locally
+docker run -d -p 4222:4222 nats:latest -js
 
 # Create KV stores
 nats kv add projects --history=20 --storage=file
 nats kv add project-settings --history=20 --storage=file
-```
 
-### 2. Run the Service
-
-```bash
-cd cmd/project-api
+# Run service with mock auth
 export NATS_URL=nats://localhost:4222
 export JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=test-user
 make run
 ```
 
-### 3. Test the API
+**Security Note**: Option B bypasses all authentication/authorization - only for local development.
 
-```bash
-# Health check
-curl http://localhost:8080/livez
-
-# Get projects (requires auth header in production)
-curl http://localhost:8080/projects?v=1
-```
+### New Helm Commands
+- `make helm-install-local`: Install with local values
+- `make helm-restart`: Restart deployment pod
+- `make docker-build`: Build Docker image
 
 ## Docker Build
 
@@ -377,7 +383,20 @@ Domain errors are mapped to HTTP status codes:
 2. **Check NATS Messages**: Use `nats sub "lfx.>"` to monitor all messages
 3. **Verify KV Data**: Use `nats kv get projects <uid>` to check stored data
 4. **HTTP Traces**: Middleware logs all requests with timing
-5. **Generated Code**: Check `gen/` directory for Goa-generated interfaces
+5. **Generated Code**: Check `api/project/v1/gen/` directory for Goa-generated interfaces
+
+## Documentation Structure
+
+The project has a clear documentation hierarchy:
+
+- **README.md**: Project overview, quick start, API endpoints, deployment setup
+- **DEVELOPMENT.md**: Comprehensive developer guide with build/test/deploy workflows
+- **CLAUDE.md**: AI assistant instructions and technical details (this file)
+
+Key documentation patterns:
+- README focuses on getting the service running quickly
+- DEVELOPMENT.md covers the full development workflow
+- Avoid duplicating content between files - use cross-references instead
 
 ## Contributing Guidelines
 
@@ -385,7 +404,7 @@ Domain errors are mapped to HTTP status codes:
 2. **Test Coverage**: Write comprehensive unit tests
 3. **Mock External Deps**: Use mocks for repository and message builder
 4. **Follow Clean Architecture**: Respect layer boundaries
-5. **Update Docs**: Keep README files current
+5. **Update Docs**: Keep documentation current and avoid duplication
 6. **Lint Clean**: Ensure `make check` passes
 
 ## Resources

@@ -4,12 +4,13 @@
 //
 // Command:
 // $ goa gen
-// github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/design
+// github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o
+// api/project/v1
 
 package client
 
 import (
-	projectservice "github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api/gen/project_service"
+	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	goa "goa.design/goa/v3/pkg"
 )
 
