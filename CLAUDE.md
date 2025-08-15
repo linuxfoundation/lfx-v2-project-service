@@ -155,15 +155,18 @@ Complete API endpoint documentation and NATS message handlers are now documented
 
 ```go
 // Inbound RPC (handled by this service)
+"lfx.projects-api.queue"               // Queue for projects API operations
 "lfx.projects-api.get_name"            // Get project name by UID
 "lfx.projects-api.get_slug"            // Get project slug by UID
 "lfx.projects-api.slug_to_uid"         // Convert slug to UID
 
 // Outbound events (published by this service)
-"lfx.index.project"                    // Project created/updated
-"lfx.index.project_settings"           // Settings updated
-"lfx.update_access.project"            // Access control updates
-"lfx.delete_all_access.project"        // Access control deletion
+"lfx.index.project"                    // Project created/updated for indexing
+"lfx.index.project_settings"           // Settings updated for indexing
+"lfx.update_access.project"            // Project access control updates
+"lfx.update_access.project_settings"   // Project settings access control updates
+"lfx.delete_all_access.project"        // Project access control deletion
+"lfx.delete_all_access.project_settings" // Project settings access control deletion
 ```
 
 ## Testing Patterns

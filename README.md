@@ -126,7 +126,7 @@ This service handles the following NATS subjects for inter-service communication
    }
    ```
 
-   If you get a `403 Forbidden` error, then you need to check that the ID token you are passing to the project service is not valid and not expired. Once you have an ID token, you can check its expiration and other user metadata on the token using this auth server API call:
+   If you get a `403 Forbidden` error, then you need to check that the ID token you are passing to the project service is valid and not expired. Once you have an ID token, you can check its expiration and other user metadata on the token using this auth server API call:
 
    ```bash
    curl -s https://auth.k8s.orb.local/api/oidc/userinfo \
@@ -197,7 +197,7 @@ This service handles the following NATS subjects for inter-service communication
 │   └── project/                    # Project service API
 │       └── v1/                     # API version 1
 │           ├── design/             # Goa API design specifications
-│           └── gen/                # Generated code from Goa design (gitignored)
+│           └── gen/                # Generated code from Goa design
 ├── charts/                         # Helm charts for running the service in kubernetes
 ├── cmd/                            # Services (main packages)
 │   └── project-api/                # Project service API entry point
