@@ -136,8 +136,8 @@ type CreateProjectPayload struct {
 type DeleteProjectPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// ETag header value
-	Etag *string
+	// If-Match header value for conditional requests
+	IfMatch *string
 	// Version of the API
 	Version *string
 	// Project UID -- v2 uid, not related to v1 id directly
@@ -357,8 +357,8 @@ type ServiceUnavailableError struct {
 type UpdateProjectBasePayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// ETag header value
-	Etag *string
+	// If-Match header value for conditional requests
+	IfMatch *string
 	// Version of the API
 	Version *string
 	// Project UID -- v2 uid, not related to v1 id directly
@@ -408,8 +408,8 @@ type UpdateProjectBasePayload struct {
 type UpdateProjectSettingsPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// ETag header value
-	Etag *string
+	// If-Match header value for conditional requests
+	IfMatch *string
 	// Version of the API
 	Version *string
 	// Project UID -- v2 uid, not related to v1 id directly

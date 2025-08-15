@@ -257,7 +257,7 @@ func BuildGetOneProjectSettingsPayload(projectServiceGetOneProjectSettingsUID st
 
 // BuildUpdateProjectBasePayload builds the payload for the project-service
 // update-project-base endpoint from CLI flags.
-func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, projectServiceUpdateProjectBaseUID string, projectServiceUpdateProjectBaseVersion string, projectServiceUpdateProjectBaseBearerToken string, projectServiceUpdateProjectBaseEtag string) (*projectservice.UpdateProjectBasePayload, error) {
+func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, projectServiceUpdateProjectBaseUID string, projectServiceUpdateProjectBaseVersion string, projectServiceUpdateProjectBaseBearerToken string, projectServiceUpdateProjectBaseIfMatch string) (*projectservice.UpdateProjectBasePayload, error) {
 	var err error
 	var body UpdateProjectBaseRequestBody
 	{
@@ -341,10 +341,10 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 			bearerToken = &projectServiceUpdateProjectBaseBearerToken
 		}
 	}
-	var etag *string
+	var ifMatch *string
 	{
-		if projectServiceUpdateProjectBaseEtag != "" {
-			etag = &projectServiceUpdateProjectBaseEtag
+		if projectServiceUpdateProjectBaseIfMatch != "" {
+			ifMatch = &projectServiceUpdateProjectBaseIfMatch
 		}
 	}
 	v := &projectservice.UpdateProjectBasePayload{
@@ -376,14 +376,14 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.Etag = etag
+	v.IfMatch = ifMatch
 
 	return v, nil
 }
 
 // BuildUpdateProjectSettingsPayload builds the payload for the project-service
 // update-project-settings endpoint from CLI flags.
-func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody string, projectServiceUpdateProjectSettingsUID string, projectServiceUpdateProjectSettingsVersion string, projectServiceUpdateProjectSettingsBearerToken string, projectServiceUpdateProjectSettingsEtag string) (*projectservice.UpdateProjectSettingsPayload, error) {
+func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody string, projectServiceUpdateProjectSettingsUID string, projectServiceUpdateProjectSettingsVersion string, projectServiceUpdateProjectSettingsBearerToken string, projectServiceUpdateProjectSettingsIfMatch string) (*projectservice.UpdateProjectSettingsPayload, error) {
 	var err error
 	var body UpdateProjectSettingsRequestBody
 	{
@@ -418,10 +418,10 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 			bearerToken = &projectServiceUpdateProjectSettingsBearerToken
 		}
 	}
-	var etag *string
+	var ifMatch *string
 	{
-		if projectServiceUpdateProjectSettingsEtag != "" {
-			etag = &projectServiceUpdateProjectSettingsEtag
+		if projectServiceUpdateProjectSettingsIfMatch != "" {
+			ifMatch = &projectServiceUpdateProjectSettingsIfMatch
 		}
 	}
 	v := &projectservice.UpdateProjectSettingsPayload{
@@ -449,14 +449,14 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.Etag = etag
+	v.IfMatch = ifMatch
 
 	return v, nil
 }
 
 // BuildDeleteProjectPayload builds the payload for the project-service
 // delete-project endpoint from CLI flags.
-func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectServiceDeleteProjectVersion string, projectServiceDeleteProjectBearerToken string, projectServiceDeleteProjectEtag string) (*projectservice.DeleteProjectPayload, error) {
+func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectServiceDeleteProjectVersion string, projectServiceDeleteProjectBearerToken string, projectServiceDeleteProjectIfMatch string) (*projectservice.DeleteProjectPayload, error) {
 	var err error
 	var uid string
 	{
@@ -484,17 +484,17 @@ func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectSer
 			bearerToken = &projectServiceDeleteProjectBearerToken
 		}
 	}
-	var etag *string
+	var ifMatch *string
 	{
-		if projectServiceDeleteProjectEtag != "" {
-			etag = &projectServiceDeleteProjectEtag
+		if projectServiceDeleteProjectIfMatch != "" {
+			ifMatch = &projectServiceDeleteProjectIfMatch
 		}
 	}
 	v := &projectservice.DeleteProjectPayload{}
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.Etag = etag
+	v.IfMatch = ifMatch
 
 	return v, nil
 }

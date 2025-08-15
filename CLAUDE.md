@@ -233,13 +233,17 @@ When deployed, the service uses OpenFGA for authorization:
 There are two main development setup options documented in DEVELOPMENT.md:
 
 ### Option A: Full Platform Setup
+
 For integration testing with complete LFX stack:
+
 - Install lfx-platform Helm chart (includes NATS, Heimdall, OpenFGA, Authelia, Traefik)
 - Use `make helm-install-local` with values.local.yaml
 - Full authentication and authorization enabled
 
 ### Option B: Minimal Setup
+
 For rapid development:
+
 ```bash
 # Just run NATS locally
 docker run -d -p 4222:4222 nats:latest -js
@@ -257,6 +261,7 @@ make run
 **Security Note**: Option B bypasses all authentication/authorization - only for local development.
 
 ### New Helm Commands
+
 - `make helm-install-local`: Install with local values
 - `make helm-restart`: Restart deployment pod
 - `make docker-build`: Build Docker image
@@ -318,7 +323,7 @@ GitHub Actions workflows:
 ### 2. ETag Handling
 
 **Problem**: Concurrent updates without proper ETag validation
-**Solution**: Always include ETag header in PUT/DELETE requests
+**Solution**: Always include If-Match header in PUT/DELETE requests (server responds with ETag header on GET request)
 
 ### 3. NATS Connection
 
@@ -366,7 +371,7 @@ Important context values:
 
 - `request-id`: Unique request identifier
 - `authorization`: JWT token from header
-- `etag`: ETag for optimistic concurrency
+- `etag`: ETag value for optimistic concurrency (sent as If-Match header in requests)
 
 ### 4. Error Handling
 
@@ -394,6 +399,7 @@ The project has a clear documentation hierarchy:
 - **CLAUDE.md**: AI assistant instructions and technical details (this file)
 
 Key documentation patterns:
+
 - README focuses on getting the service running quickly
 - DEVELOPMENT.md covers the full development workflow
 - Avoid duplicating content between files - use cross-references instead

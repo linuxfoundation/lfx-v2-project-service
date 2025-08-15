@@ -16,9 +16,16 @@ func BearerTokenAttribute() {
 	})
 }
 
-// EtagAttribute is a reusable ETag header attribute.
+// EtagAttribute is a reusable ETag header attribute (for responses).
 func EtagAttribute() {
 	Attribute("etag", String, "ETag header value", func() {
+		Example("123")
+	})
+}
+
+// IfMatchAttribute is a reusable If-Match header attribute (for conditional requests).
+func IfMatchAttribute() {
+	Attribute("if_match", String, "If-Match header value for conditional requests", func() {
 		Example("123")
 	})
 }

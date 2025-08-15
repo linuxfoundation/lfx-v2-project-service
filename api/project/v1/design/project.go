@@ -189,7 +189,7 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
-			EtagAttribute()
+			IfMatchAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
 			ProjectSlugAttribute()
@@ -229,7 +229,7 @@ var _ = Service("project-service", func() {
 				Param("uid")
 			})
 			Header("bearer_token:Authorization")
-			Header("etag:ETag")
+			Header("if_match:If-Match")
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)
@@ -246,7 +246,7 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
-			EtagAttribute()
+			IfMatchAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
 			ProjectMissionStatementAttribute()
@@ -270,7 +270,7 @@ var _ = Service("project-service", func() {
 				Param("uid")
 			})
 			Header("bearer_token:Authorization")
-			Header("etag:ETag")
+			Header("if_match:If-Match")
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)
@@ -286,7 +286,7 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
-			EtagAttribute()
+			IfMatchAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
 		})
@@ -303,7 +303,7 @@ var _ = Service("project-service", func() {
 				Param("uid")
 			})
 			Header("bearer_token:Authorization")
-			Header("etag:ETag")
+			Header("if_match:If-Match")
 			Response(StatusNoContent)
 			Response("NotFound", StatusNotFound)
 			Response("BadRequest", StatusBadRequest)

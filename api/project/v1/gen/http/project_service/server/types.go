@@ -1257,7 +1257,7 @@ func NewGetOneProjectSettingsPayload(uid string, version *string, bearerToken *s
 
 // NewUpdateProjectBasePayload builds a project-service service
 // update-project-base endpoint payload.
-func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string, version *string, bearerToken *string, etag *string) *projectservice.UpdateProjectBasePayload {
+func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *projectservice.UpdateProjectBasePayload {
 	v := &projectservice.UpdateProjectBasePayload{
 		Slug:                       *body.Slug,
 		Description:                *body.Description,
@@ -1287,14 +1287,14 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.Etag = etag
+	v.IfMatch = ifMatch
 
 	return v
 }
 
 // NewUpdateProjectSettingsPayload builds a project-service service
 // update-project-settings endpoint payload.
-func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid string, version *string, bearerToken *string, etag *string) *projectservice.UpdateProjectSettingsPayload {
+func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *projectservice.UpdateProjectSettingsPayload {
 	v := &projectservice.UpdateProjectSettingsPayload{
 		MissionStatement: body.MissionStatement,
 		AnnouncementDate: body.AnnouncementDate,
@@ -1320,19 +1320,19 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.Etag = etag
+	v.IfMatch = ifMatch
 
 	return v
 }
 
 // NewDeleteProjectPayload builds a project-service service delete-project
 // endpoint payload.
-func NewDeleteProjectPayload(uid string, version *string, bearerToken *string, etag *string) *projectservice.DeleteProjectPayload {
+func NewDeleteProjectPayload(uid string, version *string, bearerToken *string, ifMatch *string) *projectservice.DeleteProjectPayload {
 	v := &projectservice.DeleteProjectPayload{}
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.Etag = etag
+	v.IfMatch = ifMatch
 
 	return v
 }

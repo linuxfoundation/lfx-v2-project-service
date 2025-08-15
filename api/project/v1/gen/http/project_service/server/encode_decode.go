@@ -532,7 +532,7 @@ func DecodeUpdateProjectBaseRequest(mux goahttp.Muxer, decoder func(*http.Reques
 			uid         string
 			version     *string
 			bearerToken *string
-			etag        *string
+			ifMatch     *string
 
 			params = mux.Vars(r)
 		)
@@ -551,14 +551,14 @@ func DecodeUpdateProjectBaseRequest(mux goahttp.Muxer, decoder func(*http.Reques
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
-		etagRaw := r.Header.Get("ETag")
-		if etagRaw != "" {
-			etag = &etagRaw
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
 		}
 		if err != nil {
 			return nil, err
 		}
-		payload := NewUpdateProjectBasePayload(&body, uid, version, bearerToken, etag)
+		payload := NewUpdateProjectBasePayload(&body, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -692,7 +692,7 @@ func DecodeUpdateProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Re
 			uid         string
 			version     *string
 			bearerToken *string
-			etag        *string
+			ifMatch     *string
 
 			params = mux.Vars(r)
 		)
@@ -711,14 +711,14 @@ func DecodeUpdateProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Re
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
-		etagRaw := r.Header.Get("ETag")
-		if etagRaw != "" {
-			etag = &etagRaw
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
 		}
 		if err != nil {
 			return nil, err
 		}
-		payload := NewUpdateProjectSettingsPayload(&body, uid, version, bearerToken, etag)
+		payload := NewUpdateProjectSettingsPayload(&body, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -816,7 +816,7 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 			uid         string
 			version     *string
 			bearerToken *string
-			etag        *string
+			ifMatch     *string
 			err         error
 
 			params = mux.Vars(r)
@@ -836,14 +836,14 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
-		etagRaw := r.Header.Get("ETag")
-		if etagRaw != "" {
-			etag = &etagRaw
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
 		}
 		if err != nil {
 			return nil, err
 		}
-		payload := NewDeleteProjectPayload(uid, version, bearerToken, etag)
+		payload := NewDeleteProjectPayload(uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
