@@ -169,6 +169,13 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 		return encoder
 	}
 
+	koDataPath := os.Getenv("KO_DATA_PATH")
+	if koDataPath == "" {
+		koDataPath = "./api/project/v1/gen/http/"
+	}
+
+	koDataDir := http.Dir(koDataPath)
+
 	genHttpServer := genhttp.New(
 		endpoints,
 		mux,
@@ -176,7 +183,10 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 		customEncoder,
 		nil,
 		nil,
-		nil,
+		koDataDir,
+		koDataDir,
+		koDataDir,
+		koDataDir,
 	)
 
 	// Mount the handler on the mux
