@@ -33,7 +33,7 @@ jobs:
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
-            -t ${{ github.ref }} \
+            -t ${{ github.head_ref }} \
             --sbom spdx
       - name: Build root-project-setup for PR
         run: |
@@ -41,5 +41,5 @@ jobs:
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
-            -t ${{ github.ref }} \
+            -t ${{ github.head_ref }} \
             --sbom spdx
