@@ -30,7 +30,7 @@ jobs:
       - name: Prepare container tag
         id: container_tag
         run: |
-          container_tag=$(echo ${{ github.head_ref }} |  sed 's/[^_0-9a-zA-Z]/\-/g' | cut -c -127)
+          container_tag="$(echo ${{ github.head_ref }} |  sed 's/[^_0-9a-zA-Z]/\-/g' | cut -c -127)"
           echo "tag=$container_tag" >> $GITHUB_OUTPUT
       - name: Build project-api for PR
         run: |
