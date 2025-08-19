@@ -29,9 +29,11 @@ jobs:
           version: v0.17.1
       - name: Prepare container tag
         id: container_tag
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          container_tag="$(echo ${{ github.head_ref }} |  sed 's/[^_0-9a-zA-Z]/\-/g' | cut -c -127)"
-          echo "tag=$container_tag" >> $GITHUB_OUTPUT
+          container_tag=$(echo "$HEAD_REF" |  sed 's/[^_0-9a-zA-Z]/\-/g' | cut -c -127)
+          echo tag="$container_tag" >> $GITHUB_OUTPUT
       - name: Build project-api for PR
         run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api \
