@@ -30,7 +30,7 @@ jobs:
       - name: Prepare container tag
         id: container_tag
         env:
-          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REF: "${{ github.head_ref }}"
         run: |
           container_tag=$(echo "$HEAD_REF" |  sed 's/[^_0-9a-zA-Z]/\-/g' | cut -c -127)
           echo tag="$container_tag" >> $GITHUB_OUTPUT
