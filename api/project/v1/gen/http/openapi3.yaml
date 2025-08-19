@@ -1,11 +1,48 @@
 openapi: 3.0.3
 info:
-    title: Goa API
+    title: LFX V2 - Project Service
+    description: Create, manage, update, and delete LFX project resources
     version: 0.0.1
 servers:
     - url: http://localhost:80
-      description: Default server for project-service
+      description: Default server for lfx-v2-project-service
 paths:
+    /_projects/openapi.json:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi.json
+            operationId: project-service#/_projects/openapi.json
+            responses:
+                "200":
+                    description: File downloaded
+    /_projects/openapi.yaml:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi.yaml
+            operationId: project-service#/_projects/openapi.yaml
+            responses:
+                "200":
+                    description: File downloaded
+    /_projects/openapi3.json:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi3.json
+            operationId: project-service#/_projects/openapi3.json
+            responses:
+                "200":
+                    description: File downloaded
+    /_projects/openapi3.yaml:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi3.yaml
+            operationId: project-service#/_projects/openapi3.yaml
+            responses:
+                "200":
+                    description: File downloaded
     /livez:
         get:
             tags:
@@ -23,15 +60,6 @@ paths:
                                 example: OK
                                 format: binary
                             example: OK
-    /openapi.json:
-        get:
-            tags:
-                - project-service
-            summary: Download gen/http/openapi3.json
-            operationId: project-service#/openapi.json
-            responses:
-                "200":
-                    description: File downloaded
     /projects:
         get:
             tags:
@@ -68,40 +96,6 @@ paths:
                                 $ref: '#/components/schemas/GetProjectsResponseBody'
                             example:
                                 projects:
-                                    - announcement_date: "2021-01-01"
-                                      auditors:
-                                        - user123
-                                        - user456
-                                      autojoin_enabled: false
-                                      category: Active
-                                      charter_url: https://example.com/charter.pdf
-                                      created_at: "2021-01-01T00:00:00Z"
-                                      description: project foo is a project about bar
-                                      entity_dissolution_date: "2021-12-31"
-                                      entity_formation_document_url: https://example.com/formation.pdf
-                                      formation_date: "2021-01-01"
-                                      funding_model:
-                                        - Crowdfunding
-                                      legal_entity_name: Example Foundation LLC
-                                      legal_entity_type: Subproject
-                                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      logo_url: https://example.com/logo.png
-                                      meeting_coordinators:
-                                        - user123
-                                        - user456
-                                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                                      name: Foo Foundation
-                                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      public: true
-                                      repository_url: https://example.com/project
-                                      slug: project-slug
-                                      stage: Formation - Exploratory
-                                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      updated_at: "2021-01-01T00:00:00Z"
-                                      website_url: https://example.com
-                                      writers:
-                                        - user123
-                                        - user456
                                     - announcement_date: "2021-01-01"
                                       auditors:
                                         - user123
@@ -963,7 +957,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Eum velit atque voluptates omnis.
+                        example: Consequatur omnis.
                     description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
@@ -1026,7 +1020,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Crowdfunding
+                        example: Alternate Funding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -1063,7 +1057,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Porro doloremque sed culpa modi consequatur.
+                        example: Incidunt vero.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -1117,7 +1111,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Iusto aut consequatur harum nisi dolorum ab.
+                        example: Quo eum consequatur.
                     description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123
@@ -1238,40 +1232,6 @@ components:
                             - user456
             example:
                 projects:
-                    - announcement_date: "2021-01-01"
-                      auditors:
-                        - user123
-                        - user456
-                      autojoin_enabled: false
-                      category: Active
-                      charter_url: https://example.com/charter.pdf
-                      created_at: "2021-01-01T00:00:00Z"
-                      description: project foo is a project about bar
-                      entity_dissolution_date: "2021-12-31"
-                      entity_formation_document_url: https://example.com/formation.pdf
-                      formation_date: "2021-01-01"
-                      funding_model:
-                        - Crowdfunding
-                      legal_entity_name: Example Foundation LLC
-                      legal_entity_type: Subproject
-                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
-                      meeting_coordinators:
-                        - user123
-                        - user456
-                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      repository_url: https://example.com/project
-                      slug: project-slug
-                      stage: Formation - Exploratory
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      updated_at: "2021-01-01T00:00:00Z"
-                      website_url: https://example.com
-                      writers:
-                        - user123
-                        - user456
                     - announcement_date: "2021-01-01"
                       auditors:
                         - user123
@@ -1597,7 +1557,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Rerum odio omnis ipsum.
+                        example: Excepturi voluptatibus.
                     description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
@@ -1665,7 +1625,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Membership
+                        example: Alternate Funding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -1702,7 +1662,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Nihil animi et suscipit.
+                        example: Praesentium deserunt aut at delectus.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -1766,7 +1726,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Sequi laboriosam quis quas.
+                        example: Quos nihil doloribus labore eligendi.
                     description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123
@@ -1819,7 +1779,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Tenetur ut quia maiores fugiat.
+                        example: Similique qui vero praesentium omnis et.
                     description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
@@ -1833,7 +1793,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Dolorem vel.
+                        example: Dolores maxime ipsum.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -1856,7 +1816,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Velit accusantium consequuntur sequi hic adipisci.
+                        example: In est dicta beatae et.
                     description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123
@@ -1955,7 +1915,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Alternate Funding
+                        example: Membership
                         enum:
                             - Crowdfunding
                             - Membership
@@ -2067,7 +2027,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Veritatis aspernatur earum.
+                        example: Esse eveniet tempora qui.
                     description: A list of project auditors by their LFIDs (usernames)
                     example:
                         - user123
@@ -2076,7 +2036,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Occaecati excepturi.
+                        example: Sunt ut quo.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -2089,7 +2049,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Enim asperiores et aut a neque sunt.
+                        example: Magni delectus quia ex nulla aut dolorum.
                     description: A list of project writers by their LFIDs (usernames)
                     example:
                         - user123

@@ -21,6 +21,9 @@ spec:
     - path:
         type: PathPrefix
         value: /projects/
+    - path:
+        type: PathPrefix
+        value: /_projects/
     {{- if .Values.heimdall.enabled }}
     filters:
     - type: ExtensionRef

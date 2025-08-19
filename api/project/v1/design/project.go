@@ -14,6 +14,11 @@ var JWTAuth = JWTSecurity("jwt", func() {
 	Description("Heimdall authorization")
 })
 
+var _ = API("lfx-v2-project-service", func() {
+	Title("LFX V2 - Project Service")
+	Description("Create, manage, update, and delete LFX project resources")
+})
+
 var _ = Service("project-service", func() {
 	Description("The project service provides LFX Project resources.")
 
@@ -341,5 +346,8 @@ var _ = Service("project-service", func() {
 	})
 
 	// Serve the file gen/http/openapi3.json for requests sent to /openapi.json.
-	Files("/openapi.json", "gen/http/openapi3.json")
+	Files("/_projects/openapi.json", "gen/http/openapi.json")
+	Files("/_projects/openapi.yaml", "gen/http/openapi.yaml")
+	Files("/_projects/openapi3.json", "gen/http/openapi3.json")
+	Files("/_projects/openapi3.yaml", "gen/http/openapi3.yaml")
 })
