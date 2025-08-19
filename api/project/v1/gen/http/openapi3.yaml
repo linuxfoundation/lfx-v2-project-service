@@ -6,6 +6,42 @@ servers:
     - url: http://localhost:80
       description: Default server for project-service
 paths:
+    /_projects/openapi.json:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi.json
+            operationId: project-service#/_projects/openapi.json
+            responses:
+                "200":
+                    description: File downloaded
+    /_projects/openapi.yaml:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi.yaml
+            operationId: project-service#/_projects/openapi.yaml
+            responses:
+                "200":
+                    description: File downloaded
+    /_projects/openapi3.json:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi3.json
+            operationId: project-service#/_projects/openapi3.json
+            responses:
+                "200":
+                    description: File downloaded
+    /_projects/openapi3.yaml:
+        get:
+            tags:
+                - project-service
+            summary: Download gen/http/openapi3.yaml
+            operationId: project-service#/_projects/openapi3.yaml
+            responses:
+                "200":
+                    description: File downloaded
     /livez:
         get:
             tags:
@@ -23,15 +59,6 @@ paths:
                                 example: OK
                                 format: binary
                             example: OK
-    /openapi.json:
-        get:
-            tags:
-                - project-service
-            summary: Download gen/http/openapi3.json
-            operationId: project-service#/openapi.json
-            responses:
-                "200":
-                    description: File downloaded
     /projects:
         get:
             tags:
