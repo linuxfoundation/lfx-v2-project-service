@@ -1,6 +1,7 @@
 swagger: "2.0"
 info:
-    title: ""
+    title: LFX V2 - Project Service
+    description: Create, manage, update, and delete LFX project resources
     version: 0.0.1
 host: localhost:80
 consumes:
@@ -712,7 +713,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Crowdfunding
+                    example: Alternate Funding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -834,7 +835,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Cumque illo.
+                    example: Consequuntur et doloremque.
                 description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
@@ -902,7 +903,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Membership
+                    example: Alternate Funding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -939,7 +940,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Qui deleniti ex architecto repellat non.
+                    example: Pariatur minus qui autem non.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -1003,7 +1004,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Voluptas fugit temporibus vitae qui quis consequatur.
+                    example: Aut consequatur earum ea.
                 description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
@@ -1057,7 +1058,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Voluptatibus dolores et.
+                    example: Odio deleniti delectus.
                 description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
@@ -1120,7 +1121,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Crowdfunding
+                    example: Alternate Funding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -1157,7 +1158,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Temporibus in cupiditate quod consequatur quo.
+                    example: Aut rerum non eum officia.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -1211,7 +1212,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Minus incidunt quia aut vero consequatur qui.
+                    example: Et assumenda fuga repellat nesciunt sint eaque.
                 description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
@@ -1441,6 +1442,40 @@ definitions:
                   writers:
                     - user123
                     - user456
+                - announcement_date: "2021-01-01"
+                  auditors:
+                    - user123
+                    - user456
+                  autojoin_enabled: false
+                  category: Active
+                  charter_url: https://example.com/charter.pdf
+                  created_at: "2021-01-01T00:00:00Z"
+                  description: project foo is a project about bar
+                  entity_dissolution_date: "2021-12-31"
+                  entity_formation_document_url: https://example.com/formation.pdf
+                  formation_date: "2021-01-01"
+                  funding_model:
+                    - Crowdfunding
+                  legal_entity_name: Example Foundation LLC
+                  legal_entity_type: Subproject
+                  legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  logo_url: https://example.com/logo.png
+                  meeting_coordinators:
+                    - user123
+                    - user456
+                  mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                  name: Foo Foundation
+                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  public: true
+                  repository_url: https://example.com/project
+                  slug: project-slug
+                  stage: Formation - Exploratory
+                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  updated_at: "2021-01-01T00:00:00Z"
+                  website_url: https://example.com
+                  writers:
+                    - user123
+                    - user456
         required:
             - projects
     ProjectServiceUpdateProjectBaseRequestBody:
@@ -1505,7 +1540,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Alternate Funding
+                    example: Crowdfunding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -1618,7 +1653,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Veritatis sed.
+                    example: Et non laudantium qui consequatur.
                 description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
@@ -1627,7 +1662,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Voluptatem magnam quos eos expedita voluptas et.
+                    example: Fugit quibusdam.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -1640,7 +1675,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Sed quae ex.
+                    example: Blanditiis distinctio et occaecati dolore.
                 description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123
@@ -1670,7 +1705,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Dolorum id.
+                    example: Perferendis quisquam illum voluptas corporis.
                 description: A list of project auditors by their LFIDs (usernames)
                 example:
                     - user123
@@ -1684,7 +1719,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Debitis molestiae.
+                    example: Exercitationem vel expedita dolorum.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -1707,7 +1742,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Ipsam et aperiam omnis tenetur et doloribus.
+                    example: Quasi magnam et quia et error.
                 description: A list of project writers by their LFIDs (usernames)
                 example:
                     - user123

@@ -14,6 +14,11 @@ var JWTAuth = JWTSecurity("jwt", func() {
 	Description("Heimdall authorization")
 })
 
+var _ = API("lfx-v2-project-service", func() {
+	Title("LFX V2 - Project Service")
+	Description("Create, manage, update, and delete LFX project resources")
+})
+
 var _ = Service("project-service", func() {
 	Description("The project service provides LFX Project resources.")
 
