@@ -65,23 +65,6 @@ paths:
                         type: file
             schemes:
                 - http
-    /livez:
-        get:
-            tags:
-                - project-service
-            summary: livez project-service
-            description: Check if the service is alive.
-            operationId: project-service#livez
-            produces:
-                - text/plain
-            responses:
-                "200":
-                    description: OK response.
-                    schema:
-                        type: string
-                        format: byte
-            schemes:
-                - http
     /projects:
         get:
             tags:
@@ -545,30 +528,6 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
-    /readyz:
-        get:
-            tags:
-                - project-service
-            summary: readyz project-service
-            description: Check if the service is able to take inbound requests.
-            operationId: project-service#readyz
-            produces:
-                - text/plain
-            responses:
-                "200":
-                    description: OK response.
-                    schema:
-                        type: string
-                        format: byte
-                "503":
-                    description: Service Unavailable response.
-                    schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - code
-                            - message
-            schemes:
-                - http
 definitions:
     BadRequestError:
         title: BadRequestError
