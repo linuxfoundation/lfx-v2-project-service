@@ -319,6 +319,7 @@ var _ = Service("project-service", func() {
 
 	Method("readyz", func() {
 		Description("Check if the service is able to take inbound requests.")
+		Meta("swagger:generate", "false")
 		Result(Bytes, func() {
 			Example("OK")
 		})
@@ -334,6 +335,7 @@ var _ = Service("project-service", func() {
 
 	Method("livez", func() {
 		Description("Check if the service is alive.")
+		Meta("swagger:generate", "false")
 		Result(Bytes, func() {
 			Example("OK")
 		})
