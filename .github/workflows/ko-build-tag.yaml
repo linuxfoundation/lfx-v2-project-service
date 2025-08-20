@@ -28,7 +28,7 @@ jobs:
       chart_version: ${{ steps.prepare.outputs.chart_version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
 
       - name: Prepare versions and chart name
         id: prepare
@@ -44,14 +44,14 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5  # v5
         with:
           go-version-file: go.mod
 
       - name: Setup Ko
-        uses: ko-build/setup-ko@v0.8
+        uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d  # v0.9
         with:
-          version: v0.17.1
+          version: v0.18.0
 
       - name: Build and publish project-api image
         run: |
@@ -85,7 +85,7 @@ jobs:
       image_name: ${{ steps.publish-ghcr.outputs.image_name }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
 
       - name: Publish Chart to GHCR
         id: publish-ghcr
