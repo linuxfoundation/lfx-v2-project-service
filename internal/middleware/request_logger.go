@@ -31,13 +31,19 @@ func RequestLoggerMiddleware() func(http.Handler) http.Handler {
 				ctx = log.AppendCtx(ctx, slog.String("req_header_etag", r.Header.Get(constants.EtagHeader)))
 			}
 
+			isHealthCheck := r.URL.Path == "/livez" || r.URL.Path == "/readyz"
+
 			// Create a new request with the updated context
 			r = r.WithContext(ctx)
 
 			// Create a response writer wrapper to capture status code
 			ww := &responseWriter{ResponseWriter: w}
 
-			slog.InfoContext(ctx, "HTTP request")
+			if isHealthCheck {
+				slog.DebugContext(ctx, "HTTP request")
+			} else {
+				slog.InfoContext(ctx, "HTTP request")
+			}
 
 			// Call the next handler
 			next.ServeHTTP(ww, r)
@@ -45,6 +51,10 @@ func RequestLoggerMiddleware() func(http.Handler) http.Handler {
 			// Calculate duration
 			duration := time.Since(start)
 
+			if isHealthCheck {
+				slog.DebugContext(ctx, "HTTP response", "status", ww.statusCode, "duration", duration.String())
+				return
+			}
 			// Log the response
 			slog.InfoContext(ctx, "HTTP response", "status", ww.statusCode, "duration", duration.String())
 		})
