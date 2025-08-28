@@ -348,8 +348,16 @@ var _ = Service("project-service", func() {
 	})
 
 	// Serve the file gen/http/openapi3.json for requests sent to /openapi.json.
-	Files("/_projects/openapi.json", "gen/http/openapi.json")
-	Files("/_projects/openapi.yaml", "gen/http/openapi.yaml")
-	Files("/_projects/openapi3.json", "gen/http/openapi3.json")
-	Files("/_projects/openapi3.yaml", "gen/http/openapi3.yaml")
+	Files("/_projects/openapi.json", "gen/http/openapi.json", func() {
+		Meta("swagger:generate", "false")
+	})
+	Files("/_projects/openapi.yaml", "gen/http/openapi.yaml", func() {
+		Meta("swagger:generate", "false")
+	})
+	Files("/_projects/openapi3.json", "gen/http/openapi3.json", func() {
+		Meta("swagger:generate", "false")
+	})
+	Files("/_projects/openapi3.yaml", "gen/http/openapi3.yaml", func() {
+		Meta("swagger:generate", "false")
+	})
 })
