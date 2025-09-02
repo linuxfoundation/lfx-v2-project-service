@@ -76,7 +76,7 @@ func TestProjectBaseTags(t *testing.T) {
 			expected: []string{
 				"project-123",
 				"project_uid:project-123",
-				"project_parent_uid:parent-456",
+				"parent_uid:parent-456",
 				"test-project",
 				"project_slug:test-project",
 				"Test Project",
@@ -92,7 +92,7 @@ func TestProjectBaseTags(t *testing.T) {
 			expected: []string{
 				"project-123",
 				"project_uid:project-123",
-				"project_parent_uid:parent-456",
+				"parent_uid:parent-456",
 			},
 		},
 		{
@@ -120,7 +120,7 @@ func TestProjectBaseTags(t *testing.T) {
 			expected: []string{
 				"project-123",
 				"project_uid:project-123",
-				"project_parent_uid:parent-456",
+				"parent_uid:parent-456",
 				"test-project",
 				"project_slug:test-project",
 				"Test Project",
