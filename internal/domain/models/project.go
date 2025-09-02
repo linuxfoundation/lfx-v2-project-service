@@ -4,6 +4,7 @@
 package models
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -43,4 +44,67 @@ type ProjectSettings struct {
 	MeetingCoordinators []string   `json:"meeting_coordinators"`
 	CreatedAt           *time.Time `json:"created_at"`
 	UpdatedAt           *time.Time `json:"updated_at"`
+}
+
+// Tags generates a consistent set of tags for the project base.
+func (p *ProjectBase) Tags() []string {
+
+	var tags []string
+
+	if p == nil {
+		return nil
+	}
+
+	if p.UID != "" {
+		// without prefix
+		tags = append(tags, p.UID)
+		// with prefix
+		tag := fmt.Sprintf("project_uid:%s", p.UID)
+		tags = append(tags, tag)
+	}
+
+	if p.Slug != "" {
+		// without prefix
+		tags = append(tags, p.Slug)
+		// with prefix
+		tag := fmt.Sprintf("project_slug:%s", p.Slug)
+		tags = append(tags, tag)
+	}
+
+	if p.Name != "" {
+		// without prefix
+		tags = append(tags, p.Name)
+	}
+
+	if p.Description != "" {
+		// without prefix
+		tags = append(tags, p.Description)
+	}
+
+	return tags
+}
+
+// Tags generates a consistent set of tags for the project settings.
+func (p *ProjectSettings) Tags() []string {
+
+	var tags []string
+
+	if p == nil {
+		return nil
+	}
+
+	if p.UID != "" {
+		// without prefix
+		tags = append(tags, p.UID)
+		// with prefix
+		tag := fmt.Sprintf("project_uid:%s", p.UID)
+		tags = append(tags, tag)
+	}
+
+	if p.MissionStatement != "" {
+		// without prefix
+		tags = append(tags, p.MissionStatement)
+	}
+
+	return tags
 }
