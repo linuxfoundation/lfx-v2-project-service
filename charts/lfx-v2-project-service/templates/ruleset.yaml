@@ -41,11 +41,12 @@ spec:
         - contextualizer: oidc_contextualizer
         {{- end }}
         {{- if .Values.openfga.enabled }}
-        # TODO: update this authorizer check once we have a way to get the parent_uid from the request body.
-        # Check that user has writer permission on the parent project
-        # The parent_uid field in the request body determines which parent project to check
-        # Note: Projects without a parent_uid are denied at the authorization level
-        - authorizer: allow_all
+        - authorizer: json_content_type
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project:{{ "{{- .Request.Body.parent_uid -}}" }}"
         {{- else -}}
         # When OpenFGA is disabled, allow all requests
         # (Only meant for *local development* because OpenFGA should be enabled when deployed)
