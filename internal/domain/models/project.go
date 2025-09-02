@@ -47,6 +47,8 @@ type ProjectSettings struct {
 }
 
 // Tags generates a consistent set of tags for the project base.
+// IMPORTANT: If you modify this method, please update the Project Tags documentation in the README.md
+// to ensure consumers understand how to use these tags for searching.
 func (p *ProjectBase) Tags() []string {
 
 	var tags []string
@@ -91,6 +93,8 @@ func (p *ProjectBase) Tags() []string {
 }
 
 // Tags generates a consistent set of tags for the project settings.
+// IMPORTANT: If you modify this method, please update the Project Tags documentation in the README.md
+// to ensure consumers understand how to use these tags for searching.
 func (p *ProjectSettings) Tags() []string {
 
 	var tags []string
