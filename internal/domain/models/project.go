@@ -63,6 +63,12 @@ func (p *ProjectBase) Tags() []string {
 		tags = append(tags, tag)
 	}
 
+	if p.ParentUID != "" {
+		// with prefix
+		tag := fmt.Sprintf("project_parent_uid:%s", p.ParentUID)
+		tags = append(tags, tag)
+	}
+
 	if p.Slug != "" {
 		// without prefix
 		tags = append(tags, p.Slug)
