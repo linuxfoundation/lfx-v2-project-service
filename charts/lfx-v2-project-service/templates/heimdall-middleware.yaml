@@ -1,6 +1,6 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
-{{ if .Values.app.heimdall.add_middleware }}
+{{ if .Values.heimdall.add_middleware }}
 ---
 # Heimdall middleware with body forwarding capability
 # This is the default middleware that should be used in most cases, particularly
