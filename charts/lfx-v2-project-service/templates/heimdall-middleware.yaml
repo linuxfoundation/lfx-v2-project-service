@@ -14,7 +14,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   forwardAuth:
-    address: "http://{{ .Values.heimdall.url }}"
+    address: "{{ .Values.heimdall.url }}"
     authResponseHeaders:
       - Authorization
     forwardBody: true
@@ -29,7 +29,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   forwardAuth:
-    address: "http://{{ .Values.heimdall.url }}"
+    address: "{{ .Values.heimdall.url }}"
     authResponseHeaders:
       - Authorization
 {{- end }}
