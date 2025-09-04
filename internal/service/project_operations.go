@@ -154,7 +154,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		msg := models.ProjectIndexerMessage{
 			Action: models.ActionCreated,
 			Data:   *projectDB,
-			Tags:   []string{projectDB.UID, projectDB.Name, projectDB.Slug, projectDB.Description},
+			Tags:   projectDB.Tags(),
 		}
 		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
@@ -163,7 +163,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		msg := models.ProjectSettingsIndexerMessage{
 			Action: models.ActionCreated,
 			Data:   *projectSettingsDB,
-			Tags:   []string{projectSettingsDB.UID, projectSettingsDB.MissionStatement},
+			Tags:   projectSettingsDB.Tags(),
 		}
 		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
@@ -422,7 +422,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		msg := models.ProjectIndexerMessage{
 			Action: models.ActionUpdated,
 			Data:   *projectDB,
-			Tags:   []string{projectDB.UID, projectDB.Name, projectDB.Slug, projectDB.Description},
+			Tags:   projectDB.Tags(),
 		}
 		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, msg)
 	})
@@ -557,7 +557,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		msg := models.ProjectSettingsIndexerMessage{
 			Action: models.ActionUpdated,
 			Data:   *projectSettingsDB,
-			Tags:   []string{projectSettingsDB.UID, projectSettingsDB.MissionStatement},
+			Tags:   projectSettingsDB.Tags(),
 		}
 		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
 	})
