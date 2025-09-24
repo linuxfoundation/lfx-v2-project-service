@@ -11,13 +11,15 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	nats "github.com/nats-io/nats.go"
+	natsio "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
@@ -51,7 +53,9 @@ func run() int {
 }
 
 type environment struct {
-	NatsURL string
+	NatsURL             string
+	RootProjectWriters  []string
+	RootProjectAuditors []string
 }
 
 func parseEnv() environment {
@@ -59,21 +63,46 @@ func parseEnv() environment {
 	if natsURL == "" {
 		natsURL = "nats://localhost:4222"
 	}
+
+	// Parse comma-separated writers and auditors
+	writersStr := os.Getenv("ROOT_PROJECT_WRITERS")
+	auditorsStr := os.Getenv("ROOT_PROJECT_AUDITORS")
+
+	var writers []string
+	if writersStr != "" {
+		for _, writer := range strings.Split(writersStr, ",") {
+			if trimmed := strings.TrimSpace(writer); trimmed != "" {
+				writers = append(writers, trimmed)
+			}
+		}
+	}
+
+	var auditors []string
+	if auditorsStr != "" {
+		for _, auditor := range strings.Split(auditorsStr, ",") {
+			if trimmed := strings.TrimSpace(auditor); trimmed != "" {
+				auditors = append(auditors, trimmed)
+			}
+		}
+	}
+
 	return environment{
-		NatsURL: natsURL,
+		NatsURL:             natsURL,
+		RootProjectWriters:  writers,
+		RootProjectAuditors: auditors,
 	}
 }
 
 func setupRootProject(ctx context.Context, env environment) error {
 	// Connect to NATS
 	slog.With("nats_url", env.NatsURL).Info("connecting to NATS")
-	natsConn, err := nats.Connect(
+	natsConn, err := natsio.Connect(
 		env.NatsURL,
-		nats.DrainTimeout(gracefulShutdownSec*time.Second),
-		nats.ConnectHandler(func(_ *nats.Conn) {
+		natsio.DrainTimeout(gracefulShutdownSec*time.Second),
+		natsio.ConnectHandler(func(_ *natsio.Conn) {
 			slog.With("nats_url", env.NatsURL).Info("NATS connection established")
 		}),
-		nats.ErrorHandler(func(_ *nats.Conn, s *nats.Subscription, err error) {
+		natsio.ErrorHandler(func(_ *natsio.Conn, s *natsio.Subscription, err error) {
 			if s != nil {
 				slog.With(errKey, err, "subject", s.Subject, "queue", s.Queue).Error("async NATS error")
 			} else {
@@ -101,7 +130,7 @@ func setupRootProject(ctx context.Context, env environment) error {
 	}
 
 	// Create the ROOT project
-	return createRootProject(ctx, kv)
+	return createRootProject(ctx, kv, env, natsConn)
 }
 
 type kvBuckets struct {
@@ -109,7 +138,7 @@ type kvBuckets struct {
 	ProjectSettings jetstream.KeyValue
 }
 
-func getKeyValueStore(ctx context.Context, natsConn *nats.Conn) (kvBuckets, error) {
+func getKeyValueStore(ctx context.Context, natsConn *natsio.Conn) (kvBuckets, error) {
 	kv := kvBuckets{}
 
 	js, err := jetstream.New(natsConn)
@@ -165,7 +194,7 @@ func getRootProject(ctx context.Context, projectsKV jetstream.KeyValue) (*models
 	return projectDB, nil
 }
 
-func createRootProject(ctx context.Context, kv kvBuckets) error {
+func createRootProject(ctx context.Context, kv kvBuckets, env environment, natsConn *natsio.Conn) error {
 	currentTimeFmt := time.Now().UTC()
 	rootProject := models.ProjectBase{
 		UID:         uuid.New().String(),
@@ -180,8 +209,8 @@ func createRootProject(ctx context.Context, kv kvBuckets) error {
 	rootProjectSettings := models.ProjectSettings{
 		UID:              rootProject.UID,
 		MissionStatement: rootProjectDesc,
-		Writers:          []string{},
-		Auditors:         []string{},
+		Writers:          env.RootProjectWriters,
+		Auditors:         env.RootProjectAuditors,
 		CreatedAt:        &currentTimeFmt,
 		UpdatedAt:        &currentTimeFmt,
 	}
@@ -219,6 +248,47 @@ func createRootProject(ctx context.Context, kv kvBuckets) error {
 		return err
 	}
 
-	slog.With("uid", rootProject.UID, "slug", rootProject.Slug).Info("ROOT project created successfully")
+	slog.With("uid", rootProject.UID, "slug", rootProject.Slug, "writers", env.RootProjectWriters, "auditors", env.RootProjectAuditors).Info("ROOT project created successfully")
+
+	// Send index message for the newly created root project
+	if err := sendIndexMessage(ctx, natsConn, rootProject, rootProjectSettings); err != nil {
+		slog.With("error", err).Error("failed to send index message for ROOT project")
+		return err
+	}
+
+	return nil
+}
+
+func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models.ProjectBase, settings models.ProjectSettings) error {
+	// Create message builder using existing infrastructure
+	msgBuilder := &nats.MessageBuilder{
+		NatsConn: natsConn,
+	}
+
+	// Create and send the project indexer message
+	projectMessage := models.ProjectIndexerMessage{
+		Action: models.ActionCreated,
+		Data:   project,
+		Tags:   []string{}, // Empty tags for root project
+	}
+
+	if err := msgBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, projectMessage); err != nil {
+		slog.ErrorContext(ctx, "error sending project index message", errKey, err)
+		return err
+	}
+
+	// Create and send the project settings indexer message
+	settingsMessage := models.ProjectSettingsIndexerMessage{
+		Action: models.ActionCreated,
+		Data:   settings,
+		Tags:   []string{}, // Empty tags for root project
+	}
+
+	if err := msgBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, settingsMessage); err != nil {
+		slog.ErrorContext(ctx, "error sending project settings index message", errKey, err)
+		return err
+	}
+
+	slog.DebugContext(ctx, "successfully sent index messages for ROOT project")
 	return nil
 }
