@@ -55,6 +55,15 @@ service:
   # port is the service port
   port: 8080
 
+# rootProject is the configuration for the root project creation
+rootProject:
+  # writers is a list of user/principal identifiers that should have writer access to the root project
+  writers:
+    - project_super_admin
+  # auditors is a list of user/principal identifiers that should have auditor access to the root project
+  auditors:
+    - project_admin_1
+
 # nats is the configuration for the NATS server
 nats:
   # url is the URL of the NATS server
