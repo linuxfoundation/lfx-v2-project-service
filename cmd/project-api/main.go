@@ -327,6 +327,8 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 		constants.ProjectGetNameSubject,
 		// Get project slug subscription
 		constants.ProjectGetSlugSubject,
+		// Get project logo subscription
+		constants.ProjectGetLogoSubject,
 		// Get project slug to UID subscription
 		constants.ProjectSlugToUIDSubject,
 	} {
