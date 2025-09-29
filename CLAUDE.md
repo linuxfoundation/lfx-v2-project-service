@@ -158,6 +158,7 @@ Complete API endpoint documentation and NATS message handlers are now documented
 "lfx.projects-api.queue"               // Queue for projects API operations
 "lfx.projects-api.get_name"            // Get project name by UID
 "lfx.projects-api.get_slug"            // Get project slug by UID
+"lfx.projects-api.get_logo"            // Get project logo URL by UID
 "lfx.projects-api.slug_to_uid"         // Convert slug to UID
 
 // Outbound events (published by this service)

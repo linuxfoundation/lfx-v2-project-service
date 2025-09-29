@@ -27,6 +27,7 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 	handlers := map[string]func(ctx context.Context, msg domain.Message) ([]byte, error){
 		constants.ProjectGetNameSubject:   s.HandleProjectGetName,
 		constants.ProjectGetSlugSubject:   s.HandleProjectGetSlug,
+		constants.ProjectGetLogoSubject:   s.HandleProjectGetLogo,
 		constants.ProjectSlugToUIDSubject: s.HandleProjectSlugToUID,
 	}
 
@@ -110,6 +111,11 @@ func (s *ProjectsService) HandleProjectGetName(ctx context.Context, msg domain.M
 // HandleProjectGetSlug is the message handler for the project-get-slug subject.
 func (s *ProjectsService) HandleProjectGetSlug(ctx context.Context, msg domain.Message) ([]byte, error) {
 	return s.handleProjectGetAttribute(ctx, msg, constants.ProjectGetSlugSubject, "slug")
+}
+
+// HandleProjectGetLogo is the message handler for the project-get-logo subject.
+func (s *ProjectsService) HandleProjectGetLogo(ctx context.Context, msg domain.Message) ([]byte, error) {
+	return s.handleProjectGetAttribute(ctx, msg, constants.ProjectGetLogoSubject, "logo_url")
 }
 
 // HandleProjectSlugToUID is the message handler for the project-slug-to-uid subject.

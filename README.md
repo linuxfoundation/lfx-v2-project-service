@@ -27,6 +27,7 @@ This service handles the following NATS subjects for inter-service communication
 
 - `lfx.projects-api.get_name`: Get a project name from a given project UID
 - `lfx.projects-api.get_slug`: Get a project slug from a given project UID
+- `lfx.projects-api.get_logo`: Get a project logo URL from a given project UID
 - `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
 ### Project Tags
@@ -62,7 +63,7 @@ Project settings generate a separate set of tags:
 Tags serve multiple important purposes in the LFX system:
 
 1. **Indexed Search**: Tags are indexed in OpenSearch, enabling fast lookups and text searches across projects
-   
+
 2. **Relationship Navigation**: Parent-child relationships can be traversed using the parent_uid tags
 
 3. **Multiple Access Patterns**: Both plain value and prefixed tags support different query patterns:
@@ -313,7 +314,6 @@ Copyright The Linux Foundation and each contributor to LFX.
 This project’s source code is licensed under the MIT License. A copy of the
 license is available in `LICENSE`.
 
-This project’s documentation is licensed under the Creative Commons Attribution
+This project's documentation is licensed under the Creative Commons Attribution
 4.0 International License \(CC-BY-4.0\). A copy of the license is available in
 `LICENSE-docs`.
-

@@ -65,6 +65,25 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			expectCalls: true,
 		},
 		{
+			name:        "handle project get logo message",
+			subject:     constants.ProjectGetLogoSubject,
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				now := time.Now()
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectBase{
+						UID:       "01234567-89ab-cdef-0123-456789abcdef",
+						Name:      "Test Project",
+						LogoURL:   "https://example.com/logo.png",
+						CreatedAt: &now,
+						UpdatedAt: &now,
+					},
+					nil,
+				)
+			},
+			expectCalls: true,
+		},
+		{
 			name:        "handle project slug to UID message",
 			subject:     constants.ProjectSlugToUIDSubject,
 			messageData: []byte("test-project"),
@@ -271,6 +290,91 @@ func TestProjectsService_HandleProjectGetSlug(t *testing.T) {
 			mockMsg := newMockMessage(constants.ProjectGetSlugSubject, tt.messageData)
 
 			response, err := service.HandleProjectGetSlug(ctx, mockMsg)
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Nil(t, response)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, response)
+				if tt.validate != nil {
+					tt.validate(t, response)
+				}
+			}
+
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestProjectsService_HandleProjectGetLogo(t *testing.T) {
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		messageData []byte
+		setupMocks  func(*domain.MockProjectRepository)
+		expectedErr bool
+		validate    func(*testing.T, []byte)
+	}{
+		{
+			name:        "successful get project logo",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				now := time.Now()
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectBase{
+						UID:       "01234567-89ab-cdef-0123-456789abcdef",
+						Name:      "Test Project Name",
+						LogoURL:   "https://example.com/logo.png",
+						CreatedAt: &now,
+						UpdatedAt: &now,
+					},
+					nil,
+				)
+			},
+			expectedErr: false,
+			validate: func(t *testing.T, response []byte) {
+				assert.Equal(t, "https://example.com/logo.png", string(response))
+			},
+		},
+		{
+			name:        "project not found",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
+					nil, domain.ErrProjectNotFound,
+				)
+			},
+			expectedErr: true,
+		},
+		{
+			name:        "invalid UUID format",
+			messageData: []byte("invalid-uuid-format"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				// No repo calls expected for invalid UUID
+			},
+			expectedErr: true,
+		},
+		{
+			name:        "empty project UID",
+			messageData: []byte(""),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				// No repo calls expected for empty UID
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, mockRepo, _, _ := setupServiceForTesting()
+			tt.setupMocks(mockRepo)
+
+			mockMsg := newMockMessage(constants.ProjectGetLogoSubject, tt.messageData)
+
+			response, err := service.HandleProjectGetLogo(ctx, mockMsg)
 
 			if tt.expectedErr {
 				assert.Error(t, err)
