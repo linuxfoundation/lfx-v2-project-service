@@ -1,3 +1,6 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
 package main
 
 import (
@@ -81,7 +84,8 @@ type ImageDimensions struct {
 // the image dimensions by parsing the original .svg file
 func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err error) {
 	downloadImageTime := time.Now()
-	resp, err := http.Get(url)
+	client := http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		slog.Error("http bad status", "url", url, "error", err)
 		return nil, err
@@ -90,6 +94,7 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 
 	// Check server response status code before trying to read the response body
 	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("unexpected status %d while downloading %s", resp.StatusCode, url)
 		slog.Error("http bad status", "url", url, "status_code", resp.StatusCode)
 		return nil, err
 	}
@@ -101,7 +106,7 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 	// Recover from a panic that can be caused by svg.ParseSvgFromReader, which we don't have control over
 	defer func() {
 		if r := recover(); r != nil {
-			// Writer the body to file
+			// Write the body to file
 			_, err = io.Copy(out, &buf)
 			if err != nil {
 				slog.Error("error copying response body", "url", url, "error", err)
@@ -171,7 +176,10 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 func convertFile(inputFilePath string, outputFilePath string, imageWidth int, imageHeight int) error {
 	// Run command to export SVG as PNG with inkscape
 	conversionTime := time.Now()
-	cmd := exec.Command(
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(
+		ctx,
 		"inkscape",
 		"--export-type=png",
 		fmt.Sprintf("--export-width=%d", imageWidth),
@@ -510,7 +518,7 @@ func main() {
 
 	// Create directory for storing downloaded and converted image files locally
 	err := os.Mkdir("files", 0755)
-	if err != nil && err.Error() != "mkdir files: file exists" {
+	if err != nil && !os.IsExist(err) {
 		slog.Error("error creating files directory", "error", err)
 		return
 	}
