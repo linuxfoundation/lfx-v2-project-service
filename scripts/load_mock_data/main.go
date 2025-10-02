@@ -23,13 +23,13 @@ import (
 
 // ProjectData represents the structure for creating a project
 type ProjectData struct {
-	Slug        string                        `json:"slug"`
-	Name        string                        `json:"name"`
-	Description string                        `json:"description"`
-	Public      bool                          `json:"public"`
-	ParentUID   string                        `json:"parent_uid"`
-	Auditors    []*projectservice.UserInfo    `json:"auditors"`
-	Writers     []*projectservice.UserInfo    `json:"writers"`
+	Slug        string                     `json:"slug"`
+	Name        string                     `json:"name"`
+	Description string                     `json:"description"`
+	Public      bool                       `json:"public"`
+	ParentUID   string                     `json:"parent_uid"`
+	Auditors    []*projectservice.UserInfo `json:"auditors"`
+	Writers     []*projectservice.UserInfo `json:"writers"`
 }
 
 // ProjectResponse represents the response from the API

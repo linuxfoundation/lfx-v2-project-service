@@ -99,17 +99,27 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 		{
 			name: "valid project settings conversion",
 			input: &projsvc.ProjectSettings{
-				UID:                 misc.StringPtr("test-uid"),
-				MissionStatement:    misc.StringPtr("Test Mission"),
-				Writers:             []string{"writer1", "writer2"},
-				Auditors:            []string{"auditor1"},
+				UID:              misc.StringPtr("test-uid"),
+				MissionStatement: misc.StringPtr("Test Mission"),
+				Writers: []*projsvc.UserInfo{
+					createTestAPIUserInfo("writer1", "Writer One", "writer1@example.com", ""),
+					createTestAPIUserInfo("writer2", "Writer Two", "writer2@example.com", ""),
+				},
+				Auditors: []*projsvc.UserInfo{
+					createTestAPIUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
+				},
 				MeetingCoordinators: []string{"coordinator1"},
 			},
 			expected: &models.ProjectSettings{
-				UID:                 "test-uid",
-				MissionStatement:    "Test Mission",
-				Writers:             []string{"writer1", "writer2"},
-				Auditors:            []string{"auditor1"},
+				UID:              "test-uid",
+				MissionStatement: "Test Mission",
+				Writers: []models.UserInfo{
+					createTestUserInfo("writer1", "Writer One", "writer1@example.com", ""),
+					createTestUserInfo("writer2", "Writer Two", "writer2@example.com", ""),
+				},
+				Auditors: []models.UserInfo{
+					createTestUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
+				},
 				MeetingCoordinators: []string{"coordinator1"},
 			},
 			wantErr: false,
@@ -188,8 +198,12 @@ func TestConvertToProjectFull(t *testing.T) {
 				UID:              "test-uid",
 				MissionStatement: "Test Mission",
 				AnnouncementDate: &announcementDate,
-				Writers:          []string{"writer1"},
-				Auditors:         []string{"auditor1"},
+				Writers: []models.UserInfo{
+					createTestUserInfo("writer1", "Writer One", "writer1@example.com", ""),
+				},
+				Auditors: []models.UserInfo{
+					createTestUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
+				},
 			},
 			expected: &projsvc.ProjectFull{
 				UID:              misc.StringPtr("test-uid"),
@@ -199,8 +213,12 @@ func TestConvertToProjectFull(t *testing.T) {
 				Public:           misc.BoolPtr(true),
 				ParentUID:        misc.StringPtr("parent-uid"),
 				MissionStatement: misc.StringPtr("Test Mission"),
-				Writers:          []string{"writer1"},
-				Auditors:         []string{"auditor1"},
+				Writers: []*projsvc.UserInfo{
+					createTestAPIUserInfo("writer1", "Writer One", "writer1@example.com", ""),
+				},
+				Auditors: []*projsvc.UserInfo{
+					createTestAPIUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
+				},
 			},
 		},
 		{
@@ -328,20 +346,30 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 		{
 			name: "complete project settings",
 			input: &models.ProjectSettings{
-				UID:                 "test-uid",
-				MissionStatement:    "Test Mission",
-				AnnouncementDate:    &announcementDate,
-				Writers:             []string{"writer1", "writer2"},
-				Auditors:            []string{"auditor1"},
+				UID:              "test-uid",
+				MissionStatement: "Test Mission",
+				AnnouncementDate: &announcementDate,
+				Writers: []models.UserInfo{
+					createTestUserInfo("writer1", "Writer One", "writer1@example.com", ""),
+					createTestUserInfo("writer2", "Writer Two", "writer2@example.com", ""),
+				},
+				Auditors: []models.UserInfo{
+					createTestUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
+				},
 				MeetingCoordinators: []string{"coordinator1"},
 				CreatedAt:           &now,
 				UpdatedAt:           &now,
 			},
 			expected: &projsvc.ProjectSettings{
-				UID:                 misc.StringPtr("test-uid"),
-				MissionStatement:    misc.StringPtr("Test Mission"),
-				Writers:             []string{"writer1", "writer2"},
-				Auditors:            []string{"auditor1"},
+				UID:              misc.StringPtr("test-uid"),
+				MissionStatement: misc.StringPtr("Test Mission"),
+				Writers: []*projsvc.UserInfo{
+					createTestAPIUserInfo("writer1", "Writer One", "writer1@example.com", ""),
+					createTestAPIUserInfo("writer2", "Writer Two", "writer2@example.com", ""),
+				},
+				Auditors: []*projsvc.UserInfo{
+					createTestAPIUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
+				},
 				MeetingCoordinators: []string{"coordinator1"},
 			},
 		},
