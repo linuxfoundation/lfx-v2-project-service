@@ -59,13 +59,13 @@ type CreateProjectRequestBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoRequestBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // UpdateProjectBaseRequestBody is the type of the "project-service" service
@@ -118,13 +118,13 @@ type UpdateProjectSettingsRequestBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoRequestBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
@@ -185,13 +185,13 @@ type CreateProjectResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // GetOneProjectBaseResponseBody is the type of the "project-service" service
@@ -260,13 +260,13 @@ type UpdateProjectSettingsResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -593,13 +593,25 @@ type ProjectFullResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+}
+
+// UserInfoResponseBody is used to define fields on response body types.
+type UserInfoResponseBody struct {
+	// The full name of the user
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The email address of the user
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// The username/LFID of the user
+	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
+	// The avatar URL of the user
+	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 }
 
 // ProjectBaseResponseBody is used to define fields on response body types.
@@ -658,17 +670,29 @@ type ProjectSettingsResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// UserInfoRequestBody is used to define fields on request body types.
+type UserInfoRequestBody struct {
+	// The full name of the user
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The email address of the user
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// The username/LFID of the user
+	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
+	// The avatar URL of the user
+	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 }
 
 // NewGetProjectsResponseBody builds the HTTP response body from the result of
@@ -721,9 +745,9 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 		}
 	}
 	if res.Writers != nil {
-		body.Writers = make([]string, len(res.Writers))
+		body.Writers = make([]*UserInfoResponseBody, len(res.Writers))
 		for i, val := range res.Writers {
-			body.Writers[i] = val
+			body.Writers[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	if res.MeetingCoordinators != nil {
@@ -733,9 +757,9 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 		}
 	}
 	if res.Auditors != nil {
-		body.Auditors = make([]string, len(res.Auditors))
+		body.Auditors = make([]*UserInfoResponseBody, len(res.Auditors))
 		for i, val := range res.Auditors {
-			body.Auditors[i] = val
+			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	return body
@@ -789,9 +813,9 @@ func NewGetOneProjectSettingsResponseBody(res *projectservice.GetOneProjectSetti
 		UpdatedAt:        res.ProjectSettings.UpdatedAt,
 	}
 	if res.ProjectSettings.Writers != nil {
-		body.Writers = make([]string, len(res.ProjectSettings.Writers))
+		body.Writers = make([]*UserInfoResponseBody, len(res.ProjectSettings.Writers))
 		for i, val := range res.ProjectSettings.Writers {
-			body.Writers[i] = val
+			body.Writers[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	if res.ProjectSettings.MeetingCoordinators != nil {
@@ -801,9 +825,9 @@ func NewGetOneProjectSettingsResponseBody(res *projectservice.GetOneProjectSetti
 		}
 	}
 	if res.ProjectSettings.Auditors != nil {
-		body.Auditors = make([]string, len(res.ProjectSettings.Auditors))
+		body.Auditors = make([]*UserInfoResponseBody, len(res.ProjectSettings.Auditors))
 		for i, val := range res.ProjectSettings.Auditors {
-			body.Auditors[i] = val
+			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	return body
@@ -857,9 +881,9 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 		UpdatedAt:        res.UpdatedAt,
 	}
 	if res.Writers != nil {
-		body.Writers = make([]string, len(res.Writers))
+		body.Writers = make([]*UserInfoResponseBody, len(res.Writers))
 		for i, val := range res.Writers {
-			body.Writers[i] = val
+			body.Writers[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	if res.MeetingCoordinators != nil {
@@ -869,9 +893,9 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 		}
 	}
 	if res.Auditors != nil {
-		body.Auditors = make([]string, len(res.Auditors))
+		body.Auditors = make([]*UserInfoResponseBody, len(res.Auditors))
 		for i, val := range res.Auditors {
-			body.Auditors[i] = val
+			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	return body
@@ -1210,9 +1234,9 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 		}
 	}
 	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
+		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
-			v.Writers[i] = val
+			v.Writers[i] = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.MeetingCoordinators != nil {
@@ -1222,9 +1246,9 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 		}
 	}
 	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
+		v.Auditors = make([]*projectservice.UserInfo, len(body.Auditors))
 		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+			v.Auditors[i] = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	v.Version = version
@@ -1300,9 +1324,9 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 		AnnouncementDate: body.AnnouncementDate,
 	}
 	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
+		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
-			v.Writers[i] = val
+			v.Writers[i] = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.MeetingCoordinators != nil {
@@ -1312,9 +1336,9 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 		}
 	}
 	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
+		v.Auditors = make([]*projectservice.UserInfo, len(body.Auditors))
 		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+			v.Auditors[i] = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	v.UID = &uid
@@ -1405,6 +1429,20 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoRequestBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateUserInfoRequestBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
 	return
 }
 
@@ -1481,6 +1519,32 @@ func ValidateUpdateProjectBaseRequestBody(body *UpdateProjectBaseRequestBody) (e
 func ValidateUpdateProjectSettingsRequestBody(body *UpdateProjectSettingsRequestBody) (err error) {
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoRequestBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateUserInfoRequestBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	return
+}
+
+// ValidateUserInfoRequestBody runs the validations defined on
+// UserInfoRequestBody
+func ValidateUserInfoRequestBody(body *UserInfoRequestBody) (err error) {
+	if body.Email != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+	}
+	if body.Avatar != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.avatar", *body.Avatar, goa.FormatURI))
 	}
 	return
 }

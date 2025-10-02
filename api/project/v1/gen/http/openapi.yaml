@@ -620,7 +620,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Alternate Funding
+                    example: Crowdfunding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -741,12 +741,17 @@ definitions:
             auditors:
                 type: array
                 items:
-                    type: string
-                    example: Consequuntur et doloremque.
-                description: A list of project auditors by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project auditors with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
             autojoin_enabled:
                 type: boolean
                 description: Whether autojoin is enabled for the project
@@ -847,7 +852,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Pariatur minus qui autem non.
+                    example: Aut consequatur earum ea.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -910,18 +915,29 @@ definitions:
             writers:
                 type: array
                 items:
-                    type: string
-                    example: Aut consequatur earum ea.
-                description: A list of project writers by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project writers with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
         description: A full representation of LF Projects with sub-objects populated.
         example:
             announcement_date: "2021-01-01"
             auditors:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar1.jpg
+                  email: john.doe@example.com
+                  name: John Doe
+                  username: johndoe123
+                - avatar: https://example.com/avatar2.jpg
+                  email: jane.smith@example.com
+                  name: Jane Smith
+                  username: janesmith456
             autojoin_enabled: false
             category: Active
             charter_url: https://example.com/charter.pdf
@@ -950,8 +966,14 @@ definitions:
             updated_at: "2021-01-01T00:00:00Z"
             website_url: https://example.com
             writers:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar3.jpg
+                  email: alice.johnson@example.com
+                  name: Alice Johnson
+                  username: alicejohnson789
+                - avatar: https://example.com/avatar4.jpg
+                  email: bob.wilson@example.com
+                  name: Bob Wilson
+                  username: bobwilson101
     ProjectServiceCreateProjectRequestBody:
         title: ProjectServiceCreateProjectRequestBody
         type: object
@@ -964,12 +986,17 @@ definitions:
             auditors:
                 type: array
                 items:
-                    type: string
-                    example: Odio deleniti delectus.
-                description: A list of project auditors by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project auditors with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
             autojoin_enabled:
                 type: boolean
                 description: Whether autojoin is enabled for the project
@@ -1028,7 +1055,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Alternate Funding
+                    example: Membership
                     enum:
                         - Crowdfunding
                         - Membership
@@ -1065,7 +1092,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Aut rerum non eum officia.
+                    example: Autem non.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -1118,17 +1145,28 @@ definitions:
             writers:
                 type: array
                 items:
-                    type: string
-                    example: Et assumenda fuga repellat nesciunt sint eaque.
-                description: A list of project writers by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project writers with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
         example:
             announcement_date: "2021-01-01"
             auditors:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar1.jpg
+                  email: john.doe@example.com
+                  name: John Doe
+                  username: johndoe123
+                - avatar: https://example.com/avatar2.jpg
+                  email: jane.smith@example.com
+                  name: Jane Smith
+                  username: janesmith456
             autojoin_enabled: false
             category: Active
             charter_url: https://example.com/charter.pdf
@@ -1154,8 +1192,14 @@ definitions:
             stage: Formation - Exploratory
             website_url: https://example.com
             writers:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar3.jpg
+                  email: alice.johnson@example.com
+                  name: Alice Johnson
+                  username: alicejohnson789
+                - avatar: https://example.com/avatar4.jpg
+                  email: bob.wilson@example.com
+                  name: Bob Wilson
+                  username: bobwilson101
         required:
             - slug
             - description
@@ -1179,8 +1223,14 @@ definitions:
                 example:
                     - announcement_date: "2021-01-01"
                       auditors:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       autojoin_enabled: false
                       category: Active
                       charter_url: https://example.com/charter.pdf
@@ -1209,12 +1259,24 @@ definitions:
                       updated_at: "2021-01-01T00:00:00Z"
                       website_url: https://example.com
                       writers:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
                     - announcement_date: "2021-01-01"
                       auditors:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       autojoin_enabled: false
                       category: Active
                       charter_url: https://example.com/charter.pdf
@@ -1243,48 +1305,26 @@ definitions:
                       updated_at: "2021-01-01T00:00:00Z"
                       website_url: https://example.com
                       writers:
-                        - user123
-                        - user456
-                    - announcement_date: "2021-01-01"
-                      auditors:
-                        - user123
-                        - user456
-                      autojoin_enabled: false
-                      category: Active
-                      charter_url: https://example.com/charter.pdf
-                      created_at: "2021-01-01T00:00:00Z"
-                      description: project foo is a project about bar
-                      entity_dissolution_date: "2021-12-31"
-                      entity_formation_document_url: https://example.com/formation.pdf
-                      formation_date: "2021-01-01"
-                      funding_model:
-                        - Crowdfunding
-                      legal_entity_name: Example Foundation LLC
-                      legal_entity_type: Subproject
-                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
-                      meeting_coordinators:
-                        - user123
-                        - user456
-                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      repository_url: https://example.com/project
-                      slug: project-slug
-                      stage: Formation - Exploratory
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      updated_at: "2021-01-01T00:00:00Z"
-                      website_url: https://example.com
-                      writers:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
         example:
             projects:
                 - announcement_date: "2021-01-01"
                   auditors:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                   autojoin_enabled: false
                   category: Active
                   charter_url: https://example.com/charter.pdf
@@ -1313,12 +1353,24 @@ definitions:
                   updated_at: "2021-01-01T00:00:00Z"
                   website_url: https://example.com
                   writers:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
                 - announcement_date: "2021-01-01"
                   auditors:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                   autojoin_enabled: false
                   category: Active
                   charter_url: https://example.com/charter.pdf
@@ -1347,12 +1399,24 @@ definitions:
                   updated_at: "2021-01-01T00:00:00Z"
                   website_url: https://example.com
                   writers:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
                 - announcement_date: "2021-01-01"
                   auditors:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                   autojoin_enabled: false
                   category: Active
                   charter_url: https://example.com/charter.pdf
@@ -1381,8 +1445,14 @@ definitions:
                   updated_at: "2021-01-01T00:00:00Z"
                   website_url: https://example.com
                   writers:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
         required:
             - projects
     ProjectServiceUpdateProjectBaseRequestBody:
@@ -1447,7 +1517,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Crowdfunding
+                    example: Alternate Funding
                     enum:
                         - Crowdfunding
                         - Membership
@@ -1559,17 +1629,22 @@ definitions:
             auditors:
                 type: array
                 items:
-                    type: string
-                    example: Et non laudantium qui consequatur.
-                description: A list of project auditors by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project auditors with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
             meeting_coordinators:
                 type: array
                 items:
                     type: string
-                    example: Fugit quibusdam.
+                    example: Fuga repellat nesciunt sint eaque reiciendis aut.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -1581,24 +1656,41 @@ definitions:
             writers:
                 type: array
                 items:
-                    type: string
-                    example: Blanditiis distinctio et occaecati dolore.
-                description: A list of project writers by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project writers with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
         example:
             announcement_date: "2021-01-01"
             auditors:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar1.jpg
+                  email: john.doe@example.com
+                  name: John Doe
+                  username: johndoe123
+                - avatar: https://example.com/avatar2.jpg
+                  email: jane.smith@example.com
+                  name: Jane Smith
+                  username: janesmith456
             meeting_coordinators:
                 - user123
                 - user456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
             writers:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar3.jpg
+                  email: alice.johnson@example.com
+                  name: Alice Johnson
+                  username: alicejohnson789
+                - avatar: https://example.com/avatar4.jpg
+                  email: bob.wilson@example.com
+                  name: Bob Wilson
+                  username: bobwilson101
     ProjectSettings:
         title: ProjectSettings
         type: object
@@ -1611,12 +1703,17 @@ definitions:
             auditors:
                 type: array
                 items:
-                    type: string
-                    example: Perferendis quisquam illum voluptas corporis.
-                description: A list of project auditors by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project auditors with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
             created_at:
                 type: string
                 description: The date and time the project was created
@@ -1626,7 +1723,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Exercitationem vel expedita dolorum.
+                    example: Et doloremque inventore sint corrupti quisquam.
                 description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                 example:
                     - user123
@@ -1648,18 +1745,29 @@ definitions:
             writers:
                 type: array
                 items:
-                    type: string
-                    example: Quasi magnam et quia et error.
-                description: A list of project writers by their LFIDs (usernames)
+                    $ref: '#/definitions/UserInfo'
+                description: A list of project writers with their profile information
                 example:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
         description: A representation of LF Project settings.
         example:
             announcement_date: "2021-01-01"
             auditors:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar1.jpg
+                  email: john.doe@example.com
+                  name: John Doe
+                  username: johndoe123
+                - avatar: https://example.com/avatar2.jpg
+                  email: jane.smith@example.com
+                  name: Jane Smith
+                  username: janesmith456
             created_at: "2021-01-01T00:00:00Z"
             meeting_coordinators:
                 - user123
@@ -1668,8 +1776,14 @@ definitions:
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2021-01-01T00:00:00Z"
             writers:
-                - user123
-                - user456
+                - avatar: https://example.com/avatar3.jpg
+                  email: alice.johnson@example.com
+                  name: Alice Johnson
+                  username: alicejohnson789
+                - avatar: https://example.com/avatar4.jpg
+                  email: bob.wilson@example.com
+                  name: Bob Wilson
+                  username: bobwilson101
     ServiceUnavailableError:
         title: ServiceUnavailableError
         type: object
@@ -1689,6 +1803,34 @@ definitions:
         required:
             - code
             - message
+    UserInfo:
+        title: UserInfo
+        type: object
+        properties:
+            avatar:
+                type: string
+                description: The avatar URL of the user
+                example: https://example.com/avatar.jpg
+                format: uri
+            email:
+                type: string
+                description: The email address of the user
+                example: john.doe@example.com
+                format: email
+            name:
+                type: string
+                description: The full name of the user
+                example: John Doe
+            username:
+                type: string
+                description: The username/LFID of the user
+                example: johndoe123
+        description: User information including profile details.
+        example:
+            avatar: https://example.com/avatar.jpg
+            email: john.doe@example.com
+            name: John Doe
+            username: johndoe123
 securityDefinitions:
     jwt_header_Authorization:
         type: apiKey

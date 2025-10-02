@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+// UserInfo represents user information including profile details.
+type UserInfo struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Avatar   string `json:"avatar"`
+}
+
 // ProjectBase is the key-value store representation of a project base.
 type ProjectBase struct {
 	UID                        string     `json:"uid"`
@@ -39,8 +47,8 @@ type ProjectSettings struct {
 	UID                 string     `json:"uid"`
 	MissionStatement    string     `json:"mission_statement"`
 	AnnouncementDate    *time.Time `json:"announcement_date"`
-	Auditors            []string   `json:"auditors"`
-	Writers             []string   `json:"writers"`
+	Auditors            []UserInfo `json:"auditors"`
+	Writers             []UserInfo `json:"writers"`
 	MeetingCoordinators []string   `json:"meeting_coordinators"`
 	CreatedAt           *time.Time `json:"created_at"`
 	UpdatedAt           *time.Time `json:"updated_at"`

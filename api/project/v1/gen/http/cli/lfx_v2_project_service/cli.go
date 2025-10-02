@@ -267,8 +267,18 @@ Example:
     %[1]s project-service create-project --body '{
       "announcement_date": "2021-01-01",
       "auditors": [
-         "user123",
-         "user456"
+         {
+            "avatar": "https://example.com/avatar1.jpg",
+            "email": "john.doe@example.com",
+            "name": "John Doe",
+            "username": "johndoe123"
+         },
+         {
+            "avatar": "https://example.com/avatar2.jpg",
+            "email": "jane.smith@example.com",
+            "name": "Jane Smith",
+            "username": "janesmith456"
+         }
       ],
       "autojoin_enabled": false,
       "category": "Active",
@@ -297,8 +307,18 @@ Example:
       "stage": "Formation - Exploratory",
       "website_url": "https://example.com",
       "writers": [
-         "user123",
-         "user456"
+         {
+            "avatar": "https://example.com/avatar3.jpg",
+            "email": "alice.johnson@example.com",
+            "name": "Alice Johnson",
+            "username": "alicejohnson789"
+         },
+         {
+            "avatar": "https://example.com/avatar4.jpg",
+            "email": "bob.wilson@example.com",
+            "name": "Bob Wilson",
+            "username": "bobwilson101"
+         }
       ]
    }' --version "1" --bearer-token "eyJhbGci..."
 `, os.Args[0])
@@ -381,8 +401,18 @@ Example:
     %[1]s project-service update-project-settings --body '{
       "announcement_date": "2021-01-01",
       "auditors": [
-         "user123",
-         "user456"
+         {
+            "avatar": "https://example.com/avatar1.jpg",
+            "email": "john.doe@example.com",
+            "name": "John Doe",
+            "username": "johndoe123"
+         },
+         {
+            "avatar": "https://example.com/avatar2.jpg",
+            "email": "jane.smith@example.com",
+            "name": "Jane Smith",
+            "username": "janesmith456"
+         }
       ],
       "meeting_coordinators": [
          "user123",
@@ -390,8 +420,18 @@ Example:
       ],
       "mission_statement": "The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.",
       "writers": [
-         "user123",
-         "user456"
+         {
+            "avatar": "https://example.com/avatar3.jpg",
+            "email": "alice.johnson@example.com",
+            "name": "Alice Johnson",
+            "username": "alicejohnson789"
+         },
+         {
+            "avatar": "https://example.com/avatar4.jpg",
+            "email": "bob.wilson@example.com",
+            "name": "Bob Wilson",
+            "username": "bobwilson101"
+         }
       ]
    }' --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --if-match "123"
 `, os.Args[0])

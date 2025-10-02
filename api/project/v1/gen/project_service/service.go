@@ -122,13 +122,13 @@ type CreateProjectPayload struct {
 	AnnouncementDate *string
 	// The mission statement of the project
 	MissionStatement *string
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string
+	// A list of project writers with their profile information
+	Writers []*UserInfo
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string
+	// A list of project auditors with their profile information
+	Auditors []*UserInfo
 }
 
 // DeleteProjectPayload is the payload type of the project-service service
@@ -314,13 +314,13 @@ type ProjectFull struct {
 	MissionStatement *string
 	// The date the project was announced
 	AnnouncementDate *string
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string
+	// A list of project writers with their profile information
+	Writers []*UserInfo
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string
+	// A list of project auditors with their profile information
+	Auditors []*UserInfo
 }
 
 // ProjectSettings is the result type of the project-service service
@@ -332,13 +332,13 @@ type ProjectSettings struct {
 	MissionStatement *string
 	// The date the project was announced
 	AnnouncementDate *string
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string
+	// A list of project writers with their profile information
+	Writers []*UserInfo
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string
+	// A list of project auditors with their profile information
+	Auditors []*UserInfo
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
@@ -418,13 +418,25 @@ type UpdateProjectSettingsPayload struct {
 	MissionStatement *string
 	// The date the project was announced
 	AnnouncementDate *string
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string
+	// A list of project writers with their profile information
+	Writers []*UserInfo
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string
+	// A list of project auditors with their profile information
+	Auditors []*UserInfo
+}
+
+// User information including profile details.
+type UserInfo struct {
+	// The full name of the user
+	Name *string
+	// The email address of the user
+	Email *string
+	// The username/LFID of the user
+	Username *string
+	// The avatar URL of the user
+	Avatar *string
 }
 
 // Error returns an error description.
