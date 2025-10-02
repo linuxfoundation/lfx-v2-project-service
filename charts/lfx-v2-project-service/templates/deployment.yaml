@@ -66,6 +66,6 @@ spec:
             - name: NATS_URL
               value: {{ .Values.nats.url }}
             - name: ROOT_PROJECT_WRITERS
-              value: {{ .Values.rootProject.writers | join "," }}
+              value: "{{ .Values.rootProject.writers | join "," }}"
             - name: ROOT_PROJECT_AUDITORS
-              value: {{ .Values.rootProject.auditors | join "," }}
+              value: "{{ .Values.rootProject.auditors | join "," }}"

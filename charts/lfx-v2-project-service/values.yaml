@@ -57,12 +57,18 @@ service:
 
 # rootProject is the configuration for the root project creation
 rootProject:
-  # writers is a list of user/principal identifiers that should have writer access to the root project
+  # writers is a list of users that should have writer access to the root project
+  # Format options:
+  # 1. Simple format (backward compatible): ["username1", "username2"]
+  # 2. Structured format: ["username:name:email:avatar", "username2:name2:email2:avatar2"]
   writers:
-    - project_super_admin
-  # auditors is a list of user/principal identifiers that should have auditor access to the root project
+    - "project_super_admin:Super Admin:super.admin@example.com:"
+  # auditors is a list of users that should have auditor access to the root project  
+  # Format options:
+  # 1. Simple format (backward compatible): ["username1", "username2"]
+  # 2. Structured format: ["username:name:email:avatar", "username2:name2:email2:avatar2"]
   auditors:
-    - project_admin_1
+    - "project_admin_1:Project Admin:project.admin@example.com:"
 
 # nats is the configuration for the NATS server
 nats:
