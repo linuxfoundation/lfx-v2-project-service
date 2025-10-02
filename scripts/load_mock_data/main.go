@@ -23,13 +23,13 @@ import (
 
 // ProjectData represents the structure for creating a project
 type ProjectData struct {
-	Slug        string   `json:"slug"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Public      bool     `json:"public"`
-	ParentUID   string   `json:"parent_uid"`
-	Auditors    []string `json:"auditors"`
-	Writers     []string `json:"writers"`
+	Slug        string                        `json:"slug"`
+	Name        string                        `json:"name"`
+	Description string                        `json:"description"`
+	Public      bool                          `json:"public"`
+	ParentUID   string                        `json:"parent_uid"`
+	Auditors    []*projectservice.UserInfo    `json:"auditors"`
+	Writers     []*projectservice.UserInfo    `json:"writers"`
 }
 
 // ProjectResponse represents the response from the API
@@ -42,6 +42,11 @@ type ProjectResponse struct {
 	ParentUID   *string  `json:"parent_uid,omitempty"`
 	Auditors    []string `json:"auditors,omitempty"`
 	Writers     []string `json:"writers,omitempty"`
+}
+
+// stringPtr returns a pointer to the given string
+func stringPtr(s string) *string {
+	return &s
 }
 
 // Config holds the configuration for the script
@@ -106,20 +111,32 @@ func (pg *ProjectGenerator) GenerateProject(index int, parentUID string) Project
 	numAuditors, _ := rand.Int(rand.Reader, big.NewInt(3))
 	numAuditors.Add(numAuditors, big.NewInt(1))
 
-	auditors := make([]string, numAuditors.Int64())
+	auditors := make([]*projectservice.UserInfo, numAuditors.Int64())
 	for i := range auditors {
 		auditorIndex, _ := rand.Int(rand.Reader, big.NewInt(int64(len(pg.managerIDs))))
-		auditors[i] = pg.managerIDs[auditorIndex.Int64()]
+		username := pg.managerIDs[auditorIndex.Int64()]
+		auditors[i] = &projectservice.UserInfo{
+			Username: &username,
+			Name:     &username, // Use username as name for mock data
+			Email:    stringPtr(username + "@example.com"),
+			Avatar:   stringPtr(""),
+		}
 	}
 
 	// Generate random writers (1-3 writers)
 	numWriters, _ := rand.Int(rand.Reader, big.NewInt(3))
 	numWriters.Add(numWriters, big.NewInt(1))
 
-	writers := make([]string, numWriters.Int64())
+	writers := make([]*projectservice.UserInfo, numWriters.Int64())
 	for i := range writers {
 		writerIndex, _ := rand.Int(rand.Reader, big.NewInt(int64(len(pg.managerIDs))))
-		writers[i] = pg.managerIDs[writerIndex.Int64()]
+		username := pg.managerIDs[writerIndex.Int64()]
+		writers[i] = &projectservice.UserInfo{
+			Username: &username,
+			Name:     &username, // Use username as name for mock data
+			Email:    stringPtr(username + "@example.com"),
+			Avatar:   stringPtr(""),
+		}
 	}
 
 	return ProjectData{

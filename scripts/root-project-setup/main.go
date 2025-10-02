@@ -54,8 +54,8 @@ func run() int {
 
 type environment struct {
 	NatsURL             string
-	RootProjectWriters  []string
-	RootProjectAuditors []string
+	RootProjectWriters  []models.UserInfo
+	RootProjectAuditors []models.UserInfo
 }
 
 func parseEnv() environment {
@@ -68,29 +68,57 @@ func parseEnv() environment {
 	writersStr := os.Getenv("ROOT_PROJECT_WRITERS")
 	auditorsStr := os.Getenv("ROOT_PROJECT_AUDITORS")
 
-	var writers []string
-	if writersStr != "" {
-		for _, writer := range strings.Split(writersStr, ",") {
-			if trimmed := strings.TrimSpace(writer); trimmed != "" {
-				writers = append(writers, trimmed)
-			}
-		}
-	}
-
-	var auditors []string
-	if auditorsStr != "" {
-		for _, auditor := range strings.Split(auditorsStr, ",") {
-			if trimmed := strings.TrimSpace(auditor); trimmed != "" {
-				auditors = append(auditors, trimmed)
-			}
-		}
-	}
+	writers := parseUserInfo(writersStr)
+	auditors := parseUserInfo(auditorsStr)
 
 	return environment{
 		NatsURL:             natsURL,
 		RootProjectWriters:  writers,
 		RootProjectAuditors: auditors,
 	}
+}
+
+// parseUserInfo parses a comma-separated string of user information.
+// Supports two formats:
+// 1. Simple: "username1,username2" (backward compatibility)
+// 2. Structured: "username:name:email:avatar,username2:name2:email2:avatar2"
+func parseUserInfo(userStr string) []models.UserInfo {
+	if userStr == "" {
+		return nil
+	}
+
+	var users []models.UserInfo
+	for _, userEntry := range strings.Split(userStr, ",") {
+		if trimmed := strings.TrimSpace(userEntry); trimmed != "" {
+			// Check if this is structured format (contains colons)
+			if strings.Contains(trimmed, ":") {
+				// Structured format: username:name:email:avatar
+				parts := strings.Split(trimmed, ":")
+				user := models.UserInfo{
+					Username: parts[0],
+				}
+				if len(parts) > 1 {
+					user.Name = parts[1]
+				}
+				if len(parts) > 2 {
+					user.Email = parts[2]
+				}
+				if len(parts) > 3 {
+					user.Avatar = parts[3]
+				}
+				users = append(users, user)
+			} else {
+				// Simple format: just username (backward compatibility)
+				users = append(users, models.UserInfo{
+					Username: trimmed,
+					Name:     trimmed, // Use username as name for backward compatibility
+					Email:    "",
+					Avatar:   "",
+				})
+			}
+		}
+	}
+	return users
 }
 
 func setupRootProject(ctx context.Context, env environment) error {
