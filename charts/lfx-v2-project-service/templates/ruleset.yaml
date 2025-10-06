@@ -9,6 +9,7 @@ metadata:
 spec:
   rules:
     - id: "rule:lfx:lfx-v2-project-service:openapi:get"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - GET
@@ -29,6 +30,7 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
     - id: "rule:lfx:lfx-v2-project-service:projects:create"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - POST
@@ -63,6 +65,7 @@ spec:
     # It is not meant to be used by applications, it should only be used
     # in local development, therefore the authorizer allows all requests.
     - id: "rule:lfx:lfx-v2-project-service:projects:list"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - GET
@@ -81,6 +84,7 @@ spec:
               aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:projects:project:get"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - GET
@@ -111,6 +115,7 @@ spec:
               aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:projects:update"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - PUT
@@ -141,6 +146,7 @@ spec:
               aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:projects:delete"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - DELETE
@@ -171,6 +177,7 @@ spec:
               aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:project_settings:get"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - GET
@@ -201,6 +208,7 @@ spec:
               aud: {{ .Values.app.audience }}
 
     - id: "rule:lfx:lfx-v2-project-service:project_settings:update"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - PUT
