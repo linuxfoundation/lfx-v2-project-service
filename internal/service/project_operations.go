@@ -174,8 +174,8 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 				UID:                 projectDB.UID,
 				Public:              projectDB.Public,
 				ParentUID:           projectDB.ParentUID,
-				Writers:             projectSettingsDB.Writers,
-				Auditors:            projectSettingsDB.Auditors,
+				Writers:             extractUsernames(projectSettingsDB.Writers),
+				Auditors:            extractUsernames(projectSettingsDB.Auditors),
 				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
 			},
 		}
@@ -433,8 +433,8 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 				UID:                 projectDB.UID,
 				Public:              projectDB.Public,
 				ParentUID:           projectDB.ParentUID,
-				Writers:             projectSettingsDB.Writers,
-				Auditors:            projectSettingsDB.Auditors,
+				Writers:             extractUsernames(projectSettingsDB.Writers),
+				Auditors:            extractUsernames(projectSettingsDB.Auditors),
 				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
 			},
 		}
@@ -568,8 +568,8 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 				UID:                 projectDB.UID,
 				Public:              projectDB.Public,
 				ParentUID:           projectDB.ParentUID,
-				Writers:             projectSettingsDB.Writers,
-				Auditors:            projectSettingsDB.Auditors,
+				Writers:             extractUsernames(projectSettingsDB.Writers),
+				Auditors:            extractUsernames(projectSettingsDB.Auditors),
 				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
 			},
 		}

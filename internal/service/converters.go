@@ -94,10 +94,10 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 
 		// Only set array fields if they're not empty
 		if len(settings.Writers) > 0 {
-			full.Writers = settings.Writers
+			full.Writers = convertUsersToAPI(settings.Writers)
 		}
 		if len(settings.Auditors) > 0 {
-			full.Auditors = settings.Auditors
+			full.Auditors = convertUsersToAPI(settings.Auditors)
 		}
 		if len(settings.MeetingCoordinators) > 0 {
 			full.MeetingCoordinators = settings.MeetingCoordinators
@@ -308,10 +308,10 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*models.Proj
 		s.AnnouncementDate = &announcementDate
 	}
 	if settings.Writers != nil {
-		s.Writers = settings.Writers
+		s.Writers = convertUsersFromAPI(settings.Writers)
 	}
 	if settings.Auditors != nil {
-		s.Auditors = settings.Auditors
+		s.Auditors = convertUsersFromAPI(settings.Auditors)
 	}
 	if settings.MeetingCoordinators != nil {
 		s.MeetingCoordinators = settings.MeetingCoordinators
@@ -351,10 +351,10 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 
 	// Only set array fields if they're not empty
 	if len(s.Writers) > 0 {
-		settings.Writers = s.Writers
+		settings.Writers = convertUsersToAPI(s.Writers)
 	}
 	if len(s.Auditors) > 0 {
-		settings.Auditors = s.Auditors
+		settings.Auditors = convertUsersToAPI(s.Auditors)
 	}
 	if len(s.MeetingCoordinators) > 0 {
 		settings.MeetingCoordinators = s.MeetingCoordinators
@@ -372,4 +372,84 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 	}
 
 	return settings
+}
+
+// convertUsersToAPI converts domain UserInfo slice to API UserInfo slice
+func convertUsersToAPI(users []models.UserInfo) []*projsvc.UserInfo {
+	if len(users) == 0 {
+		return nil
+	}
+
+	apiUsers := make([]*projsvc.UserInfo, len(users))
+	for i := range users {
+		user := users[i]
+		apiUsers[i] = &projsvc.UserInfo{
+			Name:     misc.StringPtr(user.Name),
+			Email:    misc.StringPtr(user.Email),
+			Username: misc.StringPtr(user.Username),
+			Avatar:   misc.StringPtr(user.Avatar),
+		}
+	}
+	return apiUsers
+}
+
+// convertUsersFromAPI converts API UserInfo slice to domain UserInfo slice
+func convertUsersFromAPI(apiUsers []*projsvc.UserInfo) []models.UserInfo {
+	if len(apiUsers) == 0 {
+		return nil
+	}
+
+	users := make([]models.UserInfo, len(apiUsers))
+	for i, apiUser := range apiUsers {
+		if apiUser != nil {
+			user := models.UserInfo{}
+			if apiUser.Name != nil {
+				user.Name = *apiUser.Name
+			}
+			if apiUser.Email != nil {
+				user.Email = *apiUser.Email
+			}
+			if apiUser.Username != nil {
+				user.Username = *apiUser.Username
+			}
+			if apiUser.Avatar != nil {
+				user.Avatar = *apiUser.Avatar
+			}
+			users[i] = user
+		}
+	}
+	return users
+}
+
+// extractUsernames extracts usernames from UserInfo slice for access control
+func extractUsernames(users []models.UserInfo) []string {
+	if len(users) == 0 {
+		return nil
+	}
+
+	usernames := make([]string, len(users))
+	for i, user := range users {
+		usernames[i] = user.Username
+	}
+	return usernames
+}
+
+// createTestUserInfo creates a UserInfo for testing purposes
+func createTestUserInfo(username, name, email, avatar string) models.UserInfo {
+	return models.UserInfo{
+		Name:     name,
+		Email:    email,
+		Username: username,
+		Avatar:   avatar,
+	}
+}
+
+// createTestAPIUserInfo creates an API UserInfo for testing purposes
+func createTestAPIUserInfo(username, name, email, avatar string) *projsvc.UserInfo {
+	return &projsvc.UserInfo{
+		Name:     &name,
+		Email:    &email,
+		Username: &username,
+		Avatar:   &avatar,
+	}
 }

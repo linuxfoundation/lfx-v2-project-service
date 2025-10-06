@@ -222,17 +222,63 @@ func ProjectRepositoryURLAttribute() {
 	})
 }
 
+// UserInfo is the DSL type for user information.
+var UserInfo = Type("UserInfo", func() {
+	Description("User information including profile details.")
+
+	Attribute("name", String, "The full name of the user", func() {
+		Example("John Doe")
+	})
+	Attribute("email", String, "The email address of the user", func() {
+		Example("john.doe@example.com")
+		Format(FormatEmail)
+	})
+	Attribute("username", String, "The username/LFID of the user", func() {
+		Example("johndoe123")
+	})
+	Attribute("avatar", String, "The avatar URL of the user", func() {
+		Example("https://example.com/avatar.jpg")
+		Format(FormatURI)
+	})
+})
+
 // ProjectAuditorsAttribute is the DSL attribute for a project auditors.
 func ProjectAuditorsAttribute() {
-	Attribute("auditors", ArrayOf(String), "A list of project auditors by their LFIDs (usernames)", func() {
-		Example([]string{"user123", "user456"})
+	Attribute("auditors", ArrayOf(UserInfo), "A list of project auditors with their profile information", func() {
+		Example([]map[string]interface{}{
+			{
+				"name":     "John Doe",
+				"email":    "john.doe@example.com",
+				"username": "johndoe123",
+				"avatar":   "https://example.com/avatar1.jpg",
+			},
+			{
+				"name":     "Jane Smith",
+				"email":    "jane.smith@example.com",
+				"username": "janesmith456",
+				"avatar":   "https://example.com/avatar2.jpg",
+			},
+		})
 	})
 }
 
 // ProjectWritersAttribute is the DSL attribute for a project writers.
 func ProjectWritersAttribute() {
-	Attribute("writers", ArrayOf(String), "A list of project writers by their LFIDs (usernames)", func() {
-		Example([]string{"user123", "user456"})
+	Attribute("writers", ArrayOf(UserInfo), "A list of project writers with their profile information", func() {
+		Example([]map[string]interface{}{
+			{
+				"name":     "Alice Johnson",
+				"email":    "alice.johnson@example.com",
+				"username": "alicejohnson789",
+				"avatar":   "https://example.com/avatar3.jpg",
+			},
+			{
+				"name":     "Bob Wilson",
+				"email":    "bob.wilson@example.com",
+				"username": "bobwilson101",
+				"avatar":   "https://example.com/avatar4.jpg",
+			},
+		})
 	})
 }
 

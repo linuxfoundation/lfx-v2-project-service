@@ -54,9 +54,11 @@ func TestProjectsService_GetProjects(t *testing.T) {
 						{
 							UID:              "project-1",
 							MissionStatement: "Mission 1",
-							Writers:          []string{"writer1"},
-							CreatedAt:        &now,
-							UpdatedAt:        &now,
+							Writers: []models.UserInfo{
+								{Username: "writer1", Name: "Writer One", Email: "writer1@example.com", Avatar: ""},
+							},
+							CreatedAt: &now,
+							UpdatedAt: &now,
 						},
 					},
 					nil,

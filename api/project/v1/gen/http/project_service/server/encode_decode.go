@@ -1015,9 +1015,9 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 		}
 	}
 	if v.Writers != nil {
-		res.Writers = make([]string, len(v.Writers))
+		res.Writers = make([]*UserInfoResponseBody, len(v.Writers))
 		for i, val := range v.Writers {
-			res.Writers[i] = val
+			res.Writers[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	if v.MeetingCoordinators != nil {
@@ -1027,10 +1027,42 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 		}
 	}
 	if v.Auditors != nil {
-		res.Auditors = make([]string, len(v.Auditors))
+		res.Auditors = make([]*UserInfoResponseBody, len(v.Auditors))
 		for i, val := range v.Auditors {
-			res.Auditors[i] = val
+			res.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
+	}
+
+	return res
+}
+
+// marshalProjectserviceUserInfoToUserInfoResponseBody builds a value of type
+// *UserInfoResponseBody from a value of type *projectservice.UserInfo.
+func marshalProjectserviceUserInfoToUserInfoResponseBody(v *projectservice.UserInfo) *UserInfoResponseBody {
+	if v == nil {
+		return nil
+	}
+	res := &UserInfoResponseBody{
+		Name:     v.Name,
+		Email:    v.Email,
+		Username: v.Username,
+		Avatar:   v.Avatar,
+	}
+
+	return res
+}
+
+// unmarshalUserInfoRequestBodyToProjectserviceUserInfo builds a value of type
+// *projectservice.UserInfo from a value of type *UserInfoRequestBody.
+func unmarshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody) *projectservice.UserInfo {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.UserInfo{
+		Name:     v.Name,
+		Email:    v.Email,
+		Username: v.Username,
+		Avatar:   v.Avatar,
 	}
 
 	return res

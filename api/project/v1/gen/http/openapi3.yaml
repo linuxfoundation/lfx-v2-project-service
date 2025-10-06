@@ -45,8 +45,14 @@ paths:
                                 projects:
                                     - announcement_date: "2021-01-01"
                                       auditors:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
                                       autojoin_enabled: false
                                       category: Active
                                       charter_url: https://example.com/charter.pdf
@@ -75,12 +81,24 @@ paths:
                                       updated_at: "2021-01-01T00:00:00Z"
                                       website_url: https://example.com
                                       writers:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar3.jpg
+                                          email: alice.johnson@example.com
+                                          name: Alice Johnson
+                                          username: alicejohnson789
+                                        - avatar: https://example.com/avatar4.jpg
+                                          email: bob.wilson@example.com
+                                          name: Bob Wilson
+                                          username: bobwilson101
                                     - announcement_date: "2021-01-01"
                                       auditors:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
                                       autojoin_enabled: false
                                       category: Active
                                       charter_url: https://example.com/charter.pdf
@@ -109,12 +127,24 @@ paths:
                                       updated_at: "2021-01-01T00:00:00Z"
                                       website_url: https://example.com
                                       writers:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar3.jpg
+                                          email: alice.johnson@example.com
+                                          name: Alice Johnson
+                                          username: alicejohnson789
+                                        - avatar: https://example.com/avatar4.jpg
+                                          email: bob.wilson@example.com
+                                          name: Bob Wilson
+                                          username: bobwilson101
                                     - announcement_date: "2021-01-01"
                                       auditors:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
                                       autojoin_enabled: false
                                       category: Active
                                       charter_url: https://example.com/charter.pdf
@@ -143,8 +173,14 @@ paths:
                                       updated_at: "2021-01-01T00:00:00Z"
                                       website_url: https://example.com
                                       writers:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar3.jpg
+                                          email: alice.johnson@example.com
+                                          name: Alice Johnson
+                                          username: alicejohnson789
+                                        - avatar: https://example.com/avatar4.jpg
+                                          email: bob.wilson@example.com
+                                          name: Bob Wilson
+                                          username: bobwilson101
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -201,8 +237,14 @@ paths:
                         example:
                             announcement_date: "2021-01-01"
                             auditors:
-                                - user123
-                                - user456
+                                - avatar: https://example.com/avatar1.jpg
+                                  email: john.doe@example.com
+                                  name: John Doe
+                                  username: johndoe123
+                                - avatar: https://example.com/avatar2.jpg
+                                  email: jane.smith@example.com
+                                  name: Jane Smith
+                                  username: janesmith456
                             autojoin_enabled: false
                             category: Active
                             charter_url: https://example.com/charter.pdf
@@ -228,8 +270,14 @@ paths:
                             stage: Formation - Exploratory
                             website_url: https://example.com
                             writers:
-                                - user123
-                                - user456
+                                - avatar: https://example.com/avatar3.jpg
+                                  email: alice.johnson@example.com
+                                  name: Alice Johnson
+                                  username: alicejohnson789
+                                - avatar: https://example.com/avatar4.jpg
+                                  email: bob.wilson@example.com
+                                  name: Bob Wilson
+                                  username: bobwilson101
             responses:
                 "201":
                     description: Created response.
@@ -240,8 +288,14 @@ paths:
                             example:
                                 announcement_date: "2021-01-01"
                                 auditors:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar1.jpg
+                                      email: john.doe@example.com
+                                      name: John Doe
+                                      username: johndoe123
+                                    - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
                                 autojoin_enabled: false
                                 category: Active
                                 charter_url: https://example.com/charter.pdf
@@ -270,8 +324,14 @@ paths:
                                 updated_at: "2021-01-01T00:00:00Z"
                                 website_url: https://example.com
                                 writers:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar3.jpg
+                                      email: alice.johnson@example.com
+                                      name: Alice Johnson
+                                      username: alicejohnson789
+                                    - avatar: https://example.com/avatar4.jpg
+                                      email: bob.wilson@example.com
+                                      name: Bob Wilson
+                                      username: bobwilson101
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -674,8 +734,14 @@ paths:
                             example:
                                 announcement_date: "2021-01-01"
                                 auditors:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar1.jpg
+                                      email: john.doe@example.com
+                                      name: John Doe
+                                      username: johndoe123
+                                    - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
                                 created_at: "2021-01-01T00:00:00Z"
                                 meeting_coordinators:
                                     - user123
@@ -684,8 +750,14 @@ paths:
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2021-01-01T00:00:00Z"
                                 writers:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar3.jpg
+                                      email: alice.johnson@example.com
+                                      name: Alice Johnson
+                                      username: alicejohnson789
+                                    - avatar: https://example.com/avatar4.jpg
+                                      email: bob.wilson@example.com
+                                      name: Bob Wilson
+                                      username: bobwilson101
                 "404":
                     description: 'NotFound: Resource not found'
                     content:
@@ -761,15 +833,27 @@ paths:
                         example:
                             announcement_date: "2021-01-01"
                             auditors:
-                                - user123
-                                - user456
+                                - avatar: https://example.com/avatar1.jpg
+                                  email: john.doe@example.com
+                                  name: John Doe
+                                  username: johndoe123
+                                - avatar: https://example.com/avatar2.jpg
+                                  email: jane.smith@example.com
+                                  name: Jane Smith
+                                  username: janesmith456
                             meeting_coordinators:
                                 - user123
                                 - user456
                             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                             writers:
-                                - user123
-                                - user456
+                                - avatar: https://example.com/avatar3.jpg
+                                  email: alice.johnson@example.com
+                                  name: Alice Johnson
+                                  username: alicejohnson789
+                                - avatar: https://example.com/avatar4.jpg
+                                  email: bob.wilson@example.com
+                                  name: Bob Wilson
+                                  username: bobwilson101
             responses:
                 "200":
                     description: OK response.
@@ -780,8 +864,14 @@ paths:
                             example:
                                 announcement_date: "2021-01-01"
                                 auditors:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar1.jpg
+                                      email: john.doe@example.com
+                                      name: John Doe
+                                      username: johndoe123
+                                    - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
                                 created_at: "2021-01-01T00:00:00Z"
                                 meeting_coordinators:
                                     - user123
@@ -790,8 +880,14 @@ paths:
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2021-01-01T00:00:00Z"
                                 writers:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar3.jpg
+                                      email: alice.johnson@example.com
+                                      name: Alice Johnson
+                                      username: alicejohnson789
+                                    - avatar: https://example.com/avatar4.jpg
+                                      email: bob.wilson@example.com
+                                      name: Bob Wilson
+                                      username: bobwilson101
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -877,12 +973,17 @@ components:
                 auditors:
                     type: array
                     items:
-                        type: string
-                        example: Consequatur omnis.
-                    description: A list of project auditors by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project auditors with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 autojoin_enabled:
                     type: boolean
                     description: Whether autojoin is enabled for the project
@@ -978,7 +1079,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Incidunt vero.
+                        example: Exercitationem vel expedita dolorum.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -1031,17 +1132,28 @@ components:
                 writers:
                     type: array
                     items:
-                        type: string
-                        example: Quo eum consequatur.
-                    description: A list of project writers by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project writers with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
             example:
                 announcement_date: "2021-01-01"
                 auditors:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 autojoin_enabled: false
                 category: Active
                 charter_url: https://example.com/charter.pdf
@@ -1067,8 +1179,14 @@ components:
                 stage: Formation - Exploratory
                 website_url: https://example.com
                 writers:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
             required:
                 - slug
                 - description
@@ -1085,8 +1203,14 @@ components:
                     example:
                         - announcement_date: "2021-01-01"
                           auditors:
-                            - user123
-                            - user456
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
                           autojoin_enabled: false
                           category: Active
                           charter_url: https://example.com/charter.pdf
@@ -1115,12 +1239,24 @@ components:
                           updated_at: "2021-01-01T00:00:00Z"
                           website_url: https://example.com
                           writers:
-                            - user123
-                            - user456
+                            - avatar: https://example.com/avatar3.jpg
+                              email: alice.johnson@example.com
+                              name: Alice Johnson
+                              username: alicejohnson789
+                            - avatar: https://example.com/avatar4.jpg
+                              email: bob.wilson@example.com
+                              name: Bob Wilson
+                              username: bobwilson101
                         - announcement_date: "2021-01-01"
                           auditors:
-                            - user123
-                            - user456
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
                           autojoin_enabled: false
                           category: Active
                           charter_url: https://example.com/charter.pdf
@@ -1149,14 +1285,72 @@ components:
                           updated_at: "2021-01-01T00:00:00Z"
                           website_url: https://example.com
                           writers:
+                            - avatar: https://example.com/avatar3.jpg
+                              email: alice.johnson@example.com
+                              name: Alice Johnson
+                              username: alicejohnson789
+                            - avatar: https://example.com/avatar4.jpg
+                              email: bob.wilson@example.com
+                              name: Bob Wilson
+                              username: bobwilson101
+                        - announcement_date: "2021-01-01"
+                          auditors:
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
+                          autojoin_enabled: false
+                          category: Active
+                          charter_url: https://example.com/charter.pdf
+                          created_at: "2021-01-01T00:00:00Z"
+                          description: project foo is a project about bar
+                          entity_dissolution_date: "2021-12-31"
+                          entity_formation_document_url: https://example.com/formation.pdf
+                          formation_date: "2021-01-01"
+                          funding_model:
+                            - Crowdfunding
+                          legal_entity_name: Example Foundation LLC
+                          legal_entity_type: Subproject
+                          legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          logo_url: https://example.com/logo.png
+                          meeting_coordinators:
                             - user123
                             - user456
+                          mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                          name: Foo Foundation
+                          parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          public: true
+                          repository_url: https://example.com/project
+                          slug: project-slug
+                          stage: Formation - Exploratory
+                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          updated_at: "2021-01-01T00:00:00Z"
+                          website_url: https://example.com
+                          writers:
+                            - avatar: https://example.com/avatar3.jpg
+                              email: alice.johnson@example.com
+                              name: Alice Johnson
+                              username: alicejohnson789
+                            - avatar: https://example.com/avatar4.jpg
+                              email: bob.wilson@example.com
+                              name: Bob Wilson
+                              username: bobwilson101
             example:
                 projects:
                     - announcement_date: "2021-01-01"
                       auditors:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       autojoin_enabled: false
                       category: Active
                       charter_url: https://example.com/charter.pdf
@@ -1185,12 +1379,24 @@ components:
                       updated_at: "2021-01-01T00:00:00Z"
                       website_url: https://example.com
                       writers:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
                     - announcement_date: "2021-01-01"
                       auditors:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       autojoin_enabled: false
                       category: Active
                       charter_url: https://example.com/charter.pdf
@@ -1219,12 +1425,24 @@ components:
                       updated_at: "2021-01-01T00:00:00Z"
                       website_url: https://example.com
                       writers:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
                     - announcement_date: "2021-01-01"
                       auditors:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       autojoin_enabled: false
                       category: Active
                       charter_url: https://example.com/charter.pdf
@@ -1253,8 +1471,60 @@ components:
                       updated_at: "2021-01-01T00:00:00Z"
                       website_url: https://example.com
                       writers:
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
+                    - announcement_date: "2021-01-01"
+                      auditors:
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
+                      autojoin_enabled: false
+                      category: Active
+                      charter_url: https://example.com/charter.pdf
+                      created_at: "2021-01-01T00:00:00Z"
+                      description: project foo is a project about bar
+                      entity_dissolution_date: "2021-12-31"
+                      entity_formation_document_url: https://example.com/formation.pdf
+                      formation_date: "2021-01-01"
+                      funding_model:
+                        - Crowdfunding
+                      legal_entity_name: Example Foundation LLC
+                      legal_entity_type: Subproject
+                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      logo_url: https://example.com/logo.png
+                      meeting_coordinators:
                         - user123
                         - user456
+                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                      name: Foo Foundation
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      public: true
+                      repository_url: https://example.com/project
+                      slug: project-slug
+                      stage: Formation - Exploratory
+                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      updated_at: "2021-01-01T00:00:00Z"
+                      website_url: https://example.com
+                      writers:
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
             required:
                 - projects
         InternalServerError:
@@ -1357,7 +1627,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Alternate Funding
+                        example: Membership
                         enum:
                             - Crowdfunding
                             - Membership
@@ -1477,12 +1747,17 @@ components:
                 auditors:
                     type: array
                     items:
-                        type: string
-                        example: Excepturi voluptatibus.
-                    description: A list of project auditors by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project auditors with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 autojoin_enabled:
                     type: boolean
                     description: Whether autojoin is enabled for the project
@@ -1546,7 +1821,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Alternate Funding
+                        example: Membership
                         enum:
                             - Crowdfunding
                             - Membership
@@ -1583,7 +1858,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Praesentium deserunt aut at delectus.
+                        example: Officia porro odio deleniti.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -1646,18 +1921,29 @@ components:
                 writers:
                     type: array
                     items:
-                        type: string
-                        example: Quos nihil doloribus labore eligendi.
-                    description: A list of project writers by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project writers with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
             description: A full representation of LF Projects with sub-objects populated.
             example:
                 announcement_date: "2021-01-01"
                 auditors:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 autojoin_enabled: false
                 category: Active
                 charter_url: https://example.com/charter.pdf
@@ -1686,8 +1972,14 @@ components:
                 updated_at: "2021-01-01T00:00:00Z"
                 website_url: https://example.com
                 writers:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
         ProjectSettings:
             type: object
             properties:
@@ -1699,12 +1991,17 @@ components:
                 auditors:
                     type: array
                     items:
-                        type: string
-                        example: Similique qui vero praesentium omnis et.
-                    description: A list of project auditors by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project auditors with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 created_at:
                     type: string
                     description: The date and time the project was created
@@ -1714,7 +2011,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Dolores maxime ipsum.
+                        example: Necessitatibus beatae quasi magnam et.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -1736,18 +2033,29 @@ components:
                 writers:
                     type: array
                     items:
-                        type: string
-                        example: In est dicta beatae et.
-                    description: A list of project writers by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project writers with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
             description: A representation of LF Project settings.
             example:
                 announcement_date: "2021-01-01"
                 auditors:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 created_at: "2021-01-01T00:00:00Z"
                 meeting_coordinators:
                     - user123
@@ -1756,8 +2064,14 @@ components:
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2021-01-01T00:00:00Z"
                 writers:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
         ServiceUnavailableError:
             type: object
             properties:
@@ -1836,7 +2150,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Membership
+                        example: Crowdfunding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -1947,17 +2261,22 @@ components:
                 auditors:
                     type: array
                     items:
-                        type: string
-                        example: Esse eveniet tempora qui.
-                    description: A list of project auditors by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project auditors with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 meeting_coordinators:
                     type: array
                     items:
                         type: string
-                        example: Sunt ut quo.
+                        example: Quisquam illum voluptas corporis iure.
                     description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
                     example:
                         - user123
@@ -1969,24 +2288,68 @@ components:
                 writers:
                     type: array
                     items:
-                        type: string
-                        example: Magni delectus quia ex nulla aut dolorum.
-                    description: A list of project writers by their LFIDs (usernames)
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project writers with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
             example:
                 announcement_date: "2021-01-01"
                 auditors:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 meeting_coordinators:
                     - user123
                     - user456
                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                 writers:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar3.jpg
+                      email: alice.johnson@example.com
+                      name: Alice Johnson
+                      username: alicejohnson789
+                    - avatar: https://example.com/avatar4.jpg
+                      email: bob.wilson@example.com
+                      name: Bob Wilson
+                      username: bobwilson101
+        UserInfo:
+            type: object
+            properties:
+                avatar:
+                    type: string
+                    description: The avatar URL of the user
+                    example: https://example.com/avatar.jpg
+                    format: uri
+                email:
+                    type: string
+                    description: The email address of the user
+                    example: john.doe@example.com
+                    format: email
+                name:
+                    type: string
+                    description: The full name of the user
+                    example: John Doe
+                username:
+                    type: string
+                    description: The username/LFID of the user
+                    example: johndoe123
+            description: User information including profile details.
+            example:
+                avatar: https://example.com/avatar.jpg
+                email: john.doe@example.com
+                name: John Doe
+                username: johndoe123
     securitySchemes:
         jwt_header_Authorization:
             type: http

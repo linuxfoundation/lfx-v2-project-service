@@ -200,11 +200,17 @@ func TestProjectSettingsTags(t *testing.T) {
 		{
 			name: "settings with all fields including non-tag fields",
 			settings: &ProjectSettings{
-				UID:                 "settings-123",
-				MissionStatement:    "Our mission is to test",
-				AnnouncementDate:    &now,
-				Auditors:            []string{"auditor1", "auditor2"},
-				Writers:             []string{"writer1", "writer2"},
+				UID:              "settings-123",
+				MissionStatement: "Our mission is to test",
+				AnnouncementDate: &now,
+				Auditors: []UserInfo{
+					{Name: "Auditor One", Email: "auditor1@example.com", Username: "auditor1", Avatar: "https://example.com/avatar1.jpg"},
+					{Name: "Auditor Two", Email: "auditor2@example.com", Username: "auditor2", Avatar: "https://example.com/avatar2.jpg"},
+				},
+				Writers: []UserInfo{
+					{Name: "Writer One", Email: "writer1@example.com", Username: "writer1", Avatar: "https://example.com/avatar3.jpg"},
+					{Name: "Writer Two", Email: "writer2@example.com", Username: "writer2", Avatar: "https://example.com/avatar4.jpg"},
+				},
 				MeetingCoordinators: []string{"coordinator1"},
 				CreatedAt:           &now,
 				UpdatedAt:           &now,

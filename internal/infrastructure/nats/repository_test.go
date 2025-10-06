@@ -241,9 +241,11 @@ func TestNatsRepository_CreateProject(t *testing.T) {
 	projectSettings := &models.ProjectSettings{
 		UID:              "test-project-uid",
 		MissionStatement: "Our mission",
-		Writers:          []string{"writer1"},
-		CreatedAt:        &now,
-		UpdatedAt:        &now,
+		Writers: []models.UserInfo{
+			{Username: "writer1", Name: "Writer One", Email: "writer1@example.com", Avatar: ""},
+		},
+		CreatedAt: &now,
+		UpdatedAt: &now,
 	}
 
 	tests := []struct {

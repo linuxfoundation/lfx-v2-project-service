@@ -54,7 +54,7 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 	{
 		err = json.Unmarshal([]byte(projectServiceCreateProjectBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"legal_entity_name\": \"Example Foundation LLC\",\n      \"legal_entity_type\": \"Subproject\",\n      \"legal_parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"meeting_coordinators\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"repository_url\": \"https://example.com/project\",\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\",\n      \"website_url\": \"https://example.com\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         {\n            \"avatar\": \"https://example.com/avatar1.jpg\",\n            \"email\": \"john.doe@example.com\",\n            \"name\": \"John Doe\",\n            \"username\": \"johndoe123\"\n         },\n         {\n            \"avatar\": \"https://example.com/avatar2.jpg\",\n            \"email\": \"jane.smith@example.com\",\n            \"name\": \"Jane Smith\",\n            \"username\": \"janesmith456\"\n         }\n      ],\n      \"autojoin_enabled\": false,\n      \"category\": \"Active\",\n      \"charter_url\": \"https://example.com/charter.pdf\",\n      \"description\": \"project foo is a project about bar\",\n      \"entity_dissolution_date\": \"2021-12-31\",\n      \"entity_formation_document_url\": \"https://example.com/formation.pdf\",\n      \"formation_date\": \"2021-01-01\",\n      \"funding_model\": [\n         \"Crowdfunding\"\n      ],\n      \"legal_entity_name\": \"Example Foundation LLC\",\n      \"legal_entity_type\": \"Subproject\",\n      \"legal_parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"meeting_coordinators\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"name\": \"Foo Foundation\",\n      \"parent_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"public\": true,\n      \"repository_url\": \"https://example.com/project\",\n      \"slug\": \"project-slug\",\n      \"stage\": \"Formation - Exploratory\",\n      \"website_url\": \"https://example.com\",\n      \"writers\": [\n         {\n            \"avatar\": \"https://example.com/avatar3.jpg\",\n            \"email\": \"alice.johnson@example.com\",\n            \"name\": \"Alice Johnson\",\n            \"username\": \"alicejohnson789\"\n         },\n         {\n            \"avatar\": \"https://example.com/avatar4.jpg\",\n            \"email\": \"bob.wilson@example.com\",\n            \"name\": \"Bob Wilson\",\n            \"username\": \"bobwilson101\"\n         }\n      ]\n   }'")
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
@@ -104,6 +104,20 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		}
 		if body.AnnouncementDate != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+		}
+		for _, e := range body.Writers {
+			if e != nil {
+				if err2 := ValidateUserInfoRequestBody(e); err2 != nil {
+					err = goa.MergeErrors(err, err2)
+				}
+			}
+		}
+		for _, e := range body.Auditors {
+			if e != nil {
+				if err2 := ValidateUserInfoRequestBody(e); err2 != nil {
+					err = goa.MergeErrors(err, err2)
+				}
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -156,9 +170,9 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		}
 	}
 	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
+		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
-			v.Writers[i] = val
+			v.Writers[i] = marshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.MeetingCoordinators != nil {
@@ -168,9 +182,9 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		}
 	}
 	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
+		v.Auditors = make([]*projectservice.UserInfo, len(body.Auditors))
 		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+			v.Auditors[i] = marshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	v.Version = version
@@ -389,7 +403,7 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 	{
 		err = json.Unmarshal([]byte(projectServiceUpdateProjectSettingsBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"meeting_coordinators\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"writers\": [\n         \"user123\",\n         \"user456\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"announcement_date\": \"2021-01-01\",\n      \"auditors\": [\n         {\n            \"avatar\": \"https://example.com/avatar1.jpg\",\n            \"email\": \"john.doe@example.com\",\n            \"name\": \"John Doe\",\n            \"username\": \"johndoe123\"\n         },\n         {\n            \"avatar\": \"https://example.com/avatar2.jpg\",\n            \"email\": \"jane.smith@example.com\",\n            \"name\": \"Jane Smith\",\n            \"username\": \"janesmith456\"\n         }\n      ],\n      \"meeting_coordinators\": [\n         \"user123\",\n         \"user456\"\n      ],\n      \"mission_statement\": \"The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.\",\n      \"writers\": [\n         {\n            \"avatar\": \"https://example.com/avatar3.jpg\",\n            \"email\": \"alice.johnson@example.com\",\n            \"name\": \"Alice Johnson\",\n            \"username\": \"alicejohnson789\"\n         },\n         {\n            \"avatar\": \"https://example.com/avatar4.jpg\",\n            \"email\": \"bob.wilson@example.com\",\n            \"name\": \"Bob Wilson\",\n            \"username\": \"bobwilson101\"\n         }\n      ]\n   }'")
 		}
 	}
 	var uid string
@@ -429,9 +443,9 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 		AnnouncementDate: body.AnnouncementDate,
 	}
 	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
+		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
-			v.Writers[i] = val
+			v.Writers[i] = marshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.MeetingCoordinators != nil {
@@ -441,9 +455,9 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 		}
 	}
 	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
+		v.Auditors = make([]*projectservice.UserInfo, len(body.Auditors))
 		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+			v.Auditors[i] = marshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
 	v.UID = &uid

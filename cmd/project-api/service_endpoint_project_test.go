@@ -72,8 +72,8 @@ func TestGetProjects(t *testing.T) {
 				projectsSettings := []*models.ProjectSettings{
 					{
 						UID:      "project-1",
-						Writers:  []string{"user2"},
-						Auditors: []string{"user1"},
+						Writers:  []models.UserInfo{{Username: "user2", Name: "User Two", Email: "user2@example.com", Avatar: ""}},
+						Auditors: []models.UserInfo{{Username: "user1", Name: "User One", Email: "user1@example.com", Avatar: ""}},
 					},
 				}
 
@@ -136,8 +136,14 @@ func TestCreateProject(t *testing.T) {
 				Description: "Test description",
 				Public:      misc.BoolPtr(true),
 				ParentUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
-				Writers:     []string{"user1", "user2"},
-				Auditors:    []string{"user3", "user4"},
+				Writers: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("user1"), Name: misc.StringPtr("User One"), Email: misc.StringPtr("user1@example.com"), Avatar: misc.StringPtr("")},
+					{Username: misc.StringPtr("user2"), Name: misc.StringPtr("User Two"), Email: misc.StringPtr("user2@example.com"), Avatar: misc.StringPtr("")},
+				},
+				Auditors: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("user3"), Name: misc.StringPtr("User Three"), Email: misc.StringPtr("user3@example.com"), Avatar: misc.StringPtr("")},
+					{Username: misc.StringPtr("user4"), Name: misc.StringPtr("User Four"), Email: misc.StringPtr("user4@example.com"), Avatar: misc.StringPtr("")},
+				},
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
 				// Mock parent project exists (for ParentUID validation)
@@ -161,8 +167,12 @@ func TestCreateProject(t *testing.T) {
 				Description: "Test description",
 				Public:      misc.BoolPtr(true),
 				ParentUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
-				Auditors:    []string{"user1"},
-				Writers:     []string{"user2"},
+				Auditors: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("user1"), Name: misc.StringPtr("User One"), Email: misc.StringPtr("user1@example.com"), Avatar: misc.StringPtr("")},
+				},
+				Writers: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("user2"), Name: misc.StringPtr("User Two"), Email: misc.StringPtr("user2@example.com"), Avatar: misc.StringPtr("")},
+				},
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
 				// Mock slug exists

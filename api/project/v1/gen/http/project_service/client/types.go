@@ -59,13 +59,13 @@ type CreateProjectRequestBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// The mission statement of the project
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoRequestBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // UpdateProjectBaseRequestBody is the type of the "project-service" service
@@ -118,13 +118,13 @@ type UpdateProjectSettingsRequestBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoRequestBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
@@ -185,13 +185,13 @@ type CreateProjectResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
 // GetOneProjectBaseResponseBody is the type of the "project-service" service
@@ -260,13 +260,13 @@ type UpdateProjectSettingsResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -593,13 +593,37 @@ type ProjectFullResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+}
+
+// UserInfoResponseBody is used to define fields on response body types.
+type UserInfoResponseBody struct {
+	// The full name of the user
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The email address of the user
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// The username/LFID of the user
+	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
+	// The avatar URL of the user
+	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
+}
+
+// UserInfoRequestBody is used to define fields on request body types.
+type UserInfoRequestBody struct {
+	// The full name of the user
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The email address of the user
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// The username/LFID of the user
+	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
+	// The avatar URL of the user
+	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 }
 
 // ProjectBaseResponseBody is used to define fields on response body types.
@@ -658,13 +682,13 @@ type ProjectSettingsResponseBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// The date the project was announced
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
-	// A list of project writers by their LFIDs (usernames)
-	Writers []string `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
+	// A list of project writers with their profile information
+	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
 	// A list of project meeting coordinators by their LFIDs (usernames). These
 	// users are responsible for managing meetings for the project.
 	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
-	// A list of project auditors by their LFIDs (usernames)
-	Auditors []string `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// A list of project auditors with their profile information
+	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -703,9 +727,9 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 		}
 	}
 	if p.Writers != nil {
-		body.Writers = make([]string, len(p.Writers))
+		body.Writers = make([]*UserInfoRequestBody, len(p.Writers))
 		for i, val := range p.Writers {
-			body.Writers[i] = val
+			body.Writers[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
 		}
 	}
 	if p.MeetingCoordinators != nil {
@@ -715,9 +739,9 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 		}
 	}
 	if p.Auditors != nil {
-		body.Auditors = make([]string, len(p.Auditors))
+		body.Auditors = make([]*UserInfoRequestBody, len(p.Auditors))
 		for i, val := range p.Auditors {
-			body.Auditors[i] = val
+			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
 		}
 	}
 	return body
@@ -765,9 +789,9 @@ func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettings
 		AnnouncementDate: p.AnnouncementDate,
 	}
 	if p.Writers != nil {
-		body.Writers = make([]string, len(p.Writers))
+		body.Writers = make([]*UserInfoRequestBody, len(p.Writers))
 		for i, val := range p.Writers {
-			body.Writers[i] = val
+			body.Writers[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
 		}
 	}
 	if p.MeetingCoordinators != nil {
@@ -777,9 +801,9 @@ func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettings
 		}
 	}
 	if p.Auditors != nil {
-		body.Auditors = make([]string, len(p.Auditors))
+		body.Auditors = make([]*UserInfoRequestBody, len(p.Auditors))
 		for i, val := range p.Auditors {
-			body.Auditors[i] = val
+			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
 		}
 	}
 	return body
@@ -866,9 +890,9 @@ func NewCreateProjectProjectFullCreated(body *CreateProjectResponseBody) *projec
 		}
 	}
 	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
+		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
-			v.Writers[i] = val
+			v.Writers[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.MeetingCoordinators != nil {
@@ -878,9 +902,9 @@ func NewCreateProjectProjectFullCreated(body *CreateProjectResponseBody) *projec
 		}
 	}
 	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
+		v.Auditors = make([]*projectservice.UserInfo, len(body.Auditors))
 		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+			v.Auditors[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 
@@ -1015,9 +1039,9 @@ func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, e
 		UpdatedAt:        body.UpdatedAt,
 	}
 	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
+		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
-			v.Writers[i] = val
+			v.Writers[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.MeetingCoordinators != nil {
@@ -1027,9 +1051,9 @@ func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, e
 		}
 	}
 	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
+		v.Auditors = make([]*projectservice.UserInfo, len(body.Auditors))
 		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+			v.Auditors[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	res := &projectservice.GetOneProjectSettingsResult{
@@ -1175,9 +1199,9 @@ func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsRespon
 		UpdatedAt:        body.UpdatedAt,
 	}
 	if body.Writers != nil {
-		v.Writers = make([]string, len(body.Writers))
+		v.Writers = make([]*projectservice.UserInfo, len(body.Writers))
 		for i, val := range body.Writers {
-			v.Writers[i] = val
+			v.Writers[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.MeetingCoordinators != nil {
@@ -1187,9 +1211,9 @@ func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsRespon
 		}
 	}
 	if body.Auditors != nil {
-		v.Auditors = make([]string, len(body.Auditors))
+		v.Auditors = make([]*projectservice.UserInfo, len(body.Auditors))
 		for i, val := range body.Auditors {
-			v.Auditors[i] = val
+			v.Auditors[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 
@@ -1376,6 +1400,20 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
 	return
 }
 
@@ -1452,6 +1490,20 @@ func ValidateGetOneProjectSettingsResponseBody(body *GetOneProjectSettingsRespon
 	}
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -1535,6 +1587,20 @@ func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsRespon
 	}
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -1938,6 +2004,44 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	return
+}
+
+// ValidateUserInfoResponseBody runs the validations defined on
+// UserInfoResponseBody
+func ValidateUserInfoResponseBody(body *UserInfoResponseBody) (err error) {
+	if body.Email != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+	}
+	if body.Avatar != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.avatar", *body.Avatar, goa.FormatURI))
+	}
+	return
+}
+
+// ValidateUserInfoRequestBody runs the validations defined on
+// UserInfoRequestBody
+func ValidateUserInfoRequestBody(body *UserInfoRequestBody) (err error) {
+	if body.Email != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+	}
+	if body.Avatar != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.avatar", *body.Avatar, goa.FormatURI))
+	}
 	return
 }
 
@@ -2014,6 +2118,20 @@ func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err
 	}
 	if body.AnnouncementDate != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
+	}
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
