@@ -93,7 +93,8 @@ func parseUserInfo(userStr string) []models.UserInfo {
 			// Check if this is structured format (contains colons)
 			if strings.Contains(trimmed, ":") {
 				// Structured format: username:name:email:avatar
-				parts := strings.Split(trimmed, ":")
+				// Use SplitN to limit splitting to 4 parts, preserving colons in URLs (e.g., https://)
+				parts := strings.SplitN(trimmed, ":", 4)
 				user := models.UserInfo{
 					Username: parts[0],
 				}
