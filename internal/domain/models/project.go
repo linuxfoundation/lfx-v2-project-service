@@ -50,7 +50,7 @@ type ProjectSettings struct {
 	AnnouncementDate    *time.Time `json:"announcement_date"`
 	Auditors            []UserInfo `json:"auditors"`
 	Writers             []UserInfo `json:"writers"`
-	MeetingCoordinators []string   `json:"meeting_coordinators"`
+	MeetingCoordinators []UserInfo `json:"meeting_coordinators"`
 	CreatedAt           *time.Time `json:"created_at"`
 	UpdatedAt           *time.Time `json:"updated_at"`
 }

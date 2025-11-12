@@ -69,8 +69,14 @@ paths:
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       logo_url: https://example.com/logo.png
                                       meeting_coordinators:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
                                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                                       name: Foo Foundation
                                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -116,8 +122,14 @@ paths:
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       logo_url: https://example.com/logo.png
                                       meeting_coordinators:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
                                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                                       name: Foo Foundation
                                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -163,8 +175,14 @@ paths:
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       logo_url: https://example.com/logo.png
                                       meeting_coordinators:
-                                        - user123
-                                        - user456
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
                                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                                       name: Foo Foundation
                                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -263,8 +281,14 @@ paths:
                             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                             logo_url: https://example.com/logo.png
                             meeting_coordinators:
-                                - user123
-                                - user456
+                                - avatar: https://example.com/avatar1.jpg
+                                  email: john.doe@example.com
+                                  name: John Doe
+                                  username: johndoe123
+                                - avatar: https://example.com/avatar2.jpg
+                                  email: jane.smith@example.com
+                                  name: Jane Smith
+                                  username: janesmith456
                             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                             name: Foo Foundation
                             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -316,8 +340,14 @@ paths:
                                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 logo_url: https://example.com/logo.png
                                 meeting_coordinators:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar1.jpg
+                                      email: john.doe@example.com
+                                      name: John Doe
+                                      username: johndoe123
+                                    - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
                                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                                 name: Foo Foundation
                                 parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -752,8 +782,14 @@ paths:
                                       username: janesmith456
                                 created_at: "2021-01-01T00:00:00Z"
                                 meeting_coordinators:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar1.jpg
+                                      email: john.doe@example.com
+                                      name: John Doe
+                                      username: johndoe123
+                                    - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
                                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2021-01-01T00:00:00Z"
@@ -850,8 +886,14 @@ paths:
                                   name: Jane Smith
                                   username: janesmith456
                             meeting_coordinators:
-                                - user123
-                                - user456
+                                - avatar: https://example.com/avatar1.jpg
+                                  email: john.doe@example.com
+                                  name: John Doe
+                                  username: johndoe123
+                                - avatar: https://example.com/avatar2.jpg
+                                  email: jane.smith@example.com
+                                  name: Jane Smith
+                                  username: janesmith456
                             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                             writers:
                                 - avatar: https://example.com/avatar3.jpg
@@ -882,8 +924,14 @@ paths:
                                       username: janesmith456
                                 created_at: "2021-01-01T00:00:00Z"
                                 meeting_coordinators:
-                                    - user123
-                                    - user456
+                                    - avatar: https://example.com/avatar1.jpg
+                                      email: john.doe@example.com
+                                      name: John Doe
+                                      username: johndoe123
+                                    - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
                                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2021-01-01T00:00:00Z"
@@ -1050,7 +1098,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Alternate Funding
+                        example: Crowdfunding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -1090,12 +1138,17 @@ components:
                 meeting_coordinators:
                     type: array
                     items:
-                        type: string
-                        example: Exercitationem vel expedita dolorum.
-                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project meeting coordinators with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -1181,8 +1234,14 @@ components:
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 logo_url: https://example.com/logo.png
                 meeting_coordinators:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                 name: Foo Foundation
                 parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1240,8 +1299,14 @@ components:
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           logo_url: https://example.com/logo.png
                           meeting_coordinators:
-                            - user123
-                            - user456
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
                           mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                           name: Foo Foundation
                           parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1287,8 +1352,14 @@ components:
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           logo_url: https://example.com/logo.png
                           meeting_coordinators:
-                            - user123
-                            - user456
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
                           mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                           name: Foo Foundation
                           parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1334,8 +1405,14 @@ components:
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           logo_url: https://example.com/logo.png
                           meeting_coordinators:
-                            - user123
-                            - user456
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
                           mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                           name: Foo Foundation
                           parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1383,8 +1460,14 @@ components:
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
                       meeting_coordinators:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1430,8 +1513,14 @@ components:
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
                       meeting_coordinators:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1477,8 +1566,14 @@ components:
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
                       meeting_coordinators:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1524,8 +1619,14 @@ components:
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
                       meeting_coordinators:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1647,7 +1748,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Membership
+                        example: Crowdfunding
                         enum:
                             - Crowdfunding
                             - Membership
@@ -1886,12 +1987,17 @@ components:
                 meeting_coordinators:
                     type: array
                     items:
-                        type: string
-                        example: Officia porro odio deleniti.
-                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project meeting coordinators with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -1989,8 +2095,14 @@ components:
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 logo_url: https://example.com/logo.png
                 meeting_coordinators:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                 name: Foo Foundation
                 parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -2040,12 +2152,17 @@ components:
                 meeting_coordinators:
                     type: array
                     items:
-                        type: string
-                        example: Necessitatibus beatae quasi magnam et.
-                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project meeting coordinators with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -2088,8 +2205,14 @@ components:
                       username: janesmith456
                 created_at: "2021-01-01T00:00:00Z"
                 meeting_coordinators:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2021-01-01T00:00:00Z"
@@ -2180,7 +2303,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Crowdfunding
+                        example: Membership
                         enum:
                             - Crowdfunding
                             - Membership
@@ -2310,12 +2433,17 @@ components:
                 meeting_coordinators:
                     type: array
                     items:
-                        type: string
-                        example: Quisquam illum voluptas corporis iure.
-                    description: A list of project meeting coordinators by their LFIDs (usernames). These users are responsible for managing meetings for the project.
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project meeting coordinators with their profile information
                     example:
-                        - user123
-                        - user456
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -2346,8 +2474,14 @@ components:
                       name: Jane Smith
                       username: janesmith456
                 meeting_coordinators:
-                    - user123
-                    - user456
+                    - avatar: https://example.com/avatar1.jpg
+                      email: john.doe@example.com
+                      name: John Doe
+                      username: johndoe123
+                    - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                 writers:
                     - avatar: https://example.com/avatar3.jpg

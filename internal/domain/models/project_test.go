@@ -211,9 +211,11 @@ func TestProjectSettingsTags(t *testing.T) {
 					{Name: "Writer One", Email: "writer1@example.com", Username: "writer1", Avatar: "https://example.com/avatar3.jpg"},
 					{Name: "Writer Two", Email: "writer2@example.com", Username: "writer2", Avatar: "https://example.com/avatar4.jpg"},
 				},
-				MeetingCoordinators: []string{"coordinator1"},
-				CreatedAt:           &now,
-				UpdatedAt:           &now,
+				MeetingCoordinators: []UserInfo{
+					{Name: "Coordinator One", Email: "coordinator1@example.com", Username: "coordinator1", Avatar: "https://example.com/avatar5.jpg"},
+				},
+				CreatedAt: &now,
+				UpdatedAt: &now,
 			},
 			expected: []string{
 				"settings-123",

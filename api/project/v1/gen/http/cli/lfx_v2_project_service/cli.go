@@ -296,8 +296,18 @@ Example:
       "legal_parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
       "logo_url": "https://example.com/logo.png",
       "meeting_coordinators": [
-         "user123",
-         "user456"
+         {
+            "avatar": "https://example.com/avatar1.jpg",
+            "email": "john.doe@example.com",
+            "name": "John Doe",
+            "username": "johndoe123"
+         },
+         {
+            "avatar": "https://example.com/avatar2.jpg",
+            "email": "jane.smith@example.com",
+            "name": "Jane Smith",
+            "username": "janesmith456"
+         }
       ],
       "mission_statement": "The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.",
       "name": "Foo Foundation",
@@ -417,8 +427,18 @@ Example:
          }
       ],
       "meeting_coordinators": [
-         "user123",
-         "user456"
+         {
+            "avatar": "https://example.com/avatar1.jpg",
+            "email": "john.doe@example.com",
+            "name": "John Doe",
+            "username": "johndoe123"
+         },
+         {
+            "avatar": "https://example.com/avatar2.jpg",
+            "email": "jane.smith@example.com",
+            "name": "Jane Smith",
+            "username": "janesmith456"
+         }
       ],
       "mission_statement": "The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.",
       "writers": [

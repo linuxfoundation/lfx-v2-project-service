@@ -177,7 +177,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 				ParentUID:           projectDB.ParentUID,
 				Writers:             extractUsernames(projectSettingsDB.Writers),
 				Auditors:            extractUsernames(projectSettingsDB.Auditors),
-				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
+				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
 			},
 		}
 		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
@@ -437,7 +437,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 				ParentUID:           projectDB.ParentUID,
 				Writers:             extractUsernames(projectSettingsDB.Writers),
 				Auditors:            extractUsernames(projectSettingsDB.Auditors),
-				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
+				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
 			},
 		}
 		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
@@ -572,7 +572,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 				ParentUID:           projectDB.ParentUID,
 				Writers:             extractUsernames(projectSettingsDB.Writers),
 				Auditors:            extractUsernames(projectSettingsDB.Auditors),
-				MeetingCoordinators: projectSettingsDB.MeetingCoordinators,
+				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
 			},
 		}
 		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)

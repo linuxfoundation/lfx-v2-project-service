@@ -1022,9 +1022,9 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 		}
 	}
 	if v.MeetingCoordinators != nil {
-		res.MeetingCoordinators = make([]string, len(v.MeetingCoordinators))
+		res.MeetingCoordinators = make([]*UserInfoResponseBody, len(v.MeetingCoordinators))
 		for i, val := range v.MeetingCoordinators {
-			res.MeetingCoordinators[i] = val
+			res.MeetingCoordinators[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
 	if v.Auditors != nil {
