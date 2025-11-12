@@ -60,6 +60,7 @@ func ProjectBaseAttributes() {
 	ProjectDescriptionAttribute()
 	ProjectNameAttribute()
 	ProjectPublicAttribute()
+	ProjectIsFoundationAttribute()
 	ProjectParentUIDAttribute()
 	ProjectStageAttribute()
 	ProjectCategoryAttribute()
@@ -186,6 +187,13 @@ func ProjectCategoryAttribute() {
 func ProjectPublicAttribute() {
 	Attribute("public", Boolean, "Whether the project is public", func() {
 		Example(true)
+	})
+}
+
+// ProjectIsFoundationAttribute is the DSL attribute for a project is_foundation flag.
+func ProjectIsFoundationAttribute() {
+	Attribute("is_foundation", Boolean, "Whether the project is a foundation", func() {
+		Example(false)
 	})
 }
 

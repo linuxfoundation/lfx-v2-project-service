@@ -25,6 +25,8 @@ type CreateProjectRequestBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -79,6 +81,8 @@ type UpdateProjectBaseRequestBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -147,6 +151,8 @@ type CreateProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -215,6 +221,8 @@ type UpdateProjectBaseResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -555,6 +563,8 @@ type ProjectFullResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -626,6 +636,8 @@ type ProjectBaseResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -719,6 +731,7 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 		Description:                res.Description,
 		Name:                       res.Name,
 		Public:                     res.Public,
+		IsFoundation:               res.IsFoundation,
 		ParentUID:                  res.ParentUID,
 		Stage:                      res.Stage,
 		Category:                   res.Category,
@@ -775,6 +788,7 @@ func NewGetOneProjectBaseResponseBody(res *projectservice.GetOneProjectBaseResul
 		Description:                res.Project.Description,
 		Name:                       res.Project.Name,
 		Public:                     res.Project.Public,
+		IsFoundation:               res.Project.IsFoundation,
 		ParentUID:                  res.Project.ParentUID,
 		Stage:                      res.Project.Stage,
 		Category:                   res.Project.Category,
@@ -843,6 +857,7 @@ func NewUpdateProjectBaseResponseBody(res *projectservice.ProjectBase) *UpdatePr
 		Description:                res.Description,
 		Name:                       res.Name,
 		Public:                     res.Public,
+		IsFoundation:               res.IsFoundation,
 		ParentUID:                  res.ParentUID,
 		Stage:                      res.Stage,
 		Category:                   res.Category,
@@ -1210,6 +1225,7 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 		Description:                *body.Description,
 		Name:                       *body.Name,
 		Public:                     body.Public,
+		IsFoundation:               body.IsFoundation,
 		ParentUID:                  *body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
@@ -1287,6 +1303,7 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 		Description:                *body.Description,
 		Name:                       *body.Name,
 		Public:                     body.Public,
+		IsFoundation:               body.IsFoundation,
 		ParentUID:                  *body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,

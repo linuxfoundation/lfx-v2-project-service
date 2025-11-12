@@ -1208,6 +1208,7 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 		Description:                v.Description,
 		Name:                       v.Name,
 		Public:                     v.Public,
+		IsFoundation:               v.IsFoundation,
 		ParentUID:                  v.ParentUID,
 		Stage:                      v.Stage,
 		Category:                   v.Category,

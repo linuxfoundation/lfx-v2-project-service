@@ -63,6 +63,7 @@ paths:
                                       formation_date: "2021-01-01"
                                       funding_model:
                                         - Crowdfunding
+                                      is_foundation: false
                                       legal_entity_name: Example Foundation LLC
                                       legal_entity_type: Subproject
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -109,6 +110,7 @@ paths:
                                       formation_date: "2021-01-01"
                                       funding_model:
                                         - Crowdfunding
+                                      is_foundation: false
                                       legal_entity_name: Example Foundation LLC
                                       legal_entity_type: Subproject
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -155,6 +157,7 @@ paths:
                                       formation_date: "2021-01-01"
                                       funding_model:
                                         - Crowdfunding
+                                      is_foundation: false
                                       legal_entity_name: Example Foundation LLC
                                       legal_entity_type: Subproject
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -254,6 +257,7 @@ paths:
                             formation_date: "2021-01-01"
                             funding_model:
                                 - Crowdfunding
+                            is_foundation: false
                             legal_entity_name: Example Foundation LLC
                             legal_entity_type: Subproject
                             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -306,6 +310,7 @@ paths:
                                 formation_date: "2021-01-01"
                                 funding_model:
                                     - Crowdfunding
+                                is_foundation: false
                                 legal_entity_name: Example Foundation LLC
                                 legal_entity_type: Subproject
                                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -503,6 +508,7 @@ paths:
                                 formation_date: "2021-01-01"
                                 funding_model:
                                     - Crowdfunding
+                                is_foundation: false
                                 legal_entity_name: Example Foundation LLC
                                 legal_entity_type: Subproject
                                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -598,6 +604,7 @@ paths:
                             formation_date: "2021-01-01"
                             funding_model:
                                 - Crowdfunding
+                            is_foundation: false
                             legal_entity_name: Example Foundation LLC
                             legal_entity_type: Subproject
                             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -627,6 +634,7 @@ paths:
                                 formation_date: "2021-01-01"
                                 funding_model:
                                     - Crowdfunding
+                                is_foundation: false
                                 legal_entity_name: Example Foundation LLC
                                 legal_entity_type: Subproject
                                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1050,6 +1058,10 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                is_foundation:
+                    type: boolean
+                    description: Whether the project is a foundation
+                    example: false
                 legal_entity_name:
                     type: string
                     description: The legal entity name of the project
@@ -1163,6 +1175,7 @@ components:
                 formation_date: "2021-01-01"
                 funding_model:
                     - Crowdfunding
+                is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1221,6 +1234,7 @@ components:
                           formation_date: "2021-01-01"
                           funding_model:
                             - Crowdfunding
+                          is_foundation: false
                           legal_entity_name: Example Foundation LLC
                           legal_entity_type: Subproject
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1267,6 +1281,7 @@ components:
                           formation_date: "2021-01-01"
                           funding_model:
                             - Crowdfunding
+                          is_foundation: false
                           legal_entity_name: Example Foundation LLC
                           legal_entity_type: Subproject
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1313,6 +1328,7 @@ components:
                           formation_date: "2021-01-01"
                           funding_model:
                             - Crowdfunding
+                          is_foundation: false
                           legal_entity_name: Example Foundation LLC
                           legal_entity_type: Subproject
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1361,6 +1377,7 @@ components:
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
+                      is_foundation: false
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1407,6 +1424,7 @@ components:
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
+                      is_foundation: false
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1453,6 +1471,7 @@ components:
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
+                      is_foundation: false
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1499,6 +1518,7 @@ components:
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
+                      is_foundation: false
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1635,6 +1655,10 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                is_foundation:
+                    type: boolean
+                    description: Whether the project is a foundation
+                    example: false
                 legal_entity_name:
                     type: string
                     description: The legal entity name of the project
@@ -1723,6 +1747,7 @@ components:
                 formation_date: "2021-01-01"
                 funding_model:
                     - Crowdfunding
+                is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -1829,6 +1854,10 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                is_foundation:
+                    type: boolean
+                    description: Whether the project is a foundation
+                    example: false
                 legal_entity_name:
                     type: string
                     description: The legal entity name of the project
@@ -1954,6 +1983,7 @@ components:
                 formation_date: "2021-01-01"
                 funding_model:
                     - Crowdfunding
+                is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
@@ -2158,6 +2188,10 @@ components:
                     description: A list of funding models for the project
                     example:
                         - Crowdfunding
+                is_foundation:
+                    type: boolean
+                    description: Whether the project is a foundation
+                    example: false
                 legal_entity_name:
                     type: string
                     description: The legal entity name of the project
@@ -2234,6 +2268,7 @@ components:
                 formation_date: "2021-01-01"
                 funding_model:
                     - Crowdfunding
+                is_foundation: false
                 legal_entity_name: Example Foundation LLC
                 legal_entity_type: Subproject
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee

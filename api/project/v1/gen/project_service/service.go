@@ -88,6 +88,8 @@ type CreateProjectPayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID string
 	// The stage of the project
@@ -227,6 +229,8 @@ type ProjectBase struct {
 	Name *string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string
 	// The stage of the project
@@ -276,6 +280,8 @@ type ProjectFull struct {
 	Name *string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string
 	// The stage of the project
@@ -371,6 +377,8 @@ type UpdateProjectBasePayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID string
 	// The stage of the project

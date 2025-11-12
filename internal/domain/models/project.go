@@ -23,6 +23,7 @@ type ProjectBase struct {
 	Name                       string     `json:"name"`
 	Description                string     `json:"description"`
 	Public                     bool       `json:"public"`
+	IsFoundation               bool       `json:"is_foundation"`
 	ParentUID                  string     `json:"parent_uid"`
 	Stage                      string     `json:"stage"`
 	Category                   string     `json:"category"`

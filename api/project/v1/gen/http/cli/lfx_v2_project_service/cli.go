@@ -290,6 +290,7 @@ Example:
       "funding_model": [
          "Crowdfunding"
       ],
+      "is_foundation": false,
       "legal_entity_name": "Example Foundation LLC",
       "legal_entity_type": "Subproject",
       "legal_parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
@@ -372,6 +373,7 @@ Example:
       "funding_model": [
          "Crowdfunding"
       ],
+      "is_foundation": false,
       "legal_entity_name": "Example Foundation LLC",
       "legal_entity_type": "Subproject",
       "legal_parent_uid": "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
