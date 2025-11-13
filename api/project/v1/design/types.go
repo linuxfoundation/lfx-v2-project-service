@@ -23,6 +23,13 @@ func EtagAttribute() {
 	})
 }
 
+// XSyncAttribute is a reusable X-Sync header attribute.
+func XSyncAttribute() {
+	Attribute("x_sync", Boolean, "X-Sync header value for performing operations synchronously", func() {
+		Example(true)
+	})
+}
+
 // IfMatchAttribute is a reusable If-Match header attribute (for conditional requests).
 func IfMatchAttribute() {
 	Attribute("if_match", String, "If-Match header value for conditional requests", func() {

@@ -78,6 +78,8 @@ type ConflictError struct {
 type CreateProjectPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
 	// Version of the API
 	Version *string
 	// Project slug, a short slugified name of the project
@@ -137,6 +139,8 @@ type CreateProjectPayload struct {
 type DeleteProjectPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
 	// Version of the API
@@ -360,6 +364,8 @@ type ServiceUnavailableError struct {
 type UpdateProjectBasePayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
 	// Version of the API
@@ -413,6 +419,8 @@ type UpdateProjectBasePayload struct {
 type UpdateProjectSettingsPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
 	// If-Match header value for conditional requests
 	IfMatch *string
 	// Version of the API

@@ -15,6 +15,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
@@ -185,6 +186,11 @@ func EncodeCreateProjectRequest(encoder func(*http.Request) goahttp.Encoder) fun
 			} else {
 				req.Header.Set("Authorization", head)
 			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
 		}
 		values := req.URL.Query()
 		if p.Version != nil {
@@ -639,6 +645,11 @@ func EncodeUpdateProjectBaseRequest(encoder func(*http.Request) goahttp.Encoder)
 				req.Header.Set("Authorization", head)
 			}
 		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
 		if p.IfMatch != nil {
 			head := *p.IfMatch
 			req.Header.Set("If-Match", head)
@@ -817,6 +828,11 @@ func EncodeUpdateProjectSettingsRequest(encoder func(*http.Request) goahttp.Enco
 				req.Header.Set("Authorization", head)
 			}
 		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
 		if p.IfMatch != nil {
 			head := *p.IfMatch
 			req.Header.Set("If-Match", head)
@@ -978,6 +994,11 @@ func EncodeDeleteProjectRequest(encoder func(*http.Request) goahttp.Encoder) fun
 			} else {
 				req.Header.Set("Authorization", head)
 			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
 		}
 		if p.IfMatch != nil {
 			head := *p.IfMatch

@@ -19,8 +19,8 @@ type MessageHandler interface {
 	HandleMessage(ctx context.Context, msg Message)
 }
 
-// MessageBuilder is a generic interface for publishing messages to NATS.
+// MessageBuilder is a generic interface for sending messages to NATS.
 type MessageBuilder interface {
-	PublishIndexerMessage(ctx context.Context, subject string, message interface{}) error
-	PublishAccessMessage(ctx context.Context, subject string, message interface{}) error
+	SendIndexerMessage(ctx context.Context, subject string, message any, sync bool) error
+	SendAccessMessage(ctx context.Context, subject string, message any, sync bool) error
 }

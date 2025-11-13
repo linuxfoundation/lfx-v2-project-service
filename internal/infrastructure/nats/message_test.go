@@ -115,7 +115,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 			}
 
 			ctx := tt.setupCtx()
-			err := mb.PublishIndexerMessage(ctx, tt.subject, tt.message)
+			err := mb.SendIndexerMessage(ctx, tt.subject, tt.message, false)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -199,7 +199,7 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 			}
 
 			ctx := tt.setupCtx()
-			err := mb.PublishAccessMessage(ctx, tt.subject, tt.message)
+			err := mb.SendAccessMessage(ctx, tt.subject, tt.message, false)
 
 			if tt.wantErr {
 				assert.Error(t, err)
