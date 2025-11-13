@@ -108,7 +108,9 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 				Auditors: []*projsvc.UserInfo{
 					createTestAPIUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
 				},
-				MeetingCoordinators: []string{"coordinator1"},
+				MeetingCoordinators: []*projsvc.UserInfo{
+					createTestAPIUserInfo("coordinator1", "Coordinator One", "coordinator1@example.com", ""),
+				},
 			},
 			expected: &models.ProjectSettings{
 				UID:              "test-uid",
@@ -120,7 +122,9 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 				Auditors: []models.UserInfo{
 					createTestUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
 				},
-				MeetingCoordinators: []string{"coordinator1"},
+				MeetingCoordinators: []models.UserInfo{
+					createTestUserInfo("coordinator1", "Coordinator One", "coordinator1@example.com", ""),
+				},
 			},
 			wantErr: false,
 		},
@@ -356,9 +360,11 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				Auditors: []models.UserInfo{
 					createTestUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
 				},
-				MeetingCoordinators: []string{"coordinator1"},
-				CreatedAt:           &now,
-				UpdatedAt:           &now,
+				MeetingCoordinators: []models.UserInfo{
+					createTestUserInfo("coordinator1", "Coordinator One", "coordinator1@example.com", ""),
+				},
+				CreatedAt: &now,
+				UpdatedAt: &now,
 			},
 			expected: &projsvc.ProjectSettings{
 				UID:              misc.StringPtr("test-uid"),
@@ -370,7 +376,9 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				Auditors: []*projsvc.UserInfo{
 					createTestAPIUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
 				},
-				MeetingCoordinators: []string{"coordinator1"},
+				MeetingCoordinators: []*projsvc.UserInfo{
+					createTestAPIUserInfo("coordinator1", "Coordinator One", "coordinator1@example.com", ""),
+				},
 			},
 		},
 		{

@@ -23,6 +23,7 @@ type ProjectBase struct {
 	Name                       string     `json:"name"`
 	Description                string     `json:"description"`
 	Public                     bool       `json:"public"`
+	IsFoundation               bool       `json:"is_foundation"`
 	ParentUID                  string     `json:"parent_uid"`
 	Stage                      string     `json:"stage"`
 	Category                   string     `json:"category"`
@@ -49,7 +50,7 @@ type ProjectSettings struct {
 	AnnouncementDate    *time.Time `json:"announcement_date"`
 	Auditors            []UserInfo `json:"auditors"`
 	Writers             []UserInfo `json:"writers"`
-	MeetingCoordinators []string   `json:"meeting_coordinators"`
+	MeetingCoordinators []UserInfo `json:"meeting_coordinators"`
 	CreatedAt           *time.Time `json:"created_at"`
 	UpdatedAt           *time.Time `json:"updated_at"`
 }

@@ -25,6 +25,8 @@ type CreateProjectRequestBody struct {
 	Name string `form:"name" json:"name" xml:"name"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID string `form:"parent_uid" json:"parent_uid" xml:"parent_uid"`
 	// The stage of the project
@@ -61,9 +63,8 @@ type CreateProjectRequestBody struct {
 	MissionStatement *string `form:"mission_statement,omitempty" json:"mission_statement,omitempty" xml:"mission_statement,omitempty"`
 	// A list of project writers with their profile information
 	Writers []*UserInfoRequestBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfoRequestBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
@@ -79,6 +80,8 @@ type UpdateProjectBaseRequestBody struct {
 	Name string `form:"name" json:"name" xml:"name"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID string `form:"parent_uid" json:"parent_uid" xml:"parent_uid"`
 	// The stage of the project
@@ -120,9 +123,8 @@ type UpdateProjectSettingsRequestBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers with their profile information
 	Writers []*UserInfoRequestBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfoRequestBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
@@ -147,6 +149,8 @@ type CreateProjectResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -187,9 +191,8 @@ type CreateProjectResponseBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers with their profile information
 	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
@@ -215,6 +218,8 @@ type UpdateProjectBaseResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -262,9 +267,8 @@ type UpdateProjectSettingsResponseBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers with their profile information
 	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
@@ -555,6 +559,8 @@ type ProjectFullResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -595,9 +601,8 @@ type ProjectFullResponseBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers with their profile information
 	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
@@ -638,6 +643,8 @@ type ProjectBaseResponseBody struct {
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Whether the project is public
 	Public *bool `form:"public,omitempty" json:"public,omitempty" xml:"public,omitempty"`
+	// Whether the project is a foundation
+	IsFoundation *bool `form:"is_foundation,omitempty" json:"is_foundation,omitempty" xml:"is_foundation,omitempty"`
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// The stage of the project
@@ -684,9 +691,8 @@ type ProjectSettingsResponseBody struct {
 	AnnouncementDate *string `form:"announcement_date,omitempty" json:"announcement_date,omitempty" xml:"announcement_date,omitempty"`
 	// A list of project writers with their profile information
 	Writers []*UserInfoResponseBody `form:"writers,omitempty" json:"writers,omitempty" xml:"writers,omitempty"`
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The date and time the project was created
@@ -703,6 +709,7 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 		Description:                p.Description,
 		Name:                       p.Name,
 		Public:                     p.Public,
+		IsFoundation:               p.IsFoundation,
 		ParentUID:                  p.ParentUID,
 		Stage:                      p.Stage,
 		Category:                   p.Category,
@@ -733,9 +740,9 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 		}
 	}
 	if p.MeetingCoordinators != nil {
-		body.MeetingCoordinators = make([]string, len(p.MeetingCoordinators))
+		body.MeetingCoordinators = make([]*UserInfoRequestBody, len(p.MeetingCoordinators))
 		for i, val := range p.MeetingCoordinators {
-			body.MeetingCoordinators[i] = val
+			body.MeetingCoordinators[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
 		}
 	}
 	if p.Auditors != nil {
@@ -756,6 +763,7 @@ func NewUpdateProjectBaseRequestBody(p *projectservice.UpdateProjectBasePayload)
 		Description:                p.Description,
 		Name:                       p.Name,
 		Public:                     p.Public,
+		IsFoundation:               p.IsFoundation,
 		ParentUID:                  p.ParentUID,
 		Stage:                      p.Stage,
 		Category:                   p.Category,
@@ -795,9 +803,9 @@ func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettings
 		}
 	}
 	if p.MeetingCoordinators != nil {
-		body.MeetingCoordinators = make([]string, len(p.MeetingCoordinators))
+		body.MeetingCoordinators = make([]*UserInfoRequestBody, len(p.MeetingCoordinators))
 		for i, val := range p.MeetingCoordinators {
-			body.MeetingCoordinators[i] = val
+			body.MeetingCoordinators[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
 		}
 	}
 	if p.Auditors != nil {
@@ -864,6 +872,7 @@ func NewCreateProjectProjectFullCreated(body *CreateProjectResponseBody) *projec
 		Description:                body.Description,
 		Name:                       body.Name,
 		Public:                     body.Public,
+		IsFoundation:               body.IsFoundation,
 		ParentUID:                  body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
@@ -896,9 +905,9 @@ func NewCreateProjectProjectFullCreated(body *CreateProjectResponseBody) *projec
 		}
 	}
 	if body.MeetingCoordinators != nil {
-		v.MeetingCoordinators = make([]string, len(body.MeetingCoordinators))
+		v.MeetingCoordinators = make([]*projectservice.UserInfo, len(body.MeetingCoordinators))
 		for i, val := range body.MeetingCoordinators {
-			v.MeetingCoordinators[i] = val
+			v.MeetingCoordinators[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.Auditors != nil {
@@ -964,6 +973,7 @@ func NewGetOneProjectBaseResultOK(body *GetOneProjectBaseResponseBody, etag *str
 		Description:                body.Description,
 		Name:                       body.Name,
 		Public:                     body.Public,
+		IsFoundation:               body.IsFoundation,
 		ParentUID:                  body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
@@ -1045,9 +1055,9 @@ func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, e
 		}
 	}
 	if body.MeetingCoordinators != nil {
-		v.MeetingCoordinators = make([]string, len(body.MeetingCoordinators))
+		v.MeetingCoordinators = make([]*projectservice.UserInfo, len(body.MeetingCoordinators))
 		for i, val := range body.MeetingCoordinators {
-			v.MeetingCoordinators[i] = val
+			v.MeetingCoordinators[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.Auditors != nil {
@@ -1106,6 +1116,7 @@ func NewUpdateProjectBaseProjectBaseOK(body *UpdateProjectBaseResponseBody) *pro
 		Description:                body.Description,
 		Name:                       body.Name,
 		Public:                     body.Public,
+		IsFoundation:               body.IsFoundation,
 		ParentUID:                  body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
@@ -1205,9 +1216,9 @@ func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsRespon
 		}
 	}
 	if body.MeetingCoordinators != nil {
-		v.MeetingCoordinators = make([]string, len(body.MeetingCoordinators))
+		v.MeetingCoordinators = make([]*projectservice.UserInfo, len(body.MeetingCoordinators))
 		for i, val := range body.MeetingCoordinators {
-			v.MeetingCoordinators[i] = val
+			v.MeetingCoordinators[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if body.Auditors != nil {
@@ -1407,6 +1418,13 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 			}
 		}
 	}
+	for _, e := range body.MeetingCoordinators {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
 	for _, e := range body.Auditors {
 		if e != nil {
 			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
@@ -1492,6 +1510,13 @@ func ValidateGetOneProjectSettingsResponseBody(body *GetOneProjectSettingsRespon
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.MeetingCoordinators {
 		if e != nil {
 			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
 				err = goa.MergeErrors(err, err2)
@@ -1589,6 +1614,13 @@ func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsRespon
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.MeetingCoordinators {
 		if e != nil {
 			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
 				err = goa.MergeErrors(err, err2)
@@ -2011,6 +2043,13 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 			}
 		}
 	}
+	for _, e := range body.MeetingCoordinators {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
 	for _, e := range body.Auditors {
 		if e != nil {
 			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
@@ -2120,6 +2159,13 @@ func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.announcement_date", *body.AnnouncementDate, goa.FormatDate))
 	}
 	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.MeetingCoordinators {
 		if e != nil {
 			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
 				err = goa.MergeErrors(err, err2)

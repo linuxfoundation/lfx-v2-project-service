@@ -23,13 +23,14 @@ import (
 
 // ProjectData represents the structure for creating a project
 type ProjectData struct {
-	Slug        string                     `json:"slug"`
-	Name        string                     `json:"name"`
-	Description string                     `json:"description"`
-	Public      bool                       `json:"public"`
-	ParentUID   string                     `json:"parent_uid"`
-	Auditors    []*projectservice.UserInfo `json:"auditors"`
-	Writers     []*projectservice.UserInfo `json:"writers"`
+	Slug         string                     `json:"slug"`
+	Name         string                     `json:"name"`
+	Description  string                     `json:"description"`
+	Public       bool                       `json:"public"`
+	IsFoundation bool                       `json:"is_foundation"`
+	ParentUID    string                     `json:"parent_uid"`
+	Auditors     []*projectservice.UserInfo `json:"auditors"`
+	Writers      []*projectservice.UserInfo `json:"writers"`
 }
 
 // ProjectResponse represents the response from the API
@@ -140,13 +141,14 @@ func (pg *ProjectGenerator) GenerateProject(index int, parentUID string) Project
 	}
 
 	return ProjectData{
-		Slug:        slug,
-		Name:        name,
-		Description: description,
-		Public:      public,
-		ParentUID:   parentUID,
-		Auditors:    auditors,
-		Writers:     writers,
+		Slug:         slug,
+		Name:         name,
+		Description:  description,
+		Public:       public,
+		IsFoundation: false,
+		ParentUID:    parentUID,
+		Auditors:     auditors,
+		Writers:      writers,
 	}
 }
 
@@ -202,24 +204,26 @@ func NewProjectClient(config *Config) *ProjectClient {
 func (pc *ProjectClient) CreateProject(ctx context.Context, project ProjectData) (*ProjectResponse, error) {
 	// Create the payload
 	payload := &projectservice.CreateProjectPayload{
-		Slug:        project.Slug,
-		Name:        project.Name,
-		Description: project.Description,
-		Public:      &project.Public,
-		ParentUID:   project.ParentUID,
-		Auditors:    project.Auditors,
-		Writers:     project.Writers,
+		Slug:         project.Slug,
+		Name:         project.Name,
+		Description:  project.Description,
+		Public:       &project.Public,
+		IsFoundation: &project.IsFoundation,
+		ParentUID:    project.ParentUID,
+		Auditors:     project.Auditors,
+		Writers:      project.Writers,
 	}
 
 	// Marshal the payload
 	payloadBytes, err := json.Marshal(map[string]interface{}{
-		"slug":        payload.Slug,
-		"name":        payload.Name,
-		"description": payload.Description,
-		"public":      payload.Public,
-		"parent_uid":  payload.ParentUID,
-		"auditors":    payload.Auditors,
-		"writers":     payload.Writers,
+		"slug":          payload.Slug,
+		"name":          payload.Name,
+		"description":   payload.Description,
+		"public":        payload.Public,
+		"is_foundation": payload.IsFoundation,
+		"parent_uid":    payload.ParentUID,
+		"auditors":      payload.Auditors,
+		"writers":       payload.Writers,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)

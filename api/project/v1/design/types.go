@@ -60,6 +60,7 @@ func ProjectBaseAttributes() {
 	ProjectDescriptionAttribute()
 	ProjectNameAttribute()
 	ProjectPublicAttribute()
+	ProjectIsFoundationAttribute()
 	ProjectParentUIDAttribute()
 	ProjectStageAttribute()
 	ProjectCategoryAttribute()
@@ -189,6 +190,13 @@ func ProjectPublicAttribute() {
 	})
 }
 
+// ProjectIsFoundationAttribute is the DSL attribute for a project is_foundation flag.
+func ProjectIsFoundationAttribute() {
+	Attribute("is_foundation", Boolean, "Whether the project is a foundation", func() {
+		Example(false)
+	})
+}
+
 // ProjectParentUIDAttribute is the DSL attribute for a project parent UID.
 func ProjectParentUIDAttribute() {
 	Attribute("parent_uid", String, "The UID of the parent project, required and must be a valid UUID", func() {
@@ -284,12 +292,21 @@ func ProjectWritersAttribute() {
 
 // ProjectMeetingCoordinatorsAttribute is the DSL attribute for a project meeting coordinators.
 func ProjectMeetingCoordinatorsAttribute() {
-	Attribute("meeting_coordinators", ArrayOf(String), func() {
-		Description(
-			"A list of project meeting coordinators by their LFIDs (usernames). " +
-				"These users are responsible for managing meetings for the project.",
-		)
-		Example([]string{"user123", "user456"})
+	Attribute("meeting_coordinators", ArrayOf(UserInfo), "A list of project meeting coordinators with their profile information", func() {
+		Example([]map[string]interface{}{
+			{
+				"name":     "John Doe",
+				"email":    "john.doe@example.com",
+				"username": "johndoe123",
+				"avatar":   "https://example.com/avatar1.jpg",
+			},
+			{
+				"name":     "Jane Smith",
+				"email":    "jane.smith@example.com",
+				"username": "janesmith456",
+				"avatar":   "https://example.com/avatar2.jpg",
+			},
+		})
 	})
 }
 

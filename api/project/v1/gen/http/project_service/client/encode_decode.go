@@ -1208,6 +1208,7 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 		Description:                v.Description,
 		Name:                       v.Name,
 		Public:                     v.Public,
+		IsFoundation:               v.IsFoundation,
 		ParentUID:                  v.ParentUID,
 		Stage:                      v.Stage,
 		Category:                   v.Category,
@@ -1240,9 +1241,9 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 		}
 	}
 	if v.MeetingCoordinators != nil {
-		res.MeetingCoordinators = make([]string, len(v.MeetingCoordinators))
+		res.MeetingCoordinators = make([]*projectservice.UserInfo, len(v.MeetingCoordinators))
 		for i, val := range v.MeetingCoordinators {
-			res.MeetingCoordinators[i] = val
+			res.MeetingCoordinators[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
 	if v.Auditors != nil {

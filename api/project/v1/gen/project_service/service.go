@@ -88,6 +88,8 @@ type CreateProjectPayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID string
 	// The stage of the project
@@ -124,9 +126,8 @@ type CreateProjectPayload struct {
 	MissionStatement *string
 	// A list of project writers with their profile information
 	Writers []*UserInfo
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
 }
@@ -227,6 +228,8 @@ type ProjectBase struct {
 	Name *string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string
 	// The stage of the project
@@ -276,6 +279,8 @@ type ProjectFull struct {
 	Name *string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID *string
 	// The stage of the project
@@ -316,9 +321,8 @@ type ProjectFull struct {
 	AnnouncementDate *string
 	// A list of project writers with their profile information
 	Writers []*UserInfo
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
 }
@@ -334,9 +338,8 @@ type ProjectSettings struct {
 	AnnouncementDate *string
 	// A list of project writers with their profile information
 	Writers []*UserInfo
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
 	// The date and time the project was created
@@ -371,6 +374,8 @@ type UpdateProjectBasePayload struct {
 	Name string
 	// Whether the project is public
 	Public *bool
+	// Whether the project is a foundation
+	IsFoundation *bool
 	// The UID of the parent project, required and must be a valid UUID
 	ParentUID string
 	// The stage of the project
@@ -420,9 +425,8 @@ type UpdateProjectSettingsPayload struct {
 	AnnouncementDate *string
 	// A list of project writers with their profile information
 	Writers []*UserInfo
-	// A list of project meeting coordinators by their LFIDs (usernames). These
-	// users are responsible for managing meetings for the project.
-	MeetingCoordinators []string
+	// A list of project meeting coordinators with their profile information
+	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
 }

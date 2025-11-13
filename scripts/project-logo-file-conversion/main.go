@@ -90,7 +90,7 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		slog.Error("http bad status", "url", url, "error", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	// Check server response status code before trying to read the response body
 	if resp.StatusCode != http.StatusOK {
@@ -261,7 +261,7 @@ func runSingleFile(s3Client *s3.Client, url string, imageWidth int, imageHeight 
 	if err != nil {
 		return fmt.Errorf("error downloading remote file: %s", url)
 	}
-	out.Close()
+	_ = out.Close()
 
 	if imageWidth == 0 {
 		// If there is no specified width for the new image file, use the proportions of the original image
@@ -350,7 +350,7 @@ func runSelectProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, proje
 			slog.Error("error downloading remote file", "project_id", project.UID, "error", err)
 			continue
 		}
-		out.Close()
+		_ = out.Close()
 
 		if paramImageWidth == 0 {
 			// If there is no specified width for the new image file, use the proportions of the original image
@@ -438,7 +438,7 @@ func runAllProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, imageWid
 			slog.Error("error downloading remote file", "project_id", project.UID, "error", err)
 			continue
 		}
-		out.Close()
+		_ = out.Close()
 
 		if paramImageWidth == 0 {
 			// If there is no specified width for the new image file, use the proportions of the original image

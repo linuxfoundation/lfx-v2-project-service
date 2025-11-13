@@ -21,8 +21,9 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 	full := &projsvc.ProjectFull{
 		UID:  &base.UID,
 		Slug: &base.Slug,
-		// Public and AutojoinEnabled are always included as they're booleans with meaningful zero values
+		// Public, IsFoundation and AutojoinEnabled are always included as they're booleans with meaningful zero values
 		Public:          &base.Public,
+		IsFoundation:    &base.IsFoundation,
 		AutojoinEnabled: &base.AutojoinEnabled,
 	}
 
@@ -100,7 +101,7 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 			full.Auditors = convertUsersToAPI(settings.Auditors)
 		}
 		if len(settings.MeetingCoordinators) > 0 {
-			full.MeetingCoordinators = settings.MeetingCoordinators
+			full.MeetingCoordinators = convertUsersToAPI(settings.MeetingCoordinators)
 		}
 
 		// Handle settings fields that are pointers
@@ -135,6 +136,9 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*models.ProjectBase, 
 	}
 	if project.Public != nil {
 		p.Public = *project.Public
+	}
+	if project.IsFoundation != nil {
+		p.IsFoundation = *project.IsFoundation
 	}
 	if project.ParentUID != nil {
 		p.ParentUID = *project.ParentUID
@@ -214,11 +218,10 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*models.ProjectBase, 
 // ConvertToServiceProjectBase converts a project database representation to a project service project.
 func ConvertToServiceProjectBase(p *models.ProjectBase) *projsvc.ProjectBase {
 	project := &projsvc.ProjectBase{
-		UID:  &p.UID,
-		Slug: &p.Slug,
-		// Public is always included as it's a boolean with a meaningful zero value
-		Public: &p.Public,
-		// AutojoinEnabled is always included as it's a boolean with a meaningful zero value
+		UID:             &p.UID,
+		Slug:            &p.Slug,
+		Public:          &p.Public,
+		IsFoundation:    &p.IsFoundation,
 		AutojoinEnabled: &p.AutojoinEnabled,
 	}
 
@@ -314,7 +317,7 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*models.Proj
 		s.Auditors = convertUsersFromAPI(settings.Auditors)
 	}
 	if settings.MeetingCoordinators != nil {
-		s.MeetingCoordinators = settings.MeetingCoordinators
+		s.MeetingCoordinators = convertUsersFromAPI(settings.MeetingCoordinators)
 	}
 	if settings.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
@@ -357,7 +360,7 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 		settings.Auditors = convertUsersToAPI(s.Auditors)
 	}
 	if len(s.MeetingCoordinators) > 0 {
-		settings.MeetingCoordinators = s.MeetingCoordinators
+		settings.MeetingCoordinators = convertUsersToAPI(s.MeetingCoordinators)
 	}
 
 	// Handle settings fields that are pointers
