@@ -88,6 +88,11 @@ paths:
                   description: JWT token issued by Heimdall
                   required: false
                   type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
                 - name: Create-ProjectRequestBody
                   in: body
                   required: true
@@ -220,6 +225,11 @@ paths:
                   description: JWT token issued by Heimdall
                   required: false
                   type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
                 - name: If-Match
                   in: header
                   description: If-Match header value for conditional requests
@@ -304,6 +314,11 @@ paths:
                   description: JWT token issued by Heimdall
                   required: false
                   type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
                 - name: If-Match
                   in: header
                   description: If-Match header value for conditional requests
@@ -429,6 +444,11 @@ paths:
                   description: JWT token issued by Heimdall
                   required: false
                   type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
                 - name: If-Match
                   in: header
                   description: If-Match header value for conditional requests

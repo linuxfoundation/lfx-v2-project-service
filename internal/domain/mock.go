@@ -112,13 +112,13 @@ type MockMessageBuilder struct {
 	mock.Mock
 }
 
-func (m *MockMessageBuilder) PublishIndexerMessage(ctx context.Context, subject string, message interface{}) error {
-	args := m.Called(ctx, subject, message)
+func (m *MockMessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message any, sync bool) error {
+	args := m.Called(ctx, subject, message, sync)
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) PublishAccessMessage(ctx context.Context, subject string, message interface{}) error {
-	args := m.Called(ctx, subject, message)
+func (m *MockMessageBuilder) SendAccessMessage(ctx context.Context, subject string, message any, sync bool) error {
+	args := m.Called(ctx, subject, message, sync)
 	return args.Error(0)
 }
 

@@ -153,9 +153,9 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
-				mockBuilder.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectIndexerMessage")).Return(nil)
-				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectAccessMessage")).Return(nil)
-				mockBuilder.On("PublishIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectSettingsIndexerMessage")).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectIndexerMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectAccessMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectSettingsIndexerMessage"), mock.AnythingOfType("bool")).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {

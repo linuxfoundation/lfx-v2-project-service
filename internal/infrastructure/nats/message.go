@@ -8,11 +8,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/nats-io/nats.go"
 )
+
+const defaultRequestTimeout = time.Second * 10
 
 // MessageBuilder is the builder for the message and sends it to the NATS server.
 type MessageBuilder struct {
@@ -20,18 +24,46 @@ type MessageBuilder struct {
 }
 
 // sendMessage sends the message to the NATS server.
-func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data []byte) error {
-	err := m.NatsConn.Publish(subject, data)
+func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data []byte, sync bool) error {
+	if sync {
+		_, err := m.requestMessage(subject, data, defaultRequestTimeout)
+		if err != nil {
+			slog.ErrorContext(ctx, "error requesting message from NATS", constants.ErrKey, err, "subject", subject)
+			return err
+		}
+		slog.DebugContext(ctx, "sent and received response from NATS synchronously", "subject", subject)
+		return nil
+	}
+
+	// Send message asynchronously.
+	err := m.publishMessage(subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending message to NATS", constants.ErrKey, err, "subject", subject)
 		return err
 	}
-	slog.DebugContext(ctx, "sent message to NATS", "subject", subject)
+	slog.DebugContext(ctx, "sent message to NATS asynchronously", "subject", subject)
 	return nil
 }
 
+// publishMessage publishes a message to NATS asynchronously.
+func (m *MessageBuilder) publishMessage(subject string, data []byte) error {
+	return m.NatsConn.Publish(subject, data)
+}
+
+// requestMessage requests a message from NATS synchronously.
+func (m *MessageBuilder) requestMessage(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
+	return m.NatsConn.Request(subject, data, timeout)
+}
+
 // sendIndexerMessage sends the message to the NATS server for the indexer.
-func (m *MessageBuilder) sendIndexerMessage(ctx context.Context, subject string, action models.MessageAction, data []byte, tags []string) error {
+func (m *MessageBuilder) sendIndexerMessage(
+	ctx context.Context,
+	subject string,
+	action models.MessageAction,
+	data []byte,
+	tags []string,
+	sync bool,
+) error {
 	headers := make(map[string]string)
 	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
 		headers[constants.AuthorizationHeader] = authorization
@@ -85,13 +117,13 @@ func (m *MessageBuilder) sendIndexerMessage(ctx context.Context, subject string,
 		return err
 	}
 
-	slog.DebugContext(ctx, "constructed indexer message", "subject", subject, "message", string(messageBytes))
+	slog.DebugContext(ctx, "constructed indexer message", "subject", subject)
 
-	return m.sendMessage(ctx, subject, messageBytes)
+	return m.sendMessage(ctx, subject, messageBytes, sync)
 }
 
-// PublishIndexerMessage publishes indexer messages to NATS for search indexing.
-func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject string, message interface{}) error {
+// SendIndexerMessage sends indexer messages to NATS for search indexing.
+func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
 	switch msg := message.(type) {
 	case models.ProjectIndexerMessage:
 		dataBytes, err := json.Marshal(msg.Data)
@@ -99,7 +131,7 @@ func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject stri
 			slog.ErrorContext(ctx, "error marshalling project data into JSON", constants.ErrKey, err)
 			return err
 		}
-		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags)
+		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, sync)
 
 	case models.ProjectSettingsIndexerMessage:
 		dataBytes, err := json.Marshal(msg.Data)
@@ -107,11 +139,11 @@ func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject stri
 			slog.ErrorContext(ctx, "error marshalling project settings data into JSON", constants.ErrKey, err)
 			return err
 		}
-		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags)
+		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, sync)
 
 	case string:
 		// For delete operations, the message is just the UID string
-		return m.sendIndexerMessage(ctx, subject, models.ActionDeleted, []byte(msg), nil)
+		return m.sendIndexerMessage(ctx, subject, models.ActionDeleted, []byte(msg), nil, sync)
 
 	default:
 		slog.ErrorContext(ctx, "unsupported indexer message type", "type", fmt.Sprintf("%T", message))
@@ -119,8 +151,8 @@ func (m *MessageBuilder) PublishIndexerMessage(ctx context.Context, subject stri
 	}
 }
 
-// PublishAccessMessage publishes access control messages to NATS.
-func (m *MessageBuilder) PublishAccessMessage(ctx context.Context, subject string, message interface{}) error {
+// SendAccessMessage sends access control messages to NATS.
+func (m *MessageBuilder) SendAccessMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
 	switch msg := message.(type) {
 	case models.ProjectAccessMessage:
 		dataBytes, err := json.Marshal(msg.Data)
@@ -128,11 +160,11 @@ func (m *MessageBuilder) PublishAccessMessage(ctx context.Context, subject strin
 			slog.ErrorContext(ctx, "error marshalling access message data into JSON", constants.ErrKey, err)
 			return err
 		}
-		return m.sendMessage(ctx, subject, dataBytes)
+		return m.sendMessage(ctx, subject, dataBytes, sync)
 
 	case string:
 		// For delete operations, the message is just the UID string
-		return m.sendMessage(ctx, subject, []byte(msg))
+		return m.sendMessage(ctx, subject, []byte(msg), sync)
 
 	default:
 		slog.ErrorContext(ctx, "unsupported access message type", "type", fmt.Sprintf("%T", message))

@@ -301,7 +301,7 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 		Tags:   []string{}, // Empty tags for root project
 	}
 
-	if err := msgBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, projectMessage); err != nil {
+	if err := msgBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, projectMessage, false); err != nil {
 		slog.ErrorContext(ctx, "error sending project index message", errKey, err)
 		return err
 	}
@@ -313,7 +313,7 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 		Tags:   []string{}, // Empty tags for root project
 	}
 
-	if err := msgBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, settingsMessage); err != nil {
+	if err := msgBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, settingsMessage, false); err != nil {
 		slog.ErrorContext(ctx, "error sending project settings index message", errKey, err)
 		return err
 	}

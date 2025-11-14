@@ -14,6 +14,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
@@ -168,6 +169,7 @@ func DecodeCreateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		var (
 			version     *string
 			bearerToken *string
+			xSync       *bool
 		)
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
@@ -182,10 +184,20 @@ func DecodeCreateProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		{
+			xSyncRaw := r.Header.Get("X-Sync")
+			if xSyncRaw != "" {
+				v, err2 := strconv.ParseBool(xSyncRaw)
+				if err2 != nil {
+					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("x_sync", xSyncRaw, "boolean"))
+				}
+				xSync = &v
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
-		payload := NewCreateProjectPayload(&body, version, bearerToken)
+		payload := NewCreateProjectPayload(&body, version, bearerToken, xSync)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -532,6 +544,7 @@ func DecodeUpdateProjectBaseRequest(mux goahttp.Muxer, decoder func(*http.Reques
 			uid         string
 			version     *string
 			bearerToken *string
+			xSync       *bool
 			ifMatch     *string
 
 			params = mux.Vars(r)
@@ -551,6 +564,16 @@ func DecodeUpdateProjectBaseRequest(mux goahttp.Muxer, decoder func(*http.Reques
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		{
+			xSyncRaw := r.Header.Get("X-Sync")
+			if xSyncRaw != "" {
+				v, err2 := strconv.ParseBool(xSyncRaw)
+				if err2 != nil {
+					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("x_sync", xSyncRaw, "boolean"))
+				}
+				xSync = &v
+			}
+		}
 		ifMatchRaw := r.Header.Get("If-Match")
 		if ifMatchRaw != "" {
 			ifMatch = &ifMatchRaw
@@ -558,7 +581,7 @@ func DecodeUpdateProjectBaseRequest(mux goahttp.Muxer, decoder func(*http.Reques
 		if err != nil {
 			return nil, err
 		}
-		payload := NewUpdateProjectBasePayload(&body, uid, version, bearerToken, ifMatch)
+		payload := NewUpdateProjectBasePayload(&body, uid, version, bearerToken, xSync, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -692,6 +715,7 @@ func DecodeUpdateProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Re
 			uid         string
 			version     *string
 			bearerToken *string
+			xSync       *bool
 			ifMatch     *string
 
 			params = mux.Vars(r)
@@ -711,6 +735,16 @@ func DecodeUpdateProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Re
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		{
+			xSyncRaw := r.Header.Get("X-Sync")
+			if xSyncRaw != "" {
+				v, err2 := strconv.ParseBool(xSyncRaw)
+				if err2 != nil {
+					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("x_sync", xSyncRaw, "boolean"))
+				}
+				xSync = &v
+			}
+		}
 		ifMatchRaw := r.Header.Get("If-Match")
 		if ifMatchRaw != "" {
 			ifMatch = &ifMatchRaw
@@ -718,7 +752,7 @@ func DecodeUpdateProjectSettingsRequest(mux goahttp.Muxer, decoder func(*http.Re
 		if err != nil {
 			return nil, err
 		}
-		payload := NewUpdateProjectSettingsPayload(&body, uid, version, bearerToken, ifMatch)
+		payload := NewUpdateProjectSettingsPayload(&body, uid, version, bearerToken, xSync, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -816,6 +850,7 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 			uid         string
 			version     *string
 			bearerToken *string
+			xSync       *bool
 			ifMatch     *string
 			err         error
 
@@ -836,6 +871,16 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		{
+			xSyncRaw := r.Header.Get("X-Sync")
+			if xSyncRaw != "" {
+				v, err2 := strconv.ParseBool(xSyncRaw)
+				if err2 != nil {
+					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("x_sync", xSyncRaw, "boolean"))
+				}
+				xSync = &v
+			}
+		}
 		ifMatchRaw := r.Header.Get("If-Match")
 		if ifMatchRaw != "" {
 			ifMatch = &ifMatchRaw
@@ -843,7 +888,7 @@ func DecodeDeleteProjectRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return nil, err
 		}
-		payload := NewDeleteProjectPayload(uid, version, bearerToken, ifMatch)
+		payload := NewDeleteProjectPayload(uid, version, bearerToken, xSync, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")

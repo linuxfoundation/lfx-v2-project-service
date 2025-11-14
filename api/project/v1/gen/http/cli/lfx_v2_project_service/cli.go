@@ -54,6 +54,7 @@ func ParseEndpoint(
 		projectServiceCreateProjectBodyFlag        = projectServiceCreateProjectFlags.String("body", "REQUIRED", "")
 		projectServiceCreateProjectVersionFlag     = projectServiceCreateProjectFlags.String("version", "", "")
 		projectServiceCreateProjectBearerTokenFlag = projectServiceCreateProjectFlags.String("bearer-token", "", "")
+		projectServiceCreateProjectXSyncFlag       = projectServiceCreateProjectFlags.String("x-sync", "", "")
 
 		projectServiceGetOneProjectBaseFlags           = flag.NewFlagSet("get-one-project-base", flag.ExitOnError)
 		projectServiceGetOneProjectBaseUIDFlag         = projectServiceGetOneProjectBaseFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
@@ -70,6 +71,7 @@ func ParseEndpoint(
 		projectServiceUpdateProjectBaseUIDFlag         = projectServiceUpdateProjectBaseFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
 		projectServiceUpdateProjectBaseVersionFlag     = projectServiceUpdateProjectBaseFlags.String("version", "", "")
 		projectServiceUpdateProjectBaseBearerTokenFlag = projectServiceUpdateProjectBaseFlags.String("bearer-token", "", "")
+		projectServiceUpdateProjectBaseXSyncFlag       = projectServiceUpdateProjectBaseFlags.String("x-sync", "", "")
 		projectServiceUpdateProjectBaseIfMatchFlag     = projectServiceUpdateProjectBaseFlags.String("if-match", "", "")
 
 		projectServiceUpdateProjectSettingsFlags           = flag.NewFlagSet("update-project-settings", flag.ExitOnError)
@@ -77,12 +79,14 @@ func ParseEndpoint(
 		projectServiceUpdateProjectSettingsUIDFlag         = projectServiceUpdateProjectSettingsFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
 		projectServiceUpdateProjectSettingsVersionFlag     = projectServiceUpdateProjectSettingsFlags.String("version", "", "")
 		projectServiceUpdateProjectSettingsBearerTokenFlag = projectServiceUpdateProjectSettingsFlags.String("bearer-token", "", "")
+		projectServiceUpdateProjectSettingsXSyncFlag       = projectServiceUpdateProjectSettingsFlags.String("x-sync", "", "")
 		projectServiceUpdateProjectSettingsIfMatchFlag     = projectServiceUpdateProjectSettingsFlags.String("if-match", "", "")
 
 		projectServiceDeleteProjectFlags           = flag.NewFlagSet("delete-project", flag.ExitOnError)
 		projectServiceDeleteProjectUIDFlag         = projectServiceDeleteProjectFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
 		projectServiceDeleteProjectVersionFlag     = projectServiceDeleteProjectFlags.String("version", "", "")
 		projectServiceDeleteProjectBearerTokenFlag = projectServiceDeleteProjectFlags.String("bearer-token", "", "")
+		projectServiceDeleteProjectXSyncFlag       = projectServiceDeleteProjectFlags.String("x-sync", "", "")
 		projectServiceDeleteProjectIfMatchFlag     = projectServiceDeleteProjectFlags.String("if-match", "", "")
 
 		projectServiceReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
@@ -191,7 +195,7 @@ func ParseEndpoint(
 				data, err = projectservicec.BuildGetProjectsPayload(*projectServiceGetProjectsVersionFlag, *projectServiceGetProjectsBearerTokenFlag)
 			case "create-project":
 				endpoint = c.CreateProject()
-				data, err = projectservicec.BuildCreateProjectPayload(*projectServiceCreateProjectBodyFlag, *projectServiceCreateProjectVersionFlag, *projectServiceCreateProjectBearerTokenFlag)
+				data, err = projectservicec.BuildCreateProjectPayload(*projectServiceCreateProjectBodyFlag, *projectServiceCreateProjectVersionFlag, *projectServiceCreateProjectBearerTokenFlag, *projectServiceCreateProjectXSyncFlag)
 			case "get-one-project-base":
 				endpoint = c.GetOneProjectBase()
 				data, err = projectservicec.BuildGetOneProjectBasePayload(*projectServiceGetOneProjectBaseUIDFlag, *projectServiceGetOneProjectBaseVersionFlag, *projectServiceGetOneProjectBaseBearerTokenFlag)
@@ -200,13 +204,13 @@ func ParseEndpoint(
 				data, err = projectservicec.BuildGetOneProjectSettingsPayload(*projectServiceGetOneProjectSettingsUIDFlag, *projectServiceGetOneProjectSettingsVersionFlag, *projectServiceGetOneProjectSettingsBearerTokenFlag)
 			case "update-project-base":
 				endpoint = c.UpdateProjectBase()
-				data, err = projectservicec.BuildUpdateProjectBasePayload(*projectServiceUpdateProjectBaseBodyFlag, *projectServiceUpdateProjectBaseUIDFlag, *projectServiceUpdateProjectBaseVersionFlag, *projectServiceUpdateProjectBaseBearerTokenFlag, *projectServiceUpdateProjectBaseIfMatchFlag)
+				data, err = projectservicec.BuildUpdateProjectBasePayload(*projectServiceUpdateProjectBaseBodyFlag, *projectServiceUpdateProjectBaseUIDFlag, *projectServiceUpdateProjectBaseVersionFlag, *projectServiceUpdateProjectBaseBearerTokenFlag, *projectServiceUpdateProjectBaseXSyncFlag, *projectServiceUpdateProjectBaseIfMatchFlag)
 			case "update-project-settings":
 				endpoint = c.UpdateProjectSettings()
-				data, err = projectservicec.BuildUpdateProjectSettingsPayload(*projectServiceUpdateProjectSettingsBodyFlag, *projectServiceUpdateProjectSettingsUIDFlag, *projectServiceUpdateProjectSettingsVersionFlag, *projectServiceUpdateProjectSettingsBearerTokenFlag, *projectServiceUpdateProjectSettingsIfMatchFlag)
+				data, err = projectservicec.BuildUpdateProjectSettingsPayload(*projectServiceUpdateProjectSettingsBodyFlag, *projectServiceUpdateProjectSettingsUIDFlag, *projectServiceUpdateProjectSettingsVersionFlag, *projectServiceUpdateProjectSettingsBearerTokenFlag, *projectServiceUpdateProjectSettingsXSyncFlag, *projectServiceUpdateProjectSettingsIfMatchFlag)
 			case "delete-project":
 				endpoint = c.DeleteProject()
-				data, err = projectservicec.BuildDeleteProjectPayload(*projectServiceDeleteProjectUIDFlag, *projectServiceDeleteProjectVersionFlag, *projectServiceDeleteProjectBearerTokenFlag, *projectServiceDeleteProjectIfMatchFlag)
+				data, err = projectservicec.BuildDeleteProjectPayload(*projectServiceDeleteProjectUIDFlag, *projectServiceDeleteProjectVersionFlag, *projectServiceDeleteProjectBearerTokenFlag, *projectServiceDeleteProjectXSyncFlag, *projectServiceDeleteProjectIfMatchFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -256,12 +260,13 @@ Example:
 }
 
 func projectServiceCreateProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service create-project -body JSON -version STRING -bearer-token STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service create-project -body JSON -version STRING -bearer-token STRING -x-sync BOOL
 
 Create a new project.
     -body JSON: 
     -version STRING: 
     -bearer-token STRING: 
+    -x-sync BOOL: 
 
 Example:
     %[1]s project-service create-project --body '{
@@ -331,7 +336,7 @@ Example:
             "username": "bobwilson101"
          }
       ]
-   }' --version "1" --bearer-token "eyJhbGci..."
+   }' --version "1" --bearer-token "eyJhbGci..." --x-sync true
 `, os.Args[0])
 }
 
@@ -362,13 +367,14 @@ Example:
 }
 
 func projectServiceUpdateProjectBaseUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project-base -body JSON -uid STRING -version STRING -bearer-token STRING -if-match STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project-base -body JSON -uid STRING -version STRING -bearer-token STRING -x-sync BOOL -if-match STRING
 
 Update an existing project's base information.
     -body JSON: 
     -uid STRING: Project UID -- v2 uid, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
+    -x-sync BOOL: 
     -if-match STRING: 
 
 Example:
@@ -395,18 +401,19 @@ Example:
       "slug": "project-slug",
       "stage": "Formation - Exploratory",
       "website_url": "https://example.com"
-   }' --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --if-match "123"
+   }' --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --x-sync true --if-match "123"
 `, os.Args[0])
 }
 
 func projectServiceUpdateProjectSettingsUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project-settings -body JSON -uid STRING -version STRING -bearer-token STRING -if-match STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service update-project-settings -body JSON -uid STRING -version STRING -bearer-token STRING -x-sync BOOL -if-match STRING
 
 Update an existing project's settings.
     -body JSON: 
     -uid STRING: Project UID -- v2 uid, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
+    -x-sync BOOL: 
     -if-match STRING: 
 
 Example:
@@ -455,21 +462,22 @@ Example:
             "username": "bobwilson101"
          }
       ]
-   }' --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --if-match "123"
+   }' --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --x-sync true --if-match "123"
 `, os.Args[0])
 }
 
 func projectServiceDeleteProjectUsage() {
-	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service delete-project -uid STRING -version STRING -bearer-token STRING -if-match STRING
+	fmt.Fprintf(os.Stderr, `%[1]s [flags] project-service delete-project -uid STRING -version STRING -bearer-token STRING -x-sync BOOL -if-match STRING
 
 Delete an existing project.
     -uid STRING: Project UID -- v2 uid, not related to v1 id directly
     -version STRING: 
     -bearer-token STRING: 
+    -x-sync BOOL: 
     -if-match STRING: 
 
 Example:
-    %[1]s project-service delete-project --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --if-match "123"
+    %[1]s project-service delete-project --uid "7cad5a8d-19d0-41a4-81a6-043453daf9ee" --version "1" --bearer-token "eyJhbGci..." --x-sync true --if-match "123"
 `, os.Args[0])
 }
 

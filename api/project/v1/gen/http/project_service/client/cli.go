@@ -12,6 +12,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	goa "goa.design/goa/v3/pkg"
@@ -48,7 +49,7 @@ func BuildGetProjectsPayload(projectServiceGetProjectsVersion string, projectSer
 
 // BuildCreateProjectPayload builds the payload for the project-service
 // create-project endpoint from CLI flags.
-func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectServiceCreateProjectVersion string, projectServiceCreateProjectBearerToken string) (*projectservice.CreateProjectPayload, error) {
+func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectServiceCreateProjectVersion string, projectServiceCreateProjectBearerToken string, projectServiceCreateProjectXSync string) (*projectservice.CreateProjectPayload, error) {
 	var err error
 	var body CreateProjectRequestBody
 	{
@@ -148,6 +149,17 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 			bearerToken = &projectServiceCreateProjectBearerToken
 		}
 	}
+	var xSync *bool
+	{
+		if projectServiceCreateProjectXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceCreateProjectXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
 	v := &projectservice.CreateProjectPayload{
 		Slug:                       body.Slug,
 		Description:                body.Description,
@@ -197,6 +209,7 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 
 	return v, nil
 }
@@ -279,7 +292,7 @@ func BuildGetOneProjectSettingsPayload(projectServiceGetOneProjectSettingsUID st
 
 // BuildUpdateProjectBasePayload builds the payload for the project-service
 // update-project-base endpoint from CLI flags.
-func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, projectServiceUpdateProjectBaseUID string, projectServiceUpdateProjectBaseVersion string, projectServiceUpdateProjectBaseBearerToken string, projectServiceUpdateProjectBaseIfMatch string) (*projectservice.UpdateProjectBasePayload, error) {
+func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, projectServiceUpdateProjectBaseUID string, projectServiceUpdateProjectBaseVersion string, projectServiceUpdateProjectBaseBearerToken string, projectServiceUpdateProjectBaseXSync string, projectServiceUpdateProjectBaseIfMatch string) (*projectservice.UpdateProjectBasePayload, error) {
 	var err error
 	var body UpdateProjectBaseRequestBody
 	{
@@ -363,6 +376,17 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 			bearerToken = &projectServiceUpdateProjectBaseBearerToken
 		}
 	}
+	var xSync *bool
+	{
+		if projectServiceUpdateProjectBaseXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceUpdateProjectBaseXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
 	var ifMatch *string
 	{
 		if projectServiceUpdateProjectBaseIfMatch != "" {
@@ -399,6 +423,7 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 	v.IfMatch = ifMatch
 
 	return v, nil
@@ -406,7 +431,7 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 
 // BuildUpdateProjectSettingsPayload builds the payload for the project-service
 // update-project-settings endpoint from CLI flags.
-func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody string, projectServiceUpdateProjectSettingsUID string, projectServiceUpdateProjectSettingsVersion string, projectServiceUpdateProjectSettingsBearerToken string, projectServiceUpdateProjectSettingsIfMatch string) (*projectservice.UpdateProjectSettingsPayload, error) {
+func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody string, projectServiceUpdateProjectSettingsUID string, projectServiceUpdateProjectSettingsVersion string, projectServiceUpdateProjectSettingsBearerToken string, projectServiceUpdateProjectSettingsXSync string, projectServiceUpdateProjectSettingsIfMatch string) (*projectservice.UpdateProjectSettingsPayload, error) {
 	var err error
 	var body UpdateProjectSettingsRequestBody
 	{
@@ -441,6 +466,17 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 			bearerToken = &projectServiceUpdateProjectSettingsBearerToken
 		}
 	}
+	var xSync *bool
+	{
+		if projectServiceUpdateProjectSettingsXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceUpdateProjectSettingsXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
 	var ifMatch *string
 	{
 		if projectServiceUpdateProjectSettingsIfMatch != "" {
@@ -472,6 +508,7 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 	v.IfMatch = ifMatch
 
 	return v, nil
@@ -479,7 +516,7 @@ func BuildUpdateProjectSettingsPayload(projectServiceUpdateProjectSettingsBody s
 
 // BuildDeleteProjectPayload builds the payload for the project-service
 // delete-project endpoint from CLI flags.
-func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectServiceDeleteProjectVersion string, projectServiceDeleteProjectBearerToken string, projectServiceDeleteProjectIfMatch string) (*projectservice.DeleteProjectPayload, error) {
+func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectServiceDeleteProjectVersion string, projectServiceDeleteProjectBearerToken string, projectServiceDeleteProjectXSync string, projectServiceDeleteProjectIfMatch string) (*projectservice.DeleteProjectPayload, error) {
 	var err error
 	var uid string
 	{
@@ -507,6 +544,17 @@ func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectSer
 			bearerToken = &projectServiceDeleteProjectBearerToken
 		}
 	}
+	var xSync *bool
+	{
+		if projectServiceDeleteProjectXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceDeleteProjectXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
 	var ifMatch *string
 	{
 		if projectServiceDeleteProjectIfMatch != "" {
@@ -517,6 +565,7 @@ func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectSer
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 	v.IfMatch = ifMatch
 
 	return v, nil

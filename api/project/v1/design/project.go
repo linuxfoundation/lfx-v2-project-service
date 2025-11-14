@@ -65,6 +65,7 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
+			XSyncAttribute()
 			VersionAttribute()
 			ProjectSlugAttribute()
 			ProjectDescriptionAttribute()
@@ -108,6 +109,7 @@ var _ = Service("project-service", func() {
 			POST("/projects")
 			Param("version:v")
 			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
 			Response(StatusCreated)
 			Response("BadRequest", StatusBadRequest)
 			Response("Conflict", StatusConflict)
@@ -195,6 +197,7 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
+			XSyncAttribute()
 			IfMatchAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
@@ -236,6 +239,7 @@ var _ = Service("project-service", func() {
 				Param("uid")
 			})
 			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
 			Header("if_match:If-Match")
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
@@ -253,6 +257,7 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
+			XSyncAttribute()
 			IfMatchAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
@@ -277,6 +282,7 @@ var _ = Service("project-service", func() {
 				Param("uid")
 			})
 			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
 			Header("if_match:If-Match")
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
@@ -293,6 +299,7 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
+			XSyncAttribute()
 			IfMatchAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
@@ -310,6 +317,7 @@ var _ = Service("project-service", func() {
 				Param("uid")
 			})
 			Header("bearer_token:Authorization")
+			Header("x_sync:X-Sync")
 			Header("if_match:If-Match")
 			Response(StatusNoContent)
 			Response("NotFound", StatusNotFound)

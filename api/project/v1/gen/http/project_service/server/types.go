@@ -1213,7 +1213,7 @@ func NewGetProjectsPayload(version *string, bearerToken *string) *projectservice
 
 // NewCreateProjectPayload builds a project-service service create-project
 // endpoint payload.
-func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, bearerToken *string) *projectservice.CreateProjectPayload {
+func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, bearerToken *string, xSync *bool) *projectservice.CreateProjectPayload {
 	v := &projectservice.CreateProjectPayload{
 		Slug:                       *body.Slug,
 		Description:                *body.Description,
@@ -1263,6 +1263,7 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 
 	return v
 }
@@ -1291,7 +1292,7 @@ func NewGetOneProjectSettingsPayload(uid string, version *string, bearerToken *s
 
 // NewUpdateProjectBasePayload builds a project-service service
 // update-project-base endpoint payload.
-func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *projectservice.UpdateProjectBasePayload {
+func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.UpdateProjectBasePayload {
 	v := &projectservice.UpdateProjectBasePayload{
 		Slug:                       *body.Slug,
 		Description:                *body.Description,
@@ -1322,6 +1323,7 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 	v.IfMatch = ifMatch
 
 	return v
@@ -1329,7 +1331,7 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 
 // NewUpdateProjectSettingsPayload builds a project-service service
 // update-project-settings endpoint payload.
-func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *projectservice.UpdateProjectSettingsPayload {
+func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.UpdateProjectSettingsPayload {
 	v := &projectservice.UpdateProjectSettingsPayload{
 		MissionStatement: body.MissionStatement,
 		AnnouncementDate: body.AnnouncementDate,
@@ -1355,6 +1357,7 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 	v.IfMatch = ifMatch
 
 	return v
@@ -1362,11 +1365,12 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 
 // NewDeleteProjectPayload builds a project-service service delete-project
 // endpoint payload.
-func NewDeleteProjectPayload(uid string, version *string, bearerToken *string, ifMatch *string) *projectservice.DeleteProjectPayload {
+func NewDeleteProjectPayload(uid string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.DeleteProjectPayload {
 	v := &projectservice.DeleteProjectPayload{}
 	v.UID = &uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.XSync = xSync
 	v.IfMatch = ifMatch
 
 	return v
