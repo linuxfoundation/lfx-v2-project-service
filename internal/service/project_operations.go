@@ -94,6 +94,11 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		}
 	}
 
+	runSync := false
+	if payload.XSync != nil {
+		runSync = *payload.XSync
+	}
+
 	// Create the project and settings structs
 	id := uuid.NewString()
 	project := &projsvc.ProjectBase{
@@ -157,7 +162,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Data:   *projectDB,
 			Tags:   projectDB.Tags(),
 		}
-		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, msg)
+		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
@@ -166,7 +171,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			Data:   *projectSettingsDB,
 			Tags:   projectSettingsDB.Tags(),
 		}
-		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
+		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
@@ -180,7 +185,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
 			},
 		}
-		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -363,6 +368,11 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 	}
 
+	runSync := false
+	if payload.XSync != nil {
+		runSync = *payload.XSync
+	}
+
 	// Prepare the updated project
 	currentTime := time.Now().UTC()
 	project := &projsvc.ProjectBase{
@@ -426,7 +436,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			Data:   *projectDB,
 			Tags:   projectDB.Tags(),
 		}
-		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, msg)
+		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
@@ -440,7 +450,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
 			},
 		}
-		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -513,6 +523,11 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
+	runSync := false
+	if payload.XSync != nil {
+		runSync = *payload.XSync
+	}
+
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
@@ -561,7 +576,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 			Data:   *projectSettingsDB,
 			Tags:   projectSettingsDB.Tags(),
 		}
-		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg)
+		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
@@ -575,7 +590,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
 			},
 		}
-		return s.MessageBuilder.PublishAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg)
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -628,6 +643,11 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
 
+	runSync := false
+	if payload.XSync != nil {
+		runSync = *payload.XSync
+	}
+
 	// Delete the project using the store
 	err = s.ProjectRepository.DeleteProject(ctx, *payload.UID, revision)
 	if err != nil {
@@ -648,15 +668,15 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID)
+		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, *payload.UID, runSync)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.PublishIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID)
+		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, *payload.UID, runSync)
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.PublishAccessMessage(ctx, constants.DeleteAllAccessSubject, *payload.UID)
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.DeleteAllAccessSubject, *payload.UID, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
