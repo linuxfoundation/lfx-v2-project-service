@@ -19,6 +19,20 @@ initImage:
   # pullPolicy is the init container image pull policy
   pullPolicy: IfNotPresent
 
+# replicaCount is the number of replicas for the deployment
+replicaCount: 3
+
+# resources is the configuration for container resource limits and requests
+resources:
+  # limits is the maximum amount of resources the container can use
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  # requests is the amount of resources the container requests
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
 # app is the configuration for the application
 app:
   # logLevel is the log level (debug, info, warn, error)
