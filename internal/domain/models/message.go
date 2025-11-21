@@ -53,3 +53,11 @@ type ProjectAccessData struct {
 type ProjectAccessMessage struct {
 	Data ProjectAccessData `json:"data"`
 }
+
+// ProjectSettingsUpdatedMessage is a NATS message published when project settings are updated.
+// It contains both the before and after states to allow downstream services to react to changes.
+type ProjectSettingsUpdatedMessage struct {
+	ProjectUID  string          `json:"project_uid"`
+	OldSettings ProjectSettings `json:"old_settings"`
+	NewSettings ProjectSettings `json:"new_settings"`
+}

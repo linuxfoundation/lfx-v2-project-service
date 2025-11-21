@@ -37,6 +37,11 @@ const (
 	// DeleteAllAccessProjectSettingsSubject is the subject for the project settings access control deletion.
 	// The subject is of the form: lfx.delete_all_access.project_settings
 	DeleteAllAccessProjectSettingsSubject = "lfx.delete_all_access.project_settings"
+
+	// ProjectSettingsUpdatedSubject is the subject for project settings change events.
+	// This event is published when project settings are updated, containing both before and after states.
+	// The subject is of the form: lfx.projects-api.project_settings.updated
+	ProjectSettingsUpdatedSubject = "lfx.projects-api.project_settings.updated"
 )
 
 // NATS wildcard subjects that the project service handles messages about.

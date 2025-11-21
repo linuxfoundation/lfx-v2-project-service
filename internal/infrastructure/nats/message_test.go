@@ -385,3 +385,77 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 		})
 	}
 }
+
+func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
+	tests := []struct {
+		name       string
+		subject    string
+		message    interface{}
+		setupMocks func(*MockNATSConn)
+		wantErr    bool
+	}{
+		{
+			name:    "successful send project settings updated message",
+			subject: constants.ProjectSettingsUpdatedSubject,
+			message: models.ProjectSettingsUpdatedMessage{
+				ProjectUID: "test-project-uid",
+				OldSettings: models.ProjectSettings{
+					UID:              "test-project-uid",
+					MissionStatement: "old mission",
+				},
+				NewSettings: models.ProjectSettings{
+					UID:              "test-project-uid",
+					MissionStatement: "new mission",
+				},
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(data []byte) bool {
+					var msg models.ProjectSettingsUpdatedMessage
+					err := json.Unmarshal(data, &msg)
+					if err != nil {
+						return false
+					}
+					return msg.ProjectUID == "test-project-uid" &&
+						msg.OldSettings.MissionStatement == "old mission" &&
+						msg.NewSettings.MissionStatement == "new mission"
+				})).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:    "nats publish error",
+			subject: constants.ProjectSettingsUpdatedSubject,
+			message: models.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "test-project-uid",
+				OldSettings: models.ProjectSettings{UID: "test"},
+				NewSettings: models.ProjectSettings{UID: "test"},
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+			tt.setupMocks(mockConn)
+
+			mb := &MessageBuilder{
+				NatsConn: mockConn,
+			}
+
+			ctx := context.Background()
+			err := mb.SendProjectEventMessage(ctx, tt.subject, tt.message)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockConn.AssertExpectations(t)
+		})
+	}
+}

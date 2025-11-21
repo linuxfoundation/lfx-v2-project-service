@@ -23,4 +23,5 @@ type MessageHandler interface {
 type MessageBuilder interface {
 	SendIndexerMessage(ctx context.Context, subject string, message any, sync bool) error
 	SendAccessMessage(ctx context.Context, subject string, message any, sync bool) error
+	SendProjectEventMessage(ctx context.Context, subject string, message any) error
 }

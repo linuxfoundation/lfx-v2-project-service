@@ -171,3 +171,22 @@ func (m *MessageBuilder) SendAccessMessage(ctx context.Context, subject string, 
 		return fmt.Errorf("unsupported access message type: %T", message)
 	}
 }
+
+// SendProjectEventMessage sends project event messages to NATS asynchronously.
+// This is used for publishing events like project settings updates, project creation, etc.
+func (m *MessageBuilder) SendProjectEventMessage(ctx context.Context, subject string, message any) error {
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling project event message into JSON", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	err = m.publishMessage(subject, messageBytes)
+	if err != nil {
+		slog.ErrorContext(ctx, "error publishing project event message to NATS", constants.ErrKey, err, "subject", subject)
+		return err
+	}
+
+	slog.DebugContext(ctx, "published project event message to NATS", "subject", subject)
+	return nil
+}

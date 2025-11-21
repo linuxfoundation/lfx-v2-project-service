@@ -593,6 +593,15 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
 	})
 
+	g.Go(func() error {
+		msg := models.ProjectSettingsUpdatedMessage{
+			ProjectUID:  *payload.UID,
+			OldSettings: *existingProjectSettingsDB,
+			NewSettings: *projectSettingsDB,
+		}
+		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
+	})
+
 	if err := g.Wait(); err != nil {
 		// Return the first error from the goroutines.
 		return nil, domain.ErrInternal

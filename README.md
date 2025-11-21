@@ -30,6 +30,20 @@ This service handles the following NATS subjects for inter-service communication
 - `lfx.projects-api.get_logo`: Get a project logo URL from a given project UID
 - `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
+### NATS Events Published
+
+This service publishes the following NATS events:
+
+- `lfx.projects-api.project_settings.updated`: Published when project settings are updated. Contains both the old and new settings to allow downstream services to react to changes. Message format:
+
+  ```json
+  {
+    "project_uid": "string",
+    "old_settings": { /* ProjectSettings object */ },
+    "new_settings": { /* ProjectSettings object */ }
+  }
+  ```
+
 ### Project Tags
 
 The LFX v2 Project Service generates a set of tags for projects and project settings that are sent to the indexer-service. These tags enable searchability and discoverability of projects through OpenSearch.
