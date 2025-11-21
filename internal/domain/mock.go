@@ -122,6 +122,11 @@ func (m *MockMessageBuilder) SendAccessMessage(ctx context.Context, subject stri
 	return args.Error(0)
 }
 
+func (m *MockMessageBuilder) SendProjectEventMessage(ctx context.Context, subject string, message any) error {
+	args := m.Called(ctx, subject, message)
+	return args.Error(0)
+}
+
 // MockMessage implements Message for testing
 type MockMessage struct {
 	mock.Mock
