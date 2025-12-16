@@ -18,12 +18,39 @@ import (
 )
 
 const (
-	// PS256 is the default for Heimdall's JWT finalizer.
-	signatureAlgorithm = validator.PS256
-	defaultIssuer      = "heimdall"
-	defaultAudience    = "lfx-v2-project-service"
-	defaultJWKSURL     = "http://heimdall:4457/.well-known/jwks"
+	// PS256 is the default signature algorithm used when JWT_SIGNATURE_ALGORITHM is not set.
+	defaultSignatureAlgorithm = validator.PS256
+	defaultIssuer             = "heimdall"
+	defaultAudience           = "lfx-v2-project-service"
+	defaultJWKSURL            = "http://heimdall:4457/.well-known/jwks"
 )
+
+// parseSignatureAlgorithm converts the algorithm string to a validator.SignatureAlgorithm.
+// Returns PS256 as default if algoString is empty.
+// Algorithm names are case-sensitive and must be uppercase (e.g., "PS256").
+func parseSignatureAlgorithm(algoString string) (validator.SignatureAlgorithm, error) {
+	if algoString == "" {
+		return validator.PS256, nil
+	}
+
+	algorithms := map[string]validator.SignatureAlgorithm{
+		"PS256": validator.PS256,
+		"PS384": validator.PS384,
+		"PS512": validator.PS512,
+		"RS256": validator.RS256,
+		"RS384": validator.RS384,
+		"RS512": validator.RS512,
+		"ES256": validator.ES256,
+		"ES384": validator.ES384,
+		"ES512": validator.ES512,
+	}
+
+	if algo, exists := algorithms[algoString]; exists {
+		return algo, nil
+	}
+
+	return "", errors.New("unsupported JWT signature algorithm: " + algoString + " (supported: PS256, PS384, PS512, RS256, RS384, RS512, ES256, ES384, ES512)")
+}
 
 // JWTAuthConfig holds the configuration parameters for JWT authentication.
 type JWTAuthConfig struct {
@@ -33,6 +60,8 @@ type JWTAuthConfig struct {
 	Audience string
 	// MockLocalPrincipal is used for local development to bypass JWT validation
 	MockLocalPrincipal string
+	// SignatureAlgorithm is the JWT signature algorithm (e.g., PS256, RS256, ES256)
+	SignatureAlgorithm string
 }
 
 var (
@@ -67,6 +96,20 @@ type JWTAuth struct {
 var _ domain.Authenticator = (*JWTAuth)(nil)
 
 func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
+	// Parse signature algorithm
+	algo, err := parseSignatureAlgorithm(config.SignatureAlgorithm)
+	if err != nil {
+		slog.With(constants.ErrKey, err).Error("invalid JWT signature algorithm")
+		return nil, err
+	}
+
+	// Log algorithm selection (especially if non-default)
+	if config.SignatureAlgorithm != "" && config.SignatureAlgorithm != "PS256" {
+		slog.Info("using non-default JWT signature algorithm",
+			"algorithm", config.SignatureAlgorithm,
+		)
+	}
+
 	// Set up defaults if not provided
 	jwksURLStr := config.JWKSURL
 	if jwksURLStr == "" {
@@ -92,10 +135,10 @@ func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
 	}
 	provider := jwks.NewCachingProvider(issuer, 5*time.Minute, jwks.WithCustomJWKSURI(jwksURL))
 
-	// Set up the JWT validator.
+	// Set up the JWT validator with selected algorithm.
 	jwtValidator, err := validator.New(
 		provider.KeyFunc,
-		signatureAlgorithm,
+		algo,
 		issuer.String(),
 		[]string{audience},
 		validator.WithCustomClaims(customClaims),

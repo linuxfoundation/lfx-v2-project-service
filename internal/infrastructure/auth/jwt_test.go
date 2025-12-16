@@ -216,7 +216,7 @@ func TestJWTAuth_Constants(t *testing.T) {
 		assert.Equal(t, "heimdall", defaultIssuer)
 		assert.Equal(t, "lfx-v2-project-service", defaultAudience)
 		assert.Equal(t, "http://heimdall:4457/.well-known/jwks", defaultJWKSURL)
-		assert.NotNil(t, signatureAlgorithm)
+		assert.NotNil(t, defaultSignatureAlgorithm)
 	})
 }
 
@@ -307,6 +307,38 @@ func TestJWTAuth_ConfigurationHandling(t *testing.T) {
 			shouldError: false,
 			description: "should accept mock principal",
 		},
+		{
+			name: "custom signature algorithm ES256",
+			config: JWTAuthConfig{
+				SignatureAlgorithm: "ES256",
+			},
+			shouldError: false,
+			description: "should accept valid signature algorithm",
+		},
+		{
+			name: "custom signature algorithm RS256",
+			config: JWTAuthConfig{
+				SignatureAlgorithm: "RS256",
+			},
+			shouldError: false,
+			description: "should accept RS256 signature algorithm",
+		},
+		{
+			name: "invalid signature algorithm",
+			config: JWTAuthConfig{
+				SignatureAlgorithm: "INVALID",
+			},
+			shouldError: true,
+			description: "should reject invalid signature algorithm",
+		},
+		{
+			name: "lowercase signature algorithm rejected",
+			config: JWTAuthConfig{
+				SignatureAlgorithm: "ps256",
+			},
+			shouldError: true,
+			description: "should reject lowercase signature algorithm",
+		},
 	}
 
 	for _, tt := range tests {
@@ -322,6 +354,58 @@ func TestJWTAuth_ConfigurationHandling(t *testing.T) {
 				if auth != nil {
 					assert.Equal(t, tt.config, auth.config)
 				}
+			}
+		})
+	}
+}
+
+func TestParseSignatureAlgorithm(t *testing.T) {
+	tests := []struct {
+		name      string
+		algorithm string
+		wantErr   bool
+	}{
+		// Valid algorithms - PS family
+		{name: "PS256 valid", algorithm: "PS256", wantErr: false},
+		{name: "PS384 valid", algorithm: "PS384", wantErr: false},
+		{name: "PS512 valid", algorithm: "PS512", wantErr: false},
+
+		// Valid algorithms - RS family
+		{name: "RS256 valid", algorithm: "RS256", wantErr: false},
+		{name: "RS384 valid", algorithm: "RS384", wantErr: false},
+		{name: "RS512 valid", algorithm: "RS512", wantErr: false},
+
+		// Valid algorithms - ES family
+		{name: "ES256 valid", algorithm: "ES256", wantErr: false},
+		{name: "ES384 valid", algorithm: "ES384", wantErr: false},
+		{name: "ES512 valid", algorithm: "ES512", wantErr: false},
+
+		// Empty string uses default
+		{name: "empty defaults to PS256", algorithm: "", wantErr: false},
+
+		// Invalid - case sensitivity
+		{name: "lowercase rejected", algorithm: "ps256", wantErr: true},
+		{name: "mixed case rejected", algorithm: "Ps256", wantErr: true},
+
+		// Invalid - HMAC algorithms not supported
+		{name: "HS256 unsupported", algorithm: "HS256", wantErr: true},
+		{name: "HS384 unsupported", algorithm: "HS384", wantErr: true},
+		{name: "HS512 unsupported", algorithm: "HS512", wantErr: true},
+
+		// Invalid - unknown algorithms
+		{name: "unknown algorithm", algorithm: "UNKNOWN", wantErr: true},
+		{name: "typo", algorithm: "PS265", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			algo, err := parseSignatureAlgorithm(tt.algorithm)
+			if tt.wantErr {
+				assert.Error(t, err, "expected error for algorithm %q", tt.algorithm)
+				assert.Empty(t, algo, "expected empty algorithm for %q", tt.algorithm)
+			} else {
+				assert.NoError(t, err, "unexpected error for algorithm %q", tt.algorithm)
+				assert.NotEmpty(t, algo, "expected valid algorithm for %q", tt.algorithm)
 			}
 		})
 	}

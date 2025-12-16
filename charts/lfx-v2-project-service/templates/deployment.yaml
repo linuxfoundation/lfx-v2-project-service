@@ -37,6 +37,8 @@ spec:
               value: {{ .Values.app.skipEtagValidation | quote }}
             - name: JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL
               value: {{ .Values.app.jwtAuthDisabledMockLocalPrincipal }}
+            - name: JWT_SIGNATURE_ALGORITHM
+              value: {{ .Values.app.jwtSignatureAlgorithm }}
           ports:
             - containerPort: {{ .Values.service.port }}
               name: web
