@@ -51,6 +51,7 @@ func main() {
 		JWKSURL:            os.Getenv("JWKS_URL"),
 		Audience:           os.Getenv("AUDIENCE"),
 		MockLocalPrincipal: os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"),
+		SignatureAlgorithm: os.Getenv("JWT_SIGNATURE_ALGORITHM"),
 	}
 	jwtAuth, err := auth.NewJWTAuth(jwtAuthConfig)
 	if err != nil {

@@ -69,7 +69,7 @@ help:
 deps:
 	@echo "==> Installing dependencies..."
 	go mod download
-	go install goa.design/goa/$(GOA_VERSION)/cmd/goa@latest
+	go install goa.design/goa/$(GOA_VERSION)/cmd/goa@v3.22.6
 	@command -v golangci-lint >/dev/null 2>&1 || { \
 		echo "==> Installing golangci-lint..."; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \

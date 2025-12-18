@@ -47,6 +47,10 @@ app:
   # jwtAuthDisabledMockLocalPrincipal mocks auth for local development to use a set principal
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""
+  # jwtSignatureAlgorithm is the JWT signature algorithm for token validation
+  # Supported: PS256 (default), PS384, PS512, RS256, RS384, RS512, ES256, ES384, ES512
+  # Algorithm names are case-sensitive and must be uppercase
+  jwtSignatureAlgorithm: "PS256"
   # use_oidc_contextualizer is a boolean to determine if the OIDC contextualizer should be used
   use_oidc_contextualizer: true
 

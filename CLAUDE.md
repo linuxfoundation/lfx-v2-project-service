@@ -216,6 +216,7 @@ func TestEndpoint(t *testing.T) {
 | `JWKS_URL` | JWT verification endpoint | - | No |
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | - | No |
+| `JWT_SIGNATURE_ALGORITHM` | JWT signature algorithm | PS256 | No |
 
 ## Authorization (OpenFGA)
 
