@@ -67,35 +67,18 @@ func (p *ProjectBase) Tags() []string {
 	}
 
 	if p.UID != "" {
-		// without prefix
-		tags = append(tags, p.UID)
-		// with prefix
 		tag := fmt.Sprintf("project_uid:%s", p.UID)
 		tags = append(tags, tag)
 	}
 
-	if p.ParentUID != "" {
-		// with prefix
-		tag := fmt.Sprintf("parent_uid:%s", p.ParentUID)
-		tags = append(tags, tag)
-	}
-
 	if p.Slug != "" {
-		// without prefix
-		tags = append(tags, p.Slug)
-		// with prefix
 		tag := fmt.Sprintf("project_slug:%s", p.Slug)
 		tags = append(tags, tag)
 	}
 
 	if p.Name != "" {
-		// without prefix
-		tags = append(tags, p.Name)
-	}
-
-	if p.Description != "" {
-		// without prefix
-		tags = append(tags, p.Description)
+		tag := fmt.Sprintf("project_name:%s", p.Name)
+		tags = append(tags, tag)
 	}
 
 	return tags
@@ -113,16 +96,8 @@ func (p *ProjectSettings) Tags() []string {
 	}
 
 	if p.UID != "" {
-		// without prefix
-		tags = append(tags, p.UID)
-		// with prefix
 		tag := fmt.Sprintf("project_uid:%s", p.UID)
 		tags = append(tags, tag)
-	}
-
-	if p.MissionStatement != "" {
-		// without prefix
-		tags = append(tags, p.MissionStatement)
 	}
 
 	return tags
