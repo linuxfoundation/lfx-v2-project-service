@@ -32,7 +32,6 @@ func TestProjectBaseTags(t *testing.T) {
 				UID: "project-123",
 			},
 			expected: []string{
-				"project-123",
 				"project_uid:project-123",
 			},
 		},
@@ -42,7 +41,6 @@ func TestProjectBaseTags(t *testing.T) {
 				Slug: "test-project",
 			},
 			expected: []string{
-				"test-project",
 				"project_slug:test-project",
 			},
 		},
@@ -52,7 +50,7 @@ func TestProjectBaseTags(t *testing.T) {
 				Name: "Test Project",
 			},
 			expected: []string{
-				"Test Project",
+				"project_name:Test Project",
 			},
 		},
 		{
@@ -60,9 +58,7 @@ func TestProjectBaseTags(t *testing.T) {
 			project: &ProjectBase{
 				Description: "This is a test project",
 			},
-			expected: []string{
-				"This is a test project",
-			},
+			expected: nil,
 		},
 		{
 			name: "project with all tag fields",
@@ -74,13 +70,9 @@ func TestProjectBaseTags(t *testing.T) {
 				ParentUID:   "parent-456",
 			},
 			expected: []string{
-				"project-123",
 				"project_uid:project-123",
-				"parent_uid:parent-456",
-				"test-project",
 				"project_slug:test-project",
-				"Test Project",
-				"This is a test project",
+				"project_name:Test Project",
 			},
 		},
 		{
@@ -90,9 +82,7 @@ func TestProjectBaseTags(t *testing.T) {
 				ParentUID: "parent-456",
 			},
 			expected: []string{
-				"project-123",
 				"project_uid:project-123",
-				"parent_uid:parent-456",
 			},
 		},
 		{
@@ -118,13 +108,9 @@ func TestProjectBaseTags(t *testing.T) {
 				RepositoryURL:              "https://github.com/example/repo",
 			},
 			expected: []string{
-				"project-123",
 				"project_uid:project-123",
-				"parent_uid:parent-456",
-				"test-project",
 				"project_slug:test-project",
-				"Test Project",
-				"This is a test project",
+				"project_name:Test Project",
 			},
 		},
 	}
@@ -172,7 +158,6 @@ func TestProjectSettingsTags(t *testing.T) {
 				UID: "settings-123",
 			},
 			expected: []string{
-				"settings-123",
 				"project_uid:settings-123",
 			},
 		},
@@ -181,9 +166,7 @@ func TestProjectSettingsTags(t *testing.T) {
 			settings: &ProjectSettings{
 				MissionStatement: "Our mission is to test",
 			},
-			expected: []string{
-				"Our mission is to test",
-			},
+			expected: nil,
 		},
 		{
 			name: "settings with all tag fields",
@@ -192,9 +175,7 @@ func TestProjectSettingsTags(t *testing.T) {
 				MissionStatement: "Our mission is to test",
 			},
 			expected: []string{
-				"settings-123",
 				"project_uid:settings-123",
-				"Our mission is to test",
 			},
 		},
 		{
@@ -218,9 +199,7 @@ func TestProjectSettingsTags(t *testing.T) {
 				UpdatedAt: &now,
 			},
 			expected: []string{
-				"settings-123",
 				"project_uid:settings-123",
-				"Our mission is to test",
 			},
 		},
 	}
