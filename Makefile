@@ -10,7 +10,7 @@ BINARY_PATH=bin/$(BINARY_NAME)
 # API/Code generation variables
 API_PATH=$(GO_MODULE)/api/project/v1
 DESIGN_MODULE=$(API_PATH)/design
-GOA_VERSION=v3
+GOA_VERSION=v3.22.6
 GO_FILES=$(shell find . -name '*.go' -not -path './api/project/v1/gen/*' -not -path './vendor/*')
 
 # Build variables
@@ -69,7 +69,7 @@ help:
 deps:
 	@echo "==> Installing dependencies..."
 	go mod download
-	go install goa.design/goa/$(GOA_VERSION)/cmd/goa@latest
+	go install goa.design/goa/v3/cmd/goa@$(GOA_VERSION)
 	@command -v golangci-lint >/dev/null 2>&1 || { \
 		echo "==> Installing golangci-lint..."; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
