@@ -25,10 +25,11 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 	var err error
 
 	handlers := map[string]func(ctx context.Context, msg domain.Message) ([]byte, error){
-		constants.ProjectGetNameSubject:   s.HandleProjectGetName,
-		constants.ProjectGetSlugSubject:   s.HandleProjectGetSlug,
-		constants.ProjectGetLogoSubject:   s.HandleProjectGetLogo,
-		constants.ProjectSlugToUIDSubject: s.HandleProjectSlugToUID,
+		constants.ProjectGetNameSubject:      s.HandleProjectGetName,
+		constants.ProjectGetSlugSubject:      s.HandleProjectGetSlug,
+		constants.ProjectGetLogoSubject:      s.HandleProjectGetLogo,
+		constants.ProjectSlugToUIDSubject:    s.HandleProjectSlugToUID,
+		constants.ProjectGetParentUIDSubject: s.HandleProjectGetParentUID,
 	}
 
 	handler, ok := handlers[subject]
@@ -137,4 +138,9 @@ func (s *ProjectsService) HandleProjectSlugToUID(ctx context.Context, msg domain
 	}
 
 	return []byte(project), nil
+}
+
+// HandleProjectGetParentUID is the message handler for the project-get-parent-uid subject.
+func (s *ProjectsService) HandleProjectGetParentUID(ctx context.Context, msg domain.Message) ([]byte, error) {
+	return s.handleProjectGetAttribute(ctx, msg, constants.ProjectGetParentUIDSubject, "parent_uid")
 }
