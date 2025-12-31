@@ -65,4 +65,7 @@ const (
 	// ProjectSlugToUIDSubject is the subject for the project slug to UID.
 	// The subject is of the form: lfx.projects-api.slug_to_uid
 	ProjectSlugToUIDSubject = "lfx.projects-api.slug_to_uid"
+	// ProjectGetParentUIDSubject is the subject for getting the parent project UID.
+	// The subject is of the form: lfx.projects-api.get_parent_uid
+	ProjectGetParentUIDSubject = "lfx.projects-api.get_parent_uid"
 )

@@ -56,6 +56,7 @@ func (s *NatsRepository) GetProjectBase(ctx context.Context, projectUID string) 
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, domain.ErrProjectNotFound
 		}
+		slog.ErrorContext(ctx, "error getting project from NATS KV store", constants.ErrKey, err, "project_uid", projectUID)
 		return nil, domain.ErrInternal
 	}
 
@@ -74,6 +75,7 @@ func (s *NatsRepository) GetProjectBaseWithRevision(ctx context.Context, project
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, 0, domain.ErrProjectNotFound
 		}
+		slog.ErrorContext(ctx, "error getting project from NATS KV store", constants.ErrKey, err, "project_uid", projectUID)
 		return nil, 0, domain.ErrInternal
 	}
 
