@@ -83,7 +83,7 @@ func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
 		return nil
 	}
 
-	return &indexerTypes.IndexingConfig{
+	config := indexerTypes.IndexingConfig{
 		ObjectID:             p.UID,
 		Public:               &p.Public,
 		AccessCheckObject:    fmt.Sprintf("project:%s", p.UID),
@@ -91,11 +91,70 @@ func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
 		HistoryCheckObject:   fmt.Sprintf("project:%s", p.UID),
 		HistoryCheckRelation: "writer",
 		SortName:             p.Name,
-		NameAndAliases:       []string{p.Name, p.Slug},
-		ParentRefs:           []string{fmt.Sprintf("project:%s", p.ParentUID)},
-		Fulltext:             strings.Join([]string{p.Name, p.Slug, p.Description}, " "),
+		NameAndAliases:       p.NameAndAliases(),
+		ParentRefs:           p.ParentRefs(),
+		Fulltext:             p.Fulltext(),
 		Tags:                 p.Tags(),
 	}
+
+	return &config
+}
+
+// ParentRefs generates a list of parent references for the project base.
+// This is used to index the project as a child of its parent project.
+func (p *ProjectBase) ParentRefs() []string {
+	if p == nil {
+		return nil
+	}
+
+	var parentRefs []string
+
+	if p.ParentUID != "" {
+		parentRefs = append(parentRefs, fmt.Sprintf("project:%s", p.ParentUID))
+	}
+
+	return parentRefs
+}
+
+// NameAndAliases generates a list of name and aliases for the project base.
+// This is used to index the project with searchable names.
+func (p *ProjectBase) NameAndAliases() []string {
+	if p == nil {
+		return nil
+	}
+
+	var nameAndAliases []string
+
+	if p.Name != "" {
+		nameAndAliases = append(nameAndAliases, p.Name)
+	}
+	if p.Slug != "" {
+		nameAndAliases = append(nameAndAliases, p.Slug)
+	}
+
+	return nameAndAliases
+}
+
+// Fulltext generates a fulltext string for the project base.
+// This is used to index the project text that is full-text searchable.
+func (p *ProjectBase) Fulltext() string {
+	if p == nil {
+		return ""
+	}
+
+	var fulltext []string
+
+	if p.Name != "" {
+		fulltext = append(fulltext, p.Name)
+	}
+	if p.Slug != "" {
+		fulltext = append(fulltext, p.Slug)
+	}
+	if p.Description != "" {
+		fulltext = append(fulltext, p.Description)
+	}
+
+	return strings.Join(fulltext, " ")
 }
 
 // Tags generates a consistent set of tags for the project settings.

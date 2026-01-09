@@ -47,45 +47,21 @@ This service publishes the following NATS events:
 
 ### Project Tags
 
-The LFX v2 Project Service generates a set of tags for projects and project settings that are sent to the indexer-service. These tags enable searchability and discoverability of projects through OpenSearch.
+The LFX v2 Project Service generates tags for projects that are sent to the indexer-service.
 
 #### Tags Generated for Projects
 
-When projects are created or updated, the following tags are automatically generated:
+When projects are created or updated, the following tag is generated:
 
 | Project Field | Tag Format | Example | Purpose |
 |--------------|-----------|---------|---------|
-| UID | Plain value | `f1545930-b9b7-420d-942b-eb53c1a63428` | Direct lookup by ID |
-| UID | `project_uid:<value>` | `project_uid:f1545930-b9b7-420d-942b-eb53c1a63428` | Namespaced lookup by ID |
-| ParentUID | `parent_uid:<value>` | `parent_uid:efc80205-b0b3-4943-9395-2b634985a142` | Find child projects of a parent |
-| Slug | Plain value | `test-project-tags-indexed` | Direct lookup by slug |
-| Slug | `project_slug:<value>` | `project_slug:test-project-tags-indexed` | Namespaced lookup by slug |
-| Name | Plain value | `Updated Foo Foundation` | Text search by project name |
-| Description | Plain value | `Updated description for tag testing` | Full-text search in descriptions |
+| Slug | `project_slug:<value>` | `project_slug:test-project` | Namespaced lookup by slug |
+
+**Note**: Additional project metadata (UID, ParentUID, Name, Description, etc.) is sent via the `IndexingConfig` field.
 
 #### Tags Generated for Project Settings
 
-Project settings generate a separate set of tags:
-
-| Settings Field | Tag Format | Example | Purpose |
-|---------------|-----------|---------|---------|
-| UID | Plain value | `f1545930-b9b7-420d-942b-eb53c1a63428` | Direct lookup by ID |
-| UID | `project_uid:<value>` | `project_uid:f1545930-b9b7-420d-942b-eb53c1a63428` | Namespaced lookup by ID |
-| MissionStatement | Plain value | `Updated mission statement for testing tags` | Full-text search in mission statements |
-
-#### How Tags Are Used
-
-Tags serve multiple important purposes in the LFX system:
-
-1. **Indexed Search**: Tags are indexed in OpenSearch, enabling fast lookups and text searches across projects
-
-2. **Relationship Navigation**: Parent-child relationships can be traversed using the parent_uid tags
-
-3. **Multiple Access Patterns**: Both plain value and prefixed tags support different query patterns:
-   - Plain values support general text search (e.g., "find projects containing 'foo'")
-   - Prefixed values support field-specific search (e.g., "find projects with slug 'test-project'")
-
-4. **Data Synchronization**: When projects or settings are updated, their tags are automatically updated, ensuring search results remain current
+Project settings generate no tags. All metadata is sent via the `IndexingConfig` field.
 
 ## Quick Start
 
