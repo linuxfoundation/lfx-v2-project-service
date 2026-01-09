@@ -5,7 +5,10 @@ package models
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 )
 
 // UserInfo represents user information including profile details.
@@ -101,6 +104,27 @@ func (p *ProjectBase) Tags() []string {
 	return tags
 }
 
+// IndexingConfig generates an IndexingConfig for indexing this project.
+func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
+	if p == nil {
+		return nil
+	}
+
+	return &indexerTypes.IndexingConfig{
+		ObjectID:             p.UID,
+		Public:               &p.Public,
+		AccessCheckObject:    fmt.Sprintf("project:%s", p.UID),
+		AccessCheckRelation:  "viewer",
+		HistoryCheckObject:   fmt.Sprintf("project:%s", p.UID),
+		HistoryCheckRelation: "writer",
+		SortName:             p.Name,
+		NameAndAliases:       []string{p.Name, p.Slug},
+		ParentRefs:           []string{fmt.Sprintf("project:%s", p.ParentUID)},
+		Fulltext:             strings.Join([]string{p.Name, p.Slug, p.Description}, " "),
+		Tags:                 p.Tags(),
+	}
+}
+
 // Tags generates a consistent set of tags for the project settings.
 // IMPORTANT: If you modify this method, please update the Project Tags documentation in the README.md
 // to ensure consumers understand how to use these tags for searching.
@@ -126,4 +150,21 @@ func (p *ProjectSettings) Tags() []string {
 	}
 
 	return tags
+}
+
+// IndexingConfig generates an IndexingConfig for indexing this project settings.
+// Note: Project settings use the project UID for access checks, not the settings UID.
+func (p *ProjectSettings) IndexingConfig(projectUID string) *indexerTypes.IndexingConfig {
+	if p == nil {
+		return nil
+	}
+
+	return &indexerTypes.IndexingConfig{
+		ObjectID:             p.UID,
+		AccessCheckObject:    fmt.Sprintf("project:%s", projectUID),
+		AccessCheckRelation:  "auditor",
+		HistoryCheckObject:   fmt.Sprintf("project:%s", projectUID),
+		HistoryCheckRelation: "writer",
+		Tags:                 p.Tags(),
+	}
 }

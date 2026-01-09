@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/go-viper/mapstructure/v2"
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
@@ -59,9 +61,10 @@ func (m *MessageBuilder) requestMessage(subject string, data []byte, timeout tim
 func (m *MessageBuilder) sendIndexerMessage(
 	ctx context.Context,
 	subject string,
-	action models.MessageAction,
+	action indexerConstants.MessageAction,
 	data []byte,
 	tags []string,
+	indexingConfig *indexerTypes.IndexingConfig,
 	sync bool,
 ) error {
 	headers := make(map[string]string)
@@ -74,7 +77,7 @@ func (m *MessageBuilder) sendIndexerMessage(
 
 	var payload any
 	switch action {
-	case models.ActionCreated, models.ActionUpdated:
+	case indexerConstants.ActionCreated, indexerConstants.ActionUpdated:
 		// The data should be a JSON object.
 		var jsonData any
 		if err := json.Unmarshal(data, &jsonData); err != nil {
@@ -97,18 +100,17 @@ func (m *MessageBuilder) sendIndexerMessage(
 			slog.ErrorContext(ctx, "error decoding data", constants.ErrKey, err, "subject", subject)
 			return err
 		}
-	case models.ActionDeleted:
+	case indexerConstants.ActionDeleted:
 		// The data should just be a string of the UID being deleted.
 		payload = data
 	}
 
-	// TODO: use the model from the indexer service to keep the message body consistent.
-	// Ticket https://linuxfoundation.atlassian.net/browse/LFXV2-147
-	message := models.IndexerMessageEnvelope{
-		Action:  action,
-		Headers: headers,
-		Data:    payload,
-		Tags:    tags,
+	message := indexerTypes.IndexerMessageEnvelope{
+		Action:         action,
+		Headers:        headers,
+		Data:           payload,
+		Tags:           tags,
+		IndexingConfig: indexingConfig,
 	}
 
 	messageBytes, err := json.Marshal(message)
@@ -125,25 +127,17 @@ func (m *MessageBuilder) sendIndexerMessage(
 // SendIndexerMessage sends indexer messages to NATS for search indexing.
 func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
 	switch msg := message.(type) {
-	case models.ProjectIndexerMessage:
+	case indexerTypes.IndexerMessageEnvelope:
 		dataBytes, err := json.Marshal(msg.Data)
 		if err != nil {
-			slog.ErrorContext(ctx, "error marshalling project data into JSON", constants.ErrKey, err)
+			slog.ErrorContext(ctx, "error marshalling message data into JSON", constants.ErrKey, err)
 			return err
 		}
-		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, sync)
-
-	case models.ProjectSettingsIndexerMessage:
-		dataBytes, err := json.Marshal(msg.Data)
-		if err != nil {
-			slog.ErrorContext(ctx, "error marshalling project settings data into JSON", constants.ErrKey, err)
-			return err
-		}
-		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, sync)
+		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, msg.IndexingConfig, sync)
 
 	case string:
 		// For delete operations, the message is just the UID string
-		return m.sendIndexerMessage(ctx, subject, models.ActionDeleted, []byte(msg), nil, sync)
+		return m.sendIndexerMessage(ctx, subject, indexerConstants.ActionDeleted, []byte(msg), nil, nil, sync)
 
 	default:
 		slog.ErrorContext(ctx, "unsupported indexer message type", "type", fmt.Sprintf("%T", message))

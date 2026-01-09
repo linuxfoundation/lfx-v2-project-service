@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	natsio "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
@@ -295,10 +298,23 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 	}
 
 	// Create and send the project indexer message
-	projectMessage := models.ProjectIndexerMessage{
-		Action: models.ActionCreated,
+	projectMessage := indexerTypes.IndexerMessageEnvelope{
+		Action: indexerConstants.ActionCreated,
 		Data:   project,
 		Tags:   []string{}, // Empty tags for root project
+		IndexingConfig: &indexerTypes.IndexingConfig{
+			ObjectID:             project.UID,
+			Public:               &project.Public,
+			AccessCheckObject:    fmt.Sprintf("project:%s", project.UID),
+			AccessCheckRelation:  "viewer",
+			HistoryCheckObject:   fmt.Sprintf("project:%s", project.UID),
+			HistoryCheckRelation: "writer",
+			SortName:             project.Name,
+			NameAndAliases:       []string{project.Name, project.Slug},
+			ParentRefs:           []string{fmt.Sprintf("project:%s", project.ParentUID)},
+			Fulltext:             strings.Join([]string{project.Name, project.Slug, project.Description}, " "),
+			Tags:                 []string{},
+		},
 	}
 
 	if err := msgBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, projectMessage, false); err != nil {
@@ -307,8 +323,8 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 	}
 
 	// Create and send the project settings indexer message
-	settingsMessage := models.ProjectSettingsIndexerMessage{
-		Action: models.ActionCreated,
+	settingsMessage := indexerTypes.IndexerMessageEnvelope{
+		Action: indexerConstants.ActionCreated,
 		Data:   settings,
 		Tags:   []string{}, // Empty tags for root project
 	}
