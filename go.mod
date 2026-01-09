@@ -5,13 +5,13 @@ module github.com/linuxfoundation/lfx-v2-project-service
 go 1.24.0
 
 require (
-	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.13
 	github.com/auth0/go-jwt-middleware/v2 v2.3.0
 	github.com/aws/aws-sdk-go-v2/config v1.32.0
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.20.10
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
+	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.14-0.20260109191409-7371e293d8b5
 	github.com/nats-io/nats.go v1.47.0
 	github.com/rustyoz/svg v0.0.0-20250705135709-8b1786137cb3
 	github.com/stretchr/testify v1.11.1
@@ -43,7 +43,6 @@ require (
 	github.com/gohugoio/hashstructure v0.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
-	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.13 // indirect
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d // indirect
 	github.com/nats-io/nkeys v0.4.11 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
