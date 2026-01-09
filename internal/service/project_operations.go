@@ -6,7 +6,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -575,16 +574,9 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	g := new(errgroup.Group)
 	g.Go(func() error {
 		msg := indexerTypes.IndexerMessageEnvelope{
-			Action: indexerConstants.ActionUpdated,
-			Data:   *projectSettingsDB,
-			IndexingConfig: &indexerTypes.IndexingConfig{
-				ObjectID:             projectSettingsDB.UID,
-				AccessCheckObject:    fmt.Sprintf("project:%s", projectDB.UID),
-				AccessCheckRelation:  "auditor",
-				HistoryCheckObject:   fmt.Sprintf("project:%s", projectDB.UID),
-				HistoryCheckRelation: "writer",
-				Tags:                 projectSettingsDB.Tags(),
-			},
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *projectSettingsDB,
+			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})

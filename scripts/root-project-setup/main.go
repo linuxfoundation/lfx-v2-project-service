@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"os"
 	"strings"
@@ -299,22 +298,10 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 
 	// Create and send the project indexer message
 	projectMessage := indexerTypes.IndexerMessageEnvelope{
-		Action: indexerConstants.ActionCreated,
-		Data:   project,
-		Tags:   []string{}, // Empty tags for root project
-		IndexingConfig: &indexerTypes.IndexingConfig{
-			ObjectID:             project.UID,
-			Public:               &project.Public,
-			AccessCheckObject:    fmt.Sprintf("project:%s", project.UID),
-			AccessCheckRelation:  "viewer",
-			HistoryCheckObject:   fmt.Sprintf("project:%s", project.UID),
-			HistoryCheckRelation: "writer",
-			SortName:             project.Name,
-			NameAndAliases:       []string{project.Name, project.Slug},
-			ParentRefs:           []string{fmt.Sprintf("project:%s", project.ParentUID)},
-			Fulltext:             strings.Join([]string{project.Name, project.Slug, project.Description}, " "),
-			Tags:                 []string{},
-		},
+		Action:         indexerConstants.ActionCreated,
+		Data:           project,
+		Tags:           []string{}, // Empty tags for root project
+		IndexingConfig: project.IndexingConfig(),
 	}
 
 	if err := msgBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, projectMessage, false); err != nil {
@@ -324,9 +311,10 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 
 	// Create and send the project settings indexer message
 	settingsMessage := indexerTypes.IndexerMessageEnvelope{
-		Action: indexerConstants.ActionCreated,
-		Data:   settings,
-		Tags:   []string{}, // Empty tags for root project
+		Action:         indexerConstants.ActionCreated,
+		Data:           settings,
+		Tags:           []string{}, // Empty tags for root project
+		IndexingConfig: settings.IndexingConfig(project.UID),
 	}
 
 	if err := msgBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, settingsMessage, false); err != nil {
