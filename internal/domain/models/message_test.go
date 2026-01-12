@@ -119,31 +119,63 @@ func TestProjectSettingsIndexerMessage(t *testing.T) {
 	}
 }
 
-func TestProjectAccessMessage(t *testing.T) {
+func TestGenericFGAMessage(t *testing.T) {
 	tests := []struct {
 		name    string
-		message ProjectAccessMessage
-		verify  func(t *testing.T, msg ProjectAccessMessage)
+		message GenericFGAMessage
+		verify  func(t *testing.T, msg GenericFGAMessage)
 	}{
 		{
-			name: "project access message with all fields",
-			message: ProjectAccessMessage{
-				Data: ProjectAccessData{
-					UID:                 "access-123",
-					Public:              true,
-					ParentUID:           "parent-456",
-					Writers:             []string{"user1", "user2"},
-					Auditors:            []string{"auditor1"},
-					MeetingCoordinators: []string{"coordinator1"},
+			name: "generic FGA message for update_access",
+			message: GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "update_access",
+				Data: UpdateAccessData{
+					UID:    "project-123",
+					Public: true,
+					Relations: map[string][]string{
+						"writer":              {"user1", "user2"},
+						"auditor":             {"auditor1"},
+						"meeting_coordinator": {"coordinator1"},
+					},
+					References: map[string][]string{
+						"parent": {"project:parent-456"},
+					},
 				},
 			},
-			verify: func(t *testing.T, msg ProjectAccessMessage) {
-				assert.Equal(t, "access-123", msg.Data.UID)
-				assert.True(t, msg.Data.Public)
-				assert.Equal(t, "parent-456", msg.Data.ParentUID)
-				assert.Len(t, msg.Data.Writers, 2)
-				assert.Len(t, msg.Data.Auditors, 1)
-				assert.Len(t, msg.Data.MeetingCoordinators, 1)
+			verify: func(t *testing.T, msg GenericFGAMessage) {
+				assert.Equal(t, "project", msg.ObjectType)
+				assert.Equal(t, "update_access", msg.Operation)
+
+				data, ok := msg.Data.(UpdateAccessData)
+				assert.True(t, ok)
+				assert.Equal(t, "project-123", data.UID)
+				assert.True(t, data.Public)
+				assert.Len(t, data.Relations, 3)
+				assert.Len(t, data.Relations["writer"], 2)
+				assert.Len(t, data.Relations["auditor"], 1)
+				assert.Len(t, data.Relations["meeting_coordinator"], 1)
+				assert.Len(t, data.References, 1)
+				assert.Len(t, data.References["parent"], 1)
+				assert.Equal(t, "project:parent-456", data.References["parent"][0])
+			},
+		},
+		{
+			name: "generic FGA message for delete_access",
+			message: GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "delete_access",
+				Data: DeleteAccessData{
+					UID: "project-789",
+				},
+			},
+			verify: func(t *testing.T, msg GenericFGAMessage) {
+				assert.Equal(t, "project", msg.ObjectType)
+				assert.Equal(t, "delete_access", msg.Operation)
+
+				data, ok := msg.Data.(DeleteAccessData)
+				assert.True(t, ok)
+				assert.Equal(t, "project-789", data.UID)
 			},
 		},
 	}
@@ -151,6 +183,67 @@ func TestProjectAccessMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.verify(t, tt.message)
+		})
+	}
+}
+
+func TestUpdateAccessData(t *testing.T) {
+	tests := []struct {
+		name   string
+		data   UpdateAccessData
+		verify func(t *testing.T, data UpdateAccessData)
+	}{
+		{
+			name: "update access data with all fields",
+			data: UpdateAccessData{
+				UID:    "project-123",
+				Public: true,
+				Relations: map[string][]string{
+					"writer":  {"user1", "user2"},
+					"auditor": {"user3"},
+				},
+				References: map[string][]string{
+					"parent": {"project:parent-456"},
+				},
+				ExcludeRelations: []string{"custom_relation"},
+			},
+			verify: func(t *testing.T, data UpdateAccessData) {
+				assert.Equal(t, "project-123", data.UID)
+				assert.True(t, data.Public)
+				assert.Len(t, data.Relations, 2)
+				assert.Len(t, data.References, 1)
+				assert.Len(t, data.ExcludeRelations, 1)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.verify(t, tt.data)
+		})
+	}
+}
+
+func TestDeleteAccessData(t *testing.T) {
+	tests := []struct {
+		name   string
+		data   DeleteAccessData
+		verify func(t *testing.T, data DeleteAccessData)
+	}{
+		{
+			name: "delete access data",
+			data: DeleteAccessData{
+				UID: "project-456",
+			},
+			verify: func(t *testing.T, data DeleteAccessData) {
+				assert.Equal(t, "project-456", data.UID)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.verify(t, tt.data)
 		})
 	}
 }

@@ -35,6 +35,10 @@ This service handles the following NATS subjects for inter-service communication
 
 This service publishes the following NATS events:
 
+#### Project Data Events
+
+- `lfx.index.project`: Published when a project is created, updated, or deleted. Contains the project base data and tags for indexing.
+- `lfx.index.project_settings`: Published when project settings are created or updated. Contains the project settings data and tags for indexing.
 - `lfx.projects-api.project_settings.updated`: Published when project settings are updated. Contains both the old and new settings to allow downstream services to react to changes. Message format:
 
   ```json
@@ -42,6 +46,43 @@ This service publishes the following NATS events:
     "project_uid": "string",
     "old_settings": { /* ProjectSettings object */ },
     "new_settings": { /* ProjectSettings object */ }
+  }
+  ```
+
+#### Access Control Events
+
+This service uses the generic FGA sync handlers for managing fine-grained access control. All access control messages use the `GenericFGAMessage` envelope format:
+
+- `lfx.fga-sync.update_access`: Published when project access permissions are updated. This is a full sync operation - any relations not included will be removed. Message format:
+
+  ```json
+  {
+    "object_type": "project",
+    "operation": "update_access",
+    "data": {
+      "uid": "project-uid",
+      "public": true,
+      "relations": {
+        "writer": ["username1", "username2"],
+        "auditor": ["username3"],
+        "meeting_coordinator": ["username4"]
+      },
+      "references": {
+        "parent": ["project:parent-uid"]
+      }
+    }
+  }
+  ```
+
+- `lfx.fga-sync.delete_access`: Published when a project is deleted. Removes all access control tuples for the project. Message format:
+
+  ```json
+  {
+    "object_type": "project",
+    "operation": "delete_access",
+    "data": {
+      "uid": "project-uid"
+    }
   }
   ```
 

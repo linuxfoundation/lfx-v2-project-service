@@ -38,20 +38,28 @@ type IndexerMessageEnvelope struct {
 	Tags    []string          `json:"tags"`
 }
 
-// ProjectAccessData is the schema for the data in the message sent to the fga-sync service.
-// These are the fields that the fga-sync service needs in order to update the OpenFGA permissions.
-type ProjectAccessData struct {
-	UID                 string   `json:"uid"`
-	Public              bool     `json:"public"`
-	ParentUID           string   `json:"parent_uid"`
-	Writers             []string `json:"writers"`
-	Auditors            []string `json:"auditors"`
-	MeetingCoordinators []string `json:"meeting_coordinators"`
+// GenericFGAMessage is the envelope for all FGA sync operations.
+// It uses the generic, resource-agnostic FGA Sync handlers.
+type GenericFGAMessage struct {
+	ObjectType string `json:"object_type"` // Resource type (e.g., "project", "committee", "meeting")
+	Operation  string `json:"operation"`   // Operation name (e.g., "update_access", "delete_access")
+	Data       any    `json:"data"`        // Operation-specific payload
 }
 
-// ProjectAccessMessage is a type-safe NATS message for project access control operations.
-type ProjectAccessMessage struct {
-	Data ProjectAccessData `json:"data"`
+// UpdateAccessData is the data payload for update_access operations.
+// This is a full sync operation - any relations not included will be removed.
+type UpdateAccessData struct {
+	UID              string              `json:"uid"`                         // Unique identifier for the resource
+	Public           bool                `json:"public"`                      // If true, adds user:* as viewer
+	Relations        map[string][]string `json:"relations,omitempty"`         // Map of relation names to arrays of usernames
+	References       map[string][]string `json:"references,omitempty"`        // Map of relation names to arrays of object UIDs
+	ExcludeRelations []string            `json:"exclude_relations,omitempty"` // Relations managed elsewhere
+}
+
+// DeleteAccessData is the data payload for delete_access operations.
+// Deletes all access control tuples for a resource.
+type DeleteAccessData struct {
+	UID string `json:"uid"` // Unique identifier for the resource to delete
 }
 
 // ProjectSettingsUpdatedMessage is a NATS message published when project settings are updated.

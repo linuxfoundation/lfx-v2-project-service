@@ -22,21 +22,15 @@ const (
 	// The subject is of the form: lfx.index.project_settings
 	IndexProjectSettingsSubject = "lfx.index.project_settings"
 
-	// UpdateAccessProjectSubject is the subject for the project access control updates.
-	// The subject is of the form: lfx.update_access.project
-	UpdateAccessProjectSubject = "lfx.update_access.project"
+	// FGASyncUpdateAccessSubject is the subject for FGA sync update_access operations.
+	// Uses the generic, resource-agnostic FGA Sync handler.
+	// The subject is of the form: lfx.fga-sync.update_access
+	FGASyncUpdateAccessSubject = "lfx.fga-sync.update_access"
 
-	// UpdateAccessProjectSettingsSubject is the subject for the project settings access control updates.
-	// The subject is of the form: lfx.update_access.project_settings
-	UpdateAccessProjectSettingsSubject = "lfx.update_access.project_settings"
-
-	// DeleteAllAccessSubject is the subject for the project access control deletion.
-	// The subject is of the form: lfx.delete_all_access.project
-	DeleteAllAccessSubject = "lfx.delete_all_access.project"
-
-	// DeleteAllAccessProjectSettingsSubject is the subject for the project settings access control deletion.
-	// The subject is of the form: lfx.delete_all_access.project_settings
-	DeleteAllAccessProjectSettingsSubject = "lfx.delete_all_access.project_settings"
+	// FGASyncDeleteAccessSubject is the subject for FGA sync delete_access operations.
+	// Uses the generic, resource-agnostic FGA Sync handler.
+	// The subject is of the form: lfx.fga-sync.delete_access
+	FGASyncDeleteAccessSubject = "lfx.fga-sync.delete_access"
 
 	// ProjectSettingsUpdatedSubject is the subject for project settings change events.
 	// This event is published when project settings are updated, containing both before and after states.
