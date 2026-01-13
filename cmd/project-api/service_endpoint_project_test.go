@@ -154,7 +154,7 @@ func TestCreateProject(t *testing.T) {
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
 				// Mock message sending
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectIndexerMessage"), mock.AnythingOfType("bool")).Return(nil)
-				mockMsg.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectAccessMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockMsg.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.ProjectSettingsIndexerMessage"), mock.AnythingOfType("bool")).Return(nil)
 			},
 			expectedError: false,

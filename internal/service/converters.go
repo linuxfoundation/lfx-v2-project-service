@@ -4,6 +4,7 @@
 package service
 
 import (
+	"fmt"
 	"time"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
@@ -435,6 +436,39 @@ func extractUsernames(users []models.UserInfo) []string {
 		usernames[i] = user.Username
 	}
 	return usernames
+}
+
+// buildFGAUpdateAccessMessage builds a GenericFGAMessage for update_access operations.
+// It constructs the relations map from project settings and references map from project base.
+func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsDB *models.ProjectSettings) models.GenericFGAMessage {
+	// Build relations map for FGA sync
+	relations := make(map[string][]string)
+	if writers := extractUsernames(projectSettingsDB.Writers); len(writers) > 0 {
+		relations["writer"] = writers
+	}
+	if auditors := extractUsernames(projectSettingsDB.Auditors); len(auditors) > 0 {
+		relations["auditor"] = auditors
+	}
+	if coordinators := extractUsernames(projectSettingsDB.MeetingCoordinators); len(coordinators) > 0 {
+		relations["meeting_coordinator"] = coordinators
+	}
+
+	// Build references map for parent relationship
+	references := make(map[string][]string)
+	if projectDB.ParentUID != "" {
+		references["parent"] = []string{fmt.Sprintf("project:%s", projectDB.ParentUID)}
+	}
+
+	return models.GenericFGAMessage{
+		ObjectType: "project",
+		Operation:  "update_access",
+		Data: models.UpdateAccessData{
+			UID:        projectDB.UID,
+			Public:     projectDB.Public,
+			Relations:  relations,
+			References: references,
+		},
+	}
 }
 
 // createTestUserInfo creates a UserInfo for testing purposes

@@ -151,20 +151,16 @@ func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string,
 	}
 }
 
-// SendAccessMessage sends access control messages to NATS.
+// SendAccessMessage sends access control messages to NATS using the generic FGA sync format.
 func (m *MessageBuilder) SendAccessMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
 	switch msg := message.(type) {
-	case models.ProjectAccessMessage:
-		dataBytes, err := json.Marshal(msg.Data)
+	case models.GenericFGAMessage:
+		messageBytes, err := json.Marshal(msg)
 		if err != nil {
-			slog.ErrorContext(ctx, "error marshalling access message data into JSON", constants.ErrKey, err)
+			slog.ErrorContext(ctx, "error marshalling FGA message into JSON", constants.ErrKey, err)
 			return err
 		}
-		return m.sendMessage(ctx, subject, dataBytes, sync)
-
-	case string:
-		// For delete operations, the message is just the UID string
-		return m.sendMessage(ctx, subject, []byte(msg), sync)
+		return m.sendMessage(ctx, subject, messageBytes, sync)
 
 	default:
 		slog.ErrorContext(ctx, "unsupported access message type", "type", fmt.Sprintf("%T", message))

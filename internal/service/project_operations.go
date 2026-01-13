@@ -175,17 +175,8 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	})
 
 	g.Go(func() error {
-		msg := models.ProjectAccessMessage{
-			Data: models.ProjectAccessData{
-				UID:                 projectDB.UID,
-				Public:              projectDB.Public,
-				ParentUID:           projectDB.ParentUID,
-				Writers:             extractUsernames(projectSettingsDB.Writers),
-				Auditors:            extractUsernames(projectSettingsDB.Auditors),
-				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
-			},
-		}
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
+		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -440,17 +431,8 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	})
 
 	g.Go(func() error {
-		msg := models.ProjectAccessMessage{
-			Data: models.ProjectAccessData{
-				UID:                 projectDB.UID,
-				Public:              projectDB.Public,
-				ParentUID:           projectDB.ParentUID,
-				Writers:             extractUsernames(projectSettingsDB.Writers),
-				Auditors:            extractUsernames(projectSettingsDB.Auditors),
-				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
-			},
-		}
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
+		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -580,17 +562,8 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	})
 
 	g.Go(func() error {
-		msg := models.ProjectAccessMessage{
-			Data: models.ProjectAccessData{
-				UID:                 projectDB.UID,
-				Public:              projectDB.Public,
-				ParentUID:           projectDB.ParentUID,
-				Writers:             extractUsernames(projectSettingsDB.Writers),
-				Auditors:            extractUsernames(projectSettingsDB.Auditors),
-				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
-			},
-		}
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
+		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
@@ -685,7 +658,14 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	})
 
 	g.Go(func() error {
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.DeleteAllAccessSubject, *payload.UID, runSync)
+		msg := models.GenericFGAMessage{
+			ObjectType: "project",
+			Operation:  "delete_access",
+			Data: models.DeleteAccessData{
+				UID: *payload.UID,
+			},
+		}
+		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncDeleteAccessSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {

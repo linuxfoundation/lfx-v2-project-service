@@ -238,26 +238,48 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:    "successful send access message",
-			subject: constants.UpdateAccessProjectSubject,
-			message: models.ProjectAccessMessage{
-				Data: models.ProjectAccessData{
-					UID:       "test-uid",
-					Public:    true,
-					ParentUID: "parent-uid",
-					Writers:   []string{"user1"},
-					Auditors:  []string{"user2"},
+			name:    "successful send update access message",
+			subject: constants.FGASyncUpdateAccessSubject,
+			message: models.GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "update_access",
+				Data: models.UpdateAccessData{
+					UID:    "test-uid",
+					Public: true,
+					Relations: map[string][]string{
+						"writer":  {"user1"},
+						"auditor": {"user2"},
+					},
+					References: map[string][]string{
+						"parent": {"project:parent-uid"},
+					},
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.UpdateAccessProjectSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+				mockConn.On("Publish", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  false,
+		},
+		{
+			name:    "successful send delete access message",
+			subject: constants.FGASyncDeleteAccessSubject,
+			message: models.GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "delete_access",
+				Data: models.DeleteAccessData{
+					UID: "test-uid-to-delete",
+				},
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", constants.FGASyncDeleteAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
 			name:    "unsupported message type",
-			subject: constants.UpdateAccessProjectSubject,
+			subject: constants.FGASyncUpdateAccessSubject,
 			message: 123, // Invalid type - int is not supported
 			setupMocks: func(mockConn *MockNATSConn) {
 				// No publish expected
@@ -266,23 +288,15 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:    "successful send delete access message",
-			subject: constants.DeleteAllAccessSubject,
-			message: "test-uid-to-delete",
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.DeleteAllAccessSubject, []byte("test-uid-to-delete")).Return(nil)
-			},
-			setupCtx: backgroundCtx,
-			wantErr:  false,
-		},
-		{
 			name:    "nats publish error",
-			subject: constants.UpdateAccessProjectSubject,
-			message: models.ProjectAccessMessage{
-				Data: models.ProjectAccessData{UID: "test"},
+			subject: constants.FGASyncUpdateAccessSubject,
+			message: models.GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "update_access",
+				Data:       models.UpdateAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.UpdateAccessProjectSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
+				mockConn.On("Publish", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -322,41 +336,55 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:    "successful sync send access message",
-			subject: constants.UpdateAccessProjectSubject,
-			message: models.ProjectAccessMessage{
-				Data: models.ProjectAccessData{
-					UID:       "test-uid",
-					Public:    true,
-					ParentUID: "parent-uid",
-					Writers:   []string{"user1"},
-					Auditors:  []string{"user2"},
+			name:    "successful sync send update access message",
+			subject: constants.FGASyncUpdateAccessSubject,
+			message: models.GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "update_access",
+				Data: models.UpdateAccessData{
+					UID:    "test-uid",
+					Public: true,
+					Relations: map[string][]string{
+						"writer":  {"user1"},
+						"auditor": {"user2"},
+					},
+					References: map[string][]string{
+						"parent": {"project:parent-uid"},
+					},
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.UpdateAccessProjectSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("ack")}, nil)
+				mockConn.On("Request", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
 			name:    "successful sync send delete access message",
-			subject: constants.DeleteAllAccessSubject,
-			message: "test-uid-to-delete",
+			subject: constants.FGASyncDeleteAccessSubject,
+			message: models.GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "delete_access",
+				Data: models.DeleteAccessData{
+					UID: "test-uid-to-delete",
+				},
+			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.DeleteAllAccessSubject, []byte("test-uid-to-delete"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("ack")}, nil)
+				mockConn.On("Request", constants.FGASyncDeleteAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
 			name:    "nats request error - sync mode",
-			subject: constants.UpdateAccessProjectSubject,
-			message: models.ProjectAccessMessage{
-				Data: models.ProjectAccessData{UID: "test"},
+			subject: constants.FGASyncUpdateAccessSubject,
+			message: models.GenericFGAMessage{
+				ObjectType: "project",
+				Operation:  "update_access",
+				Data:       models.UpdateAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.UpdateAccessProjectSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(nil, errors.New("nats request timeout"))
+				mockConn.On("Request", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(nil, errors.New("nats request timeout"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
