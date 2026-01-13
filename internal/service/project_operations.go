@@ -6,7 +6,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
@@ -176,34 +175,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	})
 
 	g.Go(func() error {
-		// Build relations map for FGA sync
-		relations := make(map[string][]string)
-		if writers := extractUsernames(projectSettingsDB.Writers); len(writers) > 0 {
-			relations["writer"] = writers
-		}
-		if auditors := extractUsernames(projectSettingsDB.Auditors); len(auditors) > 0 {
-			relations["auditor"] = auditors
-		}
-		if coordinators := extractUsernames(projectSettingsDB.MeetingCoordinators); len(coordinators) > 0 {
-			relations["meeting_coordinator"] = coordinators
-		}
-
-		// Build references map for parent relationship
-		references := make(map[string][]string)
-		if projectDB.ParentUID != "" {
-			references["parent"] = []string{fmt.Sprintf("project:%s", projectDB.ParentUID)}
-		}
-
-		msg := models.GenericFGAMessage{
-			ObjectType: "project",
-			Operation:  "update_access",
-			Data: models.UpdateAccessData{
-				UID:        projectDB.UID,
-				Public:     projectDB.Public,
-				Relations:  relations,
-				References: references,
-			},
-		}
+		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
 		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
 	})
 
@@ -459,34 +431,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	})
 
 	g.Go(func() error {
-		// Build relations map for FGA sync
-		relations := make(map[string][]string)
-		if writers := extractUsernames(projectSettingsDB.Writers); len(writers) > 0 {
-			relations["writer"] = writers
-		}
-		if auditors := extractUsernames(projectSettingsDB.Auditors); len(auditors) > 0 {
-			relations["auditor"] = auditors
-		}
-		if coordinators := extractUsernames(projectSettingsDB.MeetingCoordinators); len(coordinators) > 0 {
-			relations["meeting_coordinator"] = coordinators
-		}
-
-		// Build references map for parent relationship
-		references := make(map[string][]string)
-		if projectDB.ParentUID != "" {
-			references["parent"] = []string{fmt.Sprintf("project:%s", projectDB.ParentUID)}
-		}
-
-		msg := models.GenericFGAMessage{
-			ObjectType: "project",
-			Operation:  "update_access",
-			Data: models.UpdateAccessData{
-				UID:        projectDB.UID,
-				Public:     projectDB.Public,
-				Relations:  relations,
-				References: references,
-			},
-		}
+		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
 		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
 	})
 
@@ -617,34 +562,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	})
 
 	g.Go(func() error {
-		// Build relations map for FGA sync
-		relations := make(map[string][]string)
-		if writers := extractUsernames(projectSettingsDB.Writers); len(writers) > 0 {
-			relations["writer"] = writers
-		}
-		if auditors := extractUsernames(projectSettingsDB.Auditors); len(auditors) > 0 {
-			relations["auditor"] = auditors
-		}
-		if coordinators := extractUsernames(projectSettingsDB.MeetingCoordinators); len(coordinators) > 0 {
-			relations["meeting_coordinator"] = coordinators
-		}
-
-		// Build references map for parent relationship
-		references := make(map[string][]string)
-		if projectDB.ParentUID != "" {
-			references["parent"] = []string{fmt.Sprintf("project:%s", projectDB.ParentUID)}
-		}
-
-		msg := models.GenericFGAMessage{
-			ObjectType: "project",
-			Operation:  "update_access",
-			Data: models.UpdateAccessData{
-				UID:        projectDB.UID,
-				Public:     projectDB.Public,
-				Relations:  relations,
-				References: references,
-			},
-		}
+		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
 		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
 	})
 
