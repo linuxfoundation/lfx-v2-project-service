@@ -181,5 +181,13 @@ func (p *ProjectSettings) IndexingConfig(projectUID string) *indexerTypes.Indexi
 		HistoryCheckObject:   fmt.Sprintf("project:%s", projectUID),
 		HistoryCheckRelation: "writer",
 		Tags:                 p.Tags(),
+		ParentRefs:           p.ParentRefs(),
 	}
+}
+
+func (p *ProjectSettings) ParentRefs() []string {
+	if p == nil {
+		return nil
+	}
+	return []string{fmt.Sprintf("project:%s", p.UID)}
 }
