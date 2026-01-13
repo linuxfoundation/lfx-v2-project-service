@@ -5,7 +5,10 @@ package models
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 )
 
 // UserInfo represents user information including profile details.
@@ -66,64 +69,117 @@ func (p *ProjectBase) Tags() []string {
 		return nil
 	}
 
-	if p.UID != "" {
-		// without prefix
-		tags = append(tags, p.UID)
-		// with prefix
-		tag := fmt.Sprintf("project_uid:%s", p.UID)
-		tags = append(tags, tag)
-	}
-
-	if p.ParentUID != "" {
-		// with prefix
-		tag := fmt.Sprintf("parent_uid:%s", p.ParentUID)
-		tags = append(tags, tag)
-	}
-
 	if p.Slug != "" {
-		// without prefix
-		tags = append(tags, p.Slug)
-		// with prefix
 		tag := fmt.Sprintf("project_slug:%s", p.Slug)
 		tags = append(tags, tag)
 	}
 
-	if p.Name != "" {
-		// without prefix
-		tags = append(tags, p.Name)
-	}
-
-	if p.Description != "" {
-		// without prefix
-		tags = append(tags, p.Description)
-	}
-
 	return tags
+}
+
+// IndexingConfig generates an IndexingConfig for indexing this project.
+func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
+	if p == nil {
+		return nil
+	}
+
+	config := indexerTypes.IndexingConfig{
+		ObjectID:             p.UID,
+		Public:               &p.Public,
+		AccessCheckObject:    fmt.Sprintf("project:%s", p.UID),
+		AccessCheckRelation:  "viewer",
+		HistoryCheckObject:   fmt.Sprintf("project:%s", p.UID),
+		HistoryCheckRelation: "writer",
+		SortName:             p.Name,
+		NameAndAliases:       p.NameAndAliases(),
+		ParentRefs:           p.ParentRefs(),
+		Fulltext:             p.Fulltext(),
+		Tags:                 p.Tags(),
+	}
+
+	return &config
+}
+
+// ParentRefs generates a list of parent references for the project base.
+// This is used to index the project as a child of its parent project.
+func (p *ProjectBase) ParentRefs() []string {
+	if p == nil {
+		return nil
+	}
+
+	var parentRefs []string
+
+	if p.ParentUID != "" {
+		parentRefs = append(parentRefs, fmt.Sprintf("project:%s", p.ParentUID))
+	}
+
+	return parentRefs
+}
+
+// NameAndAliases generates a list of name and aliases for the project base.
+// This is used to index the project with searchable names.
+func (p *ProjectBase) NameAndAliases() []string {
+	if p == nil {
+		return nil
+	}
+
+	var nameAndAliases []string
+
+	if p.Name != "" {
+		nameAndAliases = append(nameAndAliases, p.Name)
+	}
+	if p.Slug != "" {
+		nameAndAliases = append(nameAndAliases, p.Slug)
+	}
+
+	return nameAndAliases
+}
+
+// Fulltext generates a fulltext string for the project base.
+// This is used to index the project text that is full-text searchable.
+func (p *ProjectBase) Fulltext() string {
+	if p == nil {
+		return ""
+	}
+
+	var fulltext []string
+
+	if p.Name != "" {
+		fulltext = append(fulltext, p.Name)
+	}
+	if p.Slug != "" {
+		fulltext = append(fulltext, p.Slug)
+	}
+	if p.Description != "" {
+		fulltext = append(fulltext, p.Description)
+	}
+
+	return strings.Join(fulltext, " ")
 }
 
 // Tags generates a consistent set of tags for the project settings.
 // IMPORTANT: If you modify this method, please update the Project Tags documentation in the README.md
 // to ensure consumers understand how to use these tags for searching.
 func (p *ProjectSettings) Tags() []string {
+	if p == nil {
+		return nil
+	}
+	return []string{}
+}
 
-	var tags []string
-
+// IndexingConfig generates an IndexingConfig for indexing this project settings.
+// Note: Project settings use the project UID for access checks, not the settings UID.
+func (p *ProjectSettings) IndexingConfig(projectUID string) *indexerTypes.IndexingConfig {
 	if p == nil {
 		return nil
 	}
 
-	if p.UID != "" {
-		// without prefix
-		tags = append(tags, p.UID)
-		// with prefix
-		tag := fmt.Sprintf("project_uid:%s", p.UID)
-		tags = append(tags, tag)
+	return &indexerTypes.IndexingConfig{
+		ObjectID:             p.UID,
+		AccessCheckObject:    fmt.Sprintf("project:%s", projectUID),
+		AccessCheckRelation:  "auditor",
+		HistoryCheckObject:   fmt.Sprintf("project:%s", projectUID),
+		HistoryCheckRelation: "writer",
+		Tags:                 p.Tags(),
 	}
-
-	if p.MissionStatement != "" {
-		// without prefix
-		tags = append(tags, p.MissionStatement)
-	}
-
-	return tags
 }

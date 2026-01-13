@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -158,19 +160,19 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		msg := models.ProjectIndexerMessage{
-			Action: models.ActionCreated,
-			Data:   *projectDB,
-			Tags:   projectDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionCreated,
+			Data:           *projectDB,
+			IndexingConfig: projectDB.IndexingConfig(),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
-		msg := models.ProjectSettingsIndexerMessage{
-			Action: models.ActionCreated,
-			Data:   *projectSettingsDB,
-			Tags:   projectSettingsDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionCreated,
+			Data:           *projectSettingsDB,
+			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
@@ -450,10 +452,10 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		msg := models.ProjectIndexerMessage{
-			Action: models.ActionUpdated,
-			Data:   *projectDB,
-			Tags:   projectDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *projectDB,
+			IndexingConfig: projectDB.IndexingConfig(),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
@@ -608,10 +610,10 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		msg := models.ProjectSettingsIndexerMessage{
-			Action: models.ActionUpdated,
-			Data:   *projectSettingsDB,
-			Tags:   projectSettingsDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *projectSettingsDB,
+			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
