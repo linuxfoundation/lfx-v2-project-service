@@ -293,7 +293,7 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 			message: models.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "update_access",
-				Data: models.UpdateAccessData{UID: "test"},
+				Data:       models.UpdateAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
@@ -381,7 +381,7 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 			message: models.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "update_access",
-				Data: models.UpdateAccessData{UID: "test"},
+				Data:       models.UpdateAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Request", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(nil, errors.New("nats request timeout"))
