@@ -119,7 +119,7 @@ func (m *MessageBuilder) sendIndexerMessage(
 		return err
 	}
 
-	slog.DebugContext(ctx, "constructed indexer message", "subject", subject)
+	slog.DebugContext(ctx, "constructed indexer message", "subject", subject, "message", string(messageBytes), "message_json", message)
 
 	return m.sendMessage(ctx, subject, messageBytes, sync)
 }
