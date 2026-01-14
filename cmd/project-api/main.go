@@ -19,6 +19,7 @@ import (
 
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	goahttp "goa.design/goa/v3/http"
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
@@ -29,6 +30,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/middleware"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/utils"
 )
 
 const (
@@ -45,6 +47,20 @@ func main() {
 	flags := parseFlags(env.Port)
 
 	log.InitStructureLogConfig()
+
+	// Set up OpenTelemetry SDK.
+	ctx := context.Background()
+	otelConfig := utils.OTelConfigFromEnv()
+	otelShutdown, err := utils.SetupOTelSDKWithConfig(ctx, otelConfig)
+	if err != nil {
+		slog.With(errKey, err).Error("error setting up OpenTelemetry SDK")
+		os.Exit(1)
+	}
+	defer func() {
+		if shutdownErr := otelShutdown(context.Background()); shutdownErr != nil {
+			slog.With(errKey, shutdownErr).Error("error shutting down OpenTelemetry SDK")
+		}
+	}()
 
 	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
 	jwtAuthConfig := auth.JWTAuthConfig{
@@ -200,6 +216,8 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 	handler = middleware.RequestLoggerMiddleware()(handler)
 	handler = middleware.RequestIDMiddleware()(handler)
 	handler = middleware.AuthorizationMiddleware()(handler)
+	// Wrap the handler with OpenTelemetry instrumentation
+	handler = otelhttp.NewHandler(handler, "project-service")
 
 	// Set up http listener in a goroutine using provided command line parameters.
 	var addr string
