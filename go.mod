@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
+	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.14-0.20260109191409-7371e293d8b5
 	github.com/nats-io/nats.go v1.47.0
 	github.com/rustyoz/svg v0.0.0-20250705135709-8b1786137cb3
 	github.com/stretchr/testify v1.11.1
