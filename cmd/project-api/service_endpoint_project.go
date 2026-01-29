@@ -22,6 +22,8 @@ func handleError(err error) error {
 		return createResponse(http.StatusBadRequest, domain.ErrRevisionMismatch)
 	case domain.ErrInvalidParentProject:
 		return createResponse(http.StatusBadRequest, domain.ErrInvalidParentProject)
+	case domain.ErrCannotDeleteNonCrowdfundingProject:
+		return createResponse(http.StatusBadRequest, domain.ErrCannotDeleteNonCrowdfundingProject)
 	case domain.ErrProjectNotFound:
 		return createResponse(http.StatusNotFound, domain.ErrProjectNotFound)
 	case domain.ErrProjectSlugExists:
