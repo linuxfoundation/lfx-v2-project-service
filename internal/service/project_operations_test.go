@@ -11,6 +11,7 @@ import (
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -361,11 +362,12 @@ func TestProjectsService_GetOneProjectBase(t *testing.T) {
 
 func TestProjectsService_DeleteProject(t *testing.T) {
 	tests := []struct {
-		name        string
-		payload     *projsvc.DeleteProjectPayload
-		setupMocks  func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
-		wantErr     bool
-		expectedErr error
+		name               string
+		payload            *projsvc.DeleteProjectPayload
+		skipEtagValidation bool
+		setupMocks         func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		wantErr            bool
+		expectedErr        error
 	}{
 		{
 			name: "successful deletion - project with Crowdfunding funding model",
@@ -530,11 +532,94 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 			wantErr:     true,
 			expectedErr: domain.ErrRevisionMismatch,
 		},
+		// SkipEtagValidation branch tests - using GetProjectBaseWithRevision
+		{
+			name:               "skip etag - successful deletion with Crowdfunding only",
+			skipEtagValidation: true,
+			payload: &projsvc.DeleteProjectPayload{
+				UID: misc.StringPtr("test-project-uid"),
+				// No IfMatch header when skipping validation
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// GetProjectBaseWithRevision returns both project and revision
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Crowdfunding"},
+					},
+					uint64(456), // revision from store
+					nil,
+				)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(456)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil).Times(2)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:               "skip etag - deletion rejected with mixed funding models",
+			skipEtagValidation: true,
+			payload: &projsvc.DeleteProjectPayload{
+				UID: misc.StringPtr("test-project-uid"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// GetProjectBaseWithRevision returns project with mixed funding
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Crowdfunding", "Membership"},
+					},
+					uint64(456),
+					nil,
+				)
+				// No DeleteProject call expected - validation should fail first
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrCannotDeleteNonCrowdfundingProject,
+		},
+		{
+			name:               "skip etag - project not found",
+			skipEtagValidation: true,
+			payload: &projsvc.DeleteProjectPayload{
+				UID: misc.StringPtr("non-existent-uid"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "non-existent-uid").Return(
+					nil,
+					uint64(0),
+					domain.ErrProjectNotFound,
+				)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+			// Create service with appropriate config based on test case
+			var service *ProjectsService
+			var mockRepo *domain.MockProjectRepository
+			var mockBuilder *domain.MockMessageBuilder
+			var mockAuth *auth.MockJWTAuth
+
+			if tt.skipEtagValidation {
+				// Create service with SkipEtagValidation enabled
+				mockRepo = &domain.MockProjectRepository{}
+				mockBuilder = &domain.MockMessageBuilder{}
+				mockAuth = &auth.MockJWTAuth{}
+
+				service = NewProjectsService(mockAuth, ServiceConfig{SkipEtagValidation: true})
+				service.ProjectRepository = mockRepo
+				service.MessageBuilder = mockBuilder
+			} else {
+				// Use default setup
+				service, mockRepo, mockBuilder, mockAuth = setupServiceForTesting()
+			}
 
 			if tt.name == "service not ready" {
 				service.ProjectRepository = nil
@@ -595,59 +680,7 @@ func TestProjectsService_ProjectValidation(t *testing.T) {
 	}
 }
 
-// TestIsCrowdfundingOnly tests the helper function for strict Crowdfunding-only validation.
-func TestIsCrowdfundingOnly(t *testing.T) {
-	tests := []struct {
-		name          string
-		fundingModels []string
-		want          bool
-	}{
-		{
-			name:          "exactly Crowdfunding only - valid for deletion",
-			fundingModels: []string{"Crowdfunding"},
-			want:          true,
-		},
-		{
-			name:          "Crowdfunding with other models - invalid",
-			fundingModels: []string{"Membership", "Crowdfunding", "Alternate Funding"},
-			want:          false,
-		},
-		{
-			name:          "Crowdfunding with one other model - invalid",
-			fundingModels: []string{"Crowdfunding", "Membership"},
-			want:          false,
-		},
-		{
-			name:          "only Membership - invalid",
-			fundingModels: []string{"Membership"},
-			want:          false,
-		},
-		{
-			name:          "multiple models without Crowdfunding - invalid",
-			fundingModels: []string{"Membership", "Alternate Funding"},
-			want:          false,
-		},
-		{
-			name:          "empty array - invalid",
-			fundingModels: []string{},
-			want:          false,
-		},
-		{
-			name:          "nil array - invalid",
-			fundingModels: nil,
-			want:          false,
-		},
-		{
-			name:          "case sensitive - lowercase crowdfunding invalid",
-			fundingModels: []string{"crowdfunding"},
-			want:          false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isCrowdfundingOnly(tt.fundingModels)
-			assert.Equal(t, tt.want, got, "isCrowdfundingOnly(%v) = %v, want %v", tt.fundingModels, got, tt.want)
-		})
-	}
-}
+// Note: isCrowdfundingOnly helper is fully covered through TestProjectsService_DeleteProject
+// test cases (successful deletion, rejection with mixed models, rejection without Crowdfunding,
+// rejection with empty/nil funding models). Testing unexported helpers directly is avoided per
+// project testing guidelines.

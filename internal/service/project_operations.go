@@ -628,6 +628,8 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	var revision uint64
 	var err error
+	var projectDB *models.ProjectBase
+
 	if !s.Config.SkipEtagValidation {
 		if payload.IfMatch == nil {
 			slog.WarnContext(ctx, "If-Match header is missing")
@@ -638,9 +640,20 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
 			return domain.ErrValidationFailed
 		}
+		// Fetch the project to validate funding model before deletion
+		projectDB, err = s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+		if err != nil {
+			if errors.Is(err, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
+				return domain.ErrProjectNotFound
+			}
+			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
+			return domain.ErrInternal
+		}
 	} else {
 		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
-		_, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+		// Also get the project data for funding model validation (single fetch).
+		projectDB, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
 		if err != nil {
 			if errors.Is(err, domain.ErrProjectNotFound) {
 				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
@@ -653,17 +666,6 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
-
-	// Fetch the project to validate funding model before deletion
-	projectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
-	if err != nil {
-		if errors.Is(err, domain.ErrProjectNotFound) {
-			slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
-			return domain.ErrProjectNotFound
-		}
-		slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
-		return domain.ErrInternal
-	}
 
 	// Validate funding model - only allow deletion if project funding model is EXACTLY ["Crowdfunding"]
 	// This matches v1 behavior where Type/Model must equal "Crowdfunding" (exact match, not in combination with others)
