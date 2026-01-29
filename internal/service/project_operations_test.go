@@ -11,6 +11,7 @@ import (
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -359,6 +360,291 @@ func TestProjectsService_GetOneProjectBase(t *testing.T) {
 	}
 }
 
+func TestProjectsService_DeleteProject(t *testing.T) {
+	tests := []struct {
+		name               string
+		payload            *projsvc.DeleteProjectPayload
+		skipEtagValidation bool
+		setupMocks         func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		wantErr            bool
+		expectedErr        error
+	}{
+		{
+			name: "successful deletion - project with Crowdfunding funding model",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Project has Crowdfunding in funding model - deletion allowed
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Crowdfunding"},
+					},
+					nil,
+				)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil).Times(2)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "deletion rejected - project with Crowdfunding and other funding models",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Project has Crowdfunding plus other models - deletion NOT allowed (must be ONLY Crowdfunding)
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Membership", "Crowdfunding", "Alternate Funding"},
+					},
+					nil,
+				)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrCannotDeleteNonCrowdfundingProject,
+		},
+		{
+			name: "deletion rejected - project without Crowdfunding funding model",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Project has only Membership - deletion not allowed
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Membership"},
+					},
+					nil,
+				)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrCannotDeleteNonCrowdfundingProject,
+		},
+		{
+			name: "deletion rejected - project with empty funding model",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Project has empty funding model - deletion not allowed
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{},
+					},
+					nil,
+				)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrCannotDeleteNonCrowdfundingProject,
+		},
+		{
+			name: "deletion rejected - project with nil funding model",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Project has nil funding model - deletion not allowed
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: nil,
+					},
+					nil,
+				)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrCannotDeleteNonCrowdfundingProject,
+		},
+		{
+			name: "project not found",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("non-existent-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "non-existent-uid").Return(
+					nil, domain.ErrProjectNotFound,
+				)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name: "service not ready",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Service will not be ready
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrServiceUnavailable,
+		},
+		{
+			name:    "nil payload",
+			payload: nil,
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// No repo calls expected
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name: "revision mismatch",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Crowdfunding"},
+					},
+					nil,
+				)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(domain.ErrRevisionMismatch)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		// SkipEtagValidation branch tests - using GetProjectBaseWithRevision
+		{
+			name:               "skip etag - successful deletion with Crowdfunding only",
+			skipEtagValidation: true,
+			payload: &projsvc.DeleteProjectPayload{
+				UID: misc.StringPtr("test-project-uid"),
+				// No IfMatch header when skipping validation
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// GetProjectBaseWithRevision returns both project and revision
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Crowdfunding"},
+					},
+					uint64(456), // revision from store
+					nil,
+				)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(456)).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil).Times(2)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:               "skip etag - deletion rejected with mixed funding models",
+			skipEtagValidation: true,
+			payload: &projsvc.DeleteProjectPayload{
+				UID: misc.StringPtr("test-project-uid"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// GetProjectBaseWithRevision returns project with mixed funding
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						Slug:         "test-project",
+						Name:         "Test Project",
+						FundingModel: []string{"Crowdfunding", "Membership"},
+					},
+					uint64(456),
+					nil,
+				)
+				// No DeleteProject call expected - validation should fail first
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrCannotDeleteNonCrowdfundingProject,
+		},
+		{
+			name:               "skip etag - project not found",
+			skipEtagValidation: true,
+			payload: &projsvc.DeleteProjectPayload{
+				UID: misc.StringPtr("non-existent-uid"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectBaseWithRevision", mock.Anything, "non-existent-uid").Return(
+					nil,
+					uint64(0),
+					domain.ErrProjectNotFound,
+				)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create service with appropriate config based on test case
+			var service *ProjectsService
+			var mockRepo *domain.MockProjectRepository
+			var mockBuilder *domain.MockMessageBuilder
+			var mockAuth *auth.MockJWTAuth
+
+			if tt.skipEtagValidation {
+				// Create service with SkipEtagValidation enabled
+				mockRepo = &domain.MockProjectRepository{}
+				mockBuilder = &domain.MockMessageBuilder{}
+				mockAuth = &auth.MockJWTAuth{}
+
+				service = NewProjectsService(mockAuth, ServiceConfig{SkipEtagValidation: true})
+				service.ProjectRepository = mockRepo
+				service.MessageBuilder = mockBuilder
+			} else {
+				// Use default setup
+				service, mockRepo, mockBuilder, mockAuth = setupServiceForTesting()
+			}
+
+			if tt.name == "service not ready" {
+				service.ProjectRepository = nil
+			}
+
+			tt.setupMocks(mockRepo, mockBuilder)
+
+			err := service.DeleteProject(context.Background(), tt.payload)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.expectedErr != nil {
+					assert.Equal(t, tt.expectedErr, err)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockRepo.AssertExpectations(t)
+			mockBuilder.AssertExpectations(t)
+			mockAuth.AssertExpectations(t)
+		})
+	}
+}
+
 func TestProjectsService_ProjectValidation(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -393,3 +679,8 @@ func TestProjectsService_ProjectValidation(t *testing.T) {
 		})
 	}
 }
+
+// Note: isCrowdfundingOnly helper is fully covered through TestProjectsService_DeleteProject
+// test cases (successful deletion, rejection with mixed models, rejection without Crowdfunding,
+// rejection with empty/nil funding models). Testing unexported helpers directly is avoided per
+// project testing guidelines.
