@@ -35,13 +35,18 @@ jobs:
           container_tag=$(echo "$HEAD_REF" | sed 's/[^_0-9a-zA-Z]/-/g' | cut -c -127)
           echo tag="$container_tag" >> "$GITHUB_OUTPUT"
       - name: Build project-api for PR
+        env:
+          VERSION: ${{ steps.container_tag.outputs.tag }}
+          GIT_COMMIT: ${{ github.sha }}
         run: |
+          BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
           ko build github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api \
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
             -t ${{ steps.container_tag.outputs.tag }} \
-            --sbom spdx
+            --sbom spdx \
+            --ldflags "-X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.GitCommit=${GIT_COMMIT:0:7}"
       - name: Build root-project-setup for PR
         run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/scripts/root-project-setup \
