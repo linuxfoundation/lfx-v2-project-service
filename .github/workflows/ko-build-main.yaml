@@ -33,13 +33,15 @@ jobs:
           GIT_COMMIT: ${{ github.sha }}
         run: |
           BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+          export BUILD_TIME
+          GIT_COMMIT=${GIT_COMMIT:0:7}
+          export GIT_COMMIT
           ko build github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api \
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
             -t development \
-            --sbom spdx \
-            --ldflags "-X main.Version=${VERSION} -X main.BuildTime=${BUILD_TIME} -X main.GitCommit=${GIT_COMMIT:0:7}"
+            --sbom spdx
       - run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/scripts/root-project-setup \
             -B \
