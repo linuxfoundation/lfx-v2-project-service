@@ -385,4 +385,3 @@ func newLoggerProvider(ctx context.Context, cfg OTelConfig, res *resource.Resour
 	)
 	return loggerProvider, nil
 }
-
