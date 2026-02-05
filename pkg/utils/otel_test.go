@@ -8,94 +8,92 @@ import (
 	"testing"
 )
 
-// TestOTelConfigFromEnv_Defaults verifies that OTelConfigFromEnv returns
-// sensible default values when no environment variables are set.
-func TestOTelConfigFromEnv_Defaults(t *testing.T) {
-	cfg := OTelConfigFromEnv()
+// TestOTelConfigFromEnv verifies that OTelConfigFromEnv returns sensible
+// defaults and correctly reads all supported OTEL_* environment variables.
+func TestOTelConfigFromEnv(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		cfg := OTelConfigFromEnv()
 
-	if cfg.ServiceName != "lfx-v2-project-service" {
-		t.Errorf("expected default ServiceName 'lfx-v2-project-service', got %q", cfg.ServiceName)
-	}
-	if cfg.ServiceVersion != "" {
-		t.Errorf("expected empty ServiceVersion, got %q", cfg.ServiceVersion)
-	}
-	if cfg.Protocol != OTelProtocolGRPC {
-		t.Errorf("expected default Protocol %q, got %q", OTelProtocolGRPC, cfg.Protocol)
-	}
-	if cfg.Endpoint != "" {
-		t.Errorf("expected empty Endpoint, got %q", cfg.Endpoint)
-	}
-	if cfg.Insecure != false {
-		t.Errorf("expected Insecure false, got %t", cfg.Insecure)
-	}
-	if cfg.TracesExporter != OTelExporterNone {
-		t.Errorf("expected default TracesExporter %q, got %q", OTelExporterNone, cfg.TracesExporter)
-	}
-	if cfg.TracesSampleRatio != 1.0 {
-		t.Errorf("expected default TracesSampleRatio 1.0, got %f", cfg.TracesSampleRatio)
-	}
-	if cfg.MetricsExporter != OTelExporterNone {
-		t.Errorf("expected default MetricsExporter %q, got %q", OTelExporterNone, cfg.MetricsExporter)
-	}
-	if cfg.LogsExporter != OTelExporterNone {
-		t.Errorf("expected default LogsExporter %q, got %q", OTelExporterNone, cfg.LogsExporter)
-	}
-}
+		if cfg.ServiceName != "lfx-v2-project-service" {
+			t.Errorf("expected default ServiceName 'lfx-v2-project-service', got %q", cfg.ServiceName)
+		}
+		if cfg.ServiceVersion != "" {
+			t.Errorf("expected empty ServiceVersion, got %q", cfg.ServiceVersion)
+		}
+		if cfg.Protocol != OTelProtocolGRPC {
+			t.Errorf("expected default Protocol %q, got %q", OTelProtocolGRPC, cfg.Protocol)
+		}
+		if cfg.Endpoint != "" {
+			t.Errorf("expected empty Endpoint, got %q", cfg.Endpoint)
+		}
+		if cfg.Insecure != false {
+			t.Errorf("expected Insecure false, got %t", cfg.Insecure)
+		}
+		if cfg.TracesExporter != OTelExporterNone {
+			t.Errorf("expected default TracesExporter %q, got %q", OTelExporterNone, cfg.TracesExporter)
+		}
+		if cfg.TracesSampleRatio != 1.0 {
+			t.Errorf("expected default TracesSampleRatio 1.0, got %f", cfg.TracesSampleRatio)
+		}
+		if cfg.MetricsExporter != OTelExporterNone {
+			t.Errorf("expected default MetricsExporter %q, got %q", OTelExporterNone, cfg.MetricsExporter)
+		}
+		if cfg.LogsExporter != OTelExporterNone {
+			t.Errorf("expected default LogsExporter %q, got %q", OTelExporterNone, cfg.LogsExporter)
+		}
+	})
 
-// TestOTelConfigFromEnv_CustomValues verifies that OTelConfigFromEnv correctly
-// reads and parses all supported OTEL_* environment variables.
-func TestOTelConfigFromEnv_CustomValues(t *testing.T) {
-	t.Setenv("OTEL_SERVICE_NAME", "test-service")
-	t.Setenv("OTEL_SERVICE_VERSION", "1.2.3")
-	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http")
-	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318")
-	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
-	t.Setenv("OTEL_TRACES_EXPORTER", "otlp")
-	t.Setenv("OTEL_TRACES_SAMPLE_RATIO", "0.5")
-	t.Setenv("OTEL_METRICS_EXPORTER", "otlp")
-	t.Setenv("OTEL_LOGS_EXPORTER", "otlp")
+	t.Run("custom values", func(t *testing.T) {
+		t.Setenv("OTEL_SERVICE_NAME", "test-service")
+		t.Setenv("OTEL_SERVICE_VERSION", "1.2.3")
+		t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "http")
+		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318")
+		t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+		t.Setenv("OTEL_TRACES_EXPORTER", "otlp")
+		t.Setenv("OTEL_TRACES_SAMPLE_RATIO", "0.5")
+		t.Setenv("OTEL_METRICS_EXPORTER", "otlp")
+		t.Setenv("OTEL_LOGS_EXPORTER", "otlp")
 
-	cfg := OTelConfigFromEnv()
+		cfg := OTelConfigFromEnv()
 
-	if cfg.ServiceName != "test-service" {
-		t.Errorf("expected ServiceName 'test-service', got %q", cfg.ServiceName)
-	}
-	if cfg.ServiceVersion != "1.2.3" {
-		t.Errorf("expected ServiceVersion '1.2.3', got %q", cfg.ServiceVersion)
-	}
-	if cfg.Protocol != OTelProtocolHTTP {
-		t.Errorf("expected Protocol %q, got %q", OTelProtocolHTTP, cfg.Protocol)
-	}
-	if cfg.Endpoint != "localhost:4318" {
-		t.Errorf("expected Endpoint 'localhost:4318', got %q", cfg.Endpoint)
-	}
-	if cfg.Insecure != true {
-		t.Errorf("expected Insecure true, got %t", cfg.Insecure)
-	}
-	if cfg.TracesExporter != OTelExporterOTLP {
-		t.Errorf("expected TracesExporter %q, got %q", OTelExporterOTLP, cfg.TracesExporter)
-	}
-	if cfg.TracesSampleRatio != 0.5 {
-		t.Errorf("expected TracesSampleRatio 0.5, got %f", cfg.TracesSampleRatio)
-	}
-	if cfg.MetricsExporter != OTelExporterOTLP {
-		t.Errorf("expected MetricsExporter %q, got %q", OTelExporterOTLP, cfg.MetricsExporter)
-	}
-	if cfg.LogsExporter != OTelExporterOTLP {
-		t.Errorf("expected LogsExporter %q, got %q", OTelExporterOTLP, cfg.LogsExporter)
-	}
-}
+		if cfg.ServiceName != "test-service" {
+			t.Errorf("expected ServiceName 'test-service', got %q", cfg.ServiceName)
+		}
+		if cfg.ServiceVersion != "1.2.3" {
+			t.Errorf("expected ServiceVersion '1.2.3', got %q", cfg.ServiceVersion)
+		}
+		if cfg.Protocol != OTelProtocolHTTP {
+			t.Errorf("expected Protocol %q, got %q", OTelProtocolHTTP, cfg.Protocol)
+		}
+		if cfg.Endpoint != "localhost:4318" {
+			t.Errorf("expected Endpoint 'localhost:4318', got %q", cfg.Endpoint)
+		}
+		if cfg.Insecure != true {
+			t.Errorf("expected Insecure true, got %t", cfg.Insecure)
+		}
+		if cfg.TracesExporter != OTelExporterOTLP {
+			t.Errorf("expected TracesExporter %q, got %q", OTelExporterOTLP, cfg.TracesExporter)
+		}
+		if cfg.TracesSampleRatio != 0.5 {
+			t.Errorf("expected TracesSampleRatio 0.5, got %f", cfg.TracesSampleRatio)
+		}
+		if cfg.MetricsExporter != OTelExporterOTLP {
+			t.Errorf("expected MetricsExporter %q, got %q", OTelExporterOTLP, cfg.MetricsExporter)
+		}
+		if cfg.LogsExporter != OTelExporterOTLP {
+			t.Errorf("expected LogsExporter %q, got %q", OTelExporterOTLP, cfg.LogsExporter)
+		}
+	})
 
-// TestOTelConfigFromEnv_UnsupportedProtocol verifies that an unsupported protocol
-// value is passed through as-is (defaults to gRPC behavior in the provider functions).
-func TestOTelConfigFromEnv_UnsupportedProtocol(t *testing.T) {
-	t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "unsupported")
+	t.Run("unsupported protocol", func(t *testing.T) {
+		t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "unsupported")
 
-	cfg := OTelConfigFromEnv()
+		cfg := OTelConfigFromEnv()
 
-	if cfg.Protocol != "unsupported" {
-		t.Errorf("expected Protocol 'unsupported', got %q", cfg.Protocol)
-	}
+		if cfg.Protocol != "unsupported" {
+			t.Errorf("expected Protocol 'unsupported', got %q", cfg.Protocol)
+		}
+	})
 }
 
 // TestSetupOTelSDKWithConfig_AllDisabled verifies that the SDK can be
