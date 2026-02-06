@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -157,19 +159,19 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		msg := models.ProjectIndexerMessage{
-			Action: models.ActionCreated,
-			Data:   *projectDB,
-			Tags:   projectDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionCreated,
+			Data:           *projectDB,
+			IndexingConfig: projectDB.IndexingConfig(),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
-		msg := models.ProjectSettingsIndexerMessage{
-			Action: models.ActionCreated,
-			Data:   *projectSettingsDB,
-			Tags:   projectSettingsDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionCreated,
+			Data:           *projectSettingsDB,
+			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
@@ -431,10 +433,10 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		msg := models.ProjectIndexerMessage{
-			Action: models.ActionUpdated,
-			Data:   *projectDB,
-			Tags:   projectDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *projectDB,
+			IndexingConfig: projectDB.IndexingConfig(),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
@@ -571,10 +573,10 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	g := new(errgroup.Group)
 	g.Go(func() error {
-		msg := models.ProjectSettingsIndexerMessage{
-			Action: models.ActionUpdated,
-			Data:   *projectSettingsDB,
-			Tags:   projectSettingsDB.Tags(),
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *projectSettingsDB,
+			IndexingConfig: projectSettingsDB.IndexingConfig(projectDB.UID),
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
@@ -626,6 +628,8 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	var revision uint64
 	var err error
+	var projectDB *models.ProjectBase
+
 	if !s.Config.SkipEtagValidation {
 		if payload.IfMatch == nil {
 			slog.WarnContext(ctx, "If-Match header is missing")
@@ -636,9 +640,20 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
 			return domain.ErrValidationFailed
 		}
+		// Fetch the project to validate funding model before deletion
+		projectDB, err = s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+		if err != nil {
+			if errors.Is(err, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
+				return domain.ErrProjectNotFound
+			}
+			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
+			return domain.ErrInternal
+		}
 	} else {
 		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
-		_, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+		// Also get the project data for funding model validation (single fetch).
+		projectDB, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
 		if err != nil {
 			if errors.Is(err, domain.ErrProjectNotFound) {
 				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
@@ -651,6 +666,14 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
+
+	// Validate funding model - only allow deletion if project funding model is EXACTLY ["Crowdfunding"]
+	// This matches v1 behavior where Type/Model must equal "Crowdfunding" (exact match, not in combination with others)
+	if !isCrowdfundingOnly(projectDB.FundingModel) {
+		slog.WarnContext(ctx, "project cannot be deleted - funding model must be Crowdfunding only",
+			"funding_model", projectDB.FundingModel)
+		return domain.ErrCannotDeleteNonCrowdfundingProject
+	}
 
 	runSync := false
 	if payload.XSync != nil {
@@ -695,4 +718,10 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 
 	slog.DebugContext(ctx, "deleted project", "project_uid", *payload.UID)
 	return nil
+}
+
+// isCrowdfundingOnly checks if the funding model is exactly ["Crowdfunding"] and nothing else.
+// This matches v1's strict validation where Type must equal "Crowdfunding" (not in combination with other types).
+func isCrowdfundingOnly(fundingModels []string) bool {
+	return len(fundingModels) == 1 && fundingModels[0] == "Crowdfunding"
 }
