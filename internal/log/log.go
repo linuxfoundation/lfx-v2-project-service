@@ -107,5 +107,5 @@ func InitStructureLogConfig() slog.Handler {
 	logger := contextHandler{otelHandler}
 	slog.SetDefault(slog.New(logger))
 
-	return h
+	return logger
 }
