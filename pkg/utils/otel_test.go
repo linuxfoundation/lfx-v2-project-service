@@ -41,6 +41,9 @@ func TestOTelConfigFromEnv(t *testing.T) {
 		if cfg.LogsExporter != OTelExporterNone {
 			t.Errorf("expected default LogsExporter %q, got %q", OTelExporterNone, cfg.LogsExporter)
 		}
+		if cfg.Propagators != "tracecontext,baggage" {
+			t.Errorf("expected default Propagators 'tracecontext,baggage', got %q", cfg.Propagators)
+		}
 	})
 
 	t.Run("custom values", func(t *testing.T) {
@@ -53,6 +56,7 @@ func TestOTelConfigFromEnv(t *testing.T) {
 		t.Setenv("OTEL_TRACES_SAMPLE_RATIO", "0.5")
 		t.Setenv("OTEL_METRICS_EXPORTER", "otlp")
 		t.Setenv("OTEL_LOGS_EXPORTER", "otlp")
+		t.Setenv("OTEL_PROPAGATORS", "tracecontext,baggage,jaeger")
 
 		cfg := OTelConfigFromEnv()
 
@@ -82,6 +86,9 @@ func TestOTelConfigFromEnv(t *testing.T) {
 		}
 		if cfg.LogsExporter != OTelExporterOTLP {
 			t.Errorf("expected LogsExporter %q, got %q", OTelExporterOTLP, cfg.LogsExporter)
+		}
+		if cfg.Propagators != "tracecontext,baggage,jaeger" {
+			t.Errorf("expected Propagators 'tracecontext,baggage,jaeger', got %q", cfg.Propagators)
 		}
 	})
 
@@ -174,36 +181,75 @@ func TestNewResource(t *testing.T) {
 }
 
 // TestNewPropagator verifies that newPropagator returns a composite
-// TextMapPropagator that includes the standard W3C trace context fields.
+// TextMapPropagator that includes the expected fields for each configuration.
 func TestNewPropagator(t *testing.T) {
-	cfg := OTelConfig{Propagators: "tracecontext,baggage"}
-	prop := newPropagator(cfg)
-
-	if prop == nil {
-		t.Fatal("expected non-nil propagator")
+	tests := []struct {
+		name           string
+		propagators    string
+		expectedFields []string
+	}{
+		{
+			name:           "tracecontext and baggage",
+			propagators:    "tracecontext,baggage",
+			expectedFields: []string{"traceparent", "tracestate", "baggage"},
+		},
+		{
+			name:           "tracecontext only",
+			propagators:    "tracecontext",
+			expectedFields: []string{"traceparent", "tracestate"},
+		},
+		{
+			name:           "baggage only",
+			propagators:    "baggage",
+			expectedFields: []string{"baggage"},
+		},
+		{
+			name:           "jaeger",
+			propagators:    "jaeger",
+			expectedFields: []string{"uber-trace-id"},
+		},
+		{
+			name:           "all propagators",
+			propagators:    "tracecontext,baggage,jaeger",
+			expectedFields: []string{"traceparent", "tracestate", "baggage", "uber-trace-id"},
+		},
+		{
+			name:           "unknown falls back to defaults",
+			propagators:    "unknown",
+			expectedFields: []string{"traceparent", "tracestate", "baggage"},
+		},
+		{
+			name:           "with whitespace",
+			propagators:    " tracecontext , baggage ",
+			expectedFields: []string{"traceparent", "tracestate", "baggage"},
+		},
 	}
 
-	// Verify it's a composite propagator with expected fields
-	fields := prop.Fields()
-	if len(fields) == 0 {
-		t.Error("expected propagator to have fields")
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := OTelConfig{Propagators: tt.propagators}
+			prop := newPropagator(cfg)
 
-	// Check for expected propagation fields (traceparent, tracestate, baggage)
-	expectedFields := map[string]bool{
-		"traceparent": false,
-		"tracestate":  false,
-		"baggage":     false,
-	}
+			if prop == nil {
+				t.Fatal("expected non-nil propagator")
+			}
 
-	for _, field := range fields {
-		expectedFields[field] = true
-	}
+			fields := prop.Fields()
+			fieldSet := make(map[string]bool, len(fields))
+			for _, f := range fields {
+				fieldSet[f] = true
+			}
 
-	for field, found := range expectedFields {
-		if !found {
-			t.Errorf("expected propagator to include field %q", field)
-		}
+			for _, expected := range tt.expectedFields {
+				if !fieldSet[expected] {
+					t.Errorf("expected propagator to include field %q, got fields %v", expected, fields)
+				}
+			}
+
+			if len(fields) != len(tt.expectedFields) {
+				t.Errorf("expected %d fields, got %d: %v", len(tt.expectedFields), len(fields), fields)
+			}
+		})
 	}
 }
 
