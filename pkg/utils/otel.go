@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -273,6 +274,18 @@ func newPropagator(cfg OTelConfig) propagation.TextMapPropagator {
 	return propagation.NewCompositeTextMapPropagator(propagators...)
 }
 
+// normalizeEndpoint parses a raw endpoint value and returns the full URL string,
+// whether the value contained a URL scheme, and the host:port portion without scheme.
+// For HTTP exporters: use WithEndpointURL(fullURL) when hasScheme is true, otherwise WithEndpoint(host).
+// For gRPC exporters: always use WithEndpoint(host) to strip any scheme.
+func normalizeEndpoint(raw string) (fullURL string, hasScheme bool, host string) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw, false, raw
+	}
+	return raw, true, u.Host
+}
+
 // newTraceProvider creates a TracerProvider with an OTLP exporter configured based on the protocol setting.
 func newTraceProvider(ctx context.Context, cfg OTelConfig, res *resource.Resource) (*trace.TracerProvider, error) {
 	var exporter trace.SpanExporter
@@ -281,7 +294,12 @@ func newTraceProvider(ctx context.Context, cfg OTelConfig, res *resource.Resourc
 	if cfg.Protocol == OTelProtocolHTTP {
 		opts := []otlptracehttp.Option{}
 		if cfg.Endpoint != "" {
-			opts = append(opts, otlptracehttp.WithEndpoint(cfg.Endpoint))
+			fullURL, hasScheme, host := normalizeEndpoint(cfg.Endpoint)
+			if hasScheme {
+				opts = append(opts, otlptracehttp.WithEndpointURL(fullURL))
+			} else {
+				opts = append(opts, otlptracehttp.WithEndpoint(host))
+			}
 		}
 		if cfg.Insecure {
 			opts = append(opts, otlptracehttp.WithInsecure())
@@ -290,7 +308,8 @@ func newTraceProvider(ctx context.Context, cfg OTelConfig, res *resource.Resourc
 	} else {
 		opts := []otlptracegrpc.Option{}
 		if cfg.Endpoint != "" {
-			opts = append(opts, otlptracegrpc.WithEndpoint(cfg.Endpoint))
+			_, _, host := normalizeEndpoint(cfg.Endpoint)
+			opts = append(opts, otlptracegrpc.WithEndpoint(host))
 		}
 		if cfg.Insecure {
 			opts = append(opts, otlptracegrpc.WithInsecure())
@@ -320,7 +339,12 @@ func newMetricsProvider(ctx context.Context, cfg OTelConfig, res *resource.Resou
 	if cfg.Protocol == OTelProtocolHTTP {
 		opts := []otlpmetrichttp.Option{}
 		if cfg.Endpoint != "" {
-			opts = append(opts, otlpmetrichttp.WithEndpoint(cfg.Endpoint))
+			fullURL, hasScheme, host := normalizeEndpoint(cfg.Endpoint)
+			if hasScheme {
+				opts = append(opts, otlpmetrichttp.WithEndpointURL(fullURL))
+			} else {
+				opts = append(opts, otlpmetrichttp.WithEndpoint(host))
+			}
 		}
 		if cfg.Insecure {
 			opts = append(opts, otlpmetrichttp.WithInsecure())
@@ -329,7 +353,8 @@ func newMetricsProvider(ctx context.Context, cfg OTelConfig, res *resource.Resou
 	} else {
 		opts := []otlpmetricgrpc.Option{}
 		if cfg.Endpoint != "" {
-			opts = append(opts, otlpmetricgrpc.WithEndpoint(cfg.Endpoint))
+			_, _, host := normalizeEndpoint(cfg.Endpoint)
+			opts = append(opts, otlpmetricgrpc.WithEndpoint(host))
 		}
 		if cfg.Insecure {
 			opts = append(opts, otlpmetricgrpc.WithInsecure())
@@ -358,7 +383,12 @@ func newLoggerProvider(ctx context.Context, cfg OTelConfig, res *resource.Resour
 	if cfg.Protocol == OTelProtocolHTTP {
 		opts := []otlploghttp.Option{}
 		if cfg.Endpoint != "" {
-			opts = append(opts, otlploghttp.WithEndpoint(cfg.Endpoint))
+			fullURL, hasScheme, host := normalizeEndpoint(cfg.Endpoint)
+			if hasScheme {
+				opts = append(opts, otlploghttp.WithEndpointURL(fullURL))
+			} else {
+				opts = append(opts, otlploghttp.WithEndpoint(host))
+			}
 		}
 		if cfg.Insecure {
 			opts = append(opts, otlploghttp.WithInsecure())
@@ -367,7 +397,8 @@ func newLoggerProvider(ctx context.Context, cfg OTelConfig, res *resource.Resour
 	} else {
 		opts := []otlploggrpc.Option{}
 		if cfg.Endpoint != "" {
-			opts = append(opts, otlploggrpc.WithEndpoint(cfg.Endpoint))
+			_, _, host := normalizeEndpoint(cfg.Endpoint)
+			opts = append(opts, otlploggrpc.WithEndpoint(host))
 		}
 		if cfg.Insecure {
 			opts = append(opts, otlploggrpc.WithInsecure())

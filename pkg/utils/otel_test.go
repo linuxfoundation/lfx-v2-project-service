@@ -253,6 +253,77 @@ func TestNewPropagator(t *testing.T) {
 	}
 }
 
+// TestNormalizeEndpoint verifies that normalizeEndpoint correctly parses
+// raw endpoint values into their full URL, scheme flag, and host components.
+func TestNormalizeEndpoint(t *testing.T) {
+	tests := []struct {
+		name          string
+		raw           string
+		wantFullURL   string
+		wantHasScheme bool
+		wantHost      string
+	}{
+		{
+			name:          "host:port without scheme",
+			raw:           "localhost:4317",
+			wantFullURL:   "localhost:4317",
+			wantHasScheme: false,
+			wantHost:      "localhost:4317",
+		},
+		{
+			name:          "http URL",
+			raw:           "http://localhost:4318",
+			wantFullURL:   "http://localhost:4318",
+			wantHasScheme: true,
+			wantHost:      "localhost:4318",
+		},
+		{
+			name:          "https URL",
+			raw:           "https://collector.example.com:4318",
+			wantFullURL:   "https://collector.example.com:4318",
+			wantHasScheme: true,
+			wantHost:      "collector.example.com:4318",
+		},
+		{
+			name:          "https URL with path",
+			raw:           "https://collector.example.com:4318/v1/traces",
+			wantFullURL:   "https://collector.example.com:4318/v1/traces",
+			wantHasScheme: true,
+			wantHost:      "collector.example.com:4318",
+		},
+		{
+			name:          "hostname without port",
+			raw:           "collector",
+			wantFullURL:   "collector",
+			wantHasScheme: false,
+			wantHost:      "collector",
+		},
+		{
+			name:          "http URL without port",
+			raw:           "http://collector.example.com",
+			wantFullURL:   "http://collector.example.com",
+			wantHasScheme: true,
+			wantHost:      "collector.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fullURL, hasScheme, host := normalizeEndpoint(tt.raw)
+
+			if fullURL != tt.wantFullURL {
+				t.Errorf("fullURL = %q, want %q", fullURL, tt.wantFullURL)
+			}
+			if hasScheme != tt.wantHasScheme {
+				t.Errorf("hasScheme = %t, want %t", hasScheme, tt.wantHasScheme)
+			}
+			if host != tt.wantHost {
+				t.Errorf("host = %q, want %q", host, tt.wantHost)
+			}
+		})
+	}
+}
+
 // TestOTelConstants verifies that the exported OTel constants have their
 // expected string values, ensuring API compatibility.
 func TestOTelConstants(t *testing.T) {
