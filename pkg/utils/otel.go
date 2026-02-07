@@ -91,13 +91,29 @@ func OTelConfigFromEnv() OTelConfig {
 	serviceVersion := os.Getenv("OTEL_SERVICE_VERSION")
 
 	protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL")
-	if protocol == "" {
+	switch protocol {
+	case "":
+		protocol = OTelProtocolGRPC
+	case OTelProtocolGRPC, OTelProtocolHTTP:
+		// valid
+	default:
+		slog.Warn("invalid OTEL_EXPORTER_OTLP_PROTOCOL value, using default",
+			"provided-value", protocol, "default", OTelProtocolGRPC)
 		protocol = OTelProtocolGRPC
 	}
 
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 
-	insecure := os.Getenv("OTEL_EXPORTER_OTLP_INSECURE") == "true"
+	var insecure bool
+	if v := os.Getenv("OTEL_EXPORTER_OTLP_INSECURE"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err != nil {
+			slog.Warn("invalid OTEL_EXPORTER_OTLP_INSECURE value, using default false",
+				"provided-value", v, "error", err)
+		} else {
+			insecure = parsed
+		}
+	}
 
 	tracesExporter := os.Getenv("OTEL_TRACES_EXPORTER")
 	if tracesExporter == "" {

@@ -92,13 +92,44 @@ func TestOTelConfigFromEnv(t *testing.T) {
 		}
 	})
 
-	t.Run("unsupported protocol", func(t *testing.T) {
+	t.Run("invalid protocol falls back to grpc", func(t *testing.T) {
 		t.Setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "unsupported")
 
 		cfg := OTelConfigFromEnv()
 
-		if cfg.Protocol != "unsupported" {
-			t.Errorf("expected Protocol 'unsupported', got %q", cfg.Protocol)
+		if cfg.Protocol != OTelProtocolGRPC {
+			t.Errorf("expected Protocol %q, got %q", OTelProtocolGRPC, cfg.Protocol)
+		}
+	})
+
+	t.Run("insecure accepts boolean variants", func(t *testing.T) {
+		for _, v := range []string{"true", "TRUE", "True", "1", "t", "T"} {
+			t.Run(v, func(t *testing.T) {
+				t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", v)
+				cfg := OTelConfigFromEnv()
+				if !cfg.Insecure {
+					t.Errorf("expected Insecure true for %q", v)
+				}
+			})
+		}
+		for _, v := range []string{"false", "FALSE", "0", "f", "F"} {
+			t.Run(v, func(t *testing.T) {
+				t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", v)
+				cfg := OTelConfigFromEnv()
+				if cfg.Insecure {
+					t.Errorf("expected Insecure false for %q", v)
+				}
+			})
+		}
+	})
+
+	t.Run("invalid insecure falls back to false", func(t *testing.T) {
+		t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "notabool")
+
+		cfg := OTelConfigFromEnv()
+
+		if cfg.Insecure {
+			t.Errorf("expected Insecure false for invalid value, got true")
 		}
 	})
 }
