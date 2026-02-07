@@ -55,6 +55,21 @@ func main() {
 
 	log.InitStructureLogConfig()
 
+	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
+	// This is initialized before OpenTelemetry so that os.Exit(1) does not
+	// skip the deferred OTel shutdown. NewJWTAuth only stores config; actual
+	// JWKS fetching happens at request time when OTel is active.
+	jwtAuthConfig := auth.JWTAuthConfig{
+		JWKSURL:            os.Getenv("JWKS_URL"),
+		Audience:           os.Getenv("AUDIENCE"),
+		MockLocalPrincipal: os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"),
+	}
+	jwtAuth, err := auth.NewJWTAuth(jwtAuthConfig)
+	if err != nil {
+		slog.With(errKey, err).Error("error setting up JWT authentication")
+		os.Exit(1)
+	}
+
 	// Set up OpenTelemetry SDK.
 	// Command-line/environment OTEL_SERVICE_VERSION takes precedence over
 	// the build-time Version variable.
@@ -75,18 +90,6 @@ func main() {
 			slog.With(errKey, shutdownErr).Error("error shutting down OpenTelemetry SDK")
 		}
 	}()
-
-	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
-	jwtAuthConfig := auth.JWTAuthConfig{
-		JWKSURL:            os.Getenv("JWKS_URL"),
-		Audience:           os.Getenv("AUDIENCE"),
-		MockLocalPrincipal: os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"),
-	}
-	jwtAuth, err := auth.NewJWTAuth(jwtAuthConfig)
-	if err != nil {
-		slog.With(errKey, err).Error("error setting up JWT authentication")
-		os.Exit(1)
-	}
 
 	// Generated service initialization.
 	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
