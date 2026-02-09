@@ -19,6 +19,7 @@ import (
 
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	goahttp "goa.design/goa/v3/http"
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
@@ -29,6 +30,14 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/middleware"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/utils"
+)
+
+// Build-time variables set via ldflags
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+	GitCommit = "unknown"
 )
 
 const (
@@ -47,6 +56,9 @@ func main() {
 	log.InitStructureLogConfig()
 
 	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
+	// This is initialized before OpenTelemetry so that os.Exit(1) does not
+	// skip the deferred OTel shutdown. NewJWTAuth only stores config; actual
+	// JWKS fetching happens at request time when OTel is active.
 	jwtAuthConfig := auth.JWTAuthConfig{
 		JWKSURL:            os.Getenv("JWKS_URL"),
 		Audience:           os.Getenv("AUDIENCE"),
@@ -57,6 +69,27 @@ func main() {
 		slog.With(errKey, err).Error("error setting up JWT authentication")
 		os.Exit(1)
 	}
+
+	// Set up OpenTelemetry SDK.
+	// Command-line/environment OTEL_SERVICE_VERSION takes precedence over
+	// the build-time Version variable.
+	otelConfig := utils.OTelConfigFromEnv()
+	if otelConfig.ServiceVersion == "" {
+		otelConfig.ServiceVersion = Version
+	}
+	otelShutdown, err := utils.SetupOTelSDKWithConfig(context.Background(), otelConfig)
+	if err != nil {
+		slog.With(errKey, err).Error("error setting up OpenTelemetry SDK")
+		os.Exit(1)
+	}
+	// Handle shutdown properly so nothing leaks.
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownSeconds*time.Second)
+		defer cancel()
+		if shutdownErr := otelShutdown(ctx); shutdownErr != nil {
+			slog.With(errKey, shutdownErr).Error("error shutting down OpenTelemetry SDK")
+		}
+	}()
 
 	// Generated service initialization.
 	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
@@ -200,6 +233,8 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 	handler = middleware.RequestLoggerMiddleware()(handler)
 	handler = middleware.RequestIDMiddleware()(handler)
 	handler = middleware.AuthorizationMiddleware()(handler)
+	// Wrap the handler with OpenTelemetry instrumentation
+	handler = otelhttp.NewHandler(handler, "project-service")
 
 	// Set up http listener in a goroutine using provided command line parameters.
 	var addr string
