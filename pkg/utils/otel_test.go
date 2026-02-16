@@ -6,6 +6,9 @@ package utils
 import (
 	"context"
 	"testing"
+
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 )
 
 // TestOTelConfigFromEnv verifies that OTelConfigFromEnv returns sensible
@@ -166,6 +169,38 @@ func TestSetupOTelSDKWithConfig_AllDisabled(t *testing.T) {
 	}
 }
 
+// TestSetupOTelSDKWithConfig_IPEndpoint verifies that SetupOTelSDKWithConfig
+// normalizes a bare IP:port endpoint to include a scheme, preventing the
+// "first path segment in URL cannot contain colon" error from the SDK.
+func TestSetupOTelSDKWithConfig_IPEndpoint(t *testing.T) {
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "127.0.0.1:4317")
+
+	cfg := OTelConfig{
+		ServiceName:       "test-service",
+		ServiceVersion:    "1.0.0",
+		Protocol:          OTelProtocolGRPC,
+		Endpoint:          "127.0.0.1:4317",
+		Insecure:          true,
+		TracesExporter:    OTelExporterOTLP,
+		TracesSampleRatio: 1.0,
+		MetricsExporter:   OTelExporterNone,
+		LogsExporter:      OTelExporterNone,
+		Propagators:       "tracecontext,baggage",
+	}
+
+	ctx := context.Background()
+	shutdown, err := SetupOTelSDKWithConfig(ctx, cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if shutdown == nil {
+		t.Fatal("expected non-nil shutdown function")
+	}
+
+	_ = shutdown(ctx)
+}
+
 // TestNewResource verifies that newResource creates a valid OpenTelemetry
 // resource with the expected service.name attribute for various input values.
 func TestNewResource(t *testing.T) {
@@ -284,72 +319,208 @@ func TestNewPropagator(t *testing.T) {
 	}
 }
 
-// TestNormalizeEndpoint verifies that normalizeEndpoint correctly parses
-// raw endpoint values into their full URL, scheme flag, and host components.
-func TestNormalizeEndpoint(t *testing.T) {
+// TestEndpointURL verifies that endpointURL prepends the correct scheme
+// when missing and preserves existing schemes.
+func TestEndpointURL(t *testing.T) {
 	tests := []struct {
-		name          string
-		raw           string
-		wantFullURL   string
-		wantHasScheme bool
-		wantHost      string
+		name     string
+		raw      string
+		insecure bool
+		want     string
 	}{
 		{
-			name:          "host:port without scheme",
-			raw:           "localhost:4317",
-			wantFullURL:   "localhost:4317",
-			wantHasScheme: false,
-			wantHost:      "localhost:4317",
+			name:     "IP:port insecure",
+			raw:      "127.0.0.1:4317",
+			insecure: true,
+			want:     "http://127.0.0.1:4317",
 		},
 		{
-			name:          "http URL",
-			raw:           "http://localhost:4318",
-			wantFullURL:   "http://localhost:4318",
-			wantHasScheme: true,
-			wantHost:      "localhost:4318",
+			name:     "IP:port secure",
+			raw:      "127.0.0.1:4317",
+			insecure: false,
+			want:     "https://127.0.0.1:4317",
 		},
 		{
-			name:          "https URL",
-			raw:           "https://collector.example.com:4318",
-			wantFullURL:   "https://collector.example.com:4318",
-			wantHasScheme: true,
-			wantHost:      "collector.example.com:4318",
+			name:     "localhost:port insecure",
+			raw:      "localhost:4317",
+			insecure: true,
+			want:     "http://localhost:4317",
 		},
 		{
-			name:          "https URL with path",
-			raw:           "https://collector.example.com:4318/v1/traces",
-			wantFullURL:   "https://collector.example.com:4318/v1/traces",
-			wantHasScheme: true,
-			wantHost:      "collector.example.com:4318",
+			name:     "hostname without port",
+			raw:      "collector",
+			insecure: true,
+			want:     "http://collector",
 		},
 		{
-			name:          "hostname without port",
-			raw:           "collector",
-			wantFullURL:   "collector",
-			wantHasScheme: false,
-			wantHost:      "collector",
+			name:     "http URL preserved",
+			raw:      "http://collector.example.com:4318",
+			insecure: false,
+			want:     "http://collector.example.com:4318",
 		},
 		{
-			name:          "http URL without port",
-			raw:           "http://collector.example.com",
-			wantFullURL:   "http://collector.example.com",
-			wantHasScheme: true,
-			wantHost:      "collector.example.com",
+			name:     "https URL preserved",
+			raw:      "https://collector.example.com:4318",
+			insecure: true,
+			want:     "https://collector.example.com:4318",
+		},
+		{
+			name:     "https URL with path preserved",
+			raw:      "https://collector.example.com:4318/v1/traces",
+			insecure: false,
+			want:     "https://collector.example.com:4318/v1/traces",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fullURL, hasScheme, host := normalizeEndpoint(tt.raw)
+			got := endpointURL(tt.raw, tt.insecure)
+			if got != tt.want {
+				t.Errorf("endpointURL(%q, %t) = %q, want %q", tt.raw, tt.insecure, got, tt.want)
+			}
+		})
+	}
+}
 
-			if fullURL != tt.wantFullURL {
-				t.Errorf("fullURL = %q, want %q", fullURL, tt.wantFullURL)
+// TestGRPCExporterEndpointFormats verifies which endpoint formats the OTel
+// gRPC exporter accepts without error when passed via WithEndpoint or
+// WithEndpointURL.
+func TestGRPCExporterEndpointFormats(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		opts    []otlptracegrpc.Option
+		wantErr bool
+	}{
+		{
+			name:    "WithEndpoint localhost:port",
+			opts:    []otlptracegrpc.Option{otlptracegrpc.WithEndpoint("localhost:4317"), otlptracegrpc.WithInsecure()},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpoint IP:port",
+			opts:    []otlptracegrpc.Option{otlptracegrpc.WithEndpoint("127.0.0.1:4317"), otlptracegrpc.WithInsecure()},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL http://localhost:port",
+			opts:    []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL("http://localhost:4317")},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL http://IP:port",
+			opts:    []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL("http://127.0.0.1:4317")},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL no scheme",
+			opts:    []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL("127.0.0.1:4317")},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL https://IP:port",
+			opts:    []otlptracegrpc.Option{otlptracegrpc.WithEndpointURL("https://127.0.0.1:4317")},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exporter, err := otlptracegrpc.New(ctx, tt.opts...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("otlptracegrpc.New() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-			if hasScheme != tt.wantHasScheme {
-				t.Errorf("hasScheme = %t, want %t", hasScheme, tt.wantHasScheme)
+			if exporter != nil {
+				_ = exporter.Shutdown(ctx)
 			}
-			if host != tt.wantHost {
-				t.Errorf("host = %q, want %q", host, tt.wantHost)
+		})
+	}
+
+	// Verify that the SDK reads OTEL_EXPORTER_OTLP_ENDPOINT env var
+	// internally, which may call WithEndpointURL on bare IP:port values.
+	t.Run("env var IP:port with WithEndpoint override", func(t *testing.T) {
+		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "127.0.0.1:4317")
+		exporter, err := otlptracegrpc.New(ctx,
+			otlptracegrpc.WithEndpoint("127.0.0.1:4317"),
+			otlptracegrpc.WithInsecure(),
+		)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			return
+		}
+		if exporter != nil {
+			_ = exporter.Shutdown(ctx)
+		}
+	})
+
+	t.Run("env var IP:port without explicit option", func(t *testing.T) {
+		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "127.0.0.1:4317")
+		t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+		exporter, err := otlptracegrpc.New(ctx)
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+			return
+		}
+		if exporter != nil {
+			_ = exporter.Shutdown(ctx)
+		}
+	})
+}
+
+// TestHTTPExporterEndpointFormats verifies which endpoint formats the OTel
+// HTTP exporter accepts without error when passed via WithEndpoint or
+// WithEndpointURL.
+func TestHTTPExporterEndpointFormats(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		opts    []otlptracehttp.Option
+		wantErr bool
+	}{
+		{
+			name:    "WithEndpoint localhost:port",
+			opts:    []otlptracehttp.Option{otlptracehttp.WithEndpoint("localhost:4318"), otlptracehttp.WithInsecure()},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpoint IP:port",
+			opts:    []otlptracehttp.Option{otlptracehttp.WithEndpoint("127.0.0.1:4318"), otlptracehttp.WithInsecure()},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL http://localhost:port",
+			opts:    []otlptracehttp.Option{otlptracehttp.WithEndpointURL("http://localhost:4318")},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL http://IP:port",
+			opts:    []otlptracehttp.Option{otlptracehttp.WithEndpointURL("http://127.0.0.1:4318")},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL no scheme",
+			opts:    []otlptracehttp.Option{otlptracehttp.WithEndpointURL("127.0.0.1:4318")},
+			wantErr: false,
+		},
+		{
+			name:    "WithEndpointURL https://IP:port",
+			opts:    []otlptracehttp.Option{otlptracehttp.WithEndpointURL("https://127.0.0.1:4318")},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exporter, err := otlptracehttp.New(ctx, tt.opts...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("otlptracehttp.New() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if exporter != nil {
+				_ = exporter.Shutdown(ctx)
 			}
 		})
 	}
