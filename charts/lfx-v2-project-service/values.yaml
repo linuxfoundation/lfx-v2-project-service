@@ -34,6 +34,13 @@ podAnnotations: {}
 #   environment: production
 podLabels: {}
 
+# podDisruptionBudget configures a PodDisruptionBudget for the deployment.
+# Only one of minAvailable or maxUnavailable may be set (not both).
+podDisruptionBudget:
+  enabled: false
+  # minAvailable: 1
+  # maxUnavailable: 1
+
 # resources is the configuration for container resource limits and requests
 resources:
   # limits is the maximum amount of resources the container can use
