@@ -33,10 +33,10 @@ flowchart TD
     subgraph svc["LFX v2 Member Service"]
         SOQL["SOQL Client"]
         PubSub["PubSub Consumer"]
-        KV["NATS KV Cache\n(members, memberships, contacts)"]
-        API["Member API (Goa / HTTP)\nGET /members\nGET /members/{id}/memberships/{id}\nGET /members/{id}/memberships/{id}/key_contacts\nPUT /members/{id}/memberships/{id}/key_contacts/{cid} (Phase 1)"]
-        RPC["NATS RPC\n(project ID map)"]
-        PUB["Change Event Publisher\nlfx.v1.index.*"]
+        KV["NATS KV Cache<br />(members, memberships, contacts)"]
+        API["Member API (Goa / HTTP)<br />GET /members<br />GET /members/{id}/memberships/{id}<br />GET /members/{id}/memberships/{id}/key_contacts<br />PUT /members/{id}/memberships/{id}/key_contacts/{cid} (Phase 1)"]
+        RPC["NATS RPC<br />(project ID map)"]
+        PUB["Change Event Publisher<br />lfx.v1.index.*"]
     end
 
     Indexer["Indexer Service"]
