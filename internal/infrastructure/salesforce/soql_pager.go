@@ -1,0 +1,273 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
+package salesforce
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+
+	sf "github.com/k-capehart/go-salesforce/v3"
+)
+
+// sfQueryBatchSize is the number of records requested from Salesforce per
+// initial query call. Salesforce enforces a hard cap of 2000 records per
+// response; 1000 balances first-page latency (smaller payload to wait for)
+// against the number of round-trips needed to cover a full result set. The
+// remaining records are fetched eagerly in a background goroutine so
+// subsequent logical pages are served from the cache rather than live SOQL.
+const sfQueryBatchSize = 1000
+
+// ValidPageSizes is the set of logical page sizes accepted by the API.
+// All values must divide evenly into sfQueryBatchSize so that intra-batch
+// slicing never crosses a batch boundary mid-record.
+var ValidPageSizes = map[int]bool{
+	10:   true,
+	50:   true,
+	100:  true,
+	200:  true,
+	500:  true,
+	1000: true,
+}
+
+// NormalizePageSize rounds an arbitrary page size up to the nearest valid
+// page size. Values exceeding 1000 are capped at 1000; values ≤ 0 default
+// to 200.
+func NormalizePageSize(n int) int {
+	if n <= 0 {
+		return 200
+	}
+	for _, s := range []int{10, 50, 100, 200, 500, 1000} {
+		if n <= s {
+			return s
+		}
+	}
+	return 1000
+}
+
+// PageCursor is the internal representation of the opaque page token returned
+// to API consumers. It encodes all state needed to resume pagination without
+// retaining any live Salesforce locator:
+//
+//   - BatchIndex: which SF batch (0-based). Batch 0 is always keyed by the
+//     stable query parameters; batches 1+ are keyed by the iterator embedded
+//     in the previous batch's cache entry.
+//   - BatchOffset: the index within the identified batch where the next
+//     logical page starts. Always < sfQueryBatchSize.
+//   - PageSize: the logical page size agreed at the start of the sequence.
+//     Encoded in the cursor so mid-stream size changes are rejected.
+//   - NextBatchIterator: the random token stored in the current batch's cache
+//     entry that keys the next batch's cache entry. This is only set when the
+//     cursor points to the first logical page of a new batch (BatchOffset==0
+//     and there is a subsequent batch). Consumers treat it as opaque.
+//
+// Consumers never see this struct — they only see the base64url-encoded JSON
+// produced by EncodeCursor / consumed by DecodeCursor.
+type PageCursor struct {
+	BatchIndex        int    `json:"b"`
+	BatchOffset       int    `json:"o,omitempty"`
+	PageSize          int    `json:"p"`
+	NextBatchIterator string `json:"i,omitempty"`
+}
+
+// EncodeCursor serialises a PageCursor to an opaque, URL-safe base64url token.
+func EncodeCursor(c PageCursor) string {
+	b, _ := json.Marshal(c)
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// DecodeCursor reverses EncodeCursor. Returns an error if the token is not
+// valid base64url-encoded JSON. An empty token decodes to a zero PageCursor
+// (first page of batch 0).
+func DecodeCursor(encoded string) (PageCursor, error) {
+	if encoded == "" {
+		return PageCursor{}, nil
+	}
+	b, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return PageCursor{}, fmt.Errorf("invalid page token: %w", err)
+	}
+	var c PageCursor
+	if err := json.Unmarshal(b, &c); err != nil {
+		return PageCursor{}, fmt.Errorf("invalid page token: %w", err)
+	}
+	return c, nil
+}
+
+// soqlPageResponse is the raw Salesforce REST query response for a single page.
+type soqlPageResponse struct {
+	// TotalSize is the total number of records matching the query across all
+	// pages. Present on initial queries; continuation pages may repeat it or
+	// omit it depending on the API version.
+	TotalSize int `json:"totalSize"`
+	// Done is true when this response contains the last page of results.
+	Done bool `json:"done"`
+	// NextRecordsUrl is the relative URL to fetch the next page. Present when
+	// Done is false. Example: "/services/data/v63.0/query/01gXXX-2000".
+	NextRecordsUrl string `json:"nextRecordsUrl"`
+	// Records contains the raw JSON objects for this page.
+	Records []json.RawMessage `json:"records"`
+}
+
+// PageResult carries the decoded records for a single SOQL page together with
+// the continuation token for the next page (if any).
+type PageResult[T any] struct {
+	// Records is the decoded slice of domain objects for this page.
+	Records []T
+	// NextPageToken is the raw nextRecordsUrl value from Salesforce (the full
+	// relative path, e.g. "/services/data/v63.0/query/01gXXX-2000"). Empty
+	// when Done is true (last page). Callers should treat this as opaque and
+	// pass it unchanged to the next QueryPage call.
+	NextPageToken string
+	// TotalSize is the total record count reported by Salesforce. Only
+	// populated on first-page responses; may be 0 on continuation pages.
+	TotalSize int
+}
+
+// QueryPage executes a single-page SOQL query against the Salesforce REST API
+// using the given client's session. Unlike sf.Salesforce.Query, this method
+// does NOT automatically follow nextRecordsUrl — it returns exactly one page
+// of results plus the raw continuation token.
+//
+// Pass an empty pageToken to execute a new query. Pass a non-empty pageToken
+// (the NextPageToken value from a previous PageResult) to fetch the next page;
+// in this case the query string is ignored by Salesforce.
+//
+// The pageSize parameter is passed as the Sforce-Query-Options header for
+// initial queries only. Salesforce ignores this header on locator fetches —
+// continuation pages return however many records remain up to the 2000-record
+// hard cap.
+func QueryPage[T any](ctx context.Context, client *sf.Salesforce, query string, pageToken string, pageSize int) (PageResult[T], error) {
+	instanceURL := client.GetInstanceUrl()
+	accessToken := client.GetAccessToken()
+	apiVer := client.GetAPIVersion()
+
+	if instanceURL == "" || accessToken == "" {
+		return PageResult[T]{}, fmt.Errorf("salesforce client is not authenticated")
+	}
+
+	var endpoint string
+	if pageToken == "" {
+		// Initial query: build the full query URL.
+		endpoint = instanceURL + "/services/data/" + apiVer + "/query?q=" + url.QueryEscape(query)
+	} else {
+		// Continuation page: the token is the raw nextRecordsUrl, which already
+		// starts with "/services/data/vXX.X/query/<locator>". Strip the version
+		// prefix so we don't double it when prepending instanceURL + apiVer.
+		token := strings.TrimPrefix(pageToken, "/services/data/"+apiVer)
+		endpoint = instanceURL + "/services/data/" + apiVer + token
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return PageResult[T]{}, fmt.Errorf("building SOQL page request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	// Sforce-Query-Options is honoured by Salesforce only on the initial
+	// /query?q=... call. Locator fetches ignore it; Salesforce returns up to
+	// 2000 records regardless of what we send here.
+	if pageToken == "" && pageSize >= 200 {
+		if pageSize > 2000 {
+			pageSize = 2000
+		}
+		req.Header.Set("Sforce-Query-Options", fmt.Sprintf("batchSize=%d", pageSize))
+	}
+
+	resp, err := sfHTTPClient(client).Do(req)
+	if err != nil {
+		return PageResult[T]{}, fmt.Errorf("executing SOQL page request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return PageResult[T]{}, fmt.Errorf("reading SOQL page response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return PageResult[T]{}, fmt.Errorf("SOQL page request returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 512))
+	}
+
+	var raw soqlPageResponse
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return PageResult[T]{}, fmt.Errorf("unmarshalling SOQL page response: %w", err)
+	}
+
+	records := make([]T, 0, len(raw.Records))
+	for i, rec := range raw.Records {
+		var item T
+		if err := json.Unmarshal(rec, &item); err != nil {
+			return PageResult[T]{}, fmt.Errorf("unmarshalling SOQL record %d: %w", i, err)
+		}
+		records = append(records, item)
+	}
+
+	var nextToken string
+	if !raw.Done && raw.NextRecordsUrl != "" {
+		nextToken = raw.NextRecordsUrl
+	}
+
+	return PageResult[T]{
+		Records:       records,
+		NextPageToken: nextToken,
+		TotalSize:     raw.TotalSize,
+	}, nil
+}
+
+// QueryAllPages fetches all remaining records starting from the given locator
+// token, following nextRecordsUrl until done. Pass an empty locator to
+// re-execute from the initial query. The accumulated records and the total
+// size reported by Salesforce (from the first response) are returned.
+//
+// This is intended for use in background goroutines that eagerly consume a
+// locator immediately after it is received, so the locator expiry window
+// (typically 15 minutes) is never a concern for cached pages.
+func QueryAllPages[T any](ctx context.Context, client *sf.Salesforce, query string, locator string) ([]T, int, error) {
+	var all []T
+	totalSize := 0
+	token := locator
+
+	for {
+		result, err := QueryPage[T](ctx, client, query, token, sfQueryBatchSize)
+		if err != nil {
+			return nil, 0, fmt.Errorf("fetching page (token=%q): %w", token, err)
+		}
+		if totalSize == 0 && result.TotalSize > 0 {
+			totalSize = result.TotalSize
+		}
+		all = append(all, result.Records...)
+		if result.NextPageToken == "" {
+			break
+		}
+		token = result.NextPageToken
+	}
+
+	return all, totalSize, nil
+}
+
+// sfHTTPClient returns the HTTP client configured on the Salesforce client,
+// falling back to http.DefaultClient if the client returns nil (guards against
+// panics in unit tests that use a zero-value client).
+func sfHTTPClient(client *sf.Salesforce) *http.Client {
+	if c := client.GetHTTPClient(); c != nil {
+		return c
+	}
+	return http.DefaultClient
+}
+
+// truncate shortens s to at most n bytes, appending "…" if truncated.
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "…"
+}

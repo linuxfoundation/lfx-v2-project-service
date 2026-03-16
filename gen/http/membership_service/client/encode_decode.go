@@ -21,13 +21,26 @@ import (
 	goahttp "goa.design/goa/v3/http"
 )
 
-// BuildListMembersRequest instantiates a HTTP request object with method and
-// path set to call the "membership-service" service "list-members" endpoint
-func (c *Client) BuildListMembersRequest(ctx context.Context, v any) (*http.Request, error) {
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListMembersMembershipServicePath()}
+// BuildListProjectTiersRequest instantiates a HTTP request object with method
+// and path set to call the "membership-service" service "list-project-tiers"
+// endpoint
+func (c *Client) BuildListProjectTiersRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		projectUID string
+	)
+	{
+		p, ok := v.(*membershipservice.ListProjectTiersPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "list-project-tiers", "*membershipservice.ListProjectTiersPayload", v)
+		}
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListProjectTiersMembershipServicePath(projectUID)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("membership-service", "list-members", u.String(), err)
+		return nil, goahttp.ErrInvalidURL("membership-service", "list-project-tiers", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -36,13 +49,297 @@ func (c *Client) BuildListMembersRequest(ctx context.Context, v any) (*http.Requ
 	return req, nil
 }
 
-// EncodeListMembersRequest returns an encoder for requests sent to the
-// membership-service list-members server.
-func EncodeListMembersRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+// EncodeListProjectTiersRequest returns an encoder for requests sent to the
+// membership-service list-project-tiers server.
+func EncodeListProjectTiersRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
-		p, ok := v.(*membershipservice.ListMembersPayload)
+		p, ok := v.(*membershipservice.ListProjectTiersPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("membership-service", "list-members", "*membershipservice.ListMembersPayload", v)
+			return goahttp.ErrInvalidType("membership-service", "list-project-tiers", "*membershipservice.ListProjectTiersPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeListProjectTiersResponse returns a decoder for responses returned by
+// the membership-service list-project-tiers endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeListProjectTiersResponse may return the following errors:
+//   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeListProjectTiersResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body ListProjectTiersResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-tiers", err)
+			}
+			err = ValidateListProjectTiersResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-tiers", err)
+			}
+			res := NewListProjectTiersResultOK(&body)
+			return res, nil
+		case http.StatusInternalServerError:
+			var (
+				body ListProjectTiersInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-tiers", err)
+			}
+			err = ValidateListProjectTiersInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-tiers", err)
+			}
+			return nil, NewListProjectTiersInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body ListProjectTiersNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-tiers", err)
+			}
+			err = ValidateListProjectTiersNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-tiers", err)
+			}
+			return nil, NewListProjectTiersNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body ListProjectTiersServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-tiers", err)
+			}
+			err = ValidateListProjectTiersServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-tiers", err)
+			}
+			return nil, NewListProjectTiersServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "list-project-tiers", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildGetProjectTierRequest instantiates a HTTP request object with method
+// and path set to call the "membership-service" service "get-project-tier"
+// endpoint
+func (c *Client) BuildGetProjectTierRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		projectUID string
+		tierID     string
+	)
+	{
+		p, ok := v.(*membershipservice.GetProjectTierPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "get-project-tier", "*membershipservice.GetProjectTierPayload", v)
+		}
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
+		}
+		if p.TierID != nil {
+			tierID = *p.TierID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectTierMembershipServicePath(projectUID, tierID)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "get-project-tier", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeGetProjectTierRequest returns an encoder for requests sent to the
+// membership-service get-project-tier server.
+func EncodeGetProjectTierRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.GetProjectTierPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "get-project-tier", "*membershipservice.GetProjectTierPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeGetProjectTierResponse returns a decoder for responses returned by the
+// membership-service get-project-tier endpoint. restoreBody controls whether
+// the response body should be restored after having been read.
+// DecodeGetProjectTierResponse may return the following errors:
+//   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeGetProjectTierResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body GetProjectTierResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-tier", err)
+			}
+			err = ValidateGetProjectTierResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-tier", err)
+			}
+			res := NewGetProjectTierResultOK(&body)
+			return res, nil
+		case http.StatusInternalServerError:
+			var (
+				body GetProjectTierInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-tier", err)
+			}
+			err = ValidateGetProjectTierInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-tier", err)
+			}
+			return nil, NewGetProjectTierInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body GetProjectTierNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-tier", err)
+			}
+			err = ValidateGetProjectTierNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-tier", err)
+			}
+			return nil, NewGetProjectTierNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body GetProjectTierServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-tier", err)
+			}
+			err = ValidateGetProjectTierServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-tier", err)
+			}
+			return nil, NewGetProjectTierServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "get-project-tier", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildListProjectMembershipsRequest instantiates a HTTP request object with
+// method and path set to call the "membership-service" service
+// "list-project-memberships" endpoint
+func (c *Client) BuildListProjectMembershipsRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		projectUID string
+	)
+	{
+		p, ok := v.(*membershipservice.ListProjectMembershipsPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "list-project-memberships", "*membershipservice.ListProjectMembershipsPayload", v)
+		}
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListProjectMembershipsMembershipServicePath(projectUID)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "list-project-memberships", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeListProjectMembershipsRequest returns an encoder for requests sent to
+// the membership-service list-project-memberships server.
+func EncodeListProjectMembershipsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.ListProjectMembershipsPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "list-project-memberships", "*membershipservice.ListProjectMembershipsPayload", v)
 		}
 		if p.BearerToken != nil {
 			head := *p.BearerToken
@@ -57,7 +354,10 @@ func EncodeListMembersRequest(encoder func(*http.Request) goahttp.Encoder) func(
 			values.Add("v", *p.Version)
 		}
 		values.Add("pageSize", fmt.Sprintf("%v", p.PageSize))
-		values.Add("offset", fmt.Sprintf("%v", p.Offset))
+		if p.PageToken != nil {
+			values.Add("pageToken", *p.PageToken)
+		}
+		values.Add("sort", p.Sort)
 		if p.Filter != nil {
 			values.Add("filter", *p.Filter)
 		}
@@ -69,15 +369,17 @@ func EncodeListMembersRequest(encoder func(*http.Request) goahttp.Encoder) func(
 	}
 }
 
-// DecodeListMembersResponse returns a decoder for responses returned by the
-// membership-service list-members endpoint. restoreBody controls whether the
-// response body should be restored after having been read.
-// DecodeListMembersResponse may return the following errors:
+// DecodeListProjectMembershipsResponse returns a decoder for responses
+// returned by the membership-service list-project-memberships endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeListProjectMembershipsResponse may return the following errors:
 //   - "BadRequest" (type *membershipservice.BadRequestError): http.StatusBadRequest
 //   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
 //   - error: internal error
-func DecodeListMembersResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeListProjectMembershipsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -94,92 +396,106 @@ func DecodeListMembersResponse(decoder func(*http.Response) goahttp.Decoder, res
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var (
-				body ListMembersResponseBody
+				body ListProjectMembershipsResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-members", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-memberships", err)
 			}
-			err = ValidateListMembersResponseBody(&body)
+			err = ValidateListProjectMembershipsResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-members", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-memberships", err)
 			}
-			res := NewListMembersResultOK(&body)
+			res := NewListProjectMembershipsResultOK(&body)
 			return res, nil
 		case http.StatusBadRequest:
 			var (
-				body ListMembersBadRequestResponseBody
+				body ListProjectMembershipsBadRequestResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-members", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-memberships", err)
 			}
-			err = ValidateListMembersBadRequestResponseBody(&body)
+			err = ValidateListProjectMembershipsBadRequestResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-members", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-memberships", err)
 			}
-			return nil, NewListMembersBadRequest(&body)
+			return nil, NewListProjectMembershipsBadRequest(&body)
 		case http.StatusInternalServerError:
 			var (
-				body ListMembersInternalServerErrorResponseBody
+				body ListProjectMembershipsInternalServerErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-members", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-memberships", err)
 			}
-			err = ValidateListMembersInternalServerErrorResponseBody(&body)
+			err = ValidateListProjectMembershipsInternalServerErrorResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-members", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-memberships", err)
 			}
-			return nil, NewListMembersInternalServerError(&body)
+			return nil, NewListProjectMembershipsInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body ListProjectMembershipsNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-memberships", err)
+			}
+			err = ValidateListProjectMembershipsNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-memberships", err)
+			}
+			return nil, NewListProjectMembershipsNotFound(&body)
 		case http.StatusServiceUnavailable:
 			var (
-				body ListMembersServiceUnavailableResponseBody
+				body ListProjectMembershipsServiceUnavailableResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-members", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-project-memberships", err)
 			}
-			err = ValidateListMembersServiceUnavailableResponseBody(&body)
+			err = ValidateListProjectMembershipsServiceUnavailableResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-members", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-project-memberships", err)
 			}
-			return nil, NewListMembersServiceUnavailable(&body)
+			return nil, NewListProjectMembershipsServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("membership-service", "list-members", resp.StatusCode, string(body))
+			return nil, goahttp.ErrInvalidResponse("membership-service", "list-project-memberships", resp.StatusCode, string(body))
 		}
 	}
 }
 
-// BuildGetMemberMembershipRequest instantiates a HTTP request object with
+// BuildGetProjectMembershipRequest instantiates a HTTP request object with
 // method and path set to call the "membership-service" service
-// "get-member-membership" endpoint
-func (c *Client) BuildGetMemberMembershipRequest(ctx context.Context, v any) (*http.Request, error) {
+// "get-project-membership" endpoint
+func (c *Client) BuildGetProjectMembershipRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		memberID string
-		id       string
+		projectUID string
+		id         string
 	)
 	{
-		p, ok := v.(*membershipservice.GetMemberMembershipPayload)
+		p, ok := v.(*membershipservice.GetProjectMembershipPayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("membership-service", "get-member-membership", "*membershipservice.GetMemberMembershipPayload", v)
+			return nil, goahttp.ErrInvalidType("membership-service", "get-project-membership", "*membershipservice.GetProjectMembershipPayload", v)
 		}
-		if p.MemberID != nil {
-			memberID = *p.MemberID
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
 		}
 		if p.ID != nil {
 			id = *p.ID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetMemberMembershipMembershipServicePath(memberID, id)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectMembershipMembershipServicePath(projectUID, id)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("membership-service", "get-member-membership", u.String(), err)
+		return nil, goahttp.ErrInvalidURL("membership-service", "get-project-membership", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -188,13 +504,13 @@ func (c *Client) BuildGetMemberMembershipRequest(ctx context.Context, v any) (*h
 	return req, nil
 }
 
-// EncodeGetMemberMembershipRequest returns an encoder for requests sent to the
-// membership-service get-member-membership server.
-func EncodeGetMemberMembershipRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+// EncodeGetProjectMembershipRequest returns an encoder for requests sent to
+// the membership-service get-project-membership server.
+func EncodeGetProjectMembershipRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
-		p, ok := v.(*membershipservice.GetMemberMembershipPayload)
+		p, ok := v.(*membershipservice.GetProjectMembershipPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("membership-service", "get-member-membership", "*membershipservice.GetMemberMembershipPayload", v)
+			return goahttp.ErrInvalidType("membership-service", "get-project-membership", "*membershipservice.GetProjectMembershipPayload", v)
 		}
 		if p.BearerToken != nil {
 			head := *p.BearerToken
@@ -213,15 +529,15 @@ func EncodeGetMemberMembershipRequest(encoder func(*http.Request) goahttp.Encode
 	}
 }
 
-// DecodeGetMemberMembershipResponse returns a decoder for responses returned
-// by the membership-service get-member-membership endpoint. restoreBody
+// DecodeGetProjectMembershipResponse returns a decoder for responses returned
+// by the membership-service get-project-membership endpoint. restoreBody
 // controls whether the response body should be restored after having been read.
-// DecodeGetMemberMembershipResponse may return the following errors:
+// DecodeGetProjectMembershipResponse may return the following errors:
 //   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
 //   - error: internal error
-func DecodeGetMemberMembershipResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeGetProjectMembershipResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -238,16 +554,16 @@ func DecodeGetMemberMembershipResponse(decoder func(*http.Response) goahttp.Deco
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var (
-				body GetMemberMembershipResponseBody
+				body GetProjectMembershipResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-membership", err)
 			}
-			err = ValidateGetMemberMembershipResponseBody(&body)
+			err = ValidateGetProjectMembershipResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-membership", err)
 			}
 			var (
 				etag *string
@@ -256,81 +572,81 @@ func DecodeGetMemberMembershipResponse(decoder func(*http.Response) goahttp.Deco
 			if etagRaw != "" {
 				etag = &etagRaw
 			}
-			res := NewGetMemberMembershipResultOK(&body, etag)
+			res := NewGetProjectMembershipResultOK(&body, etag)
 			return res, nil
 		case http.StatusInternalServerError:
 			var (
-				body GetMemberMembershipInternalServerErrorResponseBody
+				body GetProjectMembershipInternalServerErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-membership", err)
 			}
-			err = ValidateGetMemberMembershipInternalServerErrorResponseBody(&body)
+			err = ValidateGetProjectMembershipInternalServerErrorResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-membership", err)
 			}
-			return nil, NewGetMemberMembershipInternalServerError(&body)
+			return nil, NewGetProjectMembershipInternalServerError(&body)
 		case http.StatusNotFound:
 			var (
-				body GetMemberMembershipNotFoundResponseBody
+				body GetProjectMembershipNotFoundResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-membership", err)
 			}
-			err = ValidateGetMemberMembershipNotFoundResponseBody(&body)
+			err = ValidateGetProjectMembershipNotFoundResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-membership", err)
 			}
-			return nil, NewGetMemberMembershipNotFound(&body)
+			return nil, NewGetProjectMembershipNotFound(&body)
 		case http.StatusServiceUnavailable:
 			var (
-				body GetMemberMembershipServiceUnavailableResponseBody
+				body GetProjectMembershipServiceUnavailableResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "get-project-membership", err)
 			}
-			err = ValidateGetMemberMembershipServiceUnavailableResponseBody(&body)
+			err = ValidateGetProjectMembershipServiceUnavailableResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "get-member-membership", err)
+				return nil, goahttp.ErrValidationError("membership-service", "get-project-membership", err)
 			}
-			return nil, NewGetMemberMembershipServiceUnavailable(&body)
+			return nil, NewGetProjectMembershipServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("membership-service", "get-member-membership", resp.StatusCode, string(body))
+			return nil, goahttp.ErrInvalidResponse("membership-service", "get-project-membership", resp.StatusCode, string(body))
 		}
 	}
 }
 
-// BuildListMemberMembershipKeyContactsRequest instantiates a HTTP request
-// object with method and path set to call the "membership-service" service
-// "list-member-membership-key-contacts" endpoint
-func (c *Client) BuildListMemberMembershipKeyContactsRequest(ctx context.Context, v any) (*http.Request, error) {
+// BuildListMembershipKeyContactsRequest instantiates a HTTP request object
+// with method and path set to call the "membership-service" service
+// "list-membership-key-contacts" endpoint
+func (c *Client) BuildListMembershipKeyContactsRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		memberID string
-		id       string
+		projectUID string
+		id         string
 	)
 	{
-		p, ok := v.(*membershipservice.ListMemberMembershipKeyContactsPayload)
+		p, ok := v.(*membershipservice.ListMembershipKeyContactsPayload)
 		if !ok {
-			return nil, goahttp.ErrInvalidType("membership-service", "list-member-membership-key-contacts", "*membershipservice.ListMemberMembershipKeyContactsPayload", v)
+			return nil, goahttp.ErrInvalidType("membership-service", "list-membership-key-contacts", "*membershipservice.ListMembershipKeyContactsPayload", v)
 		}
-		if p.MemberID != nil {
-			memberID = *p.MemberID
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
 		}
 		if p.ID != nil {
 			id = *p.ID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListMemberMembershipKeyContactsMembershipServicePath(memberID, id)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListMembershipKeyContactsMembershipServicePath(projectUID, id)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, goahttp.ErrInvalidURL("membership-service", "list-member-membership-key-contacts", u.String(), err)
+		return nil, goahttp.ErrInvalidURL("membership-service", "list-membership-key-contacts", u.String(), err)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
@@ -339,13 +655,13 @@ func (c *Client) BuildListMemberMembershipKeyContactsRequest(ctx context.Context
 	return req, nil
 }
 
-// EncodeListMemberMembershipKeyContactsRequest returns an encoder for requests
-// sent to the membership-service list-member-membership-key-contacts server.
-func EncodeListMemberMembershipKeyContactsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+// EncodeListMembershipKeyContactsRequest returns an encoder for requests sent
+// to the membership-service list-membership-key-contacts server.
+func EncodeListMembershipKeyContactsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
 	return func(req *http.Request, v any) error {
-		p, ok := v.(*membershipservice.ListMemberMembershipKeyContactsPayload)
+		p, ok := v.(*membershipservice.ListMembershipKeyContactsPayload)
 		if !ok {
-			return goahttp.ErrInvalidType("membership-service", "list-member-membership-key-contacts", "*membershipservice.ListMemberMembershipKeyContactsPayload", v)
+			return goahttp.ErrInvalidType("membership-service", "list-membership-key-contacts", "*membershipservice.ListMembershipKeyContactsPayload", v)
 		}
 		if p.BearerToken != nil {
 			head := *p.BearerToken
@@ -364,17 +680,16 @@ func EncodeListMemberMembershipKeyContactsRequest(encoder func(*http.Request) go
 	}
 }
 
-// DecodeListMemberMembershipKeyContactsResponse returns a decoder for
-// responses returned by the membership-service
-// list-member-membership-key-contacts endpoint. restoreBody controls whether
-// the response body should be restored after having been read.
-// DecodeListMemberMembershipKeyContactsResponse may return the following
-// errors:
+// DecodeListMembershipKeyContactsResponse returns a decoder for responses
+// returned by the membership-service list-membership-key-contacts endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeListMembershipKeyContactsResponse may return the following errors:
 //   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
 //   - error: internal error
-func DecodeListMemberMembershipKeyContactsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+func DecodeListMembershipKeyContactsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
 		if restoreBody {
 			b, err := io.ReadAll(resp.Body)
@@ -391,64 +706,922 @@ func DecodeListMemberMembershipKeyContactsResponse(decoder func(*http.Response) 
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var (
-				body ListMemberMembershipKeyContactsResponseBody
+				body ListMembershipKeyContactsResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-membership-key-contacts", err)
 			}
-			err = ValidateListMemberMembershipKeyContactsResponseBody(&body)
+			err = ValidateListMembershipKeyContactsResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-membership-key-contacts", err)
 			}
-			res := NewListMemberMembershipKeyContactsResultOK(&body)
+			res := NewListMembershipKeyContactsResultOK(&body)
 			return res, nil
 		case http.StatusInternalServerError:
 			var (
-				body ListMemberMembershipKeyContactsInternalServerErrorResponseBody
+				body ListMembershipKeyContactsInternalServerErrorResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-membership-key-contacts", err)
 			}
-			err = ValidateListMemberMembershipKeyContactsInternalServerErrorResponseBody(&body)
+			err = ValidateListMembershipKeyContactsInternalServerErrorResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-membership-key-contacts", err)
 			}
-			return nil, NewListMemberMembershipKeyContactsInternalServerError(&body)
+			return nil, NewListMembershipKeyContactsInternalServerError(&body)
 		case http.StatusNotFound:
 			var (
-				body ListMemberMembershipKeyContactsNotFoundResponseBody
+				body ListMembershipKeyContactsNotFoundResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-membership-key-contacts", err)
 			}
-			err = ValidateListMemberMembershipKeyContactsNotFoundResponseBody(&body)
+			err = ValidateListMembershipKeyContactsNotFoundResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-membership-key-contacts", err)
 			}
-			return nil, NewListMemberMembershipKeyContactsNotFound(&body)
+			return nil, NewListMembershipKeyContactsNotFound(&body)
 		case http.StatusServiceUnavailable:
 			var (
-				body ListMemberMembershipKeyContactsServiceUnavailableResponseBody
+				body ListMembershipKeyContactsServiceUnavailableResponseBody
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrDecodingError("membership-service", "list-membership-key-contacts", err)
 			}
-			err = ValidateListMemberMembershipKeyContactsServiceUnavailableResponseBody(&body)
+			err = ValidateListMembershipKeyContactsServiceUnavailableResponseBody(&body)
 			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-member-membership-key-contacts", err)
+				return nil, goahttp.ErrValidationError("membership-service", "list-membership-key-contacts", err)
 			}
-			return nil, NewListMemberMembershipKeyContactsServiceUnavailable(&body)
+			return nil, NewListMembershipKeyContactsServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
-			return nil, goahttp.ErrInvalidResponse("membership-service", "list-member-membership-key-contacts", resp.StatusCode, string(body))
+			return nil, goahttp.ErrInvalidResponse("membership-service", "list-membership-key-contacts", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildCreateMembershipKeyContactRequest instantiates a HTTP request object
+// with method and path set to call the "membership-service" service
+// "create-membership-key-contact" endpoint
+func (c *Client) BuildCreateMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		projectUID string
+		id         string
+	)
+	{
+		p, ok := v.(*membershipservice.CreateMembershipKeyContactPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "create-membership-key-contact", "*membershipservice.CreateMembershipKeyContactPayload", v)
+		}
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
+		}
+		if p.ID != nil {
+			id = *p.ID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateMembershipKeyContactMembershipServicePath(projectUID, id)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "create-membership-key-contact", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeCreateMembershipKeyContactRequest returns an encoder for requests sent
+// to the membership-service create-membership-key-contact server.
+func EncodeCreateMembershipKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.CreateMembershipKeyContactPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "create-membership-key-contact", "*membershipservice.CreateMembershipKeyContactPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewCreateMembershipKeyContactRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("membership-service", "create-membership-key-contact", err)
+		}
+		return nil
+	}
+}
+
+// DecodeCreateMembershipKeyContactResponse returns a decoder for responses
+// returned by the membership-service create-membership-key-contact endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeCreateMembershipKeyContactResponse may return the following errors:
+//   - "BadRequest" (type *membershipservice.BadRequestError): http.StatusBadRequest
+//   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeCreateMembershipKeyContactResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusCreated:
+			var (
+				body CreateMembershipKeyContactResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-membership-key-contact", err)
+			}
+			err = ValidateCreateMembershipKeyContactResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-membership-key-contact", err)
+			}
+			res := NewCreateMembershipKeyContactResultCreated(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body CreateMembershipKeyContactBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-membership-key-contact", err)
+			}
+			err = ValidateCreateMembershipKeyContactBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-membership-key-contact", err)
+			}
+			return nil, NewCreateMembershipKeyContactBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body CreateMembershipKeyContactInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-membership-key-contact", err)
+			}
+			err = ValidateCreateMembershipKeyContactInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-membership-key-contact", err)
+			}
+			return nil, NewCreateMembershipKeyContactInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body CreateMembershipKeyContactNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-membership-key-contact", err)
+			}
+			err = ValidateCreateMembershipKeyContactNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-membership-key-contact", err)
+			}
+			return nil, NewCreateMembershipKeyContactNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body CreateMembershipKeyContactServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-membership-key-contact", err)
+			}
+			err = ValidateCreateMembershipKeyContactServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-membership-key-contact", err)
+			}
+			return nil, NewCreateMembershipKeyContactServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "create-membership-key-contact", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildUpdateMembershipKeyContactRequest instantiates a HTTP request object
+// with method and path set to call the "membership-service" service
+// "update-membership-key-contact" endpoint
+func (c *Client) BuildUpdateMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		projectUID string
+		id         string
+		cid        string
+	)
+	{
+		p, ok := v.(*membershipservice.UpdateMembershipKeyContactPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "update-membership-key-contact", "*membershipservice.UpdateMembershipKeyContactPayload", v)
+		}
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
+		}
+		if p.ID != nil {
+			id = *p.ID
+		}
+		if p.Cid != nil {
+			cid = *p.Cid
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateMembershipKeyContactMembershipServicePath(projectUID, id, cid)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "update-membership-key-contact", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateMembershipKeyContactRequest returns an encoder for requests sent
+// to the membership-service update-membership-key-contact server.
+func EncodeUpdateMembershipKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.UpdateMembershipKeyContactPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "update-membership-key-contact", "*membershipservice.UpdateMembershipKeyContactPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewUpdateMembershipKeyContactRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("membership-service", "update-membership-key-contact", err)
+		}
+		return nil
+	}
+}
+
+// DecodeUpdateMembershipKeyContactResponse returns a decoder for responses
+// returned by the membership-service update-membership-key-contact endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeUpdateMembershipKeyContactResponse may return the following errors:
+//   - "BadRequest" (type *membershipservice.BadRequestError): http.StatusBadRequest
+//   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUpdateMembershipKeyContactResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body UpdateMembershipKeyContactResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-membership-key-contact", err)
+			}
+			err = ValidateUpdateMembershipKeyContactResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-membership-key-contact", err)
+			}
+			res := NewUpdateMembershipKeyContactResultOK(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body UpdateMembershipKeyContactBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-membership-key-contact", err)
+			}
+			err = ValidateUpdateMembershipKeyContactBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-membership-key-contact", err)
+			}
+			return nil, NewUpdateMembershipKeyContactBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UpdateMembershipKeyContactInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-membership-key-contact", err)
+			}
+			err = ValidateUpdateMembershipKeyContactInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-membership-key-contact", err)
+			}
+			return nil, NewUpdateMembershipKeyContactInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body UpdateMembershipKeyContactNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-membership-key-contact", err)
+			}
+			err = ValidateUpdateMembershipKeyContactNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-membership-key-contact", err)
+			}
+			return nil, NewUpdateMembershipKeyContactNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UpdateMembershipKeyContactServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-membership-key-contact", err)
+			}
+			err = ValidateUpdateMembershipKeyContactServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-membership-key-contact", err)
+			}
+			return nil, NewUpdateMembershipKeyContactServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "update-membership-key-contact", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeleteMembershipKeyContactRequest instantiates a HTTP request object
+// with method and path set to call the "membership-service" service
+// "delete-membership-key-contact" endpoint
+func (c *Client) BuildDeleteMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		projectUID string
+		id         string
+		cid        string
+	)
+	{
+		p, ok := v.(*membershipservice.DeleteMembershipKeyContactPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "delete-membership-key-contact", "*membershipservice.DeleteMembershipKeyContactPayload", v)
+		}
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
+		}
+		if p.ID != nil {
+			id = *p.ID
+		}
+		if p.Cid != nil {
+			cid = *p.Cid
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteMembershipKeyContactMembershipServicePath(projectUID, id, cid)}
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "delete-membership-key-contact", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeDeleteMembershipKeyContactRequest returns an encoder for requests sent
+// to the membership-service delete-membership-key-contact server.
+func EncodeDeleteMembershipKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.DeleteMembershipKeyContactPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "delete-membership-key-contact", "*membershipservice.DeleteMembershipKeyContactPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeDeleteMembershipKeyContactResponse returns a decoder for responses
+// returned by the membership-service delete-membership-key-contact endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeDeleteMembershipKeyContactResponse may return the following errors:
+//   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeDeleteMembershipKeyContactResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusNoContent:
+			return nil, nil
+		case http.StatusInternalServerError:
+			var (
+				body DeleteMembershipKeyContactInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-membership-key-contact", err)
+			}
+			err = ValidateDeleteMembershipKeyContactInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-membership-key-contact", err)
+			}
+			return nil, NewDeleteMembershipKeyContactInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body DeleteMembershipKeyContactNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-membership-key-contact", err)
+			}
+			err = ValidateDeleteMembershipKeyContactNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-membership-key-contact", err)
+			}
+			return nil, NewDeleteMembershipKeyContactNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body DeleteMembershipKeyContactServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-membership-key-contact", err)
+			}
+			err = ValidateDeleteMembershipKeyContactServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-membership-key-contact", err)
+			}
+			return nil, NewDeleteMembershipKeyContactServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "delete-membership-key-contact", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildGetMembershipKeyContactRequest instantiates a HTTP request object with
+// method and path set to call the "membership-service" service
+// "get-membership-key-contact" endpoint
+func (c *Client) BuildGetMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		projectUID string
+		id         string
+		cid        string
+	)
+	{
+		p, ok := v.(*membershipservice.GetMembershipKeyContactPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "get-membership-key-contact", "*membershipservice.GetMembershipKeyContactPayload", v)
+		}
+		if p.ProjectUID != nil {
+			projectUID = *p.ProjectUID
+		}
+		if p.ID != nil {
+			id = *p.ID
+		}
+		if p.Cid != nil {
+			cid = *p.Cid
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetMembershipKeyContactMembershipServicePath(projectUID, id, cid)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "get-membership-key-contact", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeGetMembershipKeyContactRequest returns an encoder for requests sent to
+// the membership-service get-membership-key-contact server.
+func EncodeGetMembershipKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.GetMembershipKeyContactPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "get-membership-key-contact", "*membershipservice.GetMembershipKeyContactPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeGetMembershipKeyContactResponse returns a decoder for responses
+// returned by the membership-service get-membership-key-contact endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeGetMembershipKeyContactResponse may return the following errors:
+//   - "InternalServerError" (type *membershipservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *membershipservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *membershipservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeGetMembershipKeyContactResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body GetMembershipKeyContactResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-membership-key-contact", err)
+			}
+			err = ValidateGetMembershipKeyContactResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-membership-key-contact", err)
+			}
+			res := NewGetMembershipKeyContactResultOK(&body)
+			return res, nil
+		case http.StatusInternalServerError:
+			var (
+				body GetMembershipKeyContactInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-membership-key-contact", err)
+			}
+			err = ValidateGetMembershipKeyContactInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-membership-key-contact", err)
+			}
+			return nil, NewGetMembershipKeyContactInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body GetMembershipKeyContactNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-membership-key-contact", err)
+			}
+			err = ValidateGetMembershipKeyContactNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-membership-key-contact", err)
+			}
+			return nil, NewGetMembershipKeyContactNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body GetMembershipKeyContactServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-membership-key-contact", err)
+			}
+			err = ValidateGetMembershipKeyContactServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-membership-key-contact", err)
+			}
+			return nil, NewGetMembershipKeyContactServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "get-membership-key-contact", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeprecatedListMembersRequest instantiates a HTTP request object with
+// method and path set to call the "membership-service" service
+// "deprecated-list-members" endpoint
+func (c *Client) BuildDeprecatedListMembersRequest(ctx context.Context, v any) (*http.Request, error) {
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeprecatedListMembersMembershipServicePath()}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "deprecated-list-members", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeDeprecatedListMembersRequest returns an encoder for requests sent to
+// the membership-service deprecated-list-members server.
+func EncodeDeprecatedListMembersRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.DeprecatedListMembersPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "deprecated-list-members", "*membershipservice.DeprecatedListMembersPayload", v)
+		}
+		values := req.URL.Query()
+		if p.PageSize != nil {
+			values.Add("pageSize", fmt.Sprintf("%v", *p.PageSize))
+		}
+		if p.Offset != nil {
+			values.Add("offset", fmt.Sprintf("%v", *p.Offset))
+		}
+		if p.Filter != nil {
+			values.Add("filter", *p.Filter)
+		}
+		if p.Search != nil {
+			values.Add("search", *p.Search)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeDeprecatedListMembersResponse returns a decoder for responses returned
+// by the membership-service deprecated-list-members endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeDeprecatedListMembersResponse may return the following errors:
+//   - "Gone" (type *membershipservice.GoneError): http.StatusGone
+//   - error: internal error
+func DecodeDeprecatedListMembersResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			return nil, nil
+		case http.StatusGone:
+			var (
+				body DeprecatedListMembersGoneResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "deprecated-list-members", err)
+			}
+			err = ValidateDeprecatedListMembersGoneResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "deprecated-list-members", err)
+			}
+			return nil, NewDeprecatedListMembersGone(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "deprecated-list-members", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeprecatedGetMemberMembershipRequest instantiates a HTTP request object
+// with method and path set to call the "membership-service" service
+// "deprecated-get-member-membership" endpoint
+func (c *Client) BuildDeprecatedGetMemberMembershipRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		memberID string
+		id       string
+	)
+	{
+		p, ok := v.(*membershipservice.DeprecatedGetMemberMembershipPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "deprecated-get-member-membership", "*membershipservice.DeprecatedGetMemberMembershipPayload", v)
+		}
+		if p.MemberID != nil {
+			memberID = *p.MemberID
+		}
+		if p.ID != nil {
+			id = *p.ID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeprecatedGetMemberMembershipMembershipServicePath(memberID, id)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "deprecated-get-member-membership", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// DecodeDeprecatedGetMemberMembershipResponse returns a decoder for responses
+// returned by the membership-service deprecated-get-member-membership
+// endpoint. restoreBody controls whether the response body should be restored
+// after having been read.
+// DecodeDeprecatedGetMemberMembershipResponse may return the following errors:
+//   - "Gone" (type *membershipservice.GoneError): http.StatusGone
+//   - error: internal error
+func DecodeDeprecatedGetMemberMembershipResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			return nil, nil
+		case http.StatusGone:
+			var (
+				body DeprecatedGetMemberMembershipGoneResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "deprecated-get-member-membership", err)
+			}
+			err = ValidateDeprecatedGetMemberMembershipGoneResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "deprecated-get-member-membership", err)
+			}
+			return nil, NewDeprecatedGetMemberMembershipGone(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "deprecated-get-member-membership", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeprecatedListMemberMembershipKeyContactsRequest instantiates a HTTP
+// request object with method and path set to call the "membership-service"
+// service "deprecated-list-member-membership-key-contacts" endpoint
+func (c *Client) BuildDeprecatedListMemberMembershipKeyContactsRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		memberID string
+		id       string
+	)
+	{
+		p, ok := v.(*membershipservice.DeprecatedListMemberMembershipKeyContactsPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "deprecated-list-member-membership-key-contacts", "*membershipservice.DeprecatedListMemberMembershipKeyContactsPayload", v)
+		}
+		if p.MemberID != nil {
+			memberID = *p.MemberID
+		}
+		if p.ID != nil {
+			id = *p.ID
+		}
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeprecatedListMemberMembershipKeyContactsMembershipServicePath(memberID, id)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "deprecated-list-member-membership-key-contacts", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// DecodeDeprecatedListMemberMembershipKeyContactsResponse returns a decoder
+// for responses returned by the membership-service
+// deprecated-list-member-membership-key-contacts endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeDeprecatedListMemberMembershipKeyContactsResponse may return the
+// following errors:
+//   - "Gone" (type *membershipservice.GoneError): http.StatusGone
+//   - error: internal error
+func DecodeDeprecatedListMemberMembershipKeyContactsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			return nil, nil
+		case http.StatusGone:
+			var (
+				body DeprecatedListMemberMembershipKeyContactsGoneResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "deprecated-list-member-membership-key-contacts", err)
+			}
+			err = ValidateDeprecatedListMemberMembershipKeyContactsGoneResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "deprecated-list-member-membership-key-contacts", err)
+			}
+			return nil, NewDeprecatedListMemberMembershipKeyContactsGone(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "deprecated-list-member-membership-key-contacts", resp.StatusCode, string(body))
 		}
 	}
 }
@@ -570,108 +1743,53 @@ func DecodeLivezResponse(decoder func(*http.Response) goahttp.Decoder, restoreBo
 	}
 }
 
-// unmarshalMemberResponseResponseBodyToMembershipserviceMemberResponse builds
-// a value of type *membershipservice.MemberResponse from a value of type
-// *MemberResponseResponseBody.
-func unmarshalMemberResponseResponseBodyToMembershipserviceMemberResponse(v *MemberResponseResponseBody) *membershipservice.MemberResponse {
-	res := &membershipservice.MemberResponse{
-		UID:       v.UID,
-		Name:      v.Name,
-		LogoURL:   v.LogoURL,
-		Website:   v.Website,
-		CreatedAt: v.CreatedAt,
-		UpdatedAt: v.UpdatedAt,
-	}
-	if v.MembershipSummary != nil {
-		res.MembershipSummary = unmarshalMembershipSummaryTypeResponseBodyToMembershipserviceMembershipSummaryType(v.MembershipSummary)
+// unmarshalMembershipTierResponseResponseBodyToMembershipserviceMembershipTierResponse
+// builds a value of type *membershipservice.MembershipTierResponse from a
+// value of type *MembershipTierResponseResponseBody.
+func unmarshalMembershipTierResponseResponseBodyToMembershipserviceMembershipTierResponse(v *MembershipTierResponseResponseBody) *membershipservice.MembershipTierResponse {
+	res := &membershipservice.MembershipTierResponse{
+		UID:         v.UID,
+		ProjectUID:  v.ProjectUID,
+		Name:        v.Name,
+		Family:      v.Family,
+		ProductType: v.ProductType,
+		CreatedAt:   v.CreatedAt,
+		UpdatedAt:   v.UpdatedAt,
 	}
 
 	return res
 }
 
-// unmarshalMembershipSummaryTypeResponseBodyToMembershipserviceMembershipSummaryType
-// builds a value of type *membershipservice.MembershipSummaryType from a value
-// of type *MembershipSummaryTypeResponseBody.
-func unmarshalMembershipSummaryTypeResponseBodyToMembershipserviceMembershipSummaryType(v *MembershipSummaryTypeResponseBody) *membershipservice.MembershipSummaryType {
-	if v == nil {
-		return nil
-	}
-	res := &membershipservice.MembershipSummaryType{
-		ActiveCount: v.ActiveCount,
-		TotalCount:  v.TotalCount,
-	}
-	if v.Memberships != nil {
-		res.Memberships = make([]*membershipservice.MembershipSummaryItemType, len(v.Memberships))
-		for i, val := range v.Memberships {
-			if val == nil {
-				res.Memberships[i] = nil
-				continue
-			}
-			res.Memberships[i] = unmarshalMembershipSummaryItemTypeResponseBodyToMembershipserviceMembershipSummaryItemType(val)
-		}
-	}
-
-	return res
-}
-
-// unmarshalMembershipSummaryItemTypeResponseBodyToMembershipserviceMembershipSummaryItemType
-// builds a value of type *membershipservice.MembershipSummaryItemType from a
-// value of type *MembershipSummaryItemTypeResponseBody.
-func unmarshalMembershipSummaryItemTypeResponseBodyToMembershipserviceMembershipSummaryItemType(v *MembershipSummaryItemTypeResponseBody) *membershipservice.MembershipSummaryItemType {
-	if v == nil {
-		return nil
-	}
-	res := &membershipservice.MembershipSummaryItemType{
-		UID:            v.UID,
-		Name:           v.Name,
-		Status:         v.Status,
-		Year:           v.Year,
-		Tier:           v.Tier,
-		MembershipType: v.MembershipType,
-		AutoRenew:      v.AutoRenew,
-		StartDate:      v.StartDate,
-		EndDate:        v.EndDate,
-	}
-	if v.Product != nil {
-		res.Product = unmarshalProductTypeResponseBodyToMembershipserviceProductType(v.Product)
-	}
-	if v.Project != nil {
-		res.Project = unmarshalProjectTypeResponseBodyToMembershipserviceProjectType(v.Project)
-	}
-
-	return res
-}
-
-// unmarshalProductTypeResponseBodyToMembershipserviceProductType builds a
-// value of type *membershipservice.ProductType from a value of type
-// *ProductTypeResponseBody.
-func unmarshalProductTypeResponseBodyToMembershipserviceProductType(v *ProductTypeResponseBody) *membershipservice.ProductType {
-	if v == nil {
-		return nil
-	}
-	res := &membershipservice.ProductType{
-		ID:     v.ID,
-		Name:   v.Name,
-		Family: v.Family,
-		Type:   v.Type,
-	}
-
-	return res
-}
-
-// unmarshalProjectTypeResponseBodyToMembershipserviceProjectType builds a
-// value of type *membershipservice.ProjectType from a value of type
-// *ProjectTypeResponseBody.
-func unmarshalProjectTypeResponseBodyToMembershipserviceProjectType(v *ProjectTypeResponseBody) *membershipservice.ProjectType {
-	if v == nil {
-		return nil
-	}
-	res := &membershipservice.ProjectType{
-		ID:      v.ID,
-		Name:    v.Name,
-		LogoURL: v.LogoURL,
-		Slug:    v.Slug,
-		Status:  v.Status,
+// unmarshalProjectMembershipResponseResponseBodyToMembershipserviceProjectMembershipResponse
+// builds a value of type *membershipservice.ProjectMembershipResponse from a
+// value of type *ProjectMembershipResponseResponseBody.
+func unmarshalProjectMembershipResponseResponseBodyToMembershipserviceProjectMembershipResponse(v *ProjectMembershipResponseResponseBody) *membershipservice.ProjectMembershipResponse {
+	res := &membershipservice.ProjectMembershipResponse{
+		UID:              v.UID,
+		TierUID:          v.TierUID,
+		ProjectUID:       v.ProjectUID,
+		Status:           v.Status,
+		Year:             v.Year,
+		Tier:             v.Tier,
+		MembershipType:   v.MembershipType,
+		AutoRenew:        v.AutoRenew,
+		RenewalType:      v.RenewalType,
+		Price:            v.Price,
+		AnnualFullPrice:  v.AnnualFullPrice,
+		PaymentFrequency: v.PaymentFrequency,
+		PaymentTerms:     v.PaymentTerms,
+		AgreementDate:    v.AgreementDate,
+		PurchaseDate:     v.PurchaseDate,
+		StartDate:        v.StartDate,
+		EndDate:          v.EndDate,
+		CompanyName:      v.CompanyName,
+		CompanyLogoURL:   v.CompanyLogoURL,
+		CompanyDomain:    v.CompanyDomain,
+		TierName:         v.TierName,
+		TierFamily:       v.TierFamily,
+		TierProductType:  v.TierProductType,
+		CreatedAt:        v.CreatedAt,
+		UpdatedAt:        v.UpdatedAt,
 	}
 
 	return res
@@ -682,88 +1800,35 @@ func unmarshalProjectTypeResponseBodyToMembershipserviceProjectType(v *ProjectTy
 // *ListMetadataResponseBody.
 func unmarshalListMetadataResponseBodyToMembershipserviceListMetadata(v *ListMetadataResponseBody) *membershipservice.ListMetadata {
 	res := &membershipservice.ListMetadata{
-		TotalSize: *v.TotalSize,
-		PageSize:  *v.PageSize,
-		Offset:    *v.Offset,
+		TotalSize:     v.TotalSize,
+		NextPageToken: v.NextPageToken,
 	}
 
 	return res
 }
 
-// unmarshalAccountTypeResponseBodyToMembershipserviceAccountType builds a
-// value of type *membershipservice.AccountType from a value of type
-// *AccountTypeResponseBody.
-func unmarshalAccountTypeResponseBodyToMembershipserviceAccountType(v *AccountTypeResponseBody) *membershipservice.AccountType {
-	if v == nil {
-		return nil
-	}
-	res := &membershipservice.AccountType{
-		ID:      v.ID,
-		Name:    v.Name,
-		LogoURL: v.LogoURL,
-		Website: v.Website,
-	}
-
-	return res
-}
-
-// unmarshalContactTypeResponseBodyToMembershipserviceContactType builds a
-// value of type *membershipservice.ContactType from a value of type
-// *ContactTypeResponseBody.
-func unmarshalContactTypeResponseBodyToMembershipserviceContactType(v *ContactTypeResponseBody) *membershipservice.ContactType {
-	if v == nil {
-		return nil
-	}
-	res := &membershipservice.ContactType{
-		ID:        v.ID,
-		FirstName: v.FirstName,
-		LastName:  v.LastName,
-		Email:     v.Email,
-		Title:     v.Title,
-	}
-
-	return res
-}
-
-// unmarshalKeyContactResponseResponseBodyToMembershipserviceKeyContactResponse
-// builds a value of type *membershipservice.KeyContactResponse from a value of
-// type *KeyContactResponseResponseBody.
-func unmarshalKeyContactResponseResponseBodyToMembershipserviceKeyContactResponse(v *KeyContactResponseResponseBody) *membershipservice.KeyContactResponse {
-	res := &membershipservice.KeyContactResponse{
+// unmarshalProjectKeyContactResponseResponseBodyToMembershipserviceProjectKeyContactResponse
+// builds a value of type *membershipservice.ProjectKeyContactResponse from a
+// value of type *ProjectKeyContactResponseResponseBody.
+func unmarshalProjectKeyContactResponseResponseBodyToMembershipserviceProjectKeyContactResponse(v *ProjectKeyContactResponseResponseBody) *membershipservice.ProjectKeyContactResponse {
+	res := &membershipservice.ProjectKeyContactResponse{
 		UID:            v.UID,
 		MembershipUID:  v.MembershipUID,
+		TierUID:        v.TierUID,
+		ProjectUID:     v.ProjectUID,
 		Role:           v.Role,
 		Status:         v.Status,
 		BoardMember:    v.BoardMember,
 		PrimaryContact: v.PrimaryContact,
+		FirstName:      v.FirstName,
+		LastName:       v.LastName,
+		Title:          v.Title,
+		Email:          v.Email,
+		CompanyName:    v.CompanyName,
+		CompanyLogoURL: v.CompanyLogoURL,
+		CompanyDomain:  v.CompanyDomain,
 		CreatedAt:      v.CreatedAt,
 		UpdatedAt:      v.UpdatedAt,
-	}
-	if v.Contact != nil {
-		res.Contact = unmarshalContactTypeResponseBodyToMembershipserviceContactType(v.Contact)
-	}
-	if v.Project != nil {
-		res.Project = unmarshalProjectTypeResponseBodyToMembershipserviceProjectType(v.Project)
-	}
-	if v.Organization != nil {
-		res.Organization = unmarshalOrganizationTypeResponseBodyToMembershipserviceOrganizationType(v.Organization)
-	}
-
-	return res
-}
-
-// unmarshalOrganizationTypeResponseBodyToMembershipserviceOrganizationType
-// builds a value of type *membershipservice.OrganizationType from a value of
-// type *OrganizationTypeResponseBody.
-func unmarshalOrganizationTypeResponseBodyToMembershipserviceOrganizationType(v *OrganizationTypeResponseBody) *membershipservice.OrganizationType {
-	if v == nil {
-		return nil
-	}
-	res := &membershipservice.OrganizationType{
-		ID:      v.ID,
-		Name:    v.Name,
-		LogoURL: v.LogoURL,
-		Website: v.Website,
 	}
 
 	return res

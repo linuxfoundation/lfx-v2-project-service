@@ -1,0 +1,288 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
+package salesforce
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	sf "github.com/k-capehart/go-salesforce/v3"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
+)
+
+// primaryEmailSOQL fetches primary alternate email addresses for a set of
+// contact IDs. The caller must substitute a buildSOQLInClause result for the
+// %s placeholder.
+const primaryEmailSOQL = `
+SELECT Contact_ID__c, Alternate_Email_Address__c
+FROM Alternate_Email__c
+WHERE Contact_ID__c IN (%s)
+    AND Primary_Email__c = true
+`
+
+// keyContactsByAssetSOQL fetches Project_Role__c records for a specific Asset
+// (membership). Used for single-membership key contact lookups. The caller must
+// substitute a quoteSOQL-escaped ID for the %s placeholder.
+//
+// Account fields are pulled via the Asset relationship (Asset__r.Account) so
+// that company data matches the membership record rather than the contact's
+// own account.
+const keyContactsByAssetSOQL = `
+SELECT
+    Id, Asset__c, Contact__c, Role__c, Status__c,
+    BoardMember__c, PrimaryContact__c,
+    CreatedDate, SystemModstamp,
+    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title,
+    Asset__r.Id, Asset__r.AccountId, Asset__r.Projects__c,
+    Asset__r.Account.Id, Asset__r.Account.Name,
+    Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
+    Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
+    Asset__r.Projects__r.Slug__c
+FROM Project_Role__c
+WHERE Asset__c = %s
+    AND IsDeleted = false
+`
+
+// keyContactByIDSOQL fetches a single Project_Role__c record by its Salesforce
+// ID. The caller must substitute a quoteSOQL-escaped ID for the %s placeholder.
+const keyContactByIDSOQL = `
+SELECT
+    Id, Asset__c, Contact__c, Role__c, Status__c,
+    BoardMember__c, PrimaryContact__c,
+    CreatedDate, SystemModstamp,
+    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title,
+    Asset__r.Id, Asset__r.AccountId, Asset__r.Projects__c,
+    Asset__r.Account.Id, Asset__r.Account.Name,
+    Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
+    Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
+    Asset__r.Projects__r.Slug__c
+FROM Project_Role__c
+WHERE Id = %s
+    AND IsDeleted = false
+`
+
+// KeyContactRepo handles Salesforce SOQL queries for key contacts
+// (Project_Role__c records).
+type KeyContactRepo struct {
+	client *sf.Salesforce
+}
+
+// NewKeyContactRepo creates a new KeyContactRepo backed by the given Salesforce
+// client.
+func NewKeyContactRepo(client *sf.Salesforce) *KeyContactRepo {
+	return &KeyContactRepo{client: client}
+}
+
+// FetchKeyContactsByAssetSFID fetches all key contacts for a specific Asset
+// (membership) by its Salesforce ID, returning ProjectKeyContact domain objects
+// with inline Contact and Account fields.
+func (r *KeyContactRepo) FetchKeyContactsByAssetSFID(ctx context.Context, assetSFID string) ([]*model.ProjectKeyContact, error) {
+	slog.DebugContext(ctx, "fetching key contacts for asset from Salesforce",
+		"asset_sfid", assetSFID,
+	)
+
+	var roles []soqlProjectRole
+	if err := r.client.Query(fmt.Sprintf(keyContactsByAssetSOQL, quoteSOQL(assetSFID)), &roles); err != nil {
+		return nil, fmt.Errorf("fetching key contacts for asset %s: %w", assetSFID, err)
+	}
+
+	contactIDs := collectProjectRoleContactIDs(roles)
+
+	emailMap, err := r.fetchPrimaryEmails(ctx, contactIDs)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to fetch primary emails for asset key contacts",
+			"error", err,
+		)
+		emailMap = make(map[string]string)
+	}
+
+	contacts := make([]*model.ProjectKeyContact, 0, len(roles))
+	for _, role := range roles {
+		c, convertErr := convertSOQLToProjectKeyContact(role, emailMap)
+		if convertErr != nil {
+			slog.WarnContext(ctx, "skipping key contact with invalid SFID",
+				"sfid", role.ID,
+				"error", convertErr,
+			)
+			continue
+		}
+		contacts = append(contacts, c)
+	}
+
+	return contacts, nil
+}
+
+// FetchKeyContactBySFID fetches a single key contact by its Salesforce
+// Project_Role__c ID. Returns nil if the record is not found.
+func (r *KeyContactRepo) FetchKeyContactBySFID(ctx context.Context, sfid string) (*model.ProjectKeyContact, error) {
+	slog.DebugContext(ctx, "fetching key contact from Salesforce by SFID", "sfid", sfid)
+
+	var roles []soqlProjectRole
+	if err := r.client.Query(fmt.Sprintf(keyContactByIDSOQL, quoteSOQL(sfid)), &roles); err != nil {
+		return nil, fmt.Errorf("fetching key contact by SFID %s: %w", sfid, err)
+	}
+
+	if len(roles) == 0 {
+		return nil, nil
+	}
+
+	// Fetch primary email for the single contact on this role record.
+	emailMap := make(map[string]string)
+	if roles[0].Contact != nil && roles[0].Contact.ID != "" {
+		em, emailErr := r.fetchPrimaryEmails(ctx, []string{roles[0].Contact.ID})
+		if emailErr != nil {
+			slog.WarnContext(ctx, "failed to fetch primary email for key contact",
+				"error", emailErr,
+			)
+		} else {
+			emailMap = em
+		}
+	}
+
+	return convertSOQLToProjectKeyContact(roles[0], emailMap)
+}
+
+// fetchPrimaryEmails fetches the primary alternate email address for each of the
+// given contact IDs. Returns a map of contactID → email address. Requests are
+// automatically batched to stay within SOQL IN-clause limits.
+func (r *KeyContactRepo) fetchPrimaryEmails(ctx context.Context, contactIDs []string) (map[string]string, error) {
+	if len(contactIDs) == 0 {
+		return make(map[string]string), nil
+	}
+
+	const batchSize = 200
+	emailMap := make(map[string]string, len(contactIDs))
+
+	for i := 0; i < len(contactIDs); i += batchSize {
+		end := i + batchSize
+		if end > len(contactIDs) {
+			end = len(contactIDs)
+		}
+		batch := contactIDs[i:end]
+
+		inClause := buildSOQLInClause(batch)
+		soql := fmt.Sprintf(primaryEmailSOQL, inClause)
+
+		var emails []soqlAlternateEmail
+		if err := r.client.Query(soql, &emails); err != nil {
+			return nil, fmt.Errorf("fetching primary emails (batch %d-%d): %w", i, end, err)
+		}
+
+		for _, e := range emails {
+			emailMap[e.ContactID] = e.Email
+		}
+	}
+
+	return emailMap, nil
+}
+
+// convertSOQLToProjectKeyContact converts a Salesforce Project_Role__c SOQL
+// result to the domain ProjectKeyContact model. Contact and company (Account)
+// attributes are inlined directly onto the struct — no sub-objects are used.
+// Company data is sourced from the Asset's Account (Asset__r.Account) so that
+// it is consistent with the associated ProjectMembership record.
+func convertSOQLToProjectKeyContact(role soqlProjectRole, emailMap map[string]string) (*model.ProjectKeyContact, error) {
+	contactUID, err := sfuuid.ToUUID(role.ID)
+	if err != nil {
+		return nil, fmt.Errorf("converting project role SFID %q to UUID: %w", role.ID, err)
+	}
+
+	membershipUID, err := sfuuid.ToUUID(role.AssetID)
+	if err != nil {
+		return nil, fmt.Errorf("converting asset SFID %q to UUID: %w", role.AssetID, err)
+	}
+
+	c := &model.ProjectKeyContact{
+		UID:            contactUID,
+		MembershipUID:  membershipUID,
+		Role:           derefString(role.Role),
+		Status:         derefString(role.Status),
+		BoardMember:    role.BoardMember,
+		PrimaryContact: role.PrimaryContact,
+	}
+
+	// Derive TierUID from the Product2 SFID stored on the Asset relationship.
+	// The Asset carries Product2Id but the SOQL projection here only returns the
+	// Asset FK fields; TierUID is left empty when the relationship is absent and
+	// can be populated by a caller that cross-references the membership record.
+	if role.Asset != nil {
+		if role.Asset.Product2ID != "" {
+			tierUID, tierErr := sfuuid.ToUUID(role.Asset.Product2ID)
+			if tierErr == nil {
+				c.TierUID = tierUID
+			}
+		}
+
+		// Company (Account) fields — sourced from the Asset's Account so the
+		// data is consistent with the associated ProjectMembership.
+		if role.Asset.Account != nil {
+			c.CompanyName = role.Asset.Account.Name
+			c.CompanyLogoURL = derefString(role.Asset.Account.LogoURL)
+			c.CompanyDomain = derefString(role.Asset.Account.Website)
+		}
+
+		// Populate ProjectSlug (and ProjectUID when available) from the
+		// Projects__r relationship. Both fields are now decoded correctly via
+		// salesforce tags.
+		if role.Asset.Project != nil {
+			c.ProjectSlug = derefString(role.Asset.Project.Slug)
+		}
+	}
+
+	// Inline Contact fields (Contact__r).
+	if role.Contact != nil {
+		c.FirstName = derefString(role.Contact.FirstName)
+		c.LastName = derefString(role.Contact.LastName)
+		c.Title = derefString(role.Contact.Title)
+
+		// Resolve primary email from the email map.
+		if role.Contact.ID != "" {
+			if email, ok := emailMap[role.Contact.ID]; ok {
+				c.Email = email
+			}
+		}
+	}
+
+	// Timestamps.
+	c.CreatedAt = parseSOQLTime(role.CreatedDate)
+	c.UpdatedAt = parseSOQLTime(role.SystemModstamp)
+
+	if c.UpdatedAt.IsZero() {
+		c.UpdatedAt = c.CreatedAt
+	}
+	if c.CreatedAt.IsZero() {
+		c.CreatedAt = time.Now()
+	}
+
+	return c, nil
+}
+
+// collectProjectRoleContactIDs extracts unique non-empty contact IDs from a
+// slice of SOQL Project_Role__c records.
+func collectProjectRoleContactIDs(roles []soqlProjectRole) []string {
+	seen := make(map[string]struct{}, len(roles))
+	var ids []string
+
+	for _, r := range roles {
+		cid := ""
+		if r.Contact != nil {
+			cid = r.Contact.ID
+		} else if r.ContactID != nil {
+			cid = *r.ContactID
+		}
+		if cid == "" {
+			continue
+		}
+		if _, ok := seen[cid]; ok {
+			continue
+		}
+		seen[cid] = struct{}{}
+		ids = append(ids, cid)
+	}
+
+	return ids
+}
