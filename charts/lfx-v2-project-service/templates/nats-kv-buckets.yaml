@@ -13,6 +13,7 @@ metadata:
   {{- end }}
 spec:
   bucket: {{ .Values.nats.kv_bucket_project_base.name }}
+  replicas: {{ .Values.nats.kv_bucket_project_base.replicas }}
   history: {{ .Values.nats.kv_bucket_project_base.history }}
   storage: {{ .Values.nats.kv_bucket_project_base.storage }}
   maxValueSize: {{ .Values.nats.kv_bucket_project_base.maxValueSize }}
@@ -32,6 +33,7 @@ metadata:
   {{- end }}
 spec:
   bucket: {{ .Values.nats.kv_bucket_project_settings.name }}
+  replicas: {{ .Values.nats.kv_bucket_project_settings.replicas }}
   history: {{ .Values.nats.kv_bucket_project_settings.history }}
   storage: {{ .Values.nats.kv_bucket_project_settings.storage }}
   maxValueSize: {{ .Values.nats.kv_bucket_project_settings.maxValueSize }}
