@@ -35,6 +35,43 @@ spec:
               value: {{ .Values.app.audience }}
             - name: JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL
               value: {{ .Values.app.jwtAuthDisabledMockLocalPrincipal }}
+            - name: SF_INSTANCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.salesforce.secrets.name }}
+                  key: {{ .Values.salesforce.secrets.keys.instanceURL }}
+            - name: SF_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.salesforce.secrets.name }}
+                  key: {{ .Values.salesforce.secrets.keys.clientID }}
+            - name: SF_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.salesforce.secrets.name }}
+                  key: {{ .Values.salesforce.secrets.keys.clientSecret }}
+            - name: SF_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.salesforce.secrets.name }}
+                  key: {{ .Values.salesforce.secrets.keys.username }}
+            - name: SF_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.salesforce.secrets.name }}
+                  key: {{ .Values.salesforce.secrets.keys.password }}
+            - name: SF_SECURITY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.salesforce.secrets.name }}
+                  key: {{ .Values.salesforce.secrets.keys.securityToken }}
+                  optional: true
+            - name: SF_CONSUMER_RSA_PEM
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.salesforce.secrets.name }}
+                  key: {{ .Values.salesforce.secrets.keys.consumerRSAPem }}
+                  optional: true
             {{- with .Values.app.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

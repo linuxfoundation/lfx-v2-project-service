@@ -1,6 +1,7 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
+// Package mock provides mock implementations of domain ports for testing.
 package mock
 
 import (
@@ -15,29 +16,46 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 )
 
-// MockMembershipRepository provides a mock implementation for testing
+// MockMembershipRepository provides a mock implementation of port.MemberReader
+// for testing. Data is stored in-memory and pre-seeded with sample records.
 type MockMembershipRepository struct {
-	members     map[string]*model.Member
-	memberships map[string]*model.Membership
-	contacts    map[string]*model.KeyContact
+	tiers       map[string]*model.MembershipTier
+	memberships map[string]*model.ProjectMembership
+	contacts    map[string]*model.ProjectKeyContact
 	mu          sync.RWMutex
 }
 
-// NewMockMembershipRepository creates a new mock repository with sample data
+// NewMockMembershipRepository creates a new mock repository pre-seeded with
+// sample data covering a single project, one tier, one membership, and one key
+// contact.
 func NewMockMembershipRepository() *MockMembershipRepository {
 	now := time.Now()
 
 	mock := &MockMembershipRepository{
-		members:     make(map[string]*model.Member),
-		memberships: make(map[string]*model.Membership),
-		contacts:    make(map[string]*model.KeyContact),
+		tiers:       make(map[string]*model.MembershipTier),
+		memberships: make(map[string]*model.ProjectMembership),
+		contacts:    make(map[string]*model.ProjectKeyContact),
 	}
 
-	// Add sample membership
-	sampleMembership := &model.Membership{
+	// Sample tier (Product2).
+	sampleTier := &model.MembershipTier{
+		UID:         "tier-1",
+		ProjectUID:  "project-uid-1",
+		ProjectSlug: "linux-foundation",
+		Name:        "Gold Membership",
+		Family:      "Membership",
+		ProductType: "Corporate",
+		CreatedAt:   now.Add(-48 * time.Hour),
+		UpdatedAt:   now,
+	}
+	mock.tiers[sampleTier.UID] = sampleTier
+
+	// Sample membership (Asset).
+	sampleMembership := &model.ProjectMembership{
 		UID:              "membership-1",
-		MemberUID:        "member-1",
-		Name:             "Gold Membership - Example Corp",
+		TierUID:          "tier-1",
+		ProjectUID:       "project-uid-1",
+		ProjectSlug:      "linux-foundation",
 		Status:           "Active",
 		Year:             "2025",
 		Tier:             "Gold",
@@ -49,270 +67,221 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 		PaymentFrequency: "Annual",
 		StartDate:        "2025-01-01T00:00:00Z",
 		EndDate:          "2025-12-31T23:59:59Z",
-		Account: model.Account{
-			ID:   "account-1",
-			Name: "Example Corp",
-		},
-		Contact: model.Contact{
-			ID:        "contact-1",
-			FirstName: "John",
-			LastName:  "Doe",
-			Email:     "john.doe@example.com",
-		},
-		Product: model.Product{
-			ID:     "product-1",
-			Name:   "Gold Membership",
-			Family: "Membership",
-		},
-		Project: model.Project{
-			ID:   "project-1",
-			Name: "Linux Foundation",
-			Slug: "linux-foundation",
-		},
-		CreatedAt: now.Add(-24 * time.Hour),
-		UpdatedAt: now,
+		CompanyName:      "Example Corp",
+		CompanyLogoURL:   "https://example.com/logo.png",
+		CompanyDomain:    "https://example.com",
+		TierName:         "Gold Membership",
+		TierFamily:       "Membership",
+		TierProductType:  "Corporate",
+		CreatedAt:        now.Add(-24 * time.Hour),
+		UpdatedAt:        now,
 	}
 	mock.memberships[sampleMembership.UID] = sampleMembership
 
-	// Add sample member
-	sampleMember := &model.Member{
-		UID:     "member-1",
-		Name:    "Example Corp",
-		LogoURL: "https://example.com/logo.png",
-		Website: "https://example.com",
-		SFIDs:   []string{"account-1"},
-		MembershipSummary: &model.MembershipSummary{
-			ActiveCount: 1,
-			TotalCount:  1,
-			Memberships: []model.MembershipSummaryItem{
-				{
-					UID:            "membership-1",
-					Name:           "Gold Membership - Example Corp",
-					Status:         "Active",
-					Year:           "2025",
-					Tier:           "Gold",
-					MembershipType: "Corporate",
-					AutoRenew:      true,
-					StartDate:      "2025-01-01T00:00:00Z",
-					EndDate:        "2025-12-31T23:59:59Z",
-					Product: model.Product{
-						ID:   "product-1",
-						Name: "Gold Membership",
-					},
-					Project: model.Project{
-						ID:   "project-1",
-						Name: "Linux Foundation",
-						Slug: "linux-foundation",
-					},
-				},
-			},
-		},
-		CreatedAt: now.Add(-24 * time.Hour),
-		UpdatedAt: now,
-	}
-	mock.members[sampleMember.UID] = sampleMember
-
-	// Add sample contact
-	sampleContact := &model.KeyContact{
+	// Sample key contact (Project_Role__c).
+	sampleContact := &model.ProjectKeyContact{
 		UID:            "contact-role-1",
 		MembershipUID:  "membership-1",
+		TierUID:        "tier-1",
+		ProjectUID:     "project-uid-1",
+		ProjectSlug:    "linux-foundation",
 		Role:           "Primary Contact",
 		Status:         "Active",
 		BoardMember:    false,
 		PrimaryContact: true,
-		Contact: model.Contact{
-			ID:        "contact-1",
-			FirstName: "John",
-			LastName:  "Doe",
-			Email:     "john.doe@example.com",
-			Title:     "CTO",
-		},
-		Project: model.Project{
-			ID:   "project-1",
-			Name: "Linux Foundation",
-			Slug: "linux-foundation",
-		},
-		Organization: model.Organization{
-			ID:   "account-1",
-			Name: "Example Corp",
-		},
-		CreatedAt: now.Add(-24 * time.Hour),
-		UpdatedAt: now,
+		FirstName:      "John",
+		LastName:       "Doe",
+		Title:          "CTO",
+		Email:          "john.doe@example.com",
+		CompanyName:    "Example Corp",
+		CompanyLogoURL: "https://example.com/logo.png",
+		CompanyDomain:  "https://example.com",
+		CreatedAt:      now.Add(-24 * time.Hour),
+		UpdatedAt:      now,
 	}
 	mock.contacts[sampleContact.UID] = sampleContact
 
 	return mock
 }
 
-// GetMember retrieves a member by UID
-func (m *MockMembershipRepository) GetMember(ctx context.Context, uid string) (*model.Member, uint64, error) {
-	slog.DebugContext(ctx, "mock: getting member", "uid", uid)
+// ListTiersForProject returns all MembershipTier records whose ProjectUID matches
+// the given v2 project UID.
+func (m *MockMembershipRepository) ListTiersForProject(ctx context.Context, projectUID string) ([]*model.MembershipTier, error) {
+	slog.DebugContext(ctx, "mock: listing tiers for project", "project_uid", projectUID)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	member, exists := m.members[uid]
-	if !exists {
-		return nil, 0, errors.NewNotFound(fmt.Sprintf("member with UID %s not found", uid))
-	}
-
-	return member, 1, nil
-}
-
-// ListMembers retrieves members with pagination, filtering, and search
-func (m *MockMembershipRepository) ListMembers(ctx context.Context, params model.ListParams) ([]*model.Member, int, error) {
-	slog.DebugContext(ctx, "mock: listing members")
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	var all []*model.Member
-	for _, member := range m.members {
-		if matchesMockMemberFilters(member, params.Filters, params.Search) {
-			all = append(all, member)
+	var result []*model.MembershipTier
+	for _, t := range m.tiers {
+		if t.ProjectUID == projectUID {
+			result = append(result, t)
 		}
 	}
 
-	totalSize := len(all)
-
-	start := params.Offset
-	if start > totalSize {
-		start = totalSize
-	}
-	end := start + params.PageSize
-	if end > totalSize {
-		end = totalSize
-	}
-
-	return all[start:end], totalSize, nil
+	return result, nil
 }
 
-// GetMembershipForMember retrieves a membership and verifies it belongs to the member
-func (m *MockMembershipRepository) GetMembershipForMember(ctx context.Context, memberUID, membershipUID string) (*model.Membership, uint64, error) {
-	slog.DebugContext(ctx, "mock: getting membership for member", "member_uid", memberUID, "membership_uid", membershipUID)
+// GetTier returns the MembershipTier identified by tierUID.
+func (m *MockMembershipRepository) GetTier(ctx context.Context, tierUID string) (*model.MembershipTier, error) {
+	slog.DebugContext(ctx, "mock: getting tier", "uid", tierUID)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	membership, exists := m.memberships[membershipUID]
+	tier, exists := m.tiers[tierUID]
 	if !exists {
-		return nil, 0, errors.NewNotFound(fmt.Sprintf("membership with UID %s not found", membershipUID))
+		return nil, errors.NewNotFound(fmt.Sprintf("tier with UID %s not found", tierUID))
 	}
 
-	if membership.MemberUID != memberUID {
-		return nil, 0, errors.NewNotFound(fmt.Sprintf("membership %s not found for member %s", membershipUID, memberUID))
-	}
-
-	return membership, 1, nil
+	return tier, nil
 }
 
-// ListKeyContactsForMembership retrieves key contacts for a membership under a member
-func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Context, memberUID, membershipUID string) ([]*model.KeyContact, error) {
-	slog.DebugContext(ctx, "mock: listing key contacts for membership", "member_uid", memberUID, "membership_uid", membershipUID)
-
-	// Verify membership belongs to member
-	_, _, err := m.GetMembershipForMember(ctx, memberUID, membershipUID)
-	if err != nil {
-		return nil, err
-	}
+// ListMembershipsForProject returns a MembershipPage of ProjectMembership
+// records whose ProjectUID matches the given v2 project UID, filtered
+// in-memory by the supplied MembershipFilters predicates.
+//
+// The mock does not implement real cursor-based pagination — pageSize and
+// PageToken are accepted but only pageSize is applied as a simple slice cap.
+// SortOrder is applied in-memory: name→alpha by CompanyName,
+// newest→CreatedAt desc, last_modified→UpdatedAt desc.
+func (m *MockMembershipRepository) ListMembershipsForProject(ctx context.Context, projectUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
+	slog.DebugContext(ctx, "mock: listing memberships for project",
+		"project_uid", projectUID,
+		"filter_tier_uid", filters.TierUID,
+		"sort_order", filters.EffectiveSortOrder(),
+		"page_size", pageSize,
+	)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var contacts []*model.KeyContact
-	for _, contact := range m.contacts {
-		if contact.MembershipUID == membershipUID {
-			contacts = append(contacts, contact)
+	filterMap := make(map[string]string)
+	// TierUID is a SOQL-level filter; approximate in-memory by matching the
+	// TierUID field directly on the membership record.
+	if filters.TierUID != "" {
+		filterMap["tier_uid"] = filters.TierUID
+	}
+	// Status is not exposed as a filter — hardcoded to active members only,
+	// mirroring the hardcoded AND Status = 'Active' in the SOQL base query.
+	filterMap["status"] = "Active"
+
+	var result []*model.ProjectMembership
+	for _, ms := range m.memberships {
+		if ms.ProjectUID == projectUID && matchesMockMemberFilters(ms, filterMap, "") {
+			result = append(result, ms)
 		}
 	}
 
-	return contacts, nil
+	// Apply in-memory sort to mirror SOQL ORDER BY behaviour.
+	sortMockMemberships(result, filters.EffectiveSortOrder())
+
+	// Apply a simple page cap (no real cursor support in the mock).
+	if pageSize > 0 && len(result) > pageSize {
+		result = result[:pageSize]
+	}
+
+	return model.MembershipPage{
+		Memberships:   result,
+		NextPageToken: "", // mock never paginates
+		TotalSize:     len(result),
+	}, nil
 }
 
-// GetMembership retrieves a membership by UID
-func (m *MockMembershipRepository) GetMembership(ctx context.Context, uid string) (*model.Membership, uint64, error) {
-	slog.DebugContext(ctx, "mock: getting membership", "uid", uid)
+// GetMembership returns the ProjectMembership identified by membershipUID.
+func (m *MockMembershipRepository) GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error) {
+	slog.DebugContext(ctx, "mock: getting membership", "uid", membershipUID)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	membership, exists := m.memberships[uid]
+	ms, exists := m.memberships[membershipUID]
 	if !exists {
-		return nil, 0, errors.NewNotFound(fmt.Sprintf("membership with UID %s not found", uid))
+		return nil, errors.NewNotFound(fmt.Sprintf("membership with UID %s not found", membershipUID))
 	}
 
-	return membership, 1, nil
+	return ms, nil
 }
 
-// ListMemberships retrieves memberships with pagination and filtering
-func (m *MockMembershipRepository) ListMemberships(ctx context.Context, params model.ListParams) ([]*model.Membership, int, error) {
-	slog.DebugContext(ctx, "mock: listing memberships")
+// ListKeyContactsForMembership returns all ProjectKeyContact records whose
+// MembershipUID matches the given membership UID.
+func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error) {
+	slog.DebugContext(ctx, "mock: listing key contacts for membership", "membership_uid", membershipUID)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var all []*model.Membership
-	for _, membership := range m.memberships {
-		all = append(all, membership)
-	}
-
-	totalSize := len(all)
-
-	start := params.Offset
-	if start > totalSize {
-		start = totalSize
-	}
-	end := start + params.PageSize
-	if end > totalSize {
-		end = totalSize
-	}
-
-	return all[start:end], totalSize, nil
-}
-
-// ListKeyContacts retrieves key contacts for a membership
-func (m *MockMembershipRepository) ListKeyContacts(ctx context.Context, membershipUID string) ([]*model.KeyContact, error) {
-	slog.DebugContext(ctx, "mock: listing key contacts", "membership_uid", membershipUID)
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	var contacts []*model.KeyContact
-	for _, contact := range m.contacts {
-		if contact.MembershipUID == membershipUID {
-			contacts = append(contacts, contact)
+	var result []*model.ProjectKeyContact
+	for _, c := range m.contacts {
+		if c.MembershipUID == membershipUID {
+			result = append(result, c)
 		}
 	}
 
-	return contacts, nil
+	return result, nil
 }
 
-// WriteProjectAliasLookups is a no-op for mock
-func (m *MockMembershipRepository) WriteProjectAliasLookups(_ context.Context, _, _, _ string) error {
+// GetKeyContact returns the ProjectKeyContact identified by keyContactUID.
+func (m *MockMembershipRepository) GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error) {
+	slog.DebugContext(ctx, "mock: getting key contact", "uid", keyContactUID)
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	c, exists := m.contacts[keyContactUID]
+	if !exists {
+		return nil, errors.NewNotFound(fmt.Sprintf("key contact with UID %s not found", keyContactUID))
+	}
+
+	return c, nil
+}
+
+// IsReady always returns nil for mock implementations.
+func (m *MockMembershipRepository) IsReady(_ context.Context) error {
 	return nil
 }
 
-// IsReady always returns nil for mock
-func (m *MockMembershipRepository) IsReady(ctx context.Context) error {
-	return nil
-}
-
-// matchesMockMemberFilters checks if a member matches filters and search for mock
-func matchesMockMemberFilters(member *model.Member, filters map[string]string, search string) bool {
-	if search != "" {
-		searchLower := strings.ToLower(search)
-		found := strings.Contains(strings.ToLower(member.Name), searchLower)
-
-		if !found && member.MembershipSummary != nil {
-			for _, ms := range member.MembershipSummary.Memberships {
-				if strings.Contains(strings.ToLower(ms.Project.Name), searchLower) ||
-					strings.Contains(strings.ToLower(ms.Project.Slug), searchLower) ||
-					strings.Contains(strings.ToLower(ms.Tier), searchLower) {
-					found = true
-					break
-				}
+// sortMockMemberships sorts a slice of ProjectMembership records in-place
+// according to the given SortOrder, mirroring the SOQL ORDER BY clauses used
+// in the real Salesforce implementation.
+func sortMockMemberships(ms []*model.ProjectMembership, order model.SortOrder) {
+	if len(ms) < 2 {
+		return
+	}
+	switch order {
+	case model.SortOrderName:
+		// ORDER BY Account.Name ASC NULLS LAST
+		for i := 1; i < len(ms); i++ {
+			for j := i; j > 0 && strings.ToLower(ms[j-1].CompanyName) > strings.ToLower(ms[j].CompanyName); j-- {
+				ms[j-1], ms[j] = ms[j], ms[j-1]
 			}
 		}
+	case model.SortOrderLastModified:
+		// ORDER BY LastModifiedDate DESC NULLS LAST
+		for i := 1; i < len(ms); i++ {
+			for j := i; j > 0 && ms[j-1].UpdatedAt.Before(ms[j].UpdatedAt); j-- {
+				ms[j-1], ms[j] = ms[j], ms[j-1]
+			}
+		}
+	default:
+		// SortOrderNewest: ORDER BY CreatedDate DESC NULLS LAST
+		for i := 1; i < len(ms); i++ {
+			for j := i; j > 0 && ms[j-1].CreatedAt.Before(ms[j].CreatedAt); j-- {
+				ms[j-1], ms[j] = ms[j], ms[j-1]
+			}
+		}
+	}
+}
+
+// matchesMockMemberFilters is retained for use by mock list helpers that support
+// free-text search and filter expressions over ProjectMembership records.
+func matchesMockMemberFilters(ms *model.ProjectMembership, filters map[string]string, search string) bool {
+	if search != "" {
+		searchLower := strings.ToLower(search)
+		found := strings.Contains(strings.ToLower(ms.CompanyName), searchLower) ||
+			strings.Contains(strings.ToLower(ms.ProjectSlug), searchLower) ||
+			strings.Contains(strings.ToLower(ms.Tier), searchLower) ||
+			strings.Contains(strings.ToLower(ms.TierName), searchLower)
 
 		if !found {
 			return false
@@ -321,21 +290,22 @@ func matchesMockMemberFilters(member *model.Member, filters map[string]string, s
 
 	for key, value := range filters {
 		switch strings.ToLower(key) {
-		case "name":
-			if !strings.Contains(strings.ToLower(member.Name), strings.ToLower(value)) {
+		case "status":
+			// Status is hardcoded to "Active" in the filterMap; this case
+			// mirrors the hardcoded AND Status = 'Active' in the SOQL base query.
+			if !strings.EqualFold(ms.Status, value) {
+				return false
+			}
+		case "tier_uid":
+			if ms.TierUID != value {
 				return false
 			}
 		case "project_slug":
-			matched := false
-			if member.MembershipSummary != nil {
-				for _, ms := range member.MembershipSummary.Memberships {
-					if strings.EqualFold(ms.Project.Slug, value) {
-						matched = true
-						break
-					}
-				}
+			if !strings.EqualFold(ms.ProjectSlug, value) {
+				return false
 			}
-			if !matched {
+		case "company_name":
+			if !strings.Contains(strings.ToLower(ms.CompanyName), strings.ToLower(value)) {
 				return false
 			}
 		}

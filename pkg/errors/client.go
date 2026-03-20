@@ -45,6 +45,15 @@ func NewNotFound(message string, err ...error) NotFound {
 	}
 }
 
+// IsNotFound reports whether err is a NotFound error.
+func IsNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	var notFound NotFound
+	return errors.As(err, &notFound)
+}
+
 // Conflict represents a conflict error in the application.
 type Conflict struct {
 	base

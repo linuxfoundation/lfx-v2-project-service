@@ -16,72 +16,215 @@ import (
 
 // Client is the "membership-service" service client.
 type Client struct {
-	ListMembersEndpoint                     goa.Endpoint
-	GetMemberMembershipEndpoint             goa.Endpoint
-	ListMemberMembershipKeyContactsEndpoint goa.Endpoint
-	ReadyzEndpoint                          goa.Endpoint
-	LivezEndpoint                           goa.Endpoint
+	ListProjectTiersEndpoint                          goa.Endpoint
+	GetProjectTierEndpoint                            goa.Endpoint
+	ListProjectMembershipsEndpoint                    goa.Endpoint
+	GetProjectMembershipEndpoint                      goa.Endpoint
+	ListMembershipKeyContactsEndpoint                 goa.Endpoint
+	CreateMembershipKeyContactEndpoint                goa.Endpoint
+	UpdateMembershipKeyContactEndpoint                goa.Endpoint
+	DeleteMembershipKeyContactEndpoint                goa.Endpoint
+	GetMembershipKeyContactEndpoint                   goa.Endpoint
+	DeprecatedListMembersEndpoint                     goa.Endpoint
+	DeprecatedGetMemberMembershipEndpoint             goa.Endpoint
+	DeprecatedListMemberMembershipKeyContactsEndpoint goa.Endpoint
+	ReadyzEndpoint                                    goa.Endpoint
+	LivezEndpoint                                     goa.Endpoint
 }
 
 // NewClient initializes a "membership-service" service client given the
 // endpoints.
-func NewClient(listMembers, getMemberMembership, listMemberMembershipKeyContacts, readyz, livez goa.Endpoint) *Client {
+func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, deprecatedListMembers, deprecatedGetMemberMembership, deprecatedListMemberMembershipKeyContacts, readyz, livez goa.Endpoint) *Client {
 	return &Client{
-		ListMembersEndpoint:                     listMembers,
-		GetMemberMembershipEndpoint:             getMemberMembership,
-		ListMemberMembershipKeyContactsEndpoint: listMemberMembershipKeyContacts,
-		ReadyzEndpoint:                          readyz,
-		LivezEndpoint:                           livez,
+		ListProjectTiersEndpoint:                          listProjectTiers,
+		GetProjectTierEndpoint:                            getProjectTier,
+		ListProjectMembershipsEndpoint:                    listProjectMemberships,
+		GetProjectMembershipEndpoint:                      getProjectMembership,
+		ListMembershipKeyContactsEndpoint:                 listMembershipKeyContacts,
+		CreateMembershipKeyContactEndpoint:                createMembershipKeyContact,
+		UpdateMembershipKeyContactEndpoint:                updateMembershipKeyContact,
+		DeleteMembershipKeyContactEndpoint:                deleteMembershipKeyContact,
+		GetMembershipKeyContactEndpoint:                   getMembershipKeyContact,
+		DeprecatedListMembersEndpoint:                     deprecatedListMembers,
+		DeprecatedGetMemberMembershipEndpoint:             deprecatedGetMemberMembership,
+		DeprecatedListMemberMembershipKeyContactsEndpoint: deprecatedListMemberMembershipKeyContacts,
+		ReadyzEndpoint:                                    readyz,
+		LivezEndpoint:                                     livez,
 	}
 }
 
-// ListMembers calls the "list-members" endpoint of the "membership-service"
-// service.
-// ListMembers may return the following errors:
+// ListProjectTiers calls the "list-project-tiers" endpoint of the
+// "membership-service" service.
+// ListProjectTiers may return the following errors:
+//   - "NotFound" (type *NotFoundError): Project not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) ListProjectTiers(ctx context.Context, p *ListProjectTiersPayload) (res *ListProjectTiersResult, err error) {
+	var ires any
+	ires, err = c.ListProjectTiersEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ListProjectTiersResult), nil
+}
+
+// GetProjectTier calls the "get-project-tier" endpoint of the
+// "membership-service" service.
+// GetProjectTier may return the following errors:
+//   - "NotFound" (type *NotFoundError): Tier not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) GetProjectTier(ctx context.Context, p *GetProjectTierPayload) (res *GetProjectTierResult, err error) {
+	var ires any
+	ires, err = c.GetProjectTierEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*GetProjectTierResult), nil
+}
+
+// ListProjectMemberships calls the "list-project-memberships" endpoint of the
+// "membership-service" service.
+// ListProjectMemberships may return the following errors:
+//   - "NotFound" (type *NotFoundError): Project not found
 //   - "BadRequest" (type *BadRequestError): Bad request
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
-func (c *Client) ListMembers(ctx context.Context, p *ListMembersPayload) (res *ListMembersResult, err error) {
+func (c *Client) ListProjectMemberships(ctx context.Context, p *ListProjectMembershipsPayload) (res *ListProjectMembershipsResult, err error) {
 	var ires any
-	ires, err = c.ListMembersEndpoint(ctx, p)
+	ires, err = c.ListProjectMembershipsEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*ListMembersResult), nil
+	return ires.(*ListProjectMembershipsResult), nil
 }
 
-// GetMemberMembership calls the "get-member-membership" endpoint of the
+// GetProjectMembership calls the "get-project-membership" endpoint of the
 // "membership-service" service.
-// GetMemberMembership may return the following errors:
-//   - "NotFound" (type *NotFoundError): Resource not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
-//   - error: internal error
-func (c *Client) GetMemberMembership(ctx context.Context, p *GetMemberMembershipPayload) (res *GetMemberMembershipResult, err error) {
-	var ires any
-	ires, err = c.GetMemberMembershipEndpoint(ctx, p)
-	if err != nil {
-		return
-	}
-	return ires.(*GetMemberMembershipResult), nil
-}
-
-// ListMemberMembershipKeyContacts calls the
-// "list-member-membership-key-contacts" endpoint of the "membership-service"
-// service.
-// ListMemberMembershipKeyContacts may return the following errors:
+// GetProjectMembership may return the following errors:
 //   - "NotFound" (type *NotFoundError): Membership not found
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
-func (c *Client) ListMemberMembershipKeyContacts(ctx context.Context, p *ListMemberMembershipKeyContactsPayload) (res *ListMemberMembershipKeyContactsResult, err error) {
+func (c *Client) GetProjectMembership(ctx context.Context, p *GetProjectMembershipPayload) (res *GetProjectMembershipResult, err error) {
 	var ires any
-	ires, err = c.ListMemberMembershipKeyContactsEndpoint(ctx, p)
+	ires, err = c.GetProjectMembershipEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*ListMemberMembershipKeyContactsResult), nil
+	return ires.(*GetProjectMembershipResult), nil
+}
+
+// ListMembershipKeyContacts calls the "list-membership-key-contacts" endpoint
+// of the "membership-service" service.
+// ListMembershipKeyContacts may return the following errors:
+//   - "NotFound" (type *NotFoundError): Membership not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) ListMembershipKeyContacts(ctx context.Context, p *ListMembershipKeyContactsPayload) (res *ListMembershipKeyContactsResult, err error) {
+	var ires any
+	ires, err = c.ListMembershipKeyContactsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ListMembershipKeyContactsResult), nil
+}
+
+// CreateMembershipKeyContact calls the "create-membership-key-contact"
+// endpoint of the "membership-service" service.
+// CreateMembershipKeyContact may return the following errors:
+//   - "NotFound" (type *NotFoundError): Membership not found
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) CreateMembershipKeyContact(ctx context.Context, p *CreateMembershipKeyContactPayload) (res *CreateMembershipKeyContactResult, err error) {
+	var ires any
+	ires, err = c.CreateMembershipKeyContactEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*CreateMembershipKeyContactResult), nil
+}
+
+// UpdateMembershipKeyContact calls the "update-membership-key-contact"
+// endpoint of the "membership-service" service.
+// UpdateMembershipKeyContact may return the following errors:
+//   - "NotFound" (type *NotFoundError): Key contact not found
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateMembershipKeyContact(ctx context.Context, p *UpdateMembershipKeyContactPayload) (res *UpdateMembershipKeyContactResult, err error) {
+	var ires any
+	ires, err = c.UpdateMembershipKeyContactEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*UpdateMembershipKeyContactResult), nil
+}
+
+// DeleteMembershipKeyContact calls the "delete-membership-key-contact"
+// endpoint of the "membership-service" service.
+// DeleteMembershipKeyContact may return the following errors:
+//   - "NotFound" (type *NotFoundError): Key contact not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) DeleteMembershipKeyContact(ctx context.Context, p *DeleteMembershipKeyContactPayload) (err error) {
+	_, err = c.DeleteMembershipKeyContactEndpoint(ctx, p)
+	return
+}
+
+// GetMembershipKeyContact calls the "get-membership-key-contact" endpoint of
+// the "membership-service" service.
+// GetMembershipKeyContact may return the following errors:
+//   - "NotFound" (type *NotFoundError): Key contact not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) GetMembershipKeyContact(ctx context.Context, p *GetMembershipKeyContactPayload) (res *GetMembershipKeyContactResult, err error) {
+	var ires any
+	ires, err = c.GetMembershipKeyContactEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*GetMembershipKeyContactResult), nil
+}
+
+// DeprecatedListMembers calls the "deprecated-list-members" endpoint of the
+// "membership-service" service.
+// DeprecatedListMembers may return the following errors:
+//   - "Gone" (type *GoneError): Endpoint removed
+//   - error: internal error
+func (c *Client) DeprecatedListMembers(ctx context.Context, p *DeprecatedListMembersPayload) (err error) {
+	_, err = c.DeprecatedListMembersEndpoint(ctx, p)
+	return
+}
+
+// DeprecatedGetMemberMembership calls the "deprecated-get-member-membership"
+// endpoint of the "membership-service" service.
+// DeprecatedGetMemberMembership may return the following errors:
+//   - "Gone" (type *GoneError): Endpoint removed
+//   - error: internal error
+func (c *Client) DeprecatedGetMemberMembership(ctx context.Context, p *DeprecatedGetMemberMembershipPayload) (err error) {
+	_, err = c.DeprecatedGetMemberMembershipEndpoint(ctx, p)
+	return
+}
+
+// DeprecatedListMemberMembershipKeyContacts calls the
+// "deprecated-list-member-membership-key-contacts" endpoint of the
+// "membership-service" service.
+// DeprecatedListMemberMembershipKeyContacts may return the following errors:
+//   - "Gone" (type *GoneError): Endpoint removed
+//   - error: internal error
+func (c *Client) DeprecatedListMemberMembershipKeyContacts(ctx context.Context, p *DeprecatedListMemberMembershipKeyContactsPayload) (err error) {
+	_, err = c.DeprecatedListMemberMembershipKeyContactsEndpoint(ctx, p)
+	return
 }
 
 // Readyz calls the "readyz" endpoint of the "membership-service" service.

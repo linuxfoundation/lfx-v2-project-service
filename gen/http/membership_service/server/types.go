@@ -10,99 +10,361 @@ package server
 
 import (
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
+	goa "goa.design/goa/v3/pkg"
 )
 
-// ListMembersResponseBody is the type of the "membership-service" service
-// "list-members" endpoint HTTP response body.
-type ListMembersResponseBody struct {
-	// List of members
-	Members []*MemberResponseResponseBody `form:"members" json:"members" xml:"members"`
+// CreateMembershipKeyContactRequestBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// request body.
+type CreateMembershipKeyContactRequestBody struct {
+	// Contact email address; used to resolve or create the B2B Salesforce Contact
+	// record
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// Contact first name; used when creating a new Contact on miss
+	FirstName *string `form:"first_name,omitempty" json:"first_name,omitempty" xml:"first_name,omitempty"`
+	// Contact last name; used when creating a new Contact on miss
+	LastName *string `form:"last_name,omitempty" json:"last_name,omitempty" xml:"last_name,omitempty"`
+	// Contact job title; used when creating a new Contact on miss
+	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
+	// Contact role designation, e.g. 'Voting Representative'
+	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
+	// Role record status, e.g. 'Active'
+	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	// Whether this contact holds a board member role
+	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
+	// Whether this is the primary contact for the membership
+	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
+}
+
+// UpdateMembershipKeyContactRequestBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// request body.
+type UpdateMembershipKeyContactRequestBody struct {
+	// Contact role designation, e.g. 'Voting Representative'
+	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
+	// Role record status, e.g. 'Active'
+	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	// Whether this contact holds a board member role
+	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
+	// Whether this is the primary contact for the membership
+	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
+}
+
+// ListProjectTiersResponseBody is the type of the "membership-service" service
+// "list-project-tiers" endpoint HTTP response body.
+type ListProjectTiersResponseBody struct {
+	// List of membership tiers
+	Tiers []*MembershipTierResponseResponseBody `form:"tiers" json:"tiers" xml:"tiers"`
+}
+
+// GetProjectTierResponseBody is the type of the "membership-service" service
+// "get-project-tier" endpoint HTTP response body.
+type GetProjectTierResponseBody MembershipTierResponseResponseBody
+
+// ListProjectMembershipsResponseBody is the type of the "membership-service"
+// service "list-project-memberships" endpoint HTTP response body.
+type ListProjectMembershipsResponseBody struct {
+	// List of project memberships
+	Memberships []*ProjectMembershipResponseResponseBody `form:"memberships" json:"memberships" xml:"memberships"`
 	// Pagination metadata
 	Metadata *ListMetadataResponseBody `form:"metadata" json:"metadata" xml:"metadata"`
 }
 
-// GetMemberMembershipResponseBody is the type of the "membership-service"
-// service "get-member-membership" endpoint HTTP response body.
-type GetMemberMembershipResponseBody MembershipResponseResponseBody
+// GetProjectMembershipResponseBody is the type of the "membership-service"
+// service "get-project-membership" endpoint HTTP response body.
+type GetProjectMembershipResponseBody ProjectMembershipResponseResponseBody
 
-// ListMemberMembershipKeyContactsResponseBody is the type of the
-// "membership-service" service "list-member-membership-key-contacts" endpoint
-// HTTP response body.
-type ListMemberMembershipKeyContactsResponseBody struct {
+// ListMembershipKeyContactsResponseBody is the type of the
+// "membership-service" service "list-membership-key-contacts" endpoint HTTP
+// response body.
+type ListMembershipKeyContactsResponseBody struct {
 	// List of key contacts
-	Contacts []*KeyContactResponseResponseBody `form:"contacts" json:"contacts" xml:"contacts"`
+	Contacts []*ProjectKeyContactResponseResponseBody `form:"contacts" json:"contacts" xml:"contacts"`
 }
 
-// ListMembersBadRequestResponseBody is the type of the "membership-service"
-// service "list-members" endpoint HTTP response body for the "BadRequest"
-// error.
-type ListMembersBadRequestResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
+// CreateMembershipKeyContactResponseBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// response body.
+type CreateMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
 
-// ListMembersInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-members" endpoint HTTP response body for
-// the "InternalServerError" error.
-type ListMembersInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
+// UpdateMembershipKeyContactResponseBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// response body.
+type UpdateMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
 
-// ListMembersServiceUnavailableResponseBody is the type of the
-// "membership-service" service "list-members" endpoint HTTP response body for
-// the "ServiceUnavailable" error.
-type ListMembersServiceUnavailableResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
+// GetMembershipKeyContactResponseBody is the type of the "membership-service"
+// service "get-membership-key-contact" endpoint HTTP response body.
+type GetMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
 
-// GetMemberMembershipInternalServerErrorResponseBody is the type of the
-// "membership-service" service "get-member-membership" endpoint HTTP response
+// ListProjectTiersInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-project-tiers" endpoint HTTP response
 // body for the "InternalServerError" error.
-type GetMemberMembershipInternalServerErrorResponseBody struct {
+type ListProjectTiersInternalServerErrorResponseBody struct {
 	// Error message
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
-// GetMemberMembershipNotFoundResponseBody is the type of the
-// "membership-service" service "get-member-membership" endpoint HTTP response
-// body for the "NotFound" error.
-type GetMemberMembershipNotFoundResponseBody struct {
+// ListProjectTiersNotFoundResponseBody is the type of the "membership-service"
+// service "list-project-tiers" endpoint HTTP response body for the "NotFound"
+// error.
+type ListProjectTiersNotFoundResponseBody struct {
 	// Error message
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
-// GetMemberMembershipServiceUnavailableResponseBody is the type of the
-// "membership-service" service "get-member-membership" endpoint HTTP response
+// ListProjectTiersServiceUnavailableResponseBody is the type of the
+// "membership-service" service "list-project-tiers" endpoint HTTP response
 // body for the "ServiceUnavailable" error.
-type GetMemberMembershipServiceUnavailableResponseBody struct {
+type ListProjectTiersServiceUnavailableResponseBody struct {
 	// Error message
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
-// ListMemberMembershipKeyContactsInternalServerErrorResponseBody is the type
-// of the "membership-service" service "list-member-membership-key-contacts"
-// endpoint HTTP response body for the "InternalServerError" error.
-type ListMemberMembershipKeyContactsInternalServerErrorResponseBody struct {
+// GetProjectTierInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-project-tier" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetProjectTierInternalServerErrorResponseBody struct {
 	// Error message
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
-// ListMemberMembershipKeyContactsNotFoundResponseBody is the type of the
-// "membership-service" service "list-member-membership-key-contacts" endpoint
-// HTTP response body for the "NotFound" error.
-type ListMemberMembershipKeyContactsNotFoundResponseBody struct {
+// GetProjectTierNotFoundResponseBody is the type of the "membership-service"
+// service "get-project-tier" endpoint HTTP response body for the "NotFound"
+// error.
+type GetProjectTierNotFoundResponseBody struct {
 	// Error message
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
-// ListMemberMembershipKeyContactsServiceUnavailableResponseBody is the type of
-// the "membership-service" service "list-member-membership-key-contacts"
-// endpoint HTTP response body for the "ServiceUnavailable" error.
-type ListMemberMembershipKeyContactsServiceUnavailableResponseBody struct {
+// GetProjectTierServiceUnavailableResponseBody is the type of the
+// "membership-service" service "get-project-tier" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type GetProjectTierServiceUnavailableResponseBody struct {
 	// Error message
 	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ListProjectMembershipsBadRequestResponseBody is the type of the
+// "membership-service" service "list-project-memberships" endpoint HTTP
+// response body for the "BadRequest" error.
+type ListProjectMembershipsBadRequestResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ListProjectMembershipsInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-project-memberships" endpoint HTTP
+// response body for the "InternalServerError" error.
+type ListProjectMembershipsInternalServerErrorResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ListProjectMembershipsNotFoundResponseBody is the type of the
+// "membership-service" service "list-project-memberships" endpoint HTTP
+// response body for the "NotFound" error.
+type ListProjectMembershipsNotFoundResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ListProjectMembershipsServiceUnavailableResponseBody is the type of the
+// "membership-service" service "list-project-memberships" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type ListProjectMembershipsServiceUnavailableResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectMembershipInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-project-membership" endpoint HTTP response
+// body for the "InternalServerError" error.
+type GetProjectMembershipInternalServerErrorResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectMembershipNotFoundResponseBody is the type of the
+// "membership-service" service "get-project-membership" endpoint HTTP response
+// body for the "NotFound" error.
+type GetProjectMembershipNotFoundResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectMembershipServiceUnavailableResponseBody is the type of the
+// "membership-service" service "get-project-membership" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type GetProjectMembershipServiceUnavailableResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ListMembershipKeyContactsInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-membership-key-contacts" endpoint HTTP
+// response body for the "InternalServerError" error.
+type ListMembershipKeyContactsInternalServerErrorResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ListMembershipKeyContactsNotFoundResponseBody is the type of the
+// "membership-service" service "list-membership-key-contacts" endpoint HTTP
+// response body for the "NotFound" error.
+type ListMembershipKeyContactsNotFoundResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ListMembershipKeyContactsServiceUnavailableResponseBody is the type of the
+// "membership-service" service "list-membership-key-contacts" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type ListMembershipKeyContactsServiceUnavailableResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateMembershipKeyContactBadRequestResponseBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// response body for the "BadRequest" error.
+type CreateMembershipKeyContactBadRequestResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type CreateMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateMembershipKeyContactNotFoundResponseBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// response body for the "NotFound" error.
+type CreateMembershipKeyContactNotFoundResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateMembershipKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type CreateMembershipKeyContactServiceUnavailableResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateMembershipKeyContactBadRequestResponseBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// response body for the "BadRequest" error.
+type UpdateMembershipKeyContactBadRequestResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type UpdateMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateMembershipKeyContactNotFoundResponseBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// response body for the "NotFound" error.
+type UpdateMembershipKeyContactNotFoundResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UpdateMembershipKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type UpdateMembershipKeyContactServiceUnavailableResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "delete-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type DeleteMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteMembershipKeyContactNotFoundResponseBody is the type of the
+// "membership-service" service "delete-membership-key-contact" endpoint HTTP
+// response body for the "NotFound" error.
+type DeleteMembershipKeyContactNotFoundResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteMembershipKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "delete-membership-key-contact" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type DeleteMembershipKeyContactServiceUnavailableResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type GetMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetMembershipKeyContactNotFoundResponseBody is the type of the
+// "membership-service" service "get-membership-key-contact" endpoint HTTP
+// response body for the "NotFound" error.
+type GetMembershipKeyContactNotFoundResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetMembershipKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "get-membership-key-contact" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type GetMembershipKeyContactServiceUnavailableResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeprecatedListMembersGoneResponseBody is the type of the
+// "membership-service" service "deprecated-list-members" endpoint HTTP
+// response body for the "Gone" error.
+type DeprecatedListMembersGoneResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+	// URL path pattern of the replacement endpoint
+	Replacement *string `form:"replacement,omitempty" json:"replacement,omitempty" xml:"replacement,omitempty"`
+}
+
+// DeprecatedGetMemberMembershipGoneResponseBody is the type of the
+// "membership-service" service "deprecated-get-member-membership" endpoint
+// HTTP response body for the "Gone" error.
+type DeprecatedGetMemberMembershipGoneResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+	// URL path pattern of the replacement endpoint
+	Replacement *string `form:"replacement,omitempty" json:"replacement,omitempty" xml:"replacement,omitempty"`
+}
+
+// DeprecatedListMemberMembershipKeyContactsGoneResponseBody is the type of the
+// "membership-service" service
+// "deprecated-list-member-membership-key-contacts" endpoint HTTP response body
+// for the "Gone" error.
+type DeprecatedListMemberMembershipKeyContactsGoneResponseBody struct {
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+	// URL path pattern of the replacement endpoint
+	Replacement *string `form:"replacement,omitempty" json:"replacement,omitempty" xml:"replacement,omitempty"`
 }
 
 // ReadyzServiceUnavailableResponseBody is the type of the "membership-service"
@@ -113,227 +375,181 @@ type ReadyzServiceUnavailableResponseBody struct {
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
-// MemberResponseResponseBody is used to define fields on response body types.
-type MemberResponseResponseBody struct {
-	// Member UID
+// MembershipTierResponseResponseBody is used to define fields on response body
+// types.
+type MembershipTierResponseResponseBody struct {
+	// Tier UID (invertible UUID v8 from Product2.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// Member name
+	// V2 project UUID
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Product name, e.g. 'Gold Corporate Membership'
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Member logo URL
-	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
-	// Member website
-	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
-	// Membership summary
-	MembershipSummary *MembershipSummaryTypeResponseBody `form:"membership_summary,omitempty" json:"membership_summary,omitempty" xml:"membership_summary,omitempty"`
+	// Product family, e.g. 'Membership'
+	Family *string `form:"family,omitempty" json:"family,omitempty" xml:"family,omitempty"`
+	// Product type (Type__c)
+	ProductType *string `form:"product_type,omitempty" json:"product_type,omitempty" xml:"product_type,omitempty"`
 	// Creation timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// Last update timestamp
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
-// MembershipSummaryTypeResponseBody is used to define fields on response body
-// types.
-type MembershipSummaryTypeResponseBody struct {
-	// Number of active memberships
-	ActiveCount *int `form:"active_count,omitempty" json:"active_count,omitempty" xml:"active_count,omitempty"`
-	// Total number of memberships
-	TotalCount *int `form:"total_count,omitempty" json:"total_count,omitempty" xml:"total_count,omitempty"`
-	// List of membership details
-	Memberships []*MembershipSummaryItemTypeResponseBody `form:"memberships,omitempty" json:"memberships,omitempty" xml:"memberships,omitempty"`
-}
-
-// MembershipSummaryItemTypeResponseBody is used to define fields on response
+// ProjectMembershipResponseResponseBody is used to define fields on response
 // body types.
-type MembershipSummaryItemTypeResponseBody struct {
-	// Membership UID
+type ProjectMembershipResponseResponseBody struct {
+	// Membership UID (invertible UUID v8 from Asset.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// Membership name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// UID of the associated membership tier (Product2)
+	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
+	// V2 project UUID
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Membership status
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
 	// Membership year
 	Year *string `form:"year,omitempty" json:"year,omitempty" xml:"year,omitempty"`
-	// Membership tier
+	// Membership tier label
 	Tier *string `form:"tier,omitempty" json:"tier,omitempty" xml:"tier,omitempty"`
-	// Membership type
+	// Membership type (derived from Asset RecordType)
 	MembershipType *string `form:"membership_type,omitempty" json:"membership_type,omitempty" xml:"membership_type,omitempty"`
-	// Whether auto-renew is enabled
+	// Whether automatic renewal is enabled
 	AutoRenew *bool `form:"auto_renew,omitempty" json:"auto_renew,omitempty" xml:"auto_renew,omitempty"`
-	// Start date
-	StartDate *string `form:"start_date,omitempty" json:"start_date,omitempty" xml:"start_date,omitempty"`
-	// End date
-	EndDate *string `form:"end_date,omitempty" json:"end_date,omitempty" xml:"end_date,omitempty"`
-	// Product information
-	Product *ProductTypeResponseBody `form:"product,omitempty" json:"product,omitempty" xml:"product,omitempty"`
-	// Project information
-	Project *ProjectTypeResponseBody `form:"project,omitempty" json:"project,omitempty" xml:"project,omitempty"`
-}
-
-// ProductTypeResponseBody is used to define fields on response body types.
-type ProductTypeResponseBody struct {
-	// Product ID
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Product name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Product family
-	Family *string `form:"family,omitempty" json:"family,omitempty" xml:"family,omitempty"`
-	// Product type
-	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
-}
-
-// ProjectTypeResponseBody is used to define fields on response body types.
-type ProjectTypeResponseBody struct {
-	// Project ID
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Project name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Project logo URL
-	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
-	// Project slug
-	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
-	// Project status
-	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
-}
-
-// ListMetadataResponseBody is used to define fields on response body types.
-type ListMetadataResponseBody struct {
-	// Total number of items
-	TotalSize int `form:"total_size" json:"total_size" xml:"total_size"`
-	// Number of items per page
-	PageSize int `form:"page_size" json:"page_size" xml:"page_size"`
-	// Offset into the total list
-	Offset int `form:"offset" json:"offset" xml:"offset"`
-}
-
-// MembershipResponseResponseBody is used to define fields on response body
-// types.
-type MembershipResponseResponseBody struct {
-	// Membership UID
-	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// Membership name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Membership status
-	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
-	// Membership year
-	Year *string `form:"year,omitempty" json:"year,omitempty" xml:"year,omitempty"`
-	// Membership tier
-	Tier *string `form:"tier,omitempty" json:"tier,omitempty" xml:"tier,omitempty"`
-	// Membership type
-	MembershipType *string `form:"membership_type,omitempty" json:"membership_type,omitempty" xml:"membership_type,omitempty"`
-	// Whether auto-renew is enabled
-	AutoRenew *bool `form:"auto_renew,omitempty" json:"auto_renew,omitempty" xml:"auto_renew,omitempty"`
-	// Renewal type
+	// Renewal cadence
 	RenewalType *string `form:"renewal_type,omitempty" json:"renewal_type,omitempty" xml:"renewal_type,omitempty"`
-	// Membership price
+	// Current membership price
 	Price *float64 `form:"price,omitempty" json:"price,omitempty" xml:"price,omitempty"`
-	// Annual full price
+	// Full annual list price before discounts
 	AnnualFullPrice *float64 `form:"annual_full_price,omitempty" json:"annual_full_price,omitempty" xml:"annual_full_price,omitempty"`
 	// Payment frequency
 	PaymentFrequency *string `form:"payment_frequency,omitempty" json:"payment_frequency,omitempty" xml:"payment_frequency,omitempty"`
 	// Payment terms
 	PaymentTerms *string `form:"payment_terms,omitempty" json:"payment_terms,omitempty" xml:"payment_terms,omitempty"`
-	// Agreement date
+	// Date the membership agreement was signed
 	AgreementDate *string `form:"agreement_date,omitempty" json:"agreement_date,omitempty" xml:"agreement_date,omitempty"`
-	// Purchase date
+	// Effective purchase date
 	PurchaseDate *string `form:"purchase_date,omitempty" json:"purchase_date,omitempty" xml:"purchase_date,omitempty"`
-	// Start date
+	// Membership start date
 	StartDate *string `form:"start_date,omitempty" json:"start_date,omitempty" xml:"start_date,omitempty"`
-	// End date
+	// Membership end date
 	EndDate *string `form:"end_date,omitempty" json:"end_date,omitempty" xml:"end_date,omitempty"`
-	// Account information
-	Account *AccountTypeResponseBody `form:"account,omitempty" json:"account,omitempty" xml:"account,omitempty"`
-	// Contact information
-	Contact *ContactTypeResponseBody `form:"contact,omitempty" json:"contact,omitempty" xml:"contact,omitempty"`
-	// Product information
-	Product *ProductTypeResponseBody `form:"product,omitempty" json:"product,omitempty" xml:"product,omitempty"`
-	// Project information
-	Project *ProjectTypeResponseBody `form:"project,omitempty" json:"project,omitempty" xml:"project,omitempty"`
+	// Member company name (denormalized from Account)
+	CompanyName *string `form:"company_name,omitempty" json:"company_name,omitempty" xml:"company_name,omitempty"`
+	// Member company logo URL (denormalized from Account)
+	CompanyLogoURL *string `form:"company_logo_url,omitempty" json:"company_logo_url,omitempty" xml:"company_logo_url,omitempty"`
+	// Member company website/domain (denormalized from Account.Website)
+	CompanyDomain *string `form:"company_domain,omitempty" json:"company_domain,omitempty" xml:"company_domain,omitempty"`
+	// Product name (denormalized from Product2)
+	TierName *string `form:"tier_name,omitempty" json:"tier_name,omitempty" xml:"tier_name,omitempty"`
+	// Product family (denormalized from Product2)
+	TierFamily *string `form:"tier_family,omitempty" json:"tier_family,omitempty" xml:"tier_family,omitempty"`
+	// Product type (denormalized from Product2)
+	TierProductType *string `form:"tier_product_type,omitempty" json:"tier_product_type,omitempty" xml:"tier_product_type,omitempty"`
 	// Creation timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// Last update timestamp
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
-// AccountTypeResponseBody is used to define fields on response body types.
-type AccountTypeResponseBody struct {
-	// Account ID
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Account name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Account logo URL
-	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
-	// Account website
-	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
+// ListMetadataResponseBody is used to define fields on response body types.
+type ListMetadataResponseBody struct {
+	// Total number of records matching the query, as reported by Salesforce. Set
+	// on the first page; may be 0 on continuation pages.
+	TotalSize *int `form:"total_size,omitempty" json:"total_size,omitempty" xml:"total_size,omitempty"`
+	// Opaque cursor for the next page. Pass this value as the page_token query
+	// parameter to retrieve the next page. Empty or absent when this is the last
+	// page.
+	NextPageToken *string `form:"next_page_token,omitempty" json:"next_page_token,omitempty" xml:"next_page_token,omitempty"`
 }
 
-// ContactTypeResponseBody is used to define fields on response body types.
-type ContactTypeResponseBody struct {
-	// Contact ID
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// First name
-	FirstName *string `form:"first_name,omitempty" json:"first_name,omitempty" xml:"first_name,omitempty"`
-	// Last name
-	LastName *string `form:"last_name,omitempty" json:"last_name,omitempty" xml:"last_name,omitempty"`
-	// Email address
-	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
-	// Job title
-	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
-}
-
-// KeyContactResponseResponseBody is used to define fields on response body
-// types.
-type KeyContactResponseResponseBody struct {
-	// Key contact UID
+// ProjectKeyContactResponseResponseBody is used to define fields on response
+// body types.
+type ProjectKeyContactResponseResponseBody struct {
+	// Key contact UID (invertible UUID v8 from Project_Role__c.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// Membership UID
+	// UID of the associated membership (Asset)
 	MembershipUID *string `form:"membership_uid,omitempty" json:"membership_uid,omitempty" xml:"membership_uid,omitempty"`
-	// Contact role
+	// UID of the associated membership tier (Product2)
+	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
+	// V2 project UUID
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Contact role designation
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
-	// Contact status
+	// Role record status
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
-	// Whether this is a board member
+	// Whether this contact holds a board member role
 	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
-	// Whether this is a primary contact
+	// Whether this is the primary contact for the membership
 	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
-	// Contact details
-	Contact *ContactTypeResponseBody `form:"contact,omitempty" json:"contact,omitempty" xml:"contact,omitempty"`
-	// Project information
-	Project *ProjectTypeResponseBody `form:"project,omitempty" json:"project,omitempty" xml:"project,omitempty"`
-	// Organization information
-	Organization *OrganizationTypeResponseBody `form:"organization,omitempty" json:"organization,omitempty" xml:"organization,omitempty"`
+	// Contact first name (denormalized from Contact)
+	FirstName *string `form:"first_name,omitempty" json:"first_name,omitempty" xml:"first_name,omitempty"`
+	// Contact last name (denormalized from Contact)
+	LastName *string `form:"last_name,omitempty" json:"last_name,omitempty" xml:"last_name,omitempty"`
+	// Contact job title (denormalized from Contact)
+	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
+	// Primary email address from Alternate_Email__c where Primary_Email__c = true
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// Member company name (denormalized from Asset.Account)
+	CompanyName *string `form:"company_name,omitempty" json:"company_name,omitempty" xml:"company_name,omitempty"`
+	// Member company logo URL (denormalized from Asset.Account)
+	CompanyLogoURL *string `form:"company_logo_url,omitempty" json:"company_logo_url,omitempty" xml:"company_logo_url,omitempty"`
+	// Member company website/domain (denormalized from Asset.Account.Website)
+	CompanyDomain *string `form:"company_domain,omitempty" json:"company_domain,omitempty" xml:"company_domain,omitempty"`
 	// Creation timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// Last update timestamp
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
-// OrganizationTypeResponseBody is used to define fields on response body types.
-type OrganizationTypeResponseBody struct {
-	// Organization ID
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Organization name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Organization logo URL
-	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
-	// Organization website
-	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
-}
-
-// NewListMembersResponseBody builds the HTTP response body from the result of
-// the "list-members" endpoint of the "membership-service" service.
-func NewListMembersResponseBody(res *membershipservice.ListMembersResult) *ListMembersResponseBody {
-	body := &ListMembersResponseBody{}
-	if res.Members != nil {
-		body.Members = make([]*MemberResponseResponseBody, len(res.Members))
-		for i, val := range res.Members {
+// NewListProjectTiersResponseBody builds the HTTP response body from the
+// result of the "list-project-tiers" endpoint of the "membership-service"
+// service.
+func NewListProjectTiersResponseBody(res *membershipservice.ListProjectTiersResult) *ListProjectTiersResponseBody {
+	body := &ListProjectTiersResponseBody{}
+	if res.Tiers != nil {
+		body.Tiers = make([]*MembershipTierResponseResponseBody, len(res.Tiers))
+		for i, val := range res.Tiers {
 			if val == nil {
-				body.Members[i] = nil
+				body.Tiers[i] = nil
 				continue
 			}
-			body.Members[i] = marshalMembershipserviceMemberResponseToMemberResponseResponseBody(val)
+			body.Tiers[i] = marshalMembershipserviceMembershipTierResponseToMembershipTierResponseResponseBody(val)
 		}
 	} else {
-		body.Members = []*MemberResponseResponseBody{}
+		body.Tiers = []*MembershipTierResponseResponseBody{}
+	}
+	return body
+}
+
+// NewGetProjectTierResponseBody builds the HTTP response body from the result
+// of the "get-project-tier" endpoint of the "membership-service" service.
+func NewGetProjectTierResponseBody(res *membershipservice.GetProjectTierResult) *GetProjectTierResponseBody {
+	body := &GetProjectTierResponseBody{
+		UID:         res.Tier.UID,
+		ProjectUID:  res.Tier.ProjectUID,
+		Name:        res.Tier.Name,
+		Family:      res.Tier.Family,
+		ProductType: res.Tier.ProductType,
+		CreatedAt:   res.Tier.CreatedAt,
+		UpdatedAt:   res.Tier.UpdatedAt,
+	}
+	return body
+}
+
+// NewListProjectMembershipsResponseBody builds the HTTP response body from the
+// result of the "list-project-memberships" endpoint of the
+// "membership-service" service.
+func NewListProjectMembershipsResponseBody(res *membershipservice.ListProjectMembershipsResult) *ListProjectMembershipsResponseBody {
+	body := &ListProjectMembershipsResponseBody{}
+	if res.Memberships != nil {
+		body.Memberships = make([]*ProjectMembershipResponseResponseBody, len(res.Memberships))
+		for i, val := range res.Memberships {
+			if val == nil {
+				body.Memberships[i] = nil
+				continue
+			}
+			body.Memberships[i] = marshalMembershipserviceProjectMembershipResponseToProjectMembershipResponseResponseBody(val)
+		}
+	} else {
+		body.Memberships = []*ProjectMembershipResponseResponseBody{}
 	}
 	if res.Metadata != nil {
 		body.Metadata = marshalMembershipserviceListMetadataToListMetadataResponseBody(res.Metadata)
@@ -341,13 +557,14 @@ func NewListMembersResponseBody(res *membershipservice.ListMembersResult) *ListM
 	return body
 }
 
-// NewGetMemberMembershipResponseBody builds the HTTP response body from the
-// result of the "get-member-membership" endpoint of the "membership-service"
+// NewGetProjectMembershipResponseBody builds the HTTP response body from the
+// result of the "get-project-membership" endpoint of the "membership-service"
 // service.
-func NewGetMemberMembershipResponseBody(res *membershipservice.GetMemberMembershipResult) *GetMemberMembershipResponseBody {
-	body := &GetMemberMembershipResponseBody{
+func NewGetProjectMembershipResponseBody(res *membershipservice.GetProjectMembershipResult) *GetProjectMembershipResponseBody {
+	body := &GetProjectMembershipResponseBody{
 		UID:              res.Membership.UID,
-		Name:             res.Membership.Name,
+		TierUID:          res.Membership.TierUID,
+		ProjectUID:       res.Membership.ProjectUID,
 		Status:           res.Membership.Status,
 		Year:             res.Membership.Year,
 		Tier:             res.Membership.Tier,
@@ -362,131 +579,446 @@ func NewGetMemberMembershipResponseBody(res *membershipservice.GetMemberMembersh
 		PurchaseDate:     res.Membership.PurchaseDate,
 		StartDate:        res.Membership.StartDate,
 		EndDate:          res.Membership.EndDate,
+		CompanyName:      res.Membership.CompanyName,
+		CompanyLogoURL:   res.Membership.CompanyLogoURL,
+		CompanyDomain:    res.Membership.CompanyDomain,
+		TierName:         res.Membership.TierName,
+		TierFamily:       res.Membership.TierFamily,
+		TierProductType:  res.Membership.TierProductType,
 		CreatedAt:        res.Membership.CreatedAt,
 		UpdatedAt:        res.Membership.UpdatedAt,
-	}
-	if res.Membership.Account != nil {
-		body.Account = marshalMembershipserviceAccountTypeToAccountTypeResponseBody(res.Membership.Account)
-	}
-	if res.Membership.Contact != nil {
-		body.Contact = marshalMembershipserviceContactTypeToContactTypeResponseBody(res.Membership.Contact)
-	}
-	if res.Membership.Product != nil {
-		body.Product = marshalMembershipserviceProductTypeToProductTypeResponseBody(res.Membership.Product)
-	}
-	if res.Membership.Project != nil {
-		body.Project = marshalMembershipserviceProjectTypeToProjectTypeResponseBody(res.Membership.Project)
 	}
 	return body
 }
 
-// NewListMemberMembershipKeyContactsResponseBody builds the HTTP response body
-// from the result of the "list-member-membership-key-contacts" endpoint of the
+// NewListMembershipKeyContactsResponseBody builds the HTTP response body from
+// the result of the "list-membership-key-contacts" endpoint of the
 // "membership-service" service.
-func NewListMemberMembershipKeyContactsResponseBody(res *membershipservice.ListMemberMembershipKeyContactsResult) *ListMemberMembershipKeyContactsResponseBody {
-	body := &ListMemberMembershipKeyContactsResponseBody{}
+func NewListMembershipKeyContactsResponseBody(res *membershipservice.ListMembershipKeyContactsResult) *ListMembershipKeyContactsResponseBody {
+	body := &ListMembershipKeyContactsResponseBody{}
 	if res.Contacts != nil {
-		body.Contacts = make([]*KeyContactResponseResponseBody, len(res.Contacts))
+		body.Contacts = make([]*ProjectKeyContactResponseResponseBody, len(res.Contacts))
 		for i, val := range res.Contacts {
 			if val == nil {
 				body.Contacts[i] = nil
 				continue
 			}
-			body.Contacts[i] = marshalMembershipserviceKeyContactResponseToKeyContactResponseResponseBody(val)
+			body.Contacts[i] = marshalMembershipserviceProjectKeyContactResponseToProjectKeyContactResponseResponseBody(val)
 		}
 	} else {
-		body.Contacts = []*KeyContactResponseResponseBody{}
+		body.Contacts = []*ProjectKeyContactResponseResponseBody{}
 	}
 	return body
 }
 
-// NewListMembersBadRequestResponseBody builds the HTTP response body from the
-// result of the "list-members" endpoint of the "membership-service" service.
-func NewListMembersBadRequestResponseBody(res *membershipservice.BadRequestError) *ListMembersBadRequestResponseBody {
-	body := &ListMembersBadRequestResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListMembersInternalServerErrorResponseBody builds the HTTP response body
-// from the result of the "list-members" endpoint of the "membership-service"
-// service.
-func NewListMembersInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListMembersInternalServerErrorResponseBody {
-	body := &ListMembersInternalServerErrorResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListMembersServiceUnavailableResponseBody builds the HTTP response body
-// from the result of the "list-members" endpoint of the "membership-service"
-// service.
-func NewListMembersServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListMembersServiceUnavailableResponseBody {
-	body := &ListMembersServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewGetMemberMembershipInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "get-member-membership" endpoint of the
+// NewCreateMembershipKeyContactResponseBody builds the HTTP response body from
+// the result of the "create-membership-key-contact" endpoint of the
 // "membership-service" service.
-func NewGetMemberMembershipInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *GetMemberMembershipInternalServerErrorResponseBody {
-	body := &GetMemberMembershipInternalServerErrorResponseBody{
-		Message: res.Message,
+func NewCreateMembershipKeyContactResponseBody(res *membershipservice.CreateMembershipKeyContactResult) *CreateMembershipKeyContactResponseBody {
+	body := &CreateMembershipKeyContactResponseBody{
+		UID:            res.Contact.UID,
+		MembershipUID:  res.Contact.MembershipUID,
+		TierUID:        res.Contact.TierUID,
+		ProjectUID:     res.Contact.ProjectUID,
+		Role:           res.Contact.Role,
+		Status:         res.Contact.Status,
+		BoardMember:    res.Contact.BoardMember,
+		PrimaryContact: res.Contact.PrimaryContact,
+		FirstName:      res.Contact.FirstName,
+		LastName:       res.Contact.LastName,
+		Title:          res.Contact.Title,
+		Email:          res.Contact.Email,
+		CompanyName:    res.Contact.CompanyName,
+		CompanyLogoURL: res.Contact.CompanyLogoURL,
+		CompanyDomain:  res.Contact.CompanyDomain,
+		CreatedAt:      res.Contact.CreatedAt,
+		UpdatedAt:      res.Contact.UpdatedAt,
 	}
 	return body
 }
 
-// NewGetMemberMembershipNotFoundResponseBody builds the HTTP response body
-// from the result of the "get-member-membership" endpoint of the
+// NewUpdateMembershipKeyContactResponseBody builds the HTTP response body from
+// the result of the "update-membership-key-contact" endpoint of the
 // "membership-service" service.
-func NewGetMemberMembershipNotFoundResponseBody(res *membershipservice.NotFoundError) *GetMemberMembershipNotFoundResponseBody {
-	body := &GetMemberMembershipNotFoundResponseBody{
-		Message: res.Message,
+func NewUpdateMembershipKeyContactResponseBody(res *membershipservice.UpdateMembershipKeyContactResult) *UpdateMembershipKeyContactResponseBody {
+	body := &UpdateMembershipKeyContactResponseBody{
+		UID:            res.Contact.UID,
+		MembershipUID:  res.Contact.MembershipUID,
+		TierUID:        res.Contact.TierUID,
+		ProjectUID:     res.Contact.ProjectUID,
+		Role:           res.Contact.Role,
+		Status:         res.Contact.Status,
+		BoardMember:    res.Contact.BoardMember,
+		PrimaryContact: res.Contact.PrimaryContact,
+		FirstName:      res.Contact.FirstName,
+		LastName:       res.Contact.LastName,
+		Title:          res.Contact.Title,
+		Email:          res.Contact.Email,
+		CompanyName:    res.Contact.CompanyName,
+		CompanyLogoURL: res.Contact.CompanyLogoURL,
+		CompanyDomain:  res.Contact.CompanyDomain,
+		CreatedAt:      res.Contact.CreatedAt,
+		UpdatedAt:      res.Contact.UpdatedAt,
 	}
 	return body
 }
 
-// NewGetMemberMembershipServiceUnavailableResponseBody builds the HTTP
-// response body from the result of the "get-member-membership" endpoint of the
+// NewGetMembershipKeyContactResponseBody builds the HTTP response body from
+// the result of the "get-membership-key-contact" endpoint of the
 // "membership-service" service.
-func NewGetMemberMembershipServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *GetMemberMembershipServiceUnavailableResponseBody {
-	body := &GetMemberMembershipServiceUnavailableResponseBody{
+func NewGetMembershipKeyContactResponseBody(res *membershipservice.GetMembershipKeyContactResult) *GetMembershipKeyContactResponseBody {
+	body := &GetMembershipKeyContactResponseBody{
+		UID:            res.Contact.UID,
+		MembershipUID:  res.Contact.MembershipUID,
+		TierUID:        res.Contact.TierUID,
+		ProjectUID:     res.Contact.ProjectUID,
+		Role:           res.Contact.Role,
+		Status:         res.Contact.Status,
+		BoardMember:    res.Contact.BoardMember,
+		PrimaryContact: res.Contact.PrimaryContact,
+		FirstName:      res.Contact.FirstName,
+		LastName:       res.Contact.LastName,
+		Title:          res.Contact.Title,
+		Email:          res.Contact.Email,
+		CompanyName:    res.Contact.CompanyName,
+		CompanyLogoURL: res.Contact.CompanyLogoURL,
+		CompanyDomain:  res.Contact.CompanyDomain,
+		CreatedAt:      res.Contact.CreatedAt,
+		UpdatedAt:      res.Contact.UpdatedAt,
+	}
+	return body
+}
+
+// NewListProjectTiersInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "list-project-tiers" endpoint of the
+// "membership-service" service.
+func NewListProjectTiersInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListProjectTiersInternalServerErrorResponseBody {
+	body := &ListProjectTiersInternalServerErrorResponseBody{
 		Message: res.Message,
 	}
 	return body
 }
 
-// NewListMemberMembershipKeyContactsInternalServerErrorResponseBody builds the
-// HTTP response body from the result of the
-// "list-member-membership-key-contacts" endpoint of the "membership-service"
+// NewListProjectTiersNotFoundResponseBody builds the HTTP response body from
+// the result of the "list-project-tiers" endpoint of the "membership-service"
 // service.
-func NewListMemberMembershipKeyContactsInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListMemberMembershipKeyContactsInternalServerErrorResponseBody {
-	body := &ListMemberMembershipKeyContactsInternalServerErrorResponseBody{
+func NewListProjectTiersNotFoundResponseBody(res *membershipservice.NotFoundError) *ListProjectTiersNotFoundResponseBody {
+	body := &ListProjectTiersNotFoundResponseBody{
 		Message: res.Message,
 	}
 	return body
 }
 
-// NewListMemberMembershipKeyContactsNotFoundResponseBody builds the HTTP
-// response body from the result of the "list-member-membership-key-contacts"
+// NewListProjectTiersServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "list-project-tiers" endpoint of the
+// "membership-service" service.
+func NewListProjectTiersServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListProjectTiersServiceUnavailableResponseBody {
+	body := &ListProjectTiersServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectTierInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "get-project-tier" endpoint of the
+// "membership-service" service.
+func NewGetProjectTierInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *GetProjectTierInternalServerErrorResponseBody {
+	body := &GetProjectTierInternalServerErrorResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectTierNotFoundResponseBody builds the HTTP response body from the
+// result of the "get-project-tier" endpoint of the "membership-service"
+// service.
+func NewGetProjectTierNotFoundResponseBody(res *membershipservice.NotFoundError) *GetProjectTierNotFoundResponseBody {
+	body := &GetProjectTierNotFoundResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectTierServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "get-project-tier" endpoint of the
+// "membership-service" service.
+func NewGetProjectTierServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *GetProjectTierServiceUnavailableResponseBody {
+	body := &GetProjectTierServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewListProjectMembershipsBadRequestResponseBody builds the HTTP response
+// body from the result of the "list-project-memberships" endpoint of the
+// "membership-service" service.
+func NewListProjectMembershipsBadRequestResponseBody(res *membershipservice.BadRequestError) *ListProjectMembershipsBadRequestResponseBody {
+	body := &ListProjectMembershipsBadRequestResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewListProjectMembershipsInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "list-project-memberships" endpoint of
+// the "membership-service" service.
+func NewListProjectMembershipsInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListProjectMembershipsInternalServerErrorResponseBody {
+	body := &ListProjectMembershipsInternalServerErrorResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewListProjectMembershipsNotFoundResponseBody builds the HTTP response body
+// from the result of the "list-project-memberships" endpoint of the
+// "membership-service" service.
+func NewListProjectMembershipsNotFoundResponseBody(res *membershipservice.NotFoundError) *ListProjectMembershipsNotFoundResponseBody {
+	body := &ListProjectMembershipsNotFoundResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewListProjectMembershipsServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "list-project-memberships" endpoint of
+// the "membership-service" service.
+func NewListProjectMembershipsServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListProjectMembershipsServiceUnavailableResponseBody {
+	body := &ListProjectMembershipsServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectMembershipInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "get-project-membership" endpoint of
+// the "membership-service" service.
+func NewGetProjectMembershipInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *GetProjectMembershipInternalServerErrorResponseBody {
+	body := &GetProjectMembershipInternalServerErrorResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectMembershipNotFoundResponseBody builds the HTTP response body
+// from the result of the "get-project-membership" endpoint of the
+// "membership-service" service.
+func NewGetProjectMembershipNotFoundResponseBody(res *membershipservice.NotFoundError) *GetProjectMembershipNotFoundResponseBody {
+	body := &GetProjectMembershipNotFoundResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectMembershipServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "get-project-membership" endpoint of
+// the "membership-service" service.
+func NewGetProjectMembershipServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *GetProjectMembershipServiceUnavailableResponseBody {
+	body := &GetProjectMembershipServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewListMembershipKeyContactsInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "list-membership-key-contacts" endpoint
+// of the "membership-service" service.
+func NewListMembershipKeyContactsInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListMembershipKeyContactsInternalServerErrorResponseBody {
+	body := &ListMembershipKeyContactsInternalServerErrorResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewListMembershipKeyContactsNotFoundResponseBody builds the HTTP response
+// body from the result of the "list-membership-key-contacts" endpoint of the
+// "membership-service" service.
+func NewListMembershipKeyContactsNotFoundResponseBody(res *membershipservice.NotFoundError) *ListMembershipKeyContactsNotFoundResponseBody {
+	body := &ListMembershipKeyContactsNotFoundResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewListMembershipKeyContactsServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "list-membership-key-contacts" endpoint
+// of the "membership-service" service.
+func NewListMembershipKeyContactsServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListMembershipKeyContactsServiceUnavailableResponseBody {
+	body := &ListMembershipKeyContactsServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateMembershipKeyContactBadRequestResponseBody builds the HTTP response
+// body from the result of the "create-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewCreateMembershipKeyContactBadRequestResponseBody(res *membershipservice.BadRequestError) *CreateMembershipKeyContactBadRequestResponseBody {
+	body := &CreateMembershipKeyContactBadRequestResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "create-membership-key-contact"
 // endpoint of the "membership-service" service.
-func NewListMemberMembershipKeyContactsNotFoundResponseBody(res *membershipservice.NotFoundError) *ListMemberMembershipKeyContactsNotFoundResponseBody {
-	body := &ListMemberMembershipKeyContactsNotFoundResponseBody{
+func NewCreateMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *CreateMembershipKeyContactInternalServerErrorResponseBody {
+	body := &CreateMembershipKeyContactInternalServerErrorResponseBody{
 		Message: res.Message,
 	}
 	return body
 }
 
-// NewListMemberMembershipKeyContactsServiceUnavailableResponseBody builds the
-// HTTP response body from the result of the
-// "list-member-membership-key-contacts" endpoint of the "membership-service"
-// service.
-func NewListMemberMembershipKeyContactsServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListMemberMembershipKeyContactsServiceUnavailableResponseBody {
-	body := &ListMemberMembershipKeyContactsServiceUnavailableResponseBody{
+// NewCreateMembershipKeyContactNotFoundResponseBody builds the HTTP response
+// body from the result of the "create-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewCreateMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *CreateMembershipKeyContactNotFoundResponseBody {
+	body := &CreateMembershipKeyContactNotFoundResponseBody{
 		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "create-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewCreateMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *CreateMembershipKeyContactServiceUnavailableResponseBody {
+	body := &CreateMembershipKeyContactServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateMembershipKeyContactBadRequestResponseBody builds the HTTP response
+// body from the result of the "update-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewUpdateMembershipKeyContactBadRequestResponseBody(res *membershipservice.BadRequestError) *UpdateMembershipKeyContactBadRequestResponseBody {
+	body := &UpdateMembershipKeyContactBadRequestResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "update-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewUpdateMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *UpdateMembershipKeyContactInternalServerErrorResponseBody {
+	body := &UpdateMembershipKeyContactInternalServerErrorResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateMembershipKeyContactNotFoundResponseBody builds the HTTP response
+// body from the result of the "update-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewUpdateMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *UpdateMembershipKeyContactNotFoundResponseBody {
+	body := &UpdateMembershipKeyContactNotFoundResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "update-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewUpdateMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *UpdateMembershipKeyContactServiceUnavailableResponseBody {
+	body := &UpdateMembershipKeyContactServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "delete-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewDeleteMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *DeleteMembershipKeyContactInternalServerErrorResponseBody {
+	body := &DeleteMembershipKeyContactInternalServerErrorResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteMembershipKeyContactNotFoundResponseBody builds the HTTP response
+// body from the result of the "delete-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewDeleteMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *DeleteMembershipKeyContactNotFoundResponseBody {
+	body := &DeleteMembershipKeyContactNotFoundResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "delete-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewDeleteMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *DeleteMembershipKeyContactServiceUnavailableResponseBody {
+	body := &DeleteMembershipKeyContactServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "get-membership-key-contact" endpoint
+// of the "membership-service" service.
+func NewGetMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *GetMembershipKeyContactInternalServerErrorResponseBody {
+	body := &GetMembershipKeyContactInternalServerErrorResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetMembershipKeyContactNotFoundResponseBody builds the HTTP response body
+// from the result of the "get-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewGetMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *GetMembershipKeyContactNotFoundResponseBody {
+	body := &GetMembershipKeyContactNotFoundResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "get-membership-key-contact" endpoint
+// of the "membership-service" service.
+func NewGetMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *GetMembershipKeyContactServiceUnavailableResponseBody {
+	body := &GetMembershipKeyContactServiceUnavailableResponseBody{
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeprecatedListMembersGoneResponseBody builds the HTTP response body from
+// the result of the "deprecated-list-members" endpoint of the
+// "membership-service" service.
+func NewDeprecatedListMembersGoneResponseBody(res *membershipservice.GoneError) *DeprecatedListMembersGoneResponseBody {
+	body := &DeprecatedListMembersGoneResponseBody{
+		Message:     res.Message,
+		Replacement: res.Replacement,
+	}
+	return body
+}
+
+// NewDeprecatedGetMemberMembershipGoneResponseBody builds the HTTP response
+// body from the result of the "deprecated-get-member-membership" endpoint of
+// the "membership-service" service.
+func NewDeprecatedGetMemberMembershipGoneResponseBody(res *membershipservice.GoneError) *DeprecatedGetMemberMembershipGoneResponseBody {
+	body := &DeprecatedGetMemberMembershipGoneResponseBody{
+		Message:     res.Message,
+		Replacement: res.Replacement,
+	}
+	return body
+}
+
+// NewDeprecatedListMemberMembershipKeyContactsGoneResponseBody builds the HTTP
+// response body from the result of the
+// "deprecated-list-member-membership-key-contacts" endpoint of the
+// "membership-service" service.
+func NewDeprecatedListMemberMembershipKeyContactsGoneResponseBody(res *membershipservice.GoneError) *DeprecatedListMemberMembershipKeyContactsGoneResponseBody {
+	body := &DeprecatedListMemberMembershipKeyContactsGoneResponseBody{
+		Message:     res.Message,
+		Replacement: res.Replacement,
 	}
 	return body
 }
@@ -500,13 +1032,38 @@ func NewReadyzServiceUnavailableResponseBody(res *membershipservice.ServiceUnava
 	return body
 }
 
-// NewListMembersPayload builds a membership-service service list-members
-// endpoint payload.
-func NewListMembersPayload(version *string, pageSize int, offset int, filter *string, search *string, bearerToken *string) *membershipservice.ListMembersPayload {
-	v := &membershipservice.ListMembersPayload{}
+// NewListProjectTiersPayload builds a membership-service service
+// list-project-tiers endpoint payload.
+func NewListProjectTiersPayload(projectUID string, version *string, bearerToken *string) *membershipservice.ListProjectTiersPayload {
+	v := &membershipservice.ListProjectTiersPayload{}
+	v.ProjectUID = &projectUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewGetProjectTierPayload builds a membership-service service
+// get-project-tier endpoint payload.
+func NewGetProjectTierPayload(projectUID string, tierID string, version *string, bearerToken *string) *membershipservice.GetProjectTierPayload {
+	v := &membershipservice.GetProjectTierPayload{}
+	v.ProjectUID = &projectUID
+	v.TierID = &tierID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewListProjectMembershipsPayload builds a membership-service service
+// list-project-memberships endpoint payload.
+func NewListProjectMembershipsPayload(projectUID string, version *string, pageSize int, pageToken *string, sort string, filter *string, search *string, bearerToken *string) *membershipservice.ListProjectMembershipsPayload {
+	v := &membershipservice.ListProjectMembershipsPayload{}
+	v.ProjectUID = &projectUID
 	v.Version = version
 	v.PageSize = pageSize
-	v.Offset = offset
+	v.PageToken = pageToken
+	v.Sort = sort
 	v.Filter = filter
 	v.Search = search
 	v.BearerToken = bearerToken
@@ -514,11 +1071,11 @@ func NewListMembersPayload(version *string, pageSize int, offset int, filter *st
 	return v
 }
 
-// NewGetMemberMembershipPayload builds a membership-service service
-// get-member-membership endpoint payload.
-func NewGetMemberMembershipPayload(memberID string, id string, version *string, bearerToken *string) *membershipservice.GetMemberMembershipPayload {
-	v := &membershipservice.GetMemberMembershipPayload{}
-	v.MemberID = &memberID
+// NewGetProjectMembershipPayload builds a membership-service service
+// get-project-membership endpoint payload.
+func NewGetProjectMembershipPayload(projectUID string, id string, version *string, bearerToken *string) *membershipservice.GetProjectMembershipPayload {
+	v := &membershipservice.GetProjectMembershipPayload{}
+	v.ProjectUID = &projectUID
 	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -526,14 +1083,130 @@ func NewGetMemberMembershipPayload(memberID string, id string, version *string, 
 	return v
 }
 
-// NewListMemberMembershipKeyContactsPayload builds a membership-service
-// service list-member-membership-key-contacts endpoint payload.
-func NewListMemberMembershipKeyContactsPayload(memberID string, id string, version *string, bearerToken *string) *membershipservice.ListMemberMembershipKeyContactsPayload {
-	v := &membershipservice.ListMemberMembershipKeyContactsPayload{}
-	v.MemberID = &memberID
+// NewListMembershipKeyContactsPayload builds a membership-service service
+// list-membership-key-contacts endpoint payload.
+func NewListMembershipKeyContactsPayload(projectUID string, id string, version *string, bearerToken *string) *membershipservice.ListMembershipKeyContactsPayload {
+	v := &membershipservice.ListMembershipKeyContactsPayload{}
+	v.ProjectUID = &projectUID
 	v.ID = &id
 	v.Version = version
 	v.BearerToken = bearerToken
 
 	return v
+}
+
+// NewCreateMembershipKeyContactPayload builds a membership-service service
+// create-membership-key-contact endpoint payload.
+func NewCreateMembershipKeyContactPayload(body *CreateMembershipKeyContactRequestBody, projectUID string, id string, version *string, bearerToken *string) *membershipservice.CreateMembershipKeyContactPayload {
+	v := &membershipservice.CreateMembershipKeyContactPayload{
+		Email:          *body.Email,
+		FirstName:      *body.FirstName,
+		LastName:       *body.LastName,
+		Title:          body.Title,
+		Role:           body.Role,
+		Status:         body.Status,
+		BoardMember:    body.BoardMember,
+		PrimaryContact: body.PrimaryContact,
+	}
+	v.ProjectUID = &projectUID
+	v.ID = &id
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewUpdateMembershipKeyContactPayload builds a membership-service service
+// update-membership-key-contact endpoint payload.
+func NewUpdateMembershipKeyContactPayload(body *UpdateMembershipKeyContactRequestBody, projectUID string, id string, cid string, version *string, bearerToken *string) *membershipservice.UpdateMembershipKeyContactPayload {
+	v := &membershipservice.UpdateMembershipKeyContactPayload{
+		Role:           body.Role,
+		Status:         body.Status,
+		BoardMember:    body.BoardMember,
+		PrimaryContact: body.PrimaryContact,
+	}
+	v.ProjectUID = &projectUID
+	v.ID = &id
+	v.Cid = &cid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewDeleteMembershipKeyContactPayload builds a membership-service service
+// delete-membership-key-contact endpoint payload.
+func NewDeleteMembershipKeyContactPayload(projectUID string, id string, cid string, version *string, bearerToken *string) *membershipservice.DeleteMembershipKeyContactPayload {
+	v := &membershipservice.DeleteMembershipKeyContactPayload{}
+	v.ProjectUID = &projectUID
+	v.ID = &id
+	v.Cid = &cid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewGetMembershipKeyContactPayload builds a membership-service service
+// get-membership-key-contact endpoint payload.
+func NewGetMembershipKeyContactPayload(projectUID string, id string, cid string, version *string, bearerToken *string) *membershipservice.GetMembershipKeyContactPayload {
+	v := &membershipservice.GetMembershipKeyContactPayload{}
+	v.ProjectUID = &projectUID
+	v.ID = &id
+	v.Cid = &cid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewDeprecatedListMembersPayload builds a membership-service service
+// deprecated-list-members endpoint payload.
+func NewDeprecatedListMembersPayload(pageSize *int, offset *int, filter *string, search *string) *membershipservice.DeprecatedListMembersPayload {
+	v := &membershipservice.DeprecatedListMembersPayload{}
+	v.PageSize = pageSize
+	v.Offset = offset
+	v.Filter = filter
+	v.Search = search
+
+	return v
+}
+
+// NewDeprecatedGetMemberMembershipPayload builds a membership-service service
+// deprecated-get-member-membership endpoint payload.
+func NewDeprecatedGetMemberMembershipPayload(memberID string, id string) *membershipservice.DeprecatedGetMemberMembershipPayload {
+	v := &membershipservice.DeprecatedGetMemberMembershipPayload{}
+	v.MemberID = &memberID
+	v.ID = &id
+
+	return v
+}
+
+// NewDeprecatedListMemberMembershipKeyContactsPayload builds a
+// membership-service service deprecated-list-member-membership-key-contacts
+// endpoint payload.
+func NewDeprecatedListMemberMembershipKeyContactsPayload(memberID string, id string) *membershipservice.DeprecatedListMemberMembershipKeyContactsPayload {
+	v := &membershipservice.DeprecatedListMemberMembershipKeyContactsPayload{}
+	v.MemberID = &memberID
+	v.ID = &id
+
+	return v
+}
+
+// ValidateCreateMembershipKeyContactRequestBody runs the validations defined
+// on Create-Membership-Key-ContactRequestBody
+func ValidateCreateMembershipKeyContactRequestBody(body *CreateMembershipKeyContactRequestBody) (err error) {
+	if body.Email == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("email", "body"))
+	}
+	if body.FirstName == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("first_name", "body"))
+	}
+	if body.LastName == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("last_name", "body"))
+	}
+	if body.Email != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+	}
+	return
 }

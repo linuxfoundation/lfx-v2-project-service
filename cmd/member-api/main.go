@@ -17,6 +17,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/cmd/member-api/service"
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
+	natsinf "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 
 	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 
@@ -96,12 +97,27 @@ func main() {
 	memberReader := service.MemberReaderImpl(ctx)
 	defer service.CloseNATSClient()
 
+	// Register the project-id-map NATS RPC handler so external services can
+	// resolve v2 project UIDs to Salesforce Project__c.Id SFIDs.
+	natsClient := service.NATSClientImpl(ctx)
+	resolver := service.ProjectResolverImpl(ctx)
+	projectIDMapSub, err := natsinf.SubscribeProjectIDMap(natsClient.Conn(), resolver)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to subscribe to project-id-map RPC", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if drainErr := projectIDMapSub.Drain(); drainErr != nil {
+			slog.WarnContext(ctx, "error draining project-id-map subscription", "error", drainErr)
+		}
+	}()
+
 	// Initialize the service with use cases.
 	readMemberUseCase := usecaseSvc.NewMemberReaderOrchestrator(
 		usecaseSvc.WithMemberReader(memberReader),
 	)
 
-	membershipServiceSvc := service.NewMembershipService(readMemberUseCase, memberReader, jwtAuth)
+	membershipServiceSvc := service.NewMembershipService(readMemberUseCase, memberReader, jwtAuth, service.KeyContactWriterImpl(ctx))
 
 	// Wrap the services in endpoints.
 	membershipServiceEndpoints := membershipservice.NewEndpoints(membershipServiceSvc)

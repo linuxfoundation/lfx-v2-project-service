@@ -1,6 +1,10 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
+// Package service contains use-case orchestrators that sit between the Goa
+// presentation layer and the domain port implementations. Each orchestrator
+// delegates directly to a port.MemberReader, adding structured logging and
+// error propagation without duplicating business logic.
 package service
 
 import (
@@ -11,97 +15,163 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 )
 
-// MemberReader defines the interface for member read operations
+// MemberReader defines the use-case interface for project-scoped membership
+// read operations. It mirrors port.MemberReader closely but is defined here so
+// the presentation layer depends on the use-case package rather than the port
+// package directly.
 type MemberReader interface {
-	ListMembers(ctx context.Context, params model.ListParams) ([]*model.Member, int, error)
-	GetMembershipForMember(ctx context.Context, memberUID, membershipUID string) (*model.Membership, uint64, error)
-	ListKeyContactsForMembership(ctx context.Context, memberUID, membershipUID string) ([]*model.KeyContact, error)
+	ListTiersForProject(ctx context.Context, projectSFID string) ([]*model.MembershipTier, error)
+	GetTier(ctx context.Context, tierUID string) (*model.MembershipTier, error)
+	ListMembershipsForProject(ctx context.Context, projectUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error)
+	GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error)
+	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error)
+	GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error)
 }
 
-// memberReaderOrchestratorOption defines a function type for setting options
+// memberReaderOrchestratorOption defines a functional option for configuring a
+// memberReaderOrchestrator.
 type memberReaderOrchestratorOption func(*memberReaderOrchestrator)
 
-// WithMemberReader sets the member reader
+// WithMemberReader sets the underlying port.MemberReader on the orchestrator.
 func WithMemberReader(reader port.MemberReader) memberReaderOrchestratorOption {
 	return func(r *memberReaderOrchestrator) {
 		r.memberReader = reader
 	}
 }
 
-// memberReaderOrchestrator orchestrates the member reading process
+// memberReaderOrchestrator wraps a port.MemberReader with structured logging
+// and satisfies the MemberReader use-case interface.
 type memberReaderOrchestrator struct {
 	memberReader port.MemberReader
 }
 
-// ListMembers retrieves members with pagination, filtering, and search
-func (rc *memberReaderOrchestrator) ListMembers(ctx context.Context, params model.ListParams) ([]*model.Member, int, error) {
-	slog.DebugContext(ctx, "executing list members use case",
-		"page_size", params.PageSize,
-		"offset", params.Offset,
-		"search", params.Search,
+// ListTiersForProject returns all MembershipTier records for the given project.
+func (rc *memberReaderOrchestrator) ListTiersForProject(ctx context.Context, projectSFID string) ([]*model.MembershipTier, error) {
+	slog.DebugContext(ctx, "executing list tiers for project use case",
+		"project_sfid", projectSFID,
 	)
 
-	members, totalSize, err := rc.memberReader.ListMembers(ctx, params)
+	tiers, err := rc.memberReader.ListTiersForProject(ctx, projectSFID)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list members", "error", err)
-		return nil, 0, err
-	}
-
-	slog.DebugContext(ctx, "members retrieved successfully", "total_size", totalSize)
-	return members, totalSize, nil
-}
-
-// GetMembershipForMember retrieves a membership for a specific member
-func (rc *memberReaderOrchestrator) GetMembershipForMember(ctx context.Context, memberUID, membershipUID string) (*model.Membership, uint64, error) {
-	slog.DebugContext(ctx, "executing get membership for member use case",
-		"member_uid", memberUID,
-		"membership_uid", membershipUID,
-	)
-
-	membership, revision, err := rc.memberReader.GetMembershipForMember(ctx, memberUID, membershipUID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get membership for member",
+		slog.ErrorContext(ctx, "failed to list tiers for project",
 			"error", err,
-			"member_uid", memberUID,
-			"membership_uid", membershipUID,
+			"project_sfid", projectSFID,
 		)
-		return nil, 0, err
+		return nil, err
 	}
 
-	slog.DebugContext(ctx, "membership for member retrieved successfully",
-		"member_uid", memberUID,
-		"membership_uid", membershipUID,
-		"revision", revision,
+	slog.DebugContext(ctx, "tiers retrieved successfully",
+		"project_sfid", projectSFID,
+		"tier_count", len(tiers),
 	)
-	return membership, revision, nil
+	return tiers, nil
 }
 
-// ListKeyContactsForMembership retrieves key contacts for a membership under a member
-func (rc *memberReaderOrchestrator) ListKeyContactsForMembership(ctx context.Context, memberUID, membershipUID string) ([]*model.KeyContact, error) {
-	slog.DebugContext(ctx, "executing list key contacts for membership use case",
-		"member_uid", memberUID,
-		"membership_uid", membershipUID,
+// GetTier returns the MembershipTier identified by tierUID.
+func (rc *memberReaderOrchestrator) GetTier(ctx context.Context, tierUID string) (*model.MembershipTier, error) {
+	slog.DebugContext(ctx, "executing get tier use case", "tier_uid", tierUID)
+
+	tier, err := rc.memberReader.GetTier(ctx, tierUID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get tier",
+			"error", err,
+			"tier_uid", tierUID,
+		)
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "tier retrieved successfully", "tier_uid", tierUID)
+	return tier, nil
+}
+
+// ListMembershipsForProject returns a single page of ProjectMembership records
+// for the given project, filtered and ordered by the supplied predicates.
+func (rc *memberReaderOrchestrator) ListMembershipsForProject(ctx context.Context, projectUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
+	slog.DebugContext(ctx, "executing list memberships for project use case",
+		"project_uid", projectUID,
+		"filter_tier_uid", filters.TierUID,
+		"sort_order", filters.EffectiveSortOrder(),
+		"page_token_set", filters.PageToken != "",
+		"page_size", pageSize,
 	)
 
-	contacts, err := rc.memberReader.ListKeyContactsForMembership(ctx, memberUID, membershipUID)
+	page, err := rc.memberReader.ListMembershipsForProject(ctx, projectUID, filters, pageSize)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to list key contacts for membership",
+		slog.ErrorContext(ctx, "failed to list memberships for project",
 			"error", err,
-			"member_uid", memberUID,
+			"project_uid", projectUID,
+		)
+		return model.MembershipPage{}, err
+	}
+
+	slog.DebugContext(ctx, "memberships page retrieved successfully",
+		"project_uid", projectUID,
+		"count", len(page.Memberships),
+		"total_size", page.TotalSize,
+		"has_next_page", page.NextPageToken != "",
+	)
+	return page, nil
+}
+
+// GetMembership returns the ProjectMembership identified by membershipUID.
+func (rc *memberReaderOrchestrator) GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error) {
+	slog.DebugContext(ctx, "executing get membership use case", "membership_uid", membershipUID)
+
+	membership, err := rc.memberReader.GetMembership(ctx, membershipUID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get membership",
+			"error", err,
 			"membership_uid", membershipUID,
 		)
 		return nil, err
 	}
 
-	slog.DebugContext(ctx, "key contacts for membership retrieved successfully",
-		"member_uid", memberUID,
+	slog.DebugContext(ctx, "membership retrieved successfully", "membership_uid", membershipUID)
+	return membership, nil
+}
+
+// ListKeyContactsForMembership returns all ProjectKeyContact records for the
+// given membership.
+func (rc *memberReaderOrchestrator) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error) {
+	slog.DebugContext(ctx, "executing list key contacts for membership use case",
+		"membership_uid", membershipUID,
+	)
+
+	contacts, err := rc.memberReader.ListKeyContactsForMembership(ctx, membershipUID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list key contacts for membership",
+			"error", err,
+			"membership_uid", membershipUID,
+		)
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "key contacts retrieved successfully",
 		"membership_uid", membershipUID,
 		"contact_count", len(contacts),
 	)
 	return contacts, nil
 }
 
-// NewMemberReaderOrchestrator creates a new member reader orchestrator
+// GetKeyContact returns the ProjectKeyContact identified by keyContactUID.
+func (rc *memberReaderOrchestrator) GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error) {
+	slog.DebugContext(ctx, "executing get key contact use case", "key_contact_uid", keyContactUID)
+
+	contact, err := rc.memberReader.GetKeyContact(ctx, keyContactUID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get key contact",
+			"error", err,
+			"key_contact_uid", keyContactUID,
+		)
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "key contact retrieved successfully", "key_contact_uid", keyContactUID)
+	return contact, nil
+}
+
+// NewMemberReaderOrchestrator creates a new memberReaderOrchestrator. The
+// WithMemberReader option is required; the constructor panics if it is omitted.
 func NewMemberReaderOrchestrator(opts ...memberReaderOrchestratorOption) MemberReader {
 	rc := &memberReaderOrchestrator{}
 	for _, opt := range opts {

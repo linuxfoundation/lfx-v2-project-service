@@ -75,9 +75,6 @@ build: ## Build the application for local OS
 	go build \
 		-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMMIT)" \
 		-o bin/member-api ./cmd/member-api
-	go build \
-		-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GitCommit=$(GIT_COMMIT)" \
-		-o bin/sync ./cmd/sync
 
 .PHONY: run
 run: build ## Run the application for local development

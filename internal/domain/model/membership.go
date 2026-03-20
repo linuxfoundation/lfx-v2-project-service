@@ -5,63 +5,94 @@ package model
 
 import "time"
 
-// Membership represents a membership entity
-type Membership struct {
-	UID              string    `json:"uid"`
-	MemberUID        string    `json:"member_uid"`
-	Name             string    `json:"name"`
-	Status           string    `json:"status"`
-	Year             string    `json:"year,omitempty"`
-	Tier             string    `json:"tier,omitempty"`
-	MembershipType   string    `json:"membership_type"`
-	AutoRenew        bool      `json:"auto_renew"`
-	RenewalType      string    `json:"renewal_type,omitempty"`
-	Price            float64   `json:"price,omitempty"`
-	AnnualFullPrice  float64   `json:"annual_full_price,omitempty"`
-	PaymentFrequency string    `json:"payment_frequency,omitempty"`
-	PaymentTerms     string    `json:"payment_terms,omitempty"`
-	AgreementDate    string    `json:"agreement_date,omitempty"`
-	PurchaseDate     string    `json:"purchase_date,omitempty"`
-	StartDate        string    `json:"start_date,omitempty"`
-	EndDate          string    `json:"end_date,omitempty"`
-	Account          Account   `json:"account"`
-	Contact          Contact   `json:"contact"`
-	Product          Product   `json:"product"`
-	Project          Project   `json:"project"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-}
+// ProjectMembership represents a membership (Asset) record scoped to a specific
+// project. Account (company) attributes are denormalized directly onto this
+// struct — there is no separate Account sub-object. This eliminates the
+// fan-out problem of maintaining per-project permission tuples on a shared
+// account object.
+type ProjectMembership struct {
+	// UID is the invertible UUID v8 derived from the Salesforce Asset.Id.
+	UID string `json:"uid"`
 
-// Account represents an organization account
-type Account struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	LogoURL string `json:"logo_url,omitempty"`
-	Website string `json:"website,omitempty"`
-}
+	// TierUID is the UID of the associated MembershipTier (Product2).
+	TierUID string `json:"tier_uid"`
 
-// Contact represents a person contact
-type Contact struct {
-	ID        string `json:"id"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	Title     string `json:"title,omitempty"`
-}
+	// ProjectUID is the v2 UUID of the project this membership belongs to.
+	ProjectUID string `json:"project_uid"`
 
-// Product represents a product
-type Product struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Family string `json:"family"`
-	Type   string `json:"type,omitempty"`
-}
+	// ProjectSlug is the URL slug of the associated project. Used internally
+	// by the resolver to populate ProjectUID; not included in API responses.
+	ProjectSlug string `json:"-"`
 
-// Project represents a project
-type Project struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	LogoURL string `json:"logo_url,omitempty"`
-	Slug    string `json:"slug,omitempty"`
-	Status  string `json:"status,omitempty"`
+	// AccountSFID is the raw Salesforce Account.Id for this membership's
+	// company. Used internally by the write path to associate new Contact
+	// records with the correct Account; not included in API responses.
+	AccountSFID string `json:"-"`
+
+	// Status is the membership status, e.g. "Active", "Expired".
+	Status string `json:"status"`
+
+	// Year is the membership year, e.g. "2025".
+	Year string `json:"year,omitempty"`
+
+	// Tier is the membership tier label, e.g. "Gold".
+	Tier string `json:"tier,omitempty"`
+
+	// MembershipType is derived from the Asset RecordType, e.g. "Corporate".
+	MembershipType string `json:"membership_type"`
+
+	// AutoRenew indicates whether automatic renewal is enabled.
+	AutoRenew bool `json:"auto_renew"`
+
+	// RenewalType describes the renewal cadence, e.g. "Annual".
+	RenewalType string `json:"renewal_type,omitempty"`
+
+	// Price is the current membership price.
+	Price float64 `json:"price,omitempty"`
+
+	// AnnualFullPrice is the full annual list price before any discounts.
+	AnnualFullPrice float64 `json:"annual_full_price,omitempty"`
+
+	// PaymentFrequency describes how often payments are made.
+	PaymentFrequency string `json:"payment_frequency,omitempty"`
+
+	// PaymentTerms are the payment terms, e.g. "Net 30".
+	PaymentTerms string `json:"payment_terms,omitempty"`
+
+	// AgreementDate is the date the membership agreement was signed.
+	AgreementDate string `json:"agreement_date,omitempty"`
+
+	// PurchaseDate is the effective purchase date (COALESCE of PurchaseDate,
+	// InstallDate, CreatedDate from the Asset record).
+	PurchaseDate string `json:"purchase_date,omitempty"`
+
+	// StartDate is the membership start date (InstallDate on the Asset).
+	StartDate string `json:"start_date,omitempty"`
+
+	// EndDate is the membership end date (UsageEndDate on the Asset).
+	EndDate string `json:"end_date,omitempty"`
+
+	// CompanyName is the name of the member company, denormalized from Account.
+	CompanyName string `json:"company_name"`
+
+	// CompanyLogoURL is the member company logo URL, denormalized from Account.
+	CompanyLogoURL string `json:"company_logo_url,omitempty"`
+
+	// CompanyDomain is the member company website/domain, denormalized from
+	// Account.Website. Used for domain-based lookups (e.g. MCP).
+	CompanyDomain string `json:"company_domain,omitempty"`
+
+	// TierName is the product name denormalized from Product2, e.g. "Gold
+	// Corporate Membership".
+	TierName string `json:"tier_name,omitempty"`
+
+	// TierFamily is the product family denormalized from Product2, e.g.
+	// "Membership".
+	TierFamily string `json:"tier_family,omitempty"`
+
+	// TierProductType is the product type denormalized from Product2.
+	TierProductType string `json:"tier_product_type,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
