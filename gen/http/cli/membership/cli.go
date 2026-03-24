@@ -53,7 +53,7 @@ func ParseEndpoint(
 
 		membershipServiceGetProjectTierFlags           = flag.NewFlagSet("get-project-tier", flag.ExitOnError)
 		membershipServiceGetProjectTierProjectUIDFlag  = membershipServiceGetProjectTierFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceGetProjectTierTierIDFlag      = membershipServiceGetProjectTierFlags.String("tier-id", "REQUIRED", "Membership tier UID")
+		membershipServiceGetProjectTierTierUIDFlag     = membershipServiceGetProjectTierFlags.String("tier-uid", "REQUIRED", "Membership tier UID")
 		membershipServiceGetProjectTierVersionFlag     = membershipServiceGetProjectTierFlags.String("version", "", "")
 		membershipServiceGetProjectTierBearerTokenFlag = membershipServiceGetProjectTierFlags.String("bearer-token", "", "")
 
@@ -67,46 +67,46 @@ func ParseEndpoint(
 		membershipServiceListProjectMembershipsSearchFlag      = membershipServiceListProjectMembershipsFlags.String("search", "", "")
 		membershipServiceListProjectMembershipsBearerTokenFlag = membershipServiceListProjectMembershipsFlags.String("bearer-token", "", "")
 
-		membershipServiceGetProjectMembershipFlags           = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
-		membershipServiceGetProjectMembershipProjectUIDFlag  = membershipServiceGetProjectMembershipFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceGetProjectMembershipIDFlag          = membershipServiceGetProjectMembershipFlags.String("id", "REQUIRED", "Membership UID")
-		membershipServiceGetProjectMembershipVersionFlag     = membershipServiceGetProjectMembershipFlags.String("version", "", "")
-		membershipServiceGetProjectMembershipBearerTokenFlag = membershipServiceGetProjectMembershipFlags.String("bearer-token", "", "")
+		membershipServiceGetProjectMembershipFlags             = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
+		membershipServiceGetProjectMembershipProjectUIDFlag    = membershipServiceGetProjectMembershipFlags.String("project-uid", "REQUIRED", "V2 project UUID")
+		membershipServiceGetProjectMembershipMembershipUIDFlag = membershipServiceGetProjectMembershipFlags.String("membership-uid", "REQUIRED", "Membership UID")
+		membershipServiceGetProjectMembershipVersionFlag       = membershipServiceGetProjectMembershipFlags.String("version", "", "")
+		membershipServiceGetProjectMembershipBearerTokenFlag   = membershipServiceGetProjectMembershipFlags.String("bearer-token", "", "")
 
-		membershipServiceListMembershipKeyContactsFlags           = flag.NewFlagSet("list-membership-key-contacts", flag.ExitOnError)
-		membershipServiceListMembershipKeyContactsProjectUIDFlag  = membershipServiceListMembershipKeyContactsFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceListMembershipKeyContactsIDFlag          = membershipServiceListMembershipKeyContactsFlags.String("id", "REQUIRED", "Membership UID")
-		membershipServiceListMembershipKeyContactsVersionFlag     = membershipServiceListMembershipKeyContactsFlags.String("version", "", "")
-		membershipServiceListMembershipKeyContactsBearerTokenFlag = membershipServiceListMembershipKeyContactsFlags.String("bearer-token", "", "")
+		membershipServiceListMembershipKeyContactsFlags             = flag.NewFlagSet("list-membership-key-contacts", flag.ExitOnError)
+		membershipServiceListMembershipKeyContactsProjectUIDFlag    = membershipServiceListMembershipKeyContactsFlags.String("project-uid", "REQUIRED", "V2 project UUID")
+		membershipServiceListMembershipKeyContactsMembershipUIDFlag = membershipServiceListMembershipKeyContactsFlags.String("membership-uid", "REQUIRED", "Membership UID")
+		membershipServiceListMembershipKeyContactsVersionFlag       = membershipServiceListMembershipKeyContactsFlags.String("version", "", "")
+		membershipServiceListMembershipKeyContactsBearerTokenFlag   = membershipServiceListMembershipKeyContactsFlags.String("bearer-token", "", "")
 
-		membershipServiceCreateMembershipKeyContactFlags           = flag.NewFlagSet("create-membership-key-contact", flag.ExitOnError)
-		membershipServiceCreateMembershipKeyContactBodyFlag        = membershipServiceCreateMembershipKeyContactFlags.String("body", "REQUIRED", "")
-		membershipServiceCreateMembershipKeyContactProjectUIDFlag  = membershipServiceCreateMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceCreateMembershipKeyContactIDFlag          = membershipServiceCreateMembershipKeyContactFlags.String("id", "REQUIRED", "Membership UID")
-		membershipServiceCreateMembershipKeyContactVersionFlag     = membershipServiceCreateMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceCreateMembershipKeyContactBearerTokenFlag = membershipServiceCreateMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceCreateMembershipKeyContactFlags             = flag.NewFlagSet("create-membership-key-contact", flag.ExitOnError)
+		membershipServiceCreateMembershipKeyContactBodyFlag          = membershipServiceCreateMembershipKeyContactFlags.String("body", "REQUIRED", "")
+		membershipServiceCreateMembershipKeyContactProjectUIDFlag    = membershipServiceCreateMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
+		membershipServiceCreateMembershipKeyContactMembershipUIDFlag = membershipServiceCreateMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
+		membershipServiceCreateMembershipKeyContactVersionFlag       = membershipServiceCreateMembershipKeyContactFlags.String("version", "", "")
+		membershipServiceCreateMembershipKeyContactBearerTokenFlag   = membershipServiceCreateMembershipKeyContactFlags.String("bearer-token", "", "")
 
-		membershipServiceUpdateMembershipKeyContactFlags           = flag.NewFlagSet("update-membership-key-contact", flag.ExitOnError)
-		membershipServiceUpdateMembershipKeyContactBodyFlag        = membershipServiceUpdateMembershipKeyContactFlags.String("body", "REQUIRED", "")
-		membershipServiceUpdateMembershipKeyContactProjectUIDFlag  = membershipServiceUpdateMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceUpdateMembershipKeyContactIDFlag          = membershipServiceUpdateMembershipKeyContactFlags.String("id", "REQUIRED", "Membership UID")
-		membershipServiceUpdateMembershipKeyContactCidFlag         = membershipServiceUpdateMembershipKeyContactFlags.String("cid", "REQUIRED", "Key contact UID")
-		membershipServiceUpdateMembershipKeyContactVersionFlag     = membershipServiceUpdateMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceUpdateMembershipKeyContactBearerTokenFlag = membershipServiceUpdateMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceUpdateMembershipKeyContactFlags             = flag.NewFlagSet("update-membership-key-contact", flag.ExitOnError)
+		membershipServiceUpdateMembershipKeyContactBodyFlag          = membershipServiceUpdateMembershipKeyContactFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateMembershipKeyContactProjectUIDFlag    = membershipServiceUpdateMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
+		membershipServiceUpdateMembershipKeyContactMembershipUIDFlag = membershipServiceUpdateMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
+		membershipServiceUpdateMembershipKeyContactContactUIDFlag    = membershipServiceUpdateMembershipKeyContactFlags.String("contact-uid", "REQUIRED", "Key contact UID")
+		membershipServiceUpdateMembershipKeyContactVersionFlag       = membershipServiceUpdateMembershipKeyContactFlags.String("version", "", "")
+		membershipServiceUpdateMembershipKeyContactBearerTokenFlag   = membershipServiceUpdateMembershipKeyContactFlags.String("bearer-token", "", "")
 
-		membershipServiceDeleteMembershipKeyContactFlags           = flag.NewFlagSet("delete-membership-key-contact", flag.ExitOnError)
-		membershipServiceDeleteMembershipKeyContactProjectUIDFlag  = membershipServiceDeleteMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceDeleteMembershipKeyContactIDFlag          = membershipServiceDeleteMembershipKeyContactFlags.String("id", "REQUIRED", "Membership UID")
-		membershipServiceDeleteMembershipKeyContactCidFlag         = membershipServiceDeleteMembershipKeyContactFlags.String("cid", "REQUIRED", "Key contact UID")
-		membershipServiceDeleteMembershipKeyContactVersionFlag     = membershipServiceDeleteMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceDeleteMembershipKeyContactBearerTokenFlag = membershipServiceDeleteMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceDeleteMembershipKeyContactFlags             = flag.NewFlagSet("delete-membership-key-contact", flag.ExitOnError)
+		membershipServiceDeleteMembershipKeyContactProjectUIDFlag    = membershipServiceDeleteMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
+		membershipServiceDeleteMembershipKeyContactMembershipUIDFlag = membershipServiceDeleteMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
+		membershipServiceDeleteMembershipKeyContactContactUIDFlag    = membershipServiceDeleteMembershipKeyContactFlags.String("contact-uid", "REQUIRED", "Key contact UID")
+		membershipServiceDeleteMembershipKeyContactVersionFlag       = membershipServiceDeleteMembershipKeyContactFlags.String("version", "", "")
+		membershipServiceDeleteMembershipKeyContactBearerTokenFlag   = membershipServiceDeleteMembershipKeyContactFlags.String("bearer-token", "", "")
 
-		membershipServiceGetMembershipKeyContactFlags           = flag.NewFlagSet("get-membership-key-contact", flag.ExitOnError)
-		membershipServiceGetMembershipKeyContactProjectUIDFlag  = membershipServiceGetMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceGetMembershipKeyContactIDFlag          = membershipServiceGetMembershipKeyContactFlags.String("id", "REQUIRED", "Membership UID")
-		membershipServiceGetMembershipKeyContactCidFlag         = membershipServiceGetMembershipKeyContactFlags.String("cid", "REQUIRED", "Key contact UID")
-		membershipServiceGetMembershipKeyContactVersionFlag     = membershipServiceGetMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceGetMembershipKeyContactBearerTokenFlag = membershipServiceGetMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceGetMembershipKeyContactFlags             = flag.NewFlagSet("get-membership-key-contact", flag.ExitOnError)
+		membershipServiceGetMembershipKeyContactProjectUIDFlag    = membershipServiceGetMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
+		membershipServiceGetMembershipKeyContactMembershipUIDFlag = membershipServiceGetMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
+		membershipServiceGetMembershipKeyContactContactUIDFlag    = membershipServiceGetMembershipKeyContactFlags.String("contact-uid", "REQUIRED", "Key contact UID")
+		membershipServiceGetMembershipKeyContactVersionFlag       = membershipServiceGetMembershipKeyContactFlags.String("version", "", "")
+		membershipServiceGetMembershipKeyContactBearerTokenFlag   = membershipServiceGetMembershipKeyContactFlags.String("bearer-token", "", "")
 
 		membershipServiceReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
 
@@ -222,28 +222,28 @@ func ParseEndpoint(
 				data, err = membershipservicec.BuildListProjectTiersPayload(*membershipServiceListProjectTiersProjectUIDFlag, *membershipServiceListProjectTiersVersionFlag, *membershipServiceListProjectTiersBearerTokenFlag)
 			case "get-project-tier":
 				endpoint = c.GetProjectTier()
-				data, err = membershipservicec.BuildGetProjectTierPayload(*membershipServiceGetProjectTierProjectUIDFlag, *membershipServiceGetProjectTierTierIDFlag, *membershipServiceGetProjectTierVersionFlag, *membershipServiceGetProjectTierBearerTokenFlag)
+				data, err = membershipservicec.BuildGetProjectTierPayload(*membershipServiceGetProjectTierProjectUIDFlag, *membershipServiceGetProjectTierTierUIDFlag, *membershipServiceGetProjectTierVersionFlag, *membershipServiceGetProjectTierBearerTokenFlag)
 			case "list-project-memberships":
 				endpoint = c.ListProjectMemberships()
 				data, err = membershipservicec.BuildListProjectMembershipsPayload(*membershipServiceListProjectMembershipsProjectUIDFlag, *membershipServiceListProjectMembershipsVersionFlag, *membershipServiceListProjectMembershipsPageSizeFlag, *membershipServiceListProjectMembershipsPageTokenFlag, *membershipServiceListProjectMembershipsSortFlag, *membershipServiceListProjectMembershipsFilterFlag, *membershipServiceListProjectMembershipsSearchFlag, *membershipServiceListProjectMembershipsBearerTokenFlag)
 			case "get-project-membership":
 				endpoint = c.GetProjectMembership()
-				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipProjectUIDFlag, *membershipServiceGetProjectMembershipIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag)
+				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipProjectUIDFlag, *membershipServiceGetProjectMembershipMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag)
 			case "list-membership-key-contacts":
 				endpoint = c.ListMembershipKeyContacts()
-				data, err = membershipservicec.BuildListMembershipKeyContactsPayload(*membershipServiceListMembershipKeyContactsProjectUIDFlag, *membershipServiceListMembershipKeyContactsIDFlag, *membershipServiceListMembershipKeyContactsVersionFlag, *membershipServiceListMembershipKeyContactsBearerTokenFlag)
+				data, err = membershipservicec.BuildListMembershipKeyContactsPayload(*membershipServiceListMembershipKeyContactsProjectUIDFlag, *membershipServiceListMembershipKeyContactsMembershipUIDFlag, *membershipServiceListMembershipKeyContactsVersionFlag, *membershipServiceListMembershipKeyContactsBearerTokenFlag)
 			case "create-membership-key-contact":
 				endpoint = c.CreateMembershipKeyContact()
-				data, err = membershipservicec.BuildCreateMembershipKeyContactPayload(*membershipServiceCreateMembershipKeyContactBodyFlag, *membershipServiceCreateMembershipKeyContactProjectUIDFlag, *membershipServiceCreateMembershipKeyContactIDFlag, *membershipServiceCreateMembershipKeyContactVersionFlag, *membershipServiceCreateMembershipKeyContactBearerTokenFlag)
+				data, err = membershipservicec.BuildCreateMembershipKeyContactPayload(*membershipServiceCreateMembershipKeyContactBodyFlag, *membershipServiceCreateMembershipKeyContactProjectUIDFlag, *membershipServiceCreateMembershipKeyContactMembershipUIDFlag, *membershipServiceCreateMembershipKeyContactVersionFlag, *membershipServiceCreateMembershipKeyContactBearerTokenFlag)
 			case "update-membership-key-contact":
 				endpoint = c.UpdateMembershipKeyContact()
-				data, err = membershipservicec.BuildUpdateMembershipKeyContactPayload(*membershipServiceUpdateMembershipKeyContactBodyFlag, *membershipServiceUpdateMembershipKeyContactProjectUIDFlag, *membershipServiceUpdateMembershipKeyContactIDFlag, *membershipServiceUpdateMembershipKeyContactCidFlag, *membershipServiceUpdateMembershipKeyContactVersionFlag, *membershipServiceUpdateMembershipKeyContactBearerTokenFlag)
+				data, err = membershipservicec.BuildUpdateMembershipKeyContactPayload(*membershipServiceUpdateMembershipKeyContactBodyFlag, *membershipServiceUpdateMembershipKeyContactProjectUIDFlag, *membershipServiceUpdateMembershipKeyContactMembershipUIDFlag, *membershipServiceUpdateMembershipKeyContactContactUIDFlag, *membershipServiceUpdateMembershipKeyContactVersionFlag, *membershipServiceUpdateMembershipKeyContactBearerTokenFlag)
 			case "delete-membership-key-contact":
 				endpoint = c.DeleteMembershipKeyContact()
-				data, err = membershipservicec.BuildDeleteMembershipKeyContactPayload(*membershipServiceDeleteMembershipKeyContactProjectUIDFlag, *membershipServiceDeleteMembershipKeyContactIDFlag, *membershipServiceDeleteMembershipKeyContactCidFlag, *membershipServiceDeleteMembershipKeyContactVersionFlag, *membershipServiceDeleteMembershipKeyContactBearerTokenFlag)
+				data, err = membershipservicec.BuildDeleteMembershipKeyContactPayload(*membershipServiceDeleteMembershipKeyContactProjectUIDFlag, *membershipServiceDeleteMembershipKeyContactMembershipUIDFlag, *membershipServiceDeleteMembershipKeyContactContactUIDFlag, *membershipServiceDeleteMembershipKeyContactVersionFlag, *membershipServiceDeleteMembershipKeyContactBearerTokenFlag)
 			case "get-membership-key-contact":
 				endpoint = c.GetMembershipKeyContact()
-				data, err = membershipservicec.BuildGetMembershipKeyContactPayload(*membershipServiceGetMembershipKeyContactProjectUIDFlag, *membershipServiceGetMembershipKeyContactIDFlag, *membershipServiceGetMembershipKeyContactCidFlag, *membershipServiceGetMembershipKeyContactVersionFlag, *membershipServiceGetMembershipKeyContactBearerTokenFlag)
+				data, err = membershipservicec.BuildGetMembershipKeyContactPayload(*membershipServiceGetMembershipKeyContactProjectUIDFlag, *membershipServiceGetMembershipKeyContactMembershipUIDFlag, *membershipServiceGetMembershipKeyContactContactUIDFlag, *membershipServiceGetMembershipKeyContactVersionFlag, *membershipServiceGetMembershipKeyContactBearerTokenFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -305,7 +305,7 @@ func membershipServiceGetProjectTierUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-project-tier", os.Args[0])
 	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -tier-id STRING")
+	fmt.Fprint(os.Stderr, " -tier-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -316,13 +316,13 @@ func membershipServiceGetProjectTierUsage() {
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -tier-id STRING: Membership tier UID`)
+	fmt.Fprintln(os.Stderr, `    -tier-uid STRING: Membership tier UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-tier --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --tier-id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-tier --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --tier-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceListProjectMembershipsUsage() {
@@ -361,7 +361,7 @@ func membershipServiceGetProjectMembershipUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-project-membership", os.Args[0])
 	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -372,20 +372,20 @@ func membershipServiceGetProjectMembershipUsage() {
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -id STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-membership --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-membership --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceListMembershipKeyContactsUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service list-membership-key-contacts", os.Args[0])
 	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -396,13 +396,13 @@ func membershipServiceListMembershipKeyContactsUsage() {
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -id STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-membership-key-contacts --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-membership-key-contacts --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceCreateMembershipKeyContactUsage() {
@@ -410,7 +410,7 @@ func membershipServiceCreateMembershipKeyContactUsage() {
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service create-membership-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -body JSON")
 	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -422,13 +422,13 @@ func membershipServiceCreateMembershipKeyContactUsage() {
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
 	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -id STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-membership-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-membership-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateMembershipKeyContactUsage() {
@@ -436,8 +436,8 @@ func membershipServiceUpdateMembershipKeyContactUsage() {
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-membership-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -body JSON")
 	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
-	fmt.Fprint(os.Stderr, " -cid STRING")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
+	fmt.Fprint(os.Stderr, " -contact-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -449,22 +449,22 @@ func membershipServiceUpdateMembershipKeyContactUsage() {
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
 	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -id STRING: Membership UID`)
-	fmt.Fprintln(os.Stderr, `    -cid STRING: Key contact UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -contact-uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-membership-key-contact --body '{\n      \"board_member\": false,\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\"\n   }' --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --cid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-membership-key-contact --body '{\n      \"board_member\": false,\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\"\n   }' --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --contact-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceDeleteMembershipKeyContactUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service delete-membership-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
-	fmt.Fprint(os.Stderr, " -cid STRING")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
+	fmt.Fprint(os.Stderr, " -contact-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -475,22 +475,22 @@ func membershipServiceDeleteMembershipKeyContactUsage() {
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -id STRING: Membership UID`)
-	fmt.Fprintln(os.Stderr, `    -cid STRING: Key contact UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -contact-uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-membership-key-contact --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --cid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-membership-key-contact --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --contact-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceGetMembershipKeyContactUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-membership-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
-	fmt.Fprint(os.Stderr, " -cid STRING")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
+	fmt.Fprint(os.Stderr, " -contact-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -501,14 +501,14 @@ func membershipServiceGetMembershipKeyContactUsage() {
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -id STRING: Membership UID`)
-	fmt.Fprintln(os.Stderr, `    -cid STRING: Key contact UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -contact-uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-membership-key-contact --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --cid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-membership-key-contact --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --contact-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceReadyzUsage() {

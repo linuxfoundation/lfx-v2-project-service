@@ -151,7 +151,7 @@ func DecodeGetProjectTierRequest(mux goahttp.Muxer, decoder func(*http.Request) 
 		var payload *membershipservice.GetProjectTierPayload
 		var (
 			projectUID  string
-			tierID      string
+			tierUID     string
 			version     *string
 			bearerToken *string
 			err         error
@@ -160,8 +160,8 @@ func DecodeGetProjectTierRequest(mux goahttp.Muxer, decoder func(*http.Request) 
 		)
 		projectUID = params["project_uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		tierID = params["tier_id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("tier_id", tierID, goa.FormatUUID))
+		tierUID = params["tier_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("tier_uid", tierUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -178,7 +178,7 @@ func DecodeGetProjectTierRequest(mux goahttp.Muxer, decoder func(*http.Request) 
 		if err != nil {
 			return payload, err
 		}
-		payload = NewGetProjectTierPayload(projectUID, tierID, version, bearerToken)
+		payload = NewGetProjectTierPayload(projectUID, tierUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -436,18 +436,18 @@ func DecodeGetProjectMembershipRequest(mux goahttp.Muxer, decoder func(*http.Req
 	return func(r *http.Request) (*membershipservice.GetProjectMembershipPayload, error) {
 		var payload *membershipservice.GetProjectMembershipPayload
 		var (
-			projectUID  string
-			id          string
-			version     *string
-			bearerToken *string
-			err         error
+			projectUID    string
+			membershipUID string
+			version       *string
+			bearerToken   *string
+			err           error
 
 			params = mux.Vars(r)
 		)
 		projectUID = params["project_uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -464,7 +464,7 @@ func DecodeGetProjectMembershipRequest(mux goahttp.Muxer, decoder func(*http.Req
 		if err != nil {
 			return payload, err
 		}
-		payload = NewGetProjectMembershipPayload(projectUID, id, version, bearerToken)
+		payload = NewGetProjectMembershipPayload(projectUID, membershipUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -550,18 +550,18 @@ func DecodeListMembershipKeyContactsRequest(mux goahttp.Muxer, decoder func(*htt
 	return func(r *http.Request) (*membershipservice.ListMembershipKeyContactsPayload, error) {
 		var payload *membershipservice.ListMembershipKeyContactsPayload
 		var (
-			projectUID  string
-			id          string
-			version     *string
-			bearerToken *string
-			err         error
+			projectUID    string
+			membershipUID string
+			version       *string
+			bearerToken   *string
+			err           error
 
 			params = mux.Vars(r)
 		)
 		projectUID = params["project_uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -578,7 +578,7 @@ func DecodeListMembershipKeyContactsRequest(mux goahttp.Muxer, decoder func(*htt
 		if err != nil {
 			return payload, err
 		}
-		payload = NewListMembershipKeyContactsPayload(projectUID, id, version, bearerToken)
+		payload = NewListMembershipKeyContactsPayload(projectUID, membershipUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -684,17 +684,17 @@ func DecodeCreateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		}
 
 		var (
-			projectUID  string
-			id          string
-			version     *string
-			bearerToken *string
+			projectUID    string
+			membershipUID string
+			version       *string
+			bearerToken   *string
 
 			params = mux.Vars(r)
 		)
 		projectUID = params["project_uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -711,7 +711,7 @@ func DecodeCreateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		if err != nil {
 			return payload, err
 		}
-		payload = NewCreateMembershipKeyContactPayload(&body, projectUID, id, version, bearerToken)
+		payload = NewCreateMembershipKeyContactPayload(&body, projectUID, membershipUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -826,20 +826,20 @@ func DecodeUpdateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		}
 
 		var (
-			projectUID  string
-			id          string
-			cid         string
-			version     *string
-			bearerToken *string
+			projectUID    string
+			membershipUID string
+			contactUID    string
+			version       *string
+			bearerToken   *string
 
 			params = mux.Vars(r)
 		)
 		projectUID = params["project_uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
-		cid = params["cid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("cid", cid, goa.FormatUUID))
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
+		contactUID = params["contact_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -856,7 +856,7 @@ func DecodeUpdateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateMembershipKeyContactPayload(&body, projectUID, id, cid, version, bearerToken)
+		payload = NewUpdateMembershipKeyContactPayload(&body, projectUID, membershipUID, contactUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -952,21 +952,21 @@ func DecodeDeleteMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 	return func(r *http.Request) (*membershipservice.DeleteMembershipKeyContactPayload, error) {
 		var payload *membershipservice.DeleteMembershipKeyContactPayload
 		var (
-			projectUID  string
-			id          string
-			cid         string
-			version     *string
-			bearerToken *string
-			err         error
+			projectUID    string
+			membershipUID string
+			contactUID    string
+			version       *string
+			bearerToken   *string
+			err           error
 
 			params = mux.Vars(r)
 		)
 		projectUID = params["project_uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
-		cid = params["cid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("cid", cid, goa.FormatUUID))
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
+		contactUID = params["contact_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -983,7 +983,7 @@ func DecodeDeleteMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		if err != nil {
 			return payload, err
 		}
-		payload = NewDeleteMembershipKeyContactPayload(projectUID, id, cid, version, bearerToken)
+		payload = NewDeleteMembershipKeyContactPayload(projectUID, membershipUID, contactUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -1069,21 +1069,21 @@ func DecodeGetMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*http.
 	return func(r *http.Request) (*membershipservice.GetMembershipKeyContactPayload, error) {
 		var payload *membershipservice.GetMembershipKeyContactPayload
 		var (
-			projectUID  string
-			id          string
-			cid         string
-			version     *string
-			bearerToken *string
-			err         error
+			projectUID    string
+			membershipUID string
+			contactUID    string
+			version       *string
+			bearerToken   *string
+			err           error
 
 			params = mux.Vars(r)
 		)
 		projectUID = params["project_uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		id = params["id"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
-		cid = params["cid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("cid", cid, goa.FormatUUID))
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
+		contactUID = params["contact_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -1100,7 +1100,7 @@ func DecodeGetMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*http.
 		if err != nil {
 			return payload, err
 		}
-		payload = NewGetMembershipKeyContactPayload(projectUID, id, cid, version, bearerToken)
+		payload = NewGetMembershipKeyContactPayload(projectUID, membershipUID, contactUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")

@@ -18,8 +18,8 @@ func ListProjectTiersMembershipServicePath(projectUID string) string {
 }
 
 // GetProjectTierMembershipServicePath returns the URL path to the membership-service service get-project-tier HTTP endpoint.
-func GetProjectTierMembershipServicePath(projectUID string, tierID string) string {
-	return fmt.Sprintf("/projects/%v/tiers/%v", projectUID, tierID)
+func GetProjectTierMembershipServicePath(projectUID string, tierUID string) string {
+	return fmt.Sprintf("/projects/%v/tiers/%v", projectUID, tierUID)
 }
 
 // ListProjectMembershipsMembershipServicePath returns the URL path to the membership-service service list-project-memberships HTTP endpoint.
@@ -28,33 +28,33 @@ func ListProjectMembershipsMembershipServicePath(projectUID string) string {
 }
 
 // GetProjectMembershipMembershipServicePath returns the URL path to the membership-service service get-project-membership HTTP endpoint.
-func GetProjectMembershipMembershipServicePath(projectUID string, id string) string {
-	return fmt.Sprintf("/projects/%v/memberships/%v", projectUID, id)
+func GetProjectMembershipMembershipServicePath(projectUID string, membershipUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v", projectUID, membershipUID)
 }
 
 // ListMembershipKeyContactsMembershipServicePath returns the URL path to the membership-service service list-membership-key-contacts HTTP endpoint.
-func ListMembershipKeyContactsMembershipServicePath(projectUID string, id string) string {
-	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts", projectUID, id)
+func ListMembershipKeyContactsMembershipServicePath(projectUID string, membershipUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts", projectUID, membershipUID)
 }
 
 // CreateMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service create-membership-key-contact HTTP endpoint.
-func CreateMembershipKeyContactMembershipServicePath(projectUID string, id string) string {
-	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts", projectUID, id)
+func CreateMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts", projectUID, membershipUID)
 }
 
 // UpdateMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service update-membership-key-contact HTTP endpoint.
-func UpdateMembershipKeyContactMembershipServicePath(projectUID string, id string, cid string) string {
-	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, id, cid)
+func UpdateMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string, contactUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, membershipUID, contactUID)
 }
 
 // DeleteMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service delete-membership-key-contact HTTP endpoint.
-func DeleteMembershipKeyContactMembershipServicePath(projectUID string, id string, cid string) string {
-	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, id, cid)
+func DeleteMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string, contactUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, membershipUID, contactUID)
 }
 
 // GetMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service get-membership-key-contact HTTP endpoint.
-func GetMembershipKeyContactMembershipServicePath(projectUID string, id string, cid string) string {
-	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, id, cid)
+func GetMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string, contactUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, membershipUID, contactUID)
 }
 
 // ReadyzMembershipServicePath returns the URL path to the membership-service service readyz HTTP endpoint.

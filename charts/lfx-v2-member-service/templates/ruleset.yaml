@@ -67,7 +67,7 @@ spec:
         methods:
           - GET
         routes:
-          - path: /projects/:project_uid/tiers/:tier_id
+          - path: /projects/:project_uid/tiers/:tier_uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -129,7 +129,7 @@ spec:
         methods:
           - GET
         routes:
-          - path: /projects/:project_uid/memberships/:id
+          - path: /projects/:project_uid/memberships/:membership_uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -160,7 +160,7 @@ spec:
         methods:
           - GET
         routes:
-          - path: /projects/:project_uid/memberships/:id/key_contacts
+          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -191,7 +191,7 @@ spec:
         methods:
           - GET
         routes:
-          - path: /projects/:project_uid/memberships/:id/key_contacts/:cid
+          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts/:contact_uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -222,7 +222,7 @@ spec:
         methods:
           - POST
         routes:
-          - path: /projects/:project_uid/memberships/:id/key_contacts
+          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -253,7 +253,7 @@ spec:
         methods:
           - PUT
         routes:
-          - path: /projects/:project_uid/memberships/:id/key_contacts/:cid
+          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts/:contact_uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -284,7 +284,7 @@ spec:
         methods:
           - DELETE
         routes:
-          - path: /projects/:project_uid/memberships/:id/key_contacts/:cid
+          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts/:contact_uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
