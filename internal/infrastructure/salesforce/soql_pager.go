@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -131,9 +130,10 @@ type PageResult[T any] struct {
 }
 
 // QueryPage executes a single-page SOQL query against the Salesforce REST API
-// using the given client's session. Unlike sf.Salesforce.Query, this method
-// does NOT automatically follow nextRecordsUrl — it returns exactly one page
-// of results plus the raw continuation token.
+// using sf.DoRequest, which automatically handles INVALID_SESSION_ID responses
+// by re-authenticating and retrying the request once. Unlike a raw HTTP call,
+// this ensures that an expired session mid-operation does not cause a permanent
+// 401 error — the SDK refreshes the access token and transparently retries.
 //
 // Pass an empty pageToken to execute a new query. Pass a non-empty pageToken
 // (the NextPageToken value from a previous PageResult) to fetch the next page;
@@ -144,47 +144,43 @@ type PageResult[T any] struct {
 // continuation pages return however many records remain up to the 2000-record
 // hard cap.
 func QueryPage[T any](ctx context.Context, client *sf.Salesforce, query string, pageToken string, pageSize int) (PageResult[T], error) {
-	instanceURL := client.GetInstanceUrl()
-	accessToken := client.GetAccessToken()
 	apiVer := client.GetAPIVersion()
 
-	if instanceURL == "" || accessToken == "" {
-		return PageResult[T]{}, fmt.Errorf("salesforce client is not authenticated")
-	}
-
-	var endpoint string
+	// Build the URI relative to the versioned base path that sf.DoRequest
+	// prepends. DoRequest constructs the full endpoint as:
+	//   instanceURL + "/services/data/" + apiVersion + uri
+	// so uri must start with "/" and must NOT include the version prefix.
+	var uri string
 	if pageToken == "" {
-		// Initial query: build the full query URL.
-		endpoint = instanceURL + "/services/data/" + apiVer + "/query?q=" + url.QueryEscape(query)
+		// Initial query: use the /query?q=... endpoint.
+		uri = "/query?q=" + url.QueryEscape(query)
 	} else {
-		// Continuation page: the token is the raw nextRecordsUrl, which already
-		// starts with "/services/data/vXX.X/query/<locator>". Strip the version
-		// prefix so we don't double it when prepending instanceURL + apiVer.
-		token := strings.TrimPrefix(pageToken, "/services/data/"+apiVer)
-		endpoint = instanceURL + "/services/data/" + apiVer + token
+		// Continuation page: the token is the raw nextRecordsUrl returned by
+		// Salesforce, which already includes the full versioned path like
+		// "/services/data/v63.0/query/<locator>". Strip the version prefix so
+		// that DoRequest does not double it.
+		uri = strings.TrimPrefix(pageToken, "/services/data/"+apiVer)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return PageResult[T]{}, fmt.Errorf("building SOQL page request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	// Sforce-Query-Options is honoured by Salesforce only on the initial
-	// /query?q=... call. Locator fetches ignore it; Salesforce returns up to
-	// 2000 records regardless of what we send here.
+	// Build the optional Sforce-Query-Options header for initial queries.
+	// Salesforce honours this header only on the first /query?q=... call;
+	// locator fetches return up to 2000 records regardless.
+	var opts []sf.RequestOption
 	if pageToken == "" && pageSize >= 200 {
 		if pageSize > 2000 {
 			pageSize = 2000
 		}
-		req.Header.Set("Sforce-Query-Options", fmt.Sprintf("batchSize=%d", pageSize))
+		opts = append(opts, sf.WithHeader("Sforce-Query-Options", fmt.Sprintf("batchSize=%d", pageSize)))
 	}
 
-	resp, err := sfHTTPClient(client).Do(req)
+	// DoRequest routes through the SDK's internal doRequest function, which
+	// detects INVALID_SESSION_ID in a non-2xx response, calls refreshSession
+	// to obtain a fresh access token, and retries the request exactly once.
+	// This is the key difference from the previous raw-http implementation,
+	// which bypassed the SDK entirely and never triggered session renewal.
+	resp, err := client.DoRequest("GET", uri, nil, opts...)
 	if err != nil {
-		return PageResult[T]{}, fmt.Errorf("executing SOQL page request: %w", err)
+		return PageResult[T]{}, fmt.Errorf("SOQL page request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -193,7 +189,7 @@ func QueryPage[T any](ctx context.Context, client *sf.Salesforce, query string, 
 		return PageResult[T]{}, fmt.Errorf("reading SOQL page response body: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return PageResult[T]{}, fmt.Errorf("SOQL page request returned HTTP %d: %s", resp.StatusCode, truncate(string(body), 512))
 	}
 
@@ -252,16 +248,6 @@ func QueryAllPages[T any](ctx context.Context, client *sf.Salesforce, query stri
 	}
 
 	return all, totalSize, nil
-}
-
-// sfHTTPClient returns the HTTP client configured on the Salesforce client,
-// falling back to http.DefaultClient if the client returns nil (guards against
-// panics in unit tests that use a zero-value client).
-func sfHTTPClient(client *sf.Salesforce) *http.Client {
-	if c := client.GetHTTPClient(); c != nil {
-		return c
-	}
-	return http.DefaultClient
 }
 
 // truncate shortens s to at most n bytes, appending "…" if truncated.
