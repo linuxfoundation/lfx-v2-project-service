@@ -19,6 +19,9 @@ func errNotFound(msg string) error {
 	return pkgerrors.NewNotFound(msg, fmt.Errorf("handler assertion"))
 }
 
+// wrapError maps a domain error to the appropriate Goa service error type.
+// The generated Make* helpers return *goa.ServiceError, which has a correctly
+// implemented Error() method and exposes Fault/Temporary flags to callers.
 func wrapError(ctx context.Context, err error) error {
 	slog.ErrorContext(ctx, "request failed",
 		"error", err,
@@ -26,26 +29,18 @@ func wrapError(ctx context.Context, err error) error {
 
 	var notFound pkgerrors.NotFound
 	if errors.As(err, &notFound) {
-		return &membershipservice.NotFoundError{
-			Message: err.Error(),
-		}
+		return membershipservice.MakeNotFound(err)
 	}
 
 	var validation pkgerrors.Validation
 	if errors.As(err, &validation) {
-		return &membershipservice.BadRequestError{
-			Message: err.Error(),
-		}
+		return membershipservice.MakeBadRequest(err)
 	}
 
 	var serviceUnavailable pkgerrors.ServiceUnavailable
 	if errors.As(err, &serviceUnavailable) {
-		return &membershipservice.ServiceUnavailableError{
-			Message: err.Error(),
-		}
+		return membershipservice.MakeServiceUnavailable(err)
 	}
 
-	return &membershipservice.InternalServerError{
-		Message: err.Error(),
-	}
+	return membershipservice.MakeInternalServerError(err)
 }

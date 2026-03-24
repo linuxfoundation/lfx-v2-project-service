@@ -43,11 +43,11 @@ func TestConvertTierToResponse(t *testing.T) {
 		{
 			name: "tier without optional fields omits them",
 			input: &model.MembershipTier{
-				UID:       "tier-uid-2",
+				UID:        "tier-uid-2",
 				ProjectUID: "b1234567-89ab-cdef-0123-456789abcdef",
-				Name:      "Silver Membership",
-				CreatedAt: now,
-				UpdatedAt: now,
+				Name:       "Silver Membership",
+				CreatedAt:  now,
+				UpdatedAt:  now,
 			},
 			wantNil: false,
 		},
@@ -384,14 +384,4 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 			}
 		})
 	}
-}
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-// mustStrPtr panics if s is empty. Used in table-driven tests where an empty
-// value would indicate a bug in the test data itself.
-func mustStrPtr(t *testing.T, s string) *string {
-	t.Helper()
-	require.NotEmpty(t, s, "mustStrPtr: value must not be empty")
-	return &s
 }

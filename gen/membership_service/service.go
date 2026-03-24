@@ -11,6 +11,7 @@ package membershipservice
 import (
 	"context"
 
+	goa "goa.design/goa/v3/pkg"
 	"goa.design/goa/v3/security"
 )
 
@@ -37,14 +38,6 @@ type Service interface {
 	DeleteMembershipKeyContact(context.Context, *DeleteMembershipKeyContactPayload) (err error)
 	// Get a specific key contact by UID within a membership
 	GetMembershipKeyContact(context.Context, *GetMembershipKeyContactPayload) (res *GetMembershipKeyContactResult, err error)
-	// DEPRECATED — removed. Use GET /projects/{project_id}/memberships instead.
-	DeprecatedListMembers(context.Context, *DeprecatedListMembersPayload) (err error)
-	// DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id}
-	// instead.
-	DeprecatedGetMemberMembership(context.Context, *DeprecatedGetMemberMembershipPayload) (err error)
-	// DEPRECATED — removed. Use GET
-	// /projects/{project_id}/memberships/{id}/key_contacts instead.
-	DeprecatedListMemberMembershipKeyContacts(context.Context, *DeprecatedListMemberMembershipKeyContactsPayload) (err error)
 	// Check if the service is able to take inbound requests.
 	Readyz(context.Context) (res []byte, err error)
 	// Check if the service is alive.
@@ -71,7 +64,7 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [14]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "deprecated-list-members", "deprecated-get-member-membership", "deprecated-list-member-membership-key-contacts", "readyz", "livez"}
+var MethodNames = [11]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "readyz", "livez"}
 
 // CreateMembershipKeyContactPayload is the payload type of the
 // membership-service service create-membership-key-contact method.
@@ -123,30 +116,6 @@ type DeleteMembershipKeyContactPayload struct {
 	ID *string
 	// Key contact UID
 	Cid *string
-}
-
-// DeprecatedGetMemberMembershipPayload is the payload type of the
-// membership-service service deprecated-get-member-membership method.
-type DeprecatedGetMemberMembershipPayload struct {
-	MemberID *string
-	ID       *string
-}
-
-// DeprecatedListMemberMembershipKeyContactsPayload is the payload type of the
-// membership-service service deprecated-list-member-membership-key-contacts
-// method.
-type DeprecatedListMemberMembershipKeyContactsPayload struct {
-	MemberID *string
-	ID       *string
-}
-
-// DeprecatedListMembersPayload is the payload type of the membership-service
-// service deprecated-list-members method.
-type DeprecatedListMembersPayload struct {
-	PageSize *int
-	Offset   *int
-	Filter   *string
-	Search   *string
 }
 
 // GetMembershipKeyContactPayload is the payload type of the membership-service
@@ -440,114 +409,22 @@ type UpdateMembershipKeyContactResult struct {
 	Contact *ProjectKeyContactResponse
 }
 
-type BadRequestError struct {
-	// Error message
-	Message string
+// MakeNotFound builds a goa.ServiceError from an error.
+func MakeNotFound(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "NotFound", false, false, false)
 }
 
-type GoneError struct {
-	// Error message
-	Message string
-	// URL path pattern of the replacement endpoint
-	Replacement *string
+// MakeInternalServerError builds a goa.ServiceError from an error.
+func MakeInternalServerError(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "InternalServerError", false, false, true)
 }
 
-type InternalServerError struct {
-	// Error message
-	Message string
+// MakeServiceUnavailable builds a goa.ServiceError from an error.
+func MakeServiceUnavailable(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "ServiceUnavailable", false, true, false)
 }
 
-type NotFoundError struct {
-	// Error message
-	Message string
-}
-
-type ServiceUnavailableError struct {
-	// Error message
-	Message string
-}
-
-// Error returns an error description.
-func (e *BadRequestError) Error() string {
-	return ""
-}
-
-// ErrorName returns "bad-request-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *BadRequestError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "bad-request-error".
-func (e *BadRequestError) GoaErrorName() string {
-	return "BadRequest"
-}
-
-// Error returns an error description.
-func (e *GoneError) Error() string {
-	return ""
-}
-
-// ErrorName returns "gone-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *GoneError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "gone-error".
-func (e *GoneError) GoaErrorName() string {
-	return "Gone"
-}
-
-// Error returns an error description.
-func (e *InternalServerError) Error() string {
-	return ""
-}
-
-// ErrorName returns "internal-server-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *InternalServerError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "internal-server-error".
-func (e *InternalServerError) GoaErrorName() string {
-	return "InternalServerError"
-}
-
-// Error returns an error description.
-func (e *NotFoundError) Error() string {
-	return ""
-}
-
-// ErrorName returns "not-found-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *NotFoundError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "not-found-error".
-func (e *NotFoundError) GoaErrorName() string {
-	return "NotFound"
-}
-
-// Error returns an error description.
-func (e *ServiceUnavailableError) Error() string {
-	return ""
-}
-
-// ErrorName returns "service-unavailable-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *ServiceUnavailableError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "service-unavailable-error".
-func (e *ServiceUnavailableError) GoaErrorName() string {
-	return "ServiceUnavailable"
+// MakeBadRequest builds a goa.ServiceError from an error.
+func MakeBadRequest(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "BadRequest", false, false, false)
 }

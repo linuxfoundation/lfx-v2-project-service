@@ -337,37 +337,6 @@ func (s *membershipServicesrvc) GetMembershipKeyContact(ctx context.Context, p *
 	return &membershipservice.GetMembershipKeyContactResult{Contact: convertProjectKeyContactToResponse(contact)}, nil
 }
 
-// ── Deprecated endpoints (410 Gone) ──────────────────────────────────────────
-
-const goneMessage = "This endpoint has been removed. See the API documentation for the replacement."
-
-// DeprecatedListMembers always returns 410 Gone. Replaced by
-// GET /projects/{project_id}/memberships.
-func (s *membershipServicesrvc) DeprecatedListMembers(_ context.Context, _ *membershipservice.DeprecatedListMembersPayload) error {
-	return &membershipservice.GoneError{
-		Message:     goneMessage,
-		Replacement: strPtr("/projects/{project_id}/memberships"),
-	}
-}
-
-// DeprecatedGetMemberMembership always returns 410 Gone. Replaced by
-// GET /projects/{project_id}/memberships/{id}.
-func (s *membershipServicesrvc) DeprecatedGetMemberMembership(_ context.Context, _ *membershipservice.DeprecatedGetMemberMembershipPayload) error {
-	return &membershipservice.GoneError{
-		Message:     goneMessage,
-		Replacement: strPtr("/projects/{project_id}/memberships/{id}"),
-	}
-}
-
-// DeprecatedListMemberMembershipKeyContacts always returns 410 Gone. Replaced
-// by GET /projects/{project_id}/memberships/{id}/key_contacts.
-func (s *membershipServicesrvc) DeprecatedListMemberMembershipKeyContacts(_ context.Context, _ *membershipservice.DeprecatedListMemberMembershipKeyContactsPayload) error {
-	return &membershipservice.GoneError{
-		Message:     goneMessage,
-		Replacement: strPtr("/projects/{project_id}/memberships/{id}/key_contacts"),
-	}
-}
-
 // ── Health probes ─────────────────────────────────────────────────────────────
 
 // Readyz checks if the service is ready to take inbound requests.

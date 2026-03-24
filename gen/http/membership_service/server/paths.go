@@ -57,21 +57,6 @@ func GetMembershipKeyContactMembershipServicePath(projectUID string, id string, 
 	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, id, cid)
 }
 
-// DeprecatedListMembersMembershipServicePath returns the URL path to the membership-service service deprecated-list-members HTTP endpoint.
-func DeprecatedListMembersMembershipServicePath() string {
-	return "/members"
-}
-
-// DeprecatedGetMemberMembershipMembershipServicePath returns the URL path to the membership-service service deprecated-get-member-membership HTTP endpoint.
-func DeprecatedGetMemberMembershipMembershipServicePath(memberID string, id string) string {
-	return fmt.Sprintf("/members/%v/memberships/%v", memberID, id)
-}
-
-// DeprecatedListMemberMembershipKeyContactsMembershipServicePath returns the URL path to the membership-service service deprecated-list-member-membership-key-contacts HTTP endpoint.
-func DeprecatedListMemberMembershipKeyContactsMembershipServicePath(memberID string, id string) string {
-	return fmt.Sprintf("/members/%v/memberships/%v/key_contacts", memberID, id)
-}
-
 // ReadyzMembershipServicePath returns the URL path to the membership-service service readyz HTTP endpoint.
 func ReadyzMembershipServicePath() string {
 	return "/readyz"

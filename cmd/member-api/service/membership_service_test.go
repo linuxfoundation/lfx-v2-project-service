@@ -453,56 +453,6 @@ func TestGetMembershipKeyContact(t *testing.T) {
 	}
 }
 
-// ── Deprecated endpoints (410 Gone) ──────────────────────────────────────────
-
-func TestDeprecatedListMembers(t *testing.T) {
-	svc := newTestService()
-	ctx := context.Background()
-
-	err := svc.DeprecatedListMembers(ctx, &membershipservice.DeprecatedListMembersPayload{})
-	require.Error(t, err)
-
-	var goneErr *membershipservice.GoneError
-	require.ErrorAs(t, err, &goneErr, "expected GoneError")
-	assert.NotEmpty(t, goneErr.Message)
-	assert.NotNil(t, goneErr.Replacement)
-	assert.Contains(t, *goneErr.Replacement, "/projects/")
-}
-
-func TestDeprecatedGetMemberMembership(t *testing.T) {
-	svc := newTestService()
-	ctx := context.Background()
-
-	err := svc.DeprecatedGetMemberMembership(ctx, &membershipservice.DeprecatedGetMemberMembershipPayload{
-		MemberID: strPtr("member-1"),
-		ID:       strPtr("membership-1"),
-	})
-	require.Error(t, err)
-
-	var goneErr *membershipservice.GoneError
-	require.ErrorAs(t, err, &goneErr, "expected GoneError")
-	assert.NotEmpty(t, goneErr.Message)
-	assert.NotNil(t, goneErr.Replacement)
-	assert.Contains(t, *goneErr.Replacement, "/projects/")
-}
-
-func TestDeprecatedListMemberMembershipKeyContacts(t *testing.T) {
-	svc := newTestService()
-	ctx := context.Background()
-
-	err := svc.DeprecatedListMemberMembershipKeyContacts(ctx, &membershipservice.DeprecatedListMemberMembershipKeyContactsPayload{
-		MemberID: strPtr("member-1"),
-		ID:       strPtr("membership-1"),
-	})
-	require.Error(t, err)
-
-	var goneErr *membershipservice.GoneError
-	require.ErrorAs(t, err, &goneErr, "expected GoneError")
-	assert.NotEmpty(t, goneErr.Message)
-	assert.NotNil(t, goneErr.Replacement)
-	assert.Contains(t, *goneErr.Replacement, "/projects/")
-}
-
 // ── Health probes ─────────────────────────────────────────────────────────────
 
 func TestReadyz(t *testing.T) {

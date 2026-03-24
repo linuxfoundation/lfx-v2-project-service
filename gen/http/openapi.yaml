@@ -12,95 +12,6 @@ produces:
     - application/xml
     - application/gob
 paths:
-    /members:
-        get:
-            tags:
-                - membership-service
-            summary: 'Deprecated: List members (removed)'
-            description: DEPRECATED — removed. Use GET /projects/{project_id}/memberships instead.
-            operationId: membership-service#deprecated-list-members
-            parameters:
-                - name: pageSize
-                  in: query
-                  required: false
-                  type: integer
-                - name: offset
-                  in: query
-                  required: false
-                  type: integer
-                - name: filter
-                  in: query
-                  required: false
-                  type: string
-                - name: search
-                  in: query
-                  required: false
-                  type: string
-            responses:
-                "200":
-                    description: OK response.
-                "410":
-                    description: Gone response.
-                    schema:
-                        $ref: '#/definitions/GoneError'
-                        required:
-                            - message
-            schemes:
-                - http
-    /members/{member_id}/memberships/{id}:
-        get:
-            tags:
-                - membership-service
-            summary: 'Deprecated: Get member membership (removed)'
-            description: DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id} instead.
-            operationId: membership-service#deprecated-get-member-membership
-            parameters:
-                - name: member_id
-                  in: path
-                  required: true
-                  type: string
-                - name: id
-                  in: path
-                  required: true
-                  type: string
-            responses:
-                "200":
-                    description: OK response.
-                "410":
-                    description: Gone response.
-                    schema:
-                        $ref: '#/definitions/GoneError'
-                        required:
-                            - message
-            schemes:
-                - http
-    /members/{member_id}/memberships/{id}/key_contacts:
-        get:
-            tags:
-                - membership-service
-            summary: 'Deprecated: List key contacts for member membership (removed)'
-            description: DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id}/key_contacts instead.
-            operationId: membership-service#deprecated-list-member-membership-key-contacts
-            parameters:
-                - name: member_id
-                  in: path
-                  required: true
-                  type: string
-                - name: id
-                  in: path
-                  required: true
-                  type: string
-            responses:
-                "200":
-                    description: OK response.
-                "410":
-                    description: Gone response.
-                    schema:
-                        $ref: '#/definitions/GoneError'
-                        required:
-                            - message
-            schemes:
-                - http
     /projects/{project_uid}/memberships:
         get:
             tags:
@@ -171,27 +82,19 @@ paths:
                 "400":
                     description: Bad Request response.
                     schema:
-                        $ref: '#/definitions/BadRequestError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListProjectMembershipsBadRequestResponseBody'
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListProjectMembershipsNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListProjectMembershipsInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListProjectMembershipsServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -240,21 +143,15 @@ paths:
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetProjectMembershipNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetProjectMembershipInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetProjectMembershipServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -301,21 +198,15 @@ paths:
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListMembershipKeyContactsNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListMembershipKeyContactsInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListMembershipKeyContactsServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -368,27 +259,19 @@ paths:
                 "400":
                     description: Bad Request response.
                     schema:
-                        $ref: '#/definitions/BadRequestError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceCreateMembershipKeyContactBadRequestResponseBody'
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceCreateMembershipKeyContactNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceCreateMembershipKeyContactInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceCreateMembershipKeyContactServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -439,21 +322,15 @@ paths:
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetMembershipKeyContactNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetMembershipKeyContactInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetMembershipKeyContactServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -508,27 +385,19 @@ paths:
                 "400":
                     description: Bad Request response.
                     schema:
-                        $ref: '#/definitions/BadRequestError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceUpdateMembershipKeyContactBadRequestResponseBody'
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceUpdateMembershipKeyContactNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceUpdateMembershipKeyContactInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceUpdateMembershipKeyContactServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -576,21 +445,15 @@ paths:
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceDeleteMembershipKeyContactNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceDeleteMembershipKeyContactInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceDeleteMembershipKeyContactServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -631,21 +494,15 @@ paths:
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListProjectTiersNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListProjectTiersInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceListProjectTiersServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
@@ -690,70 +547,20 @@ paths:
                 "404":
                     description: Not Found response.
                     schema:
-                        $ref: '#/definitions/NotFoundError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetProjectTierNotFoundResponseBody'
                 "500":
                     description: Internal Server Error response.
                     schema:
-                        $ref: '#/definitions/InternalServerError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetProjectTierInternalServerErrorResponseBody'
                 "503":
                     description: Service Unavailable response.
                     schema:
-                        $ref: '#/definitions/ServiceUnavailableError'
-                        required:
-                            - message
+                        $ref: '#/definitions/MembershipServiceGetProjectTierServiceUnavailableResponseBody'
             schemes:
                 - http
             security:
                 - jwt_header_Authorization: []
 definitions:
-    BadRequestError:
-        title: BadRequestError
-        type: object
-        properties:
-            message:
-                type: string
-                description: Error message
-                example: The request was invalid.
-        description: Bad request
-        example:
-            message: The request was invalid.
-        required:
-            - message
-    GoneError:
-        title: GoneError
-        type: object
-        properties:
-            message:
-                type: string
-                description: Error message
-                example: This endpoint has been removed. See the API documentation for the replacement.
-            replacement:
-                type: string
-                description: URL path pattern of the replacement endpoint
-                example: /projects/{project_id}/memberships
-        description: Endpoint removed
-        example:
-            message: This endpoint has been removed. See the API documentation for the replacement.
-            replacement: /projects/{project_id}/memberships
-        required:
-            - message
-    InternalServerError:
-        title: InternalServerError
-        type: object
-        properties:
-            message:
-                type: string
-                description: Error message
-                example: An internal server error occurred.
-        description: Internal server error
-        example:
-            message: An internal server error occurred.
-        required:
-            - message
     ListMetadata:
         title: ListMetadata
         type: object
@@ -771,6 +578,135 @@ definitions:
         example:
             next_page_token: ""
             total_size: 100
+    MembershipServiceCreateMembershipKeyContactBadRequestResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Bad request (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceCreateMembershipKeyContactInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Internal server error (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceCreateMembershipKeyContactNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Membership not found (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceCreateMembershipKeyContactRequestBody:
         title: MembershipServiceCreateMembershipKeyContactRequestBody
         type: object
@@ -824,15 +760,660 @@ definitions:
     MembershipServiceCreateMembershipKeyContactResponseBody:
         title: MembershipServiceCreateMembershipKeyContactResponseBody
         $ref: '#/definitions/ProjectKeyContactResponse'
+    MembershipServiceCreateMembershipKeyContactServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Service unavailable (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceDeleteMembershipKeyContactInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceDeleteMembershipKeyContactNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Key contact not found (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceDeleteMembershipKeyContactServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Service unavailable (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetMembershipKeyContactInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Internal server error (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetMembershipKeyContactNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Key contact not found (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceGetMembershipKeyContactResponseBody:
         title: MembershipServiceGetMembershipKeyContactResponseBody
         $ref: '#/definitions/ProjectKeyContactResponse'
+    MembershipServiceGetMembershipKeyContactServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Service unavailable (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetProjectMembershipInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetProjectMembershipNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Membership not found (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceGetProjectMembershipResponseBody:
         title: MembershipServiceGetProjectMembershipResponseBody
         $ref: '#/definitions/ProjectMembershipResponse'
+    MembershipServiceGetProjectMembershipServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Service unavailable (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetProjectTierInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetProjectTierNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Tier not found (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceGetProjectTierResponseBody:
         title: MembershipServiceGetProjectTierResponseBody
         $ref: '#/definitions/MembershipTierResponse'
+    MembershipServiceGetProjectTierServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Service unavailable (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListMembershipKeyContactsInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListMembershipKeyContactsNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Membership not found (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceListMembershipKeyContactsResponseBody:
         title: MembershipServiceListMembershipKeyContactsResponseBody
         type: object
@@ -930,42 +1511,180 @@ definitions:
                   title: CTO
                   uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                   updated_at: "2025-06-01T12:00:00Z"
-                - board_member: false
-                  company_domain: https://example.com
-                  company_logo_url: https://example.com/logo.png
-                  company_name: Example Corp
-                  created_at: "2025-01-01T00:00:00Z"
-                  email: john.doe@example.com
-                  first_name: John
-                  last_name: Doe
-                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  primary_contact: true
-                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                  role: Voting Representative
-                  status: Active
-                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  title: CTO
-                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  updated_at: "2025-06-01T12:00:00Z"
-                - board_member: false
-                  company_domain: https://example.com
-                  company_logo_url: https://example.com/logo.png
-                  company_name: Example Corp
-                  created_at: "2025-01-01T00:00:00Z"
-                  email: john.doe@example.com
-                  first_name: John
-                  last_name: Doe
-                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  primary_contact: true
-                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                  role: Voting Representative
-                  status: Active
-                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  title: CTO
-                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  updated_at: "2025-06-01T12:00:00Z"
         required:
             - contacts
+    MembershipServiceListMembershipKeyContactsServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Service unavailable (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectMembershipsBadRequestResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Bad request (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectMembershipsInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Internal server error (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectMembershipsNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Project not found (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceListProjectMembershipsResponseBody:
         title: MembershipServiceListProjectMembershipsResponseBody
         type: object
@@ -1111,6 +1830,135 @@ definitions:
         required:
             - memberships
             - metadata
+    MembershipServiceListProjectMembershipsServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Service unavailable (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectTiersInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectTiersNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Project not found (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceListProjectTiersResponseBody:
         title: MembershipServiceListProjectTiersResponseBody
         type: object
@@ -1121,6 +1969,13 @@ definitions:
                     $ref: '#/definitions/MembershipTierResponse'
                 description: List of membership tiers
                 example:
+                    - created_at: "2025-01-01T00:00:00Z"
+                      family: Membership
+                      name: Gold Corporate Membership
+                      product_type: Corporate
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
                     - created_at: "2025-01-01T00:00:00Z"
                       family: Membership
                       name: Gold Corporate Membership
@@ -1153,6 +2008,178 @@ definitions:
                   updated_at: "2025-06-01T12:00:00Z"
         required:
             - tiers
+    MembershipServiceListProjectTiersServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Service unavailable (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceUpdateMembershipKeyContactBadRequestResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Bad request (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceUpdateMembershipKeyContactInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceUpdateMembershipKeyContactNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Key contact not found (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipServiceUpdateMembershipKeyContactRequestBody:
         title: MembershipServiceUpdateMembershipKeyContactRequestBody
         type: object
@@ -1181,6 +2208,49 @@ definitions:
     MembershipServiceUpdateMembershipKeyContactResponseBody:
         title: MembershipServiceUpdateMembershipKeyContactResponseBody
         $ref: '#/definitions/ProjectKeyContactResponse'
+    MembershipServiceUpdateMembershipKeyContactServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Service unavailable (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
     MembershipTierResponse:
         title: MembershipTierResponse
         type: object
@@ -1226,19 +2296,6 @@ definitions:
             project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
             uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
             updated_at: "2025-06-01T12:00:00Z"
-    NotFoundError:
-        title: NotFoundError
-        type: object
-        properties:
-            message:
-                type: string
-                description: Error message
-                example: The resource was not found.
-        description: Project not found
-        example:
-            message: The resource was not found.
-        required:
-            - message
     ProjectKeyContactResponse:
         title: ProjectKeyContactResponse
         type: object
@@ -1474,19 +2531,6 @@ definitions:
             uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
             updated_at: "2025-06-01T12:00:00Z"
             year: "2025"
-    ServiceUnavailableError:
-        title: ServiceUnavailableError
-        type: object
-        properties:
-            message:
-                type: string
-                description: Error message
-                example: The service is unavailable.
-        description: Service unavailable
-        example:
-            message: The service is unavailable.
-        required:
-            - message
 securityDefinitions:
     jwt_header_Authorization:
         type: apiKey

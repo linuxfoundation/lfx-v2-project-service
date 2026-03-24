@@ -24,7 +24,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"membership-service (list-project-tiers|get-project-tier|list-project-memberships|get-project-membership|list-membership-key-contacts|create-membership-key-contact|update-membership-key-contact|delete-membership-key-contact|get-membership-key-contact|deprecated-list-members|deprecated-get-member-membership|deprecated-list-member-membership-key-contacts|readyz|livez)",
+		"membership-service (list-project-tiers|get-project-tier|list-project-memberships|get-project-membership|list-membership-key-contacts|create-membership-key-contact|update-membership-key-contact|delete-membership-key-contact|get-membership-key-contact|readyz|livez)",
 	}
 }
 
@@ -108,20 +108,6 @@ func ParseEndpoint(
 		membershipServiceGetMembershipKeyContactVersionFlag     = membershipServiceGetMembershipKeyContactFlags.String("version", "", "")
 		membershipServiceGetMembershipKeyContactBearerTokenFlag = membershipServiceGetMembershipKeyContactFlags.String("bearer-token", "", "")
 
-		membershipServiceDeprecatedListMembersFlags        = flag.NewFlagSet("deprecated-list-members", flag.ExitOnError)
-		membershipServiceDeprecatedListMembersPageSizeFlag = membershipServiceDeprecatedListMembersFlags.String("page-size", "", "")
-		membershipServiceDeprecatedListMembersOffsetFlag   = membershipServiceDeprecatedListMembersFlags.String("offset", "", "")
-		membershipServiceDeprecatedListMembersFilterFlag   = membershipServiceDeprecatedListMembersFlags.String("filter", "", "")
-		membershipServiceDeprecatedListMembersSearchFlag   = membershipServiceDeprecatedListMembersFlags.String("search", "", "")
-
-		membershipServiceDeprecatedGetMemberMembershipFlags        = flag.NewFlagSet("deprecated-get-member-membership", flag.ExitOnError)
-		membershipServiceDeprecatedGetMemberMembershipMemberIDFlag = membershipServiceDeprecatedGetMemberMembershipFlags.String("member-id", "REQUIRED", "")
-		membershipServiceDeprecatedGetMemberMembershipIDFlag       = membershipServiceDeprecatedGetMemberMembershipFlags.String("id", "REQUIRED", "")
-
-		membershipServiceDeprecatedListMemberMembershipKeyContactsFlags        = flag.NewFlagSet("deprecated-list-member-membership-key-contacts", flag.ExitOnError)
-		membershipServiceDeprecatedListMemberMembershipKeyContactsMemberIDFlag = membershipServiceDeprecatedListMemberMembershipKeyContactsFlags.String("member-id", "REQUIRED", "")
-		membershipServiceDeprecatedListMemberMembershipKeyContactsIDFlag       = membershipServiceDeprecatedListMemberMembershipKeyContactsFlags.String("id", "REQUIRED", "")
-
 		membershipServiceReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
 
 		membershipServiceLivezFlags = flag.NewFlagSet("livez", flag.ExitOnError)
@@ -136,9 +122,6 @@ func ParseEndpoint(
 	membershipServiceUpdateMembershipKeyContactFlags.Usage = membershipServiceUpdateMembershipKeyContactUsage
 	membershipServiceDeleteMembershipKeyContactFlags.Usage = membershipServiceDeleteMembershipKeyContactUsage
 	membershipServiceGetMembershipKeyContactFlags.Usage = membershipServiceGetMembershipKeyContactUsage
-	membershipServiceDeprecatedListMembersFlags.Usage = membershipServiceDeprecatedListMembersUsage
-	membershipServiceDeprecatedGetMemberMembershipFlags.Usage = membershipServiceDeprecatedGetMemberMembershipUsage
-	membershipServiceDeprecatedListMemberMembershipKeyContactsFlags.Usage = membershipServiceDeprecatedListMemberMembershipKeyContactsUsage
 	membershipServiceReadyzFlags.Usage = membershipServiceReadyzUsage
 	membershipServiceLivezFlags.Usage = membershipServiceLivezUsage
 
@@ -203,15 +186,6 @@ func ParseEndpoint(
 			case "get-membership-key-contact":
 				epf = membershipServiceGetMembershipKeyContactFlags
 
-			case "deprecated-list-members":
-				epf = membershipServiceDeprecatedListMembersFlags
-
-			case "deprecated-get-member-membership":
-				epf = membershipServiceDeprecatedGetMemberMembershipFlags
-
-			case "deprecated-list-member-membership-key-contacts":
-				epf = membershipServiceDeprecatedListMemberMembershipKeyContactsFlags
-
 			case "readyz":
 				epf = membershipServiceReadyzFlags
 
@@ -270,15 +244,6 @@ func ParseEndpoint(
 			case "get-membership-key-contact":
 				endpoint = c.GetMembershipKeyContact()
 				data, err = membershipservicec.BuildGetMembershipKeyContactPayload(*membershipServiceGetMembershipKeyContactProjectUIDFlag, *membershipServiceGetMembershipKeyContactIDFlag, *membershipServiceGetMembershipKeyContactCidFlag, *membershipServiceGetMembershipKeyContactVersionFlag, *membershipServiceGetMembershipKeyContactBearerTokenFlag)
-			case "deprecated-list-members":
-				endpoint = c.DeprecatedListMembers()
-				data, err = membershipservicec.BuildDeprecatedListMembersPayload(*membershipServiceDeprecatedListMembersPageSizeFlag, *membershipServiceDeprecatedListMembersOffsetFlag, *membershipServiceDeprecatedListMembersFilterFlag, *membershipServiceDeprecatedListMembersSearchFlag)
-			case "deprecated-get-member-membership":
-				endpoint = c.DeprecatedGetMemberMembership()
-				data, err = membershipservicec.BuildDeprecatedGetMemberMembershipPayload(*membershipServiceDeprecatedGetMemberMembershipMemberIDFlag, *membershipServiceDeprecatedGetMemberMembershipIDFlag)
-			case "deprecated-list-member-membership-key-contacts":
-				endpoint = c.DeprecatedListMemberMembershipKeyContacts()
-				data, err = membershipservicec.BuildDeprecatedListMemberMembershipKeyContactsPayload(*membershipServiceDeprecatedListMemberMembershipKeyContactsMemberIDFlag, *membershipServiceDeprecatedListMemberMembershipKeyContactsIDFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -308,9 +273,6 @@ func membershipServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    update-membership-key-contact: Update a key contact (Project_Role__c record) within a membership`)
 	fmt.Fprintln(os.Stderr, `    delete-membership-key-contact: Delete a key contact (Project_Role__c record) from a membership`)
 	fmt.Fprintln(os.Stderr, `    get-membership-key-contact: Get a specific key contact by UID within a membership`)
-	fmt.Fprintln(os.Stderr, `    deprecated-list-members: DEPRECATED — removed. Use GET /projects/{project_id}/memberships instead.`)
-	fmt.Fprintln(os.Stderr, `    deprecated-get-member-membership: DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id} instead.`)
-	fmt.Fprintln(os.Stderr, `    deprecated-list-member-membership-key-contacts: DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id}/key_contacts instead.`)
 	fmt.Fprintln(os.Stderr, `    readyz: Check if the service is able to take inbound requests.`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
 	fmt.Fprintln(os.Stderr)
@@ -547,70 +509,6 @@ func membershipServiceGetMembershipKeyContactUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-membership-key-contact --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --id \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --cid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
-}
-
-func membershipServiceDeprecatedListMembersUsage() {
-	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service deprecated-list-members", os.Args[0])
-	fmt.Fprint(os.Stderr, " -page-size INT")
-	fmt.Fprint(os.Stderr, " -offset INT")
-	fmt.Fprint(os.Stderr, " -filter STRING")
-	fmt.Fprint(os.Stderr, " -search STRING")
-	fmt.Fprintln(os.Stderr)
-
-	// Description
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `DEPRECATED — removed. Use GET /projects/{project_id}/memberships instead.`)
-
-	// Flags list
-	fmt.Fprintln(os.Stderr, `    -page-size INT: `)
-	fmt.Fprintln(os.Stderr, `    -offset INT: `)
-	fmt.Fprintln(os.Stderr, `    -filter STRING: `)
-	fmt.Fprintln(os.Stderr, `    -search STRING: `)
-
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service deprecated-list-members --page-size 1040003847382025344 --offset 1489730441449155351 --filter \"Ipsum eius.\" --search \"Illo vero minima voluptatum explicabo velit fugit.\"")
-}
-
-func membershipServiceDeprecatedGetMemberMembershipUsage() {
-	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service deprecated-get-member-membership", os.Args[0])
-	fmt.Fprint(os.Stderr, " -member-id STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
-	fmt.Fprintln(os.Stderr)
-
-	// Description
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id} instead.`)
-
-	// Flags list
-	fmt.Fprintln(os.Stderr, `    -member-id STRING: `)
-	fmt.Fprintln(os.Stderr, `    -id STRING: `)
-
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service deprecated-get-member-membership --member-id \"Ut possimus perferendis fuga neque itaque.\" --id \"Consequatur incidunt numquam dignissimos.\"")
-}
-
-func membershipServiceDeprecatedListMemberMembershipKeyContactsUsage() {
-	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service deprecated-list-member-membership-key-contacts", os.Args[0])
-	fmt.Fprint(os.Stderr, " -member-id STRING")
-	fmt.Fprint(os.Stderr, " -id STRING")
-	fmt.Fprintln(os.Stderr)
-
-	// Description
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id}/key_contacts instead.`)
-
-	// Flags list
-	fmt.Fprintln(os.Stderr, `    -member-id STRING: `)
-	fmt.Fprintln(os.Stderr, `    -id STRING: `)
-
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service deprecated-list-member-membership-key-contacts --member-id \"Exercitationem fugiat exercitationem omnis dignissimos et.\" --id \"Omnis nihil temporibus ut facilis fugit.\"")
 }
 
 func membershipServiceReadyzUsage() {

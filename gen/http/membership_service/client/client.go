@@ -54,18 +54,6 @@ type Client struct {
 	// get-membership-key-contact endpoint.
 	GetMembershipKeyContactDoer goahttp.Doer
 
-	// DeprecatedListMembers Doer is the HTTP client used to make requests to the
-	// deprecated-list-members endpoint.
-	DeprecatedListMembersDoer goahttp.Doer
-
-	// DeprecatedGetMemberMembership Doer is the HTTP client used to make requests
-	// to the deprecated-get-member-membership endpoint.
-	DeprecatedGetMemberMembershipDoer goahttp.Doer
-
-	// DeprecatedListMemberMembershipKeyContacts Doer is the HTTP client used to
-	// make requests to the deprecated-list-member-membership-key-contacts endpoint.
-	DeprecatedListMemberMembershipKeyContactsDoer goahttp.Doer
-
 	// Readyz Doer is the HTTP client used to make requests to the readyz endpoint.
 	ReadyzDoer goahttp.Doer
 
@@ -93,25 +81,22 @@ func NewClient(
 	restoreBody bool,
 ) *Client {
 	return &Client{
-		ListProjectTiersDoer:                          doer,
-		GetProjectTierDoer:                            doer,
-		ListProjectMembershipsDoer:                    doer,
-		GetProjectMembershipDoer:                      doer,
-		ListMembershipKeyContactsDoer:                 doer,
-		CreateMembershipKeyContactDoer:                doer,
-		UpdateMembershipKeyContactDoer:                doer,
-		DeleteMembershipKeyContactDoer:                doer,
-		GetMembershipKeyContactDoer:                   doer,
-		DeprecatedListMembersDoer:                     doer,
-		DeprecatedGetMemberMembershipDoer:             doer,
-		DeprecatedListMemberMembershipKeyContactsDoer: doer,
-		ReadyzDoer:          doer,
-		LivezDoer:           doer,
-		RestoreResponseBody: restoreBody,
-		scheme:              scheme,
-		host:                host,
-		decoder:             dec,
-		encoder:             enc,
+		ListProjectTiersDoer:           doer,
+		GetProjectTierDoer:             doer,
+		ListProjectMembershipsDoer:     doer,
+		GetProjectMembershipDoer:       doer,
+		ListMembershipKeyContactsDoer:  doer,
+		CreateMembershipKeyContactDoer: doer,
+		UpdateMembershipKeyContactDoer: doer,
+		DeleteMembershipKeyContactDoer: doer,
+		GetMembershipKeyContactDoer:    doer,
+		ReadyzDoer:                     doer,
+		LivezDoer:                      doer,
+		RestoreResponseBody:            restoreBody,
+		scheme:                         scheme,
+		host:                           host,
+		decoder:                        dec,
+		encoder:                        enc,
 	}
 }
 
@@ -326,69 +311,6 @@ func (c *Client) GetMembershipKeyContact() goa.Endpoint {
 		resp, err := c.GetMembershipKeyContactDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("membership-service", "get-membership-key-contact", err)
-		}
-		return decodeResponse(resp)
-	}
-}
-
-// DeprecatedListMembers returns an endpoint that makes HTTP requests to the
-// membership-service service deprecated-list-members server.
-func (c *Client) DeprecatedListMembers() goa.Endpoint {
-	var (
-		encodeRequest  = EncodeDeprecatedListMembersRequest(c.encoder)
-		decodeResponse = DecodeDeprecatedListMembersResponse(c.decoder, c.RestoreResponseBody)
-	)
-	return func(ctx context.Context, v any) (any, error) {
-		req, err := c.BuildDeprecatedListMembersRequest(ctx, v)
-		if err != nil {
-			return nil, err
-		}
-		err = encodeRequest(req, v)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := c.DeprecatedListMembersDoer.Do(req)
-		if err != nil {
-			return nil, goahttp.ErrRequestError("membership-service", "deprecated-list-members", err)
-		}
-		return decodeResponse(resp)
-	}
-}
-
-// DeprecatedGetMemberMembership returns an endpoint that makes HTTP requests
-// to the membership-service service deprecated-get-member-membership server.
-func (c *Client) DeprecatedGetMemberMembership() goa.Endpoint {
-	var (
-		decodeResponse = DecodeDeprecatedGetMemberMembershipResponse(c.decoder, c.RestoreResponseBody)
-	)
-	return func(ctx context.Context, v any) (any, error) {
-		req, err := c.BuildDeprecatedGetMemberMembershipRequest(ctx, v)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := c.DeprecatedGetMemberMembershipDoer.Do(req)
-		if err != nil {
-			return nil, goahttp.ErrRequestError("membership-service", "deprecated-get-member-membership", err)
-		}
-		return decodeResponse(resp)
-	}
-}
-
-// DeprecatedListMemberMembershipKeyContacts returns an endpoint that makes
-// HTTP requests to the membership-service service
-// deprecated-list-member-membership-key-contacts server.
-func (c *Client) DeprecatedListMemberMembershipKeyContacts() goa.Endpoint {
-	var (
-		decodeResponse = DecodeDeprecatedListMemberMembershipKeyContactsResponse(c.decoder, c.RestoreResponseBody)
-	)
-	return func(ctx context.Context, v any) (any, error) {
-		req, err := c.BuildDeprecatedListMemberMembershipKeyContactsRequest(ctx, v)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := c.DeprecatedListMemberMembershipKeyContactsDoer.Do(req)
-		if err != nil {
-			return nil, goahttp.ErrRequestError("membership-service", "deprecated-list-member-membership-key-contacts", err)
 		}
 		return decodeResponse(resp)
 	}

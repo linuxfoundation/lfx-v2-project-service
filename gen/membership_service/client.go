@@ -16,49 +16,43 @@ import (
 
 // Client is the "membership-service" service client.
 type Client struct {
-	ListProjectTiersEndpoint                          goa.Endpoint
-	GetProjectTierEndpoint                            goa.Endpoint
-	ListProjectMembershipsEndpoint                    goa.Endpoint
-	GetProjectMembershipEndpoint                      goa.Endpoint
-	ListMembershipKeyContactsEndpoint                 goa.Endpoint
-	CreateMembershipKeyContactEndpoint                goa.Endpoint
-	UpdateMembershipKeyContactEndpoint                goa.Endpoint
-	DeleteMembershipKeyContactEndpoint                goa.Endpoint
-	GetMembershipKeyContactEndpoint                   goa.Endpoint
-	DeprecatedListMembersEndpoint                     goa.Endpoint
-	DeprecatedGetMemberMembershipEndpoint             goa.Endpoint
-	DeprecatedListMemberMembershipKeyContactsEndpoint goa.Endpoint
-	ReadyzEndpoint                                    goa.Endpoint
-	LivezEndpoint                                     goa.Endpoint
+	ListProjectTiersEndpoint           goa.Endpoint
+	GetProjectTierEndpoint             goa.Endpoint
+	ListProjectMembershipsEndpoint     goa.Endpoint
+	GetProjectMembershipEndpoint       goa.Endpoint
+	ListMembershipKeyContactsEndpoint  goa.Endpoint
+	CreateMembershipKeyContactEndpoint goa.Endpoint
+	UpdateMembershipKeyContactEndpoint goa.Endpoint
+	DeleteMembershipKeyContactEndpoint goa.Endpoint
+	GetMembershipKeyContactEndpoint    goa.Endpoint
+	ReadyzEndpoint                     goa.Endpoint
+	LivezEndpoint                      goa.Endpoint
 }
 
 // NewClient initializes a "membership-service" service client given the
 // endpoints.
-func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, deprecatedListMembers, deprecatedGetMemberMembership, deprecatedListMemberMembershipKeyContacts, readyz, livez goa.Endpoint) *Client {
+func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, readyz, livez goa.Endpoint) *Client {
 	return &Client{
-		ListProjectTiersEndpoint:                          listProjectTiers,
-		GetProjectTierEndpoint:                            getProjectTier,
-		ListProjectMembershipsEndpoint:                    listProjectMemberships,
-		GetProjectMembershipEndpoint:                      getProjectMembership,
-		ListMembershipKeyContactsEndpoint:                 listMembershipKeyContacts,
-		CreateMembershipKeyContactEndpoint:                createMembershipKeyContact,
-		UpdateMembershipKeyContactEndpoint:                updateMembershipKeyContact,
-		DeleteMembershipKeyContactEndpoint:                deleteMembershipKeyContact,
-		GetMembershipKeyContactEndpoint:                   getMembershipKeyContact,
-		DeprecatedListMembersEndpoint:                     deprecatedListMembers,
-		DeprecatedGetMemberMembershipEndpoint:             deprecatedGetMemberMembership,
-		DeprecatedListMemberMembershipKeyContactsEndpoint: deprecatedListMemberMembershipKeyContacts,
-		ReadyzEndpoint:                                    readyz,
-		LivezEndpoint:                                     livez,
+		ListProjectTiersEndpoint:           listProjectTiers,
+		GetProjectTierEndpoint:             getProjectTier,
+		ListProjectMembershipsEndpoint:     listProjectMemberships,
+		GetProjectMembershipEndpoint:       getProjectMembership,
+		ListMembershipKeyContactsEndpoint:  listMembershipKeyContacts,
+		CreateMembershipKeyContactEndpoint: createMembershipKeyContact,
+		UpdateMembershipKeyContactEndpoint: updateMembershipKeyContact,
+		DeleteMembershipKeyContactEndpoint: deleteMembershipKeyContact,
+		GetMembershipKeyContactEndpoint:    getMembershipKeyContact,
+		ReadyzEndpoint:                     readyz,
+		LivezEndpoint:                      livez,
 	}
 }
 
 // ListProjectTiers calls the "list-project-tiers" endpoint of the
 // "membership-service" service.
 // ListProjectTiers may return the following errors:
-//   - "NotFound" (type *NotFoundError): Project not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Project not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) ListProjectTiers(ctx context.Context, p *ListProjectTiersPayload) (res *ListProjectTiersResult, err error) {
 	var ires any
@@ -72,9 +66,9 @@ func (c *Client) ListProjectTiers(ctx context.Context, p *ListProjectTiersPayloa
 // GetProjectTier calls the "get-project-tier" endpoint of the
 // "membership-service" service.
 // GetProjectTier may return the following errors:
-//   - "NotFound" (type *NotFoundError): Tier not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Tier not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) GetProjectTier(ctx context.Context, p *GetProjectTierPayload) (res *GetProjectTierResult, err error) {
 	var ires any
@@ -88,10 +82,10 @@ func (c *Client) GetProjectTier(ctx context.Context, p *GetProjectTierPayload) (
 // ListProjectMemberships calls the "list-project-memberships" endpoint of the
 // "membership-service" service.
 // ListProjectMemberships may return the following errors:
-//   - "NotFound" (type *NotFoundError): Project not found
-//   - "BadRequest" (type *BadRequestError): Bad request
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Project not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) ListProjectMemberships(ctx context.Context, p *ListProjectMembershipsPayload) (res *ListProjectMembershipsResult, err error) {
 	var ires any
@@ -105,9 +99,9 @@ func (c *Client) ListProjectMemberships(ctx context.Context, p *ListProjectMembe
 // GetProjectMembership calls the "get-project-membership" endpoint of the
 // "membership-service" service.
 // GetProjectMembership may return the following errors:
-//   - "NotFound" (type *NotFoundError): Membership not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Membership not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) GetProjectMembership(ctx context.Context, p *GetProjectMembershipPayload) (res *GetProjectMembershipResult, err error) {
 	var ires any
@@ -121,9 +115,9 @@ func (c *Client) GetProjectMembership(ctx context.Context, p *GetProjectMembersh
 // ListMembershipKeyContacts calls the "list-membership-key-contacts" endpoint
 // of the "membership-service" service.
 // ListMembershipKeyContacts may return the following errors:
-//   - "NotFound" (type *NotFoundError): Membership not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Membership not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) ListMembershipKeyContacts(ctx context.Context, p *ListMembershipKeyContactsPayload) (res *ListMembershipKeyContactsResult, err error) {
 	var ires any
@@ -137,10 +131,10 @@ func (c *Client) ListMembershipKeyContacts(ctx context.Context, p *ListMembershi
 // CreateMembershipKeyContact calls the "create-membership-key-contact"
 // endpoint of the "membership-service" service.
 // CreateMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *NotFoundError): Membership not found
-//   - "BadRequest" (type *BadRequestError): Bad request
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Membership not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) CreateMembershipKeyContact(ctx context.Context, p *CreateMembershipKeyContactPayload) (res *CreateMembershipKeyContactResult, err error) {
 	var ires any
@@ -154,10 +148,10 @@ func (c *Client) CreateMembershipKeyContact(ctx context.Context, p *CreateMember
 // UpdateMembershipKeyContact calls the "update-membership-key-contact"
 // endpoint of the "membership-service" service.
 // UpdateMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *NotFoundError): Key contact not found
-//   - "BadRequest" (type *BadRequestError): Bad request
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Key contact not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) UpdateMembershipKeyContact(ctx context.Context, p *UpdateMembershipKeyContactPayload) (res *UpdateMembershipKeyContactResult, err error) {
 	var ires any
@@ -171,9 +165,9 @@ func (c *Client) UpdateMembershipKeyContact(ctx context.Context, p *UpdateMember
 // DeleteMembershipKeyContact calls the "delete-membership-key-contact"
 // endpoint of the "membership-service" service.
 // DeleteMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *NotFoundError): Key contact not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Key contact not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) DeleteMembershipKeyContact(ctx context.Context, p *DeleteMembershipKeyContactPayload) (err error) {
 	_, err = c.DeleteMembershipKeyContactEndpoint(ctx, p)
@@ -183,9 +177,9 @@ func (c *Client) DeleteMembershipKeyContact(ctx context.Context, p *DeleteMember
 // GetMembershipKeyContact calls the "get-membership-key-contact" endpoint of
 // the "membership-service" service.
 // GetMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *NotFoundError): Key contact not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "NotFound" (type *goa.ServiceError): Key contact not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) GetMembershipKeyContact(ctx context.Context, p *GetMembershipKeyContactPayload) (res *GetMembershipKeyContactResult, err error) {
 	var ires any
@@ -196,40 +190,9 @@ func (c *Client) GetMembershipKeyContact(ctx context.Context, p *GetMembershipKe
 	return ires.(*GetMembershipKeyContactResult), nil
 }
 
-// DeprecatedListMembers calls the "deprecated-list-members" endpoint of the
-// "membership-service" service.
-// DeprecatedListMembers may return the following errors:
-//   - "Gone" (type *GoneError): Endpoint removed
-//   - error: internal error
-func (c *Client) DeprecatedListMembers(ctx context.Context, p *DeprecatedListMembersPayload) (err error) {
-	_, err = c.DeprecatedListMembersEndpoint(ctx, p)
-	return
-}
-
-// DeprecatedGetMemberMembership calls the "deprecated-get-member-membership"
-// endpoint of the "membership-service" service.
-// DeprecatedGetMemberMembership may return the following errors:
-//   - "Gone" (type *GoneError): Endpoint removed
-//   - error: internal error
-func (c *Client) DeprecatedGetMemberMembership(ctx context.Context, p *DeprecatedGetMemberMembershipPayload) (err error) {
-	_, err = c.DeprecatedGetMemberMembershipEndpoint(ctx, p)
-	return
-}
-
-// DeprecatedListMemberMembershipKeyContacts calls the
-// "deprecated-list-member-membership-key-contacts" endpoint of the
-// "membership-service" service.
-// DeprecatedListMemberMembershipKeyContacts may return the following errors:
-//   - "Gone" (type *GoneError): Endpoint removed
-//   - error: internal error
-func (c *Client) DeprecatedListMemberMembershipKeyContacts(ctx context.Context, p *DeprecatedListMemberMembershipKeyContactsPayload) (err error) {
-	_, err = c.DeprecatedListMemberMembershipKeyContactsEndpoint(ctx, p)
-	return
-}
-
 // Readyz calls the "readyz" endpoint of the "membership-service" service.
 // Readyz may return the following errors:
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) Readyz(ctx context.Context) (res []byte, err error) {
 	var ires any

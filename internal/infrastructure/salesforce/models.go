@@ -3,16 +3,6 @@
 
 package salesforce
 
-// soqlAccount represents a Salesforce Account record returned by a SOQL query.
-type soqlAccount struct {
-	ID               string  `salesforce:"Id"`
-	Name             string  `salesforce:"Name"`
-	LogoURL          *string `salesforce:"Logo_URL__c"`
-	Website          *string `salesforce:"Website"`
-	CreatedDate      string  `salesforce:"CreatedDate"`
-	LastModifiedDate string  `salesforce:"LastModifiedDate"`
-}
-
 // soqlAsset represents a Salesforce Asset record returned by a SOQL query.
 // Relationship fields (Account, Product2, Project) are populated via SOQL
 // relationship sub-selects. The Contact sub-select is intentionally omitted —

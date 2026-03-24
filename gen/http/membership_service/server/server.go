@@ -20,25 +20,22 @@ import (
 
 // Server lists the membership-service service endpoint HTTP handlers.
 type Server struct {
-	Mounts                                    []*MountPoint
-	ListProjectTiers                          http.Handler
-	GetProjectTier                            http.Handler
-	ListProjectMemberships                    http.Handler
-	GetProjectMembership                      http.Handler
-	ListMembershipKeyContacts                 http.Handler
-	CreateMembershipKeyContact                http.Handler
-	UpdateMembershipKeyContact                http.Handler
-	DeleteMembershipKeyContact                http.Handler
-	GetMembershipKeyContact                   http.Handler
-	DeprecatedListMembers                     http.Handler
-	DeprecatedGetMemberMembership             http.Handler
-	DeprecatedListMemberMembershipKeyContacts http.Handler
-	Readyz                                    http.Handler
-	Livez                                     http.Handler
-	GenHTTPOpenapiJSON                        http.Handler
-	GenHTTPOpenapiYaml                        http.Handler
-	GenHTTPOpenapi3JSON                       http.Handler
-	GenHTTPOpenapi3Yaml                       http.Handler
+	Mounts                     []*MountPoint
+	ListProjectTiers           http.Handler
+	GetProjectTier             http.Handler
+	ListProjectMemberships     http.Handler
+	GetProjectMembership       http.Handler
+	ListMembershipKeyContacts  http.Handler
+	CreateMembershipKeyContact http.Handler
+	UpdateMembershipKeyContact http.Handler
+	DeleteMembershipKeyContact http.Handler
+	GetMembershipKeyContact    http.Handler
+	Readyz                     http.Handler
+	Livez                      http.Handler
+	GenHTTPOpenapiJSON         http.Handler
+	GenHTTPOpenapiYaml         http.Handler
+	GenHTTPOpenapi3JSON        http.Handler
+	GenHTTPOpenapi3Yaml        http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -97,9 +94,6 @@ func New(
 			{"UpdateMembershipKeyContact", "PUT", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}"},
 			{"DeleteMembershipKeyContact", "DELETE", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}"},
 			{"GetMembershipKeyContact", "GET", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}"},
-			{"DeprecatedListMembers", "GET", "/members"},
-			{"DeprecatedGetMemberMembership", "GET", "/members/{member_id}/memberships/{id}"},
-			{"DeprecatedListMemberMembershipKeyContacts", "GET", "/members/{member_id}/memberships/{id}/key_contacts"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"Serve gen/http/openapi.json", "GET", "/_memberships/openapi.json"},
@@ -107,24 +101,21 @@ func New(
 			{"Serve gen/http/openapi3.json", "GET", "/_memberships/openapi3.json"},
 			{"Serve gen/http/openapi3.yaml", "GET", "/_memberships/openapi3.yaml"},
 		},
-		ListProjectTiers:                          NewListProjectTiersHandler(e.ListProjectTiers, mux, decoder, encoder, errhandler, formatter),
-		GetProjectTier:                            NewGetProjectTierHandler(e.GetProjectTier, mux, decoder, encoder, errhandler, formatter),
-		ListProjectMemberships:                    NewListProjectMembershipsHandler(e.ListProjectMemberships, mux, decoder, encoder, errhandler, formatter),
-		GetProjectMembership:                      NewGetProjectMembershipHandler(e.GetProjectMembership, mux, decoder, encoder, errhandler, formatter),
-		ListMembershipKeyContacts:                 NewListMembershipKeyContactsHandler(e.ListMembershipKeyContacts, mux, decoder, encoder, errhandler, formatter),
-		CreateMembershipKeyContact:                NewCreateMembershipKeyContactHandler(e.CreateMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		UpdateMembershipKeyContact:                NewUpdateMembershipKeyContactHandler(e.UpdateMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		DeleteMembershipKeyContact:                NewDeleteMembershipKeyContactHandler(e.DeleteMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		GetMembershipKeyContact:                   NewGetMembershipKeyContactHandler(e.GetMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		DeprecatedListMembers:                     NewDeprecatedListMembersHandler(e.DeprecatedListMembers, mux, decoder, encoder, errhandler, formatter),
-		DeprecatedGetMemberMembership:             NewDeprecatedGetMemberMembershipHandler(e.DeprecatedGetMemberMembership, mux, decoder, encoder, errhandler, formatter),
-		DeprecatedListMemberMembershipKeyContacts: NewDeprecatedListMemberMembershipKeyContactsHandler(e.DeprecatedListMemberMembershipKeyContacts, mux, decoder, encoder, errhandler, formatter),
-		Readyz:              NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
-		Livez:               NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
-		GenHTTPOpenapiJSON:  http.FileServer(fileSystemGenHTTPOpenapiJSON),
-		GenHTTPOpenapiYaml:  http.FileServer(fileSystemGenHTTPOpenapiYaml),
-		GenHTTPOpenapi3JSON: http.FileServer(fileSystemGenHTTPOpenapi3JSON),
-		GenHTTPOpenapi3Yaml: http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
+		ListProjectTiers:           NewListProjectTiersHandler(e.ListProjectTiers, mux, decoder, encoder, errhandler, formatter),
+		GetProjectTier:             NewGetProjectTierHandler(e.GetProjectTier, mux, decoder, encoder, errhandler, formatter),
+		ListProjectMemberships:     NewListProjectMembershipsHandler(e.ListProjectMemberships, mux, decoder, encoder, errhandler, formatter),
+		GetProjectMembership:       NewGetProjectMembershipHandler(e.GetProjectMembership, mux, decoder, encoder, errhandler, formatter),
+		ListMembershipKeyContacts:  NewListMembershipKeyContactsHandler(e.ListMembershipKeyContacts, mux, decoder, encoder, errhandler, formatter),
+		CreateMembershipKeyContact: NewCreateMembershipKeyContactHandler(e.CreateMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
+		UpdateMembershipKeyContact: NewUpdateMembershipKeyContactHandler(e.UpdateMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
+		DeleteMembershipKeyContact: NewDeleteMembershipKeyContactHandler(e.DeleteMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
+		GetMembershipKeyContact:    NewGetMembershipKeyContactHandler(e.GetMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
+		Readyz:                     NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
+		Livez:                      NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
+		GenHTTPOpenapiJSON:         http.FileServer(fileSystemGenHTTPOpenapiJSON),
+		GenHTTPOpenapiYaml:         http.FileServer(fileSystemGenHTTPOpenapiYaml),
+		GenHTTPOpenapi3JSON:        http.FileServer(fileSystemGenHTTPOpenapi3JSON),
+		GenHTTPOpenapi3Yaml:        http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
 	}
 }
 
@@ -142,9 +133,6 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.UpdateMembershipKeyContact = m(s.UpdateMembershipKeyContact)
 	s.DeleteMembershipKeyContact = m(s.DeleteMembershipKeyContact)
 	s.GetMembershipKeyContact = m(s.GetMembershipKeyContact)
-	s.DeprecatedListMembers = m(s.DeprecatedListMembers)
-	s.DeprecatedGetMemberMembership = m(s.DeprecatedGetMemberMembership)
-	s.DeprecatedListMemberMembershipKeyContacts = m(s.DeprecatedListMemberMembershipKeyContacts)
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
 }
@@ -163,9 +151,6 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountUpdateMembershipKeyContactHandler(mux, h.UpdateMembershipKeyContact)
 	MountDeleteMembershipKeyContactHandler(mux, h.DeleteMembershipKeyContact)
 	MountGetMembershipKeyContactHandler(mux, h.GetMembershipKeyContact)
-	MountDeprecatedListMembersHandler(mux, h.DeprecatedListMembers)
-	MountDeprecatedGetMemberMembershipHandler(mux, h.DeprecatedGetMemberMembership)
-	MountDeprecatedListMemberMembershipKeyContactsHandler(mux, h.DeprecatedListMemberMembershipKeyContacts)
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
 	MountGenHTTPOpenapiJSON(mux, http.StripPrefix("/_memberships", h.GenHTTPOpenapiJSON))
@@ -641,169 +626,6 @@ func NewGetMembershipKeyContactHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "get-membership-key-contact")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
-// MountDeprecatedListMembersHandler configures the mux to serve the
-// "membership-service" service "deprecated-list-members" endpoint.
-func MountDeprecatedListMembersHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/members", f)
-}
-
-// NewDeprecatedListMembersHandler creates a HTTP handler which loads the HTTP
-// request and calls the "membership-service" service "deprecated-list-members"
-// endpoint.
-func NewDeprecatedListMembersHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeDeprecatedListMembersRequest(mux, decoder)
-		encodeResponse = EncodeDeprecatedListMembersResponse(encoder)
-		encodeError    = EncodeDeprecatedListMembersError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "deprecated-list-members")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
-// MountDeprecatedGetMemberMembershipHandler configures the mux to serve the
-// "membership-service" service "deprecated-get-member-membership" endpoint.
-func MountDeprecatedGetMemberMembershipHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/members/{member_id}/memberships/{id}", f)
-}
-
-// NewDeprecatedGetMemberMembershipHandler creates a HTTP handler which loads
-// the HTTP request and calls the "membership-service" service
-// "deprecated-get-member-membership" endpoint.
-func NewDeprecatedGetMemberMembershipHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeDeprecatedGetMemberMembershipRequest(mux, decoder)
-		encodeResponse = EncodeDeprecatedGetMemberMembershipResponse(encoder)
-		encodeError    = EncodeDeprecatedGetMemberMembershipError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "deprecated-get-member-membership")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
-// MountDeprecatedListMemberMembershipKeyContactsHandler configures the mux to
-// serve the "membership-service" service
-// "deprecated-list-member-membership-key-contacts" endpoint.
-func MountDeprecatedListMemberMembershipKeyContactsHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/members/{member_id}/memberships/{id}/key_contacts", f)
-}
-
-// NewDeprecatedListMemberMembershipKeyContactsHandler creates a HTTP handler
-// which loads the HTTP request and calls the "membership-service" service
-// "deprecated-list-member-membership-key-contacts" endpoint.
-func NewDeprecatedListMemberMembershipKeyContactsHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeDeprecatedListMemberMembershipKeyContactsRequest(mux, decoder)
-		encodeResponse = EncodeDeprecatedListMemberMembershipKeyContactsResponse(encoder)
-		encodeError    = EncodeDeprecatedListMemberMembershipKeyContactsError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "deprecated-list-member-membership-key-contacts")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {

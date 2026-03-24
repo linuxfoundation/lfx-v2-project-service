@@ -301,8 +301,8 @@ func SortAttribute() {
 // Supported keys for membership list endpoints:
 //
 //   - tier_uid — Tier UUID (from ListProjectTiers). Decoded to a Salesforce
-//                Product2Id for an exact-match SOQL filter. Only active
-//                members are returned regardless of this filter.
+//     Product2Id for an exact-match SOQL filter. Only active
+//     members are returned regardless of this filter.
 //
 // Note: status is not an exposed filter — all membership queries return active
 // members only. Other keys (company_name, tier_name, project_slug) are applied
@@ -319,49 +319,3 @@ func SearchAttribute() {
 		dsl.Example("Linux")
 	})
 }
-
-// ── Error types ───────────────────────────────────────────────────────────────
-
-// BadRequestError is the DSL type for a 400 Bad Request error.
-var BadRequestError = dsl.Type("bad-request-error", func() {
-	dsl.Attribute("message", dsl.String, "Error message", func() {
-		dsl.Example("The request was invalid.")
-	})
-	dsl.Required("message")
-})
-
-// GoneError is the DSL type for a 410 Gone error, returned by deprecated
-// endpoints that have been removed from the API.
-var GoneError = dsl.Type("gone-error", func() {
-	dsl.Attribute("message", dsl.String, "Error message", func() {
-		dsl.Example("This endpoint has been removed. See the API documentation for the replacement.")
-	})
-	dsl.Attribute("replacement", dsl.String, "URL path pattern of the replacement endpoint", func() {
-		dsl.Example("/projects/{project_id}/memberships")
-	})
-	dsl.Required("message")
-})
-
-// NotFoundError is the DSL type for a 404 Not Found error.
-var NotFoundError = dsl.Type("not-found-error", func() {
-	dsl.Attribute("message", dsl.String, "Error message", func() {
-		dsl.Example("The resource was not found.")
-	})
-	dsl.Required("message")
-})
-
-// InternalServerError is the DSL type for a 500 Internal Server Error.
-var InternalServerError = dsl.Type("internal-server-error", func() {
-	dsl.Attribute("message", dsl.String, "Error message", func() {
-		dsl.Example("An internal server error occurred.")
-	})
-	dsl.Required("message")
-})
-
-// ServiceUnavailableError is the DSL type for a 503 Service Unavailable error.
-var ServiceUnavailableError = dsl.Type("service-unavailable-error", func() {
-	dsl.Attribute("message", dsl.String, "Error message", func() {
-		dsl.Example("The service is unavailable.")
-	})
-	dsl.Required("message")
-})

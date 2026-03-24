@@ -87,21 +87,8 @@ func EncodeListProjectTiersError(encoder func(context.Context, http.ResponseWrit
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "InternalServerError":
-			var res *membershipservice.InternalServerError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListProjectTiersInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "NotFound":
-			var res *membershipservice.NotFoundError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -113,8 +100,21 @@ func EncodeListProjectTiersError(encoder func(context.Context, http.ResponseWrit
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListProjectTiersInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -201,21 +201,8 @@ func EncodeGetProjectTierError(encoder func(context.Context, http.ResponseWriter
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "InternalServerError":
-			var res *membershipservice.InternalServerError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetProjectTierInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "NotFound":
-			var res *membershipservice.NotFoundError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -227,8 +214,21 @@ func EncodeGetProjectTierError(encoder func(context.Context, http.ResponseWriter
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetProjectTierInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -357,8 +357,21 @@ func EncodeListProjectMembershipsError(encoder func(context.Context, http.Respon
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListProjectMembershipsNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
 		case "BadRequest":
-			var res *membershipservice.BadRequestError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -371,7 +384,7 @@ func EncodeListProjectMembershipsError(encoder func(context.Context, http.Respon
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
 		case "InternalServerError":
-			var res *membershipservice.InternalServerError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -383,21 +396,8 @@ func EncodeListProjectMembershipsError(encoder func(context.Context, http.Respon
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
-		case "NotFound":
-			var res *membershipservice.NotFoundError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListProjectMembershipsNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -487,21 +487,8 @@ func EncodeGetProjectMembershipError(encoder func(context.Context, http.Response
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "InternalServerError":
-			var res *membershipservice.InternalServerError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetProjectMembershipInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "NotFound":
-			var res *membershipservice.NotFoundError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -513,8 +500,21 @@ func EncodeGetProjectMembershipError(encoder func(context.Context, http.Response
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetProjectMembershipInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -601,21 +601,8 @@ func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.Res
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "InternalServerError":
-			var res *membershipservice.InternalServerError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListMembershipKeyContactsInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "NotFound":
-			var res *membershipservice.NotFoundError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -627,8 +614,21 @@ func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.Res
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListMembershipKeyContactsInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -734,8 +734,21 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateMembershipKeyContactNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
 		case "BadRequest":
-			var res *membershipservice.BadRequestError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -748,7 +761,7 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
 		case "InternalServerError":
-			var res *membershipservice.InternalServerError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -760,21 +773,8 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
-		case "NotFound":
-			var res *membershipservice.NotFoundError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewCreateMembershipKeyContactNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -879,8 +879,21 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateMembershipKeyContactNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
 		case "BadRequest":
-			var res *membershipservice.BadRequestError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -893,7 +906,7 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
 		case "InternalServerError":
-			var res *membershipservice.InternalServerError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -905,21 +918,8 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
 			return enc.Encode(body)
-		case "NotFound":
-			var res *membershipservice.NotFoundError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewUpdateMembershipKeyContactNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -1006,21 +1006,8 @@ func EncodeDeleteMembershipKeyContactError(encoder func(context.Context, http.Re
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "InternalServerError":
-			var res *membershipservice.InternalServerError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewDeleteMembershipKeyContactInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "NotFound":
-			var res *membershipservice.NotFoundError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -1032,8 +1019,21 @@ func EncodeDeleteMembershipKeyContactError(encoder func(context.Context, http.Re
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewDeleteMembershipKeyContactInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -1123,21 +1123,8 @@ func EncodeGetMembershipKeyContactError(encoder func(context.Context, http.Respo
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "InternalServerError":
-			var res *membershipservice.InternalServerError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetMembershipKeyContactInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
 		case "NotFound":
-			var res *membershipservice.NotFoundError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -1149,8 +1136,21 @@ func EncodeGetMembershipKeyContactError(encoder func(context.Context, http.Respo
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetMembershipKeyContactInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
@@ -1161,213 +1161,6 @@ func EncodeGetMembershipKeyContactError(encoder func(context.Context, http.Respo
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeDeprecatedListMembersResponse returns an encoder for responses
-// returned by the membership-service deprecated-list-members endpoint.
-func EncodeDeprecatedListMembersResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		w.WriteHeader(http.StatusOK)
-		return nil
-	}
-}
-
-// DecodeDeprecatedListMembersRequest returns a decoder for requests sent to
-// the membership-service deprecated-list-members endpoint.
-func DecodeDeprecatedListMembersRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.DeprecatedListMembersPayload, error) {
-	return func(r *http.Request) (*membershipservice.DeprecatedListMembersPayload, error) {
-		var payload *membershipservice.DeprecatedListMembersPayload
-		var (
-			pageSize *int
-			offset   *int
-			filter   *string
-			search   *string
-			err      error
-		)
-		qp := r.URL.Query()
-		{
-			pageSizeRaw := qp.Get("pageSize")
-			if pageSizeRaw != "" {
-				v, err2 := strconv.ParseInt(pageSizeRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("pageSize", pageSizeRaw, "integer"))
-				}
-				pv := int(v)
-				pageSize = &pv
-			}
-		}
-		{
-			offsetRaw := qp.Get("offset")
-			if offsetRaw != "" {
-				v, err2 := strconv.ParseInt(offsetRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("offset", offsetRaw, "integer"))
-				}
-				pv := int(v)
-				offset = &pv
-			}
-		}
-		filterRaw := qp.Get("filter")
-		if filterRaw != "" {
-			filter = &filterRaw
-		}
-		searchRaw := qp.Get("search")
-		if searchRaw != "" {
-			search = &searchRaw
-		}
-		if err != nil {
-			return payload, err
-		}
-		payload = NewDeprecatedListMembersPayload(pageSize, offset, filter, search)
-
-		return payload, nil
-	}
-}
-
-// EncodeDeprecatedListMembersError returns an encoder for errors returned by
-// the deprecated-list-members membership-service endpoint.
-func EncodeDeprecatedListMembersError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "Gone":
-			var res *membershipservice.GoneError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewDeprecatedListMembersGoneResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusGone)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeDeprecatedGetMemberMembershipResponse returns an encoder for responses
-// returned by the membership-service deprecated-get-member-membership endpoint.
-func EncodeDeprecatedGetMemberMembershipResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		w.WriteHeader(http.StatusOK)
-		return nil
-	}
-}
-
-// DecodeDeprecatedGetMemberMembershipRequest returns a decoder for requests
-// sent to the membership-service deprecated-get-member-membership endpoint.
-func DecodeDeprecatedGetMemberMembershipRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.DeprecatedGetMemberMembershipPayload, error) {
-	return func(r *http.Request) (*membershipservice.DeprecatedGetMemberMembershipPayload, error) {
-		var payload *membershipservice.DeprecatedGetMemberMembershipPayload
-		var (
-			memberID string
-			id       string
-
-			params = mux.Vars(r)
-		)
-		memberID = params["member_id"]
-		id = params["id"]
-		payload = NewDeprecatedGetMemberMembershipPayload(memberID, id)
-
-		return payload, nil
-	}
-}
-
-// EncodeDeprecatedGetMemberMembershipError returns an encoder for errors
-// returned by the deprecated-get-member-membership membership-service endpoint.
-func EncodeDeprecatedGetMemberMembershipError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "Gone":
-			var res *membershipservice.GoneError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewDeprecatedGetMemberMembershipGoneResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusGone)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeDeprecatedListMemberMembershipKeyContactsResponse returns an encoder
-// for responses returned by the membership-service
-// deprecated-list-member-membership-key-contacts endpoint.
-func EncodeDeprecatedListMemberMembershipKeyContactsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		w.WriteHeader(http.StatusOK)
-		return nil
-	}
-}
-
-// DecodeDeprecatedListMemberMembershipKeyContactsRequest returns a decoder for
-// requests sent to the membership-service
-// deprecated-list-member-membership-key-contacts endpoint.
-func DecodeDeprecatedListMemberMembershipKeyContactsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.DeprecatedListMemberMembershipKeyContactsPayload, error) {
-	return func(r *http.Request) (*membershipservice.DeprecatedListMemberMembershipKeyContactsPayload, error) {
-		var payload *membershipservice.DeprecatedListMemberMembershipKeyContactsPayload
-		var (
-			memberID string
-			id       string
-
-			params = mux.Vars(r)
-		)
-		memberID = params["member_id"]
-		id = params["id"]
-		payload = NewDeprecatedListMemberMembershipKeyContactsPayload(memberID, id)
-
-		return payload, nil
-	}
-}
-
-// EncodeDeprecatedListMemberMembershipKeyContactsError returns an encoder for
-// errors returned by the deprecated-list-member-membership-key-contacts
-// membership-service endpoint.
-func EncodeDeprecatedListMemberMembershipKeyContactsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "Gone":
-			var res *membershipservice.GoneError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewDeprecatedListMemberMembershipKeyContactsGoneResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusGone)
 			return enc.Encode(body)
 		default:
 			return encodeError(ctx, w, v)
@@ -1399,7 +1192,7 @@ func EncodeReadyzError(encoder func(context.Context, http.ResponseWriter) goahtt
 		}
 		switch en.GoaErrorName() {
 		case "ServiceUnavailable":
-			var res *membershipservice.ServiceUnavailableError
+			var res *goa.ServiceError
 			errors.As(v, &res)
 			enc := encoder(ctx, w)
 			var body any
