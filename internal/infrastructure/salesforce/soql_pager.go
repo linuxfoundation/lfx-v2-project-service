@@ -139,11 +139,9 @@ type PageResult[T any] struct {
 // (the NextPageToken value from a previous PageResult) to fetch the next page;
 // in this case the query string is ignored by Salesforce.
 //
-// The pageSize parameter is passed as the Sforce-Query-Options header for
-// initial queries only. Salesforce ignores this header on locator fetches —
-// continuation pages return however many records remain up to the 2000-record
-// hard cap.
-func QueryPage[T any](ctx context.Context, client *sf.Salesforce, query string, pageToken string, pageSize int) (PageResult[T], error) {
+// The SF batch size is always sfQueryBatchSize. Logical page slicing (the
+// client-facing page size) is handled by the caller after records are returned.
+func QueryPage[T any](ctx context.Context, client *sf.Salesforce, query string, pageToken string) (PageResult[T], error) {
 	apiVer := client.GetAPIVersion()
 
 	// Build the URI relative to the versioned base path that sf.DoRequest
@@ -162,15 +160,13 @@ func QueryPage[T any](ctx context.Context, client *sf.Salesforce, query string, 
 		uri = strings.TrimPrefix(pageToken, "/services/data/"+apiVer)
 	}
 
-	// Build the optional Sforce-Query-Options header for initial queries.
-	// Salesforce honours this header only on the first /query?q=... call;
-	// locator fetches return up to 2000 records regardless.
+	// Sforce-Query-Options is honoured by Salesforce only on the initial
+	// /query?q=... call; locator fetches return up to 2000 records regardless.
+	// Always request sfQueryBatchSize records — logical page slicing is the
+	// caller's responsibility and is completely independent of the SF batch size.
 	var opts []sf.RequestOption
-	if pageToken == "" && pageSize >= 200 {
-		if pageSize > 2000 {
-			pageSize = 2000
-		}
-		opts = append(opts, sf.WithHeader("Sforce-Query-Options", fmt.Sprintf("batchSize=%d", pageSize)))
+	if pageToken == "" {
+		opts = append(opts, sf.WithHeader("Sforce-Query-Options", fmt.Sprintf("batchSize=%d", sfQueryBatchSize)))
 	}
 
 	// DoRequest routes through the SDK's internal doRequest function, which
@@ -233,7 +229,7 @@ func QueryAllPages[T any](ctx context.Context, client *sf.Salesforce, query stri
 	token := locator
 
 	for {
-		result, err := QueryPage[T](ctx, client, query, token, sfQueryBatchSize)
+		result, err := QueryPage[T](ctx, client, query, token)
 		if err != nil {
 			return nil, 0, fmt.Errorf("fetching page (token=%q): %w", token, err)
 		}

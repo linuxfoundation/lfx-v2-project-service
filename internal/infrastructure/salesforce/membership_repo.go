@@ -299,7 +299,7 @@ func (r *MembershipRepo) FetchFirstMembershipBatch(ctx context.Context, projectS
 	)
 
 	query := buildMembershipsByProjectSOQL(ctx, projectSFID, filters)
-	sfResult, err := QueryPage[soqlAsset](ctx, r.client, query, "", sfQueryBatchSize)
+	sfResult, err := QueryPage[soqlAsset](ctx, r.client, query, "")
 	if err != nil {
 		return FirstBatchResult{}, fmt.Errorf("fetching first membership batch for project %s: %w", projectSFID, err)
 	}
