@@ -95,6 +95,4 @@ type MembershipPage struct {
 	// by Salesforce. This is set on the first page; subsequent pages (using a
 	// page token) may return 0 if the locator response does not repeat it.
 	TotalSize int
-
-
 }

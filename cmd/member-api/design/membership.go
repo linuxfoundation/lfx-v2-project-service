@@ -38,9 +38,9 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("tiers")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Project not found")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Project not found")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.GET("/projects/{project_uid}/tiers")
@@ -71,9 +71,9 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("tier")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Tier not found")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Tier not found")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.GET("/projects/{project_uid}/tiers/{tier_id}")
@@ -114,10 +114,10 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("memberships", "metadata")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Project not found")
-		dsl.Error("BadRequest", BadRequestError, "Bad request")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Project not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.GET("/projects/{project_uid}/memberships")
@@ -155,9 +155,9 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("membership")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Membership not found")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Membership not found")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.GET("/projects/{project_uid}/memberships/{id}")
@@ -194,9 +194,9 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("contacts")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Membership not found")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Membership not found")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.GET("/projects/{project_uid}/memberships/{id}/key_contacts")
@@ -254,10 +254,10 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("contact")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Membership not found")
-		dsl.Error("BadRequest", BadRequestError, "Bad request")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Membership not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.POST("/projects/{project_uid}/memberships/{id}/key_contacts")
@@ -305,10 +305,10 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("contact")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Key contact not found")
-		dsl.Error("BadRequest", BadRequestError, "Bad request")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Key contact not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.PUT("/projects/{project_uid}/memberships/{id}/key_contacts/{cid}")
@@ -342,9 +342,9 @@ var _ = dsl.Service("membership-service", func() {
 
 		dsl.Result(dsl.Empty)
 
-		dsl.Error("NotFound", NotFoundError, "Key contact not found")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Key contact not found")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.DELETE("/projects/{project_uid}/memberships/{id}/key_contacts/{cid}")
@@ -378,9 +378,9 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("contact")
 		})
 
-		dsl.Error("NotFound", NotFoundError, "Key contact not found")
-		dsl.Error("InternalServerError", InternalServerError, "Internal server error")
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("NotFound", dsl.ErrorResult, "Key contact not found")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.GET("/projects/{project_uid}/memberships/{id}/key_contacts/{cid}")
@@ -398,82 +398,6 @@ var _ = dsl.Service("membership-service", func() {
 		})
 	})
 
-	// ── Deprecated endpoints (410 Gone) ──────────────────────────────────────
-	// These endpoints existed in the original member-centric API and have been
-	// replaced by the project-scoped drill-down routes above. They return 410
-	// Gone so that existing clients receive a clear signal rather than 404.
-
-	dsl.Method("deprecated-list-members", func() {
-		dsl.Description("DEPRECATED — removed. Use GET /projects/{project_id}/memberships instead.")
-		dsl.Meta("swagger:summary", "Deprecated: List members (removed)")
-
-		dsl.Payload(func() {
-			// No auth required; the handler returns 410 unconditionally.
-			dsl.Attribute("pageSize", dsl.Int)
-			dsl.Attribute("offset", dsl.Int)
-			dsl.Attribute("filter", dsl.String)
-			dsl.Attribute("search", dsl.String)
-		})
-
-		dsl.Error("Gone", GoneError, "Endpoint removed")
-
-		dsl.Result(dsl.Empty)
-
-		dsl.HTTP(func() {
-			dsl.GET("/members")
-			dsl.Param("pageSize")
-			dsl.Param("offset")
-			dsl.Param("filter")
-			dsl.Param("search")
-			dsl.Response(dsl.StatusOK) // Unreachable; handler always errors.
-			dsl.Response("Gone", dsl.StatusGone)
-		})
-	})
-
-	dsl.Method("deprecated-get-member-membership", func() {
-		dsl.Description("DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id} instead.")
-		dsl.Meta("swagger:summary", "Deprecated: Get member membership (removed)")
-
-		dsl.Payload(func() {
-			dsl.Attribute("member_id", dsl.String)
-			dsl.Attribute("id", dsl.String)
-		})
-
-		dsl.Error("Gone", GoneError, "Endpoint removed")
-
-		dsl.Result(dsl.Empty)
-
-		dsl.HTTP(func() {
-			dsl.GET("/members/{member_id}/memberships/{id}")
-			dsl.Param("member_id")
-			dsl.Param("id")
-			dsl.Response(dsl.StatusOK) // Unreachable; handler always errors.
-			dsl.Response("Gone", dsl.StatusGone)
-		})
-	})
-
-	dsl.Method("deprecated-list-member-membership-key-contacts", func() {
-		dsl.Description("DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id}/key_contacts instead.")
-		dsl.Meta("swagger:summary", "Deprecated: List key contacts for member membership (removed)")
-
-		dsl.Payload(func() {
-			dsl.Attribute("member_id", dsl.String)
-			dsl.Attribute("id", dsl.String)
-		})
-
-		dsl.Error("Gone", GoneError, "Endpoint removed")
-
-		dsl.Result(dsl.Empty)
-
-		dsl.HTTP(func() {
-			dsl.GET("/members/{member_id}/memberships/{id}/key_contacts")
-			dsl.Param("member_id")
-			dsl.Param("id")
-			dsl.Response(dsl.StatusOK) // Unreachable; handler always errors.
-			dsl.Response("Gone", dsl.StatusGone)
-		})
-	})
-
 	// ── Health checks ────────────────────────────────────────────────────────
 
 	dsl.Method("readyz", func() {
@@ -483,7 +407,7 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Example("OK")
 		})
 
-		dsl.Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
 			dsl.GET("/readyz")

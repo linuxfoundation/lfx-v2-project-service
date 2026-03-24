@@ -6,124 +6,6 @@ servers:
     - url: http://localhost:80
       description: Default server for membership
 paths:
-    /members:
-        get:
-            tags:
-                - membership-service
-            summary: 'Deprecated: List members (removed)'
-            description: DEPRECATED — removed. Use GET /projects/{project_id}/memberships instead.
-            operationId: membership-service#deprecated-list-members
-            parameters:
-                - name: pageSize
-                  in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: integer
-                    example: 8242384762437254508
-                    format: int64
-                  example: 2851517832602433688
-                - name: offset
-                  in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: integer
-                    example: 4001279144460642625
-                    format: int64
-                  example: 6704979606201476403
-                - name: filter
-                  in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    example: Possimus magnam facere.
-                  example: Corporis esse voluptas.
-                - name: search
-                  in: query
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    example: Ut voluptatem vel repellendus.
-                  example: Aut tempora et.
-            responses:
-                "200":
-                    description: OK response.
-                "410":
-                    description: 'Gone: Endpoint removed'
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/GoneError'
-                            example:
-                                message: This endpoint has been removed. See the API documentation for the replacement.
-                                replacement: /projects/{project_id}/memberships
-    /members/{member_id}/memberships/{id}:
-        get:
-            tags:
-                - membership-service
-            summary: 'Deprecated: Get member membership (removed)'
-            description: DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id} instead.
-            operationId: membership-service#deprecated-get-member-membership
-            parameters:
-                - name: member_id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: Dolor vero.
-                  example: Nihil ut optio possimus magnam molestiae est.
-                - name: id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: Qui quia alias.
-                  example: Iure rerum commodi.
-            responses:
-                "200":
-                    description: OK response.
-                "410":
-                    description: 'Gone: Endpoint removed'
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/GoneError'
-                            example:
-                                message: This endpoint has been removed. See the API documentation for the replacement.
-                                replacement: /projects/{project_id}/memberships
-    /members/{member_id}/memberships/{id}/key_contacts:
-        get:
-            tags:
-                - membership-service
-            summary: 'Deprecated: List key contacts for member membership (removed)'
-            description: DEPRECATED — removed. Use GET /projects/{project_id}/memberships/{id}/key_contacts instead.
-            operationId: membership-service#deprecated-list-member-membership-key-contacts
-            parameters:
-                - name: member_id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: Et omnis.
-                  example: Rerum accusamus.
-                - name: id
-                  in: path
-                  required: true
-                  schema:
-                    type: string
-                    example: Perferendis at qui ipsa ea.
-                  example: Est qui tempora exercitationem exercitationem.
-            responses:
-                "200":
-                    description: OK response.
-                "410":
-                    description: 'Gone: Endpoint removed'
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/GoneError'
-                            example:
-                                message: This endpoint has been removed. See the API documentation for the replacement.
-                                replacement: /projects/{project_id}/memberships
     /projects/{project_uid}/memberships:
         get:
             tags:
@@ -266,41 +148,58 @@ paths:
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
                                       year: "2025"
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                      year: "2025"
                                 metadata:
                                     next_page_token: ""
                                     total_size: 100
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/BadRequestError'
-                            example:
-                                message: The request was invalid.
+                                $ref: '#/components/schemas/Error'
                 "404":
                     description: 'NotFound: Project not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
     /projects/{project_uid}/memberships/{id}:
@@ -386,27 +285,21 @@ paths:
                 "404":
                     description: 'NotFound: Membership not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
     /projects/{project_uid}/memberships/{id}/key_contacts:
@@ -491,30 +384,41 @@ paths:
                                       title: CTO
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
+                                    - board_member: false
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      email: john.doe@example.com
+                                      first_name: John
+                                      last_name: Doe
+                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      primary_contact: true
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      role: Voting Representative
+                                      status: Active
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      title: CTO
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
                 "404":
                     description: 'NotFound: Membership not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
         post:
@@ -598,35 +502,27 @@ paths:
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/BadRequestError'
-                            example:
-                                message: The request was invalid.
+                                $ref: '#/components/schemas/Error'
                 "404":
                     description: 'NotFound: Membership not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
     /projects/{project_uid}/memberships/{id}/key_contacts/{cid}:
@@ -684,27 +580,21 @@ paths:
                 "404":
                     description: 'NotFound: Key contact not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
         get:
@@ -783,27 +673,21 @@ paths:
                 "404":
                     description: 'NotFound: Key contact not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
         put:
@@ -893,35 +777,27 @@ paths:
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/BadRequestError'
-                            example:
-                                message: The request was invalid.
+                                $ref: '#/components/schemas/Error'
                 "404":
                     description: 'NotFound: Key contact not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
     /projects/{project_uid}/tiers:
@@ -976,30 +852,38 @@ paths:
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      family: Membership
+                                      name: Gold Corporate Membership
+                                      product_type: Corporate
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      family: Membership
+                                      name: Gold Corporate Membership
+                                      product_type: Corporate
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
                 "404":
                     description: 'NotFound: Project not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
     /projects/{project_uid}/tiers/{tier_id}:
@@ -1059,42 +943,25 @@ paths:
                 "404":
                     description: 'NotFound: Tier not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
 components:
     schemas:
-        BadRequestError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: The request was invalid.
-            example:
-                message: The request was invalid.
-            required:
-                - message
         CreateMembershipKeyContactRequestBody:
             type: object
             properties:
@@ -1144,33 +1011,48 @@ components:
                 - email
                 - first_name
                 - last_name
-        GoneError:
+        Error:
             type: object
             properties:
+                fault:
+                    type: boolean
+                    description: Is the error a server-side fault?
+                    example: false
+                id:
+                    type: string
+                    description: ID is a unique identifier for this particular occurrence of the problem.
+                    example: 123abc
                 message:
                     type: string
-                    description: Error message
-                    example: This endpoint has been removed. See the API documentation for the replacement.
-                replacement:
+                    description: Message is a human-readable explanation specific to this occurrence of the problem.
+                    example: parameter 'p' must be an integer
+                name:
                     type: string
-                    description: URL path pattern of the replacement endpoint
-                    example: /projects/{project_id}/memberships
+                    description: Name is the name of this class of errors.
+                    example: bad_request
+                temporary:
+                    type: boolean
+                    description: Is the error temporary?
+                    example: true
+                timeout:
+                    type: boolean
+                    description: Is the error a timeout?
+                    example: false
+            description: Project not found
             example:
-                message: This endpoint has been removed. See the API documentation for the replacement.
-                replacement: /projects/{project_id}/memberships
+                fault: false
+                id: 123abc
+                message: parameter 'p' must be an integer
+                name: bad_request
+                temporary: false
+                timeout: false
             required:
+                - name
+                - id
                 - message
-        InternalServerError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: An internal server error occurred.
-            example:
-                message: An internal server error occurred.
-            required:
-                - message
+                - temporary
+                - timeout
+                - fault
         ListMembershipKeyContactsResponseBody:
             type: object
             properties:
@@ -1250,6 +1132,23 @@ components:
                           updated_at: "2025-06-01T12:00:00Z"
             example:
                 contacts:
+                    - board_member: false
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      primary_contact: true
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
+                      status: Active
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
                     - board_member: false
                       company_domain: https://example.com
                       company_logo_url: https://example.com/logo.png
@@ -1415,31 +1314,6 @@ components:
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
                       year: "2025"
-                    - agreement_date: "2025-01-01T00:00:00Z"
-                      annual_full_price: 50000
-                      auto_renew: true
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
-                      payment_frequency: Annual
-                      payment_terms: Net 30
-                      price: 50000
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      purchase_date: "2025-01-15T00:00:00Z"
-                      renewal_type: Annual
-                      start_date: "2025-02-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      tier_family: Membership
-                      tier_name: Gold Corporate Membership
-                      tier_product_type: Corporate
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      year: "2025"
                 metadata:
                     next_page_token: ""
                     total_size: 100
@@ -1471,13 +1345,6 @@ components:
                           updated_at: "2025-06-01T12:00:00Z"
             example:
                 tiers:
-                    - created_at: "2025-01-01T00:00:00Z"
-                      family: Membership
-                      name: Gold Corporate Membership
-                      product_type: Corporate
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
                     - created_at: "2025-01-01T00:00:00Z"
                       family: Membership
                       name: Gold Corporate Membership
@@ -1538,17 +1405,6 @@ components:
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
-        NotFoundError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: The resource was not found.
-            example:
-                message: The resource was not found.
-            required:
-                - message
         ProjectKeyContactResponse:
             type: object
             properties:
@@ -1782,17 +1638,6 @@ components:
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
                 year: "2025"
-        ServiceUnavailableError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: The service is unavailable.
-            example:
-                message: The service is unavailable.
-            required:
-                - message
         UpdateMembershipKeyContactRequestBody:
             type: object
             properties:

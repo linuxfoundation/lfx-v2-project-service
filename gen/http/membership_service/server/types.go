@@ -96,283 +96,593 @@ type UpdateMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBod
 // service "get-membership-key-contact" endpoint HTTP response body.
 type GetMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
 
-// ListProjectTiersInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-project-tiers" endpoint HTTP response
-// body for the "InternalServerError" error.
-type ListProjectTiersInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
 // ListProjectTiersNotFoundResponseBody is the type of the "membership-service"
 // service "list-project-tiers" endpoint HTTP response body for the "NotFound"
 // error.
 type ListProjectTiersNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListProjectTiersInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-project-tiers" endpoint HTTP response
+// body for the "InternalServerError" error.
+type ListProjectTiersInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // ListProjectTiersServiceUnavailableResponseBody is the type of the
 // "membership-service" service "list-project-tiers" endpoint HTTP response
 // body for the "ServiceUnavailable" error.
 type ListProjectTiersServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// GetProjectTierInternalServerErrorResponseBody is the type of the
-// "membership-service" service "get-project-tier" endpoint HTTP response body
-// for the "InternalServerError" error.
-type GetProjectTierInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // GetProjectTierNotFoundResponseBody is the type of the "membership-service"
 // service "get-project-tier" endpoint HTTP response body for the "NotFound"
 // error.
 type GetProjectTierNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// GetProjectTierInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-project-tier" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetProjectTierInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // GetProjectTierServiceUnavailableResponseBody is the type of the
 // "membership-service" service "get-project-tier" endpoint HTTP response body
 // for the "ServiceUnavailable" error.
 type GetProjectTierServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListProjectMembershipsBadRequestResponseBody is the type of the
-// "membership-service" service "list-project-memberships" endpoint HTTP
-// response body for the "BadRequest" error.
-type ListProjectMembershipsBadRequestResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListProjectMembershipsInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-project-memberships" endpoint HTTP
-// response body for the "InternalServerError" error.
-type ListProjectMembershipsInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // ListProjectMembershipsNotFoundResponseBody is the type of the
 // "membership-service" service "list-project-memberships" endpoint HTTP
 // response body for the "NotFound" error.
 type ListProjectMembershipsNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListProjectMembershipsBadRequestResponseBody is the type of the
+// "membership-service" service "list-project-memberships" endpoint HTTP
+// response body for the "BadRequest" error.
+type ListProjectMembershipsBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListProjectMembershipsInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-project-memberships" endpoint HTTP
+// response body for the "InternalServerError" error.
+type ListProjectMembershipsInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // ListProjectMembershipsServiceUnavailableResponseBody is the type of the
 // "membership-service" service "list-project-memberships" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type ListProjectMembershipsServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// GetProjectMembershipInternalServerErrorResponseBody is the type of the
-// "membership-service" service "get-project-membership" endpoint HTTP response
-// body for the "InternalServerError" error.
-type GetProjectMembershipInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // GetProjectMembershipNotFoundResponseBody is the type of the
 // "membership-service" service "get-project-membership" endpoint HTTP response
 // body for the "NotFound" error.
 type GetProjectMembershipNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// GetProjectMembershipInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-project-membership" endpoint HTTP response
+// body for the "InternalServerError" error.
+type GetProjectMembershipInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // GetProjectMembershipServiceUnavailableResponseBody is the type of the
 // "membership-service" service "get-project-membership" endpoint HTTP response
 // body for the "ServiceUnavailable" error.
 type GetProjectMembershipServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListMembershipKeyContactsInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-membership-key-contacts" endpoint HTTP
-// response body for the "InternalServerError" error.
-type ListMembershipKeyContactsInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // ListMembershipKeyContactsNotFoundResponseBody is the type of the
 // "membership-service" service "list-membership-key-contacts" endpoint HTTP
 // response body for the "NotFound" error.
 type ListMembershipKeyContactsNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListMembershipKeyContactsInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-membership-key-contacts" endpoint HTTP
+// response body for the "InternalServerError" error.
+type ListMembershipKeyContactsInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // ListMembershipKeyContactsServiceUnavailableResponseBody is the type of the
 // "membership-service" service "list-membership-key-contacts" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type ListMembershipKeyContactsServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// CreateMembershipKeyContactBadRequestResponseBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// response body for the "BadRequest" error.
-type CreateMembershipKeyContactBadRequestResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// CreateMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type CreateMembershipKeyContactInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // CreateMembershipKeyContactNotFoundResponseBody is the type of the
 // "membership-service" service "create-membership-key-contact" endpoint HTTP
 // response body for the "NotFound" error.
 type CreateMembershipKeyContactNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateMembershipKeyContactBadRequestResponseBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// response body for the "BadRequest" error.
+type CreateMembershipKeyContactBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "create-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type CreateMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // CreateMembershipKeyContactServiceUnavailableResponseBody is the type of the
 // "membership-service" service "create-membership-key-contact" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type CreateMembershipKeyContactServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// UpdateMembershipKeyContactBadRequestResponseBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// response body for the "BadRequest" error.
-type UpdateMembershipKeyContactBadRequestResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// UpdateMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type UpdateMembershipKeyContactInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // UpdateMembershipKeyContactNotFoundResponseBody is the type of the
 // "membership-service" service "update-membership-key-contact" endpoint HTTP
 // response body for the "NotFound" error.
 type UpdateMembershipKeyContactNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateMembershipKeyContactBadRequestResponseBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// response body for the "BadRequest" error.
+type UpdateMembershipKeyContactBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "update-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type UpdateMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // UpdateMembershipKeyContactServiceUnavailableResponseBody is the type of the
 // "membership-service" service "update-membership-key-contact" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type UpdateMembershipKeyContactServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// DeleteMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "delete-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type DeleteMembershipKeyContactInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // DeleteMembershipKeyContactNotFoundResponseBody is the type of the
 // "membership-service" service "delete-membership-key-contact" endpoint HTTP
 // response body for the "NotFound" error.
 type DeleteMembershipKeyContactNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "delete-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type DeleteMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // DeleteMembershipKeyContactServiceUnavailableResponseBody is the type of the
 // "membership-service" service "delete-membership-key-contact" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type DeleteMembershipKeyContactServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// GetMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "get-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type GetMembershipKeyContactInternalServerErrorResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // GetMembershipKeyContactNotFoundResponseBody is the type of the
 // "membership-service" service "get-membership-key-contact" endpoint HTTP
 // response body for the "NotFound" error.
 type GetMembershipKeyContactNotFoundResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// GetMembershipKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-membership-key-contact" endpoint HTTP
+// response body for the "InternalServerError" error.
+type GetMembershipKeyContactInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // GetMembershipKeyContactServiceUnavailableResponseBody is the type of the
 // "membership-service" service "get-membership-key-contact" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type GetMembershipKeyContactServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// DeprecatedListMembersGoneResponseBody is the type of the
-// "membership-service" service "deprecated-list-members" endpoint HTTP
-// response body for the "Gone" error.
-type DeprecatedListMembersGoneResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-	// URL path pattern of the replacement endpoint
-	Replacement *string `form:"replacement,omitempty" json:"replacement,omitempty" xml:"replacement,omitempty"`
-}
-
-// DeprecatedGetMemberMembershipGoneResponseBody is the type of the
-// "membership-service" service "deprecated-get-member-membership" endpoint
-// HTTP response body for the "Gone" error.
-type DeprecatedGetMemberMembershipGoneResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-	// URL path pattern of the replacement endpoint
-	Replacement *string `form:"replacement,omitempty" json:"replacement,omitempty" xml:"replacement,omitempty"`
-}
-
-// DeprecatedListMemberMembershipKeyContactsGoneResponseBody is the type of the
-// "membership-service" service
-// "deprecated-list-member-membership-key-contacts" endpoint HTTP response body
-// for the "Gone" error.
-type DeprecatedListMemberMembershipKeyContactsGoneResponseBody struct {
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-	// URL path pattern of the replacement endpoint
-	Replacement *string `form:"replacement,omitempty" json:"replacement,omitempty" xml:"replacement,omitempty"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // ReadyzServiceUnavailableResponseBody is the type of the "membership-service"
 // service "readyz" endpoint HTTP response body for the "ServiceUnavailable"
 // error.
 type ReadyzServiceUnavailableResponseBody struct {
-	// Error message
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
 	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
 // MembershipTierResponseResponseBody is used to define fields on response body
@@ -689,22 +999,32 @@ func NewGetMembershipKeyContactResponseBody(res *membershipservice.GetMembership
 	return body
 }
 
-// NewListProjectTiersInternalServerErrorResponseBody builds the HTTP response
-// body from the result of the "list-project-tiers" endpoint of the
-// "membership-service" service.
-func NewListProjectTiersInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListProjectTiersInternalServerErrorResponseBody {
-	body := &ListProjectTiersInternalServerErrorResponseBody{
-		Message: res.Message,
+// NewListProjectTiersNotFoundResponseBody builds the HTTP response body from
+// the result of the "list-project-tiers" endpoint of the "membership-service"
+// service.
+func NewListProjectTiersNotFoundResponseBody(res *goa.ServiceError) *ListProjectTiersNotFoundResponseBody {
+	body := &ListProjectTiersNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
 
-// NewListProjectTiersNotFoundResponseBody builds the HTTP response body from
-// the result of the "list-project-tiers" endpoint of the "membership-service"
-// service.
-func NewListProjectTiersNotFoundResponseBody(res *membershipservice.NotFoundError) *ListProjectTiersNotFoundResponseBody {
-	body := &ListProjectTiersNotFoundResponseBody{
-		Message: res.Message,
+// NewListProjectTiersInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "list-project-tiers" endpoint of the
+// "membership-service" service.
+func NewListProjectTiersInternalServerErrorResponseBody(res *goa.ServiceError) *ListProjectTiersInternalServerErrorResponseBody {
+	body := &ListProjectTiersInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -712,19 +1032,14 @@ func NewListProjectTiersNotFoundResponseBody(res *membershipservice.NotFoundErro
 // NewListProjectTiersServiceUnavailableResponseBody builds the HTTP response
 // body from the result of the "list-project-tiers" endpoint of the
 // "membership-service" service.
-func NewListProjectTiersServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListProjectTiersServiceUnavailableResponseBody {
+func NewListProjectTiersServiceUnavailableResponseBody(res *goa.ServiceError) *ListProjectTiersServiceUnavailableResponseBody {
 	body := &ListProjectTiersServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewGetProjectTierInternalServerErrorResponseBody builds the HTTP response
-// body from the result of the "get-project-tier" endpoint of the
-// "membership-service" service.
-func NewGetProjectTierInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *GetProjectTierInternalServerErrorResponseBody {
-	body := &GetProjectTierInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -732,9 +1047,29 @@ func NewGetProjectTierInternalServerErrorResponseBody(res *membershipservice.Int
 // NewGetProjectTierNotFoundResponseBody builds the HTTP response body from the
 // result of the "get-project-tier" endpoint of the "membership-service"
 // service.
-func NewGetProjectTierNotFoundResponseBody(res *membershipservice.NotFoundError) *GetProjectTierNotFoundResponseBody {
+func NewGetProjectTierNotFoundResponseBody(res *goa.ServiceError) *GetProjectTierNotFoundResponseBody {
 	body := &GetProjectTierNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewGetProjectTierInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "get-project-tier" endpoint of the
+// "membership-service" service.
+func NewGetProjectTierInternalServerErrorResponseBody(res *goa.ServiceError) *GetProjectTierInternalServerErrorResponseBody {
+	body := &GetProjectTierInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -742,29 +1077,14 @@ func NewGetProjectTierNotFoundResponseBody(res *membershipservice.NotFoundError)
 // NewGetProjectTierServiceUnavailableResponseBody builds the HTTP response
 // body from the result of the "get-project-tier" endpoint of the
 // "membership-service" service.
-func NewGetProjectTierServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *GetProjectTierServiceUnavailableResponseBody {
+func NewGetProjectTierServiceUnavailableResponseBody(res *goa.ServiceError) *GetProjectTierServiceUnavailableResponseBody {
 	body := &GetProjectTierServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListProjectMembershipsBadRequestResponseBody builds the HTTP response
-// body from the result of the "list-project-memberships" endpoint of the
-// "membership-service" service.
-func NewListProjectMembershipsBadRequestResponseBody(res *membershipservice.BadRequestError) *ListProjectMembershipsBadRequestResponseBody {
-	body := &ListProjectMembershipsBadRequestResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListProjectMembershipsInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "list-project-memberships" endpoint of
-// the "membership-service" service.
-func NewListProjectMembershipsInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListProjectMembershipsInternalServerErrorResponseBody {
-	body := &ListProjectMembershipsInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -772,9 +1092,44 @@ func NewListProjectMembershipsInternalServerErrorResponseBody(res *membershipser
 // NewListProjectMembershipsNotFoundResponseBody builds the HTTP response body
 // from the result of the "list-project-memberships" endpoint of the
 // "membership-service" service.
-func NewListProjectMembershipsNotFoundResponseBody(res *membershipservice.NotFoundError) *ListProjectMembershipsNotFoundResponseBody {
+func NewListProjectMembershipsNotFoundResponseBody(res *goa.ServiceError) *ListProjectMembershipsNotFoundResponseBody {
 	body := &ListProjectMembershipsNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewListProjectMembershipsBadRequestResponseBody builds the HTTP response
+// body from the result of the "list-project-memberships" endpoint of the
+// "membership-service" service.
+func NewListProjectMembershipsBadRequestResponseBody(res *goa.ServiceError) *ListProjectMembershipsBadRequestResponseBody {
+	body := &ListProjectMembershipsBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewListProjectMembershipsInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "list-project-memberships" endpoint of
+// the "membership-service" service.
+func NewListProjectMembershipsInternalServerErrorResponseBody(res *goa.ServiceError) *ListProjectMembershipsInternalServerErrorResponseBody {
+	body := &ListProjectMembershipsInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -782,19 +1137,14 @@ func NewListProjectMembershipsNotFoundResponseBody(res *membershipservice.NotFou
 // NewListProjectMembershipsServiceUnavailableResponseBody builds the HTTP
 // response body from the result of the "list-project-memberships" endpoint of
 // the "membership-service" service.
-func NewListProjectMembershipsServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListProjectMembershipsServiceUnavailableResponseBody {
+func NewListProjectMembershipsServiceUnavailableResponseBody(res *goa.ServiceError) *ListProjectMembershipsServiceUnavailableResponseBody {
 	body := &ListProjectMembershipsServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewGetProjectMembershipInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "get-project-membership" endpoint of
-// the "membership-service" service.
-func NewGetProjectMembershipInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *GetProjectMembershipInternalServerErrorResponseBody {
-	body := &GetProjectMembershipInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -802,9 +1152,29 @@ func NewGetProjectMembershipInternalServerErrorResponseBody(res *membershipservi
 // NewGetProjectMembershipNotFoundResponseBody builds the HTTP response body
 // from the result of the "get-project-membership" endpoint of the
 // "membership-service" service.
-func NewGetProjectMembershipNotFoundResponseBody(res *membershipservice.NotFoundError) *GetProjectMembershipNotFoundResponseBody {
+func NewGetProjectMembershipNotFoundResponseBody(res *goa.ServiceError) *GetProjectMembershipNotFoundResponseBody {
 	body := &GetProjectMembershipNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewGetProjectMembershipInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "get-project-membership" endpoint of
+// the "membership-service" service.
+func NewGetProjectMembershipInternalServerErrorResponseBody(res *goa.ServiceError) *GetProjectMembershipInternalServerErrorResponseBody {
+	body := &GetProjectMembershipInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -812,19 +1182,14 @@ func NewGetProjectMembershipNotFoundResponseBody(res *membershipservice.NotFound
 // NewGetProjectMembershipServiceUnavailableResponseBody builds the HTTP
 // response body from the result of the "get-project-membership" endpoint of
 // the "membership-service" service.
-func NewGetProjectMembershipServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *GetProjectMembershipServiceUnavailableResponseBody {
+func NewGetProjectMembershipServiceUnavailableResponseBody(res *goa.ServiceError) *GetProjectMembershipServiceUnavailableResponseBody {
 	body := &GetProjectMembershipServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListMembershipKeyContactsInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "list-membership-key-contacts" endpoint
-// of the "membership-service" service.
-func NewListMembershipKeyContactsInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *ListMembershipKeyContactsInternalServerErrorResponseBody {
-	body := &ListMembershipKeyContactsInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -832,9 +1197,29 @@ func NewListMembershipKeyContactsInternalServerErrorResponseBody(res *membership
 // NewListMembershipKeyContactsNotFoundResponseBody builds the HTTP response
 // body from the result of the "list-membership-key-contacts" endpoint of the
 // "membership-service" service.
-func NewListMembershipKeyContactsNotFoundResponseBody(res *membershipservice.NotFoundError) *ListMembershipKeyContactsNotFoundResponseBody {
+func NewListMembershipKeyContactsNotFoundResponseBody(res *goa.ServiceError) *ListMembershipKeyContactsNotFoundResponseBody {
 	body := &ListMembershipKeyContactsNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewListMembershipKeyContactsInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "list-membership-key-contacts" endpoint
+// of the "membership-service" service.
+func NewListMembershipKeyContactsInternalServerErrorResponseBody(res *goa.ServiceError) *ListMembershipKeyContactsInternalServerErrorResponseBody {
+	body := &ListMembershipKeyContactsInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -842,29 +1227,14 @@ func NewListMembershipKeyContactsNotFoundResponseBody(res *membershipservice.Not
 // NewListMembershipKeyContactsServiceUnavailableResponseBody builds the HTTP
 // response body from the result of the "list-membership-key-contacts" endpoint
 // of the "membership-service" service.
-func NewListMembershipKeyContactsServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ListMembershipKeyContactsServiceUnavailableResponseBody {
+func NewListMembershipKeyContactsServiceUnavailableResponseBody(res *goa.ServiceError) *ListMembershipKeyContactsServiceUnavailableResponseBody {
 	body := &ListMembershipKeyContactsServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewCreateMembershipKeyContactBadRequestResponseBody builds the HTTP response
-// body from the result of the "create-membership-key-contact" endpoint of the
-// "membership-service" service.
-func NewCreateMembershipKeyContactBadRequestResponseBody(res *membershipservice.BadRequestError) *CreateMembershipKeyContactBadRequestResponseBody {
-	body := &CreateMembershipKeyContactBadRequestResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewCreateMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "create-membership-key-contact"
-// endpoint of the "membership-service" service.
-func NewCreateMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *CreateMembershipKeyContactInternalServerErrorResponseBody {
-	body := &CreateMembershipKeyContactInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -872,9 +1242,44 @@ func NewCreateMembershipKeyContactInternalServerErrorResponseBody(res *membershi
 // NewCreateMembershipKeyContactNotFoundResponseBody builds the HTTP response
 // body from the result of the "create-membership-key-contact" endpoint of the
 // "membership-service" service.
-func NewCreateMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *CreateMembershipKeyContactNotFoundResponseBody {
+func NewCreateMembershipKeyContactNotFoundResponseBody(res *goa.ServiceError) *CreateMembershipKeyContactNotFoundResponseBody {
 	body := &CreateMembershipKeyContactNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateMembershipKeyContactBadRequestResponseBody builds the HTTP response
+// body from the result of the "create-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewCreateMembershipKeyContactBadRequestResponseBody(res *goa.ServiceError) *CreateMembershipKeyContactBadRequestResponseBody {
+	body := &CreateMembershipKeyContactBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "create-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewCreateMembershipKeyContactInternalServerErrorResponseBody(res *goa.ServiceError) *CreateMembershipKeyContactInternalServerErrorResponseBody {
+	body := &CreateMembershipKeyContactInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -882,29 +1287,14 @@ func NewCreateMembershipKeyContactNotFoundResponseBody(res *membershipservice.No
 // NewCreateMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
 // response body from the result of the "create-membership-key-contact"
 // endpoint of the "membership-service" service.
-func NewCreateMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *CreateMembershipKeyContactServiceUnavailableResponseBody {
+func NewCreateMembershipKeyContactServiceUnavailableResponseBody(res *goa.ServiceError) *CreateMembershipKeyContactServiceUnavailableResponseBody {
 	body := &CreateMembershipKeyContactServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewUpdateMembershipKeyContactBadRequestResponseBody builds the HTTP response
-// body from the result of the "update-membership-key-contact" endpoint of the
-// "membership-service" service.
-func NewUpdateMembershipKeyContactBadRequestResponseBody(res *membershipservice.BadRequestError) *UpdateMembershipKeyContactBadRequestResponseBody {
-	body := &UpdateMembershipKeyContactBadRequestResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewUpdateMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "update-membership-key-contact"
-// endpoint of the "membership-service" service.
-func NewUpdateMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *UpdateMembershipKeyContactInternalServerErrorResponseBody {
-	body := &UpdateMembershipKeyContactInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -912,9 +1302,44 @@ func NewUpdateMembershipKeyContactInternalServerErrorResponseBody(res *membershi
 // NewUpdateMembershipKeyContactNotFoundResponseBody builds the HTTP response
 // body from the result of the "update-membership-key-contact" endpoint of the
 // "membership-service" service.
-func NewUpdateMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *UpdateMembershipKeyContactNotFoundResponseBody {
+func NewUpdateMembershipKeyContactNotFoundResponseBody(res *goa.ServiceError) *UpdateMembershipKeyContactNotFoundResponseBody {
 	body := &UpdateMembershipKeyContactNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateMembershipKeyContactBadRequestResponseBody builds the HTTP response
+// body from the result of the "update-membership-key-contact" endpoint of the
+// "membership-service" service.
+func NewUpdateMembershipKeyContactBadRequestResponseBody(res *goa.ServiceError) *UpdateMembershipKeyContactBadRequestResponseBody {
+	body := &UpdateMembershipKeyContactBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "update-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewUpdateMembershipKeyContactInternalServerErrorResponseBody(res *goa.ServiceError) *UpdateMembershipKeyContactInternalServerErrorResponseBody {
+	body := &UpdateMembershipKeyContactInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -922,19 +1347,14 @@ func NewUpdateMembershipKeyContactNotFoundResponseBody(res *membershipservice.No
 // NewUpdateMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
 // response body from the result of the "update-membership-key-contact"
 // endpoint of the "membership-service" service.
-func NewUpdateMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *UpdateMembershipKeyContactServiceUnavailableResponseBody {
+func NewUpdateMembershipKeyContactServiceUnavailableResponseBody(res *goa.ServiceError) *UpdateMembershipKeyContactServiceUnavailableResponseBody {
 	body := &UpdateMembershipKeyContactServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewDeleteMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "delete-membership-key-contact"
-// endpoint of the "membership-service" service.
-func NewDeleteMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *DeleteMembershipKeyContactInternalServerErrorResponseBody {
-	body := &DeleteMembershipKeyContactInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -942,9 +1362,29 @@ func NewDeleteMembershipKeyContactInternalServerErrorResponseBody(res *membershi
 // NewDeleteMembershipKeyContactNotFoundResponseBody builds the HTTP response
 // body from the result of the "delete-membership-key-contact" endpoint of the
 // "membership-service" service.
-func NewDeleteMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *DeleteMembershipKeyContactNotFoundResponseBody {
+func NewDeleteMembershipKeyContactNotFoundResponseBody(res *goa.ServiceError) *DeleteMembershipKeyContactNotFoundResponseBody {
 	body := &DeleteMembershipKeyContactNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "delete-membership-key-contact"
+// endpoint of the "membership-service" service.
+func NewDeleteMembershipKeyContactInternalServerErrorResponseBody(res *goa.ServiceError) *DeleteMembershipKeyContactInternalServerErrorResponseBody {
+	body := &DeleteMembershipKeyContactInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -952,19 +1392,14 @@ func NewDeleteMembershipKeyContactNotFoundResponseBody(res *membershipservice.No
 // NewDeleteMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
 // response body from the result of the "delete-membership-key-contact"
 // endpoint of the "membership-service" service.
-func NewDeleteMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *DeleteMembershipKeyContactServiceUnavailableResponseBody {
+func NewDeleteMembershipKeyContactServiceUnavailableResponseBody(res *goa.ServiceError) *DeleteMembershipKeyContactServiceUnavailableResponseBody {
 	body := &DeleteMembershipKeyContactServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewGetMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "get-membership-key-contact" endpoint
-// of the "membership-service" service.
-func NewGetMembershipKeyContactInternalServerErrorResponseBody(res *membershipservice.InternalServerError) *GetMembershipKeyContactInternalServerErrorResponseBody {
-	body := &GetMembershipKeyContactInternalServerErrorResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -972,9 +1407,29 @@ func NewGetMembershipKeyContactInternalServerErrorResponseBody(res *membershipse
 // NewGetMembershipKeyContactNotFoundResponseBody builds the HTTP response body
 // from the result of the "get-membership-key-contact" endpoint of the
 // "membership-service" service.
-func NewGetMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFoundError) *GetMembershipKeyContactNotFoundResponseBody {
+func NewGetMembershipKeyContactNotFoundResponseBody(res *goa.ServiceError) *GetMembershipKeyContactNotFoundResponseBody {
 	body := &GetMembershipKeyContactNotFoundResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewGetMembershipKeyContactInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "get-membership-key-contact" endpoint
+// of the "membership-service" service.
+func NewGetMembershipKeyContactInternalServerErrorResponseBody(res *goa.ServiceError) *GetMembershipKeyContactInternalServerErrorResponseBody {
+	body := &GetMembershipKeyContactInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -982,52 +1437,28 @@ func NewGetMembershipKeyContactNotFoundResponseBody(res *membershipservice.NotFo
 // NewGetMembershipKeyContactServiceUnavailableResponseBody builds the HTTP
 // response body from the result of the "get-membership-key-contact" endpoint
 // of the "membership-service" service.
-func NewGetMembershipKeyContactServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *GetMembershipKeyContactServiceUnavailableResponseBody {
+func NewGetMembershipKeyContactServiceUnavailableResponseBody(res *goa.ServiceError) *GetMembershipKeyContactServiceUnavailableResponseBody {
 	body := &GetMembershipKeyContactServiceUnavailableResponseBody{
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewDeprecatedListMembersGoneResponseBody builds the HTTP response body from
-// the result of the "deprecated-list-members" endpoint of the
-// "membership-service" service.
-func NewDeprecatedListMembersGoneResponseBody(res *membershipservice.GoneError) *DeprecatedListMembersGoneResponseBody {
-	body := &DeprecatedListMembersGoneResponseBody{
-		Message:     res.Message,
-		Replacement: res.Replacement,
-	}
-	return body
-}
-
-// NewDeprecatedGetMemberMembershipGoneResponseBody builds the HTTP response
-// body from the result of the "deprecated-get-member-membership" endpoint of
-// the "membership-service" service.
-func NewDeprecatedGetMemberMembershipGoneResponseBody(res *membershipservice.GoneError) *DeprecatedGetMemberMembershipGoneResponseBody {
-	body := &DeprecatedGetMemberMembershipGoneResponseBody{
-		Message:     res.Message,
-		Replacement: res.Replacement,
-	}
-	return body
-}
-
-// NewDeprecatedListMemberMembershipKeyContactsGoneResponseBody builds the HTTP
-// response body from the result of the
-// "deprecated-list-member-membership-key-contacts" endpoint of the
-// "membership-service" service.
-func NewDeprecatedListMemberMembershipKeyContactsGoneResponseBody(res *membershipservice.GoneError) *DeprecatedListMemberMembershipKeyContactsGoneResponseBody {
-	body := &DeprecatedListMemberMembershipKeyContactsGoneResponseBody{
-		Message:     res.Message,
-		Replacement: res.Replacement,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
 
 // NewReadyzServiceUnavailableResponseBody builds the HTTP response body from
 // the result of the "readyz" endpoint of the "membership-service" service.
-func NewReadyzServiceUnavailableResponseBody(res *membershipservice.ServiceUnavailableError) *ReadyzServiceUnavailableResponseBody {
+func NewReadyzServiceUnavailableResponseBody(res *goa.ServiceError) *ReadyzServiceUnavailableResponseBody {
 	body := &ReadyzServiceUnavailableResponseBody{
-		Message: res.Message,
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
 	}
 	return body
 }
@@ -1156,39 +1587,6 @@ func NewGetMembershipKeyContactPayload(projectUID string, id string, cid string,
 	v.Cid = &cid
 	v.Version = version
 	v.BearerToken = bearerToken
-
-	return v
-}
-
-// NewDeprecatedListMembersPayload builds a membership-service service
-// deprecated-list-members endpoint payload.
-func NewDeprecatedListMembersPayload(pageSize *int, offset *int, filter *string, search *string) *membershipservice.DeprecatedListMembersPayload {
-	v := &membershipservice.DeprecatedListMembersPayload{}
-	v.PageSize = pageSize
-	v.Offset = offset
-	v.Filter = filter
-	v.Search = search
-
-	return v
-}
-
-// NewDeprecatedGetMemberMembershipPayload builds a membership-service service
-// deprecated-get-member-membership endpoint payload.
-func NewDeprecatedGetMemberMembershipPayload(memberID string, id string) *membershipservice.DeprecatedGetMemberMembershipPayload {
-	v := &membershipservice.DeprecatedGetMemberMembershipPayload{}
-	v.MemberID = &memberID
-	v.ID = &id
-
-	return v
-}
-
-// NewDeprecatedListMemberMembershipKeyContactsPayload builds a
-// membership-service service deprecated-list-member-membership-key-contacts
-// endpoint payload.
-func NewDeprecatedListMemberMembershipKeyContactsPayload(memberID string, id string) *membershipservice.DeprecatedListMemberMembershipKeyContactsPayload {
-	v := &membershipservice.DeprecatedListMemberMembershipKeyContactsPayload{}
-	v.MemberID = &memberID
-	v.ID = &id
 
 	return v
 }

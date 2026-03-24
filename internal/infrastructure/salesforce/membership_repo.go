@@ -15,12 +15,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
-// defaultMembershipPageSize is the number of Asset records fetched per SOQL
-// page when the caller does not specify a page size. Chosen to be large enough
-// to cover most projects in a single page while staying well within Salesforce's
-// 2000-record-per-page cap.
-const defaultMembershipPageSize = 200
-
 // membershipSOQL fetches all Asset records with a Membership product family,
 // including related Account, Product2, and Project__c data via relationship
 // sub-selects. The Contact sub-select is omitted here — the primary contact on

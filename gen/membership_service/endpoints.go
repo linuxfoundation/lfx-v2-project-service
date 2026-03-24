@@ -17,20 +17,17 @@ import (
 
 // Endpoints wraps the "membership-service" service endpoints.
 type Endpoints struct {
-	ListProjectTiers                          goa.Endpoint
-	GetProjectTier                            goa.Endpoint
-	ListProjectMemberships                    goa.Endpoint
-	GetProjectMembership                      goa.Endpoint
-	ListMembershipKeyContacts                 goa.Endpoint
-	CreateMembershipKeyContact                goa.Endpoint
-	UpdateMembershipKeyContact                goa.Endpoint
-	DeleteMembershipKeyContact                goa.Endpoint
-	GetMembershipKeyContact                   goa.Endpoint
-	DeprecatedListMembers                     goa.Endpoint
-	DeprecatedGetMemberMembership             goa.Endpoint
-	DeprecatedListMemberMembershipKeyContacts goa.Endpoint
-	Readyz                                    goa.Endpoint
-	Livez                                     goa.Endpoint
+	ListProjectTiers           goa.Endpoint
+	GetProjectTier             goa.Endpoint
+	ListProjectMemberships     goa.Endpoint
+	GetProjectMembership       goa.Endpoint
+	ListMembershipKeyContacts  goa.Endpoint
+	CreateMembershipKeyContact goa.Endpoint
+	UpdateMembershipKeyContact goa.Endpoint
+	DeleteMembershipKeyContact goa.Endpoint
+	GetMembershipKeyContact    goa.Endpoint
+	Readyz                     goa.Endpoint
+	Livez                      goa.Endpoint
 }
 
 // NewEndpoints wraps the methods of the "membership-service" service with
@@ -39,20 +36,17 @@ func NewEndpoints(s Service) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
 	return &Endpoints{
-		ListProjectTiers:                          NewListProjectTiersEndpoint(s, a.JWTAuth),
-		GetProjectTier:                            NewGetProjectTierEndpoint(s, a.JWTAuth),
-		ListProjectMemberships:                    NewListProjectMembershipsEndpoint(s, a.JWTAuth),
-		GetProjectMembership:                      NewGetProjectMembershipEndpoint(s, a.JWTAuth),
-		ListMembershipKeyContacts:                 NewListMembershipKeyContactsEndpoint(s, a.JWTAuth),
-		CreateMembershipKeyContact:                NewCreateMembershipKeyContactEndpoint(s, a.JWTAuth),
-		UpdateMembershipKeyContact:                NewUpdateMembershipKeyContactEndpoint(s, a.JWTAuth),
-		DeleteMembershipKeyContact:                NewDeleteMembershipKeyContactEndpoint(s, a.JWTAuth),
-		GetMembershipKeyContact:                   NewGetMembershipKeyContactEndpoint(s, a.JWTAuth),
-		DeprecatedListMembers:                     NewDeprecatedListMembersEndpoint(s),
-		DeprecatedGetMemberMembership:             NewDeprecatedGetMemberMembershipEndpoint(s),
-		DeprecatedListMemberMembershipKeyContacts: NewDeprecatedListMemberMembershipKeyContactsEndpoint(s),
-		Readyz: NewReadyzEndpoint(s),
-		Livez:  NewLivezEndpoint(s),
+		ListProjectTiers:           NewListProjectTiersEndpoint(s, a.JWTAuth),
+		GetProjectTier:             NewGetProjectTierEndpoint(s, a.JWTAuth),
+		ListProjectMemberships:     NewListProjectMembershipsEndpoint(s, a.JWTAuth),
+		GetProjectMembership:       NewGetProjectMembershipEndpoint(s, a.JWTAuth),
+		ListMembershipKeyContacts:  NewListMembershipKeyContactsEndpoint(s, a.JWTAuth),
+		CreateMembershipKeyContact: NewCreateMembershipKeyContactEndpoint(s, a.JWTAuth),
+		UpdateMembershipKeyContact: NewUpdateMembershipKeyContactEndpoint(s, a.JWTAuth),
+		DeleteMembershipKeyContact: NewDeleteMembershipKeyContactEndpoint(s, a.JWTAuth),
+		GetMembershipKeyContact:    NewGetMembershipKeyContactEndpoint(s, a.JWTAuth),
+		Readyz:                     NewReadyzEndpoint(s),
+		Livez:                      NewLivezEndpoint(s),
 	}
 }
 
@@ -68,9 +62,6 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.UpdateMembershipKeyContact = m(e.UpdateMembershipKeyContact)
 	e.DeleteMembershipKeyContact = m(e.DeleteMembershipKeyContact)
 	e.GetMembershipKeyContact = m(e.GetMembershipKeyContact)
-	e.DeprecatedListMembers = m(e.DeprecatedListMembers)
-	e.DeprecatedGetMemberMembership = m(e.DeprecatedGetMemberMembership)
-	e.DeprecatedListMemberMembershipKeyContacts = m(e.DeprecatedListMemberMembershipKeyContacts)
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
 }
@@ -282,36 +273,6 @@ func NewGetMembershipKeyContactEndpoint(s Service, authJWTFn security.AuthJWTFun
 			return nil, err
 		}
 		return s.GetMembershipKeyContact(ctx, p)
-	}
-}
-
-// NewDeprecatedListMembersEndpoint returns an endpoint function that calls the
-// method "deprecated-list-members" of service "membership-service".
-func NewDeprecatedListMembersEndpoint(s Service) goa.Endpoint {
-	return func(ctx context.Context, req any) (any, error) {
-		p := req.(*DeprecatedListMembersPayload)
-		return nil, s.DeprecatedListMembers(ctx, p)
-	}
-}
-
-// NewDeprecatedGetMemberMembershipEndpoint returns an endpoint function that
-// calls the method "deprecated-get-member-membership" of service
-// "membership-service".
-func NewDeprecatedGetMemberMembershipEndpoint(s Service) goa.Endpoint {
-	return func(ctx context.Context, req any) (any, error) {
-		p := req.(*DeprecatedGetMemberMembershipPayload)
-		return nil, s.DeprecatedGetMemberMembership(ctx, p)
-	}
-}
-
-// NewDeprecatedListMemberMembershipKeyContactsEndpoint returns an endpoint
-// function that calls the method
-// "deprecated-list-member-membership-key-contacts" of service
-// "membership-service".
-func NewDeprecatedListMemberMembershipKeyContactsEndpoint(s Service) goa.Endpoint {
-	return func(ctx context.Context, req any) (any, error) {
-		p := req.(*DeprecatedListMemberMembershipKeyContactsPayload)
-		return nil, s.DeprecatedListMemberMembershipKeyContacts(ctx, p)
 	}
 }
 
