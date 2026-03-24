@@ -16,7 +16,7 @@ spec:
   - "lfx-api.{{ .Values.lfx.domain }}"
   rules:
   # Project-scoped tier endpoints (with authentication)
-  # Matches: /projects/{uid}/tiers, /projects/{uid}/tiers/{id}
+  # Matches: /projects/{uid}/tiers, /projects/{uid}/tiers/{tier_uid}
   - matches:
     - path:
         type: RegularExpression
@@ -36,8 +36,8 @@ spec:
       port: {{ .Values.service.port }}
       weight: 1
   # Project-scoped membership endpoints (with authentication)
-  # Matches: /projects/{uid}/memberships, /projects/{uid}/memberships/{id},
-  #          /projects/{uid}/memberships/{id}/key_contacts, etc.
+  # Matches: /projects/{uid}/memberships, /projects/{uid}/memberships/{membership_uid},
+  #          /projects/{uid}/memberships/{membership_uid}/key_contacts, etc.
   - matches:
     - path:
         type: RegularExpression

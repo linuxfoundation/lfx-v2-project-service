@@ -63,7 +63,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			TierIDAttribute()
+			TierUIDAttribute()
 		})
 
 		dsl.Result(func() {
@@ -76,10 +76,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/tiers/{tier_id}")
+			dsl.GET("/projects/{project_uid}/tiers/{tier_uid}")
 			dsl.Param("version:v")
 			dsl.Param("project_uid")
-			dsl.Param("tier_id")
+			dsl.Param("tier_uid")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusOK, func() {
 				dsl.Body("tier")
@@ -146,7 +146,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			MembershipIDAttribute()
+			MembershipUIDAttribute()
 		})
 
 		dsl.Result(func() {
@@ -160,10 +160,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/memberships/{id}")
+			dsl.GET("/projects/{project_uid}/memberships/{membership_uid}")
 			dsl.Param("version:v")
 			dsl.Param("project_uid")
-			dsl.Param("id")
+			dsl.Param("membership_uid")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusOK, func() {
 				dsl.Body("membership")
@@ -186,7 +186,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			MembershipIDAttribute()
+			MembershipUIDAttribute()
 		})
 
 		dsl.Result(func() {
@@ -199,10 +199,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/memberships/{id}/key_contacts")
+			dsl.GET("/projects/{project_uid}/memberships/{membership_uid}/key_contacts")
 			dsl.Param("version:v")
 			dsl.Param("project_uid")
-			dsl.Param("id")
+			dsl.Param("membership_uid")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusOK)
 			dsl.Response("NotFound", dsl.StatusNotFound)
@@ -220,7 +220,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			MembershipIDAttribute()
+			MembershipUIDAttribute()
 			dsl.Attribute("email", dsl.String, "Contact email address; used to resolve or create the B2B Salesforce Contact record", func() {
 				dsl.Format(dsl.FormatEmail)
 				dsl.Example("john.doe@example.com")
@@ -260,10 +260,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.POST("/projects/{project_uid}/memberships/{id}/key_contacts")
+			dsl.POST("/projects/{project_uid}/memberships/{membership_uid}/key_contacts")
 			dsl.Param("version:v")
 			dsl.Param("project_uid")
-			dsl.Param("id")
+			dsl.Param("membership_uid")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusCreated, func() {
 				dsl.Body("contact")
@@ -284,8 +284,8 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			MembershipIDAttribute()
-			KeyContactIDAttribute()
+			MembershipUIDAttribute()
+			ContactUIDAttribute()
 			dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
 				dsl.Example("Voting Representative")
 			})
@@ -311,11 +311,11 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.PUT("/projects/{project_uid}/memberships/{id}/key_contacts/{cid}")
+			dsl.PUT("/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}")
 			dsl.Param("version:v")
 			dsl.Param("project_uid")
-			dsl.Param("id")
-			dsl.Param("cid")
+			dsl.Param("membership_uid")
+			dsl.Param("contact_uid")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusOK, func() {
 				dsl.Body("contact")
@@ -336,8 +336,8 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			MembershipIDAttribute()
-			KeyContactIDAttribute()
+			MembershipUIDAttribute()
+			ContactUIDAttribute()
 		})
 
 		dsl.Result(dsl.Empty)
@@ -347,11 +347,11 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.DELETE("/projects/{project_uid}/memberships/{id}/key_contacts/{cid}")
+			dsl.DELETE("/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}")
 			dsl.Param("version:v")
 			dsl.Param("project_uid")
-			dsl.Param("id")
-			dsl.Param("cid")
+			dsl.Param("membership_uid")
+			dsl.Param("contact_uid")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusNoContent)
 			dsl.Response("NotFound", dsl.StatusNotFound)
@@ -369,8 +369,8 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
-			MembershipIDAttribute()
-			KeyContactIDAttribute()
+			MembershipUIDAttribute()
+			ContactUIDAttribute()
 		})
 
 		dsl.Result(func() {
@@ -383,11 +383,11 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/memberships/{id}/key_contacts/{cid}")
+			dsl.GET("/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}")
 			dsl.Param("version:v")
 			dsl.Param("project_uid")
-			dsl.Param("id")
-			dsl.Param("cid")
+			dsl.Param("membership_uid")
+			dsl.Param("contact_uid")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusOK, func() {
 				dsl.Body("contact")

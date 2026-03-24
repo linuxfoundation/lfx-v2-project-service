@@ -167,7 +167,7 @@ func DecodeListProjectTiersResponse(decoder func(*http.Response) goahttp.Decoder
 func (c *Client) BuildGetProjectTierRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
 		projectUID string
-		tierID     string
+		tierUID    string
 	)
 	{
 		p, ok := v.(*membershipservice.GetProjectTierPayload)
@@ -177,11 +177,11 @@ func (c *Client) BuildGetProjectTierRequest(ctx context.Context, v any) (*http.R
 		if p.ProjectUID != nil {
 			projectUID = *p.ProjectUID
 		}
-		if p.TierID != nil {
-			tierID = *p.TierID
+		if p.TierUID != nil {
+			tierUID = *p.TierUID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectTierMembershipServicePath(projectUID, tierID)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectTierMembershipServicePath(projectUID, tierUID)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "get-project-tier", u.String(), err)
@@ -477,8 +477,8 @@ func DecodeListProjectMembershipsResponse(decoder func(*http.Response) goahttp.D
 // "get-project-membership" endpoint
 func (c *Client) BuildGetProjectMembershipRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectUID string
-		id         string
+		projectUID    string
+		membershipUID string
 	)
 	{
 		p, ok := v.(*membershipservice.GetProjectMembershipPayload)
@@ -488,11 +488,11 @@ func (c *Client) BuildGetProjectMembershipRequest(ctx context.Context, v any) (*
 		if p.ProjectUID != nil {
 			projectUID = *p.ProjectUID
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.MembershipUID != nil {
+			membershipUID = *p.MembershipUID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectMembershipMembershipServicePath(projectUID, id)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectMembershipMembershipServicePath(projectUID, membershipUID)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "get-project-membership", u.String(), err)
@@ -628,8 +628,8 @@ func DecodeGetProjectMembershipResponse(decoder func(*http.Response) goahttp.Dec
 // "list-membership-key-contacts" endpoint
 func (c *Client) BuildListMembershipKeyContactsRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectUID string
-		id         string
+		projectUID    string
+		membershipUID string
 	)
 	{
 		p, ok := v.(*membershipservice.ListMembershipKeyContactsPayload)
@@ -639,11 +639,11 @@ func (c *Client) BuildListMembershipKeyContactsRequest(ctx context.Context, v an
 		if p.ProjectUID != nil {
 			projectUID = *p.ProjectUID
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.MembershipUID != nil {
+			membershipUID = *p.MembershipUID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListMembershipKeyContactsMembershipServicePath(projectUID, id)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListMembershipKeyContactsMembershipServicePath(projectUID, membershipUID)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "list-membership-key-contacts", u.String(), err)
@@ -773,8 +773,8 @@ func DecodeListMembershipKeyContactsResponse(decoder func(*http.Response) goahtt
 // "create-membership-key-contact" endpoint
 func (c *Client) BuildCreateMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectUID string
-		id         string
+		projectUID    string
+		membershipUID string
 	)
 	{
 		p, ok := v.(*membershipservice.CreateMembershipKeyContactPayload)
@@ -784,11 +784,11 @@ func (c *Client) BuildCreateMembershipKeyContactRequest(ctx context.Context, v a
 		if p.ProjectUID != nil {
 			projectUID = *p.ProjectUID
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.MembershipUID != nil {
+			membershipUID = *p.MembershipUID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateMembershipKeyContactMembershipServicePath(projectUID, id)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateMembershipKeyContactMembershipServicePath(projectUID, membershipUID)}
 	req, err := http.NewRequest("POST", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "create-membership-key-contact", u.String(), err)
@@ -937,9 +937,9 @@ func DecodeCreateMembershipKeyContactResponse(decoder func(*http.Response) goaht
 // "update-membership-key-contact" endpoint
 func (c *Client) BuildUpdateMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectUID string
-		id         string
-		cid        string
+		projectUID    string
+		membershipUID string
+		contactUID    string
 	)
 	{
 		p, ok := v.(*membershipservice.UpdateMembershipKeyContactPayload)
@@ -949,14 +949,14 @@ func (c *Client) BuildUpdateMembershipKeyContactRequest(ctx context.Context, v a
 		if p.ProjectUID != nil {
 			projectUID = *p.ProjectUID
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.MembershipUID != nil {
+			membershipUID = *p.MembershipUID
 		}
-		if p.Cid != nil {
-			cid = *p.Cid
+		if p.ContactUID != nil {
+			contactUID = *p.ContactUID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateMembershipKeyContactMembershipServicePath(projectUID, id, cid)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateMembershipKeyContactMembershipServicePath(projectUID, membershipUID, contactUID)}
 	req, err := http.NewRequest("PUT", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "update-membership-key-contact", u.String(), err)
@@ -1105,9 +1105,9 @@ func DecodeUpdateMembershipKeyContactResponse(decoder func(*http.Response) goaht
 // "delete-membership-key-contact" endpoint
 func (c *Client) BuildDeleteMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectUID string
-		id         string
-		cid        string
+		projectUID    string
+		membershipUID string
+		contactUID    string
 	)
 	{
 		p, ok := v.(*membershipservice.DeleteMembershipKeyContactPayload)
@@ -1117,14 +1117,14 @@ func (c *Client) BuildDeleteMembershipKeyContactRequest(ctx context.Context, v a
 		if p.ProjectUID != nil {
 			projectUID = *p.ProjectUID
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.MembershipUID != nil {
+			membershipUID = *p.MembershipUID
 		}
-		if p.Cid != nil {
-			cid = *p.Cid
+		if p.ContactUID != nil {
+			contactUID = *p.ContactUID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteMembershipKeyContactMembershipServicePath(projectUID, id, cid)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteMembershipKeyContactMembershipServicePath(projectUID, membershipUID, contactUID)}
 	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "delete-membership-key-contact", u.String(), err)
@@ -1241,9 +1241,9 @@ func DecodeDeleteMembershipKeyContactResponse(decoder func(*http.Response) goaht
 // "get-membership-key-contact" endpoint
 func (c *Client) BuildGetMembershipKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		projectUID string
-		id         string
-		cid        string
+		projectUID    string
+		membershipUID string
+		contactUID    string
 	)
 	{
 		p, ok := v.(*membershipservice.GetMembershipKeyContactPayload)
@@ -1253,14 +1253,14 @@ func (c *Client) BuildGetMembershipKeyContactRequest(ctx context.Context, v any)
 		if p.ProjectUID != nil {
 			projectUID = *p.ProjectUID
 		}
-		if p.ID != nil {
-			id = *p.ID
+		if p.MembershipUID != nil {
+			membershipUID = *p.MembershipUID
 		}
-		if p.Cid != nil {
-			cid = *p.Cid
+		if p.ContactUID != nil {
+			contactUID = *p.ContactUID
 		}
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetMembershipKeyContactMembershipServicePath(projectUID, id, cid)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetMembershipKeyContactMembershipServicePath(projectUID, membershipUID, contactUID)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "get-membership-key-contact", u.String(), err)

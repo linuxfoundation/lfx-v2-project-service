@@ -238,25 +238,25 @@ func ProjectUIDAttribute() {
 	})
 }
 
-// TierIDAttribute is the DSL attribute for the tier (Product2) UID path parameter.
-func TierIDAttribute() {
-	dsl.Attribute("tier_id", dsl.String, "Membership tier UID", func() {
+// TierUIDAttribute is the DSL attribute for the tier (Product2) UID path parameter.
+func TierUIDAttribute() {
+	dsl.Attribute("tier_uid", dsl.String, "Membership tier UID", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})
 }
 
-// MembershipIDAttribute is the DSL attribute for the membership (Asset) UID path parameter.
-func MembershipIDAttribute() {
-	dsl.Attribute("id", dsl.String, "Membership UID", func() {
+// MembershipUIDAttribute is the DSL attribute for the membership (Asset) UID path parameter.
+func MembershipUIDAttribute() {
+	dsl.Attribute("membership_uid", dsl.String, "Membership UID", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})
 }
 
-// KeyContactIDAttribute is the DSL attribute for the key contact UID path parameter.
-func KeyContactIDAttribute() {
-	dsl.Attribute("cid", dsl.String, "Key contact UID", func() {
+// ContactUIDAttribute is the DSL attribute for the key contact UID path parameter.
+func ContactUIDAttribute() {
+	dsl.Attribute("contact_uid", dsl.String, "Key contact UID", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})

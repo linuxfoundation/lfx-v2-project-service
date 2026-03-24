@@ -57,7 +57,7 @@ func BuildListProjectTiersPayload(membershipServiceListProjectTiersProjectUID st
 
 // BuildGetProjectTierPayload builds the payload for the membership-service
 // get-project-tier endpoint from CLI flags.
-func BuildGetProjectTierPayload(membershipServiceGetProjectTierProjectUID string, membershipServiceGetProjectTierTierID string, membershipServiceGetProjectTierVersion string, membershipServiceGetProjectTierBearerToken string) (*membershipservice.GetProjectTierPayload, error) {
+func BuildGetProjectTierPayload(membershipServiceGetProjectTierProjectUID string, membershipServiceGetProjectTierTierUID string, membershipServiceGetProjectTierVersion string, membershipServiceGetProjectTierBearerToken string) (*membershipservice.GetProjectTierPayload, error) {
 	var err error
 	var projectUID string
 	{
@@ -67,10 +67,10 @@ func BuildGetProjectTierPayload(membershipServiceGetProjectTierProjectUID string
 			return nil, err
 		}
 	}
-	var tierID string
+	var tierUID string
 	{
-		tierID = membershipServiceGetProjectTierTierID
-		err = goa.MergeErrors(err, goa.ValidateFormat("tier_id", tierID, goa.FormatUUID))
+		tierUID = membershipServiceGetProjectTierTierUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("tier_uid", tierUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func BuildGetProjectTierPayload(membershipServiceGetProjectTierProjectUID string
 	}
 	v := &membershipservice.GetProjectTierPayload{}
 	v.ProjectUID = &projectUID
-	v.TierID = &tierID
+	v.TierUID = &tierUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -197,7 +197,7 @@ func BuildListProjectMembershipsPayload(membershipServiceListProjectMembershipsP
 
 // BuildGetProjectMembershipPayload builds the payload for the
 // membership-service get-project-membership endpoint from CLI flags.
-func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipProjectUID string, membershipServiceGetProjectMembershipID string, membershipServiceGetProjectMembershipVersion string, membershipServiceGetProjectMembershipBearerToken string) (*membershipservice.GetProjectMembershipPayload, error) {
+func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipProjectUID string, membershipServiceGetProjectMembershipMembershipUID string, membershipServiceGetProjectMembershipVersion string, membershipServiceGetProjectMembershipBearerToken string) (*membershipservice.GetProjectMembershipPayload, error) {
 	var err error
 	var projectUID string
 	{
@@ -207,10 +207,10 @@ func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipProje
 			return nil, err
 		}
 	}
-	var id string
+	var membershipUID string
 	{
-		id = membershipServiceGetProjectMembershipID
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = membershipServiceGetProjectMembershipMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -235,7 +235,7 @@ func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipProje
 	}
 	v := &membershipservice.GetProjectMembershipPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
+	v.MembershipUID = &membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -244,7 +244,7 @@ func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipProje
 
 // BuildListMembershipKeyContactsPayload builds the payload for the
 // membership-service list-membership-key-contacts endpoint from CLI flags.
-func BuildListMembershipKeyContactsPayload(membershipServiceListMembershipKeyContactsProjectUID string, membershipServiceListMembershipKeyContactsID string, membershipServiceListMembershipKeyContactsVersion string, membershipServiceListMembershipKeyContactsBearerToken string) (*membershipservice.ListMembershipKeyContactsPayload, error) {
+func BuildListMembershipKeyContactsPayload(membershipServiceListMembershipKeyContactsProjectUID string, membershipServiceListMembershipKeyContactsMembershipUID string, membershipServiceListMembershipKeyContactsVersion string, membershipServiceListMembershipKeyContactsBearerToken string) (*membershipservice.ListMembershipKeyContactsPayload, error) {
 	var err error
 	var projectUID string
 	{
@@ -254,10 +254,10 @@ func BuildListMembershipKeyContactsPayload(membershipServiceListMembershipKeyCon
 			return nil, err
 		}
 	}
-	var id string
+	var membershipUID string
 	{
-		id = membershipServiceListMembershipKeyContactsID
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = membershipServiceListMembershipKeyContactsMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -282,7 +282,7 @@ func BuildListMembershipKeyContactsPayload(membershipServiceListMembershipKeyCon
 	}
 	v := &membershipservice.ListMembershipKeyContactsPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
+	v.MembershipUID = &membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -291,7 +291,7 @@ func BuildListMembershipKeyContactsPayload(membershipServiceListMembershipKeyCon
 
 // BuildCreateMembershipKeyContactPayload builds the payload for the
 // membership-service create-membership-key-contact endpoint from CLI flags.
-func BuildCreateMembershipKeyContactPayload(membershipServiceCreateMembershipKeyContactBody string, membershipServiceCreateMembershipKeyContactProjectUID string, membershipServiceCreateMembershipKeyContactID string, membershipServiceCreateMembershipKeyContactVersion string, membershipServiceCreateMembershipKeyContactBearerToken string) (*membershipservice.CreateMembershipKeyContactPayload, error) {
+func BuildCreateMembershipKeyContactPayload(membershipServiceCreateMembershipKeyContactBody string, membershipServiceCreateMembershipKeyContactProjectUID string, membershipServiceCreateMembershipKeyContactMembershipUID string, membershipServiceCreateMembershipKeyContactVersion string, membershipServiceCreateMembershipKeyContactBearerToken string) (*membershipservice.CreateMembershipKeyContactPayload, error) {
 	var err error
 	var body CreateMembershipKeyContactRequestBody
 	{
@@ -312,10 +312,10 @@ func BuildCreateMembershipKeyContactPayload(membershipServiceCreateMembershipKey
 			return nil, err
 		}
 	}
-	var id string
+	var membershipUID string
 	{
-		id = membershipServiceCreateMembershipKeyContactID
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = membershipServiceCreateMembershipKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -349,7 +349,7 @@ func BuildCreateMembershipKeyContactPayload(membershipServiceCreateMembershipKey
 		PrimaryContact: body.PrimaryContact,
 	}
 	v.ProjectUID = &projectUID
-	v.ID = &id
+	v.MembershipUID = &membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -358,7 +358,7 @@ func BuildCreateMembershipKeyContactPayload(membershipServiceCreateMembershipKey
 
 // BuildUpdateMembershipKeyContactPayload builds the payload for the
 // membership-service update-membership-key-contact endpoint from CLI flags.
-func BuildUpdateMembershipKeyContactPayload(membershipServiceUpdateMembershipKeyContactBody string, membershipServiceUpdateMembershipKeyContactProjectUID string, membershipServiceUpdateMembershipKeyContactID string, membershipServiceUpdateMembershipKeyContactCid string, membershipServiceUpdateMembershipKeyContactVersion string, membershipServiceUpdateMembershipKeyContactBearerToken string) (*membershipservice.UpdateMembershipKeyContactPayload, error) {
+func BuildUpdateMembershipKeyContactPayload(membershipServiceUpdateMembershipKeyContactBody string, membershipServiceUpdateMembershipKeyContactProjectUID string, membershipServiceUpdateMembershipKeyContactMembershipUID string, membershipServiceUpdateMembershipKeyContactContactUID string, membershipServiceUpdateMembershipKeyContactVersion string, membershipServiceUpdateMembershipKeyContactBearerToken string) (*membershipservice.UpdateMembershipKeyContactPayload, error) {
 	var err error
 	var body UpdateMembershipKeyContactRequestBody
 	{
@@ -375,18 +375,18 @@ func BuildUpdateMembershipKeyContactPayload(membershipServiceUpdateMembershipKey
 			return nil, err
 		}
 	}
-	var id string
+	var membershipUID string
 	{
-		id = membershipServiceUpdateMembershipKeyContactID
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = membershipServiceUpdateMembershipKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
 	}
-	var cid string
+	var contactUID string
 	{
-		cid = membershipServiceUpdateMembershipKeyContactCid
-		err = goa.MergeErrors(err, goa.ValidateFormat("cid", cid, goa.FormatUUID))
+		contactUID = membershipServiceUpdateMembershipKeyContactContactUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -416,8 +416,8 @@ func BuildUpdateMembershipKeyContactPayload(membershipServiceUpdateMembershipKey
 		PrimaryContact: body.PrimaryContact,
 	}
 	v.ProjectUID = &projectUID
-	v.ID = &id
-	v.Cid = &cid
+	v.MembershipUID = &membershipUID
+	v.ContactUID = &contactUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -426,7 +426,7 @@ func BuildUpdateMembershipKeyContactPayload(membershipServiceUpdateMembershipKey
 
 // BuildDeleteMembershipKeyContactPayload builds the payload for the
 // membership-service delete-membership-key-contact endpoint from CLI flags.
-func BuildDeleteMembershipKeyContactPayload(membershipServiceDeleteMembershipKeyContactProjectUID string, membershipServiceDeleteMembershipKeyContactID string, membershipServiceDeleteMembershipKeyContactCid string, membershipServiceDeleteMembershipKeyContactVersion string, membershipServiceDeleteMembershipKeyContactBearerToken string) (*membershipservice.DeleteMembershipKeyContactPayload, error) {
+func BuildDeleteMembershipKeyContactPayload(membershipServiceDeleteMembershipKeyContactProjectUID string, membershipServiceDeleteMembershipKeyContactMembershipUID string, membershipServiceDeleteMembershipKeyContactContactUID string, membershipServiceDeleteMembershipKeyContactVersion string, membershipServiceDeleteMembershipKeyContactBearerToken string) (*membershipservice.DeleteMembershipKeyContactPayload, error) {
 	var err error
 	var projectUID string
 	{
@@ -436,18 +436,18 @@ func BuildDeleteMembershipKeyContactPayload(membershipServiceDeleteMembershipKey
 			return nil, err
 		}
 	}
-	var id string
+	var membershipUID string
 	{
-		id = membershipServiceDeleteMembershipKeyContactID
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = membershipServiceDeleteMembershipKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
 	}
-	var cid string
+	var contactUID string
 	{
-		cid = membershipServiceDeleteMembershipKeyContactCid
-		err = goa.MergeErrors(err, goa.ValidateFormat("cid", cid, goa.FormatUUID))
+		contactUID = membershipServiceDeleteMembershipKeyContactContactUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -472,8 +472,8 @@ func BuildDeleteMembershipKeyContactPayload(membershipServiceDeleteMembershipKey
 	}
 	v := &membershipservice.DeleteMembershipKeyContactPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
-	v.Cid = &cid
+	v.MembershipUID = &membershipUID
+	v.ContactUID = &contactUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -482,7 +482,7 @@ func BuildDeleteMembershipKeyContactPayload(membershipServiceDeleteMembershipKey
 
 // BuildGetMembershipKeyContactPayload builds the payload for the
 // membership-service get-membership-key-contact endpoint from CLI flags.
-func BuildGetMembershipKeyContactPayload(membershipServiceGetMembershipKeyContactProjectUID string, membershipServiceGetMembershipKeyContactID string, membershipServiceGetMembershipKeyContactCid string, membershipServiceGetMembershipKeyContactVersion string, membershipServiceGetMembershipKeyContactBearerToken string) (*membershipservice.GetMembershipKeyContactPayload, error) {
+func BuildGetMembershipKeyContactPayload(membershipServiceGetMembershipKeyContactProjectUID string, membershipServiceGetMembershipKeyContactMembershipUID string, membershipServiceGetMembershipKeyContactContactUID string, membershipServiceGetMembershipKeyContactVersion string, membershipServiceGetMembershipKeyContactBearerToken string) (*membershipservice.GetMembershipKeyContactPayload, error) {
 	var err error
 	var projectUID string
 	{
@@ -492,18 +492,18 @@ func BuildGetMembershipKeyContactPayload(membershipServiceGetMembershipKeyContac
 			return nil, err
 		}
 	}
-	var id string
+	var membershipUID string
 	{
-		id = membershipServiceGetMembershipKeyContactID
-		err = goa.MergeErrors(err, goa.ValidateFormat("id", id, goa.FormatUUID))
+		membershipUID = membershipServiceGetMembershipKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
 	}
-	var cid string
+	var contactUID string
 	{
-		cid = membershipServiceGetMembershipKeyContactCid
-		err = goa.MergeErrors(err, goa.ValidateFormat("cid", cid, goa.FormatUUID))
+		contactUID = membershipServiceGetMembershipKeyContactContactUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -528,8 +528,8 @@ func BuildGetMembershipKeyContactPayload(membershipServiceGetMembershipKeyContac
 	}
 	v := &membershipservice.GetMembershipKeyContactPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
-	v.Cid = &cid
+	v.MembershipUID = &membershipUID
+	v.ContactUID = &contactUID
 	v.Version = version
 	v.BearerToken = bearerToken
 

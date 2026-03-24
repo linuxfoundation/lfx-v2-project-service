@@ -61,10 +61,10 @@ func (s *membershipServicesrvc) ListProjectTiers(ctx context.Context, p *members
 func (s *membershipServicesrvc) GetProjectTier(ctx context.Context, p *membershipservice.GetProjectTierPayload) (*membershipservice.GetProjectTierResult, error) {
 	slog.DebugContext(ctx, "membershipService.get-project-tier",
 		"project_uid", p.ProjectUID,
-		"tier_id", p.TierID,
+		"tier_uid", p.TierUID,
 	)
 
-	tier, err := s.memberReaderOrchestrator.GetTier(ctx, *p.TierID)
+	tier, err := s.memberReaderOrchestrator.GetTier(ctx, *p.TierUID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
@@ -161,10 +161,10 @@ func (s *membershipServicesrvc) ListProjectMemberships(ctx context.Context, p *m
 func (s *membershipServicesrvc) GetProjectMembership(ctx context.Context, p *membershipservice.GetProjectMembershipPayload) (*membershipservice.GetProjectMembershipResult, error) {
 	slog.DebugContext(ctx, "membershipService.get-project-membership",
 		"project_uid", p.ProjectUID,
-		"id", p.ID,
+		"membership_uid", p.MembershipUID,
 	)
 
-	membership, err := s.memberReaderOrchestrator.GetMembership(ctx, *p.ID)
+	membership, err := s.memberReaderOrchestrator.GetMembership(ctx, *p.MembershipUID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
@@ -175,7 +175,7 @@ func (s *membershipServicesrvc) GetProjectMembership(ctx context.Context, p *mem
 	// slug_to_uid RPC rather than from the Salesforce SFID.
 	if membership.ProjectUID != *p.ProjectUID {
 		return nil, wrapError(ctx, fmt.Errorf("membership %s does not belong to project %s: %w",
-			*p.ID, *p.ProjectUID, errNotFound("membership not found for this project")))
+			*p.MembershipUID, *p.ProjectUID, errNotFound("membership not found for this project")))
 	}
 
 	// Revision is not meaningful for SOQL-backed records; send a static sentinel.
@@ -192,7 +192,7 @@ func (s *membershipServicesrvc) GetProjectMembership(ctx context.Context, p *mem
 func (s *membershipServicesrvc) CreateMembershipKeyContact(ctx context.Context, p *membershipservice.CreateMembershipKeyContactPayload) (*membershipservice.CreateMembershipKeyContactResult, error) {
 	slog.DebugContext(ctx, "membershipService.create-membership-key-contact",
 		"project_uid", p.ProjectUID,
-		"id", p.ID,
+		"membership_uid", p.MembershipUID,
 	)
 
 	// Validate required identity fields.
@@ -201,7 +201,7 @@ func (s *membershipServicesrvc) CreateMembershipKeyContact(ctx context.Context, 
 	}
 
 	// Verify the membership belongs to the requested project.
-	membership, err := s.memberReaderOrchestrator.GetMembership(ctx, *p.ID)
+	membership, err := s.memberReaderOrchestrator.GetMembership(ctx, *p.MembershipUID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
@@ -213,7 +213,7 @@ func (s *membershipServicesrvc) CreateMembershipKeyContact(ctx context.Context, 
 		Email:          p.Email,
 		FirstName:      p.FirstName,
 		LastName:       p.LastName,
-		MembershipUID:  *p.ID,
+		MembershipUID:  *p.MembershipUID,
 		ProjectUID:     *p.ProjectUID,
 		AccountSFID:    membership.AccountSFID,
 		Role:           p.Role,
@@ -239,21 +239,21 @@ func (s *membershipServicesrvc) CreateMembershipKeyContact(ctx context.Context, 
 func (s *membershipServicesrvc) UpdateMembershipKeyContact(ctx context.Context, p *membershipservice.UpdateMembershipKeyContactPayload) (*membershipservice.UpdateMembershipKeyContactResult, error) {
 	slog.DebugContext(ctx, "membershipService.update-membership-key-contact",
 		"project_uid", p.ProjectUID,
-		"id", p.ID,
-		"cid", p.Cid,
+		"membership_uid", p.MembershipUID,
+		"contact_uid", p.ContactUID,
 	)
 
 	// Verify the contact belongs to the requested membership.
-	existing, err := s.memberReaderOrchestrator.GetKeyContact(ctx, *p.Cid)
+	existing, err := s.memberReaderOrchestrator.GetKeyContact(ctx, *p.ContactUID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
-	if existing.MembershipUID != *p.ID {
+	if existing.MembershipUID != *p.MembershipUID {
 		return nil, wrapError(ctx, errNotFound("key contact not found for this membership"))
 	}
 
 	input := model.KeyContactInput{
-		MembershipUID:  *p.ID,
+		MembershipUID:  *p.MembershipUID,
 		ProjectUID:     *p.ProjectUID,
 		Role:           p.Role,
 		Status:         p.Status,
@@ -261,7 +261,7 @@ func (s *membershipServicesrvc) UpdateMembershipKeyContact(ctx context.Context, 
 		PrimaryContact: p.PrimaryContact,
 	}
 
-	contact, err := s.keyContactWriter.UpdateKeyContact(ctx, *p.Cid, input)
+	contact, err := s.keyContactWriter.UpdateKeyContact(ctx, *p.ContactUID, input)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
@@ -275,20 +275,20 @@ func (s *membershipServicesrvc) UpdateMembershipKeyContact(ctx context.Context, 
 func (s *membershipServicesrvc) DeleteMembershipKeyContact(ctx context.Context, p *membershipservice.DeleteMembershipKeyContactPayload) error {
 	slog.DebugContext(ctx, "membershipService.delete-membership-key-contact",
 		"project_uid", p.ProjectUID,
-		"id", p.ID,
-		"cid", p.Cid,
+		"membership_uid", p.MembershipUID,
+		"contact_uid", p.ContactUID,
 	)
 
 	// Fetch to verify ownership and obtain the MembershipUID for cache invalidation.
-	existing, err := s.memberReaderOrchestrator.GetKeyContact(ctx, *p.Cid)
+	existing, err := s.memberReaderOrchestrator.GetKeyContact(ctx, *p.ContactUID)
 	if err != nil {
 		return wrapError(ctx, err)
 	}
-	if existing.MembershipUID != *p.ID {
+	if existing.MembershipUID != *p.MembershipUID {
 		return wrapError(ctx, errNotFound("key contact not found for this membership"))
 	}
 
-	if err := s.keyContactWriter.DeleteKeyContact(ctx, *p.Cid, existing.MembershipUID); err != nil {
+	if err := s.keyContactWriter.DeleteKeyContact(ctx, *p.ContactUID, existing.MembershipUID); err != nil {
 		return wrapError(ctx, err)
 	}
 
@@ -299,10 +299,10 @@ func (s *membershipServicesrvc) DeleteMembershipKeyContact(ctx context.Context, 
 func (s *membershipServicesrvc) ListMembershipKeyContacts(ctx context.Context, p *membershipservice.ListMembershipKeyContactsPayload) (*membershipservice.ListMembershipKeyContactsResult, error) {
 	slog.DebugContext(ctx, "membershipService.list-membership-key-contacts",
 		"project_uid", p.ProjectUID,
-		"id", p.ID,
+		"membership_uid", p.MembershipUID,
 	)
 
-	contacts, err := s.memberReaderOrchestrator.ListKeyContactsForMembership(ctx, *p.ID)
+	contacts, err := s.memberReaderOrchestrator.ListKeyContactsForMembership(ctx, *p.MembershipUID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
@@ -320,17 +320,17 @@ func (s *membershipServicesrvc) ListMembershipKeyContacts(ctx context.Context, p
 func (s *membershipServicesrvc) GetMembershipKeyContact(ctx context.Context, p *membershipservice.GetMembershipKeyContactPayload) (*membershipservice.GetMembershipKeyContactResult, error) {
 	slog.DebugContext(ctx, "membershipService.get-membership-key-contact",
 		"project_uid", p.ProjectUID,
-		"id", p.ID,
-		"cid", p.Cid,
+		"membership_uid", p.MembershipUID,
+		"contact_uid", p.ContactUID,
 	)
 
-	contact, err := s.memberReaderOrchestrator.GetKeyContact(ctx, *p.Cid)
+	contact, err := s.memberReaderOrchestrator.GetKeyContact(ctx, *p.ContactUID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
 
 	// Verify the contact belongs to the requested membership.
-	if contact.MembershipUID != *p.ID {
+	if contact.MembershipUID != *p.MembershipUID {
 		return nil, wrapError(ctx, errNotFound("key contact not found for this membership"))
 	}
 

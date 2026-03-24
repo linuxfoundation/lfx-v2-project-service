@@ -82,7 +82,7 @@ func TestGetProjectTier(t *testing.T) {
 			name: "get existing tier",
 			payload: &membershipservice.GetProjectTierPayload{
 				ProjectUID: strPtr("project-uid-1"),
-				TierID:     strPtr("tier-1"),
+				TierUID:    strPtr("tier-1"),
 			},
 			wantErr: false,
 		},
@@ -90,7 +90,7 @@ func TestGetProjectTier(t *testing.T) {
 			name: "get nonexistent tier",
 			payload: &membershipservice.GetProjectTierPayload{
 				ProjectUID: strPtr("project-uid-1"),
-				TierID:     strPtr("nonexistent-tier"),
+				TierUID:    strPtr("nonexistent-tier"),
 			},
 			wantErr: true,
 		},
@@ -310,24 +310,24 @@ func TestGetProjectMembership(t *testing.T) {
 		{
 			name: "get existing membership for project",
 			payload: &membershipservice.GetProjectMembershipPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				ID:         strPtr("membership-1"),
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
 			},
 			wantErr: false,
 		},
 		{
 			name: "get nonexistent membership",
 			payload: &membershipservice.GetProjectMembershipPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				ID:         strPtr("nonexistent"),
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("nonexistent"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "get membership belonging to different project",
 			payload: &membershipservice.GetProjectMembershipPayload{
-				ProjectUID: strPtr("wrong-project"),
-				ID:         strPtr("membership-1"),
+				ProjectUID:    strPtr("wrong-project"),
+				MembershipUID: strPtr("membership-1"),
 			},
 			wantErr: true,
 		},
@@ -364,8 +364,8 @@ func TestListMembershipKeyContacts(t *testing.T) {
 		{
 			name: "list contacts for existing membership",
 			payload: &membershipservice.ListMembershipKeyContactsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				ID:         strPtr("membership-1"),
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
 			},
 			wantErr:   false,
 			wantCount: 1,
@@ -373,8 +373,8 @@ func TestListMembershipKeyContacts(t *testing.T) {
 		{
 			name: "list contacts for membership with no contacts",
 			payload: &membershipservice.ListMembershipKeyContactsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				ID:         strPtr("nonexistent-membership"),
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("nonexistent-membership"),
 			},
 			wantErr:   false,
 			wantCount: 0,
@@ -408,27 +408,27 @@ func TestGetMembershipKeyContact(t *testing.T) {
 		{
 			name: "get existing key contact",
 			payload: &membershipservice.GetMembershipKeyContactPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				ID:         strPtr("membership-1"),
-				Cid:        strPtr("contact-role-1"),
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
+				ContactUID:    strPtr("contact-role-1"),
 			},
 			wantErr: false,
 		},
 		{
 			name: "get nonexistent key contact",
 			payload: &membershipservice.GetMembershipKeyContactPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				ID:         strPtr("membership-1"),
-				Cid:        strPtr("nonexistent-contact"),
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
+				ContactUID:    strPtr("nonexistent-contact"),
 			},
 			wantErr: true,
 		},
 		{
 			name: "get key contact belonging to different membership",
 			payload: &membershipservice.GetMembershipKeyContactPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				ID:         strPtr("wrong-membership"),
-				Cid:        strPtr("contact-role-1"),
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("wrong-membership"),
+				ContactUID:    strPtr("contact-role-1"),
 			},
 			wantErr: true,
 		},

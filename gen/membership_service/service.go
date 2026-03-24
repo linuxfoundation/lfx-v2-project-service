@@ -76,7 +76,7 @@ type CreateMembershipKeyContactPayload struct {
 	// V2 project UUID
 	ProjectUID *string
 	// Membership UID
-	ID *string
+	MembershipUID *string
 	// Contact email address; used to resolve or create the B2B Salesforce Contact
 	// record
 	Email string
@@ -113,9 +113,9 @@ type DeleteMembershipKeyContactPayload struct {
 	// V2 project UUID
 	ProjectUID *string
 	// Membership UID
-	ID *string
+	MembershipUID *string
 	// Key contact UID
-	Cid *string
+	ContactUID *string
 }
 
 // GetMembershipKeyContactPayload is the payload type of the membership-service
@@ -128,9 +128,9 @@ type GetMembershipKeyContactPayload struct {
 	// V2 project UUID
 	ProjectUID *string
 	// Membership UID
-	ID *string
+	MembershipUID *string
 	// Key contact UID
-	Cid *string
+	ContactUID *string
 }
 
 // GetMembershipKeyContactResult is the result type of the membership-service
@@ -150,7 +150,7 @@ type GetProjectMembershipPayload struct {
 	// V2 project UUID
 	ProjectUID *string
 	// Membership UID
-	ID *string
+	MembershipUID *string
 }
 
 // GetProjectMembershipResult is the result type of the membership-service
@@ -172,7 +172,7 @@ type GetProjectTierPayload struct {
 	// V2 project UUID
 	ProjectUID *string
 	// Membership tier UID
-	TierID *string
+	TierUID *string
 }
 
 // GetProjectTierResult is the result type of the membership-service service
@@ -192,7 +192,7 @@ type ListMembershipKeyContactsPayload struct {
 	// V2 project UUID
 	ProjectUID *string
 	// Membership UID
-	ID *string
+	MembershipUID *string
 }
 
 // ListMembershipKeyContactsResult is the result type of the membership-service
@@ -389,9 +389,9 @@ type UpdateMembershipKeyContactPayload struct {
 	// V2 project UUID
 	ProjectUID *string
 	// Membership UID
-	ID *string
+	MembershipUID *string
 	// Key contact UID
-	Cid *string
+	ContactUID *string
 	// Contact role designation, e.g. 'Voting Representative'
 	Role *string
 	// Role record status, e.g. 'Active'

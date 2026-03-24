@@ -1476,10 +1476,10 @@ func NewListProjectTiersPayload(projectUID string, version *string, bearerToken 
 
 // NewGetProjectTierPayload builds a membership-service service
 // get-project-tier endpoint payload.
-func NewGetProjectTierPayload(projectUID string, tierID string, version *string, bearerToken *string) *membershipservice.GetProjectTierPayload {
+func NewGetProjectTierPayload(projectUID string, tierUID string, version *string, bearerToken *string) *membershipservice.GetProjectTierPayload {
 	v := &membershipservice.GetProjectTierPayload{}
 	v.ProjectUID = &projectUID
-	v.TierID = &tierID
+	v.TierUID = &tierUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -1504,10 +1504,10 @@ func NewListProjectMembershipsPayload(projectUID string, version *string, pageSi
 
 // NewGetProjectMembershipPayload builds a membership-service service
 // get-project-membership endpoint payload.
-func NewGetProjectMembershipPayload(projectUID string, id string, version *string, bearerToken *string) *membershipservice.GetProjectMembershipPayload {
+func NewGetProjectMembershipPayload(projectUID string, membershipUID string, version *string, bearerToken *string) *membershipservice.GetProjectMembershipPayload {
 	v := &membershipservice.GetProjectMembershipPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
+	v.MembershipUID = &membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -1516,10 +1516,10 @@ func NewGetProjectMembershipPayload(projectUID string, id string, version *strin
 
 // NewListMembershipKeyContactsPayload builds a membership-service service
 // list-membership-key-contacts endpoint payload.
-func NewListMembershipKeyContactsPayload(projectUID string, id string, version *string, bearerToken *string) *membershipservice.ListMembershipKeyContactsPayload {
+func NewListMembershipKeyContactsPayload(projectUID string, membershipUID string, version *string, bearerToken *string) *membershipservice.ListMembershipKeyContactsPayload {
 	v := &membershipservice.ListMembershipKeyContactsPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
+	v.MembershipUID = &membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -1528,7 +1528,7 @@ func NewListMembershipKeyContactsPayload(projectUID string, id string, version *
 
 // NewCreateMembershipKeyContactPayload builds a membership-service service
 // create-membership-key-contact endpoint payload.
-func NewCreateMembershipKeyContactPayload(body *CreateMembershipKeyContactRequestBody, projectUID string, id string, version *string, bearerToken *string) *membershipservice.CreateMembershipKeyContactPayload {
+func NewCreateMembershipKeyContactPayload(body *CreateMembershipKeyContactRequestBody, projectUID string, membershipUID string, version *string, bearerToken *string) *membershipservice.CreateMembershipKeyContactPayload {
 	v := &membershipservice.CreateMembershipKeyContactPayload{
 		Email:          *body.Email,
 		FirstName:      *body.FirstName,
@@ -1540,7 +1540,7 @@ func NewCreateMembershipKeyContactPayload(body *CreateMembershipKeyContactReques
 		PrimaryContact: body.PrimaryContact,
 	}
 	v.ProjectUID = &projectUID
-	v.ID = &id
+	v.MembershipUID = &membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -1549,7 +1549,7 @@ func NewCreateMembershipKeyContactPayload(body *CreateMembershipKeyContactReques
 
 // NewUpdateMembershipKeyContactPayload builds a membership-service service
 // update-membership-key-contact endpoint payload.
-func NewUpdateMembershipKeyContactPayload(body *UpdateMembershipKeyContactRequestBody, projectUID string, id string, cid string, version *string, bearerToken *string) *membershipservice.UpdateMembershipKeyContactPayload {
+func NewUpdateMembershipKeyContactPayload(body *UpdateMembershipKeyContactRequestBody, projectUID string, membershipUID string, contactUID string, version *string, bearerToken *string) *membershipservice.UpdateMembershipKeyContactPayload {
 	v := &membershipservice.UpdateMembershipKeyContactPayload{
 		Role:           body.Role,
 		Status:         body.Status,
@@ -1557,8 +1557,8 @@ func NewUpdateMembershipKeyContactPayload(body *UpdateMembershipKeyContactReques
 		PrimaryContact: body.PrimaryContact,
 	}
 	v.ProjectUID = &projectUID
-	v.ID = &id
-	v.Cid = &cid
+	v.MembershipUID = &membershipUID
+	v.ContactUID = &contactUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -1567,11 +1567,11 @@ func NewUpdateMembershipKeyContactPayload(body *UpdateMembershipKeyContactReques
 
 // NewDeleteMembershipKeyContactPayload builds a membership-service service
 // delete-membership-key-contact endpoint payload.
-func NewDeleteMembershipKeyContactPayload(projectUID string, id string, cid string, version *string, bearerToken *string) *membershipservice.DeleteMembershipKeyContactPayload {
+func NewDeleteMembershipKeyContactPayload(projectUID string, membershipUID string, contactUID string, version *string, bearerToken *string) *membershipservice.DeleteMembershipKeyContactPayload {
 	v := &membershipservice.DeleteMembershipKeyContactPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
-	v.Cid = &cid
+	v.MembershipUID = &membershipUID
+	v.ContactUID = &contactUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -1580,11 +1580,11 @@ func NewDeleteMembershipKeyContactPayload(projectUID string, id string, cid stri
 
 // NewGetMembershipKeyContactPayload builds a membership-service service
 // get-membership-key-contact endpoint payload.
-func NewGetMembershipKeyContactPayload(projectUID string, id string, cid string, version *string, bearerToken *string) *membershipservice.GetMembershipKeyContactPayload {
+func NewGetMembershipKeyContactPayload(projectUID string, membershipUID string, contactUID string, version *string, bearerToken *string) *membershipservice.GetMembershipKeyContactPayload {
 	v := &membershipservice.GetMembershipKeyContactPayload{}
 	v.ProjectUID = &projectUID
-	v.ID = &id
-	v.Cid = &cid
+	v.MembershipUID = &membershipUID
+	v.ContactUID = &contactUID
 	v.Version = version
 	v.BearerToken = bearerToken
 

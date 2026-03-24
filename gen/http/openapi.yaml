@@ -99,7 +99,7 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
-    /projects/{project_uid}/memberships/{id}:
+    /projects/{project_uid}/memberships/{membership_uid}:
         get:
             tags:
                 - membership-service
@@ -120,7 +120,7 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: id
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
@@ -156,7 +156,7 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
-    /projects/{project_uid}/memberships/{id}/key_contacts:
+    /projects/{project_uid}/memberships/{membership_uid}/key_contacts:
         get:
             tags:
                 - membership-service
@@ -177,7 +177,7 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: id
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
@@ -231,7 +231,7 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: id
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
@@ -276,7 +276,7 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
-    /projects/{project_uid}/memberships/{id}/key_contacts/{cid}:
+    /projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}:
         get:
             tags:
                 - membership-service
@@ -297,13 +297,13 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: id
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
                   type: string
                   format: uuid
-                - name: cid
+                - name: contact_uid
                   in: path
                   description: Key contact UID
                   required: true
@@ -355,13 +355,13 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: id
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
                   type: string
                   format: uuid
-                - name: cid
+                - name: contact_uid
                   in: path
                   description: Key contact UID
                   required: true
@@ -422,13 +422,13 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: id
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
                   type: string
                   format: uuid
-                - name: cid
+                - name: contact_uid
                   in: path
                   description: Key contact UID
                   required: true
@@ -507,7 +507,7 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
-    /projects/{project_uid}/tiers/{tier_id}:
+    /projects/{project_uid}/tiers/{tier_uid}:
         get:
             tags:
                 - membership-service
@@ -528,7 +528,7 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: tier_id
+                - name: tier_uid
                   in: path
                   description: Membership tier UID
                   required: true

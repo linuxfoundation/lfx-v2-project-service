@@ -86,14 +86,14 @@ func New(
 	return &Server{
 		Mounts: []*MountPoint{
 			{"ListProjectTiers", "GET", "/projects/{project_uid}/tiers"},
-			{"GetProjectTier", "GET", "/projects/{project_uid}/tiers/{tier_id}"},
+			{"GetProjectTier", "GET", "/projects/{project_uid}/tiers/{tier_uid}"},
 			{"ListProjectMemberships", "GET", "/projects/{project_uid}/memberships"},
-			{"GetProjectMembership", "GET", "/projects/{project_uid}/memberships/{id}"},
-			{"ListMembershipKeyContacts", "GET", "/projects/{project_uid}/memberships/{id}/key_contacts"},
-			{"CreateMembershipKeyContact", "POST", "/projects/{project_uid}/memberships/{id}/key_contacts"},
-			{"UpdateMembershipKeyContact", "PUT", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}"},
-			{"DeleteMembershipKeyContact", "DELETE", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}"},
-			{"GetMembershipKeyContact", "GET", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}"},
+			{"GetProjectMembership", "GET", "/projects/{project_uid}/memberships/{membership_uid}"},
+			{"ListMembershipKeyContacts", "GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts"},
+			{"CreateMembershipKeyContact", "POST", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts"},
+			{"UpdateMembershipKeyContact", "PUT", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}"},
+			{"DeleteMembershipKeyContact", "DELETE", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}"},
+			{"GetMembershipKeyContact", "GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"Serve gen/http/openapi.json", "GET", "/_memberships/openapi.json"},
@@ -227,7 +227,7 @@ func MountGetProjectTierHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/tiers/{tier_id}", f)
+	mux.Handle("GET", "/projects/{project_uid}/tiers/{tier_uid}", f)
 }
 
 // NewGetProjectTierHandler creates a HTTP handler which loads the HTTP request
@@ -334,7 +334,7 @@ func MountGetProjectMembershipHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/memberships/{id}", f)
+	mux.Handle("GET", "/projects/{project_uid}/memberships/{membership_uid}", f)
 }
 
 // NewGetProjectMembershipHandler creates a HTTP handler which loads the HTTP
@@ -388,7 +388,7 @@ func MountListMembershipKeyContactsHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/memberships/{id}/key_contacts", f)
+	mux.Handle("GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts", f)
 }
 
 // NewListMembershipKeyContactsHandler creates a HTTP handler which loads the
@@ -442,7 +442,7 @@ func MountCreateMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("POST", "/projects/{project_uid}/memberships/{id}/key_contacts", f)
+	mux.Handle("POST", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts", f)
 }
 
 // NewCreateMembershipKeyContactHandler creates a HTTP handler which loads the
@@ -496,7 +496,7 @@ func MountUpdateMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("PUT", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}", f)
+	mux.Handle("PUT", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}", f)
 }
 
 // NewUpdateMembershipKeyContactHandler creates a HTTP handler which loads the
@@ -550,7 +550,7 @@ func MountDeleteMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("DELETE", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}", f)
+	mux.Handle("DELETE", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}", f)
 }
 
 // NewDeleteMembershipKeyContactHandler creates a HTTP handler which loads the
@@ -604,7 +604,7 @@ func MountGetMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/memberships/{id}/key_contacts/{cid}", f)
+	mux.Handle("GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}", f)
 }
 
 // NewGetMembershipKeyContactHandler creates a HTTP handler which loads the
