@@ -1488,7 +1488,7 @@ func NewGetProjectTierPayload(projectUID string, tierUID string, version *string
 
 // NewListProjectMembershipsPayload builds a membership-service service
 // list-project-memberships endpoint payload.
-func NewListProjectMembershipsPayload(projectUID string, version *string, pageSize int, pageToken *string, sort string, filter *string, search *string, bearerToken *string) *membershipservice.ListProjectMembershipsPayload {
+func NewListProjectMembershipsPayload(projectUID string, version *string, pageSize int, pageToken *string, sort string, filter *string, searchName *string, bearerToken *string) *membershipservice.ListProjectMembershipsPayload {
 	v := &membershipservice.ListProjectMembershipsPayload{}
 	v.ProjectUID = &projectUID
 	v.Version = version
@@ -1496,7 +1496,7 @@ func NewListProjectMembershipsPayload(projectUID string, version *string, pageSi
 	v.PageToken = pageToken
 	v.Sort = sort
 	v.Filter = filter
-	v.Search = search
+	v.SearchName = searchName
 	v.BearerToken = bearerToken
 
 	return v

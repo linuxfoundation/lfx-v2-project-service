@@ -205,11 +205,13 @@ func (r *MemberReader) fetchTierFromSalesforce(ctx context.Context, tierUID stri
 // synchronously and the remainder is swept in the background.
 //
 // Cache layout (see nats.MembershipBatchCacheKey):
-//   - Batch 0: keyed by (templateRef, sfid, sort, [tierSFID], "0"). This is
-//     the only entry eligible for stale-while-revalidate; refreshing it starts
-//     a new linked chain under a fresh iterator.
-//   - Batch N (N>0): keyed by (templateRef, sfid, sort, [tierSFID], iterator)
+//   - Batch 0: keyed by (templateRef, sfid, sort, [tierSFID], [search:<term>], "0").
+//     This is the only entry eligible for stale-while-revalidate; refreshing it
+//     starts a new linked chain under a fresh iterator.
+//   - Batch N (N>0): keyed by (templateRef, sfid, sort, [tierSFID], [search:<term>], iterator)
 //     where iterator is the NextBatchIterator value stored in batch N-1.
+//   - The search segment is only present when CompanyNameSearch is non-empty.
+//     It is always lowercased so "Google" and "google" share the same cache entry.
 //
 // The consumer-facing PageCursor encodes (BatchIndex, BatchOffset, PageSize,
 // NextBatchIterator) so that the next request can locate its batch directly
@@ -412,6 +414,13 @@ func (r *MemberReader) membershipBatchKeyParams(projectSFID string, filters mode
 			tierSFID = filters.TierUID
 		}
 		params = append(params, tierSFID)
+	}
+	if filters.CompanyNameSearch != "" {
+		// CompanyNameSearch is already lowercased by the caller before being
+		// stored in MembershipFilters, so it is safe to use directly here.
+		// This ensures "Google" and "google" always produce the same cache key
+		// and the same SOQL LIKE predicate.
+		params = append(params, "search:"+filters.CompanyNameSearch)
 	}
 	return params
 }

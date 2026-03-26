@@ -168,9 +168,19 @@ func (m *MockMembershipRepository) ListMembershipsForProject(ctx context.Context
 
 	var result []*model.ProjectMembership
 	for _, ms := range m.memberships {
-		if ms.ProjectUID == projectUID && matchesMockMemberFilters(ms, filterMap, "") {
-			result = append(result, ms)
+		if ms.ProjectUID != projectUID {
+			continue
 		}
+		if !matchesMockMemberFilters(ms, filterMap, "") {
+			continue
+		}
+		// CompanyNameSearch mirrors the SOQL LIKE predicate pushed down in the
+		// real implementation. Match only on CompanyName (case-insensitive).
+		if filters.CompanyNameSearch != "" &&
+			!strings.Contains(strings.ToLower(ms.CompanyName), filters.CompanyNameSearch) {
+			continue
+		}
+		result = append(result, ms)
 	}
 
 	// Apply in-memory sort to mirror SOQL ORDER BY behaviour.

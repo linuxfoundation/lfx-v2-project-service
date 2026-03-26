@@ -22,6 +22,34 @@ func quoteSOQL(s string) string {
 	return "'" + s + "'"
 }
 
+// quoteLikeSOQL builds a quoted SOQL LIKE pattern that matches any string
+// containing term as a substring (i.e. a contains-style search). All escaping
+// is done in a single pass so that no character is escaped twice:
+//
+//  1. Backslash is escaped to \\ first (it is both the SOQL string-literal
+//     escape character and the SOQL LIKE escape character, so it must be
+//     handled before any other substitution).
+//  2. Single-quote is escaped to \' (SOQL string-literal escaping).
+//  3. Percent is escaped to \% (LIKE wildcard → literal).
+//  4. Underscore is escaped to \_ (LIKE wildcard → literal).
+//  5. The result is wrapped in '% … %' so the surrounding wildcards remain
+//     as pattern metacharacters.
+//
+// The returned string is a complete, single-quoted SOQL literal ready for
+// direct interpolation into a LIKE predicate, e.g.:
+//
+//	fmt.Fprintf(&b, "AND Account.Name LIKE %s", quoteLikeSOQL(term))
+//
+// Do not pass the result through quoteSOQL; that would re-escape the
+// backslashes introduced in steps 1–4, producing a broken pattern.
+func quoteLikeSOQL(term string) string {
+	term = strings.ReplaceAll(term, `\`, `\\`)
+	term = strings.ReplaceAll(term, "'", `\'`)
+	term = strings.ReplaceAll(term, "%", `\%`)
+	term = strings.ReplaceAll(term, "_", `\_`)
+	return "'%" + term + "%'"
+}
+
 // buildSOQLInClause builds a comma-separated list of quoted, escaped values
 // suitable for a SOQL IN clause (e.g. 'a','b','c'). Each value is passed
 // through quoteSOQL so that embedded single quotes are safely escaped.

@@ -236,8 +236,8 @@ type ListProjectMembershipsPayload struct {
 	// Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from
 	// ListProjectTiers). All results are restricted to active members.
 	Filter *string
-	// Free-text search across company name, project name, and tier
-	Search *string
+	// Search memberships by member company name (case-insensitive substring match)
+	SearchName *string
 }
 
 // ListProjectMembershipsResult is the result type of the membership-service

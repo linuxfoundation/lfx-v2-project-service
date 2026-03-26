@@ -270,7 +270,7 @@ func DecodeListProjectMembershipsRequest(mux goahttp.Muxer, decoder func(*http.R
 			pageToken   *string
 			sort        string
 			filter      *string
-			search      *string
+			searchName  *string
 			bearerToken *string
 			err         error
 
@@ -323,9 +323,9 @@ func DecodeListProjectMembershipsRequest(mux goahttp.Muxer, decoder func(*http.R
 		if filterRaw != "" {
 			filter = &filterRaw
 		}
-		searchRaw := qp.Get("search")
-		if searchRaw != "" {
-			search = &searchRaw
+		searchNameRaw := qp.Get("search_name")
+		if searchNameRaw != "" {
+			searchName = &searchNameRaw
 		}
 		bearerTokenRaw := r.Header.Get("Authorization")
 		if bearerTokenRaw != "" {
@@ -334,7 +334,7 @@ func DecodeListProjectMembershipsRequest(mux goahttp.Muxer, decoder func(*http.R
 		if err != nil {
 			return payload, err
 		}
-		payload = NewListProjectMembershipsPayload(projectUID, version, pageSize, pageToken, sort, filter, search, bearerToken)
+		payload = NewListProjectMembershipsPayload(projectUID, version, pageSize, pageToken, sort, filter, searchName, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")

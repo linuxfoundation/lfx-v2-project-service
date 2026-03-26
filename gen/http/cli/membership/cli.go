@@ -64,7 +64,7 @@ func ParseEndpoint(
 		membershipServiceListProjectMembershipsPageTokenFlag   = membershipServiceListProjectMembershipsFlags.String("page-token", "", "")
 		membershipServiceListProjectMembershipsSortFlag        = membershipServiceListProjectMembershipsFlags.String("sort", "newest", "")
 		membershipServiceListProjectMembershipsFilterFlag      = membershipServiceListProjectMembershipsFlags.String("filter", "", "")
-		membershipServiceListProjectMembershipsSearchFlag      = membershipServiceListProjectMembershipsFlags.String("search", "", "")
+		membershipServiceListProjectMembershipsSearchNameFlag  = membershipServiceListProjectMembershipsFlags.String("search-name", "", "")
 		membershipServiceListProjectMembershipsBearerTokenFlag = membershipServiceListProjectMembershipsFlags.String("bearer-token", "", "")
 
 		membershipServiceGetProjectMembershipFlags             = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
@@ -225,7 +225,7 @@ func ParseEndpoint(
 				data, err = membershipservicec.BuildGetProjectTierPayload(*membershipServiceGetProjectTierProjectUIDFlag, *membershipServiceGetProjectTierTierUIDFlag, *membershipServiceGetProjectTierVersionFlag, *membershipServiceGetProjectTierBearerTokenFlag)
 			case "list-project-memberships":
 				endpoint = c.ListProjectMemberships()
-				data, err = membershipservicec.BuildListProjectMembershipsPayload(*membershipServiceListProjectMembershipsProjectUIDFlag, *membershipServiceListProjectMembershipsVersionFlag, *membershipServiceListProjectMembershipsPageSizeFlag, *membershipServiceListProjectMembershipsPageTokenFlag, *membershipServiceListProjectMembershipsSortFlag, *membershipServiceListProjectMembershipsFilterFlag, *membershipServiceListProjectMembershipsSearchFlag, *membershipServiceListProjectMembershipsBearerTokenFlag)
+				data, err = membershipservicec.BuildListProjectMembershipsPayload(*membershipServiceListProjectMembershipsProjectUIDFlag, *membershipServiceListProjectMembershipsVersionFlag, *membershipServiceListProjectMembershipsPageSizeFlag, *membershipServiceListProjectMembershipsPageTokenFlag, *membershipServiceListProjectMembershipsSortFlag, *membershipServiceListProjectMembershipsFilterFlag, *membershipServiceListProjectMembershipsSearchNameFlag, *membershipServiceListProjectMembershipsBearerTokenFlag)
 			case "get-project-membership":
 				endpoint = c.GetProjectMembership()
 				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipProjectUIDFlag, *membershipServiceGetProjectMembershipMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag)
@@ -334,7 +334,7 @@ func membershipServiceListProjectMembershipsUsage() {
 	fmt.Fprint(os.Stderr, " -page-token STRING")
 	fmt.Fprint(os.Stderr, " -sort STRING")
 	fmt.Fprint(os.Stderr, " -filter STRING")
-	fmt.Fprint(os.Stderr, " -search STRING")
+	fmt.Fprint(os.Stderr, " -search-name STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
 
@@ -349,12 +349,12 @@ func membershipServiceListProjectMembershipsUsage() {
 	fmt.Fprintln(os.Stderr, `    -page-token STRING: `)
 	fmt.Fprintln(os.Stderr, `    -sort STRING: `)
 	fmt.Fprintln(os.Stderr, `    -filter STRING: `)
-	fmt.Fprintln(os.Stderr, `    -search STRING: `)
+	fmt.Fprintln(os.Stderr, `    -search-name STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-project-memberships --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --version \"1\" --page-size 200 --page-token \"\" --sort \"newest\" --filter \"tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --search \"Linux\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-project-memberships --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --version \"1\" --page-size 200 --page-token \"\" --sort \"newest\" --filter \"tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --search-name \"Linux\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceGetProjectMembershipUsage() {
