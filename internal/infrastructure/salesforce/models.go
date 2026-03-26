@@ -114,11 +114,13 @@ type soqlProjectRoleAsset struct {
 }
 
 // soqlAlternateEmail represents a Salesforce Alternate_Email__c record.
+// ContactID is sourced from Contact_Name__c, which is the lookup relationship
+// field holding the full 18-char Contact SFID (not a human-readable name).
 type soqlAlternateEmail struct {
-	ID          string `salesforce:"Id"`
-	ContactName string `salesforce:"Contact_Name__c"`
-	Email       string `salesforce:"Alternate_Email_Address__c"`
-	Primary     bool   `salesforce:"Primary_Email__c"`
+	ID        string `salesforce:"Id"`
+	ContactID string `salesforce:"Contact_Name__c"`
+	Email     string `salesforce:"Alternate_Email_Address__c"`
+	Primary   bool   `salesforce:"Primary_Email__c"`
 }
 
 // soqlAlternateEmailContact is the result of a contact lookup via

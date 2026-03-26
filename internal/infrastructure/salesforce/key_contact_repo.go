@@ -173,7 +173,7 @@ func (r *KeyContactRepo) fetchPrimaryEmails(ctx context.Context, contactIDs []st
 		}
 
 		for _, e := range emails {
-			emailMap[e.ContactName] = e.Email
+			emailMap[e.ContactID] = e.Email
 		}
 	}
 
@@ -248,6 +248,14 @@ func convertSOQLToProjectKeyContact(role soqlProjectRole, emailMap map[string]st
 			} else {
 				c.Email = derefString(role.Contact.Email)
 			}
+		}
+	} else if role.ContactID != nil && *role.ContactID != "" {
+		// Defensive: Contact__r is nil but Contact__c (bare FK) is set.
+		// This can occur if the referenced Contact is deleted or inaccessible.
+		// Still attempt an email map lookup using the bare ID so that any
+		// Alternate_Email__c record fetched via fetchPrimaryEmails is not lost.
+		if email, ok := emailMap[*role.ContactID]; ok {
+			c.Email = email
 		}
 	}
 
