@@ -117,7 +117,6 @@ func (s *membershipServicesrvc) ListProjectMemberships(ctx context.Context, p *m
 	soqlFilters := parseMembershipFilters(p.Filter)
 	soqlFilters.SortOrder = parseSortOrder(p.Sort)
 	soqlFilters.PageToken = rawPageToken
-	_ = rawPageToken
 	if p.Search != nil && *p.Search != "" {
 		// Normalise to lowercase: SOQL LIKE is case-insensitive, so "Google"
 		// and "google" produce identical results. Lowercasing here ensures
