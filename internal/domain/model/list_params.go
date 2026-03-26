@@ -50,6 +50,14 @@ type MembershipFilters struct {
 	// Use the ListProjectTiers endpoint to discover available tier UIDs.
 	TierUID string
 
+	// CompanyNameSearch is a free-text substring to match against
+	// Account.Name via a SOQL LIKE predicate. This field MUST always be
+	// lowercase — callers are responsible for normalising with
+	// strings.ToLower before setting it. Lowercasing here rather than at
+	// the query or cache-key level ensures a single canonical value is
+	// interpolated into both the SOQL query and the NATS KV cache key.
+	CompanyNameSearch string
+
 	// SortOrder controls the ORDER BY clause in the SOQL query. Defaults to
 	// SortOrderNewest when not set.
 	SortOrder SortOrder
@@ -67,7 +75,7 @@ type MembershipFilters struct {
 
 // IsEmpty reports whether f has no filter predicates set.
 func (f MembershipFilters) IsEmpty() bool {
-	return f.TierUID == "" && f.SortOrder == "" && f.PageToken == ""
+	return f.TierUID == "" && f.CompanyNameSearch == "" && f.SortOrder == "" && f.PageToken == ""
 }
 
 // EffectiveSortOrder returns the sort order to apply, substituting the default

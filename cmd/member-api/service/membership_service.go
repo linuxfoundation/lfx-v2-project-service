@@ -111,12 +111,19 @@ func (s *membershipServicesrvc) ListProjectMemberships(ctx context.Context, p *m
 	)
 
 	// Parse SOQL-pushable filters. Status is not exposed — the base query is
-	// hardcoded to active members only. Sort order and page token are threaded
-	// directly into MembershipFilters so they reach the SOQL layer.
+	// hardcoded to active members only. Sort order, page token, and company
+	// name search are threaded directly into MembershipFilters so they reach
+	// the SOQL layer.
 	soqlFilters := parseMembershipFilters(p.Filter)
 	soqlFilters.SortOrder = parseSortOrder(p.Sort)
 	soqlFilters.PageToken = rawPageToken
 	_ = rawPageToken
+	if p.Search != nil && *p.Search != "" {
+		// Normalise to lowercase: SOQL LIKE is case-insensitive, so "Google"
+		// and "google" produce identical results. Lowercasing here ensures
+		// both values map to the same NATS KV cache key.
+		soqlFilters.CompanyNameSearch = strings.ToLower(*p.Search)
+	}
 
 	memberPage, err := s.memberReaderOrchestrator.ListMembershipsForProject(ctx, *p.ProjectUID, soqlFilters, p.PageSize)
 	if err != nil {
@@ -124,15 +131,12 @@ func (s *membershipServicesrvc) ListProjectMemberships(ctx context.Context, p *m
 	}
 
 	// Apply remaining in-process filters (relationship fields not pushable to
-	// SOQL WHERE) and free-text search. These are only applied on the current
-	// page — they cannot alter pagination boundaries.
+	// SOQL WHERE). Company name search is now handled by SOQL LIKE, so it is
+	// not passed to filterMemberships. Other non-SOQL fields (tier_name,
+	// project_slug) still apply in-process if present in the filter string.
 	inProcessFilters := parseFilters(p.Filter)
 	delete(inProcessFilters, "tier_uid")
-	var search string
-	if p.Search != nil {
-		search = *p.Search
-	}
-	memberships := filterMemberships(memberPage.Memberships, inProcessFilters, search)
+	memberships := filterMemberships(memberPage.Memberships, inProcessFilters, "")
 
 	responses := make([]*membershipservice.ProjectMembershipResponse, 0, len(memberships))
 	for _, m := range memberships {

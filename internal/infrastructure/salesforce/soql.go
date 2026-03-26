@@ -22,6 +22,26 @@ func quoteSOQL(s string) string {
 	return "'" + s + "'"
 }
 
+// escapeLikeSOQL escapes a user-supplied search term for safe embedding inside
+// a SOQL LIKE string literal. It escapes backslashes and single quotes (as
+// quoteSOQL does) and additionally escapes the SOQL wildcard characters % and _
+// so they are treated as literals rather than pattern metacharacters.
+//
+// The returned string is unquoted. Use it together with quoteSOQL to build a
+// contains-style pattern:
+//
+//	quoteSOQL("%" + escapeLikeSOQL(term) + "%")
+//
+// This ensures the surrounding % wildcards are preserved as pattern
+// metacharacters while any % or _ in the user input are treated as literals.
+func escapeLikeSOQL(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, "'", `\'`)
+	s = strings.ReplaceAll(s, "%", `\%`)
+	s = strings.ReplaceAll(s, "_", `\_`)
+	return s
+}
+
 // buildSOQLInClause builds a comma-separated list of quoted, escaped values
 // suitable for a SOQL IN clause (e.g. 'a','b','c'). Each value is passed
 // through quoteSOQL so that embedded single quotes are safely escaped.

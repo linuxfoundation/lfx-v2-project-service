@@ -226,6 +226,16 @@ func buildMembershipsByProjectSOQL(ctx context.Context, projectSFID string, filt
 		}
 		fmt.Fprintf(&b, "\n    AND Product2Id = %s", quoteSOQL(tierSFID))
 	}
+	if filters.CompanyNameSearch != "" {
+		// Push the company name search down to SOQL as a LIKE predicate.
+		// CompanyNameSearch is always lowercase by contract (normalised by
+		// the caller), so the same value is interpolated into both the query
+		// and the NATS KV cache key. escapeLikeSOQL escapes any SOQL wildcard
+		// characters (% and _) in the user-supplied term; quoteSOQL wraps the
+		// full pattern — including the surrounding % wildcards — in single
+		// quotes so the wildcards are preserved as metacharacters.
+		fmt.Fprintf(&b, "\n    AND Account.Name LIKE %s", quoteSOQL("%"+escapeLikeSOQL(filters.CompanyNameSearch)+"%"))
+	}
 	b.WriteString(soqlOrderByClause(filters.EffectiveSortOrder()))
 	return b.String()
 }
