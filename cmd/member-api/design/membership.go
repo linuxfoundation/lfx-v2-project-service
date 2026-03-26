@@ -105,7 +105,7 @@ var _ = dsl.Service("membership-service", func() {
 			PageTokenAttribute()
 			SortAttribute()
 			FilterAttribute()
-			SearchAttribute()
+			SearchNameAttribute()
 		})
 
 		dsl.Result(func() {
@@ -127,7 +127,7 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Param("pageToken")
 			dsl.Param("sort")
 			dsl.Param("filter")
-			dsl.Param("search")
+			dsl.Param("search_name")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusOK)
 			dsl.Response("NotFound", dsl.StatusNotFound)

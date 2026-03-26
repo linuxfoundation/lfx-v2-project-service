@@ -61,9 +61,9 @@ paths:
                   description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
                   required: false
                   type: string
-                - name: search
+                - name: search_name
                   in: query
-                  description: Free-text search across company name, project name, and tier
+                  description: Search memberships by member company name (case-insensitive substring match)
                   required: false
                   type: string
                 - name: Authorization

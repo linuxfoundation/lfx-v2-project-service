@@ -313,9 +313,9 @@ func FilterAttribute() {
 	})
 }
 
-// SearchAttribute is the DSL attribute for free-text search.
-func SearchAttribute() {
-	dsl.Attribute("search", dsl.String, "Free-text search across company name, project name, and tier", func() {
+// SearchNameAttribute is the DSL attribute for searching memberships by company name.
+func SearchNameAttribute() {
+	dsl.Attribute("search_name", dsl.String, "Search memberships by member company name (case-insensitive substring match)", func() {
 		dsl.Example("Linux")
 	})
 }

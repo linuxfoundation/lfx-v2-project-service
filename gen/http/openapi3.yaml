@@ -80,13 +80,13 @@ paths:
                     description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
                     example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                   example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                - name: search
+                - name: search_name
                   in: query
-                  description: Free-text search across company name, project name, and tier
+                  description: Search memberships by member company name (case-insensitive substring match)
                   allowEmptyValue: true
                   schema:
                     type: string
-                    description: Free-text search across company name, project name, and tier
+                    description: Search memberships by member company name (case-insensitive substring match)
                     example: Linux
                   example: Linux
             responses:

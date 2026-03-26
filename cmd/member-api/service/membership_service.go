@@ -107,7 +107,7 @@ func (s *membershipServicesrvc) ListProjectMemberships(ctx context.Context, p *m
 		"sort", p.Sort,
 		"page_token_set", rawPageToken != "",
 		"filter", p.Filter,
-		"search", p.Search,
+		"search_name", p.SearchName,
 	)
 
 	// Parse SOQL-pushable filters. Status is not exposed — the base query is
@@ -117,11 +117,11 @@ func (s *membershipServicesrvc) ListProjectMemberships(ctx context.Context, p *m
 	soqlFilters := parseMembershipFilters(p.Filter)
 	soqlFilters.SortOrder = parseSortOrder(p.Sort)
 	soqlFilters.PageToken = rawPageToken
-	if p.Search != nil && *p.Search != "" {
+	if p.SearchName != nil && *p.SearchName != "" {
 		// Normalise to lowercase: SOQL LIKE is case-insensitive, so "Google"
 		// and "google" produce identical results. Lowercasing here ensures
 		// both values map to the same NATS KV cache key.
-		soqlFilters.CompanyNameSearch = strings.ToLower(*p.Search)
+		soqlFilters.CompanyNameSearch = strings.ToLower(*p.SearchName)
 	}
 
 	memberPage, err := s.memberReaderOrchestrator.ListMembershipsForProject(ctx, *p.ProjectUID, soqlFilters, p.PageSize)

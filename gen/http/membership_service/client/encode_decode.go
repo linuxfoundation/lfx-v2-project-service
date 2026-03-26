@@ -361,8 +361,8 @@ func EncodeListProjectMembershipsRequest(encoder func(*http.Request) goahttp.Enc
 		if p.Filter != nil {
 			values.Add("filter", *p.Filter)
 		}
-		if p.Search != nil {
-			values.Add("search", *p.Search)
+		if p.SearchName != nil {
+			values.Add("search_name", *p.SearchName)
 		}
 		req.URL.RawQuery = values.Encode()
 		return nil

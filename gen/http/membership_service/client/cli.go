@@ -104,7 +104,7 @@ func BuildGetProjectTierPayload(membershipServiceGetProjectTierProjectUID string
 
 // BuildListProjectMembershipsPayload builds the payload for the
 // membership-service list-project-memberships endpoint from CLI flags.
-func BuildListProjectMembershipsPayload(membershipServiceListProjectMembershipsProjectUID string, membershipServiceListProjectMembershipsVersion string, membershipServiceListProjectMembershipsPageSize string, membershipServiceListProjectMembershipsPageToken string, membershipServiceListProjectMembershipsSort string, membershipServiceListProjectMembershipsFilter string, membershipServiceListProjectMembershipsSearch string, membershipServiceListProjectMembershipsBearerToken string) (*membershipservice.ListProjectMembershipsPayload, error) {
+func BuildListProjectMembershipsPayload(membershipServiceListProjectMembershipsProjectUID string, membershipServiceListProjectMembershipsVersion string, membershipServiceListProjectMembershipsPageSize string, membershipServiceListProjectMembershipsPageToken string, membershipServiceListProjectMembershipsSort string, membershipServiceListProjectMembershipsFilter string, membershipServiceListProjectMembershipsSearchName string, membershipServiceListProjectMembershipsBearerToken string) (*membershipservice.ListProjectMembershipsPayload, error) {
 	var err error
 	var projectUID string
 	{
@@ -170,10 +170,10 @@ func BuildListProjectMembershipsPayload(membershipServiceListProjectMembershipsP
 			filter = &membershipServiceListProjectMembershipsFilter
 		}
 	}
-	var search *string
+	var searchName *string
 	{
-		if membershipServiceListProjectMembershipsSearch != "" {
-			search = &membershipServiceListProjectMembershipsSearch
+		if membershipServiceListProjectMembershipsSearchName != "" {
+			searchName = &membershipServiceListProjectMembershipsSearchName
 		}
 	}
 	var bearerToken *string
@@ -189,7 +189,7 @@ func BuildListProjectMembershipsPayload(membershipServiceListProjectMembershipsP
 	v.PageToken = pageToken
 	v.Sort = sort
 	v.Filter = filter
-	v.Search = search
+	v.SearchName = searchName
 	v.BearerToken = bearerToken
 
 	return v, nil
