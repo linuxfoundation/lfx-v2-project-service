@@ -18,9 +18,9 @@ import (
 // contact IDs. The caller must substitute a buildSOQLInClause result for the
 // %s placeholder.
 const primaryEmailSOQL = `
-SELECT Contact_ID__c, Alternate_Email_Address__c
+SELECT Contact_Name__c, Alternate_Email_Address__c
 FROM Alternate_Email__c
-WHERE Contact_ID__c IN (%s)
+WHERE Contact_Name__c IN (%s)
     AND Primary_Email__c = true
 `
 
@@ -36,7 +36,7 @@ SELECT
     Id, Asset__c, Contact__c, Role__c, Status__c,
     BoardMember__c, PrimaryContact__c,
     CreatedDate, SystemModstamp,
-    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title,
+    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title, Contact__r.Email,
     Asset__r.Id, Asset__r.AccountId, Asset__r.Product2Id, Asset__r.Projects__c,
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
@@ -54,7 +54,7 @@ SELECT
     Id, Asset__c, Contact__c, Role__c, Status__c,
     BoardMember__c, PrimaryContact__c,
     CreatedDate, SystemModstamp,
-    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title,
+    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title, Contact__r.Email,
     Asset__r.Id, Asset__r.AccountId, Asset__r.Product2Id, Asset__r.Projects__c,
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
@@ -239,11 +239,23 @@ func convertSOQLToProjectKeyContact(role soqlProjectRole, emailMap map[string]st
 		c.LastName = derefString(role.Contact.LastName)
 		c.Title = derefString(role.Contact.Title)
 
-		// Resolve primary email from the email map.
+		// Resolve primary email: prefer Alternate_Email__c (via emailMap keyed
+		// by Contact_Name__c), fall back to Contact__r.Email for contacts that
+		// have no Alternate_Email__c record.
 		if role.Contact.ID != "" {
 			if email, ok := emailMap[role.Contact.ID]; ok {
 				c.Email = email
+			} else {
+				c.Email = derefString(role.Contact.Email)
 			}
+		}
+	} else if role.ContactID != nil && *role.ContactID != "" {
+		// Defensive: Contact__r is nil but Contact__c (bare FK) is set.
+		// This can occur if the referenced Contact is deleted or inaccessible.
+		// Still attempt an email map lookup using the bare ID so that any
+		// Alternate_Email__c record fetched via fetchPrimaryEmails is not lost.
+		if email, ok := emailMap[*role.ContactID]; ok {
+			c.Email = email
 		}
 	}
 
