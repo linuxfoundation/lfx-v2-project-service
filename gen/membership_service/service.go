@@ -11,18 +11,33 @@ package membershipservice
 import (
 	"context"
 
+	goa "goa.design/goa/v3/pkg"
 	"goa.design/goa/v3/security"
 )
 
-// Membership management service - read-only endpoints for member and
-// membership data
+// Membership management service — project-scoped drill-down API for tiers,
+// memberships, and key contacts
 type Service interface {
-	// List members with pagination, filtering, and search
-	ListMembers(context.Context, *ListMembersPayload) (res *ListMembersResult, err error)
-	// Get a specific membership for a member
-	GetMemberMembership(context.Context, *GetMemberMembershipPayload) (res *GetMemberMembershipResult, err error)
-	// Get key contacts for a specific membership under a member
-	ListMemberMembershipKeyContacts(context.Context, *ListMemberMembershipKeyContactsPayload) (res *ListMemberMembershipKeyContactsResult, err error)
+	// List membership tiers (Product2 records) for a specific project
+	ListProjectTiers(context.Context, *ListProjectTiersPayload) (res *ListProjectTiersResult, err error)
+	// Get a specific membership tier by UID
+	GetProjectTier(context.Context, *GetProjectTierPayload) (res *GetProjectTierResult, err error)
+	// List memberships (Asset records) for a specific project, with denormalized
+	// company attributes
+	ListProjectMemberships(context.Context, *ListProjectMembershipsPayload) (res *ListProjectMembershipsResult, err error)
+	// Get a specific membership by UID within a project
+	GetProjectMembership(context.Context, *GetProjectMembershipPayload) (res *GetProjectMembershipResult, err error)
+	// List key contacts (Project_Role__c records) for a specific membership, with
+	// denormalized contact and company attributes
+	ListMembershipKeyContacts(context.Context, *ListMembershipKeyContactsPayload) (res *ListMembershipKeyContactsResult, err error)
+	// Create a new key contact (Project_Role__c record) for a specific membership
+	CreateMembershipKeyContact(context.Context, *CreateMembershipKeyContactPayload) (res *CreateMembershipKeyContactResult, err error)
+	// Update a key contact (Project_Role__c record) within a membership
+	UpdateMembershipKeyContact(context.Context, *UpdateMembershipKeyContactPayload) (res *UpdateMembershipKeyContactResult, err error)
+	// Delete a key contact (Project_Role__c record) from a membership
+	DeleteMembershipKeyContact(context.Context, *DeleteMembershipKeyContactPayload) (err error)
+	// Get a specific key contact by UID within a membership
+	GetMembershipKeyContact(context.Context, *GetMembershipKeyContactPayload) (res *GetMembershipKeyContactResult, err error)
 	// Check if the service is able to take inbound requests.
 	Readyz(context.Context) (res []byte, err error)
 	// Check if the service is alive.
@@ -49,356 +64,367 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [5]string{"list-members", "get-member-membership", "list-member-membership-key-contacts", "readyz", "livez"}
+var MethodNames = [11]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "readyz", "livez"}
 
-type AccountType struct {
-	// Account ID
-	ID *string
-	// Account name
-	Name *string
-	// Account logo URL
-	LogoURL *string
-	// Account website
-	Website *string
-}
-
-type ContactType struct {
-	// Contact ID
-	ID *string
-	// First name
-	FirstName *string
-	// Last name
-	LastName *string
-	// Email address
-	Email *string
-	// Job title
-	Title *string
-}
-
-// GetMemberMembershipPayload is the payload type of the membership-service
-// service get-member-membership method.
-type GetMemberMembershipPayload struct {
+// CreateMembershipKeyContactPayload is the payload type of the
+// membership-service service create-membership-key-contact method.
+type CreateMembershipKeyContactPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// Member UID
-	MemberID *string
+	// V2 project UUID
+	ProjectUID *string
 	// Membership UID
-	ID *string
+	MembershipUID *string
+	// Contact email address; used to resolve or create the B2B Salesforce Contact
+	// record
+	Email string
+	// Contact first name; used when creating a new Contact on miss
+	FirstName string
+	// Contact last name; used when creating a new Contact on miss
+	LastName string
+	// Contact job title; used when creating a new Contact on miss
+	Title *string
+	// Contact role designation, e.g. 'Voting Representative'
+	Role *string
+	// Role record status, e.g. 'Active'
+	Status *string
+	// Whether this contact holds a board member role
+	BoardMember *bool
+	// Whether this is the primary contact for the membership
+	PrimaryContact *bool
 }
 
-// GetMemberMembershipResult is the result type of the membership-service
-// service get-member-membership method.
-type GetMemberMembershipResult struct {
+// CreateMembershipKeyContactResult is the result type of the
+// membership-service service create-membership-key-contact method.
+type CreateMembershipKeyContactResult struct {
+	// Newly created key contact
+	Contact *ProjectKeyContactResponse
+}
+
+// DeleteMembershipKeyContactPayload is the payload type of the
+// membership-service service delete-membership-key-contact method.
+type DeleteMembershipKeyContactPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
+	// Membership UID
+	MembershipUID *string
+	// Key contact UID
+	ContactUID *string
+}
+
+// GetMembershipKeyContactPayload is the payload type of the membership-service
+// service get-membership-key-contact method.
+type GetMembershipKeyContactPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
+	// Membership UID
+	MembershipUID *string
+	// Key contact UID
+	ContactUID *string
+}
+
+// GetMembershipKeyContactResult is the result type of the membership-service
+// service get-membership-key-contact method.
+type GetMembershipKeyContactResult struct {
+	// Key contact details
+	Contact *ProjectKeyContactResponse
+}
+
+// GetProjectMembershipPayload is the payload type of the membership-service
+// service get-project-membership method.
+type GetProjectMembershipPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
+	// Membership UID
+	MembershipUID *string
+}
+
+// GetProjectMembershipResult is the result type of the membership-service
+// service get-project-membership method.
+type GetProjectMembershipResult struct {
 	// Membership details
-	Membership *MembershipResponse
+	Membership *ProjectMembershipResponse
 	// ETag header value
 	Etag *string
 }
 
-// A key contact resource
-type KeyContactResponse struct {
-	// Key contact UID
-	UID *string
+// GetProjectTierPayload is the payload type of the membership-service service
+// get-project-tier method.
+type GetProjectTierPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
+	// Membership tier UID
+	TierUID *string
+}
+
+// GetProjectTierResult is the result type of the membership-service service
+// get-project-tier method.
+type GetProjectTierResult struct {
+	// Membership tier details
+	Tier *MembershipTierResponse
+}
+
+// ListMembershipKeyContactsPayload is the payload type of the
+// membership-service service list-membership-key-contacts method.
+type ListMembershipKeyContactsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
 	// Membership UID
 	MembershipUID *string
-	// Contact role
-	Role *string
-	// Contact status
-	Status *string
-	// Whether this is a board member
-	BoardMember *bool
-	// Whether this is a primary contact
-	PrimaryContact *bool
-	// Contact details
-	Contact *ContactType
-	// Project information
-	Project *ProjectType
-	// Organization information
-	Organization *OrganizationType
-	// Creation timestamp
-	CreatedAt *string
-	// Last update timestamp
-	UpdatedAt *string
 }
 
-// ListMemberMembershipKeyContactsPayload is the payload type of the
-// membership-service service list-member-membership-key-contacts method.
-type ListMemberMembershipKeyContactsPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// Member UID
-	MemberID *string
-	// Membership UID
-	ID *string
-}
-
-// ListMemberMembershipKeyContactsResult is the result type of the
-// membership-service service list-member-membership-key-contacts method.
-type ListMemberMembershipKeyContactsResult struct {
+// ListMembershipKeyContactsResult is the result type of the membership-service
+// service list-membership-key-contacts method.
+type ListMembershipKeyContactsResult struct {
 	// List of key contacts
-	Contacts []*KeyContactResponse
-}
-
-// ListMembersPayload is the payload type of the membership-service service
-// list-members method.
-type ListMembersPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// Number of items per page
-	PageSize int
-	// Offset into the total list
-	Offset int
-	// Filter expression (key=value pairs separated by semicolons)
-	Filter *string
-	// Free-text search across member name, project names, and tiers
-	Search *string
-}
-
-// ListMembersResult is the result type of the membership-service service
-// list-members method.
-type ListMembersResult struct {
-	// List of members
-	Members []*MemberResponse
-	// Pagination metadata
-	Metadata *ListMetadata
+	Contacts []*ProjectKeyContactResponse
 }
 
 // Pagination metadata for list responses
 type ListMetadata struct {
-	// Total number of items
-	TotalSize int
-	// Number of items per page
-	PageSize int
-	// Offset into the total list
-	Offset int
+	// Total number of records matching the query, as reported by Salesforce. Set
+	// on the first page; may be 0 on continuation pages.
+	TotalSize *int
+	// Opaque cursor for the next page. Pass this value as the page_token query
+	// parameter to retrieve the next page. Empty or absent when this is the last
+	// page.
+	NextPageToken *string
 }
 
-// A member (account/organization) resource
-type MemberResponse struct {
-	// Member UID
+// ListProjectMembershipsPayload is the payload type of the membership-service
+// service list-project-memberships method.
+type ListProjectMembershipsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
+	// Logical page size (1–1000). The server rounds up to the nearest supported
+	// size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a
+	// 200-record Salesforce batch and slice client-side.
+	PageSize int
+	// Opaque continuation cursor returned in a previous list response
+	// metadata.next_page_token. Omit (or pass empty) to start from the first page.
+	// Valid for 15 minutes.
+	PageToken *string
+	// Sort order for results. One of: name (A→Z by company name), newest (default,
+	// CreatedDate DESC), last_modified (LastModifiedDate DESC).
+	Sort string
+	// Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from
+	// ListProjectTiers). All results are restricted to active members.
+	Filter *string
+	// Search memberships by member company name (case-insensitive substring match)
+	SearchName *string
+}
+
+// ListProjectMembershipsResult is the result type of the membership-service
+// service list-project-memberships method.
+type ListProjectMembershipsResult struct {
+	// List of project memberships
+	Memberships []*ProjectMembershipResponse
+	// Pagination metadata
+	Metadata *ListMetadata
+}
+
+// ListProjectTiersPayload is the payload type of the membership-service
+// service list-project-tiers method.
+type ListProjectTiersPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
+}
+
+// ListProjectTiersResult is the result type of the membership-service service
+// list-project-tiers method.
+type ListProjectTiersResult struct {
+	// List of membership tiers
+	Tiers []*MembershipTierResponse
+}
+
+// A membership tier (Product2) scoped to a project
+type MembershipTierResponse struct {
+	// Tier UID (invertible UUID v8 from Product2.Id)
 	UID *string
-	// Member name
+	// V2 project UUID
+	ProjectUID *string
+	// Product name, e.g. 'Gold Corporate Membership'
 	Name *string
-	// Member logo URL
-	LogoURL *string
-	// Member website
-	Website *string
-	// Membership summary
-	MembershipSummary *MembershipSummaryType
+	// Product family, e.g. 'Membership'
+	Family *string
+	// Product type (Type__c)
+	ProductType *string
 	// Creation timestamp
 	CreatedAt *string
 	// Last update timestamp
 	UpdatedAt *string
 }
 
-// A membership resource
-type MembershipResponse struct {
-	// Membership UID
+// A key contact (Project_Role__c) scoped to a membership, with denormalized
+// contact and company attributes
+type ProjectKeyContactResponse struct {
+	// Key contact UID (invertible UUID v8 from Project_Role__c.Id)
 	UID *string
-	// Membership name
-	Name *string
+	// UID of the associated membership (Asset)
+	MembershipUID *string
+	// UID of the associated membership tier (Product2)
+	TierUID *string
+	// V2 project UUID
+	ProjectUID *string
+	// Contact role designation
+	Role *string
+	// Role record status
+	Status *string
+	// Whether this contact holds a board member role
+	BoardMember *bool
+	// Whether this is the primary contact for the membership
+	PrimaryContact *bool
+	// Contact first name (denormalized from Contact)
+	FirstName *string
+	// Contact last name (denormalized from Contact)
+	LastName *string
+	// Contact job title (denormalized from Contact)
+	Title *string
+	// Primary email address from Alternate_Email__c where Primary_Email__c = true
+	Email *string
+	// Member company name (denormalized from Asset.Account)
+	CompanyName *string
+	// Member company logo URL (denormalized from Asset.Account)
+	CompanyLogoURL *string
+	// Member company website/domain (denormalized from Asset.Account.Website)
+	CompanyDomain *string
+	// Creation timestamp
+	CreatedAt *string
+	// Last update timestamp
+	UpdatedAt *string
+}
+
+// A membership (Asset) scoped to a project, with denormalized company
+// attributes
+type ProjectMembershipResponse struct {
+	// Membership UID (invertible UUID v8 from Asset.Id)
+	UID *string
+	// UID of the associated membership tier (Product2)
+	TierUID *string
+	// V2 project UUID
+	ProjectUID *string
 	// Membership status
 	Status *string
 	// Membership year
 	Year *string
-	// Membership tier
+	// Membership tier label
 	Tier *string
-	// Membership type
+	// Membership type (derived from Asset RecordType)
 	MembershipType *string
-	// Whether auto-renew is enabled
+	// Whether automatic renewal is enabled
 	AutoRenew *bool
-	// Renewal type
+	// Renewal cadence
 	RenewalType *string
-	// Membership price
+	// Current membership price
 	Price *float64
-	// Annual full price
+	// Full annual list price before discounts
 	AnnualFullPrice *float64
 	// Payment frequency
 	PaymentFrequency *string
 	// Payment terms
 	PaymentTerms *string
-	// Agreement date
+	// Date the membership agreement was signed
 	AgreementDate *string
-	// Purchase date
+	// Effective purchase date
 	PurchaseDate *string
-	// Start date
+	// Membership start date
 	StartDate *string
-	// End date
+	// Membership end date
 	EndDate *string
-	// Account information
-	Account *AccountType
-	// Contact information
-	Contact *ContactType
-	// Product information
-	Product *ProductType
-	// Project information
-	Project *ProjectType
+	// Member company name (denormalized from Account)
+	CompanyName *string
+	// Member company logo URL (denormalized from Account)
+	CompanyLogoURL *string
+	// Member company website/domain (denormalized from Account.Website)
+	CompanyDomain *string
+	// Product name (denormalized from Product2)
+	TierName *string
+	// Product family (denormalized from Product2)
+	TierFamily *string
+	// Product type (denormalized from Product2)
+	TierProductType *string
 	// Creation timestamp
 	CreatedAt *string
 	// Last update timestamp
 	UpdatedAt *string
 }
 
-type MembershipSummaryItemType struct {
+// UpdateMembershipKeyContactPayload is the payload type of the
+// membership-service service update-membership-key-contact method.
+type UpdateMembershipKeyContactPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// V2 project UUID
+	ProjectUID *string
 	// Membership UID
-	UID *string
-	// Membership name
-	Name *string
-	// Membership status
+	MembershipUID *string
+	// Key contact UID
+	ContactUID *string
+	// Contact role designation, e.g. 'Voting Representative'
+	Role *string
+	// Role record status, e.g. 'Active'
 	Status *string
-	// Membership year
-	Year *string
-	// Membership tier
-	Tier *string
-	// Membership type
-	MembershipType *string
-	// Whether auto-renew is enabled
-	AutoRenew *bool
-	// Start date
-	StartDate *string
-	// End date
-	EndDate *string
-	// Product information
-	Product *ProductType
-	// Project information
-	Project *ProjectType
+	// Whether this contact holds a board member role
+	BoardMember *bool
+	// Whether this is the primary contact for the membership
+	PrimaryContact *bool
 }
 
-// Summary of memberships for a member
-type MembershipSummaryType struct {
-	// Number of active memberships
-	ActiveCount *int
-	// Total number of memberships
-	TotalCount *int
-	// List of membership details
-	Memberships []*MembershipSummaryItemType
+// UpdateMembershipKeyContactResult is the result type of the
+// membership-service service update-membership-key-contact method.
+type UpdateMembershipKeyContactResult struct {
+	// Updated key contact
+	Contact *ProjectKeyContactResponse
 }
 
-type OrganizationType struct {
-	// Organization ID
-	ID *string
-	// Organization name
-	Name *string
-	// Organization logo URL
-	LogoURL *string
-	// Organization website
-	Website *string
+// MakeNotFound builds a goa.ServiceError from an error.
+func MakeNotFound(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "NotFound", false, false, false)
 }
 
-type ProductType struct {
-	// Product ID
-	ID *string
-	// Product name
-	Name *string
-	// Product family
-	Family *string
-	// Product type
-	Type *string
+// MakeInternalServerError builds a goa.ServiceError from an error.
+func MakeInternalServerError(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "InternalServerError", false, false, true)
 }
 
-type ProjectType struct {
-	// Project ID
-	ID *string
-	// Project name
-	Name *string
-	// Project logo URL
-	LogoURL *string
-	// Project slug
-	Slug *string
-	// Project status
-	Status *string
+// MakeServiceUnavailable builds a goa.ServiceError from an error.
+func MakeServiceUnavailable(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "ServiceUnavailable", false, true, false)
 }
 
-type BadRequestError struct {
-	// Error message
-	Message string
-}
-
-type InternalServerError struct {
-	// Error message
-	Message string
-}
-
-type NotFoundError struct {
-	// Error message
-	Message string
-}
-
-type ServiceUnavailableError struct {
-	// Error message
-	Message string
-}
-
-// Error returns an error description.
-func (e *BadRequestError) Error() string {
-	return ""
-}
-
-// ErrorName returns "bad-request-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *BadRequestError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "bad-request-error".
-func (e *BadRequestError) GoaErrorName() string {
-	return "BadRequest"
-}
-
-// Error returns an error description.
-func (e *InternalServerError) Error() string {
-	return ""
-}
-
-// ErrorName returns "internal-server-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *InternalServerError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "internal-server-error".
-func (e *InternalServerError) GoaErrorName() string {
-	return "InternalServerError"
-}
-
-// Error returns an error description.
-func (e *NotFoundError) Error() string {
-	return ""
-}
-
-// ErrorName returns "not-found-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *NotFoundError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "not-found-error".
-func (e *NotFoundError) GoaErrorName() string {
-	return "NotFound"
-}
-
-// Error returns an error description.
-func (e *ServiceUnavailableError) Error() string {
-	return ""
-}
-
-// ErrorName returns "service-unavailable-error".
-//
-// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
-func (e *ServiceUnavailableError) ErrorName() string {
-	return e.GoaErrorName()
-}
-
-// GoaErrorName returns "service-unavailable-error".
-func (e *ServiceUnavailableError) GoaErrorName() string {
-	return "ServiceUnavailable"
+// MakeBadRequest builds a goa.ServiceError from an error.
+func MakeBadRequest(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "BadRequest", false, false, false)
 }

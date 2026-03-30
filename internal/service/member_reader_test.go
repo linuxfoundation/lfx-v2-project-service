@@ -14,42 +14,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemberReaderOrchestrator_ListMembers(t *testing.T) {
+func TestMemberReaderOrchestrator_ListTiersForProject(t *testing.T) {
 	tests := []struct {
 		name      string
-		params    model.ListParams
+		projectID string
 		wantErr   bool
 		wantCount int
 	}{
 		{
-			name: "list all members",
-			params: model.ListParams{
-				PageSize: 25,
-				Offset:   0,
-				Filters:  map[string]string{},
-			},
+			name:      "list tiers for project with sample data",
+			projectID: "project-uid-1",
 			wantErr:   false,
 			wantCount: 1,
 		},
 		{
-			name: "list members with search",
-			params: model.ListParams{
-				PageSize: 25,
-				Offset:   0,
-				Filters:  map[string]string{},
-				Search:   "Example",
-			},
-			wantErr:   false,
-			wantCount: 1,
-		},
-		{
-			name: "list members with non-matching search",
-			params: model.ListParams{
-				PageSize: 25,
-				Offset:   0,
-				Filters:  map[string]string{},
-				Search:   "NonExistent",
-			},
+			name:      "list tiers for project with no data",
+			projectID: "nonexistent-project",
 			wantErr:   false,
 			wantCount: 0,
 		},
@@ -60,42 +40,106 @@ func TestMemberReaderOrchestrator_ListMembers(t *testing.T) {
 			mockRepo := mock.NewMockMembershipRepository()
 			orchestrator := NewMemberReaderOrchestrator(WithMemberReader(mockRepo))
 
-			members, totalSize, err := orchestrator.ListMembers(context.Background(), tt.params)
+			tiers, err := orchestrator.ListTiersForProject(context.Background(), tt.projectID)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Len(t, members, tt.wantCount)
-			assert.Equal(t, tt.wantCount, totalSize)
+			assert.Len(t, tiers, tt.wantCount)
 		})
 	}
 }
 
-func TestMemberReaderOrchestrator_GetMembershipForMember(t *testing.T) {
+func TestMemberReaderOrchestrator_GetTier(t *testing.T) {
+	tests := []struct {
+		name    string
+		tierUID string
+		wantErr bool
+	}{
+		{
+			name:    "get existing tier",
+			tierUID: "tier-1",
+			wantErr: false,
+		},
+		{
+			name:    "get nonexistent tier",
+			tierUID: "nonexistent-tier",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := mock.NewMockMembershipRepository()
+			orchestrator := NewMemberReaderOrchestrator(WithMemberReader(mockRepo))
+
+			tier, err := orchestrator.GetTier(context.Background(), tt.tierUID)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, tier)
+			assert.Equal(t, tt.tierUID, tier.UID)
+		})
+	}
+}
+
+func TestMemberReaderOrchestrator_ListMembershipsForProject(t *testing.T) {
+	tests := []struct {
+		name      string
+		projectID string
+		wantErr   bool
+		wantCount int
+	}{
+		{
+			name:      "list memberships for project with sample data",
+			projectID: "project-uid-1",
+			wantErr:   false,
+			wantCount: 1,
+		},
+		{
+			name:      "list memberships for project with no data",
+			projectID: "nonexistent-project",
+			wantErr:   false,
+			wantCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := mock.NewMockMembershipRepository()
+			orchestrator := NewMemberReaderOrchestrator(WithMemberReader(mockRepo))
+
+			page, err := orchestrator.ListMembershipsForProject(context.Background(), tt.projectID, model.MembershipFilters{}, 25)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Len(t, page.Memberships, tt.wantCount)
+		})
+	}
+}
+
+func TestMemberReaderOrchestrator_GetMembership(t *testing.T) {
 	tests := []struct {
 		name          string
-		memberUID     string
 		membershipUID string
 		wantErr       bool
 	}{
 		{
-			name:          "get existing membership for member",
-			memberUID:     "member-1",
+			name:          "get existing membership",
 			membershipUID: "membership-1",
 			wantErr:       false,
 		},
 		{
-			name:          "get non-existing membership",
-			memberUID:     "member-1",
-			membershipUID: "non-existing",
-			wantErr:       true,
-		},
-		{
-			name:          "membership belongs to different member",
-			memberUID:     "wrong-member",
-			membershipUID: "membership-1",
+			name:          "get nonexistent membership",
+			membershipUID: "nonexistent-membership",
 			wantErr:       true,
 		},
 	}
@@ -105,14 +149,14 @@ func TestMemberReaderOrchestrator_GetMembershipForMember(t *testing.T) {
 			mockRepo := mock.NewMockMembershipRepository()
 			orchestrator := NewMemberReaderOrchestrator(WithMemberReader(mockRepo))
 
-			membership, _, err := orchestrator.GetMembershipForMember(context.Background(), tt.memberUID, tt.membershipUID)
+			membership, err := orchestrator.GetMembership(context.Background(), tt.membershipUID)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.NotNil(t, membership)
+			require.NotNil(t, membership)
 			assert.Equal(t, tt.membershipUID, membership.UID)
 		})
 	}
@@ -121,28 +165,55 @@ func TestMemberReaderOrchestrator_GetMembershipForMember(t *testing.T) {
 func TestMemberReaderOrchestrator_ListKeyContactsForMembership(t *testing.T) {
 	tests := []struct {
 		name          string
-		memberUID     string
 		membershipUID string
 		wantErr       bool
 		wantCount     int
 	}{
 		{
 			name:          "list contacts for existing membership",
-			memberUID:     "member-1",
 			membershipUID: "membership-1",
 			wantErr:       false,
 			wantCount:     1,
 		},
 		{
-			name:          "list contacts for non-existing membership",
-			memberUID:     "member-1",
-			membershipUID: "non-existing",
-			wantErr:       true,
+			name:          "list contacts for membership with no contacts",
+			membershipUID: "nonexistent-membership",
+			wantErr:       false,
+			wantCount:     0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := mock.NewMockMembershipRepository()
+			orchestrator := NewMemberReaderOrchestrator(WithMemberReader(mockRepo))
+
+			contacts, err := orchestrator.ListKeyContactsForMembership(context.Background(), tt.membershipUID)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Len(t, contacts, tt.wantCount)
+		})
+	}
+}
+
+func TestMemberReaderOrchestrator_GetKeyContact(t *testing.T) {
+	tests := []struct {
+		name          string
+		keyContactUID string
+		wantErr       bool
+	}{
+		{
+			name:          "get existing key contact",
+			keyContactUID: "contact-role-1",
+			wantErr:       false,
 		},
 		{
-			name:          "list contacts for wrong member",
-			memberUID:     "wrong-member",
-			membershipUID: "membership-1",
+			name:          "get nonexistent key contact",
+			keyContactUID: "nonexistent-contact",
 			wantErr:       true,
 		},
 	}
@@ -152,14 +223,15 @@ func TestMemberReaderOrchestrator_ListKeyContactsForMembership(t *testing.T) {
 			mockRepo := mock.NewMockMembershipRepository()
 			orchestrator := NewMemberReaderOrchestrator(WithMemberReader(mockRepo))
 
-			contacts, err := orchestrator.ListKeyContactsForMembership(context.Background(), tt.memberUID, tt.membershipUID)
+			contact, err := orchestrator.GetKeyContact(context.Background(), tt.keyContactUID)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Len(t, contacts, tt.wantCount)
+			require.NotNil(t, contact)
+			assert.Equal(t, tt.keyContactUID, contact.UID)
 		})
 	}
 }

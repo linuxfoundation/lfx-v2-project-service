@@ -24,88 +24,242 @@ func newTestService() membershipservice.Service {
 	jwtAuth, _ := auth.NewJWTAuth(auth.JWTAuthConfig{
 		MockLocalPrincipal: "test-user",
 	})
-	return NewMembershipService(orchestrator, mockRepo, jwtAuth)
+	return NewMembershipService(orchestrator, mockRepo, jwtAuth, nil)
 }
 
-func TestListMembers(t *testing.T) {
+// ── Tiers ─────────────────────────────────────────────────────────────────────
+
+func TestListProjectTiers(t *testing.T) {
 	tests := []struct {
 		name      string
-		payload   *membershipservice.ListMembersPayload
+		payload   *membershipservice.ListProjectTiersPayload
+		wantErr   bool
+		wantCount int
+	}{
+		{
+			name: "list tiers for project with sample data",
+			payload: &membershipservice.ListProjectTiersPayload{
+				ProjectUID: strPtr("project-uid-1"),
+			},
+			wantErr:   false,
+			wantCount: 1,
+		},
+		{
+			name: "list tiers for project with no data",
+			payload: &membershipservice.ListProjectTiersPayload{
+				ProjectUID: strPtr("nonexistent-project"),
+			},
+			wantErr:   false,
+			wantCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService()
+			ctx := context.Background()
+
+			res, err := svc.ListProjectTiers(ctx, tt.payload)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			assert.Len(t, res.Tiers, tt.wantCount)
+		})
+	}
+}
+
+func TestGetProjectTier(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload *membershipservice.GetProjectTierPayload
+		wantErr bool
+	}{
+		{
+			name: "get existing tier",
+			payload: &membershipservice.GetProjectTierPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				TierUID:    strPtr("tier-1"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "get nonexistent tier",
+			payload: &membershipservice.GetProjectTierPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				TierUID:    strPtr("nonexistent-tier"),
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService()
+			ctx := context.Background()
+
+			res, err := svc.GetProjectTier(ctx, tt.payload)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			require.NotNil(t, res.Tier)
+			assert.Equal(t, "tier-1", *res.Tier.UID)
+		})
+	}
+}
+
+// ── Memberships ───────────────────────────────────────────────────────────────
+
+func TestListProjectMemberships(t *testing.T) {
+	tests := []struct {
+		name      string
+		payload   *membershipservice.ListProjectMembershipsPayload
 		wantErr   bool
 		wantCount int
 		wantTotal int
 	}{
 		{
-			name: "list all members",
-			payload: &membershipservice.ListMembersPayload{
-				PageSize: 25,
-				Offset:   0,
+			name: "list memberships for project with sample data",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
 			},
 			wantErr:   false,
 			wantCount: 1,
 			wantTotal: 1,
 		},
 		{
-			name: "list members with search",
-			payload: &membershipservice.ListMembersPayload{
-				PageSize: 25,
-				Offset:   0,
-				Search:   strPtr("Example"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list members with non-matching search",
-			payload: &membershipservice.ListMembersPayload{
-				PageSize: 25,
-				Offset:   0,
-				Search:   strPtr("NonExistent"),
+			name: "list memberships for project with no data",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("nonexistent-project"),
+				PageSize:   25,
+				Sort:       "newest",
 			},
 			wantErr:   false,
 			wantCount: 0,
 			wantTotal: 0,
 		},
 		{
-			name: "list members with name filter",
-			payload: &membershipservice.ListMembersPayload{
-				PageSize: 25,
-				Offset:   0,
-				Filter:   strPtr("name=Example"),
+			name: "list memberships with status filter matching",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				Filter:     strPtr("status=Active"),
 			},
 			wantErr:   false,
 			wantCount: 1,
 			wantTotal: 1,
 		},
 		{
-			name: "list members with project_slug filter",
-			payload: &membershipservice.ListMembersPayload{
-				PageSize: 25,
-				Offset:   0,
-				Filter:   strPtr("project_slug=linux-foundation"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list members with non-matching project_slug filter",
-			payload: &membershipservice.ListMembersPayload{
-				PageSize: 25,
-				Offset:   0,
-				Filter:   strPtr("project_slug=non-existent"),
+			name: "list memberships with status filter non-matching",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				Filter:     strPtr("status=Expired"),
 			},
 			wantErr:   false,
 			wantCount: 0,
 			wantTotal: 0,
 		},
 		{
-			name: "search members by project slug",
-			payload: &membershipservice.ListMembersPayload{
-				PageSize: 25,
-				Offset:   0,
-				Search:   strPtr("linux-foundation"),
+			name: "list memberships with tier filter matching",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				Filter:     strPtr("tier=Gold"),
+			},
+			wantErr:   false,
+			wantCount: 1,
+			wantTotal: 1,
+		},
+		{
+			name: "list memberships with project_slug filter matching",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				Filter:     strPtr("project_slug=linux-foundation"),
+			},
+			wantErr:   false,
+			wantCount: 1,
+			wantTotal: 1,
+		},
+		{
+			name: "list memberships with project_slug filter non-matching",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				Filter:     strPtr("project_slug=non-existent"),
+			},
+			wantErr:   false,
+			wantCount: 0,
+			wantTotal: 0,
+		},
+		{
+			name: "list memberships with search_name matching company name",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				SearchName: strPtr("Example"),
+			},
+			wantErr:   false,
+			wantCount: 1,
+			wantTotal: 1,
+		},
+		{
+			name: "list memberships with search_name non-matching",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				SearchName: strPtr("NonExistent"),
+			},
+			wantErr:   false,
+			wantCount: 0,
+			wantTotal: 0,
+		},
+		{
+			name: "list memberships sort by name",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "name",
+			},
+			wantErr:   false,
+			wantCount: 1,
+			wantTotal: 1,
+		},
+		{
+			name: "list memberships sort by last_modified",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "last_modified",
+			},
+			wantErr:   false,
+			wantCount: 1,
+			wantTotal: 1,
+		},
+		{
+			name: "list memberships with page token (continuation)",
+			payload: &membershipservice.ListProjectMembershipsPayload{
+				ProjectUID: strPtr("project-uid-1"),
+				PageSize:   25,
+				Sort:       "newest",
+				PageToken:  strPtr(""),
 			},
 			wantErr:   false,
 			wantCount: 1,
@@ -118,47 +272,50 @@ func TestListMembers(t *testing.T) {
 			svc := newTestService()
 			ctx := context.Background()
 
-			res, err := svc.ListMembers(ctx, tt.payload)
+			res, err := svc.ListProjectMemberships(ctx, tt.payload)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.NotNil(t, res)
-			assert.Len(t, res.Members, tt.wantCount)
-			assert.Equal(t, tt.wantTotal, res.Metadata.TotalSize)
+			require.NotNil(t, res)
+			assert.Len(t, res.Memberships, tt.wantCount)
+			if tt.wantTotal > 0 {
+				require.NotNil(t, res.Metadata.TotalSize, "expected non-nil TotalSize")
+				assert.Equal(t, tt.wantTotal, *res.Metadata.TotalSize)
+			}
 		})
 	}
 }
 
-func TestGetMemberMembership(t *testing.T) {
+func TestGetProjectMembership(t *testing.T) {
 	tests := []struct {
 		name    string
-		payload *membershipservice.GetMemberMembershipPayload
+		payload *membershipservice.GetProjectMembershipPayload
 		wantErr bool
 	}{
 		{
-			name: "get existing membership for member",
-			payload: &membershipservice.GetMemberMembershipPayload{
-				MemberID: strPtr("member-1"),
-				ID:       strPtr("membership-1"),
+			name: "get existing membership for project",
+			payload: &membershipservice.GetProjectMembershipPayload{
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
 			},
 			wantErr: false,
 		},
 		{
-			name: "get non-existing membership",
-			payload: &membershipservice.GetMemberMembershipPayload{
-				MemberID: strPtr("member-1"),
-				ID:       strPtr("non-existing"),
+			name: "get nonexistent membership",
+			payload: &membershipservice.GetProjectMembershipPayload{
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("nonexistent"),
 			},
 			wantErr: true,
 		},
 		{
-			name: "get membership for wrong member",
-			payload: &membershipservice.GetMemberMembershipPayload{
-				MemberID: strPtr("wrong-member"),
-				ID:       strPtr("membership-1"),
+			name: "get membership belonging to different project",
+			payload: &membershipservice.GetProjectMembershipPayload{
+				ProjectUID:    strPtr("wrong-project"),
+				MembershipUID: strPtr("membership-1"),
 			},
 			wantErr: true,
 		},
@@ -169,48 +326,97 @@ func TestGetMemberMembership(t *testing.T) {
 			svc := newTestService()
 			ctx := context.Background()
 
-			res, err := svc.GetMemberMembership(ctx, tt.payload)
+			res, err := svc.GetProjectMembership(ctx, tt.payload)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.NotNil(t, res)
-			assert.NotNil(t, res.Membership)
+			require.NotNil(t, res)
+			require.NotNil(t, res.Membership)
+			assert.Equal(t, "membership-1", *res.Membership.UID)
 		})
 	}
 }
 
-func TestListMemberMembershipKeyContacts(t *testing.T) {
+// ── Key contacts ──────────────────────────────────────────────────────────────
+
+func TestListMembershipKeyContacts(t *testing.T) {
 	tests := []struct {
 		name      string
-		payload   *membershipservice.ListMemberMembershipKeyContactsPayload
+		payload   *membershipservice.ListMembershipKeyContactsPayload
 		wantErr   bool
 		wantCount int
 	}{
 		{
 			name: "list contacts for existing membership",
-			payload: &membershipservice.ListMemberMembershipKeyContactsPayload{
-				MemberID: strPtr("member-1"),
-				ID:       strPtr("membership-1"),
+			payload: &membershipservice.ListMembershipKeyContactsPayload{
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
 			},
 			wantErr:   false,
 			wantCount: 1,
 		},
 		{
-			name: "list contacts for non-existing membership",
-			payload: &membershipservice.ListMemberMembershipKeyContactsPayload{
-				MemberID: strPtr("member-1"),
-				ID:       strPtr("non-existing"),
+			name: "list contacts for membership with no contacts",
+			payload: &membershipservice.ListMembershipKeyContactsPayload{
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("nonexistent-membership"),
+			},
+			wantErr:   false,
+			wantCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestService()
+			ctx := context.Background()
+
+			res, err := svc.ListMembershipKeyContacts(ctx, tt.payload)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			assert.Len(t, res.Contacts, tt.wantCount)
+		})
+	}
+}
+
+func TestGetMembershipKeyContact(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload *membershipservice.GetMembershipKeyContactPayload
+		wantErr bool
+	}{
+		{
+			name: "get existing key contact",
+			payload: &membershipservice.GetMembershipKeyContactPayload{
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
+				ContactUID:    strPtr("contact-role-1"),
+			},
+			wantErr: false,
+		},
+		{
+			name: "get nonexistent key contact",
+			payload: &membershipservice.GetMembershipKeyContactPayload{
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("membership-1"),
+				ContactUID:    strPtr("nonexistent-contact"),
 			},
 			wantErr: true,
 		},
 		{
-			name: "list contacts for wrong member",
-			payload: &membershipservice.ListMemberMembershipKeyContactsPayload{
-				MemberID: strPtr("wrong-member"),
-				ID:       strPtr("membership-1"),
+			name: "get key contact belonging to different membership",
+			payload: &membershipservice.GetMembershipKeyContactPayload{
+				ProjectUID:    strPtr("project-uid-1"),
+				MembershipUID: strPtr("wrong-membership"),
+				ContactUID:    strPtr("contact-role-1"),
 			},
 			wantErr: true,
 		},
@@ -221,18 +427,21 @@ func TestListMemberMembershipKeyContacts(t *testing.T) {
 			svc := newTestService()
 			ctx := context.Background()
 
-			res, err := svc.ListMemberMembershipKeyContacts(ctx, tt.payload)
+			res, err := svc.GetMembershipKeyContact(ctx, tt.payload)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.NotNil(t, res)
-			assert.Len(t, res.Contacts, tt.wantCount)
+			require.NotNil(t, res)
+			require.NotNil(t, res.Contact)
+			assert.Equal(t, "contact-role-1", *res.Contact.UID)
 		})
 	}
 }
+
+// ── Health probes ─────────────────────────────────────────────────────────────
 
 func TestReadyz(t *testing.T) {
 	svc := newTestService()
@@ -252,6 +461,8 @@ func TestLivez(t *testing.T) {
 	assert.Equal(t, []byte("OK\n"), res)
 }
 
+// ── Utility ───────────────────────────────────────────────────────────────────
+
 func TestParseFilters(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -259,24 +470,34 @@ func TestParseFilters(t *testing.T) {
 		want   map[string]string
 	}{
 		{
-			name:   "nil filter",
+			name:   "nil filter returns empty map",
 			filter: nil,
 			want:   map[string]string{},
 		},
 		{
-			name:   "empty filter",
+			name:   "empty filter returns empty map",
 			filter: strPtr(""),
 			want:   map[string]string{},
 		},
 		{
-			name:   "single filter",
+			name:   "single key=value pair",
 			filter: strPtr("status=Active"),
 			want:   map[string]string{"status": "Active"},
 		},
 		{
-			name:   "multiple filters",
+			name:   "multiple key=value pairs separated by semicolons",
 			filter: strPtr("status=Active;tier=Gold"),
 			want:   map[string]string{"status": "Active", "tier": "Gold"},
+		},
+		{
+			name:   "value with spaces trimmed",
+			filter: strPtr("status = Active ; tier = Gold"),
+			want:   map[string]string{"status": "Active", "tier": "Gold"},
+		},
+		{
+			name:   "pair without equals sign is ignored",
+			filter: strPtr("status=Active;badpair"),
+			want:   map[string]string{"status": "Active"},
 		},
 	}
 
@@ -286,8 +507,4 @@ func TestParseFilters(t *testing.T) {
 			assert.Equal(t, tt.want, result)
 		})
 	}
-}
-
-func strPtr(s string) *string {
-	return &s
 }

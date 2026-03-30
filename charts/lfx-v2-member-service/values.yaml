@@ -99,100 +99,41 @@ nats:
   # url is the URL of the NATS server
   url: nats://lfx-platform-nats.lfx.svc.cluster.local:4222
 
-  # kv_bucket_b2b_mapping is the configuration for the KV bucket storing forward-lookup indexes
-  # owned by the member service (account→assets, product2→assets, contact→project_roles, etc.).
-  kv_bucket_b2b_mapping:
+  # kv_bucket_cache is the configuration for the single membership-cache KV bucket.
+  # All cached records (tiers, memberships, key contacts, project ID mappings) are
+  # stored here with namespaced key prefixes to avoid collisions. The bucket-level
+  # TTL enforces hard eviction; per-item soft TTLs (6h stale, 23h expire) are
+  # written into each entry's CachedValue envelope by the service.
+  kv_bucket_cache:
     # creation is a boolean to determine if the KV bucket should be created via the helm chart.
     # set it to false if you want to use an existing KV bucket.
     creation: true
     # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
     # set it to false if you want the bucket to be deleted when the chart is uninstalled
     keep: true
-    # name is the name of the KV bucket for storing b2b forward-lookup mapping indexes
-    name: project-membership-mapping
-    # history is the number of history entries to keep for the KV bucket
+    # name is the name of the KV bucket
+    name: membership-cache
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
+    # history is the number of historical values to keep per key
     history: 1
     # storage is the storage type for the KV bucket
     storage: file
     # maxValueSize is the maximum size of a value in the KV bucket
-    maxValueSize: 1048576 # 1MB
-    # maxBytes is the maximum number of bytes in the KV bucket
-    maxBytes: 536870912 # 512MB
-    # compression is a boolean to determine if the KV bucket should be compressed
-    compression: true
-
-  # kv_bucket_memberships is the configuration for the KV bucket storing membership records
-  kv_bucket_memberships:
-    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
-    # set it to false if you want to use an existing KV bucket.
-    creation: true
-    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
-    # set it to false if you want the bucket to be deleted when the chart is uninstalled
-    keep: true
-    # name is the name of the KV bucket for storing membership records
-    name: memberships
-    # history is the number of history entries to keep for the KV bucket
-    history: 20
-    # storage is the storage type for the KV bucket
-    storage: file
-    # maxValueSize is the maximum size of a value in the KV bucket
     maxValueSize: 10485760 # 10MB
-    # maxBytes is the maximum number of bytes in the KV bucket
+    # maxBytes is the maximum total size of the KV bucket
     maxBytes: 1073741824 # 1GB
     # compression is a boolean to determine if the KV bucket should be compressed
     compression: true
-
-  # kv_bucket_membership_contacts is the configuration for the KV bucket storing membership contacts
-  kv_bucket_membership_contacts:
-    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
-    # set it to false if you want to use an existing KV bucket.
-    creation: true
-    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
-    # set it to false if you want the bucket to be deleted when the chart is uninstalled
-    keep: true
-    # name is the name of the KV bucket for storing membership contacts
-    name: membership-contacts
-    # history is the number of history entries to keep for the KV bucket
-    history: 20
-    # storage is the storage type for the KV bucket
-    storage: file
-    # maxValueSize is the maximum size of a value in the KV bucket
-    maxValueSize: 10485760 # 10MB
-    # maxBytes is the maximum number of bytes in the KV bucket
-    maxBytes: 1073741824 # 1GB
-    # compression is a boolean to determine if the KV bucket should be compressed
-    compression: true
-
-  # kv_bucket_members is the configuration for the KV bucket storing member records
-  kv_bucket_members:
-    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
-    # set it to false if you want to use an existing KV bucket.
-    creation: true
-    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
-    # set it to false if you want the bucket to be deleted when the chart is uninstalled
-    keep: true
-    # name is the name of the KV bucket for storing member records
-    name: members
-    # history is the number of history entries to keep for the KV bucket
-    history: 20
-    # storage is the storage type for the KV bucket
-    storage: file
-    # maxValueSize is the maximum size of a value in the KV bucket
-    maxValueSize: 10485760 # 10MB
-    # maxBytes is the maximum number of bytes in the KV bucket
-    maxBytes: 1073741824 # 1GB
-    # compression is a boolean to determine if the KV bucket should be compressed
-    compression: true
+    # ttl is the bucket-level hard eviction TTL for all entries
+    ttl: 24h
 
 # openfga is the configuration for the OpenFGA server
 openfga:
   # enabled is a boolean to determine if the OpenFGA server should be enabled for authorization
-  # Note: If it is disabled, then the member service will allow all requests
-  # (Disabling OpenFGA should only be used for local development).
+  # Note: If it is disabled, then the member service will allow all requests.
+  # (Disabling OpenFGA should only be used for local development.)
   enabled: true
-  # lfProjectUID is the v2 UID of the Linux Foundation project. Users must have the
-  # "auditor" relation on this project in OpenFGA to access the GET /members list endpoint.
-  lfProjectUID: ""
 
 # heimdall is the configuration for the heimdall middleware
 heimdall:
@@ -219,20 +160,20 @@ serviceAccount:
   # automountServiceAccountToken determines if the service account token should be automatically mounted
   automountServiceAccountToken: true
 
-# externalSecretsOperator is the configuration for the External Secrets Operator
-externalSecretsOperator:
-  # enabled controls whether ESO SecretStore and ExternalSecret resources are created
-  enabled: true
-
-  # externalSecret is the configuration for the ExternalSecret resource
-  externalSecret:
-    # refreshInterval is how often secrets are refreshed from AWS Secrets Manager
-    refreshInterval: "10m"
-
-    # data is the list of secret mappings from AWS Secrets Manager to Kubernetes secret keys.
-    # REQUIRED: Secrets must exist in AWS Secrets Manager (global.awsRegion)
-    data:
-      - secretKey: RDSDB
-        remoteRef:
-          key: /cloudops/managed-secrets/database/platform/shared
-          property: uri
+# salesforce contains a reference to a pre-existing Kubernetes Secret holding
+# Salesforce credentials. Create the secret out-of-band (e.g. via ESO, Sealed
+# Secrets, or kubectl) before deploying this chart. The chart does not create or
+# manage the secret itself.
+salesforce:
+  secrets:
+    # name is the name of the Kubernetes Secret containing Salesforce credentials.
+    name: lfx-v2-member-service-salesforce
+    # keys maps each credential to the key name used inside the Secret.
+    keys:
+      instanceURL: instance_url
+      clientID: client_id
+      clientSecret: client_secret
+      username: username
+      password: password
+      securityToken: security_token
+      consumerRSAPem: consumer_rsa_pem

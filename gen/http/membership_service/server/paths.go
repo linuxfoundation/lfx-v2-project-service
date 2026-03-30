@@ -12,19 +12,49 @@ import (
 	"fmt"
 )
 
-// ListMembersMembershipServicePath returns the URL path to the membership-service service list-members HTTP endpoint.
-func ListMembersMembershipServicePath() string {
-	return "/members"
+// ListProjectTiersMembershipServicePath returns the URL path to the membership-service service list-project-tiers HTTP endpoint.
+func ListProjectTiersMembershipServicePath(projectUID string) string {
+	return fmt.Sprintf("/projects/%v/tiers", projectUID)
 }
 
-// GetMemberMembershipMembershipServicePath returns the URL path to the membership-service service get-member-membership HTTP endpoint.
-func GetMemberMembershipMembershipServicePath(memberID string, id string) string {
-	return fmt.Sprintf("/members/%v/memberships/%v", memberID, id)
+// GetProjectTierMembershipServicePath returns the URL path to the membership-service service get-project-tier HTTP endpoint.
+func GetProjectTierMembershipServicePath(projectUID string, tierUID string) string {
+	return fmt.Sprintf("/projects/%v/tiers/%v", projectUID, tierUID)
 }
 
-// ListMemberMembershipKeyContactsMembershipServicePath returns the URL path to the membership-service service list-member-membership-key-contacts HTTP endpoint.
-func ListMemberMembershipKeyContactsMembershipServicePath(memberID string, id string) string {
-	return fmt.Sprintf("/members/%v/memberships/%v/key_contacts", memberID, id)
+// ListProjectMembershipsMembershipServicePath returns the URL path to the membership-service service list-project-memberships HTTP endpoint.
+func ListProjectMembershipsMembershipServicePath(projectUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships", projectUID)
+}
+
+// GetProjectMembershipMembershipServicePath returns the URL path to the membership-service service get-project-membership HTTP endpoint.
+func GetProjectMembershipMembershipServicePath(projectUID string, membershipUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v", projectUID, membershipUID)
+}
+
+// ListMembershipKeyContactsMembershipServicePath returns the URL path to the membership-service service list-membership-key-contacts HTTP endpoint.
+func ListMembershipKeyContactsMembershipServicePath(projectUID string, membershipUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts", projectUID, membershipUID)
+}
+
+// CreateMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service create-membership-key-contact HTTP endpoint.
+func CreateMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts", projectUID, membershipUID)
+}
+
+// UpdateMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service update-membership-key-contact HTTP endpoint.
+func UpdateMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string, contactUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, membershipUID, contactUID)
+}
+
+// DeleteMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service delete-membership-key-contact HTTP endpoint.
+func DeleteMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string, contactUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, membershipUID, contactUID)
+}
+
+// GetMembershipKeyContactMembershipServicePath returns the URL path to the membership-service service get-membership-key-contact HTTP endpoint.
+func GetMembershipKeyContactMembershipServicePath(projectUID string, membershipUID string, contactUID string) string {
+	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, membershipUID, contactUID)
 }
 
 // ReadyzMembershipServicePath returns the URL path to the membership-service service readyz HTTP endpoint.

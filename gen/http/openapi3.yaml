@@ -6,13 +6,13 @@ servers:
     - url: http://localhost:80
       description: Default server for membership
 paths:
-    /members:
+    /projects/{project_uid}/memberships:
         get:
             tags:
                 - membership-service
-            summary: list-members membership-service
-            description: List members with pagination, filtering, and search
-            operationId: membership-service#list-members
+            summary: list-project-memberships membership-service
+            description: List memberships (Asset records) for a specific project, with denormalized company attributes
+            operationId: membership-service#list-project-memberships
             parameters:
                 - name: v
                   in: query
@@ -25,47 +25,68 @@ paths:
                     enum:
                         - "1"
                   example: "1"
+                - name: project_uid
+                  in: path
+                  description: V2 project UUID
+                  required: true
+                  schema:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                 - name: pageSize
                   in: query
-                  description: Number of items per page
+                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
                   allowEmptyValue: true
                   schema:
                     type: integer
-                    description: Number of items per page
-                    default: 25
-                    example: 25
+                    description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
+                    default: 200
+                    example: 200
                     format: int64
                     minimum: 1
-                    maximum: 100
-                  example: 25
-                - name: offset
+                    maximum: 1000
+                  example: 200
+                - name: pageToken
                   in: query
-                  description: Offset into the total list
+                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
                   allowEmptyValue: true
                   schema:
-                    type: integer
-                    description: Offset into the total list
-                    default: 0
-                    example: 0
-                    format: int64
-                    minimum: 0
-                  example: 0
+                    type: string
+                    description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
+                    example: ""
+                  example: ""
+                - name: sort
+                  in: query
+                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                    default: newest
+                    example: newest
+                    enum:
+                        - name
+                        - newest
+                        - last_modified
+                  example: newest
                 - name: filter
                   in: query
-                  description: Filter expression (key=value pairs separated by semicolons)
+                  description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
                   allowEmptyValue: true
                   schema:
                     type: string
-                    description: Filter expression (key=value pairs separated by semicolons)
-                    example: status=Active;tier=Gold
-                  example: status=Active;tier=Gold
-                - name: search
+                    description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
+                    example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: search_name
                   in: query
-                  description: Free-text search across member name, project names, and tiers
+                  description: Search memberships by member company name (case-insensitive substring match)
                   allowEmptyValue: true
                   schema:
                     type: string
-                    description: Free-text search across member name, project names, and tiers
+                    description: Search memberships by member company name (case-insensitive substring match)
                     example: Linux
                   example: Linux
             responses:
@@ -74,226 +95,120 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/ListMembersResponseBody'
+                                $ref: '#/components/schemas/ListProjectMembershipsResponseBody'
                             example:
-                                members:
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      logo_url: https://example.com/logo.png
-                                      membership_summary:
-                                        active_count: 1
-                                        memberships:
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                        total_count: 2
-                                      name: Example Corp
-                                      uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                memberships:
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
-                                      website: https://example.com
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      logo_url: https://example.com/logo.png
-                                      membership_summary:
-                                        active_count: 1
-                                        memberships:
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                            - auto_renew: true
-                                              end_date: "2025-12-31T23:59:59Z"
-                                              membership_type: Corporate
-                                              name: Gold Membership - Example Corp
-                                              product:
-                                                family: Membership
-                                                id: prod-123
-                                                name: Gold Membership
-                                                type: Corporate
-                                              project:
-                                                id: proj-123
-                                                logo_url: https://example.com/project-logo.png
-                                                name: Linux Foundation
-                                                slug: linux-foundation
-                                                status: Active
-                                              start_date: "2025-01-01T00:00:00Z"
-                                              status: Active
-                                              tier: Gold
-                                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                              year: "2025"
-                                        total_count: 2
-                                      name: Example Corp
-                                      uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                      year: "2025"
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
-                                      website: https://example.com
+                                      year: "2025"
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                      year: "2025"
                                 metadata:
-                                    offset: 0
-                                    page_size: 10
+                                    next_page_token: ""
                                     total_size: 100
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/BadRequestError'
-                            example:
-                                message: The request was invalid.
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Project not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
-    /members/{member_id}/memberships/{id}:
+    /projects/{project_uid}/memberships/{membership_uid}:
         get:
             tags:
                 - membership-service
-            summary: get-member-membership membership-service
-            description: Get a specific membership for a member
-            operationId: membership-service#get-member-membership
+            summary: get-project-membership membership-service
+            description: Get a specific membership by UID within a project
+            operationId: membership-service#get-project-membership
             parameters:
                 - name: v
                   in: query
@@ -306,26 +221,26 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: member_id
+                - name: project_uid
                   in: path
-                  description: Member UID
+                  description: V2 project UUID
                   required: true
                   schema:
                     type: string
-                    description: Member UID
-                    example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                     format: uuid
-                  example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                - name: id
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
                   schema:
                     type: string
                     description: Membership UID
-                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
-                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
             responses:
                 "200":
                     description: OK response.
@@ -340,81 +255,60 @@ paths:
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/MembershipResponse'
+                                $ref: '#/components/schemas/ProjectMembershipResponse'
                             example:
-                                account:
-                                    id: acc-123
-                                    logo_url: https://example.com/logo.png
-                                    name: Example Corp
-                                    website: https://example.com
                                 agreement_date: "2025-01-01T00:00:00Z"
                                 annual_full_price: 50000
                                 auto_renew: true
-                                contact:
-                                    email: john.doe@example.com
-                                    first_name: John
-                                    id: con-123
-                                    last_name: Doe
-                                    title: CTO
+                                company_domain: https://example.com
+                                company_logo_url: https://example.com/logo.png
+                                company_name: Example Corp
                                 created_at: "2025-01-01T00:00:00Z"
                                 end_date: "2025-12-31T23:59:59Z"
                                 membership_type: Corporate
-                                name: Gold Membership - Example Corp
                                 payment_frequency: Annual
                                 payment_terms: Net 30
                                 price: 50000
-                                product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                purchase_date: "2025-01-01T00:00:00Z"
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                purchase_date: "2025-01-15T00:00:00Z"
                                 renewal_type: Annual
-                                start_date: "2025-01-01T00:00:00Z"
+                                start_date: "2025-02-01T00:00:00Z"
                                 status: Active
                                 tier: Gold
-                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                tier_family: Membership
+                                tier_name: Gold Corporate Membership
+                                tier_product_type: Corporate
+                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 updated_at: "2025-06-01T12:00:00Z"
                                 year: "2025"
                 "404":
-                    description: 'NotFound: Resource not found'
+                    description: 'NotFound: Membership not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
-                            example:
-                                message: The service is unavailable.
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
-    /members/{member_id}/memberships/{id}/key_contacts:
+    /projects/{project_uid}/memberships/{membership_uid}/key_contacts:
         get:
             tags:
                 - membership-service
-            summary: list-member-membership-key-contacts membership-service
-            description: Get key contacts for a specific membership under a member
-            operationId: membership-service#list-member-membership-key-contacts
+            summary: list-membership-key-contacts membership-service
+            description: List key contacts (Project_Role__c records) for a specific membership, with denormalized contact and company attributes
+            operationId: membership-service#list-membership-key-contacts
             parameters:
                 - name: v
                   in: query
@@ -427,1086 +321,1047 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: member_id
+                - name: project_uid
                   in: path
-                  description: Member UID
+                  description: V2 project UUID
                   required: true
                   schema:
                     type: string
-                    description: Member UID
-                    example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                     format: uuid
-                  example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                - name: id
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                - name: membership_uid
                   in: path
                   description: Membership UID
                   required: true
                   schema:
                     type: string
                     description: Membership UID
-                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
-                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
             responses:
                 "200":
                     description: OK response.
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/ListMemberMembershipKeyContactsResponseBody'
+                                $ref: '#/components/schemas/ListMembershipKeyContactsResponseBody'
                             example:
                                 contacts:
                                     - board_member: false
-                                      contact:
-                                        email: john.doe@example.com
-                                        first_name: John
-                                        id: con-123
-                                        last_name: Doe
-                                        title: CTO
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
-                                      membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      organization:
-                                        id: org-123
-                                        logo_url: https://example.com/org-logo.png
-                                        name: Example Corp
-                                        website: https://example.com
+                                      email: john.doe@example.com
+                                      first_name: John
+                                      last_name: Doe
+                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       primary_contact: true
-                                      project:
-                                        id: proj-123
-                                        logo_url: https://example.com/project-logo.png
-                                        name: Linux Foundation
-                                        slug: linux-foundation
-                                        status: Active
-                                      role: Primary Contact
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      role: Voting Representative
                                       status: Active
-                                      uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      title: CTO
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
                                     - board_member: false
-                                      contact:
-                                        email: john.doe@example.com
-                                        first_name: John
-                                        id: con-123
-                                        last_name: Doe
-                                        title: CTO
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
-                                      membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      organization:
-                                        id: org-123
-                                        logo_url: https://example.com/org-logo.png
-                                        name: Example Corp
-                                        website: https://example.com
+                                      email: john.doe@example.com
+                                      first_name: John
+                                      last_name: Doe
+                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       primary_contact: true
-                                      project:
-                                        id: proj-123
-                                        logo_url: https://example.com/project-logo.png
-                                        name: Linux Foundation
-                                        slug: linux-foundation
-                                        status: Active
-                                      role: Primary Contact
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      role: Voting Representative
                                       status: Active
-                                      uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      title: CTO
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
                                     - board_member: false
-                                      contact:
-                                        email: john.doe@example.com
-                                        first_name: John
-                                        id: con-123
-                                        last_name: Doe
-                                        title: CTO
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
-                                      membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      organization:
-                                        id: org-123
-                                        logo_url: https://example.com/org-logo.png
-                                        name: Example Corp
-                                        website: https://example.com
+                                      email: john.doe@example.com
+                                      first_name: John
+                                      last_name: Doe
+                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       primary_contact: true
-                                      project:
-                                        id: proj-123
-                                        logo_url: https://example.com/project-logo.png
-                                        name: Linux Foundation
-                                        slug: linux-foundation
-                                        status: Active
-                                      role: Primary Contact
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      role: Voting Representative
                                       status: Active
-                                      uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      title: CTO
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
                 "404":
                     description: 'NotFound: Membership not found'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/NotFoundError'
-                            example:
-                                message: The resource was not found.
+                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
-                        application/json:
+                        application/vnd.goa.error:
                             schema:
-                                $ref: '#/components/schemas/InternalServerError'
-                            example:
-                                message: An internal server error occurred.
+                                $ref: '#/components/schemas/Error'
                 "503":
                     description: 'ServiceUnavailable: Service unavailable'
                     content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        post:
+            tags:
+                - membership-service
+            summary: create-membership-key-contact membership-service
+            description: Create a new key contact (Project_Role__c record) for a specific membership
+            operationId: membership-service#create-membership-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_uid
+                  in: path
+                  description: V2 project UUID
+                  required: true
+                  schema:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                - name: membership_uid
+                  in: path
+                  description: Membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateMembershipKeyContactRequestBody'
+                        example:
+                            board_member: false
+                            email: john.doe@example.com
+                            first_name: John
+                            last_name: Doe
+                            primary_contact: false
+                            role: Voting Representative
+                            status: Active
+                            title: CTO
+            responses:
+                "201":
+                    description: Created response.
+                    content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/ServiceUnavailableError'
+                                $ref: '#/components/schemas/ProjectKeyContactResponse'
                             example:
-                                message: The service is unavailable.
+                                board_member: false
+                                company_domain: https://example.com
+                                company_logo_url: https://example.com/logo.png
+                                company_name: Example Corp
+                                created_at: "2025-01-01T00:00:00Z"
+                                email: john.doe@example.com
+                                first_name: John
+                                last_name: Doe
+                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                primary_contact: true
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                role: Voting Representative
+                                status: Active
+                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                title: CTO
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Membership not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}:
+        delete:
+            tags:
+                - membership-service
+            summary: delete-membership-key-contact membership-service
+            description: Delete a key contact (Project_Role__c record) from a membership
+            operationId: membership-service#delete-membership-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_uid
+                  in: path
+                  description: V2 project UUID
+                  required: true
+                  schema:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                - name: membership_uid
+                  in: path
+                  description: Membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: contact_uid
+                  in: path
+                  description: Key contact UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Key contact UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            responses:
+                "204":
+                    description: No Content response.
+                "404":
+                    description: 'NotFound: Key contact not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        get:
+            tags:
+                - membership-service
+            summary: get-membership-key-contact membership-service
+            description: Get a specific key contact by UID within a membership
+            operationId: membership-service#get-membership-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_uid
+                  in: path
+                  description: V2 project UUID
+                  required: true
+                  schema:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                - name: membership_uid
+                  in: path
+                  description: Membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: contact_uid
+                  in: path
+                  description: Key contact UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Key contact UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectKeyContactResponse'
+                            example:
+                                board_member: false
+                                company_domain: https://example.com
+                                company_logo_url: https://example.com/logo.png
+                                company_name: Example Corp
+                                created_at: "2025-01-01T00:00:00Z"
+                                email: john.doe@example.com
+                                first_name: John
+                                last_name: Doe
+                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                primary_contact: true
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                role: Voting Representative
+                                status: Active
+                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                title: CTO
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                "404":
+                    description: 'NotFound: Key contact not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        put:
+            tags:
+                - membership-service
+            summary: update-membership-key-contact membership-service
+            description: Update a key contact (Project_Role__c record) within a membership
+            operationId: membership-service#update-membership-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_uid
+                  in: path
+                  description: V2 project UUID
+                  required: true
+                  schema:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                - name: membership_uid
+                  in: path
+                  description: Membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: contact_uid
+                  in: path
+                  description: Key contact UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Key contact UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateMembershipKeyContactRequestBody'
+                        example:
+                            board_member: false
+                            primary_contact: false
+                            role: Voting Representative
+                            status: Active
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectKeyContactResponse'
+                            example:
+                                board_member: false
+                                company_domain: https://example.com
+                                company_logo_url: https://example.com/logo.png
+                                company_name: Example Corp
+                                created_at: "2025-01-01T00:00:00Z"
+                                email: john.doe@example.com
+                                first_name: John
+                                last_name: Doe
+                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                primary_contact: true
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                role: Voting Representative
+                                status: Active
+                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                title: CTO
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Key contact not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /projects/{project_uid}/tiers:
+        get:
+            tags:
+                - membership-service
+            summary: list-project-tiers membership-service
+            description: List membership tiers (Product2 records) for a specific project
+            operationId: membership-service#list-project-tiers
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_uid
+                  in: path
+                  description: V2 project UUID
+                  required: true
+                  schema:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListProjectTiersResponseBody'
+                            example:
+                                tiers:
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      family: Membership
+                                      name: Gold Corporate Membership
+                                      product_type: Corporate
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      family: Membership
+                                      name: Gold Corporate Membership
+                                      product_type: Corporate
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      family: Membership
+                                      name: Gold Corporate Membership
+                                      product_type: Corporate
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      family: Membership
+                                      name: Gold Corporate Membership
+                                      product_type: Corporate
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                "404":
+                    description: 'NotFound: Project not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /projects/{project_uid}/tiers/{tier_uid}:
+        get:
+            tags:
+                - membership-service
+            summary: get-project-tier membership-service
+            description: Get a specific membership tier by UID
+            operationId: membership-service#get-project-tier
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: project_uid
+                  in: path
+                  description: V2 project UUID
+                  required: true
+                  schema:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                - name: tier_uid
+                  in: path
+                  description: Membership tier UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Membership tier UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MembershipTierResponse'
+                            example:
+                                created_at: "2025-01-01T00:00:00Z"
+                                family: Membership
+                                name: Gold Corporate Membership
+                                product_type: Corporate
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                "404":
+                    description: 'NotFound: Tier not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
 components:
     schemas:
-        AccountType:
-            type: object
-            properties:
-                id:
-                    type: string
-                    description: Account ID
-                    example: acc-123
-                logo_url:
-                    type: string
-                    description: Account logo URL
-                    example: https://example.com/logo.png
-                name:
-                    type: string
-                    description: Account name
-                    example: Example Corp
-                website:
-                    type: string
-                    description: Account website
-                    example: https://example.com
-            example:
-                id: acc-123
-                logo_url: https://example.com/logo.png
-                name: Example Corp
-                website: https://example.com
-        BadRequestError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: The request was invalid.
-            example:
-                message: The request was invalid.
-            required:
-                - message
-        ContactType:
-            type: object
-            properties:
-                email:
-                    type: string
-                    description: Email address
-                    example: john.doe@example.com
-                first_name:
-                    type: string
-                    description: First name
-                    example: John
-                id:
-                    type: string
-                    description: Contact ID
-                    example: con-123
-                last_name:
-                    type: string
-                    description: Last name
-                    example: Doe
-                title:
-                    type: string
-                    description: Job title
-                    example: CTO
-            example:
-                email: john.doe@example.com
-                first_name: John
-                id: con-123
-                last_name: Doe
-                title: CTO
-        InternalServerError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: An internal server error occurred.
-            example:
-                message: An internal server error occurred.
-            required:
-                - message
-        KeyContactResponse:
+        CreateMembershipKeyContactRequestBody:
             type: object
             properties:
                 board_member:
                     type: boolean
-                    description: Whether this is a board member
+                    description: Whether this contact holds a board member role
                     example: false
-                contact:
-                    $ref: '#/components/schemas/ContactType'
-                created_at:
+                email:
                     type: string
-                    description: Creation timestamp
-                    example: "2025-01-01T00:00:00Z"
-                    format: date-time
-                membership_uid:
+                    description: Contact email address; used to resolve or create the B2B Salesforce Contact record
+                    example: john.doe@example.com
+                    format: email
+                first_name:
                     type: string
-                    description: Membership UID
-                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                    format: uuid
-                organization:
-                    $ref: '#/components/schemas/OrganizationType'
+                    description: Contact first name; used when creating a new Contact on miss
+                    example: John
+                last_name:
+                    type: string
+                    description: Contact last name; used when creating a new Contact on miss
+                    example: Doe
                 primary_contact:
                     type: boolean
-                    description: Whether this is a primary contact
-                    example: true
-                project:
-                    $ref: '#/components/schemas/ProjectType'
+                    description: Whether this is the primary contact for the membership
+                    example: false
                 role:
                     type: string
-                    description: Contact role
-                    example: Primary Contact
+                    description: Contact role designation, e.g. 'Voting Representative'
+                    example: Voting Representative
                 status:
                     type: string
-                    description: Contact status
+                    description: Role record status, e.g. 'Active'
                     example: Active
-                uid:
+                title:
                     type: string
-                    description: Key contact UID
-                    example: 2200b646-fbb2-4de7-ad80-fd195a874baf
-                    format: uuid
-                updated_at:
-                    type: string
-                    description: Last update timestamp
-                    example: "2025-06-01T12:00:00Z"
-                    format: date-time
-            description: A key contact resource
+                    description: Contact job title; used when creating a new Contact on miss
+                    example: CTO
             example:
                 board_member: false
-                contact:
-                    email: john.doe@example.com
-                    first_name: John
-                    id: con-123
-                    last_name: Doe
-                    title: CTO
-                created_at: "2025-01-01T00:00:00Z"
-                membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                organization:
-                    id: org-123
-                    logo_url: https://example.com/org-logo.png
-                    name: Example Corp
-                    website: https://example.com
-                primary_contact: true
-                project:
-                    id: proj-123
-                    logo_url: https://example.com/project-logo.png
-                    name: Linux Foundation
-                    slug: linux-foundation
-                    status: Active
-                role: Primary Contact
+                email: john.doe@example.com
+                first_name: John
+                last_name: Doe
+                primary_contact: false
+                role: Voting Representative
                 status: Active
-                uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
-                updated_at: "2025-06-01T12:00:00Z"
-        ListMemberMembershipKeyContactsResponseBody:
+                title: CTO
+            required:
+                - email
+                - first_name
+                - last_name
+        Error:
+            type: object
+            properties:
+                fault:
+                    type: boolean
+                    description: Is the error a server-side fault?
+                    example: false
+                id:
+                    type: string
+                    description: ID is a unique identifier for this particular occurrence of the problem.
+                    example: 123abc
+                message:
+                    type: string
+                    description: Message is a human-readable explanation specific to this occurrence of the problem.
+                    example: parameter 'p' must be an integer
+                name:
+                    type: string
+                    description: Name is the name of this class of errors.
+                    example: bad_request
+                temporary:
+                    type: boolean
+                    description: Is the error temporary?
+                    example: true
+                timeout:
+                    type: boolean
+                    description: Is the error a timeout?
+                    example: false
+            description: Project not found
+            example:
+                fault: false
+                id: 123abc
+                message: parameter 'p' must be an integer
+                name: bad_request
+                temporary: false
+                timeout: false
+            required:
+                - name
+                - id
+                - message
+                - temporary
+                - timeout
+                - fault
+        ListMembershipKeyContactsResponseBody:
             type: object
             properties:
                 contacts:
                     type: array
                     items:
-                        $ref: '#/components/schemas/KeyContactResponse'
+                        $ref: '#/components/schemas/ProjectKeyContactResponse'
                     description: List of key contacts
                     example:
                         - board_member: false
-                          contact:
-                            email: john.doe@example.com
-                            first_name: John
-                            id: con-123
-                            last_name: Doe
-                            title: CTO
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
-                          membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          organization:
-                            id: org-123
-                            logo_url: https://example.com/org-logo.png
-                            name: Example Corp
-                            website: https://example.com
+                          email: john.doe@example.com
+                          first_name: John
+                          last_name: Doe
+                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           primary_contact: true
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          role: Primary Contact
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          role: Voting Representative
                           status: Active
-                          uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          title: CTO
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
                         - board_member: false
-                          contact:
-                            email: john.doe@example.com
-                            first_name: John
-                            id: con-123
-                            last_name: Doe
-                            title: CTO
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
-                          membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          organization:
-                            id: org-123
-                            logo_url: https://example.com/org-logo.png
-                            name: Example Corp
-                            website: https://example.com
+                          email: john.doe@example.com
+                          first_name: John
+                          last_name: Doe
+                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           primary_contact: true
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          role: Primary Contact
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          role: Voting Representative
                           status: Active
-                          uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          title: CTO
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
                         - board_member: false
-                          contact:
-                            email: john.doe@example.com
-                            first_name: John
-                            id: con-123
-                            last_name: Doe
-                            title: CTO
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
-                          membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          organization:
-                            id: org-123
-                            logo_url: https://example.com/org-logo.png
-                            name: Example Corp
-                            website: https://example.com
+                          email: john.doe@example.com
+                          first_name: John
+                          last_name: Doe
+                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           primary_contact: true
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          role: Primary Contact
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          role: Voting Representative
                           status: Active
-                          uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          title: CTO
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
                         - board_member: false
-                          contact:
-                            email: john.doe@example.com
-                            first_name: John
-                            id: con-123
-                            last_name: Doe
-                            title: CTO
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
-                          membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          organization:
-                            id: org-123
-                            logo_url: https://example.com/org-logo.png
-                            name: Example Corp
-                            website: https://example.com
+                          email: john.doe@example.com
+                          first_name: John
+                          last_name: Doe
+                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           primary_contact: true
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          role: Primary Contact
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          role: Voting Representative
                           status: Active
-                          uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          title: CTO
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
             example:
                 contacts:
                     - board_member: false
-                      contact:
-                        email: john.doe@example.com
-                        first_name: John
-                        id: con-123
-                        last_name: Doe
-                        title: CTO
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
                       created_at: "2025-01-01T00:00:00Z"
-                      membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      organization:
-                        id: org-123
-                        logo_url: https://example.com/org-logo.png
-                        name: Example Corp
-                        website: https://example.com
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       primary_contact: true
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      role: Primary Contact
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
                       status: Active
-                      uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
                     - board_member: false
-                      contact:
-                        email: john.doe@example.com
-                        first_name: John
-                        id: con-123
-                        last_name: Doe
-                        title: CTO
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
                       created_at: "2025-01-01T00:00:00Z"
-                      membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      organization:
-                        id: org-123
-                        logo_url: https://example.com/org-logo.png
-                        name: Example Corp
-                        website: https://example.com
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       primary_contact: true
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      role: Primary Contact
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
                       status: Active
-                      uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
                     - board_member: false
-                      contact:
-                        email: john.doe@example.com
-                        first_name: John
-                        id: con-123
-                        last_name: Doe
-                        title: CTO
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
                       created_at: "2025-01-01T00:00:00Z"
-                      membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      organization:
-                        id: org-123
-                        logo_url: https://example.com/org-logo.png
-                        name: Example Corp
-                        website: https://example.com
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       primary_contact: true
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      role: Primary Contact
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
                       status: Active
-                      uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - board_member: false
-                      contact:
-                        email: john.doe@example.com
-                        first_name: John
-                        id: con-123
-                        last_name: Doe
-                        title: CTO
-                      created_at: "2025-01-01T00:00:00Z"
-                      membership_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      organization:
-                        id: org-123
-                        logo_url: https://example.com/org-logo.png
-                        name: Example Corp
-                        website: https://example.com
-                      primary_contact: true
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      role: Primary Contact
-                      status: Active
-                      uid: 2200b646-fbb2-4de7-ad80-fd195a874baf
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
             required:
                 - contacts
-        ListMembersResponseBody:
-            type: object
-            properties:
-                members:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/MemberResponse'
-                    description: List of members
-                    example:
-                        - created_at: "2025-01-01T00:00:00Z"
-                          logo_url: https://example.com/logo.png
-                          membership_summary:
-                            active_count: 1
-                            memberships:
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                            total_count: 2
-                          name: Example Corp
-                          uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                          updated_at: "2025-06-01T12:00:00Z"
-                          website: https://example.com
-                        - created_at: "2025-01-01T00:00:00Z"
-                          logo_url: https://example.com/logo.png
-                          membership_summary:
-                            active_count: 1
-                            memberships:
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                            total_count: 2
-                          name: Example Corp
-                          uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                          updated_at: "2025-06-01T12:00:00Z"
-                          website: https://example.com
-                        - created_at: "2025-01-01T00:00:00Z"
-                          logo_url: https://example.com/logo.png
-                          membership_summary:
-                            active_count: 1
-                            memberships:
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                            total_count: 2
-                          name: Example Corp
-                          uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                          updated_at: "2025-06-01T12:00:00Z"
-                          website: https://example.com
-                        - created_at: "2025-01-01T00:00:00Z"
-                          logo_url: https://example.com/logo.png
-                          membership_summary:
-                            active_count: 1
-                            memberships:
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                                - auto_renew: true
-                                  end_date: "2025-12-31T23:59:59Z"
-                                  membership_type: Corporate
-                                  name: Gold Membership - Example Corp
-                                  product:
-                                    family: Membership
-                                    id: prod-123
-                                    name: Gold Membership
-                                    type: Corporate
-                                  project:
-                                    id: proj-123
-                                    logo_url: https://example.com/project-logo.png
-                                    name: Linux Foundation
-                                    slug: linux-foundation
-                                    status: Active
-                                  start_date: "2025-01-01T00:00:00Z"
-                                  status: Active
-                                  tier: Gold
-                                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                  year: "2025"
-                            total_count: 2
-                          name: Example Corp
-                          uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                          updated_at: "2025-06-01T12:00:00Z"
-                          website: https://example.com
-                metadata:
-                    $ref: '#/components/schemas/ListMetadata'
-            example:
-                members:
-                    - created_at: "2025-01-01T00:00:00Z"
-                      logo_url: https://example.com/logo.png
-                      membership_summary:
-                        active_count: 1
-                        memberships:
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                        total_count: 2
-                      name: Example Corp
-                      uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                      updated_at: "2025-06-01T12:00:00Z"
-                      website: https://example.com
-                    - created_at: "2025-01-01T00:00:00Z"
-                      logo_url: https://example.com/logo.png
-                      membership_summary:
-                        active_count: 1
-                        memberships:
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                            - auto_renew: true
-                              end_date: "2025-12-31T23:59:59Z"
-                              membership_type: Corporate
-                              name: Gold Membership - Example Corp
-                              product:
-                                family: Membership
-                                id: prod-123
-                                name: Gold Membership
-                                type: Corporate
-                              project:
-                                id: proj-123
-                                logo_url: https://example.com/project-logo.png
-                                name: Linux Foundation
-                                slug: linux-foundation
-                                status: Active
-                              start_date: "2025-01-01T00:00:00Z"
-                              status: Active
-                              tier: Gold
-                              uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                              year: "2025"
-                        total_count: 2
-                      name: Example Corp
-                      uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                      updated_at: "2025-06-01T12:00:00Z"
-                      website: https://example.com
-                metadata:
-                    offset: 0
-                    page_size: 10
-                    total_size: 100
-            required:
-                - members
-                - metadata
         ListMetadata:
             type: object
             properties:
-                offset:
-                    type: integer
-                    description: Offset into the total list
-                    example: 0
-                    format: int64
-                page_size:
-                    type: integer
-                    description: Number of items per page
-                    example: 10
-                    format: int64
+                next_page_token:
+                    type: string
+                    description: Opaque cursor for the next page. Pass this value as the page_token query parameter to retrieve the next page. Empty or absent when this is the last page.
+                    example: ""
                 total_size:
                     type: integer
-                    description: Total number of items
+                    description: Total number of records matching the query, as reported by Salesforce. Set on the first page; may be 0 on continuation pages.
                     example: 100
                     format: int64
             description: Pagination metadata for list responses
             example:
-                offset: 0
-                page_size: 10
+                next_page_token: ""
                 total_size: 100
+        ListProjectMembershipsResponseBody:
+            type: object
+            properties:
+                memberships:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ProjectMembershipResponse'
+                    description: List of project memberships
+                    example:
+                        - agreement_date: "2025-01-01T00:00:00Z"
+                          annual_full_price: 50000
+                          auto_renew: true
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
+                          created_at: "2025-01-01T00:00:00Z"
+                          end_date: "2025-12-31T23:59:59Z"
+                          membership_type: Corporate
+                          payment_frequency: Annual
+                          payment_terms: Net 30
+                          price: 50000
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          purchase_date: "2025-01-15T00:00:00Z"
+                          renewal_type: Annual
+                          start_date: "2025-02-01T00:00:00Z"
+                          status: Active
+                          tier: Gold
+                          tier_family: Membership
+                          tier_name: Gold Corporate Membership
+                          tier_product_type: Corporate
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+                          year: "2025"
+                        - agreement_date: "2025-01-01T00:00:00Z"
+                          annual_full_price: 50000
+                          auto_renew: true
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
+                          created_at: "2025-01-01T00:00:00Z"
+                          end_date: "2025-12-31T23:59:59Z"
+                          membership_type: Corporate
+                          payment_frequency: Annual
+                          payment_terms: Net 30
+                          price: 50000
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          purchase_date: "2025-01-15T00:00:00Z"
+                          renewal_type: Annual
+                          start_date: "2025-02-01T00:00:00Z"
+                          status: Active
+                          tier: Gold
+                          tier_family: Membership
+                          tier_name: Gold Corporate Membership
+                          tier_product_type: Corporate
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+                          year: "2025"
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+            example:
+                memberships:
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
+                metadata:
+                    next_page_token: ""
+                    total_size: 100
             required:
-                - total_size
-                - page_size
-                - offset
-        MemberResponse:
+                - memberships
+                - metadata
+        ListProjectTiersResponseBody:
+            type: object
+            properties:
+                tiers:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/MembershipTierResponse'
+                    description: List of membership tiers
+                    example:
+                        - created_at: "2025-01-01T00:00:00Z"
+                          family: Membership
+                          name: Gold Corporate Membership
+                          product_type: Corporate
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+                        - created_at: "2025-01-01T00:00:00Z"
+                          family: Membership
+                          name: Gold Corporate Membership
+                          product_type: Corporate
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+            example:
+                tiers:
+                    - created_at: "2025-01-01T00:00:00Z"
+                      family: Membership
+                      name: Gold Corporate Membership
+                      product_type: Corporate
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      family: Membership
+                      name: Gold Corporate Membership
+                      product_type: Corporate
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+            required:
+                - tiers
+        MembershipTierResponse:
             type: object
             properties:
                 created_at:
@@ -1514,142 +1369,166 @@ components:
                     description: Creation timestamp
                     example: "2025-01-01T00:00:00Z"
                     format: date-time
-                logo_url:
+                family:
                     type: string
-                    description: Member logo URL
-                    example: https://example.com/logo.png
-                membership_summary:
-                    $ref: '#/components/schemas/MembershipSummaryType'
+                    description: Product family, e.g. 'Membership'
+                    example: Membership
                 name:
                     type: string
-                    description: Member name
-                    example: Example Corp
+                    description: Product name, e.g. 'Gold Corporate Membership'
+                    example: Gold Corporate Membership
+                product_type:
+                    type: string
+                    description: Product type (Type__c)
+                    example: Corporate
+                project_uid:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
                 uid:
                     type: string
-                    description: Member UID
-                    example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    description: Tier UID (invertible UUID v8 from Product2.Id)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
                 updated_at:
                     type: string
                     description: Last update timestamp
                     example: "2025-06-01T12:00:00Z"
                     format: date-time
-                website:
-                    type: string
-                    description: Member website
-                    example: https://example.com
-            description: A member (account/organization) resource
+            description: A membership tier (Product2) scoped to a project
             example:
                 created_at: "2025-01-01T00:00:00Z"
-                logo_url: https://example.com/logo.png
-                membership_summary:
-                    active_count: 1
-                    memberships:
-                        - auto_renew: true
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          name: Gold Membership - Example Corp
-                          product:
-                            family: Membership
-                            id: prod-123
-                            name: Gold Membership
-                            type: Corporate
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          start_date: "2025-01-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          year: "2025"
-                        - auto_renew: true
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          name: Gold Membership - Example Corp
-                          product:
-                            family: Membership
-                            id: prod-123
-                            name: Gold Membership
-                            type: Corporate
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          start_date: "2025-01-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          year: "2025"
-                        - auto_renew: true
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          name: Gold Membership - Example Corp
-                          product:
-                            family: Membership
-                            id: prod-123
-                            name: Gold Membership
-                            type: Corporate
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          start_date: "2025-01-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          year: "2025"
-                        - auto_renew: true
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          name: Gold Membership - Example Corp
-                          product:
-                            family: Membership
-                            id: prod-123
-                            name: Gold Membership
-                            type: Corporate
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          start_date: "2025-01-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          year: "2025"
-                    total_count: 2
-                name: Example Corp
-                uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                family: Membership
+                name: Gold Corporate Membership
+                product_type: Corporate
+                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
-                website: https://example.com
-        MembershipResponse:
+        ProjectKeyContactResponse:
             type: object
             properties:
-                account:
-                    $ref: '#/components/schemas/AccountType'
+                board_member:
+                    type: boolean
+                    description: Whether this contact holds a board member role
+                    example: false
+                company_domain:
+                    type: string
+                    description: Member company website/domain (denormalized from Asset.Account.Website)
+                    example: https://example.com
+                company_logo_url:
+                    type: string
+                    description: Member company logo URL (denormalized from Asset.Account)
+                    example: https://example.com/logo.png
+                company_name:
+                    type: string
+                    description: Member company name (denormalized from Asset.Account)
+                    example: Example Corp
+                created_at:
+                    type: string
+                    description: Creation timestamp
+                    example: "2025-01-01T00:00:00Z"
+                    format: date-time
+                email:
+                    type: string
+                    description: Primary email address from Alternate_Email__c where Primary_Email__c = true
+                    example: john.doe@example.com
+                first_name:
+                    type: string
+                    description: Contact first name (denormalized from Contact)
+                    example: John
+                last_name:
+                    type: string
+                    description: Contact last name (denormalized from Contact)
+                    example: Doe
+                membership_uid:
+                    type: string
+                    description: UID of the associated membership (Asset)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                primary_contact:
+                    type: boolean
+                    description: Whether this is the primary contact for the membership
+                    example: true
+                project_uid:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                role:
+                    type: string
+                    description: Contact role designation
+                    example: Voting Representative
+                status:
+                    type: string
+                    description: Role record status
+                    example: Active
+                tier_uid:
+                    type: string
+                    description: UID of the associated membership tier (Product2)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                title:
+                    type: string
+                    description: Contact job title (denormalized from Contact)
+                    example: CTO
+                uid:
+                    type: string
+                    description: Key contact UID (invertible UUID v8 from Project_Role__c.Id)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                updated_at:
+                    type: string
+                    description: Last update timestamp
+                    example: "2025-06-01T12:00:00Z"
+                    format: date-time
+            description: A key contact (Project_Role__c) scoped to a membership, with denormalized contact and company attributes
+            example:
+                board_member: false
+                company_domain: https://example.com
+                company_logo_url: https://example.com/logo.png
+                company_name: Example Corp
+                created_at: "2025-01-01T00:00:00Z"
+                email: john.doe@example.com
+                first_name: John
+                last_name: Doe
+                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                primary_contact: true
+                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                role: Voting Representative
+                status: Active
+                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                title: CTO
+                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                updated_at: "2025-06-01T12:00:00Z"
+        ProjectMembershipResponse:
+            type: object
+            properties:
                 agreement_date:
                     type: string
-                    description: Agreement date
+                    description: Date the membership agreement was signed
                     example: "2025-01-01T00:00:00Z"
                 annual_full_price:
                     type: number
-                    description: Annual full price
+                    description: Full annual list price before discounts
                     example: 50000
                     format: double
                 auto_renew:
                     type: boolean
-                    description: Whether auto-renew is enabled
+                    description: Whether automatic renewal is enabled
                     example: true
-                contact:
-                    $ref: '#/components/schemas/ContactType'
+                company_domain:
+                    type: string
+                    description: Member company website/domain (denormalized from Account.Website)
+                    example: https://example.com
+                company_logo_url:
+                    type: string
+                    description: Member company logo URL (denormalized from Account)
+                    example: https://example.com/logo.png
+                company_name:
+                    type: string
+                    description: Member company name (denormalized from Account)
+                    example: Example Corp
                 created_at:
                     type: string
                     description: Creation timestamp
@@ -1657,16 +1536,12 @@ components:
                     format: date-time
                 end_date:
                     type: string
-                    description: End date
+                    description: Membership end date
                     example: "2025-12-31T23:59:59Z"
                 membership_type:
                     type: string
-                    description: Membership type
+                    description: Membership type (derived from Asset RecordType)
                     example: Corporate
-                name:
-                    type: string
-                    description: Membership name
-                    example: Gold Membership - Example Corp
                 payment_frequency:
                     type: string
                     description: Payment frequency
@@ -1677,37 +1552,55 @@ components:
                     example: Net 30
                 price:
                     type: number
-                    description: Membership price
+                    description: Current membership price
                     example: 50000
                     format: double
-                product:
-                    $ref: '#/components/schemas/ProductType'
-                project:
-                    $ref: '#/components/schemas/ProjectType'
+                project_uid:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
                 purchase_date:
                     type: string
-                    description: Purchase date
-                    example: "2025-01-01T00:00:00Z"
+                    description: Effective purchase date
+                    example: "2025-01-15T00:00:00Z"
                 renewal_type:
                     type: string
-                    description: Renewal type
+                    description: Renewal cadence
                     example: Annual
                 start_date:
                     type: string
-                    description: Start date
-                    example: "2025-01-01T00:00:00Z"
+                    description: Membership start date
+                    example: "2025-02-01T00:00:00Z"
                 status:
                     type: string
                     description: Membership status
                     example: Active
                 tier:
                     type: string
-                    description: Membership tier
+                    description: Membership tier label
                     example: Gold
+                tier_family:
+                    type: string
+                    description: Product family (denormalized from Product2)
+                    example: Membership
+                tier_name:
+                    type: string
+                    description: Product name (denormalized from Product2)
+                    example: Gold Corporate Membership
+                tier_product_type:
+                    type: string
+                    description: Product type (denormalized from Product2)
+                    example: Corporate
+                tier_uid:
+                    type: string
+                    description: UID of the associated membership tier (Product2)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
                 uid:
                     type: string
-                    description: Membership UID
-                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    description: Membership UID (invertible UUID v8 from Asset.Id)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
                 updated_at:
                     type: string
@@ -1718,376 +1611,57 @@ components:
                     type: string
                     description: Membership year
                     example: "2025"
-            description: A membership resource
+            description: A membership (Asset) scoped to a project, with denormalized company attributes
             example:
-                account:
-                    id: acc-123
-                    logo_url: https://example.com/logo.png
-                    name: Example Corp
-                    website: https://example.com
                 agreement_date: "2025-01-01T00:00:00Z"
                 annual_full_price: 50000
                 auto_renew: true
-                contact:
-                    email: john.doe@example.com
-                    first_name: John
-                    id: con-123
-                    last_name: Doe
-                    title: CTO
+                company_domain: https://example.com
+                company_logo_url: https://example.com/logo.png
+                company_name: Example Corp
                 created_at: "2025-01-01T00:00:00Z"
                 end_date: "2025-12-31T23:59:59Z"
                 membership_type: Corporate
-                name: Gold Membership - Example Corp
                 payment_frequency: Annual
                 payment_terms: Net 30
                 price: 50000
-                product:
-                    family: Membership
-                    id: prod-123
-                    name: Gold Membership
-                    type: Corporate
-                project:
-                    id: proj-123
-                    logo_url: https://example.com/project-logo.png
-                    name: Linux Foundation
-                    slug: linux-foundation
-                    status: Active
-                purchase_date: "2025-01-01T00:00:00Z"
+                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                purchase_date: "2025-01-15T00:00:00Z"
                 renewal_type: Annual
-                start_date: "2025-01-01T00:00:00Z"
+                start_date: "2025-02-01T00:00:00Z"
                 status: Active
                 tier: Gold
-                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                tier_family: Membership
+                tier_name: Gold Corporate Membership
+                tier_product_type: Corporate
+                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
                 year: "2025"
-        MembershipSummaryItemType:
+        UpdateMembershipKeyContactRequestBody:
             type: object
             properties:
-                auto_renew:
+                board_member:
                     type: boolean
-                    description: Whether auto-renew is enabled
-                    example: true
-                end_date:
+                    description: Whether this contact holds a board member role
+                    example: false
+                primary_contact:
+                    type: boolean
+                    description: Whether this is the primary contact for the membership
+                    example: false
+                role:
                     type: string
-                    description: End date
-                    example: "2025-12-31T23:59:59Z"
-                membership_type:
-                    type: string
-                    description: Membership type
-                    example: Corporate
-                name:
-                    type: string
-                    description: Membership name
-                    example: Gold Membership - Example Corp
-                product:
-                    $ref: '#/components/schemas/ProductType'
-                project:
-                    $ref: '#/components/schemas/ProjectType'
-                start_date:
-                    type: string
-                    description: Start date
-                    example: "2025-01-01T00:00:00Z"
+                    description: Contact role designation, e.g. 'Voting Representative'
+                    example: Voting Representative
                 status:
                     type: string
-                    description: Membership status
-                    example: Active
-                tier:
-                    type: string
-                    description: Membership tier
-                    example: Gold
-                uid:
-                    type: string
-                    description: Membership UID
-                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                    format: uuid
-                year:
-                    type: string
-                    description: Membership year
-                    example: "2025"
-            example:
-                auto_renew: true
-                end_date: "2025-12-31T23:59:59Z"
-                membership_type: Corporate
-                name: Gold Membership - Example Corp
-                product:
-                    family: Membership
-                    id: prod-123
-                    name: Gold Membership
-                    type: Corporate
-                project:
-                    id: proj-123
-                    logo_url: https://example.com/project-logo.png
-                    name: Linux Foundation
-                    slug: linux-foundation
-                    status: Active
-                start_date: "2025-01-01T00:00:00Z"
-                status: Active
-                tier: Gold
-                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                year: "2025"
-        MembershipSummaryType:
-            type: object
-            properties:
-                active_count:
-                    type: integer
-                    description: Number of active memberships
-                    example: 1
-                    format: int64
-                memberships:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/MembershipSummaryItemType'
-                    description: List of membership details
-                    example:
-                        - auto_renew: true
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          name: Gold Membership - Example Corp
-                          product:
-                            family: Membership
-                            id: prod-123
-                            name: Gold Membership
-                            type: Corporate
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          start_date: "2025-01-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          year: "2025"
-                        - auto_renew: true
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          name: Gold Membership - Example Corp
-                          product:
-                            family: Membership
-                            id: prod-123
-                            name: Gold Membership
-                            type: Corporate
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          start_date: "2025-01-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          year: "2025"
-                        - auto_renew: true
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          name: Gold Membership - Example Corp
-                          product:
-                            family: Membership
-                            id: prod-123
-                            name: Gold Membership
-                            type: Corporate
-                          project:
-                            id: proj-123
-                            logo_url: https://example.com/project-logo.png
-                            name: Linux Foundation
-                            slug: linux-foundation
-                            status: Active
-                          start_date: "2025-01-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          year: "2025"
-                total_count:
-                    type: integer
-                    description: Total number of memberships
-                    example: 2
-                    format: int64
-            description: Summary of memberships for a member
-            example:
-                active_count: 1
-                memberships:
-                    - auto_renew: true
-                      end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
-                      name: Gold Membership - Example Corp
-                      product:
-                        family: Membership
-                        id: prod-123
-                        name: Gold Membership
-                        type: Corporate
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      start_date: "2025-01-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      year: "2025"
-                    - auto_renew: true
-                      end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
-                      name: Gold Membership - Example Corp
-                      product:
-                        family: Membership
-                        id: prod-123
-                        name: Gold Membership
-                        type: Corporate
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      start_date: "2025-01-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      year: "2025"
-                    - auto_renew: true
-                      end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
-                      name: Gold Membership - Example Corp
-                      product:
-                        family: Membership
-                        id: prod-123
-                        name: Gold Membership
-                        type: Corporate
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      start_date: "2025-01-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      year: "2025"
-                    - auto_renew: true
-                      end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
-                      name: Gold Membership - Example Corp
-                      product:
-                        family: Membership
-                        id: prod-123
-                        name: Gold Membership
-                        type: Corporate
-                      project:
-                        id: proj-123
-                        logo_url: https://example.com/project-logo.png
-                        name: Linux Foundation
-                        slug: linux-foundation
-                        status: Active
-                      start_date: "2025-01-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      year: "2025"
-                total_count: 2
-        NotFoundError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: The resource was not found.
-            example:
-                message: The resource was not found.
-            required:
-                - message
-        OrganizationType:
-            type: object
-            properties:
-                id:
-                    type: string
-                    description: Organization ID
-                    example: org-123
-                logo_url:
-                    type: string
-                    description: Organization logo URL
-                    example: https://example.com/org-logo.png
-                name:
-                    type: string
-                    description: Organization name
-                    example: Example Corp
-                website:
-                    type: string
-                    description: Organization website
-                    example: https://example.com
-            example:
-                id: org-123
-                logo_url: https://example.com/org-logo.png
-                name: Example Corp
-                website: https://example.com
-        ProductType:
-            type: object
-            properties:
-                family:
-                    type: string
-                    description: Product family
-                    example: Membership
-                id:
-                    type: string
-                    description: Product ID
-                    example: prod-123
-                name:
-                    type: string
-                    description: Product name
-                    example: Gold Membership
-                type:
-                    type: string
-                    description: Product type
-                    example: Corporate
-            example:
-                family: Membership
-                id: prod-123
-                name: Gold Membership
-                type: Corporate
-        ProjectType:
-            type: object
-            properties:
-                id:
-                    type: string
-                    description: Project ID
-                    example: proj-123
-                logo_url:
-                    type: string
-                    description: Project logo URL
-                    example: https://example.com/project-logo.png
-                name:
-                    type: string
-                    description: Project name
-                    example: Linux Foundation
-                slug:
-                    type: string
-                    description: Project slug
-                    example: linux-foundation
-                status:
-                    type: string
-                    description: Project status
+                    description: Role record status, e.g. 'Active'
                     example: Active
             example:
-                id: proj-123
-                logo_url: https://example.com/project-logo.png
-                name: Linux Foundation
-                slug: linux-foundation
+                board_member: false
+                primary_contact: false
+                role: Voting Representative
                 status: Active
-        ServiceUnavailableError:
-            type: object
-            properties:
-                message:
-                    type: string
-                    description: Error message
-                    example: The service is unavailable.
-            example:
-                message: The service is unavailable.
-            required:
-                - message
     securitySchemes:
         jwt_header_Authorization:
             type: http
@@ -2095,4 +1669,4 @@ components:
             scheme: bearer
 tags:
     - name: membership-service
-      description: Membership management service - read-only endpoints for member and membership data
+      description: Membership management service — project-scoped drill-down API for tiers, memberships, and key contacts

@@ -15,4 +15,9 @@ type Config struct {
 	MaxReconnect int `json:"max_reconnect"`
 	// ReconnectWait is the time to wait between reconnection attempts
 	ReconnectWait time.Duration `json:"reconnect_wait"`
+	// OnClosed is called when the NATS connection is permanently closed after
+	// all reconnect attempts are exhausted. If nil, the closure is only logged.
+	// Callers should use this to signal the process to exit so Kubernetes can
+	// restart the pod rather than leaving it running with a dead connection.
+	OnClosed func()
 }

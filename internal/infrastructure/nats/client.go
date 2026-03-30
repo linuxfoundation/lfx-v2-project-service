@@ -6,6 +6,7 @@ package nats
 import (
 	"context"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
@@ -15,29 +16,21 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-// NATSClient wraps the NATS connection and provides KV store access
+// NATSClient wraps the NATS connection and provides KV store access.
 type NATSClient struct {
-	conn        *nats.Conn
-	config      Config
-	kvStore     map[string]jetstream.KeyValue
-	v1ObjectsKV jetstream.KeyValue
-	timeout     time.Duration
+	conn    *nats.Conn
+	config  Config
+	kvStore map[string]jetstream.KeyValue
+	timeout time.Duration
 }
 
-// Conn returns the underlying *nats.Conn for callers that need direct NATS access,
-// such as the b2b KV consumer which publishes indexer messages over core NATS.
+// Conn returns the underlying *nats.Conn for callers that need direct
+// NATS request/reply access (e.g., the project resolver).
 func (c *NATSClient) Conn() *nats.Conn {
 	return c.conn
 }
 
-// V1ObjectsKV returns the handle to the v1-objects KV bucket, used by the storage
-// layer to resolve v2 project UIDs to B2B Salesforce project SFIDs for inbound
-// filter translation. Returns nil if the bucket was not opened successfully.
-func (c *NATSClient) V1ObjectsKV() jetstream.KeyValue {
-	return c.v1ObjectsKV
-}
-
-// Close gracefully closes the NATS connection
+// Close gracefully closes the NATS connection.
 func (c *NATSClient) Close() error {
 	if c.conn != nil {
 		c.conn.Close()
@@ -45,7 +38,7 @@ func (c *NATSClient) Close() error {
 	return nil
 }
 
-// IsReady checks if the NATS client is ready
+// IsReady checks if the NATS client is ready.
 func (c *NATSClient) IsReady(ctx context.Context) error {
 	if c.conn == nil {
 		return errors.NewServiceUnavailable("NATS client is not initialized or not connected")
@@ -56,7 +49,12 @@ func (c *NATSClient) IsReady(ctx context.Context) error {
 	return nil
 }
 
-// KeyValueStore creates a JetStream client and gets the key-value store for the given bucket.
+// KeyValueStore creates a JetStream client and gets the key-value store for the
+// given bucket. For the membership-cache bucket, a 24-hour MaxAge TTL is set
+// when creating a new bucket. If the bucket already exists, the existing
+// configuration is used as-is — NATS does not allow in-place TTL updates on
+// live buckets; the Helm chart is responsible for pre-creating it with the
+// correct config.
 func (c *NATSClient) KeyValueStore(ctx context.Context, bucketName string) error {
 	js, err := jetstream.New(c.conn)
 	if err != nil {
@@ -71,9 +69,13 @@ func (c *NATSClient) KeyValueStore(ctx context.Context, bucketName string) error
 		slog.InfoContext(ctx, "KV bucket not found, creating it",
 			"bucket", bucketName,
 		)
-		kvStore, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+		cfg := jetstream.KeyValueConfig{
 			Bucket: bucketName,
-		})
+		}
+		if bucketName == constants.KVBucketNameCache {
+			cfg.TTL = 24 * time.Hour
+		}
+		kvStore, err = js.CreateKeyValue(ctx, cfg)
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating NATS JetStream key-value store",
 				"error", err,
@@ -91,7 +93,7 @@ func (c *NATSClient) KeyValueStore(ctx context.Context, bucketName string) error
 	return nil
 }
 
-// NewClient creates a new NATS client with the given configuration
+// NewClient creates a new NATS client with the given configuration.
 func NewClient(ctx context.Context, config Config) (*NATSClient, error) {
 	slog.InfoContext(ctx, "creating NATS client",
 		"url", config.URL,
@@ -121,7 +123,22 @@ func NewClient(ctx context.Context, config Config) (*NATSClient, error) {
 			}
 		}),
 		nats.ClosedHandler(func(nc *nats.Conn) {
-			slog.InfoContext(ctx, "NATS connection closed")
+			// If the context is already done, this is an intentional shutdown;
+			// do nothing.
+			if ctx.Err() != nil {
+				slog.InfoContext(ctx, "NATS connection closed during shutdown")
+				return
+			}
+			slog.Error("NATS max-reconnects exhausted; connection permanently closed")
+			if config.OnClosed != nil {
+				config.OnClosed()
+			} else {
+				// Default behaviour: give the logger a moment to flush, then exit
+				// so Kubernetes restarts the pod rather than leaving it running
+				// with a dead NATS connection.
+				time.Sleep(5 * time.Second)
+				os.Exit(1)
+			}
 		}),
 	}
 
@@ -136,46 +153,16 @@ func NewClient(ctx context.Context, config Config) (*NATSClient, error) {
 		timeout: config.Timeout,
 	}
 
-	for _, bucketName := range []string{
-		constants.KVBucketNameMemberships,
-		constants.KVBucketNameMembershipContacts,
-		constants.KVBucketNameMembers,
-	} {
-		if err := client.KeyValueStore(ctx, bucketName); err != nil {
-			slog.ErrorContext(ctx, "failed to initialize NATS key-value store",
-				"error", err,
-				"bucket", bucketName,
-			)
-			return nil, errors.NewServiceUnavailable("failed to initialize NATS key-value store", err)
-		}
-		slog.InfoContext(ctx, "NATS key-value store initialized",
-			"bucket", bucketName,
+	if err := client.KeyValueStore(ctx, constants.KVBucketNameCache); err != nil {
+		slog.ErrorContext(ctx, "failed to initialize NATS key-value store",
+			"error", err,
+			"bucket", constants.KVBucketNameCache,
 		)
+		return nil, errors.NewServiceUnavailable("failed to initialize NATS key-value store", err)
 	}
-
-	// Open the v1-objects KV bucket for read-only access. This is used by the storage
-	// layer to translate v2 project UIDs to B2B Salesforce SFIDs for inbound filter
-	// resolution. A failure here is non-fatal — the storage layer degrades gracefully
-	// by treating the project_id filter value as a raw SFID when the bucket is absent.
-	js, jsErr := jetstream.New(conn)
-	if jsErr == nil {
-		v1KV, kvErr := js.KeyValue(ctx, constants.V1ObjectsKVBucket)
-		if kvErr != nil {
-			slog.WarnContext(ctx, "v1-objects KV bucket not available; project_id UID translation will be skipped",
-				"bucket", constants.V1ObjectsKVBucket,
-				"error", kvErr,
-			)
-		} else {
-			client.v1ObjectsKV = v1KV
-			slog.InfoContext(ctx, "v1-objects KV bucket opened for project UID resolution",
-				"bucket", constants.V1ObjectsKVBucket,
-			)
-		}
-	} else {
-		slog.WarnContext(ctx, "failed to create JetStream context for v1-objects KV; project_id UID translation will be skipped",
-			"error", jsErr,
-		)
-	}
+	slog.InfoContext(ctx, "NATS key-value store initialized",
+		"bucket", constants.KVBucketNameCache,
+	)
 
 	slog.InfoContext(ctx, "NATS client created successfully",
 		"connected_url", conn.ConnectedUrl(),
