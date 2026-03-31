@@ -26,9 +26,13 @@ type SObjectCacheEntry struct {
 	// 200 OK fetch. Empty when Salesforce did not return an ETag.
 	ETag string `json:"etag,omitempty"`
 
-	// LastModified is the value of the Last-Modified response header from the
-	// last successful 200 OK fetch (RFC 1123 format). Empty when Salesforce did
-	// not return a Last-Modified header.
+	// LastModified is the RFC 1123 HTTP date used for If-Modified-Since on
+	// subsequent fetches. It is populated from the Last-Modified response header
+	// when Salesforce returns one, or derived from the SystemModstamp /
+	// LastModifiedDate field in the response body when the header is absent
+	// (common for sObject types such as Asset in some orgs). Sub-second
+	// precision is truncated to the second (floor) before formatting.
+	// Empty when no suitable timestamp was available.
 	LastModified string `json:"last_modified,omitempty"`
 
 	// Body is the raw JSON response body returned by the Salesforce sObject REST

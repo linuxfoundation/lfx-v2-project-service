@@ -13,6 +13,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
+	"time"
 
 	sf "github.com/k-capehart/go-salesforce/v3"
 
@@ -199,6 +201,14 @@ func (c *SObjectClient) refreshSession() error {
 
 // handle200 processes a 200 OK response: reads the body, extracts ETag and
 // Last-Modified, updates the cache, and returns a FetchResult.
+//
+// When Salesforce does not return a Last-Modified header (common for object
+// types such as Asset in some orgs), handle200 falls back to extracting the
+// SystemModstamp or LastModifiedDate field from the JSON body and formatting
+// it as an RFC 1123 HTTP date. Sub-second precision is truncated to the second
+// (floor) so that If-Modified-Since comparisons are conservative: a record
+// modified at T+0.500s is represented as T+0s, ensuring Salesforce returns
+// 200 (not 304) on the next fetch within that same second.
 func (c *SObjectClient) handle200(ctx context.Context, resp *http.Response, cacheKey string) (*FetchResult, error) {
 	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -207,6 +217,13 @@ func (c *SObjectClient) handle200(ctx context.Context, resp *http.Response, cach
 
 	etag := resp.Header.Get("ETag")
 	lastModified := resp.Header.Get("Last-Modified")
+
+	// Fall back to body-extracted timestamp when the response header is absent.
+	// This allows If-Modified-Since to work for sObject types (e.g. Asset) where
+	// Salesforce does not emit a Last-Modified header.
+	if lastModified == "" {
+		lastModified = extractModstamp(rawBody)
+	}
 
 	entry := &nats.SObjectCacheEntry{
 		ETag:         etag,
@@ -294,4 +311,100 @@ func (c *SObjectClient) DoConditionalWrite(
 // Salesforce. Returns nil if the key does not exist.
 func (c *SObjectClient) InvalidateCache(ctx context.Context, cacheKey string) error {
 	return c.cache.Delete(ctx, cacheKey)
+}
+
+// ── modstamp extraction ───────────────────────────────────────────────────────
+
+// sobjectModstampFields is a minimal struct for extracting the two candidate
+// timestamp fields from any Salesforce sObject REST API JSON body.
+type sobjectModstampFields struct {
+	SystemModstamp   string `json:"SystemModstamp"`
+	LastModifiedDate string `json:"LastModifiedDate"`
+}
+
+// extractModstamp attempts to extract a conditional-GET timestamp from the raw
+// sObject JSON body, for use as an If-Modified-Since header value when
+// Salesforce does not return a Last-Modified response header.
+//
+// It tries SystemModstamp first (updated on any system change, including
+// automated processes), falling back to LastModifiedDate (updated only on
+// direct user/API edits). The chosen value is parsed from Salesforce's
+// ISO 8601 format, truncated to the second (floor), and returned as an RFC
+// 1123 HTTP date string.
+//
+// Floor truncation means a record modified at T+0.500s is represented as T+0s,
+// ensuring Salesforce returns 200 (not 304) on the next fetch within that same
+// second window — a conservative, safe choice.
+//
+// Returns "" when neither field is present or parseable.
+func extractModstamp(body []byte) string {
+	var fields sobjectModstampFields
+	if err := json.Unmarshal(body, &fields); err != nil {
+		return ""
+	}
+
+	raw := fields.SystemModstamp
+	if raw == "" {
+		raw = fields.LastModifiedDate
+	}
+	if raw == "" {
+		return ""
+	}
+
+	t := parseSOQLTime(raw)
+	if t.IsZero() {
+		return ""
+	}
+
+	// Truncate to whole seconds (floor) and format as an HTTP date.
+	// Go's time.RFC1123 formats the timezone name as "UTC" but HTTP requires
+	// "GMT"; use the equivalent fixed-offset format string instead.
+	return t.UTC().Truncate(time.Second).Format("Mon, 02 Jan 2006 15:04:05 GMT")
+}
+
+// ── in-memory cache ───────────────────────────────────────────────────────────
+
+// inMemSObjectCache is a simple in-memory implementation of sObjectCacher
+// intended for diagnostic tools and tests that cannot or do not wish to
+// connect to NATS. It is safe for concurrent use.
+type inMemSObjectCache struct {
+	mu      sync.RWMutex
+	entries map[string]*nats.SObjectCacheEntry
+}
+
+func newInMemSObjectCache() *inMemSObjectCache {
+	return &inMemSObjectCache{entries: make(map[string]*nats.SObjectCacheEntry)}
+}
+
+func (m *inMemSObjectCache) Get(_ context.Context, key string) (*nats.SObjectCacheEntry, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	e, ok := m.entries[key]
+	if !ok {
+		return nil, nil
+	}
+	return e, nil
+}
+
+func (m *inMemSObjectCache) Put(_ context.Context, key string, entry *nats.SObjectCacheEntry) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.entries[key] = entry
+	return nil
+}
+
+func (m *inMemSObjectCache) Delete(_ context.Context, key string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.entries, key)
+	return nil
+}
+
+// NewSObjectClientWithMemCache creates an SObjectClient backed by the given
+// authenticated Salesforce client and a simple in-memory cache. This is
+// intended for diagnostic tools and tests that do not have a NATS connection
+// available. Cache entries persist only for the lifetime of the returned
+// client.
+func NewSObjectClientWithMemCache(sfClient *sf.Salesforce) *SObjectClient {
+	return &SObjectClient{sf: sfClient, cache: newInMemSObjectCache()}
 }

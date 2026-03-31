@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	sf "github.com/k-capehart/go-salesforce/v3"
 	"github.com/stretchr/testify/assert"
@@ -413,6 +414,178 @@ func TestFetchSObject(t *testing.T) {
 		assert.Equal(t, sampleETag, result.ETag)
 		assert.JSONEq(t, sampleBody, string(result.Body))
 		assert.Equal(t, 2, callCount, "exactly two sObject requests (initial + retry)")
+	})
+
+	t.Run("no Last-Modified header: LastModified populated from SystemModstamp in body", func(t *testing.T) {
+		t.Parallel()
+
+		// Body contains SystemModstamp but no Last-Modified header, simulating
+		// sObject types (e.g. Asset in prod) that omit the response header.
+		const bodyWithModstamp = `{"Id":"001000000000001AAA","Name":"ACME Corp","SystemModstamp":"2024-06-15T10:30:45.123+0000"}`
+		// Expected: floor to whole second (truncate sub-second), UTC, RFC 1123.
+		const wantLM = "Sat, 15 Jun 2024 10:30:45 GMT"
+
+		transport := newRoutingTransport(fakeResponse(http.StatusOK, bodyWithModstamp, map[string]string{
+			"ETag": sampleETag,
+			// Deliberately omit Last-Modified header.
+		}))
+		cache := newMemCache()
+		client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: cache}
+
+		result, err := client.FetchSObject(context.Background(), sobjectType, sfid, cacheKey, fields)
+
+		require.NoError(t, err)
+		assert.False(t, result.NotModified)
+		assert.Equal(t, wantLM, result.LastModified, "LastModified must be derived from SystemModstamp")
+
+		stored, err := cache.Get(context.Background(), cacheKey)
+		require.NoError(t, err)
+		require.NotNil(t, stored)
+		assert.Equal(t, wantLM, stored.LastModified, "cache LastModified must be derived from SystemModstamp")
+	})
+
+	t.Run("no Last-Modified header: LastModified falls back to LastModifiedDate in body", func(t *testing.T) {
+		t.Parallel()
+
+		// Body contains only LastModifiedDate (no SystemModstamp), simulating
+		// object types such as Account or Product2 that use LastModifiedDate.
+		const bodyWithLMD = `{"Id":"001000000000001AAA","Name":"ACME Corp","LastModifiedDate":"2024-06-15T10:30:45.000+0000"}`
+		const wantLM = "Sat, 15 Jun 2024 10:30:45 GMT" // .000 sub-second → no increment
+
+		transport := newRoutingTransport(fakeResponse(http.StatusOK, bodyWithLMD, nil))
+		cache := newMemCache()
+		client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: cache}
+
+		result, err := client.FetchSObject(context.Background(), sobjectType, sfid, cacheKey, fields)
+
+		require.NoError(t, err)
+		assert.False(t, result.NotModified)
+		assert.Equal(t, wantLM, result.LastModified, "LastModified must fall back to LastModifiedDate")
+
+		stored, err := cache.Get(context.Background(), cacheKey)
+		require.NoError(t, err)
+		require.NotNil(t, stored)
+		assert.Equal(t, wantLM, stored.LastModified)
+	})
+
+	t.Run("Last-Modified header takes precedence over body modstamp", func(t *testing.T) {
+		t.Parallel()
+
+		// When Salesforce returns a Last-Modified header, it must be used as-is
+		// and the body SystemModstamp must be ignored.
+		const bodyWithModstamp = `{"Id":"001000000000001AAA","Name":"ACME Corp","SystemModstamp":"2024-06-15T10:30:45.123+0000"}`
+		const headerLM = "Mon, 01 Jan 2024 00:00:00 GMT" // different from body modstamp
+
+		transport := newRoutingTransport(fakeResponse(http.StatusOK, bodyWithModstamp, map[string]string{
+			"Last-Modified": headerLM,
+		}))
+		cache := newMemCache()
+		client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: cache}
+
+		result, err := client.FetchSObject(context.Background(), sobjectType, sfid, cacheKey, fields)
+
+		require.NoError(t, err)
+		assert.Equal(t, headerLM, result.LastModified, "Last-Modified header must take precedence over body modstamp")
+	})
+
+	t.Run("If-Modified-Since sent on second fetch when LastModified derived from body", func(t *testing.T) {
+		t.Parallel()
+
+		// First fetch: 200 with no Last-Modified header; LastModified derived from body.
+		// Second fetch: must send If-Modified-Since, triggering a 304.
+		const bodyWithModstamp = `{"Id":"001000000000001AAA","Name":"ACME Corp","SystemModstamp":"2024-06-15T10:30:45.500+0000"}`
+		// Floor truncation: .500 → :45 (sub-second is discarded, not rounded up).
+		const wantLM = "Sat, 15 Jun 2024 10:30:45 GMT"
+
+		n := 0
+		countRT := &countingTransport{
+			callCount:  &n,
+			firstResp:  fakeResponse(http.StatusOK, bodyWithModstamp, nil),
+			retryResp:  fakeResponse(http.StatusNotModified, "", nil),
+			limitsResp: fakeResponse(http.StatusOK, `{}`, nil),
+		}
+		cache := newMemCache()
+		client := &SObjectClient{sf: fakeSalesforce(t, countRT), cache: cache}
+
+		// First fetch: 200, populates cache with derived LastModified.
+		result1, err := client.FetchSObject(context.Background(), sobjectType, sfid, cacheKey, fields)
+		require.NoError(t, err)
+		assert.False(t, result1.NotModified)
+		assert.Equal(t, wantLM, result1.LastModified)
+
+		// Second fetch: countingTransport returns 304; client should report HIT.
+		result2, err := client.FetchSObject(context.Background(), sobjectType, sfid, cacheKey, fields)
+		require.NoError(t, err)
+		assert.True(t, result2.NotModified, "second fetch must be a cache hit (304)")
+		assert.Equal(t, wantLM, result2.LastModified)
+	})
+}
+
+// ─── TestExtractModstamp ──────────────────────────────────────────────────────
+
+func TestExtractModstamp(t *testing.T) {
+	t.Parallel()
+
+	t.Run("SystemModstamp wins over LastModifiedDate", func(t *testing.T) {
+		t.Parallel()
+
+		body := []byte(`{"SystemModstamp":"2024-06-15T10:30:45.000+0000","LastModifiedDate":"2023-01-01T00:00:00.000+0000"}`)
+		got := extractModstamp(body)
+		assert.Equal(t, "Sat, 15 Jun 2024 10:30:45 GMT", got)
+	})
+
+	t.Run("falls back to LastModifiedDate when SystemModstamp absent", func(t *testing.T) {
+		t.Parallel()
+
+		body := []byte(`{"LastModifiedDate":"2024-06-15T10:30:45.000+0000"}`)
+		got := extractModstamp(body)
+		assert.Equal(t, "Sat, 15 Jun 2024 10:30:45 GMT", got)
+	})
+
+	t.Run("sub-second precision is truncated (floor, not ceiling)", func(t *testing.T) {
+		t.Parallel()
+
+		// .999ms should floor to :45, not ceil to :46.
+		body := []byte(`{"SystemModstamp":"2024-06-15T10:30:45.999+0000"}`)
+		got := extractModstamp(body)
+		assert.Equal(t, "Sat, 15 Jun 2024 10:30:45 GMT", got, "must truncate to whole second (floor)")
+	})
+
+	t.Run("returns empty string when both fields absent", func(t *testing.T) {
+		t.Parallel()
+
+		body := []byte(`{"Id":"001000000000001AAA","Name":"ACME Corp"}`)
+		got := extractModstamp(body)
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns empty string on invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
+		got := extractModstamp([]byte(`not json`))
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns empty string on empty body", func(t *testing.T) {
+		t.Parallel()
+
+		got := extractModstamp([]byte(`{}`))
+		assert.Empty(t, got)
+	})
+
+	t.Run("output is always UTC RFC 1123", func(t *testing.T) {
+		t.Parallel()
+
+		// Salesforce always uses +0000 but confirm UTC formatting.
+		body := []byte(`{"SystemModstamp":"2024-01-01T00:00:00.000+0000"}`)
+		got := extractModstamp(body)
+		// Parse back and verify it's a valid RFC 1123 date with zero UTC offset.
+		// time.Parse returns a GMT-named location (not time.UTC) when it sees "GMT",
+		// so check the UTC offset rather than location identity.
+		parsed, err := time.Parse(time.RFC1123, got)
+		require.NoError(t, err)
+		_, offsetSecs := parsed.Zone()
+		assert.Equal(t, 0, offsetSecs, "output must have a zero UTC offset")
 	})
 }
 

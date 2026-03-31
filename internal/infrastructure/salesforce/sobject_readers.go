@@ -46,6 +46,7 @@ type sobjectAccount struct {
 	Website          *string `json:"Website"`
 	CreatedDate      string  `json:"CreatedDate"`
 	LastModifiedDate string  `json:"LastModifiedDate"`
+	SystemModstamp   string  `json:"SystemModstamp"`
 }
 
 // sobjectAsset is the JSON shape of a Salesforce Asset record from the sObject
@@ -72,6 +73,7 @@ type sobjectAsset struct {
 	ProjectsID       *string `json:"Projects__c"`
 	CreatedDate      string  `json:"CreatedDate"`
 	LastModifiedDate string  `json:"LastModifiedDate"`
+	SystemModstamp   string  `json:"SystemModstamp"`
 }
 
 // sobjectProduct2 is the JSON shape of a Salesforce Product2 record from the
@@ -84,6 +86,7 @@ type sobjectProduct2 struct {
 	ProjectID        *string `json:"Project__c"`
 	CreatedDate      string  `json:"CreatedDate"`
 	LastModifiedDate string  `json:"LastModifiedDate"`
+	SystemModstamp   string  `json:"SystemModstamp"`
 }
 
 // sobjectProjectRole is the JSON shape of a Salesforce Project_Role__c record
@@ -106,14 +109,14 @@ type sobjectProjectRole struct {
 // Using explicit field selection avoids fetching unneeded fields and keeps
 // responses small.
 const (
-	accountFields = "Id,Name,Logo_URL__c,Website,CreatedDate,LastModifiedDate"
+	accountFields = "Id,Name,Logo_URL__c,Website,CreatedDate,LastModifiedDate,SystemModstamp"
 
 	assetFields = "Id,Name,Status,AccountId,Product2Id,Year__c,Tier__c,RecordTypeId," +
 		"Auto_Renew__c,Renewal_Type__c,Price,Annual_Full_Price__c,PaymentFrequency__c," +
 		"PaymentTerms__c,Agreement_Date__c,PurchaseDate,InstallDate,UsageEndDate," +
-		"Projects__c,CreatedDate,LastModifiedDate"
+		"Projects__c,CreatedDate,LastModifiedDate,SystemModstamp"
 
-	product2Fields = "Id,Name,Family,Type__c,Project__c,CreatedDate,LastModifiedDate"
+	product2Fields = "Id,Name,Family,Type__c,Project__c,CreatedDate,LastModifiedDate,SystemModstamp"
 
 	projectRoleFields = "Id,Asset__c,Contact__c,Role__c,Status__c,BoardMember__c," +
 		"PrimaryContact__c,CreatedDate,SystemModstamp"
