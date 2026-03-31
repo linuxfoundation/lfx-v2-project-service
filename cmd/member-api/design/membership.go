@@ -432,6 +432,26 @@ var _ = dsl.Service("membership-service", func() {
 		})
 	})
 
+	dsl.Method("debug-vars", func() {
+		dsl.Description("Expose expvar debug variables as JSON. Accessible via kubectl port-forward; not exposed by ingress.")
+		dsl.Meta("swagger:generate", "false")
+		dsl.Result(dsl.Bytes)
+		dsl.HTTP(func() {
+			dsl.GET("/debug/vars")
+			dsl.Response(dsl.StatusOK, func() {
+				// text/plain is intentional: when the result type is Bytes and
+				// the content type is application/json, the Goa response encoder
+				// treats the []byte value as a JSON value to encode, which
+				// base64-encodes the payload. text/plain causes the Goa
+				// textEncoder to write the bytes directly to the response
+				// writer. The DebugVars implementation builds valid JSON itself
+				// via expvar.Do, so the wire format is correct JSON regardless
+				// of the declared content type.
+				dsl.ContentType("text/plain")
+			})
+		})
+	})
+
 	// ── OpenAPI spec files ────────────────────────────────────────────────────
 
 	dsl.Files("/_memberships/openapi.json", "gen/http/openapi.json", func() {

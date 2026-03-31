@@ -585,7 +585,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -601,11 +601,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Bad request (default view)
         example:
             fault: true
@@ -644,11 +644,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Internal server error (default view)
         example:
             fault: false
@@ -656,7 +656,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -691,10 +691,10 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Membership not found (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
@@ -767,7 +767,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -787,15 +787,15 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Service unavailable (default view)
         example:
             fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
-            timeout: false
+            temporary: false
+            timeout: true
         required:
             - name
             - id
@@ -810,7 +810,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -826,11 +826,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Internal server error (default view)
         example:
             fault: true
@@ -838,7 +838,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -853,7 +853,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -869,18 +869,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
                 example: false
         description: Key contact not found (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: false
         required:
             - name
@@ -896,7 +896,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -912,19 +912,19 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Service unavailable (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: false
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -955,18 +955,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Internal server error (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: false
         required:
             - name
@@ -982,7 +982,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1005,11 +1005,11 @@ definitions:
                 example: false
         description: Key contact not found (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: true
         required:
             - name
@@ -1044,14 +1044,14 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
                 example: false
         description: Service unavailable (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
@@ -1087,7 +1087,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -1099,7 +1099,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -1108,6 +1108,52 @@ definitions:
             - timeout
             - fault
     MembershipServiceGetProjectMembershipNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Membership not found (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetProjectMembershipResponseBody:
+        title: MembershipServiceGetProjectMembershipResponseBody
+        $ref: '#/definitions/ProjectMembershipResponse'
+    MembershipServiceGetProjectMembershipServiceUnavailableResponseBody:
         title: 'Mediatype identifier: application/vnd.goa.error; view=default'
         type: object
         properties:
@@ -1130,65 +1176,19 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
-            timeout:
-                type: boolean
-                description: Is the error a timeout?
-                example: false
-        description: Membership not found (default view)
-        example:
-            fault: true
-            id: 123abc
-            message: parameter 'p' must be an integer
-            name: bad_request
-            temporary: false
-            timeout: true
-        required:
-            - name
-            - id
-            - message
-            - temporary
-            - timeout
-            - fault
-    MembershipServiceGetProjectMembershipResponseBody:
-        title: MembershipServiceGetProjectMembershipResponseBody
-        $ref: '#/definitions/ProjectMembershipResponse'
-    MembershipServiceGetProjectMembershipServiceUnavailableResponseBody:
-        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
-        type: object
-        properties:
-            fault:
-                type: boolean
-                description: Is the error a server-side fault?
-                example: false
-            id:
-                type: string
-                description: ID is a unique identifier for this particular occurrence of the problem.
-                example: 123abc
-            message:
-                type: string
-                description: Message is a human-readable explanation specific to this occurrence of the problem.
-                example: parameter 'p' must be an integer
-            name:
-                type: string
-                description: Name is the name of this class of errors.
-                example: bad_request
-            temporary:
-                type: boolean
-                description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
                 example: false
         description: Service unavailable (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
-            timeout: true
+            temporary: true
+            timeout: false
         required:
             - name
             - id
@@ -1223,15 +1223,15 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Internal server error (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -1266,14 +1266,14 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Tier not found (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: true
         required:
             - name
@@ -1308,7 +1308,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -1319,8 +1319,8 @@ definitions:
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
-            timeout: false
+            temporary: true
+            timeout: true
         required:
             - name
             - id
@@ -1351,11 +1351,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Internal server error (default view)
         example:
             fault: true
@@ -1378,7 +1378,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1398,14 +1398,14 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Membership not found (default view)
         example:
             fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
+            temporary: true
             timeout: false
         required:
             - name
@@ -1511,6 +1511,40 @@ definitions:
                   title: CTO
                   uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                   updated_at: "2025-06-01T12:00:00Z"
+                - board_member: false
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  email: john.doe@example.com
+                  first_name: John
+                  last_name: Doe
+                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  primary_contact: true
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  role: Voting Representative
+                  status: Active
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  title: CTO
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                - board_member: false
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  email: john.doe@example.com
+                  first_name: John
+                  last_name: Doe
+                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  primary_contact: true
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  role: Voting Representative
+                  status: Active
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  title: CTO
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
         required:
             - contacts
     MembershipServiceListMembershipKeyContactsServiceUnavailableResponseBody:
@@ -1520,7 +1554,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1536,18 +1570,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Service unavailable (default view)
         example:
             fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
+            temporary: true
             timeout: true
         required:
             - name
@@ -1563,7 +1597,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1579,18 +1613,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Bad request (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: true
         required:
             - name
@@ -1629,11 +1663,11 @@ definitions:
                 example: true
         description: Internal server error (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: false
         required:
             - name
@@ -1665,11 +1699,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Project not found (default view)
         example:
             fault: true
@@ -1695,6 +1729,56 @@ definitions:
                     $ref: '#/definitions/ProjectMembershipResponse'
                 description: List of project memberships
                 example:
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
                     - agreement_date: "2025-01-01T00:00:00Z"
                       annual_full_price: 50000
                       auto_renew: true
@@ -1799,31 +1883,6 @@ definitions:
                   uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                   updated_at: "2025-06-01T12:00:00Z"
                   year: "2025"
-                - agreement_date: "2025-01-01T00:00:00Z"
-                  annual_full_price: 50000
-                  auto_renew: true
-                  company_domain: https://example.com
-                  company_logo_url: https://example.com/logo.png
-                  company_name: Example Corp
-                  created_at: "2025-01-01T00:00:00Z"
-                  end_date: "2025-12-31T23:59:59Z"
-                  membership_type: Corporate
-                  payment_frequency: Annual
-                  payment_terms: Net 30
-                  price: 50000
-                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                  purchase_date: "2025-01-15T00:00:00Z"
-                  renewal_type: Annual
-                  start_date: "2025-02-01T00:00:00Z"
-                  status: Active
-                  tier: Gold
-                  tier_family: Membership
-                  tier_name: Gold Corporate Membership
-                  tier_product_type: Corporate
-                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  updated_at: "2025-06-01T12:00:00Z"
-                  year: "2025"
             metadata:
                 next_page_token: ""
                 total_size: 100
@@ -1837,7 +1896,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1853,18 +1912,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Service unavailable (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: false
         required:
             - name
@@ -1880,7 +1939,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1900,7 +1959,7 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Internal server error (default view)
         example:
             fault: true
@@ -1908,7 +1967,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -1923,7 +1982,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1939,7 +1998,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -1950,7 +2009,7 @@ definitions:
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: true
         required:
             - name
@@ -2031,7 +2090,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -2042,7 +2101,7 @@ definitions:
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
+            temporary: true
             timeout: true
         required:
             - name
@@ -2058,7 +2117,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2074,14 +2133,14 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
                 example: true
         description: Bad request (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
@@ -2101,7 +2160,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2117,7 +2176,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -2128,8 +2187,8 @@ definitions:
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
-            timeout: true
+            temporary: false
+            timeout: false
         required:
             - name
             - id
@@ -2160,19 +2219,19 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
                 example: true
         description: Key contact not found (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -2238,7 +2297,7 @@ definitions:
                 example: true
         description: Service unavailable (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request

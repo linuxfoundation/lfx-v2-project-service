@@ -172,7 +172,10 @@ func (c Config) Init() (*sf.Salesforce, error) {
 		)
 	}
 
-	client, err := sf.Init(creds, sf.WithAPIVersion(c.APIVersion))
+	client, err := sf.Init(creds,
+		sf.WithAPIVersion(c.APIVersion),
+		sf.WithRoundTripper(NewRateLimitTransport(nil)),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("salesforce authentication failed: %w", err)
 	}

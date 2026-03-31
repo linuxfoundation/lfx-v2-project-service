@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
@@ -459,6 +460,23 @@ func TestLivez(t *testing.T) {
 	res, err := svc.Livez(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("OK\n"), res)
+}
+
+func TestDebugVars(t *testing.T) {
+	svc := newTestService()
+	ctx := context.Background()
+
+	res, err := svc.DebugVars(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, res)
+
+	// Output must be valid JSON.
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(res, &parsed), "DebugVars output must be valid JSON")
+
+	// The default expvar registry always includes cmdline and memstats.
+	assert.Contains(t, parsed, "cmdline")
+	assert.Contains(t, parsed, "memstats")
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────

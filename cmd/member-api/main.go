@@ -18,6 +18,7 @@ import (
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
 	natsinf "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce"
 
 	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 
@@ -86,6 +87,12 @@ func main() {
 			slog.ErrorContext(ctx, "error shutting down OpenTelemetry SDK", "error", shutdownErr)
 		}
 	}()
+
+	// Register Salesforce API usage as OTEL observable gauges. This is a no-op
+	// if OTEL_METRICS_EXPORTER is unset (the meter provider is a no-op).
+	if err := salesforce.RegisterOTelMetrics(); err != nil {
+		slog.WarnContext(ctx, "failed to register Salesforce OTEL metrics", "error", err)
+	}
 
 	slog.InfoContext(ctx, "Starting membership service",
 		"bind", *bind,

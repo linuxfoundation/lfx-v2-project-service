@@ -27,11 +27,12 @@ type Client struct {
 	GetMembershipKeyContactEndpoint    goa.Endpoint
 	ReadyzEndpoint                     goa.Endpoint
 	LivezEndpoint                      goa.Endpoint
+	DebugVarsEndpoint                  goa.Endpoint
 }
 
 // NewClient initializes a "membership-service" service client given the
 // endpoints.
-func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, readyz, livez goa.Endpoint) *Client {
+func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, readyz, livez, debugVars goa.Endpoint) *Client {
 	return &Client{
 		ListProjectTiersEndpoint:           listProjectTiers,
 		GetProjectTierEndpoint:             getProjectTier,
@@ -44,6 +45,7 @@ func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProj
 		GetMembershipKeyContactEndpoint:    getMembershipKeyContact,
 		ReadyzEndpoint:                     readyz,
 		LivezEndpoint:                      livez,
+		DebugVarsEndpoint:                  debugVars,
 	}
 }
 
@@ -207,6 +209,17 @@ func (c *Client) Readyz(ctx context.Context) (res []byte, err error) {
 func (c *Client) Livez(ctx context.Context) (res []byte, err error) {
 	var ires any
 	ires, err = c.LivezEndpoint(ctx, nil)
+	if err != nil {
+		return
+	}
+	return ires.([]byte), nil
+}
+
+// DebugVars calls the "debug-vars" endpoint of the "membership-service"
+// service.
+func (c *Client) DebugVars(ctx context.Context) (res []byte, err error) {
+	var ires any
+	ires, err = c.DebugVarsEndpoint(ctx, nil)
 	if err != nil {
 		return
 	}
