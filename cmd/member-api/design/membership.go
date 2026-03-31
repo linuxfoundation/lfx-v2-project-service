@@ -432,6 +432,18 @@ var _ = dsl.Service("membership-service", func() {
 		})
 	})
 
+	dsl.Method("debug-vars", func() {
+		dsl.Description("Expose expvar debug variables as JSON. Accessible via kubectl port-forward; not exposed by ingress.")
+		dsl.Meta("swagger:generate", "false")
+		dsl.Result(dsl.Bytes)
+		dsl.HTTP(func() {
+			dsl.GET("/debug/vars")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.ContentType("text/plain")
+			})
+		})
+	})
+
 	// ── OpenAPI spec files ────────────────────────────────────────────────────
 
 	dsl.Files("/_memberships/openapi.json", "gen/http/openapi.json", func() {

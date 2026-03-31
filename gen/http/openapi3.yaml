@@ -148,31 +148,6 @@ paths:
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
                                       year: "2025"
-                                    - agreement_date: "2025-01-01T00:00:00Z"
-                                      annual_full_price: 50000
-                                      auto_renew: true
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      end_date: "2025-12-31T23:59:59Z"
-                                      membership_type: Corporate
-                                      payment_frequency: Annual
-                                      payment_terms: Net 30
-                                      price: 50000
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      purchase_date: "2025-01-15T00:00:00Z"
-                                      renewal_type: Annual
-                                      start_date: "2025-02-01T00:00:00Z"
-                                      status: Active
-                                      tier: Gold
-                                      tier_family: Membership
-                                      tier_name: Gold Corporate Membership
-                                      tier_product_type: Corporate
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      year: "2025"
                                 metadata:
                                     next_page_token: ""
                                     total_size: 100
@@ -1017,7 +992,7 @@ components:
                 fault:
                     type: boolean
                     description: Is the error a server-side fault?
-                    example: false
+                    example: true
                 id:
                     type: string
                     description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1037,10 +1012,10 @@ components:
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
-                    example: false
+                    example: true
             description: Project not found
             example:
-                fault: false
+                fault: true
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
@@ -1166,23 +1141,6 @@ components:
                       title: CTO
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
-                    - board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
             required:
                 - contacts
         ListMetadata:
@@ -1210,6 +1168,31 @@ components:
                         $ref: '#/components/schemas/ProjectMembershipResponse'
                     description: List of project memberships
                     example:
+                        - agreement_date: "2025-01-01T00:00:00Z"
+                          annual_full_price: 50000
+                          auto_renew: true
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
+                          created_at: "2025-01-01T00:00:00Z"
+                          end_date: "2025-12-31T23:59:59Z"
+                          membership_type: Corporate
+                          payment_frequency: Annual
+                          payment_terms: Net 30
+                          price: 50000
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          purchase_date: "2025-01-15T00:00:00Z"
+                          renewal_type: Annual
+                          start_date: "2025-02-01T00:00:00Z"
+                          status: Active
+                          tier: Gold
+                          tier_family: Membership
+                          tier_name: Gold Corporate Membership
+                          tier_product_type: Corporate
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+                          year: "2025"
                         - agreement_date: "2025-01-01T00:00:00Z"
                           annual_full_price: 50000
                           auto_renew: true
@@ -1314,6 +1297,31 @@ components:
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
                       year: "2025"
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
                 metadata:
                     next_page_token: ""
                     total_size: 100
@@ -1329,6 +1337,13 @@ components:
                         $ref: '#/components/schemas/MembershipTierResponse'
                     description: List of membership tiers
                     example:
+                        - created_at: "2025-01-01T00:00:00Z"
+                          family: Membership
+                          name: Gold Corporate Membership
+                          product_type: Corporate
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
                         - created_at: "2025-01-01T00:00:00Z"
                           family: Membership
                           name: Gold Corporate Membership

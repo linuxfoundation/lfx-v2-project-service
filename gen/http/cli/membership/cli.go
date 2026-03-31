@@ -24,7 +24,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"membership-service (list-project-tiers|get-project-tier|list-project-memberships|get-project-membership|list-membership-key-contacts|create-membership-key-contact|update-membership-key-contact|delete-membership-key-contact|get-membership-key-contact|readyz|livez)",
+		"membership-service (list-project-tiers|get-project-tier|list-project-memberships|get-project-membership|list-membership-key-contacts|create-membership-key-contact|update-membership-key-contact|delete-membership-key-contact|get-membership-key-contact|readyz|livez|debug-vars)",
 	}
 }
 
@@ -111,6 +111,8 @@ func ParseEndpoint(
 		membershipServiceReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
 
 		membershipServiceLivezFlags = flag.NewFlagSet("livez", flag.ExitOnError)
+
+		membershipServiceDebugVarsFlags = flag.NewFlagSet("debug-vars", flag.ExitOnError)
 	)
 	membershipServiceFlags.Usage = membershipServiceUsage
 	membershipServiceListProjectTiersFlags.Usage = membershipServiceListProjectTiersUsage
@@ -124,6 +126,7 @@ func ParseEndpoint(
 	membershipServiceGetMembershipKeyContactFlags.Usage = membershipServiceGetMembershipKeyContactUsage
 	membershipServiceReadyzFlags.Usage = membershipServiceReadyzUsage
 	membershipServiceLivezFlags.Usage = membershipServiceLivezUsage
+	membershipServiceDebugVarsFlags.Usage = membershipServiceDebugVarsUsage
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
@@ -192,6 +195,9 @@ func ParseEndpoint(
 			case "livez":
 				epf = membershipServiceLivezFlags
 
+			case "debug-vars":
+				epf = membershipServiceDebugVarsFlags
+
 			}
 
 		}
@@ -248,6 +254,8 @@ func ParseEndpoint(
 				endpoint = c.Readyz()
 			case "livez":
 				endpoint = c.Livez()
+			case "debug-vars":
+				endpoint = c.DebugVars()
 			}
 		}
 	}
@@ -275,6 +283,7 @@ func membershipServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    get-membership-key-contact: Get a specific key contact by UID within a membership`)
 	fmt.Fprintln(os.Stderr, `    readyz: Check if the service is able to take inbound requests.`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
+	fmt.Fprintln(os.Stderr, `    debug-vars: Expose expvar debug variables as JSON. Accessible via kubectl port-forward; not exposed by ingress.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s membership-service COMMAND --help\n", os.Args[0])
@@ -541,4 +550,20 @@ func membershipServiceLivezUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service livez")
+}
+
+func membershipServiceDebugVarsUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service debug-vars", os.Args[0])
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Expose expvar debug variables as JSON. Accessible via kubectl port-forward; not exposed by ingress.`)
+
+	// Flags list
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service debug-vars")
 }

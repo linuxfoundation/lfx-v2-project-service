@@ -42,6 +42,9 @@ type Service interface {
 	Readyz(context.Context) (res []byte, err error)
 	// Check if the service is alive.
 	Livez(context.Context) (res []byte, err error)
+	// Expose expvar debug variables as JSON. Accessible via kubectl port-forward;
+	// not exposed by ingress.
+	DebugVars(context.Context) (res []byte, err error)
 }
 
 // Auther defines the authorization functions to be implemented by the service.
@@ -64,7 +67,7 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [11]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "readyz", "livez"}
+var MethodNames = [12]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "readyz", "livez", "debug-vars"}
 
 // CreateMembershipKeyContactPayload is the payload type of the
 // membership-service service create-membership-key-contact method.

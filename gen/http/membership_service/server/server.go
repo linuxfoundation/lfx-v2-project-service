@@ -32,6 +32,7 @@ type Server struct {
 	GetMembershipKeyContact    http.Handler
 	Readyz                     http.Handler
 	Livez                      http.Handler
+	DebugVars                  http.Handler
 	GenHTTPOpenapiJSON         http.Handler
 	GenHTTPOpenapiYaml         http.Handler
 	GenHTTPOpenapi3JSON        http.Handler
@@ -96,6 +97,7 @@ func New(
 			{"GetMembershipKeyContact", "GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
+			{"DebugVars", "GET", "/debug/vars"},
 			{"Serve gen/http/openapi.json", "GET", "/_memberships/openapi.json"},
 			{"Serve gen/http/openapi.yaml", "GET", "/_memberships/openapi.yaml"},
 			{"Serve gen/http/openapi3.json", "GET", "/_memberships/openapi3.json"},
@@ -112,6 +114,7 @@ func New(
 		GetMembershipKeyContact:    NewGetMembershipKeyContactHandler(e.GetMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
 		Readyz:                     NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
 		Livez:                      NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
+		DebugVars:                  NewDebugVarsHandler(e.DebugVars, mux, decoder, encoder, errhandler, formatter),
 		GenHTTPOpenapiJSON:         http.FileServer(fileSystemGenHTTPOpenapiJSON),
 		GenHTTPOpenapiYaml:         http.FileServer(fileSystemGenHTTPOpenapiYaml),
 		GenHTTPOpenapi3JSON:        http.FileServer(fileSystemGenHTTPOpenapi3JSON),
@@ -135,6 +138,7 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.GetMembershipKeyContact = m(s.GetMembershipKeyContact)
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
+	s.DebugVars = m(s.DebugVars)
 }
 
 // MethodNames returns the methods served.
@@ -153,6 +157,7 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountGetMembershipKeyContactHandler(mux, h.GetMembershipKeyContact)
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
+	MountDebugVarsHandler(mux, h.DebugVars)
 	MountGenHTTPOpenapiJSON(mux, http.StripPrefix("/_memberships", h.GenHTTPOpenapiJSON))
 	MountGenHTTPOpenapiYaml(mux, http.StripPrefix("/_memberships", h.GenHTTPOpenapiYaml))
 	MountGenHTTPOpenapi3JSON(mux, http.StripPrefix("/_memberships", h.GenHTTPOpenapi3JSON))
@@ -724,6 +729,52 @@ func NewLivezHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "livez")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		var err error
+		res, err := endpoint(ctx, nil)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountDebugVarsHandler configures the mux to serve the "membership-service"
+// service "debug-vars" endpoint.
+func MountDebugVarsHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/debug/vars", f)
+}
+
+// NewDebugVarsHandler creates a HTTP handler which loads the HTTP request and
+// calls the "membership-service" service "debug-vars" endpoint.
+func NewDebugVarsHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		encodeResponse = EncodeDebugVarsResponse(encoder)
+		encodeError    = goahttp.ErrorEncoder(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "debug-vars")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		var err error
 		res, err := endpoint(ctx, nil)

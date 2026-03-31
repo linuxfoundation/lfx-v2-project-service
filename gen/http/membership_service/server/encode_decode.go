@@ -1223,6 +1223,19 @@ func EncodeLivezResponse(encoder func(context.Context, http.ResponseWriter) goah
 	}
 }
 
+// EncodeDebugVarsResponse returns an encoder for responses returned by the
+// membership-service debug-vars endpoint.
+func EncodeDebugVarsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.([]byte)
+		ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "text/plain")
+		enc := encoder(ctx, w)
+		body := res
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
 // marshalMembershipserviceMembershipTierResponseToMembershipTierResponseResponseBody
 // builds a value of type *MembershipTierResponseResponseBody from a value of
 // type *membershipservice.MembershipTierResponse.

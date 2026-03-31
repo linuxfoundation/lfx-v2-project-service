@@ -66,3 +66,8 @@ func ReadyzMembershipServicePath() string {
 func LivezMembershipServicePath() string {
 	return "/livez"
 }
+
+// DebugVarsMembershipServicePath returns the URL path to the membership-service service debug-vars HTTP endpoint.
+func DebugVarsMembershipServicePath() string {
+	return "/debug/vars"
+}
