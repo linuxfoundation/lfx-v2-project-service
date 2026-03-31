@@ -72,7 +72,11 @@ func (c *NATSClient) KeyValueStore(ctx context.Context, bucketName string) error
 		cfg := jetstream.KeyValueConfig{
 			Bucket: bucketName,
 		}
-		if bucketName == constants.KVBucketNameCache {
+		// Both cache buckets use a 24-hour hard-eviction TTL. For membership-cache
+		// the soft-TTL logic lives in the CachedValue envelope; for
+		// member-service-cache freshness is governed by HTTP conditional GET
+		// semantics (ETag / Last-Modified) and the bucket TTL acts as a backstop.
+		if bucketName == constants.KVBucketNameCache || bucketName == constants.KVBucketNameSObjectCache {
 			cfg.TTL = 24 * time.Hour
 		}
 		kvStore, err = js.CreateKeyValue(ctx, cfg)
@@ -162,6 +166,17 @@ func NewClient(ctx context.Context, config Config) (*NATSClient, error) {
 	}
 	slog.InfoContext(ctx, "NATS key-value store initialized",
 		"bucket", constants.KVBucketNameCache,
+	)
+
+	if err := client.KeyValueStore(ctx, constants.KVBucketNameSObjectCache); err != nil {
+		slog.ErrorContext(ctx, "failed to initialize NATS sObject key-value store",
+			"error", err,
+			"bucket", constants.KVBucketNameSObjectCache,
+		)
+		return nil, errors.NewServiceUnavailable("failed to initialize NATS sObject key-value store", err)
+	}
+	slog.InfoContext(ctx, "NATS key-value store initialized",
+		"bucket", constants.KVBucketNameSObjectCache,
 	)
 
 	slog.InfoContext(ctx, "NATS client created successfully",

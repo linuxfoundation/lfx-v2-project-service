@@ -128,6 +128,38 @@ nats:
     # ttl is the bucket-level hard eviction TTL for all entries
     ttl: 24h
 
+  # kv_bucket_sobject_cache is the configuration for the member-service-cache KV
+  # bucket. It stores raw Salesforce sObject REST API responses alongside their
+  # ETag / Last-Modified metadata so the service can issue HTTP conditional GETs
+  # (If-None-Match / If-Modified-Since) on subsequent fetches. Keys follow the
+  # "{sobject_type}.{uid}" pattern. Unlike membership-cache this bucket does NOT
+  # use soft-TTL envelopes — freshness is handled entirely by HTTP conditional
+  # GET semantics, so entries stay until Salesforce confirms a change (304) or
+  # the hard 24h bucket TTL evicts them.
+  kv_bucket_sobject_cache:
+    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
+    # set it to false if you want to use an existing KV bucket.
+    creation: true
+    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
+    # set it to false if you want the bucket to be deleted when the chart is uninstalled
+    keep: true
+    # name is the name of the KV bucket
+    name: member-service-cache
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
+    # history is the number of historical values to keep per key
+    history: 1
+    # storage is the storage type for the KV bucket
+    storage: file
+    # maxValueSize is the maximum size of a value in the KV bucket (10 MB)
+    maxValueSize: 10485760
+    # maxBytes is the maximum total size of the KV bucket (1 GB)
+    maxBytes: 1073741824
+    # compression enables NATS JetStream compression for stored values
+    compression: true
+    # ttl is the bucket-level hard eviction TTL for all entries
+    ttl: 24h
+
 # openfga is the configuration for the OpenFGA server
 openfga:
   # enabled is a boolean to determine if the OpenFGA server should be enabled for authorization
