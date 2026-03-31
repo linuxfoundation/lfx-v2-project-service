@@ -4,12 +4,16 @@
 package salesforce
 
 import (
+	"context"
 	"expvar"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -77,6 +81,51 @@ func (t *rateLimitTransport) RoundTrip(req *http.Request) (*http.Response, error
 	}
 
 	return resp, nil
+}
+
+// RegisterOTelMetrics registers observable gauges for the Salesforce API usage
+// counters with the global OTEL meter provider. The SDK calls the callback on
+// its own schedule (configured via metric.NewPeriodicReader) and pushes the
+// current expvar values. If the meter provider is a no-op (i.e.
+// OTEL_METRICS_EXPORTER is unset), observations are silently discarded.
+//
+// Call this once after the OTel SDK has been initialised.
+func RegisterOTelMetrics() error {
+	meter := otel.GetMeterProvider().Meter("github.com/linuxfoundation/lfx-v2-member-service")
+
+	usageCurrent, err := meter.Int64ObservableGauge("sfdc.api.usage.current",
+		metric.WithDescription("Most-recently observed Salesforce API call count for the current 24-hour rolling window"),
+		metric.WithUnit("{call}"),
+	)
+	if err != nil {
+		return fmt.Errorf("registering sfdc.api.usage.current gauge: %w", err)
+	}
+
+	usageLimit, err := meter.Int64ObservableGauge("sfdc.api.usage.limit",
+		metric.WithDescription("Salesforce API call limit for the current 24-hour rolling window"),
+		metric.WithUnit("{call}"),
+	)
+	if err != nil {
+		return fmt.Errorf("registering sfdc.api.usage.limit gauge: %w", err)
+	}
+
+	_, err = meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		current := SforceAPIUsageCurrent.Value()
+		limit := SforceAPIUsageLimit.Value()
+		// Only report once we have observed at least one response.
+		if current >= 0 {
+			o.ObserveInt64(usageCurrent, current)
+		}
+		if limit >= 0 {
+			o.ObserveInt64(usageLimit, limit)
+		}
+		return nil
+	}, usageCurrent, usageLimit)
+	if err != nil {
+		return fmt.Errorf("registering sfdc api usage callback: %w", err)
+	}
+
+	return nil
 }
 
 // parseAPIUsage extracts the current and limit integers from a
