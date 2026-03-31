@@ -930,9 +930,11 @@ only one NATS KV read and zero Salesforce calls.
 
 ### Salesforce session management
 
-Use the **OAuth 2.0 JWT Bearer flow** (private key + client ID, no username/password). Refresh
-tokens proactively before expiry rather than reactively on 401. Share the token source across
-goroutines with a mutex or a `golang.org/x/oauth2` token-source abstraction.
+Prefer **OAuth 2.0 JWT Bearer flow** (private key + client ID); retain
+username/password as a fallback configuration pattern. Refresh tokens
+proactively before expiry rather than reactively on 401. Share the token source
+across goroutines with a mutex or a `golang.org/x/oauth2` token-source
+abstraction.
 
 ---
 
