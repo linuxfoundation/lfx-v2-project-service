@@ -31,12 +31,12 @@ type MemberReader interface {
 	// GetMembership returns a single ProjectMembership by its UID.
 	GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error)
 
-	// ListKeyContactsForMembership returns all ProjectKeyContact records for
+	// ListKeyContactsForMembership returns all KeyContact records for
 	// the given membership UID.
-	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error)
+	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error)
 
-	// GetKeyContact returns a single ProjectKeyContact by its UID.
-	GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error)
+	// GetKeyContact returns a single KeyContact by its UID.
+	GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error)
 
 	// IsReady reports whether the underlying storage is reachable.
 	IsReady(ctx context.Context) error

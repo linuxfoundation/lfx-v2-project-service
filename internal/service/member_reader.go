@@ -24,8 +24,8 @@ type MemberReader interface {
 	GetTier(ctx context.Context, tierUID string) (*model.MembershipTier, error)
 	ListMembershipsForProject(ctx context.Context, projectUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error)
 	GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error)
-	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error)
-	GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error)
+	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error)
+	GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error)
 }
 
 // memberReaderOrchestratorOption defines a functional option for configuring a
@@ -130,9 +130,9 @@ func (rc *memberReaderOrchestrator) GetMembership(ctx context.Context, membershi
 	return membership, nil
 }
 
-// ListKeyContactsForMembership returns all ProjectKeyContact records for the
-// given membership.
-func (rc *memberReaderOrchestrator) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error) {
+// ListKeyContactsForMembership returns all KeyContact records for the given
+// membership.
+func (rc *memberReaderOrchestrator) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error) {
 	slog.DebugContext(ctx, "executing list key contacts for membership use case",
 		"membership_uid", membershipUID,
 	)
@@ -153,8 +153,8 @@ func (rc *memberReaderOrchestrator) ListKeyContactsForMembership(ctx context.Con
 	return contacts, nil
 }
 
-// GetKeyContact returns the ProjectKeyContact identified by keyContactUID.
-func (rc *memberReaderOrchestrator) GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error) {
+// GetKeyContact returns the KeyContact identified by keyContactUID.
+func (rc *memberReaderOrchestrator) GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error) {
 	slog.DebugContext(ctx, "executing get key contact use case", "key_contact_uid", keyContactUID)
 
 	contact, err := rc.memberReader.GetKeyContact(ctx, keyContactUID)

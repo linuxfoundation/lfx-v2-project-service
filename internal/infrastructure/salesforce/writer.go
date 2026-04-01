@@ -85,7 +85,7 @@ func NewKeyContactWriter(
 // key-contacts KV cache entry for the parent membership is deleted so the next
 // read fetches fresh data. The newly created record is re-fetched from
 // Salesforce and returned.
-func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.KeyContactInput) (*model.ProjectKeyContact, error) {
+func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.KeyContactInput) (*model.KeyContact, error) {
 	assetSFID, err := sfuuid.ToSFID(input.MembershipUID)
 	if err != nil {
 		// Treat a value that does not decode as an LFX_ UUID as a raw SFID.
@@ -161,7 +161,7 @@ func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.Key
 // sent to Salesforce; nil fields are omitted from the patch so the existing
 // values are preserved. After a successful update the key-contacts cache entry
 // for the parent membership is deleted and the updated record is re-fetched.
-func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID string, input model.KeyContactInput) (*model.ProjectKeyContact, error) {
+func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID string, input model.KeyContactInput) (*model.KeyContact, error) {
 	sfid, err := sfuuid.ToSFID(contactUID)
 	if err != nil {
 		sfid = contactUID

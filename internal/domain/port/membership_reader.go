@@ -15,6 +15,6 @@ import (
 type MembershipReader interface {
 	GetMembership(ctx context.Context, uid string) (*model.ProjectMembership, error)
 	ListMembershipsForProject(ctx context.Context, projectSFID string) ([]*model.ProjectMembership, error)
-	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error)
+	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error)
 	IsReady(ctx context.Context) error
 }

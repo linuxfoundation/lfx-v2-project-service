@@ -252,7 +252,7 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		input   *model.ProjectKeyContact
+		input   *model.KeyContact
 		wantNil bool
 	}{
 		{
@@ -262,7 +262,7 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 		},
 		{
 			name: "full key contact maps all fields",
-			input: &model.ProjectKeyContact{
+			input: &model.KeyContact{
 				UID:            "kc-uid-1",
 				MembershipUID:  "membership-uid-1",
 				TierUID:        "tier-uid-1",
@@ -285,7 +285,7 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 		},
 		{
 			name: "key contact without optional fields",
-			input: &model.ProjectKeyContact{
+			input: &model.KeyContact{
 				UID:           "kc-uid-2",
 				MembershipUID: "membership-uid-2",
 				TierUID:       "tier-uid-2",

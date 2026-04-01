@@ -621,12 +621,12 @@ func (r *MemberReader) fetchMembershipFromSalesforce(ctx context.Context, member
 
 // ─── Key contacts ─────────────────────────────────────────────────────────────
 
-// ListKeyContactsForMembership returns all ProjectKeyContact records for the
+// ListKeyContactsForMembership returns all KeyContact records for the
 // given membership UID. The contacts are cached as a group under the membership
 // UID; a fresh or stale cache hit is served directly (stale hits trigger a
 // background refresh). A miss or expired entry triggers a SOQL fetch by Asset
 // SFID.
-func (r *MemberReader) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error) {
+func (r *MemberReader) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error) {
 	result, err := r.cache.GetKeyContactsForMembership(ctx, membershipUID)
 	if err != nil {
 		slog.WarnContext(ctx, "cache read error for key contacts; falling through to Salesforce",
@@ -654,7 +654,7 @@ func (r *MemberReader) ListKeyContactsForMembership(ctx context.Context, members
 // Salesforce by decoding the membership UID to an Asset SFID, writes the result
 // to the KV cache, and returns it. ProjectUID is resolved from each contact's
 // ProjectSlug via the resolver.
-func (r *MemberReader) fetchKeyContactsFromSalesforce(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error) {
+func (r *MemberReader) fetchKeyContactsFromSalesforce(ctx context.Context, membershipUID string) ([]*model.KeyContact, error) {
 	sfid, err := sfuuid.ToSFID(membershipUID)
 	if err != nil {
 		// The UID is not an LFX_ UUID v8 — treat as a raw SFID passed directly.
@@ -696,7 +696,7 @@ func (r *MemberReader) fetchKeyContactsFromSalesforce(ctx context.Context, membe
 // stores all contacts for a membership together. The record is fetched directly
 // from Salesforce by SFID. ProjectUID is resolved from the contact's ProjectSlug
 // via the resolver.
-func (r *MemberReader) GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error) {
+func (r *MemberReader) GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error) {
 	sfid, err := sfuuid.ToSFID(keyContactUID)
 	if err != nil {
 		// The UID is not an LFX_ UUID v8 — treat as a raw SFID passed directly.

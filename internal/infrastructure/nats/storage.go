@@ -96,22 +96,22 @@ func (s *Storage) PutMembership(ctx context.Context, membership *model.ProjectMe
 	return putCached(ctx, s, keyPrefixMembership+membership.UID, membership)
 }
 
-// ─── ProjectKeyContact ───────────────────────────────────────────────────────
+// ─── KeyContact ──────────────────────────────────────────────────────────────
 
 // GetKeyContactsForMembership retrieves all key contacts cached for the given
 // membership UID. The contacts are stored as a JSON array under the membership
 // UID key (prefixed with "key-contacts/") in the membership-cache bucket.
 // Returns a CacheResult whose Status is CacheStatusMiss when no entry exists.
-func (s *Storage) GetKeyContactsForMembership(ctx context.Context, membershipUID string) (CacheResult[[]*model.ProjectKeyContact], error) {
-	return getCached[[]*model.ProjectKeyContact](ctx, s, keyPrefixKeyContacts+membershipUID)
+func (s *Storage) GetKeyContactsForMembership(ctx context.Context, membershipUID string) (CacheResult[[]*model.KeyContact], error) {
+	return getCached[[]*model.KeyContact](ctx, s, keyPrefixKeyContacts+membershipUID)
 }
 
 // PutKeyContactsForMembership writes the full slice of key contacts for a
 // membership into the KV bucket as a single entry keyed by membership UID,
 // wrapped in a CachedValue envelope using the Storage TTLConfig.
-func (s *Storage) PutKeyContactsForMembership(ctx context.Context, membershipUID string, contacts []*model.ProjectKeyContact) error {
+func (s *Storage) PutKeyContactsForMembership(ctx context.Context, membershipUID string, contacts []*model.KeyContact) error {
 	if contacts == nil {
-		contacts = []*model.ProjectKeyContact{}
+		contacts = []*model.KeyContact{}
 	}
 	return putCached(ctx, s, keyPrefixKeyContacts+membershipUID, contacts)
 }
