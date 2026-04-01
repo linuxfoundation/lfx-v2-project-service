@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 // Package model contains the domain model types for the LFX v2 member service.
-// Models are structured around three project-scoped types that reflect the
-// drill-down API layout: MembershipTier (product per project), ProjectMembership
-// (asset per project), and ProjectKeyContact (project role per membership).
+// Models are structured around four types: B2BOrg (member company / Account),
+// MembershipTier (product per project), ProjectMembership (asset per project),
+// and KeyContact (project role per membership).
 package model
 
 import "time"
