@@ -691,7 +691,7 @@ func (r *MemberReader) fetchKeyContactsFromSalesforce(ctx context.Context, membe
 	return contacts, nil
 }
 
-// GetKeyContact returns the ProjectKeyContact identified by keyContactUID. There
+// GetKeyContact returns the KeyContact identified by keyContactUID. There
 // is no group-level KV cache for individual contacts — the contacts bucket
 // stores all contacts for a membership together. The record is fetched directly
 // from Salesforce by SFID. ProjectUID is resolved from the contact's ProjectSlug

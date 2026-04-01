@@ -100,7 +100,7 @@ func (s *Storage) PutMembership(ctx context.Context, membership *model.ProjectMe
 
 // GetKeyContactsForMembership retrieves all key contacts cached for the given
 // membership UID. The contacts are stored as a JSON array under the membership
-// UID key (prefixed with "key-contacts/") in the membership-cache bucket.
+// UID key (prefixed with "key-contacts.") in the membership-cache bucket.
 // Returns a CacheResult whose Status is CacheStatusMiss when no entry exists.
 func (s *Storage) GetKeyContactsForMembership(ctx context.Context, membershipUID string) (CacheResult[[]*model.KeyContact], error) {
 	return getCached[[]*model.KeyContact](ctx, s, keyPrefixKeyContacts+membershipUID)
