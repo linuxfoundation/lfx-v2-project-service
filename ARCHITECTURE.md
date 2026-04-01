@@ -189,17 +189,19 @@ type b2b_org
     # b2b_org at creation time by the member service. There is no "root" b2b_org;
     # the team relation is stamped directly on each object instance.
     define global_org_admin: [team#member]
-    define owner: [user] or global_org_admin
-    define writer: [user] or owner
+    define owner: [user]
+    define writer: [user] or owner or global_org_admin
     define auditor: [user, team#member] or writer
 ```
 
 - **`global_org_admin`**: holds the platform-wide org-admin team. Set at creation; never
   managed per-resource. Provides `writer` (and transitively `auditor`) access to all org admins.
-- **`owner`**: individual users (or transitively global org admins) who are owners of this org.
-  Owners can delegate `writer` access and manage the org's data.
-- **`writer`**: individual users (or owners) who can write memberships and key contacts on behalf
-  of this org.
+  Intentionally scoped to `writer`, not `owner`, so machine users do not acquire any future
+  owner-only gates (e.g. org transfer or deletion).
+- **`owner`**: individual human users who are owners of this org. Owners inherit `writer` access
+  and are reserved for future owner-only operations.
+- **`writer`**: individual users, owners, or global org-admin team members who can write
+  memberships and key contacts on behalf of this org.
 - **`auditor`**: individual users or team members with read access to all data associated with
   this org, including sensitive membership and contact details.
 
@@ -256,10 +258,11 @@ type b2b_org
 Represents a Salesforce Asset record: one active (or expired) membership term for a `b2b_org`
 within a `project`. The UID is an invertible UUID v8 encoded from the Asset SFID.
 
-Access is derived entirely from the caller's relationship to the parent `b2b_org` (for org-scoped
-access) and/or to the parent `project` (for project-scoped access, e.g. staff). The global
+Access is derived from the caller's relationship to the parent `b2b_org` (for org-scoped access)
+and/or to the parent `project` (for project-scoped read access, e.g. LF staff). The global
 org-admin team's `writer` relation on `b2b_org` cascades transitively, so machine users can read
-and write membership data for any org.
+and write membership data for any org. Project-level writers (LF staff) can audit but cannot
+create or modify membership records — write access is intentionally restricted to the org side.
 
 ```plain
 type project_membership
@@ -273,7 +276,8 @@ type project_membership
 - **`b2b_org`**: reference to the owning org. Set at creation, never changed.
 - **`project`**: reference to the project this membership belongs to. Set at creation, never
   changed.
-- **`writer`**: inherits `writer` from the `b2b_org` (org owners, global org admins).
+- **`writer`**: inherits `writer` from the `b2b_org` only (org owners, global org admins).
+  Project-level writers cannot write membership records.
 - **`auditor`**: inherits `auditor` from the `b2b_org` (org auditors, owners, global org admins)
   **or** from the `project` (project auditors, writers, owners).
 
@@ -339,16 +343,15 @@ Represents a Salesforce `Project_Role__c` record: a named contact role assigned 
 for a specific `project` membership. The UID is an invertible UUID v8 encoded from the
 `Project_Role__c` SFID.
 
-Write access is granted to `b2b_org` owners (and transitively the global org-admin team), so
-machine users and org owners can manage key contacts for their company's memberships without
-requiring project-level write access.
+Write access is granted to `b2b_org` writers (owners and the global org-admin team) and to
+project-level writers (LF staff managing contacts on behalf of members).
 
 ```plain
 type key_contact
   relations
     define b2b_org: [b2b_org]
     define project: [project]
-    define writer: writer from b2b_org
+    define writer: writer from b2b_org or writer from project
     define auditor: auditor from b2b_org or auditor from project
 ```
 
@@ -356,8 +359,9 @@ type key_contact
 - **`project`**: reference to the project. Set at creation from the membership's `project_uid`.
   Allows project auditors (staff) to read all key contacts for a project without being granted
   per-org access.
-- **`writer`**: inherits `writer` from the `b2b_org` — org owners and global org admins can
-  create, update, and delete key contacts.
+- **`writer`**: inherits `writer` from the `b2b_org` (org owners, global org admins) **or** from
+  the `project` (LF staff). This differs from `project_membership`, where only org-side writers
+  can modify records.
 - **`auditor`**: inherits from `b2b_org` **or** `project` (same pattern as `project_membership`).
 
 **FGA Sync payload (on create/update):**
@@ -522,9 +526,10 @@ type b2b_org
     # global_org_admin holds the platform-wide org admin team. This relation is
     # written to every b2b_org at creation time by the member service. There is
     # no "root" b2b_org; the team is added as a direct relation on each object.
+    # Placed in writer (not owner) to reserve owner for future owner-only gates.
     define global_org_admin: [team#member]
-    define owner: [user] or global_org_admin
-    define writer: [user] or owner
+    define owner: [user]
+    define writer: [user] or owner or global_org_admin
     define auditor: [user, team#member] or writer
 
 type project_membership
@@ -538,7 +543,7 @@ type key_contact
   relations
     define b2b_org: [b2b_org]
     define project: [project]
-    define writer: writer from b2b_org
+    define writer: writer from b2b_org or writer from project
     define auditor: auditor from b2b_org or auditor from project
 ```
 
@@ -806,7 +811,8 @@ type EventPublisher interface {
 
 - Add `b2b_org`, `project_membership`, and `key_contact` type definitions to
   `charts/lfx-platform/templates/openfga/model.yaml`.
-- Bump the model minor version.
+- Bump the model **major** version (type additions/deletions require a major bump per the
+  in-file versioning guidelines).
 - Remove the stub `member` type (after confirming no existing tuples reference it).
 
 ### Step 2: sObject client and conditional GET cache
