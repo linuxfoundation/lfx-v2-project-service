@@ -60,6 +60,10 @@ type Client struct {
 	// Livez Doer is the HTTP client used to make requests to the livez endpoint.
 	LivezDoer goahttp.Doer
 
+	// DebugVars Doer is the HTTP client used to make requests to the debug-vars
+	// endpoint.
+	DebugVarsDoer goahttp.Doer
+
 	// RestoreResponseBody controls whether the response bodies are reset after
 	// decoding so they can be read again.
 	RestoreResponseBody bool
@@ -92,6 +96,7 @@ func NewClient(
 		GetMembershipKeyContactDoer:    doer,
 		ReadyzDoer:                     doer,
 		LivezDoer:                      doer,
+		DebugVarsDoer:                  doer,
 		RestoreResponseBody:            restoreBody,
 		scheme:                         scheme,
 		host:                           host,
@@ -349,6 +354,25 @@ func (c *Client) Livez() goa.Endpoint {
 		resp, err := c.LivezDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("membership-service", "livez", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// DebugVars returns an endpoint that makes HTTP requests to the
+// membership-service service debug-vars server.
+func (c *Client) DebugVars() goa.Endpoint {
+	var (
+		decodeResponse = DecodeDebugVarsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildDebugVarsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.DebugVarsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "debug-vars", err)
 		}
 		return decodeResponse(resp)
 	}

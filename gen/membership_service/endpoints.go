@@ -28,6 +28,7 @@ type Endpoints struct {
 	GetMembershipKeyContact    goa.Endpoint
 	Readyz                     goa.Endpoint
 	Livez                      goa.Endpoint
+	DebugVars                  goa.Endpoint
 }
 
 // NewEndpoints wraps the methods of the "membership-service" service with
@@ -47,6 +48,7 @@ func NewEndpoints(s Service) *Endpoints {
 		GetMembershipKeyContact:    NewGetMembershipKeyContactEndpoint(s, a.JWTAuth),
 		Readyz:                     NewReadyzEndpoint(s),
 		Livez:                      NewLivezEndpoint(s),
+		DebugVars:                  NewDebugVarsEndpoint(s),
 	}
 }
 
@@ -64,6 +66,7 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.GetMembershipKeyContact = m(e.GetMembershipKeyContact)
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
+	e.DebugVars = m(e.DebugVars)
 }
 
 // NewListProjectTiersEndpoint returns an endpoint function that calls the
@@ -289,5 +292,13 @@ func NewReadyzEndpoint(s Service) goa.Endpoint {
 func NewLivezEndpoint(s Service) goa.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		return s.Livez(ctx)
+	}
+}
+
+// NewDebugVarsEndpoint returns an endpoint function that calls the method
+// "debug-vars" of service "membership-service".
+func NewDebugVarsEndpoint(s Service) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		return s.DebugVars(ctx)
 	}
 }

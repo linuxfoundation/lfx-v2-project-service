@@ -4,7 +4,10 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"expvar"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -354,6 +357,30 @@ func (s *membershipServicesrvc) Readyz(ctx context.Context) ([]byte, error) {
 // Livez checks if the service is alive.
 func (s *membershipServicesrvc) Livez(_ context.Context) ([]byte, error) {
 	return []byte("OK\n"), nil
+}
+
+// DebugVars returns the expvar debug variables as a JSON object. The output
+// format is identical to the standard expvar HTTP handler (expanded with
+// newlines between keys): each key is JSON-quoted, and each value is rendered
+// using its String() method, which already returns valid JSON for all built-in
+// expvar types (Int, Float, String, Map, Func). This avoids registering the
+// default expvar handler on the default mux while still serving through the
+// Goa-generated HTTP stack.
+func (s *membershipServicesrvc) DebugVars(_ context.Context) ([]byte, error) {
+	var buf bytes.Buffer
+	buf.WriteString("{\n")
+	first := true
+	expvar.Do(func(kv expvar.KeyValue) {
+		if !first {
+			buf.WriteString(",\n")
+		}
+		first = false
+		// json.Marshal produces a properly escaped JSON string for the key.
+		key, _ := json.Marshal(kv.Key)
+		fmt.Fprintf(&buf, "%s: %s", key, kv.Value.String())
+	})
+	buf.WriteString("\n}\n")
+	return buf.Bytes(), nil
 }
 
 // ── Constructor ───────────────────────────────────────────────────────────────
