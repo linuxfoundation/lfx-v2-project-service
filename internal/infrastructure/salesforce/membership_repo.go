@@ -370,6 +370,15 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 	// association); it is never serialised to API responses.
 	m.AccountSFID = asset.AccountID
 
+	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce Account.Id.
+	// Populated here so callers can link this membership to the B2BOrg entity.
+	// Errors are silently ignored because B2BOrgUID is a convenience field.
+	if asset.AccountID != "" {
+		if orgUID, orgErr := sfuuid.ToUUID(asset.AccountID); orgErr == nil {
+			m.B2BOrgUID = orgUID
+		}
+	}
+
 	// Denormalize Account (company) fields directly onto the membership.
 	if asset.Account != nil {
 		m.CompanyName = asset.Account.Name

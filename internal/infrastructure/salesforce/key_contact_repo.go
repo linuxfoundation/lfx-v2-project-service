@@ -78,9 +78,9 @@ func NewKeyContactRepo(client *sf.Salesforce) *KeyContactRepo {
 }
 
 // FetchKeyContactsByAssetSFID fetches all key contacts for a specific Asset
-// (membership) by its Salesforce ID, returning ProjectKeyContact domain objects
+// (membership) by its Salesforce ID, returning KeyContact domain objects
 // with inline Contact and Account fields.
-func (r *KeyContactRepo) FetchKeyContactsByAssetSFID(ctx context.Context, assetSFID string) ([]*model.ProjectKeyContact, error) {
+func (r *KeyContactRepo) FetchKeyContactsByAssetSFID(ctx context.Context, assetSFID string) ([]*model.KeyContact, error) {
 	slog.DebugContext(ctx, "fetching key contacts for asset from Salesforce",
 		"asset_sfid", assetSFID,
 	)
@@ -100,9 +100,9 @@ func (r *KeyContactRepo) FetchKeyContactsByAssetSFID(ctx context.Context, assetS
 		emailMap = make(map[string]string)
 	}
 
-	contacts := make([]*model.ProjectKeyContact, 0, len(roles))
+	contacts := make([]*model.KeyContact, 0, len(roles))
 	for _, role := range roles {
-		c, convertErr := convertSOQLToProjectKeyContact(role, emailMap)
+		c, convertErr := convertSOQLToKeyContact(role, emailMap)
 		if convertErr != nil {
 			slog.WarnContext(ctx, "skipping key contact with invalid SFID",
 				"sfid", role.ID,
@@ -118,7 +118,7 @@ func (r *KeyContactRepo) FetchKeyContactsByAssetSFID(ctx context.Context, assetS
 
 // FetchKeyContactBySFID fetches a single key contact by its Salesforce
 // Project_Role__c ID. Returns nil if the record is not found.
-func (r *KeyContactRepo) FetchKeyContactBySFID(ctx context.Context, sfid string) (*model.ProjectKeyContact, error) {
+func (r *KeyContactRepo) FetchKeyContactBySFID(ctx context.Context, sfid string) (*model.KeyContact, error) {
 	slog.DebugContext(ctx, "fetching key contact from Salesforce by SFID", "sfid", sfid)
 
 	var roles []soqlProjectRole
@@ -143,7 +143,7 @@ func (r *KeyContactRepo) FetchKeyContactBySFID(ctx context.Context, sfid string)
 		}
 	}
 
-	return convertSOQLToProjectKeyContact(roles[0], emailMap)
+	return convertSOQLToKeyContact(roles[0], emailMap)
 }
 
 // fetchPrimaryEmails fetches the primary alternate email address for each of the
@@ -180,12 +180,12 @@ func (r *KeyContactRepo) fetchPrimaryEmails(ctx context.Context, contactIDs []st
 	return emailMap, nil
 }
 
-// convertSOQLToProjectKeyContact converts a Salesforce Project_Role__c SOQL
-// result to the domain ProjectKeyContact model. Contact and company (Account)
+// convertSOQLToKeyContact converts a Salesforce Project_Role__c SOQL
+// result to the domain KeyContact model. Contact and company (Account)
 // attributes are inlined directly onto the struct — no sub-objects are used.
 // Company data is sourced from the Asset's Account (Asset__r.Account) so that
 // it is consistent with the associated ProjectMembership record.
-func convertSOQLToProjectKeyContact(role soqlProjectRole, emailMap map[string]string) (*model.ProjectKeyContact, error) {
+func convertSOQLToKeyContact(role soqlProjectRole, emailMap map[string]string) (*model.KeyContact, error) {
 	contactUID, err := sfuuid.ToUUID(role.ID)
 	if err != nil {
 		return nil, fmt.Errorf("converting project role SFID %q to UUID: %w", role.ID, err)
@@ -196,7 +196,7 @@ func convertSOQLToProjectKeyContact(role soqlProjectRole, emailMap map[string]st
 		return nil, fmt.Errorf("converting asset SFID %q to UUID: %w", role.AssetID, err)
 	}
 
-	c := &model.ProjectKeyContact{
+	c := &model.KeyContact{
 		UID:            contactUID,
 		MembershipUID:  membershipUID,
 		Role:           derefString(role.Role),
@@ -223,6 +223,14 @@ func convertSOQLToProjectKeyContact(role soqlProjectRole, emailMap map[string]st
 			c.CompanyName = role.Asset.Account.Name
 			c.CompanyLogoURL = derefString(role.Asset.Account.LogoURL)
 			c.CompanyDomain = derefString(role.Asset.Account.Website)
+		}
+
+		// Derive B2BOrgUID from the Asset's AccountId so callers can link this
+		// contact to the B2BOrg entity without an extra resolver round-trip.
+		if role.Asset.AccountID != "" {
+			if orgUID, orgErr := sfuuid.ToUUID(role.Asset.AccountID); orgErr == nil {
+				c.B2BOrgUID = orgUID
+			}
 		}
 
 		// Populate ProjectSlug (and ProjectUID when available) from the

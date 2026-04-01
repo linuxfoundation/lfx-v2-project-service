@@ -115,9 +115,9 @@ func convertProjectMembershipToResponse(m *model.ProjectMembership) *memberships
 	return r
 }
 
-// convertProjectKeyContactToResponse converts a domain ProjectKeyContact to a
-// Goa response.
-func convertProjectKeyContactToResponse(c *model.ProjectKeyContact) *membershipservice.ProjectKeyContactResponse {
+// convertProjectKeyContactToResponse converts a domain KeyContact to a Goa
+// response.
+func convertProjectKeyContactToResponse(c *model.KeyContact) *membershipservice.ProjectKeyContactResponse {
 	if c == nil {
 		return nil
 	}
