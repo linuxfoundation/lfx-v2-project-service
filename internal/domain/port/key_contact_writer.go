@@ -20,12 +20,12 @@ type KeyContactWriter interface {
 	// Email, FirstName, LastName, and MembershipUID; all pointer fields default
 	// to zero values if nil. The writer resolves (or creates) the B2B Salesforce
 	// Contact.Id internally from the email address.
-	CreateKeyContact(ctx context.Context, input model.KeyContactInput) (*model.ProjectKeyContact, error)
+	CreateKeyContact(ctx context.Context, input model.KeyContactInput) (*model.KeyContact, error)
 
 	// UpdateKeyContact updates the mutable fields of an existing
 	// Project_Role__c record identified by contactUID. Only non-nil pointer
 	// fields in input are applied; nil fields are left unchanged.
-	UpdateKeyContact(ctx context.Context, contactUID string, input model.KeyContactInput) (*model.ProjectKeyContact, error)
+	UpdateKeyContact(ctx context.Context, contactUID string, input model.KeyContactInput) (*model.KeyContact, error)
 
 	// DeleteKeyContact soft-deletes the Project_Role__c record identified by
 	// contactUID. membershipUID is used to invalidate the key-contacts KV cache

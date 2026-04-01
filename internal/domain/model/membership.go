@@ -29,6 +29,12 @@ type ProjectMembership struct {
 	// records with the correct Account; not included in API responses.
 	AccountSFID string `json:"-"`
 
+	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce
+	// Account.Id. Populated by the Salesforce infrastructure layer via
+	// sfuuid.ToUUID(AccountSFID). Not included in API responses until the
+	// B2BOrg entity is surfaced through a dedicated endpoint.
+	B2BOrgUID string `json:"b2b_org_uid,omitempty"`
+
 	// Status is the membership status, e.g. "Active", "Expired".
 	Status string `json:"status"`
 

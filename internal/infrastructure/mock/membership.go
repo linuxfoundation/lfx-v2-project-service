@@ -21,7 +21,7 @@ import (
 type MockMembershipRepository struct {
 	tiers       map[string]*model.MembershipTier
 	memberships map[string]*model.ProjectMembership
-	contacts    map[string]*model.ProjectKeyContact
+	contacts    map[string]*model.KeyContact
 	mu          sync.RWMutex
 }
 
@@ -34,7 +34,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 	mock := &MockMembershipRepository{
 		tiers:       make(map[string]*model.MembershipTier),
 		memberships: make(map[string]*model.ProjectMembership),
-		contacts:    make(map[string]*model.ProjectKeyContact),
+		contacts:    make(map[string]*model.KeyContact),
 	}
 
 	// Sample tier (Product2).
@@ -79,7 +79,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 	mock.memberships[sampleMembership.UID] = sampleMembership
 
 	// Sample key contact (Project_Role__c).
-	sampleContact := &model.ProjectKeyContact{
+	sampleContact := &model.KeyContact{
 		UID:            "contact-role-1",
 		MembershipUID:  "membership-1",
 		TierUID:        "tier-1",
@@ -213,15 +213,15 @@ func (m *MockMembershipRepository) GetMembership(ctx context.Context, membership
 	return ms, nil
 }
 
-// ListKeyContactsForMembership returns all ProjectKeyContact records whose
-// MembershipUID matches the given membership UID.
-func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error) {
+// ListKeyContactsForMembership returns all KeyContact records whose MembershipUID
+// matches the given membership UID.
+func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error) {
 	slog.DebugContext(ctx, "mock: listing key contacts for membership", "membership_uid", membershipUID)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var result []*model.ProjectKeyContact
+	var result []*model.KeyContact
 	for _, c := range m.contacts {
 		if c.MembershipUID == membershipUID {
 			result = append(result, c)
@@ -231,8 +231,8 @@ func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Cont
 	return result, nil
 }
 
-// GetKeyContact returns the ProjectKeyContact identified by keyContactUID.
-func (m *MockMembershipRepository) GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error) {
+// GetKeyContact returns the KeyContact identified by keyContactUID.
+func (m *MockMembershipRepository) GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error) {
 	slog.DebugContext(ctx, "mock: getting key contact", "uid", keyContactUID)
 
 	m.mu.RLock()
