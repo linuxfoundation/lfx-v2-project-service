@@ -263,25 +263,21 @@ Represents a Salesforce Asset record: one active (or expired) membership term fo
 within a `project`. The UID is an invertible UUID v8 encoded from the Asset SFID.
 
 Access is derived from the caller's relationship to the parent `b2b_org` (for org-scoped access)
-and/or to the parent `project` (for project-scoped read access, e.g. LF staff). The global
-org-admin team's `writer` relation on `b2b_org` cascades transitively, so machine users can read
-and write membership data for any org. Project-level writers (LF staff) can audit but cannot
-create or modify membership records — write access is intentionally restricted to the org side.
+and/or to the parent `project` (for project-scoped read access, e.g. LF staff). This service
+exposes no API write path for `project_membership` — all mutations originate in Salesforce (via
+the Sales team) and propagate to this service through PubSub CDC or the backfill trigger.
 
 ```plain
 type project_membership
   relations
     define b2b_org: [b2b_org]
     define project: [project]
-    define writer: writer from b2b_org
     define auditor: auditor from b2b_org or auditor from project
 ```
 
 - **`b2b_org`**: reference to the owning org. Set at creation, never changed.
 - **`project`**: reference to the project this membership belongs to. Set at creation, never
   changed.
-- **`writer`**: inherits `writer` from the `b2b_org` only (org owners, global org admins).
-  Project-level writers cannot write membership records.
 - **`auditor`**: inherits `auditor` from the `b2b_org` (org auditors, owners, global org admins)
   **or** from the `project` (project auditors, writers, owners).
 
@@ -489,10 +485,12 @@ backward-compatible aliases for the old project-scoped paths.
 | Method | Path | Description | FGA check |
 |--------|------|-------------|-----------|
 | GET | `/project_memberships/{uid}` | Get a membership (sObject cache) | `auditor` on `project_membership:{uid}` |
-| POST | `/project_memberships` | Create a membership | `writer` on `b2b_org:{b2b_org_uid}` (from payload) |
-| PUT | `/project_memberships/{uid}` | Update a membership | `writer` on `project_membership:{uid}` |
-| DELETE | `/project_memberships/{uid}` | Delete a membership | `writer` on `project_membership:{uid}` |
 
+> **Note:** Membership lifecycle operations (creation, cancellation, auto-renewal changes, etc.)
+> are managed by the LF Sales team directly in Salesforce. This service exposes no write
+> endpoints for `project_membership`; all mutations arrive via Salesforce PubSub CDC or the
+> backfill trigger.
+>
 > List/search `project_membership`: **Query Service** — `auditor` on `project_membership:{uid}`,
 > filterable by `parent_refs` (e.g. `b2b_org:{uid}` or `project:{uid}`).
 
@@ -540,7 +538,8 @@ type project_membership
   relations
     define b2b_org: [b2b_org]
     define project: [project]
-    define writer: writer from b2b_org
+    # No writer relation: membership lifecycle is managed in Salesforce by the
+    # Sales team. Mutations reach this service only via PubSub CDC or backfill.
     define auditor: auditor from b2b_org or auditor from project
 
 type key_contact
@@ -692,6 +691,9 @@ The Heimdall RuleSet must be updated to:
 3. **The `POST /b2b_orgs` and `POST /admin/reindex` rules** check team membership against the
    global org-admin team rather than a per-resource object. The team UID is injected as a static
    chart value (`app.globalOrgAdminTeamUID`).
+4. **No write rules for `project_memberships`.** The only Heimdall rule needed for this path is
+   a `GET` read rule. Membership lifecycle (creation, cancellation, auto-renewal) is handled by
+   the LF Sales team in Salesforce; no direct-write HTTP rules are required.
 
 Example rule sketch for `POST /b2b_orgs` (team membership check):
 
@@ -806,6 +808,9 @@ type EventPublisher interface {
 - `MembershipSourceReader` (SOQL-backed) — replaced by `sObjectReader` (ETag/Last-Modified-aware) for live
   serving, and a `BackfillRunner` for reindex operations.
 - All NATS KV lookup-index writers — removed; the Query Service is the only collection index.
+- No `MembershipWriter` port is introduced — `project_membership` records are written exclusively
+  in Salesforce by the LF Sales team. There is no API write path for this type; mutations reach
+  this service only via PubSub CDC or the backfill trigger.
 
 ---
 
@@ -836,16 +841,19 @@ type EventPublisher interface {
 
 ### Step 4: Root API paths (Goa design)
 
-- Add `b2b_org`, `project_membership`, and `key_contact` service methods to the Goa design at
-  the root paths described in the Target API Layout section above.
+- Add `b2b_org` (GET/POST/PUT) and `key_contact` (GET/POST/PUT/DELETE) service methods to the
+  Goa design at the root paths described in the Target API Layout section above.
+- Add `project_membership` GET only — no write methods (lifecycle is managed in Salesforce by
+  the Sales team; mutations arrive via PubSub CDC or backfill, not the HTTP API).
 - Remove all project-scoped drill-down methods entirely (no aliases, no 410 stubs).
 - Regenerate the Goa server code (`make gen`).
 
 ### Step 5: FGA Sync integration
 
-- On every create / update / delete of a `b2b_org`, `project_membership`, or `key_contact`,
-  publish a FGA Sync message via the `EventPublisher` port using the payloads defined in the
-  entity model section above.
+- On every create / update / delete of a `b2b_org` or `key_contact` (via the HTTP API), and on
+  every `project_membership` change received via PubSub CDC or backfill, publish a FGA Sync
+  message via the `EventPublisher` port using the payloads defined in the entity model section
+  above.
 - The FGA Sync message for `b2b_org` creation must always include the `global_org_admin`
   reference (team UID loaded from config at startup).
 - On delete, publish a `delete_access` message to remove all FGA tuples for the object.
