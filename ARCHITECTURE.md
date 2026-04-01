@@ -11,8 +11,9 @@ authorization, OpenSearch indexing via the Indexer Service, and a clean v2 API s
 
 ## Current State
 
-The member service is a **read/write Salesforce B2B proxy** with a NATS KV caching layer. The
-PostgreSQL replica dependency from the v1 platform has been fully removed. The service now:
+The v2 member service is currently a **read/write Salesforce B2B proxy** with a NATS KV caching
+layer. The PostgreSQL replica dependency from the v1 platform has been fully removed. The service
+now:
 
 1. Queries Salesforce directly via SOQL (the `salesforce` infrastructure package) for all reads.
 2. Caches SOQL responses in NATS KV as paginated result batches (stale-while-revalidate) to
@@ -25,10 +26,13 @@ PostgreSQL replica dependency from the v1 platform has been fully removed. The s
 
 ### Current API layout
 
-All endpoints live under a project drill-down hierarchy. Collection endpoints are served by this
-service via a SOQL-backed NATS KV cache: on a cache miss (or stale hit) the service issues a SOQL
-query to Salesforce, writes the result into KV, and returns it; fresh cache hits are served
-directly from KV without a Salesforce round-trip.
+All v2 member service endpoints live under a project drill-down hierarchy. Most collection
+endpoints are served via a SOQL-backed NATS KV cache: on a cache miss (or stale hit) the service
+issues a SOQL query to Salesforce, writes the result into KV, and returns it; fresh cache hits are
+served directly from KV without a Salesforce round-trip. The exception is the tiers list
+(`GET /projects/{project_uid}/tiers`), which is served directly from Salesforce on every request
+— individual tiers are cached by UID for single-record lookups but the list result is not cached
+as a unit.
 
 | Method | Path | Description | FGA check |
 |--------|------|-------------|-----------|
@@ -69,12 +73,12 @@ by type prefix.
 
 | Key pattern | Value | TTL |
 |-------------|-------|-----|
-| `tier/{tier_uid}` | `model.MembershipTier` (JSON) | 24 h |
-| `membership/{membership_uid}` | `model.ProjectMembership` (JSON) | 24 h |
-| `key-contacts/{membership_uid}` | `[]*model.ProjectKeyContact` (JSON array) | 24 h |
-| `memberships-by-project/{base64(sfid)+filters}/{batch_index}` | batch of `model.ProjectMembership` records + next-batch iterator (JSON) | 24 h |
-| `project-sfid/{project_uid}` | Salesforce `Project__c.Id` string | 24 h |
-| `project-uid/{slug}` | v2 project UID string | 24 h |
+| `tier.{tier_uid}` | `model.MembershipTier` (JSON) | 24 h |
+| `membership.{membership_uid}` | `model.ProjectMembership` (JSON) | 24 h |
+| `key-contacts.{membership_uid}` | `[]*model.ProjectKeyContact` (JSON array) | 24 h |
+| `soql.memberships-by-project.{base64(sfid)}.{base64(sort)}[.{base64(tierSFID)}][.{base64(search:term)}].{batch_index_or_iterator}` | batch of `model.ProjectMembership` records + next-batch iterator (JSON) | 24 h |
+| `project-sfid.{project_uid}` | Salesforce `Project__c.Id` string | 24 h |
+| `project-uid.{slug}` | v2 project UID string | 24 h |
 
 Collection list endpoints (e.g. `GET /projects/{uid}/memberships`) are served by slicing the
 appropriate batched-SOQL cache entry. On a cache miss the service runs the full SOQL query,
@@ -881,8 +885,8 @@ type EventPublisher interface {
 |----------|-------------|----------|
 | `SF_INSTANCE_URL` | Salesforce instance URL | Yes |
 | `SF_CLIENT_ID` | Salesforce connected app client ID | Yes |
-| `SF_CLIENT_SECRET` | Salesforce connected app client secret | Yes |
-| `SF_API_VERSION` | Salesforce API version (default: `v60.0`) | No |
+| `SF_CLIENT_SECRET` | Salesforce connected app client secret | Conditional (not required for JWT bearer flow) |
+| `SF_API_VERSION` | Salesforce API version (default: `v63.0`) | No |
 | `SF_PUBSUB_ENDPOINT` | Salesforce PubSub gRPC endpoint (Step 7) | Step 7 |
 | `GLOBAL_ORG_ADMIN_TEAM_UID` | v2 UID of the global org-admin team; written as `global_org_admin` on every `b2b_org` at creation | Yes (Step 5+) |
 | `NATS_URL` | NATS server URL | Yes |
