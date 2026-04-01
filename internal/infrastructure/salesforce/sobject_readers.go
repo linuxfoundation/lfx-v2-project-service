@@ -203,15 +203,18 @@ func (c *SObjectClient) FetchAsset(ctx context.Context, uid string) (*model.Proj
 		return nil, fmt.Errorf("unmarshal Asset sObject response: %w", unmarshalErr)
 	}
 
-	return sobjectAssetToModel(&raw, uid), nil
+	return sobjectAssetToModel(&raw, uid)
 }
 
 // sobjectAssetToModel converts a raw sobjectAsset to a minimal
 // model.ProjectMembership. Relationship-sourced fields (CompanyName, TierName,
 // ProjectUID, etc.) are left at their zero values; the caller is responsible
 // for enriching the record if needed.
-func sobjectAssetToModel(raw *sobjectAsset, uid string) *model.ProjectMembership {
-	tierUID, _ := sfuuid.ToUUID(raw.Product2ID)
+func sobjectAssetToModel(raw *sobjectAsset, uid string) (*model.ProjectMembership, error) {
+	tierUID, err := sfuuid.ToUUID(raw.Product2ID)
+	if err != nil && raw.Product2ID != "" {
+		return nil, fmt.Errorf("convert Asset.Product2Id %q to UUID: %w", raw.Product2ID, err)
+	}
 
 	purchaseDate := coalesceDate(raw.PurchaseDate, raw.InstallDate, &raw.CreatedDate)
 
@@ -233,7 +236,7 @@ func sobjectAssetToModel(raw *sobjectAsset, uid string) *model.ProjectMembership
 		EndDate:          parseSOQLDateTime(raw.UsageEndDate),
 		CreatedAt:        parseSOQLTime(raw.CreatedDate),
 		UpdatedAt:        parseSOQLTime(raw.LastModifiedDate),
-	}
+	}, nil
 }
 
 // coalesceDate returns the first non-nil, non-empty date string from the
@@ -309,14 +312,17 @@ func (c *SObjectClient) FetchProjectRole(ctx context.Context, uid string) (*mode
 		return nil, fmt.Errorf("unmarshal Project_Role__c sObject response: %w", unmarshalErr)
 	}
 
-	return sobjectProjectRoleToModel(&raw, uid), nil
+	return sobjectProjectRoleToModel(&raw, uid)
 }
 
 // sobjectProjectRoleToModel converts a raw sobjectProjectRole to a minimal
 // model.ProjectKeyContact. Contact-sourced fields (FirstName, LastName, Email,
 // Title, CompanyName, etc.) are left at their zero values.
-func sobjectProjectRoleToModel(raw *sobjectProjectRole, uid string) *model.ProjectKeyContact {
-	membershipUID, _ := sfuuid.ToUUID(raw.AssetID)
+func sobjectProjectRoleToModel(raw *sobjectProjectRole, uid string) (*model.ProjectKeyContact, error) {
+	membershipUID, err := sfuuid.ToUUID(raw.AssetID)
+	if err != nil && raw.AssetID != "" {
+		return nil, fmt.Errorf("convert Project_Role__c.Asset__c %q to UUID: %w", raw.AssetID, err)
+	}
 
 	return &model.ProjectKeyContact{
 		UID:            uid,
@@ -327,5 +333,5 @@ func sobjectProjectRoleToModel(raw *sobjectProjectRole, uid string) *model.Proje
 		PrimaryContact: raw.PrimaryContact,
 		CreatedAt:      parseSOQLTime(raw.CreatedDate),
 		UpdatedAt:      parseSOQLTime(raw.SystemModstamp),
-	}
+	}, nil
 }

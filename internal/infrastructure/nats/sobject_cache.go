@@ -95,6 +95,15 @@ func (c *SObjectCache) Get(ctx context.Context, key string) (*SObjectCacheEntry,
 			"key", key,
 			"error", unmarshalErr,
 		)
+		// Best-effort delete so the corrupted entry is not repeatedly served as a
+		// miss and does not generate log spam on every subsequent request.
+		if delErr := kv.Delete(ctx, key); delErr != nil {
+			slog.WarnContext(ctx, "failed to delete corrupted sObject cache entry after unmarshal failure",
+				"bucket", constants.KVBucketNameSObjectCache,
+				"key", key,
+				"error", delErr,
+			)
+		}
 		return nil, nil
 	}
 

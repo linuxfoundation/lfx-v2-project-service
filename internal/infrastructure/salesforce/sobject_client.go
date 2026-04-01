@@ -13,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -53,8 +54,9 @@ type SObjectClient struct {
 }
 
 // NewSObjectClient creates an SObjectClient backed by the given authenticated
-// Salesforce client and NATS sObject cache.
-func NewSObjectClient(sfClient *sf.Salesforce, cache *nats.SObjectCache) *SObjectClient {
+// Salesforce client and an sObjectCacher implementation (e.g., NATS cache or
+// an in-memory stub for tests).
+func NewSObjectClient(sfClient *sf.Salesforce, cache sObjectCacher) *SObjectClient {
 	return &SObjectClient{sf: sfClient, cache: cache}
 }
 
@@ -122,11 +124,19 @@ func (c *SObjectClient) FetchSObject(ctx context.Context, sobjectType, sfid, cac
 		// Non-fatal: proceed without conditional headers.
 	}
 
-	// Build the full sObject REST URL.
+	// Build the full sObject REST URL. Use net/url to safely encode the
+	// fields query parameter so that any special characters are escaped correctly.
 	rawURL := fmt.Sprintf("%s/services/data/%s/sobjects/%s/%s",
 		c.sf.GetInstanceUrl(), c.sf.GetAPIVersion(), sobjectType, sfid)
 	if fields != "" {
-		rawURL += "?fields=" + fields
+		u, parseErr := url.Parse(rawURL)
+		if parseErr != nil {
+			return nil, fmt.Errorf("build sObject URL: %w", parseErr)
+		}
+		q := url.Values{}
+		q.Set("fields", fields)
+		u.RawQuery = q.Encode()
+		rawURL = u.String()
 	}
 
 	resp, err := c.doGet(ctx, rawURL, cached)
@@ -138,6 +148,9 @@ func (c *SObjectClient) FetchSObject(ctx context.Context, sobjectType, sfid, cac
 	// On 401 Unauthorized: delegate to the library for session refresh (it knows
 	// the grant type and stored credentials), then retry once.
 	if resp.StatusCode == http.StatusUnauthorized {
+		// Drain and close the body before discarding the response so the
+		// underlying TCP connection can be reused by the HTTP transport.
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close() //nolint:errcheck
 		if refreshErr := c.refreshSession(); refreshErr != nil {
 			return nil, fmt.Errorf("salesforce sObject GET %s/%s: session refresh: %w",
