@@ -90,7 +90,7 @@ type sobjectProduct2 struct {
 }
 
 // sobjectProjectRole is the JSON shape of a Salesforce Project_Role__c record
-// from the sObject REST API. Used for ProjectKeyContact single-record reads.
+// from the sObject REST API. Used for KeyContact single-record reads.
 type sobjectProjectRole struct {
 	ID             string  `json:"Id"`
 	AssetID        string  `json:"Asset__c"`
@@ -291,11 +291,11 @@ func sobjectProduct2ToModel(raw *sobjectProduct2, uid string) *model.MembershipT
 
 // ─── FetchProjectRole ─────────────────────────────────────────────────────────
 
-// FetchProjectRole fetches a single Salesforce Project_Role__c (ProjectKeyContact)
+// FetchProjectRole fetches a single Salesforce Project_Role__c (KeyContact)
 // record by its UID using the sObject REST API. Contact and Account fields
 // (name, email, company) are not populated because they require SOQL joins;
 // the returned model carries only the Project_Role__c record's own fields.
-func (c *SObjectClient) FetchProjectRole(ctx context.Context, uid string) (*model.ProjectKeyContact, error) {
+func (c *SObjectClient) FetchProjectRole(ctx context.Context, uid string) (*model.KeyContact, error) {
 	sfid, err := sfuuid.ToSFID(uid)
 	if err != nil {
 		return nil, errs.NewValidation(fmt.Sprintf("invalid Project_Role__c UID %q: %v", uid, err))
@@ -316,15 +316,15 @@ func (c *SObjectClient) FetchProjectRole(ctx context.Context, uid string) (*mode
 }
 
 // sobjectProjectRoleToModel converts a raw sobjectProjectRole to a minimal
-// model.ProjectKeyContact. Contact-sourced fields (FirstName, LastName, Email,
+// model.KeyContact. Contact-sourced fields (FirstName, LastName, Email,
 // Title, CompanyName, etc.) are left at their zero values.
-func sobjectProjectRoleToModel(raw *sobjectProjectRole, uid string) (*model.ProjectKeyContact, error) {
+func sobjectProjectRoleToModel(raw *sobjectProjectRole, uid string) (*model.KeyContact, error) {
 	membershipUID, err := sfuuid.ToUUID(raw.AssetID)
 	if err != nil && raw.AssetID != "" {
 		return nil, fmt.Errorf("convert Project_Role__c.Asset__c %q to UUID: %w", raw.AssetID, err)
 	}
 
-	return &model.ProjectKeyContact{
+	return &model.KeyContact{
 		UID:            uid,
 		MembershipUID:  membershipUID,
 		Role:           derefString(raw.Role),
