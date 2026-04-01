@@ -134,8 +134,9 @@ nats:
   # (If-None-Match / If-Modified-Since) on subsequent fetches. Keys follow the
   # "{sobject_type}.{uid}" pattern. Unlike membership-cache this bucket does NOT
   # use soft-TTL envelopes — freshness is handled entirely by HTTP conditional
-  # GET semantics, so entries stay until Salesforce confirms a change (304) or
-  # the hard 24h bucket TTL evicts them.
+  # GET semantics. Entries are re-written (resetting the TTL) on every successful
+  # 304 revalidation, so a 7-day TTL acts as a backstop for records that are
+  # never modified and become quiet.
   kv_bucket_sobject_cache:
     # creation is a boolean to determine if the KV bucket should be created via the helm chart.
     # set it to false if you want to use an existing KV bucket.
@@ -157,8 +158,8 @@ nats:
     maxBytes: 1073741824
     # compression enables NATS JetStream compression for stored values
     compression: true
-    # ttl is the bucket-level hard eviction TTL for all entries
-    ttl: 24h
+    # ttl is the bucket-level hard eviction TTL for all entries (7 days)
+    ttl: 168h
 
 # openfga is the configuration for the OpenFGA server
 openfga:

@@ -248,9 +248,14 @@ func (c *SObjectClient) handle200(ctx context.Context, resp *http.Response, cach
 }
 
 // handle304 processes a 304 Not Modified response: serves the body from the
-// existing cache entry. If no cached entry is available (should not normally
-// happen — Salesforce should only return 304 when we sent conditional headers,
-// which requires a cached entry), an error is returned.
+// existing cache entry and re-writes it to reset the NATS KV TTL. If no cached
+// entry is available (should not normally happen — Salesforce should only return
+// 304 when we sent conditional headers, which requires a cached entry), an error
+// is returned.
+//
+// Re-writing on every 304 ensures that a frequently-accessed, never-changed
+// record is not evicted by the bucket TTL: each successful revalidation extends
+// the entry's lifetime by the full TTL window.
 func (c *SObjectClient) handle304(ctx context.Context, cached *nats.SObjectCacheEntry, sobjectType, sfid, cacheKey string) (*FetchResult, error) {
 	if cached == nil {
 		// This is a protocol violation: Salesforce returned 304 without us sending
@@ -264,6 +269,21 @@ func (c *SObjectClient) handle304(ctx context.Context, cached *nats.SObjectCache
 		"sfid", sfid,
 		"cache_key", cacheKey,
 	)
+
+	// Re-write the unchanged entry in the background so NATS resets the KV TTL
+	// clock. This prevents eviction of frequently-accessed records that are never
+	// modified. The goroutine uses a detached context so it is not cancelled when
+	// the HTTP response is sent to the caller.
+	go func(entry *nats.SObjectCacheEntry) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if putErr := c.cache.Put(ctx, cacheKey, entry); putErr != nil {
+			slog.WarnContext(ctx, "failed to refresh sObject cache TTL after 304",
+				"cache_key", cacheKey,
+				"error", putErr,
+			)
+		}
+	}(cached)
 
 	return &FetchResult{
 		Body:         cached.Body,
