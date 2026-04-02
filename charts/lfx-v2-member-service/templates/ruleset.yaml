@@ -308,3 +308,75 @@ spec:
           config:
             values:
               aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:list"
+      allow_encoded_slashes: "off"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /b2b_orgs
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: auditor
+              {{/*
+                Interim workaround: B2B org endpoints are not project-scoped, so
+                we gate them on LF's own project UID until the broader v2 OpenFGA
+                refactor introduces a dedicated resource type for these endpoints.
+              */}}
+              object: "project:{{ .Values.openfga.lfProjectUID }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:memberships:list"
+      allow_encoded_slashes: "off"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /b2b_orgs/:b2b_org_uid/memberships
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: auditor
+              {{/*
+                Interim workaround: B2B org endpoints are not project-scoped, so
+                we gate them on LF's own project UID until the broader v2 OpenFGA
+                refactor introduces a dedicated resource type for these endpoints.
+              */}}
+              object: "project:{{ .Values.openfga.lfProjectUID }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}

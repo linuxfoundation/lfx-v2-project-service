@@ -26,6 +26,8 @@ type Endpoints struct {
 	UpdateMembershipKeyContact goa.Endpoint
 	DeleteMembershipKeyContact goa.Endpoint
 	GetMembershipKeyContact    goa.Endpoint
+	ListB2bOrgs                goa.Endpoint
+	ListB2bOrgMemberships      goa.Endpoint
 	Readyz                     goa.Endpoint
 	Livez                      goa.Endpoint
 	DebugVars                  goa.Endpoint
@@ -46,6 +48,8 @@ func NewEndpoints(s Service) *Endpoints {
 		UpdateMembershipKeyContact: NewUpdateMembershipKeyContactEndpoint(s, a.JWTAuth),
 		DeleteMembershipKeyContact: NewDeleteMembershipKeyContactEndpoint(s, a.JWTAuth),
 		GetMembershipKeyContact:    NewGetMembershipKeyContactEndpoint(s, a.JWTAuth),
+		ListB2bOrgs:                NewListB2bOrgsEndpoint(s, a.JWTAuth),
+		ListB2bOrgMemberships:      NewListB2bOrgMembershipsEndpoint(s, a.JWTAuth),
 		Readyz:                     NewReadyzEndpoint(s),
 		Livez:                      NewLivezEndpoint(s),
 		DebugVars:                  NewDebugVarsEndpoint(s),
@@ -64,6 +68,8 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.UpdateMembershipKeyContact = m(e.UpdateMembershipKeyContact)
 	e.DeleteMembershipKeyContact = m(e.DeleteMembershipKeyContact)
 	e.GetMembershipKeyContact = m(e.GetMembershipKeyContact)
+	e.ListB2bOrgs = m(e.ListB2bOrgs)
+	e.ListB2bOrgMemberships = m(e.ListB2bOrgMemberships)
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
 	e.DebugVars = m(e.DebugVars)
@@ -276,6 +282,52 @@ func NewGetMembershipKeyContactEndpoint(s Service, authJWTFn security.AuthJWTFun
 			return nil, err
 		}
 		return s.GetMembershipKeyContact(ctx, p)
+	}
+}
+
+// NewListB2bOrgsEndpoint returns an endpoint function that calls the method
+// "list-b2b-orgs" of service "membership-service".
+func NewListB2bOrgsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*ListB2bOrgsPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.ListB2bOrgs(ctx, p)
+	}
+}
+
+// NewListB2bOrgMembershipsEndpoint returns an endpoint function that calls the
+// method "list-b2b-org-memberships" of service "membership-service".
+func NewListB2bOrgMembershipsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*ListB2bOrgMembershipsPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.ListB2bOrgMemberships(ctx, p)
 	}
 }
 

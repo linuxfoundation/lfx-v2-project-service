@@ -54,6 +54,14 @@ type Client struct {
 	// get-membership-key-contact endpoint.
 	GetMembershipKeyContactDoer goahttp.Doer
 
+	// ListB2bOrgs Doer is the HTTP client used to make requests to the
+	// list-b2b-orgs endpoint.
+	ListB2bOrgsDoer goahttp.Doer
+
+	// ListB2bOrgMemberships Doer is the HTTP client used to make requests to the
+	// list-b2b-org-memberships endpoint.
+	ListB2bOrgMembershipsDoer goahttp.Doer
+
 	// Readyz Doer is the HTTP client used to make requests to the readyz endpoint.
 	ReadyzDoer goahttp.Doer
 
@@ -94,6 +102,8 @@ func NewClient(
 		UpdateMembershipKeyContactDoer: doer,
 		DeleteMembershipKeyContactDoer: doer,
 		GetMembershipKeyContactDoer:    doer,
+		ListB2bOrgsDoer:                doer,
+		ListB2bOrgMembershipsDoer:      doer,
 		ReadyzDoer:                     doer,
 		LivezDoer:                      doer,
 		DebugVarsDoer:                  doer,
@@ -316,6 +326,54 @@ func (c *Client) GetMembershipKeyContact() goa.Endpoint {
 		resp, err := c.GetMembershipKeyContactDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("membership-service", "get-membership-key-contact", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// ListB2bOrgs returns an endpoint that makes HTTP requests to the
+// membership-service service list-b2b-orgs server.
+func (c *Client) ListB2bOrgs() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeListB2bOrgsRequest(c.encoder)
+		decodeResponse = DecodeListB2bOrgsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildListB2bOrgsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.ListB2bOrgsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "list-b2b-orgs", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// ListB2bOrgMemberships returns an endpoint that makes HTTP requests to the
+// membership-service service list-b2b-org-memberships server.
+func (c *Client) ListB2bOrgMemberships() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeListB2bOrgMembershipsRequest(c.encoder)
+		decodeResponse = DecodeListB2bOrgMembershipsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildListB2bOrgMembershipsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.ListB2bOrgMembershipsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "list-b2b-org-memberships", err)
 		}
 		return decodeResponse(resp)
 	}

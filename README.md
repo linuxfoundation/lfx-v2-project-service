@@ -92,8 +92,7 @@ GET /projects/{project_id}/memberships?filter=status=Active
 GET /projects/{project_id}/memberships?filter=status=Active;tier=Gold
 ```
 
-Supported filter keys: `status`, `tier`, `membership_type`, `year`,
-`product_name`.
+Supported filter keys: `status`, `tier`, `year`, `product_name`.
 
 ## NATS API
 

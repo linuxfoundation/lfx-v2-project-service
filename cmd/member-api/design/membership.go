@@ -398,6 +398,89 @@ var _ = dsl.Service("membership-service", func() {
 		})
 	})
 
+	// ── B2B Organizations (Account) ──────────────────────────────────────────
+
+	dsl.Method("list-b2b-orgs", func() {
+		dsl.Description("Search and list B2B organizations (Salesforce Accounts) by name with pagination")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			PageSizeAttribute()
+			PageTokenAttribute()
+			SortAttribute()
+			B2BOrgSearchNameAttribute()
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("orgs", dsl.ArrayOf(B2BOrgResponse), "List of B2B organizations")
+			dsl.Attribute("metadata", ListMetadata, "Pagination metadata")
+			dsl.Required("orgs", "metadata")
+		})
+
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.GET("/b2b_orgs")
+			dsl.Param("version:v")
+			dsl.Param("pageSize")
+			dsl.Param("pageToken")
+			dsl.Param("sort")
+			dsl.Param("search_name")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Response(dsl.StatusOK)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("list-b2b-org-memberships", func() {
+		dsl.Description("List all memberships (Assets) across all projects for a given B2B organization UID, with pagination and filters")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			B2BOrgUIDAttribute()
+			PageSizeAttribute()
+			PageTokenAttribute()
+			SortAttribute()
+			FilterAttribute()
+			SearchNameAttribute()
+			dsl.Required("b2b_org_uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("memberships", dsl.ArrayOf(ProjectMembershipResponse), "List of memberships for the B2B organization")
+			dsl.Attribute("metadata", ListMetadata, "Pagination metadata")
+			dsl.Required("memberships", "metadata")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "B2B organization not found")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.GET("/b2b_orgs/{b2b_org_uid}/memberships")
+			dsl.Param("version:v")
+			dsl.Param("b2b_org_uid")
+			dsl.Param("pageSize")
+			dsl.Param("pageToken")
+			dsl.Param("sort")
+			dsl.Param("filter")
+			dsl.Param("search_name")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Response(dsl.StatusOK)
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
 	// ── Health checks ────────────────────────────────────────────────────────
 
 	dsl.Method("readyz", func() {

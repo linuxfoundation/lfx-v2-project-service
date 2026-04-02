@@ -535,3 +535,173 @@ func BuildGetMembershipKeyContactPayload(membershipServiceGetMembershipKeyContac
 
 	return v, nil
 }
+
+// BuildListB2bOrgsPayload builds the payload for the membership-service
+// list-b2b-orgs endpoint from CLI flags.
+func BuildListB2bOrgsPayload(membershipServiceListB2bOrgsVersion string, membershipServiceListB2bOrgsPageSize string, membershipServiceListB2bOrgsPageToken string, membershipServiceListB2bOrgsSort string, membershipServiceListB2bOrgsSearchName string, membershipServiceListB2bOrgsBearerToken string) (*membershipservice.ListB2bOrgsPayload, error) {
+	var err error
+	var version *string
+	{
+		if membershipServiceListB2bOrgsVersion != "" {
+			version = &membershipServiceListB2bOrgsVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var pageSize int
+	{
+		if membershipServiceListB2bOrgsPageSize != "" {
+			var v int64
+			v, err = strconv.ParseInt(membershipServiceListB2bOrgsPageSize, 10, strconv.IntSize)
+			pageSize = int(v)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for pageSize, must be INT")
+			}
+			if pageSize < 1 {
+				err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1, true))
+			}
+			if pageSize > 1000 {
+				err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1000, false))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var pageToken *string
+	{
+		if membershipServiceListB2bOrgsPageToken != "" {
+			pageToken = &membershipServiceListB2bOrgsPageToken
+		}
+	}
+	var sort string
+	{
+		if membershipServiceListB2bOrgsSort != "" {
+			sort = membershipServiceListB2bOrgsSort
+			if !(sort == "name" || sort == "newest" || sort == "last_modified") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("sort", sort, []any{"name", "newest", "last_modified"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var searchName *string
+	{
+		if membershipServiceListB2bOrgsSearchName != "" {
+			searchName = &membershipServiceListB2bOrgsSearchName
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceListB2bOrgsBearerToken != "" {
+			bearerToken = &membershipServiceListB2bOrgsBearerToken
+		}
+	}
+	v := &membershipservice.ListB2bOrgsPayload{}
+	v.Version = version
+	v.PageSize = pageSize
+	v.PageToken = pageToken
+	v.Sort = sort
+	v.SearchName = searchName
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildListB2bOrgMembershipsPayload builds the payload for the
+// membership-service list-b2b-org-memberships endpoint from CLI flags.
+func BuildListB2bOrgMembershipsPayload(membershipServiceListB2bOrgMembershipsB2bOrgUID string, membershipServiceListB2bOrgMembershipsVersion string, membershipServiceListB2bOrgMembershipsPageSize string, membershipServiceListB2bOrgMembershipsPageToken string, membershipServiceListB2bOrgMembershipsSort string, membershipServiceListB2bOrgMembershipsFilter string, membershipServiceListB2bOrgMembershipsSearchName string, membershipServiceListB2bOrgMembershipsBearerToken string) (*membershipservice.ListB2bOrgMembershipsPayload, error) {
+	var err error
+	var b2bOrgUID string
+	{
+		b2bOrgUID = membershipServiceListB2bOrgMembershipsB2bOrgUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("b2b_org_uid", b2bOrgUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceListB2bOrgMembershipsVersion != "" {
+			version = &membershipServiceListB2bOrgMembershipsVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var pageSize int
+	{
+		if membershipServiceListB2bOrgMembershipsPageSize != "" {
+			var v int64
+			v, err = strconv.ParseInt(membershipServiceListB2bOrgMembershipsPageSize, 10, strconv.IntSize)
+			pageSize = int(v)
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for pageSize, must be INT")
+			}
+			if pageSize < 1 {
+				err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1, true))
+			}
+			if pageSize > 1000 {
+				err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1000, false))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var pageToken *string
+	{
+		if membershipServiceListB2bOrgMembershipsPageToken != "" {
+			pageToken = &membershipServiceListB2bOrgMembershipsPageToken
+		}
+	}
+	var sort string
+	{
+		if membershipServiceListB2bOrgMembershipsSort != "" {
+			sort = membershipServiceListB2bOrgMembershipsSort
+			if !(sort == "name" || sort == "newest" || sort == "last_modified") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("sort", sort, []any{"name", "newest", "last_modified"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var filter *string
+	{
+		if membershipServiceListB2bOrgMembershipsFilter != "" {
+			filter = &membershipServiceListB2bOrgMembershipsFilter
+		}
+	}
+	var searchName *string
+	{
+		if membershipServiceListB2bOrgMembershipsSearchName != "" {
+			searchName = &membershipServiceListB2bOrgMembershipsSearchName
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceListB2bOrgMembershipsBearerToken != "" {
+			bearerToken = &membershipServiceListB2bOrgMembershipsBearerToken
+		}
+	}
+	v := &membershipservice.ListB2bOrgMembershipsPayload{}
+	v.B2bOrgUID = b2bOrgUID
+	v.Version = version
+	v.PageSize = pageSize
+	v.PageToken = pageToken
+	v.Sort = sort
+	v.Filter = filter
+	v.SearchName = searchName
+	v.BearerToken = bearerToken
+
+	return v, nil
+}

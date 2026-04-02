@@ -8,57 +8,61 @@ package salesforce
 // relationship sub-selects. The Contact sub-select is intentionally omitted —
 // the billing contact on an Asset is not a key contact; key contacts are fetched
 // separately via Project_Role__c queries.
+//
+// Both salesforce and json tags are present so that the struct can be decoded
+// by either the go-salesforce library (client.Query, which uses mapstructure with
+// the salesforce tag) or by json.Unmarshal (used in QueryPage, which decodes raw
+// Salesforce REST JSON directly).
 type soqlAsset struct {
-	ID               string            `salesforce:"Id"`
-	Name             string            `salesforce:"Name"`
-	Status           *string           `salesforce:"Status"`
-	AccountID        string            `salesforce:"AccountId"`
-	Product2ID       string            `salesforce:"Product2Id"`
-	IsDeleted        bool              `salesforce:"IsDeleted"`
-	Year             *string           `salesforce:"Year__c"`
-	Tier             *string           `salesforce:"Tier__c"`
-	RecordTypeID     *string           `salesforce:"RecordTypeId"`
-	AutoRenew        bool              `salesforce:"Auto_Renew__c"`
-	RenewalType      *string           `salesforce:"Renewal_Type__c"`
-	Price            float64           `salesforce:"Price"`
-	AnnualFullPrice  float64           `salesforce:"Annual_Full_Price__c"`
-	PaymentFrequency *string           `salesforce:"PaymentFrequency__c"`
-	PaymentTerms     *string           `salesforce:"PaymentTerms__c"`
-	AgreementDate    *string           `salesforce:"Agreement_Date__c"`
-	PurchaseDate     *string           `salesforce:"PurchaseDate"`
-	InstallDate      *string           `salesforce:"InstallDate"`
-	UsageEndDate     *string           `salesforce:"UsageEndDate"`
-	ProjectsID       *string           `salesforce:"Projects__c"`
-	CreatedDate      string            `salesforce:"CreatedDate"`
-	LastModifiedDate string            `salesforce:"LastModifiedDate"`
-	Account          *soqlAssetAccount `salesforce:"Account"`
-	Product2         *soqlAssetProduct `salesforce:"Product2"`
-	Project          *soqlAssetProject `salesforce:"Projects__r"`
+	ID               string            `salesforce:"Id"               json:"Id"`
+	Name             string            `salesforce:"Name"             json:"Name"`
+	Status           *string           `salesforce:"Status"           json:"Status"`
+	AccountID        string            `salesforce:"AccountId"        json:"AccountId"`
+	Product2ID       string            `salesforce:"Product2Id"       json:"Product2Id"`
+	IsDeleted        bool              `salesforce:"IsDeleted"        json:"IsDeleted"`
+	Year             *string           `salesforce:"Year__c"          json:"Year__c"`
+	Tier             *string           `salesforce:"Tier__c"          json:"Tier__c"`
+	AutoRenew        bool              `salesforce:"Auto_Renew__c"    json:"Auto_Renew__c"`
+	RenewalType      *string           `salesforce:"Renewal_Type__c"  json:"Renewal_Type__c"`
+	Price            float64           `salesforce:"Price"            json:"Price"`
+	AnnualFullPrice  float64           `salesforce:"Annual_Full_Price__c" json:"Annual_Full_Price__c"`
+	PaymentFrequency *string           `salesforce:"PaymentFrequency__c"  json:"PaymentFrequency__c"`
+	PaymentTerms     *string           `salesforce:"PaymentTerms__c"  json:"PaymentTerms__c"`
+	AgreementDate    *string           `salesforce:"Agreement_Date__c" json:"Agreement_Date__c"`
+	PurchaseDate     *string           `salesforce:"PurchaseDate"     json:"PurchaseDate"`
+	InstallDate      *string           `salesforce:"InstallDate"      json:"InstallDate"`
+	UsageEndDate     *string           `salesforce:"UsageEndDate"     json:"UsageEndDate"`
+	ProjectsID       *string           `salesforce:"Projects__c"      json:"Projects__c"`
+	CreatedDate      string            `salesforce:"CreatedDate"      json:"CreatedDate"`
+	LastModifiedDate string            `salesforce:"LastModifiedDate" json:"LastModifiedDate"`
+	Account          *soqlAssetAccount `salesforce:"Account"          json:"Account"`
+	Product2         *soqlAssetProduct `salesforce:"Product2"         json:"Product2"`
+	Project          *soqlAssetProject `salesforce:"Projects__r"      json:"Projects__r"`
 }
 
 // soqlAssetAccount is the inline Account relationship on an Asset query.
 type soqlAssetAccount struct {
-	ID      string  `salesforce:"Id"`
-	Name    string  `salesforce:"Name"`
-	LogoURL *string `salesforce:"Logo_URL__c"`
-	Website *string `salesforce:"Website"`
+	ID      string  `salesforce:"Id"          json:"Id"`
+	Name    string  `salesforce:"Name"        json:"Name"`
+	LogoURL *string `salesforce:"Logo_URL__c" json:"Logo_URL__c"`
+	Website *string `salesforce:"Website"     json:"Website"`
 }
 
 // soqlAssetProduct is the inline Product2 relationship on an Asset query.
 type soqlAssetProduct struct {
-	ID     string  `salesforce:"Id"`
-	Name   string  `salesforce:"Name"`
-	Family *string `salesforce:"Family"`
-	Type   *string `salesforce:"Type__c"`
+	ID     string  `salesforce:"Id"       json:"Id"`
+	Name   string  `salesforce:"Name"     json:"Name"`
+	Family *string `salesforce:"Family"   json:"Family"`
+	Type   *string `salesforce:"Type__c"  json:"Type__c"`
 }
 
 // soqlAssetProject is the inline Project__c relationship on an Asset query.
 type soqlAssetProject struct {
-	ID      string  `salesforce:"Id"`
-	Name    string  `salesforce:"Name"`
-	LogoURL *string `salesforce:"Project_Logo__c"`
-	Slug    *string `salesforce:"Slug__c"`
-	Status  *string `salesforce:"Status__c"`
+	ID      string  `salesforce:"Id"              json:"Id"`
+	Name    string  `salesforce:"Name"            json:"Name"`
+	LogoURL *string `salesforce:"Project_Logo__c" json:"Project_Logo__c"`
+	Slug    *string `salesforce:"Slug__c"         json:"Slug__c"`
+	Status  *string `salesforce:"Status__c"       json:"Status__c"`
 }
 
 // soqlProjectRole represents a Salesforce Project_Role__c record returned by a
@@ -141,6 +145,34 @@ type soqlProject struct {
 	ID   string  `salesforce:"Id"`
 	Name string  `salesforce:"Name"`
 	Slug *string `salesforce:"Slug__c"`
+}
+
+// soqlAccount represents a Salesforce Account record returned by a SOQL query.
+// Used for B2BOrg search and list operations. Only non-deleted Accounts that
+// have at least one membership Asset are returned — the WHERE clause filters
+// by IsDeleted = false and a semi-join on Asset.
+//
+// Both salesforce and json tags are present so that the struct can be decoded
+// by either the go-salesforce library (client.Query) or by json.Unmarshal
+// (used in QueryPage, which decodes raw Salesforce REST JSON directly).
+type soqlAccount struct {
+	ID      string  `salesforce:"Id"          json:"Id"`
+	Name    string  `salesforce:"Name"        json:"Name"`
+	LogoURL *string `salesforce:"Logo_URL__c" json:"Logo_URL__c"`
+	// Website is the free-text URL field (Account.Website). May contain bare
+	// domains, full URIs, or arbitrary garbage — callers should treat it as
+	// an opaque link string and not assume any particular format.
+	Website *string `salesforce:"Website" json:"Website"`
+	// PrimaryDomain is the canonical primary domain (Account.Account_Domain__c).
+	// Intended to be a bare domain (e.g. "example.com") but may contain garbage
+	// data — callers should normalize and warn on unexpected values.
+	PrimaryDomain *string `salesforce:"Account_Domain__c" json:"Account_Domain__c"`
+	// DomainAlias is a comma-separated list of additional domains
+	// (Account.Domain_Alias__c). Each item should be treated with the same
+	// normalization rules as PrimaryDomain.
+	DomainAlias      *string `salesforce:"Domain_Alias__c"  json:"Domain_Alias__c"`
+	CreatedDate      string  `salesforce:"CreatedDate"      json:"CreatedDate"`
+	LastModifiedDate string  `salesforce:"LastModifiedDate" json:"LastModifiedDate"`
 }
 
 // derefString returns the string value of a *string pointer, or an empty string

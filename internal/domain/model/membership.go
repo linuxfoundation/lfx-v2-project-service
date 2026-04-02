@@ -44,9 +44,6 @@ type ProjectMembership struct {
 	// Tier is the membership tier label, e.g. "Gold".
 	Tier string `json:"tier,omitempty"`
 
-	// MembershipType is derived from the Asset RecordType, e.g. "Corporate".
-	MembershipType string `json:"membership_type"`
-
 	// AutoRenew indicates whether automatic renewal is enabled.
 	AutoRenew bool `json:"auto_renew"`
 

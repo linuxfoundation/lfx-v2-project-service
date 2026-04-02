@@ -1168,6 +1168,295 @@ func EncodeGetMembershipKeyContactError(encoder func(context.Context, http.Respo
 	}
 }
 
+// EncodeListB2bOrgsResponse returns an encoder for responses returned by the
+// membership-service list-b2b-orgs endpoint.
+func EncodeListB2bOrgsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*membershipservice.ListB2bOrgsResult)
+		enc := encoder(ctx, w)
+		body := NewListB2bOrgsResponseBody(res)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeListB2bOrgsRequest returns a decoder for requests sent to the
+// membership-service list-b2b-orgs endpoint.
+func DecodeListB2bOrgsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.ListB2bOrgsPayload, error) {
+	return func(r *http.Request) (*membershipservice.ListB2bOrgsPayload, error) {
+		var payload *membershipservice.ListB2bOrgsPayload
+		var (
+			version     *string
+			pageSize    int
+			pageToken   *string
+			sort        string
+			searchName  *string
+			bearerToken *string
+			err         error
+		)
+		qp := r.URL.Query()
+		versionRaw := qp.Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		{
+			pageSizeRaw := qp.Get("pageSize")
+			if pageSizeRaw == "" {
+				pageSize = 200
+			} else {
+				v, err2 := strconv.ParseInt(pageSizeRaw, 10, strconv.IntSize)
+				if err2 != nil {
+					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("pageSize", pageSizeRaw, "integer"))
+				}
+				pageSize = int(v)
+			}
+		}
+		if pageSize < 1 {
+			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1, true))
+		}
+		if pageSize > 1000 {
+			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1000, false))
+		}
+		pageTokenRaw := qp.Get("pageToken")
+		if pageTokenRaw != "" {
+			pageToken = &pageTokenRaw
+		}
+		sortRaw := qp.Get("sort")
+		if sortRaw != "" {
+			sort = sortRaw
+		} else {
+			sort = "newest"
+		}
+		if !(sort == "name" || sort == "newest" || sort == "last_modified") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("sort", sort, []any{"name", "newest", "last_modified"}))
+		}
+		searchNameRaw := qp.Get("search_name")
+		if searchNameRaw != "" {
+			searchName = &searchNameRaw
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewListB2bOrgsPayload(version, pageSize, pageToken, sort, searchName, bearerToken)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeListB2bOrgsError returns an encoder for errors returned by the
+// list-b2b-orgs membership-service endpoint.
+func EncodeListB2bOrgsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListB2bOrgsInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListB2bOrgsServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeListB2bOrgMembershipsResponse returns an encoder for responses
+// returned by the membership-service list-b2b-org-memberships endpoint.
+func EncodeListB2bOrgMembershipsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*membershipservice.ListB2bOrgMembershipsResult)
+		enc := encoder(ctx, w)
+		body := NewListB2bOrgMembershipsResponseBody(res)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeListB2bOrgMembershipsRequest returns a decoder for requests sent to
+// the membership-service list-b2b-org-memberships endpoint.
+func DecodeListB2bOrgMembershipsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.ListB2bOrgMembershipsPayload, error) {
+	return func(r *http.Request) (*membershipservice.ListB2bOrgMembershipsPayload, error) {
+		var payload *membershipservice.ListB2bOrgMembershipsPayload
+		var (
+			b2bOrgUID   string
+			version     *string
+			pageSize    int
+			pageToken   *string
+			sort        string
+			filter      *string
+			searchName  *string
+			bearerToken *string
+			err         error
+
+			params = mux.Vars(r)
+		)
+		b2bOrgUID = params["b2b_org_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("b2b_org_uid", b2bOrgUID, goa.FormatUUID))
+		qp := r.URL.Query()
+		versionRaw := qp.Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		{
+			pageSizeRaw := qp.Get("pageSize")
+			if pageSizeRaw == "" {
+				pageSize = 200
+			} else {
+				v, err2 := strconv.ParseInt(pageSizeRaw, 10, strconv.IntSize)
+				if err2 != nil {
+					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("pageSize", pageSizeRaw, "integer"))
+				}
+				pageSize = int(v)
+			}
+		}
+		if pageSize < 1 {
+			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1, true))
+		}
+		if pageSize > 1000 {
+			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1000, false))
+		}
+		pageTokenRaw := qp.Get("pageToken")
+		if pageTokenRaw != "" {
+			pageToken = &pageTokenRaw
+		}
+		sortRaw := qp.Get("sort")
+		if sortRaw != "" {
+			sort = sortRaw
+		} else {
+			sort = "newest"
+		}
+		if !(sort == "name" || sort == "newest" || sort == "last_modified") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("sort", sort, []any{"name", "newest", "last_modified"}))
+		}
+		filterRaw := qp.Get("filter")
+		if filterRaw != "" {
+			filter = &filterRaw
+		}
+		searchNameRaw := qp.Get("search_name")
+		if searchNameRaw != "" {
+			searchName = &searchNameRaw
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewListB2bOrgMembershipsPayload(b2bOrgUID, version, pageSize, pageToken, sort, filter, searchName, bearerToken)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeListB2bOrgMembershipsError returns an encoder for errors returned by
+// the list-b2b-org-memberships membership-service endpoint.
+func EncodeListB2bOrgMembershipsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListB2bOrgMembershipsNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListB2bOrgMembershipsInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewListB2bOrgMembershipsServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
 // EncodeReadyzResponse returns an encoder for responses returned by the
 // membership-service readyz endpoint.
 func EncodeReadyzResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
@@ -1261,10 +1550,11 @@ func marshalMembershipserviceProjectMembershipResponseToProjectMembershipRespons
 		UID:              v.UID,
 		TierUID:          v.TierUID,
 		ProjectUID:       v.ProjectUID,
+		ProjectSlug:      v.ProjectSlug,
+		B2bOrgUID:        v.B2bOrgUID,
 		Status:           v.Status,
 		Year:             v.Year,
 		Tier:             v.Tier,
-		MembershipType:   v.MembershipType,
 		AutoRenew:        v.AutoRenew,
 		RenewalType:      v.RenewalType,
 		Price:            v.Price,
@@ -1309,6 +1599,7 @@ func marshalMembershipserviceProjectKeyContactResponseToProjectKeyContactRespons
 		MembershipUID:  v.MembershipUID,
 		TierUID:        v.TierUID,
 		ProjectUID:     v.ProjectUID,
+		B2bOrgUID:      v.B2bOrgUID,
 		Role:           v.Role,
 		Status:         v.Status,
 		BoardMember:    v.BoardMember,
@@ -1322,6 +1613,29 @@ func marshalMembershipserviceProjectKeyContactResponseToProjectKeyContactRespons
 		CompanyDomain:  v.CompanyDomain,
 		CreatedAt:      v.CreatedAt,
 		UpdatedAt:      v.UpdatedAt,
+	}
+
+	return res
+}
+
+// marshalMembershipserviceB2bOrgResponseToB2bOrgResponseResponseBody builds a
+// value of type *B2bOrgResponseResponseBody from a value of type
+// *membershipservice.B2bOrgResponse.
+func marshalMembershipserviceB2bOrgResponseToB2bOrgResponseResponseBody(v *membershipservice.B2bOrgResponse) *B2bOrgResponseResponseBody {
+	res := &B2bOrgResponseResponseBody{
+		UID:           v.UID,
+		Name:          v.Name,
+		Website:       v.Website,
+		PrimaryDomain: v.PrimaryDomain,
+		LogoURL:       v.LogoURL,
+		CreatedAt:     v.CreatedAt,
+		UpdatedAt:     v.UpdatedAt,
+	}
+	if v.DomainAliases != nil {
+		res.DomainAliases = make([]string, len(v.DomainAliases))
+		for i, val := range v.DomainAliases {
+			res.DomainAliases[i] = val
+		}
 	}
 
 	return res

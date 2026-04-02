@@ -96,6 +96,24 @@ type UpdateMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBod
 // service "get-membership-key-contact" endpoint HTTP response body.
 type GetMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
 
+// ListB2bOrgsResponseBody is the type of the "membership-service" service
+// "list-b2b-orgs" endpoint HTTP response body.
+type ListB2bOrgsResponseBody struct {
+	// List of B2B organizations
+	Orgs []*B2bOrgResponseResponseBody `form:"orgs" json:"orgs" xml:"orgs"`
+	// Pagination metadata
+	Metadata *ListMetadataResponseBody `form:"metadata" json:"metadata" xml:"metadata"`
+}
+
+// ListB2bOrgMembershipsResponseBody is the type of the "membership-service"
+// service "list-b2b-org-memberships" endpoint HTTP response body.
+type ListB2bOrgMembershipsResponseBody struct {
+	// List of memberships for the B2B organization
+	Memberships []*ProjectMembershipResponseResponseBody `form:"memberships" json:"memberships" xml:"memberships"`
+	// Pagination metadata
+	Metadata *ListMetadataResponseBody `form:"metadata" json:"metadata" xml:"metadata"`
+}
+
 // ListProjectTiersNotFoundResponseBody is the type of the "membership-service"
 // service "list-project-tiers" endpoint HTTP response body for the "NotFound"
 // error.
@@ -666,6 +684,101 @@ type GetMembershipKeyContactServiceUnavailableResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
+// ListB2bOrgsInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-b2b-orgs" endpoint HTTP response body for
+// the "InternalServerError" error.
+type ListB2bOrgsInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListB2bOrgsServiceUnavailableResponseBody is the type of the
+// "membership-service" service "list-b2b-orgs" endpoint HTTP response body for
+// the "ServiceUnavailable" error.
+type ListB2bOrgsServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListB2bOrgMembershipsNotFoundResponseBody is the type of the
+// "membership-service" service "list-b2b-org-memberships" endpoint HTTP
+// response body for the "NotFound" error.
+type ListB2bOrgMembershipsNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListB2bOrgMembershipsInternalServerErrorResponseBody is the type of the
+// "membership-service" service "list-b2b-org-memberships" endpoint HTTP
+// response body for the "InternalServerError" error.
+type ListB2bOrgMembershipsInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// ListB2bOrgMembershipsServiceUnavailableResponseBody is the type of the
+// "membership-service" service "list-b2b-org-memberships" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type ListB2bOrgMembershipsServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
 // ReadyzServiceUnavailableResponseBody is the type of the "membership-service"
 // service "readyz" endpoint HTTP response body for the "ServiceUnavailable"
 // error.
@@ -713,14 +826,16 @@ type ProjectMembershipResponseResponseBody struct {
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
 	// V2 project UUID
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// URL slug of the project this membership belongs to
+	ProjectSlug *string `form:"project_slug,omitempty" json:"project_slug,omitempty" xml:"project_slug,omitempty"`
+	// UID of the B2B organization (Account) this membership belongs to
+	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
 	// Membership status
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
 	// Membership year
 	Year *string `form:"year,omitempty" json:"year,omitempty" xml:"year,omitempty"`
 	// Membership tier label
 	Tier *string `form:"tier,omitempty" json:"tier,omitempty" xml:"tier,omitempty"`
-	// Membership type (derived from Asset RecordType)
-	MembershipType *string `form:"membership_type,omitempty" json:"membership_type,omitempty" xml:"membership_type,omitempty"`
 	// Whether automatic renewal is enabled
 	AutoRenew *bool `form:"auto_renew,omitempty" json:"auto_renew,omitempty" xml:"auto_renew,omitempty"`
 	// Renewal cadence
@@ -761,8 +876,8 @@ type ProjectMembershipResponseResponseBody struct {
 
 // ListMetadataResponseBody is used to define fields on response body types.
 type ListMetadataResponseBody struct {
-	// Total number of records matching the query, as reported by Salesforce. Set
-	// on the first page; may be 0 on continuation pages.
+	// Total number of records matching the query. Set on the first page; may be 0
+	// on continuation pages.
 	TotalSize *int `form:"total_size,omitempty" json:"total_size,omitempty" xml:"total_size,omitempty"`
 	// Opaque cursor for the next page. Pass this value as the page_token query
 	// parameter to retrieve the next page. Empty or absent when this is the last
@@ -781,6 +896,9 @@ type ProjectKeyContactResponseResponseBody struct {
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
 	// V2 project UUID
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// UID of the B2B organization (Account) this key contact's membership belongs
+	// to
+	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
 	// Contact role designation
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
 	// Role record status
@@ -803,6 +921,27 @@ type ProjectKeyContactResponseResponseBody struct {
 	CompanyLogoURL *string `form:"company_logo_url,omitempty" json:"company_logo_url,omitempty" xml:"company_logo_url,omitempty"`
 	// Member company website/domain (denormalized from Asset.Account.Website)
 	CompanyDomain *string `form:"company_domain,omitempty" json:"company_domain,omitempty" xml:"company_domain,omitempty"`
+	// Creation timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// Last update timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// B2bOrgResponseResponseBody is used to define fields on response body types.
+type B2bOrgResponseResponseBody struct {
+	// B2BOrg UID (invertible UUID v8)
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Organization name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Organization website URL; always has a scheme (http or https)
+	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
+	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
+	PrimaryDomain *string `form:"primary_domain,omitempty" json:"primary_domain,omitempty" xml:"primary_domain,omitempty"`
+	// Additional domains; each item is a bare host with the same normalization as
+	// primary_domain
+	DomainAliases []string `form:"domain_aliases,omitempty" json:"domain_aliases,omitempty" xml:"domain_aliases,omitempty"`
+	// URL of the organization logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
 	// Creation timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// Last update timestamp
@@ -875,10 +1014,11 @@ func NewGetProjectMembershipResponseBody(res *membershipservice.GetProjectMember
 		UID:              res.Membership.UID,
 		TierUID:          res.Membership.TierUID,
 		ProjectUID:       res.Membership.ProjectUID,
+		ProjectSlug:      res.Membership.ProjectSlug,
+		B2bOrgUID:        res.Membership.B2bOrgUID,
 		Status:           res.Membership.Status,
 		Year:             res.Membership.Year,
 		Tier:             res.Membership.Tier,
-		MembershipType:   res.Membership.MembershipType,
 		AutoRenew:        res.Membership.AutoRenew,
 		RenewalType:      res.Membership.RenewalType,
 		Price:            res.Membership.Price,
@@ -930,6 +1070,7 @@ func NewCreateMembershipKeyContactResponseBody(res *membershipservice.CreateMemb
 		MembershipUID:  res.Contact.MembershipUID,
 		TierUID:        res.Contact.TierUID,
 		ProjectUID:     res.Contact.ProjectUID,
+		B2bOrgUID:      res.Contact.B2bOrgUID,
 		Role:           res.Contact.Role,
 		Status:         res.Contact.Status,
 		BoardMember:    res.Contact.BoardMember,
@@ -956,6 +1097,7 @@ func NewUpdateMembershipKeyContactResponseBody(res *membershipservice.UpdateMemb
 		MembershipUID:  res.Contact.MembershipUID,
 		TierUID:        res.Contact.TierUID,
 		ProjectUID:     res.Contact.ProjectUID,
+		B2bOrgUID:      res.Contact.B2bOrgUID,
 		Role:           res.Contact.Role,
 		Status:         res.Contact.Status,
 		BoardMember:    res.Contact.BoardMember,
@@ -982,6 +1124,7 @@ func NewGetMembershipKeyContactResponseBody(res *membershipservice.GetMembership
 		MembershipUID:  res.Contact.MembershipUID,
 		TierUID:        res.Contact.TierUID,
 		ProjectUID:     res.Contact.ProjectUID,
+		B2bOrgUID:      res.Contact.B2bOrgUID,
 		Role:           res.Contact.Role,
 		Status:         res.Contact.Status,
 		BoardMember:    res.Contact.BoardMember,
@@ -995,6 +1138,51 @@ func NewGetMembershipKeyContactResponseBody(res *membershipservice.GetMembership
 		CompanyDomain:  res.Contact.CompanyDomain,
 		CreatedAt:      res.Contact.CreatedAt,
 		UpdatedAt:      res.Contact.UpdatedAt,
+	}
+	return body
+}
+
+// NewListB2bOrgsResponseBody builds the HTTP response body from the result of
+// the "list-b2b-orgs" endpoint of the "membership-service" service.
+func NewListB2bOrgsResponseBody(res *membershipservice.ListB2bOrgsResult) *ListB2bOrgsResponseBody {
+	body := &ListB2bOrgsResponseBody{}
+	if res.Orgs != nil {
+		body.Orgs = make([]*B2bOrgResponseResponseBody, len(res.Orgs))
+		for i, val := range res.Orgs {
+			if val == nil {
+				body.Orgs[i] = nil
+				continue
+			}
+			body.Orgs[i] = marshalMembershipserviceB2bOrgResponseToB2bOrgResponseResponseBody(val)
+		}
+	} else {
+		body.Orgs = []*B2bOrgResponseResponseBody{}
+	}
+	if res.Metadata != nil {
+		body.Metadata = marshalMembershipserviceListMetadataToListMetadataResponseBody(res.Metadata)
+	}
+	return body
+}
+
+// NewListB2bOrgMembershipsResponseBody builds the HTTP response body from the
+// result of the "list-b2b-org-memberships" endpoint of the
+// "membership-service" service.
+func NewListB2bOrgMembershipsResponseBody(res *membershipservice.ListB2bOrgMembershipsResult) *ListB2bOrgMembershipsResponseBody {
+	body := &ListB2bOrgMembershipsResponseBody{}
+	if res.Memberships != nil {
+		body.Memberships = make([]*ProjectMembershipResponseResponseBody, len(res.Memberships))
+		for i, val := range res.Memberships {
+			if val == nil {
+				body.Memberships[i] = nil
+				continue
+			}
+			body.Memberships[i] = marshalMembershipserviceProjectMembershipResponseToProjectMembershipResponseResponseBody(val)
+		}
+	} else {
+		body.Memberships = []*ProjectMembershipResponseResponseBody{}
+	}
+	if res.Metadata != nil {
+		body.Metadata = marshalMembershipserviceListMetadataToListMetadataResponseBody(res.Metadata)
 	}
 	return body
 }
@@ -1449,6 +1637,81 @@ func NewGetMembershipKeyContactServiceUnavailableResponseBody(res *goa.ServiceEr
 	return body
 }
 
+// NewListB2bOrgsInternalServerErrorResponseBody builds the HTTP response body
+// from the result of the "list-b2b-orgs" endpoint of the "membership-service"
+// service.
+func NewListB2bOrgsInternalServerErrorResponseBody(res *goa.ServiceError) *ListB2bOrgsInternalServerErrorResponseBody {
+	body := &ListB2bOrgsInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewListB2bOrgsServiceUnavailableResponseBody builds the HTTP response body
+// from the result of the "list-b2b-orgs" endpoint of the "membership-service"
+// service.
+func NewListB2bOrgsServiceUnavailableResponseBody(res *goa.ServiceError) *ListB2bOrgsServiceUnavailableResponseBody {
+	body := &ListB2bOrgsServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewListB2bOrgMembershipsNotFoundResponseBody builds the HTTP response body
+// from the result of the "list-b2b-org-memberships" endpoint of the
+// "membership-service" service.
+func NewListB2bOrgMembershipsNotFoundResponseBody(res *goa.ServiceError) *ListB2bOrgMembershipsNotFoundResponseBody {
+	body := &ListB2bOrgMembershipsNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewListB2bOrgMembershipsInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "list-b2b-org-memberships" endpoint of
+// the "membership-service" service.
+func NewListB2bOrgMembershipsInternalServerErrorResponseBody(res *goa.ServiceError) *ListB2bOrgMembershipsInternalServerErrorResponseBody {
+	body := &ListB2bOrgMembershipsInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewListB2bOrgMembershipsServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "list-b2b-org-memberships" endpoint of
+// the "membership-service" service.
+func NewListB2bOrgMembershipsServiceUnavailableResponseBody(res *goa.ServiceError) *ListB2bOrgMembershipsServiceUnavailableResponseBody {
+	body := &ListB2bOrgMembershipsServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
 // NewReadyzServiceUnavailableResponseBody builds the HTTP response body from
 // the result of the "readyz" endpoint of the "membership-service" service.
 func NewReadyzServiceUnavailableResponseBody(res *goa.ServiceError) *ReadyzServiceUnavailableResponseBody {
@@ -1586,6 +1849,36 @@ func NewGetMembershipKeyContactPayload(projectUID string, membershipUID string, 
 	v.MembershipUID = &membershipUID
 	v.ContactUID = &contactUID
 	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewListB2bOrgsPayload builds a membership-service service list-b2b-orgs
+// endpoint payload.
+func NewListB2bOrgsPayload(version *string, pageSize int, pageToken *string, sort string, searchName *string, bearerToken *string) *membershipservice.ListB2bOrgsPayload {
+	v := &membershipservice.ListB2bOrgsPayload{}
+	v.Version = version
+	v.PageSize = pageSize
+	v.PageToken = pageToken
+	v.Sort = sort
+	v.SearchName = searchName
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewListB2bOrgMembershipsPayload builds a membership-service service
+// list-b2b-org-memberships endpoint payload.
+func NewListB2bOrgMembershipsPayload(b2bOrgUID string, version *string, pageSize int, pageToken *string, sort string, filter *string, searchName *string, bearerToken *string) *membershipservice.ListB2bOrgMembershipsPayload {
+	v := &membershipservice.ListB2bOrgMembershipsPayload{}
+	v.B2bOrgUID = b2bOrgUID
+	v.Version = version
+	v.PageSize = pageSize
+	v.PageToken = pageToken
+	v.Sort = sort
+	v.Filter = filter
+	v.SearchName = searchName
 	v.BearerToken = bearerToken
 
 	return v
