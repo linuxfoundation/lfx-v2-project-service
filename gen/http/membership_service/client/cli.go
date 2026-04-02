@@ -694,7 +694,7 @@ func BuildListB2bOrgMembershipsPayload(membershipServiceListB2bOrgMembershipsB2b
 		}
 	}
 	v := &membershipservice.ListB2bOrgMembershipsPayload{}
-	v.B2bOrgUID = &b2bOrgUID
+	v.B2bOrgUID = b2bOrgUID
 	v.Version = version
 	v.PageSize = pageSize
 	v.PageToken = pageToken

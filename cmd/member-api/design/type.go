@@ -354,6 +354,7 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 		dsl.Example("Example Corp")
 	})
 	dsl.Attribute("website", dsl.String, "Organization website URL; always has a scheme (http or https)", func() {
+		dsl.Format(dsl.FormatURI)
 		dsl.Example("https://example.com")
 	})
 	dsl.Attribute("primary_domain", dsl.String, "Primary domain; bare host only, no scheme or path, e.g. 'example.com'", func() {

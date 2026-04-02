@@ -726,7 +726,7 @@ definitions:
                 items:
                     type: string
                     example: Qui distinctio sed voluptas.
-                description: Additional normalized domains; each item has the same normalization as primary_domain
+                description: Additional domains; each item is a bare host with the same normalization as primary_domain
                 example:
                     - example.org
                     - example.net
@@ -740,7 +740,7 @@ definitions:
                 example: Example Corp
             primary_domain:
                 type: string
-                description: Normalized primary domain; bare host with scheme and path stripped, e.g. 'example.com'
+                description: Primary domain; bare host only, no scheme or path, e.g. 'example.com'
                 example: example.com
             uid:
                 type: string
@@ -754,8 +754,9 @@ definitions:
                 format: date-time
             website:
                 type: string
-                description: Organization website link; may be a bare domain, full URI, or other text depending on source data quality
+                description: Organization website URL; always has a scheme (http or https)
                 example: https://example.com
+                format: uri
         description: A B2B organization
         example:
             created_at: "2025-01-01T00:00:00Z"

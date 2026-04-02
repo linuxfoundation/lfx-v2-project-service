@@ -81,13 +81,11 @@ type B2bOrgResponse struct {
 	UID *string
 	// Organization name
 	Name *string
-	// Organization website link; may be a bare domain, full URI, or other text
-	// depending on source data quality
+	// Organization website URL; always has a scheme (http or https)
 	Website *string
-	// Normalized primary domain; bare host with scheme and path stripped, e.g.
-	// 'example.com'
+	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
 	PrimaryDomain *string
-	// Additional normalized domains; each item has the same normalization as
+	// Additional domains; each item is a bare host with the same normalization as
 	// primary_domain
 	DomainAliases []string
 	// URL of the organization logo
@@ -222,7 +220,7 @@ type ListB2bOrgMembershipsPayload struct {
 	// Version of the API
 	Version *string
 	// B2BOrg UID
-	B2bOrgUID *string
+	B2bOrgUID string
 	// Logical page size (1–1000). The server rounds up to the nearest supported
 	// size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a
 	// 200-record Salesforce batch and slice client-side.

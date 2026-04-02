@@ -1517,9 +1517,7 @@ func (c *Client) BuildListB2bOrgMembershipsRequest(ctx context.Context, v any) (
 		if !ok {
 			return nil, goahttp.ErrInvalidType("membership-service", "list-b2b-org-memberships", "*membershipservice.ListB2bOrgMembershipsPayload", v)
 		}
-		if p.B2bOrgUID != nil {
-			b2bOrgUID = *p.B2bOrgUID
-		}
+		b2bOrgUID = p.B2bOrgUID
 	}
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ListB2bOrgMembershipsMembershipServicePath(b2bOrgUID)}
 	req, err := http.NewRequest("GET", u.String(), nil)

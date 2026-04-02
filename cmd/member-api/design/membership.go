@@ -451,6 +451,7 @@ var _ = dsl.Service("membership-service", func() {
 			SortAttribute()
 			FilterAttribute()
 			SearchNameAttribute()
+			dsl.Required("b2b_org_uid")
 		})
 
 		dsl.Result(func() {

@@ -933,13 +933,11 @@ type B2bOrgResponseResponseBody struct {
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Organization website link; may be a bare domain, full URI, or other text
-	// depending on source data quality
+	// Organization website URL; always has a scheme (http or https)
 	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
-	// Normalized primary domain; bare host with scheme and path stripped, e.g.
-	// 'example.com'
+	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
 	PrimaryDomain *string `form:"primary_domain,omitempty" json:"primary_domain,omitempty" xml:"primary_domain,omitempty"`
-	// Additional normalized domains; each item has the same normalization as
+	// Additional domains; each item is a bare host with the same normalization as
 	// primary_domain
 	DomainAliases []string `form:"domain_aliases,omitempty" json:"domain_aliases,omitempty" xml:"domain_aliases,omitempty"`
 	// URL of the organization logo
@@ -2918,6 +2916,9 @@ func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactRespon
 func ValidateB2bOrgResponseResponseBody(body *B2bOrgResponseResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.Website != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))

@@ -460,7 +460,7 @@ func (s *membershipServicesrvc) ListB2bOrgMemberships(ctx context.Context, p *me
 	// On the first page, verify the B2B org exists before querying memberships.
 	// Subsequent pages skip this check to avoid an extra Salesforce round-trip.
 	if encodedPageToken == "" {
-		_, err := s.b2bOrgReader.GetB2BOrg(ctx, *p.B2bOrgUID)
+		_, err := s.b2bOrgReader.GetB2BOrg(ctx, p.B2bOrgUID)
 		if pkgerrors.IsNotFound(err) {
 			return nil, wrapError(ctx, errNotFound("b2b org not found"))
 		}
@@ -485,7 +485,7 @@ func (s *membershipServicesrvc) ListB2bOrgMemberships(ctx context.Context, p *me
 		soqlFilters.CompanyNameSearch = strings.ToLower(*p.SearchName)
 	}
 
-	memberPage, err := s.memberReaderOrchestrator.ListMembershipsForB2BOrg(ctx, *p.B2bOrgUID, soqlFilters, p.PageSize)
+	memberPage, err := s.memberReaderOrchestrator.ListMembershipsForB2BOrg(ctx, p.B2bOrgUID, soqlFilters, p.PageSize)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
