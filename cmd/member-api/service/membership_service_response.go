@@ -159,3 +159,32 @@ func convertProjectKeyContactToResponse(c *model.KeyContact) *membershipservice.
 
 	return r
 }
+
+// convertB2BOrgToResponse converts a domain B2BOrg to a Goa response.
+func convertB2BOrgToResponse(org *model.B2BOrg) *membershipservice.B2bOrgResponse {
+	if org == nil {
+		return nil
+	}
+
+	r := &membershipservice.B2bOrgResponse{
+		UID:  &org.UID,
+		Name: &org.Name,
+	}
+
+	if org.Domain != "" {
+		r.Domain = &org.Domain
+	}
+	if org.LogoURL != "" {
+		r.LogoURL = &org.LogoURL
+	}
+	if !org.CreatedAt.IsZero() {
+		s := org.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+		r.CreatedAt = &s
+	}
+	if !org.UpdatedAt.IsZero() {
+		s := org.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")
+		r.UpdatedAt = &s
+	}
+
+	return r
+}

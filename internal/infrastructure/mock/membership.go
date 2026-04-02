@@ -251,6 +251,35 @@ func (m *MockMembershipRepository) IsReady(_ context.Context) error {
 	return nil
 }
 
+// ListMembershipsForB2BOrg returns a MembershipPage of all ProjectMembership
+// records, filtered in-memory by the supplied predicates. The mock does not
+// restrict by B2B org UID — all seeded memberships are returned so that tests
+// can exercise the pagination and filtering logic without needing a real
+// Salesforce Account lookup.
+func (m *MockMembershipRepository) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
+	slog.DebugContext(ctx, "mock: listing memberships for b2b org",
+		"b2b_org_uid", b2bOrgUID,
+		"sort_order", filters.EffectiveSortOrder(),
+		"page_size", pageSize,
+	)
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var result []*model.ProjectMembership
+	for _, ms := range m.memberships {
+		result = append(result, ms)
+	}
+
+	sortMockMemberships(result, filters.EffectiveSortOrder())
+
+	if pageSize > 0 && len(result) > pageSize {
+		result = result[:pageSize]
+	}
+
+	return model.MembershipPage{Memberships: result, TotalSize: len(result)}, nil
+}
+
 // sortMockMemberships sorts a slice of ProjectMembership records in-place
 // according to the given SortOrder, mirroring the SOQL ORDER BY clauses used
 // in the real Salesforce implementation.
@@ -322,4 +351,25 @@ func matchesMockMemberFilters(ms *model.ProjectMembership, filters map[string]st
 	}
 
 	return true
+}
+
+// MockB2BOrgReader provides a no-op mock implementation of port.B2BOrgReader
+// for local development when REPOSITORY_SOURCE=mock.
+type MockB2BOrgReader struct{}
+
+// NewMockB2BOrgReader creates a new MockB2BOrgReader.
+func NewMockB2BOrgReader() *MockB2BOrgReader {
+	return &MockB2BOrgReader{}
+}
+
+// SearchB2BOrgs always returns an empty page. Satisfies port.B2BOrgReader for
+// local development without Salesforce.
+func (m *MockB2BOrgReader) SearchB2BOrgs(_ context.Context, _ model.B2BOrgFilters, _ int) (model.B2BOrgPage, error) {
+	return model.B2BOrgPage{Orgs: []*model.B2BOrg{}}, nil
+}
+
+// GetB2BOrg always returns not-found. Satisfies port.B2BOrgReader for local
+// development without Salesforce.
+func (m *MockB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+	return nil, errors.NewNotFound("b2b org not found in mock")
 }

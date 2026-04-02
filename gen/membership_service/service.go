@@ -38,6 +38,12 @@ type Service interface {
 	DeleteMembershipKeyContact(context.Context, *DeleteMembershipKeyContactPayload) (err error)
 	// Get a specific key contact by UID within a membership
 	GetMembershipKeyContact(context.Context, *GetMembershipKeyContactPayload) (res *GetMembershipKeyContactResult, err error)
+	// Search and list B2B organizations (Salesforce Accounts) by name with
+	// pagination
+	ListB2bOrgs(context.Context, *ListB2bOrgsPayload) (res *ListB2bOrgsResult, err error)
+	// List all memberships (Assets) across all projects for a given B2B
+	// organization UID, with pagination and filters
+	ListB2bOrgMemberships(context.Context, *ListB2bOrgMembershipsPayload) (res *ListB2bOrgMembershipsResult, err error)
 	// Check if the service is able to take inbound requests.
 	Readyz(context.Context) (res []byte, err error)
 	// Check if the service is alive.
@@ -67,7 +73,23 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [12]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "readyz", "livez", "debug-vars"}
+var MethodNames = [14]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "list-b2b-orgs", "list-b2b-org-memberships", "readyz", "livez", "debug-vars"}
+
+// A B2B organization (Salesforce Account)
+type B2bOrgResponse struct {
+	// B2BOrg UID (invertible UUID v8 from Account.Id)
+	UID *string
+	// Organization name
+	Name *string
+	// Organization website domain
+	Domain *string
+	// URL of the organization logo
+	LogoURL *string
+	// Creation timestamp
+	CreatedAt *string
+	// Last update timestamp
+	UpdatedAt *string
+}
 
 // CreateMembershipKeyContactPayload is the payload type of the
 // membership-service service create-membership-key-contact method.
@@ -183,6 +205,73 @@ type GetProjectTierPayload struct {
 type GetProjectTierResult struct {
 	// Membership tier details
 	Tier *MembershipTierResponse
+}
+
+// ListB2bOrgMembershipsPayload is the payload type of the membership-service
+// service list-b2b-org-memberships method.
+type ListB2bOrgMembershipsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2BOrg UID
+	B2bOrgUID *string
+	// Logical page size (1–1000). The server rounds up to the nearest supported
+	// size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a
+	// 200-record Salesforce batch and slice client-side.
+	PageSize int
+	// Opaque continuation cursor returned in a previous list response
+	// metadata.next_page_token. Omit (or pass empty) to start from the first page.
+	// Valid for 15 minutes.
+	PageToken *string
+	// Sort order for results. One of: name (A→Z by company name), newest (default,
+	// CreatedDate DESC), last_modified (LastModifiedDate DESC).
+	Sort string
+	// Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from
+	// ListProjectTiers). All results are restricted to active members.
+	Filter *string
+	// Search memberships by member company name (case-insensitive substring match)
+	SearchName *string
+}
+
+// ListB2bOrgMembershipsResult is the result type of the membership-service
+// service list-b2b-org-memberships method.
+type ListB2bOrgMembershipsResult struct {
+	// List of memberships for the B2B organization
+	Memberships []*ProjectMembershipResponse
+	// Pagination metadata
+	Metadata *ListMetadata
+}
+
+// ListB2bOrgsPayload is the payload type of the membership-service service
+// list-b2b-orgs method.
+type ListB2bOrgsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Logical page size (1–1000). The server rounds up to the nearest supported
+	// size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a
+	// 200-record Salesforce batch and slice client-side.
+	PageSize int
+	// Opaque continuation cursor returned in a previous list response
+	// metadata.next_page_token. Omit (or pass empty) to start from the first page.
+	// Valid for 15 minutes.
+	PageToken *string
+	// Sort order for results. One of: name (A→Z by company name), newest (default,
+	// CreatedDate DESC), last_modified (LastModifiedDate DESC).
+	Sort string
+	// Search organizations by name (case-insensitive substring match)
+	SearchName *string
+}
+
+// ListB2bOrgsResult is the result type of the membership-service service
+// list-b2b-orgs method.
+type ListB2bOrgsResult struct {
+	// List of B2B organizations
+	Orgs []*B2bOrgResponse
+	// Pagination metadata
+	Metadata *ListMetadata
 }
 
 // ListMembershipKeyContactsPayload is the payload type of the

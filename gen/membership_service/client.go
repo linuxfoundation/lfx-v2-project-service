@@ -25,6 +25,8 @@ type Client struct {
 	UpdateMembershipKeyContactEndpoint goa.Endpoint
 	DeleteMembershipKeyContactEndpoint goa.Endpoint
 	GetMembershipKeyContactEndpoint    goa.Endpoint
+	ListB2bOrgsEndpoint                goa.Endpoint
+	ListB2bOrgMembershipsEndpoint      goa.Endpoint
 	ReadyzEndpoint                     goa.Endpoint
 	LivezEndpoint                      goa.Endpoint
 	DebugVarsEndpoint                  goa.Endpoint
@@ -32,7 +34,7 @@ type Client struct {
 
 // NewClient initializes a "membership-service" service client given the
 // endpoints.
-func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, readyz, livez, debugVars goa.Endpoint) *Client {
+func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, listB2bOrgs, listB2bOrgMemberships, readyz, livez, debugVars goa.Endpoint) *Client {
 	return &Client{
 		ListProjectTiersEndpoint:           listProjectTiers,
 		GetProjectTierEndpoint:             getProjectTier,
@@ -43,6 +45,8 @@ func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProj
 		UpdateMembershipKeyContactEndpoint: updateMembershipKeyContact,
 		DeleteMembershipKeyContactEndpoint: deleteMembershipKeyContact,
 		GetMembershipKeyContactEndpoint:    getMembershipKeyContact,
+		ListB2bOrgsEndpoint:                listB2bOrgs,
+		ListB2bOrgMembershipsEndpoint:      listB2bOrgMemberships,
 		ReadyzEndpoint:                     readyz,
 		LivezEndpoint:                      livez,
 		DebugVarsEndpoint:                  debugVars,
@@ -190,6 +194,38 @@ func (c *Client) GetMembershipKeyContact(ctx context.Context, p *GetMembershipKe
 		return
 	}
 	return ires.(*GetMembershipKeyContactResult), nil
+}
+
+// ListB2bOrgs calls the "list-b2b-orgs" endpoint of the "membership-service"
+// service.
+// ListB2bOrgs may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) ListB2bOrgs(ctx context.Context, p *ListB2bOrgsPayload) (res *ListB2bOrgsResult, err error) {
+	var ires any
+	ires, err = c.ListB2bOrgsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ListB2bOrgsResult), nil
+}
+
+// ListB2bOrgMemberships calls the "list-b2b-org-memberships" endpoint of the
+// "membership-service" service.
+// ListB2bOrgMemberships may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): B2B organization not found
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) ListB2bOrgMemberships(ctx context.Context, p *ListB2bOrgMembershipsPayload) (res *ListB2bOrgMembershipsResult, err error) {
+	var ires any
+	ires, err = c.ListB2bOrgMembershipsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ListB2bOrgMembershipsResult), nil
 }
 
 // Readyz calls the "readyz" endpoint of the "membership-service" service.

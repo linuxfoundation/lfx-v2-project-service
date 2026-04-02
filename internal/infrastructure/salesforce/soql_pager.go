@@ -178,7 +178,7 @@ func QueryPage[T any](ctx context.Context, client *sf.Salesforce, query string, 
 	if err != nil {
 		return PageResult[T]{}, fmt.Errorf("SOQL page request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // Response body close errors are not actionable.
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

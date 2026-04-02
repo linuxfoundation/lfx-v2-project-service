@@ -12,6 +12,161 @@ produces:
     - application/xml
     - application/gob
 paths:
+    /b2b_orgs:
+        get:
+            tags:
+                - membership-service
+            summary: list-b2b-orgs membership-service
+            description: Search and list B2B organizations (Salesforce Accounts) by name with pagination
+            operationId: membership-service#list-b2b-orgs
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: pageSize
+                  in: query
+                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
+                  required: false
+                  type: integer
+                  default: 200
+                  maximum: 1000
+                  minimum: 1
+                - name: pageToken
+                  in: query
+                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
+                  required: false
+                  type: string
+                - name: sort
+                  in: query
+                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                  required: false
+                  type: string
+                  default: newest
+                  enum:
+                    - name
+                    - newest
+                    - last_modified
+                - name: search_name
+                  in: query
+                  description: Search organizations by name (case-insensitive substring match)
+                  required: false
+                  type: string
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgsResponseBody'
+                        required:
+                            - orgs
+                            - metadata
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgsNotFoundResponseBody'
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgsInternalServerErrorResponseBody'
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgsServiceUnavailableResponseBody'
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{b2b_org_uid}/memberships:
+        get:
+            tags:
+                - membership-service
+            summary: list-b2b-org-memberships membership-service
+            description: List all memberships (Assets) across all projects for a given B2B organization UID, with pagination and filters
+            operationId: membership-service#list-b2b-org-memberships
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: b2b_org_uid
+                  in: path
+                  description: B2BOrg UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: pageSize
+                  in: query
+                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
+                  required: false
+                  type: integer
+                  default: 200
+                  maximum: 1000
+                  minimum: 1
+                - name: pageToken
+                  in: query
+                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
+                  required: false
+                  type: string
+                - name: sort
+                  in: query
+                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                  required: false
+                  type: string
+                  default: newest
+                  enum:
+                    - name
+                    - newest
+                    - last_modified
+                - name: filter
+                  in: query
+                  description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
+                  required: false
+                  type: string
+                - name: search_name
+                  in: query
+                  description: Search memberships by member company name (case-insensitive substring match)
+                  required: false
+                  type: string
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgMembershipsResponseBody'
+                        required:
+                            - memberships
+                            - metadata
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgMembershipsNotFoundResponseBody'
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgMembershipsInternalServerErrorResponseBody'
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/MembershipServiceListB2bOrgMembershipsServiceUnavailableResponseBody'
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
     /projects/{project_uid}/memberships:
         get:
             tags:
@@ -561,6 +716,45 @@ paths:
             security:
                 - jwt_header_Authorization: []
 definitions:
+    B2bOrgResponse:
+        title: B2bOrgResponse
+        type: object
+        properties:
+            created_at:
+                type: string
+                description: Creation timestamp
+                example: "2025-01-01T00:00:00Z"
+                format: date-time
+            domain:
+                type: string
+                description: Organization website domain
+                example: https://example.com
+            logo_url:
+                type: string
+                description: URL of the organization logo
+                example: https://example.com/logo.png
+            name:
+                type: string
+                description: Organization name
+                example: Example Corp
+            uid:
+                type: string
+                description: B2BOrg UID (invertible UUID v8 from Account.Id)
+                example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                format: uuid
+            updated_at:
+                type: string
+                description: Last update timestamp
+                example: "2025-06-01T12:00:00Z"
+                format: date-time
+        description: A B2B organization (Salesforce Account)
+        example:
+            created_at: "2025-01-01T00:00:00Z"
+            domain: https://example.com
+            logo_url: https://example.com/logo.png
+            name: Example Corp
+            uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            updated_at: "2025-06-01T12:00:00Z"
     ListMetadata:
         title: ListMetadata
         type: object
@@ -605,15 +799,15 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Bad request (default view)
         example:
             fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
-            timeout: true
+            temporary: false
+            timeout: false
         required:
             - name
             - id
@@ -644,11 +838,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Internal server error (default view)
         example:
             fault: false
@@ -656,7 +850,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -691,14 +885,14 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Membership not found (default view)
         example:
             fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: false
         required:
             - name
@@ -783,7 +977,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -795,7 +989,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: false
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -830,15 +1024,15 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Internal server error (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -853,7 +1047,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -869,7 +1063,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -880,8 +1074,8 @@ definitions:
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
-            timeout: false
+            temporary: true
+            timeout: true
         required:
             - name
             - id
@@ -896,6 +1090,49 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Service unavailable (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceGetMembershipKeyContactInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
                 example: true
             id:
                 type: string
@@ -912,54 +1149,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
-        description: Service unavailable (default view)
-        example:
-            fault: true
-            id: 123abc
-            message: parameter 'p' must be an integer
-            name: bad_request
-            temporary: false
-            timeout: false
-        required:
-            - name
-            - id
-            - message
-            - temporary
-            - timeout
-            - fault
-    MembershipServiceGetMembershipKeyContactInternalServerErrorResponseBody:
-        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
-        type: object
-        properties:
-            fault:
-                type: boolean
-                description: Is the error a server-side fault?
-                example: false
-            id:
-                type: string
-                description: ID is a unique identifier for this particular occurrence of the problem.
-                example: 123abc
-            message:
-                type: string
-                description: Message is a human-readable explanation specific to this occurrence of the problem.
-                example: parameter 'p' must be an integer
-            name:
-                type: string
-                description: Name is the name of this class of errors.
-                example: bad_request
-            temporary:
-                type: boolean
-                description: Is the error temporary?
-                example: false
-            timeout:
-                type: boolean
-                description: Is the error a timeout?
-                example: false
+                example: true
         description: Internal server error (default view)
         example:
             fault: true
@@ -982,7 +1176,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1002,7 +1196,7 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Key contact not found (default view)
         example:
             fault: false
@@ -1010,7 +1204,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: false
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -1091,15 +1285,15 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Internal server error (default view)
         example:
             fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
-            timeout: true
+            temporary: false
+            timeout: false
         required:
             - name
             - id
@@ -1114,7 +1308,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1137,7 +1331,7 @@ definitions:
                 example: true
         description: Membership not found (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
@@ -1160,7 +1354,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1176,14 +1370,14 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Service unavailable (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
@@ -1203,7 +1397,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1219,11 +1413,11 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Internal server error (default view)
         example:
             fault: false
@@ -1231,7 +1425,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -1262,19 +1456,19 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Tier not found (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
-            timeout: true
+            temporary: true
+            timeout: false
         required:
             - name
             - id
@@ -1308,98 +1502,12 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Service unavailable (default view)
-        example:
-            fault: true
-            id: 123abc
-            message: parameter 'p' must be an integer
-            name: bad_request
-            temporary: true
-            timeout: true
-        required:
-            - name
-            - id
-            - message
-            - temporary
-            - timeout
-            - fault
-    MembershipServiceListMembershipKeyContactsInternalServerErrorResponseBody:
-        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
-        type: object
-        properties:
-            fault:
-                type: boolean
-                description: Is the error a server-side fault?
-                example: true
-            id:
-                type: string
-                description: ID is a unique identifier for this particular occurrence of the problem.
-                example: 123abc
-            message:
-                type: string
-                description: Message is a human-readable explanation specific to this occurrence of the problem.
-                example: parameter 'p' must be an integer
-            name:
-                type: string
-                description: Name is the name of this class of errors.
-                example: bad_request
-            temporary:
-                type: boolean
-                description: Is the error temporary?
-                example: false
-            timeout:
-                type: boolean
-                description: Is the error a timeout?
-                example: false
-        description: Internal server error (default view)
-        example:
-            fault: true
-            id: 123abc
-            message: parameter 'p' must be an integer
-            name: bad_request
-            temporary: false
-            timeout: true
-        required:
-            - name
-            - id
-            - message
-            - temporary
-            - timeout
-            - fault
-    MembershipServiceListMembershipKeyContactsNotFoundResponseBody:
-        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
-        type: object
-        properties:
-            fault:
-                type: boolean
-                description: Is the error a server-side fault?
-                example: false
-            id:
-                type: string
-                description: ID is a unique identifier for this particular occurrence of the problem.
-                example: 123abc
-            message:
-                type: string
-                description: Message is a human-readable explanation specific to this occurrence of the problem.
-                example: parameter 'p' must be an integer
-            name:
-                type: string
-                description: Name is the name of this class of errors.
-                example: bad_request
-            temporary:
-                type: boolean
-                description: Is the error temporary?
-                example: true
-            timeout:
-                type: boolean
-                description: Is the error a timeout?
-                example: true
-        description: Membership not found (default view)
         example:
             fault: true
             id: 123abc
@@ -1414,183 +1522,7 @@ definitions:
             - temporary
             - timeout
             - fault
-    MembershipServiceListMembershipKeyContactsResponseBody:
-        title: MembershipServiceListMembershipKeyContactsResponseBody
-        type: object
-        properties:
-            contacts:
-                type: array
-                items:
-                    $ref: '#/definitions/ProjectKeyContactResponse'
-                description: List of key contacts
-                example:
-                    - board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-        example:
-            contacts:
-                - board_member: false
-                  company_domain: https://example.com
-                  company_logo_url: https://example.com/logo.png
-                  company_name: Example Corp
-                  created_at: "2025-01-01T00:00:00Z"
-                  email: john.doe@example.com
-                  first_name: John
-                  last_name: Doe
-                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  primary_contact: true
-                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                  role: Voting Representative
-                  status: Active
-                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  title: CTO
-                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  updated_at: "2025-06-01T12:00:00Z"
-                - board_member: false
-                  company_domain: https://example.com
-                  company_logo_url: https://example.com/logo.png
-                  company_name: Example Corp
-                  created_at: "2025-01-01T00:00:00Z"
-                  email: john.doe@example.com
-                  first_name: John
-                  last_name: Doe
-                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  primary_contact: true
-                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                  role: Voting Representative
-                  status: Active
-                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  title: CTO
-                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  updated_at: "2025-06-01T12:00:00Z"
-                - board_member: false
-                  company_domain: https://example.com
-                  company_logo_url: https://example.com/logo.png
-                  company_name: Example Corp
-                  created_at: "2025-01-01T00:00:00Z"
-                  email: john.doe@example.com
-                  first_name: John
-                  last_name: Doe
-                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  primary_contact: true
-                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                  role: Voting Representative
-                  status: Active
-                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  title: CTO
-                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  updated_at: "2025-06-01T12:00:00Z"
-                - board_member: false
-                  company_domain: https://example.com
-                  company_logo_url: https://example.com/logo.png
-                  company_name: Example Corp
-                  created_at: "2025-01-01T00:00:00Z"
-                  email: john.doe@example.com
-                  first_name: John
-                  last_name: Doe
-                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  primary_contact: true
-                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                  role: Voting Representative
-                  status: Active
-                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  title: CTO
-                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  updated_at: "2025-06-01T12:00:00Z"
-        required:
-            - contacts
-    MembershipServiceListMembershipKeyContactsServiceUnavailableResponseBody:
-        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
-        type: object
-        properties:
-            fault:
-                type: boolean
-                description: Is the error a server-side fault?
-                example: true
-            id:
-                type: string
-                description: ID is a unique identifier for this particular occurrence of the problem.
-                example: 123abc
-            message:
-                type: string
-                description: Message is a human-readable explanation specific to this occurrence of the problem.
-                example: parameter 'p' must be an integer
-            name:
-                type: string
-                description: Name is the name of this class of errors.
-                example: bad_request
-            temporary:
-                type: boolean
-                description: Is the error temporary?
-                example: true
-            timeout:
-                type: boolean
-                description: Is the error a timeout?
-                example: true
-        description: Service unavailable (default view)
-        example:
-            fault: true
-            id: 123abc
-            message: parameter 'p' must be an integer
-            name: bad_request
-            temporary: true
-            timeout: true
-        required:
-            - name
-            - id
-            - message
-            - temporary
-            - timeout
-            - fault
-    MembershipServiceListProjectMembershipsBadRequestResponseBody:
+    MembershipServiceListB2bOrgMembershipsInternalServerErrorResponseBody:
         title: 'Mediatype identifier: application/vnd.goa.error; view=default'
         type: object
         properties:
@@ -1613,18 +1545,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
-        description: Bad request (default view)
+                example: false
+        description: Internal server error (default view)
         example:
             fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
+            temporary: true
             timeout: true
         required:
             - name
@@ -1633,7 +1565,7 @@ definitions:
             - temporary
             - timeout
             - fault
-    MembershipServiceListProjectMembershipsInternalServerErrorResponseBody:
+    MembershipServiceListB2bOrgMembershipsNotFoundResponseBody:
         title: 'Mediatype identifier: application/vnd.goa.error; view=default'
         type: object
         properties:
@@ -1656,12 +1588,12 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
-        description: Internal server error (default view)
+                example: false
+        description: B2B organization not found (default view)
         example:
             fault: true
             id: 123abc
@@ -1676,58 +1608,15 @@ definitions:
             - temporary
             - timeout
             - fault
-    MembershipServiceListProjectMembershipsNotFoundResponseBody:
-        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
-        type: object
-        properties:
-            fault:
-                type: boolean
-                description: Is the error a server-side fault?
-                example: true
-            id:
-                type: string
-                description: ID is a unique identifier for this particular occurrence of the problem.
-                example: 123abc
-            message:
-                type: string
-                description: Message is a human-readable explanation specific to this occurrence of the problem.
-                example: parameter 'p' must be an integer
-            name:
-                type: string
-                description: Name is the name of this class of errors.
-                example: bad_request
-            temporary:
-                type: boolean
-                description: Is the error temporary?
-                example: false
-            timeout:
-                type: boolean
-                description: Is the error a timeout?
-                example: false
-        description: Project not found (default view)
-        example:
-            fault: true
-            id: 123abc
-            message: parameter 'p' must be an integer
-            name: bad_request
-            temporary: false
-            timeout: true
-        required:
-            - name
-            - id
-            - message
-            - temporary
-            - timeout
-            - fault
-    MembershipServiceListProjectMembershipsResponseBody:
-        title: MembershipServiceListProjectMembershipsResponseBody
+    MembershipServiceListB2bOrgMembershipsResponseBody:
+        title: MembershipServiceListB2bOrgMembershipsResponseBody
         type: object
         properties:
             memberships:
                 type: array
                 items:
                     $ref: '#/definitions/ProjectMembershipResponse'
-                description: List of project memberships
+                description: List of memberships for the B2B organization
                 example:
                     - agreement_date: "2025-01-01T00:00:00Z"
                       annual_full_price: 50000
@@ -1883,6 +1772,755 @@ definitions:
                   uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                   updated_at: "2025-06-01T12:00:00Z"
                   year: "2025"
+                - agreement_date: "2025-01-01T00:00:00Z"
+                  annual_full_price: 50000
+                  auto_renew: true
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  end_date: "2025-12-31T23:59:59Z"
+                  membership_type: Corporate
+                  payment_frequency: Annual
+                  payment_terms: Net 30
+                  price: 50000
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  purchase_date: "2025-01-15T00:00:00Z"
+                  renewal_type: Annual
+                  start_date: "2025-02-01T00:00:00Z"
+                  status: Active
+                  tier: Gold
+                  tier_family: Membership
+                  tier_name: Gold Corporate Membership
+                  tier_product_type: Corporate
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                  year: "2025"
+                - agreement_date: "2025-01-01T00:00:00Z"
+                  annual_full_price: 50000
+                  auto_renew: true
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  end_date: "2025-12-31T23:59:59Z"
+                  membership_type: Corporate
+                  payment_frequency: Annual
+                  payment_terms: Net 30
+                  price: 50000
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  purchase_date: "2025-01-15T00:00:00Z"
+                  renewal_type: Annual
+                  start_date: "2025-02-01T00:00:00Z"
+                  status: Active
+                  tier: Gold
+                  tier_family: Membership
+                  tier_name: Gold Corporate Membership
+                  tier_product_type: Corporate
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                  year: "2025"
+            metadata:
+                next_page_token: ""
+                total_size: 100
+        required:
+            - memberships
+            - metadata
+    MembershipServiceListB2bOrgMembershipsServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Service unavailable (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListB2bOrgsInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Internal server error (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListB2bOrgsNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Not found (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListB2bOrgsResponseBody:
+        title: MembershipServiceListB2bOrgsResponseBody
+        type: object
+        properties:
+            metadata:
+                $ref: '#/definitions/ListMetadata'
+            orgs:
+                type: array
+                items:
+                    $ref: '#/definitions/B2bOrgResponse'
+                description: List of B2B organizations
+                example:
+                    - created_at: "2025-01-01T00:00:00Z"
+                      domain: https://example.com
+                      logo_url: https://example.com/logo.png
+                      name: Example Corp
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      domain: https://example.com
+                      logo_url: https://example.com/logo.png
+                      name: Example Corp
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      domain: https://example.com
+                      logo_url: https://example.com/logo.png
+                      name: Example Corp
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+        example:
+            metadata:
+                next_page_token: ""
+                total_size: 100
+            orgs:
+                - created_at: "2025-01-01T00:00:00Z"
+                  domain: https://example.com
+                  logo_url: https://example.com/logo.png
+                  name: Example Corp
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                - created_at: "2025-01-01T00:00:00Z"
+                  domain: https://example.com
+                  logo_url: https://example.com/logo.png
+                  name: Example Corp
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+        required:
+            - orgs
+            - metadata
+    MembershipServiceListB2bOrgsServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Service unavailable (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListMembershipKeyContactsInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: false
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListMembershipKeyContactsNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Membership not found (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListMembershipKeyContactsResponseBody:
+        title: MembershipServiceListMembershipKeyContactsResponseBody
+        type: object
+        properties:
+            contacts:
+                type: array
+                items:
+                    $ref: '#/definitions/ProjectKeyContactResponse'
+                description: List of key contacts
+                example:
+                    - board_member: false
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      primary_contact: true
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
+                      status: Active
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - board_member: false
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      primary_contact: true
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
+                      status: Active
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+        example:
+            contacts:
+                - board_member: false
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  email: john.doe@example.com
+                  first_name: John
+                  last_name: Doe
+                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  primary_contact: true
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  role: Voting Representative
+                  status: Active
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  title: CTO
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                - board_member: false
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  email: john.doe@example.com
+                  first_name: John
+                  last_name: Doe
+                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  primary_contact: true
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  role: Voting Representative
+                  status: Active
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  title: CTO
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                - board_member: false
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  email: john.doe@example.com
+                  first_name: John
+                  last_name: Doe
+                  membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  primary_contact: true
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  role: Voting Representative
+                  status: Active
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  title: CTO
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+        required:
+            - contacts
+    MembershipServiceListMembershipKeyContactsServiceUnavailableResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: true
+        description: Service unavailable (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectMembershipsBadRequestResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Bad request (default view)
+        example:
+            fault: false
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectMembershipsInternalServerErrorResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: true
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: false
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Internal server error (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: false
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectMembershipsNotFoundResponseBody:
+        title: 'Mediatype identifier: application/vnd.goa.error; view=default'
+        type: object
+        properties:
+            fault:
+                type: boolean
+                description: Is the error a server-side fault?
+                example: false
+            id:
+                type: string
+                description: ID is a unique identifier for this particular occurrence of the problem.
+                example: 123abc
+            message:
+                type: string
+                description: Message is a human-readable explanation specific to this occurrence of the problem.
+                example: parameter 'p' must be an integer
+            name:
+                type: string
+                description: Name is the name of this class of errors.
+                example: bad_request
+            temporary:
+                type: boolean
+                description: Is the error temporary?
+                example: true
+            timeout:
+                type: boolean
+                description: Is the error a timeout?
+                example: false
+        description: Project not found (default view)
+        example:
+            fault: true
+            id: 123abc
+            message: parameter 'p' must be an integer
+            name: bad_request
+            temporary: true
+            timeout: true
+        required:
+            - name
+            - id
+            - message
+            - temporary
+            - timeout
+            - fault
+    MembershipServiceListProjectMembershipsResponseBody:
+        title: MembershipServiceListProjectMembershipsResponseBody
+        type: object
+        properties:
+            memberships:
+                type: array
+                items:
+                    $ref: '#/definitions/ProjectMembershipResponse'
+                description: List of project memberships
+                example:
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
+            metadata:
+                $ref: '#/definitions/ListMetadata'
+        example:
+            memberships:
+                - agreement_date: "2025-01-01T00:00:00Z"
+                  annual_full_price: 50000
+                  auto_renew: true
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  end_date: "2025-12-31T23:59:59Z"
+                  membership_type: Corporate
+                  payment_frequency: Annual
+                  payment_terms: Net 30
+                  price: 50000
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  purchase_date: "2025-01-15T00:00:00Z"
+                  renewal_type: Annual
+                  start_date: "2025-02-01T00:00:00Z"
+                  status: Active
+                  tier: Gold
+                  tier_family: Membership
+                  tier_name: Gold Corporate Membership
+                  tier_product_type: Corporate
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                  year: "2025"
+                - agreement_date: "2025-01-01T00:00:00Z"
+                  annual_full_price: 50000
+                  auto_renew: true
+                  company_domain: https://example.com
+                  company_logo_url: https://example.com/logo.png
+                  company_name: Example Corp
+                  created_at: "2025-01-01T00:00:00Z"
+                  end_date: "2025-12-31T23:59:59Z"
+                  membership_type: Corporate
+                  payment_frequency: Annual
+                  payment_terms: Net 30
+                  price: 50000
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  purchase_date: "2025-01-15T00:00:00Z"
+                  renewal_type: Annual
+                  start_date: "2025-02-01T00:00:00Z"
+                  status: Active
+                  tier: Gold
+                  tier_family: Membership
+                  tier_name: Gold Corporate Membership
+                  tier_product_type: Corporate
+                  tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                  year: "2025"
             metadata:
                 next_page_token: ""
                 total_size: 100
@@ -1924,7 +2562,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: false
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -1939,7 +2577,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1955,18 +2593,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Internal server error (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: true
         required:
             - name
@@ -1982,7 +2620,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2002,14 +2640,14 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: false
+                example: true
         description: Project not found (default view)
         example:
             fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: false
+            temporary: true
             timeout: true
         required:
             - name
@@ -2049,8 +2687,29 @@ definitions:
                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      family: Membership
+                      name: Gold Corporate Membership
+                      product_type: Corporate
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
         example:
             tiers:
+                - created_at: "2025-01-01T00:00:00Z"
+                  family: Membership
+                  name: Gold Corporate Membership
+                  product_type: Corporate
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
+                - created_at: "2025-01-01T00:00:00Z"
+                  family: Membership
+                  name: Gold Corporate Membership
+                  product_type: Corporate
+                  project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  updated_at: "2025-06-01T12:00:00Z"
                 - created_at: "2025-01-01T00:00:00Z"
                   family: Membership
                   name: Gold Corporate Membership
@@ -2090,7 +2749,7 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
@@ -2102,7 +2761,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -2117,7 +2776,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2137,7 +2796,7 @@ definitions:
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Bad request (default view)
         example:
             fault: true
@@ -2160,7 +2819,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: false
+                example: true
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2176,19 +2835,19 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: false
+                example: true
             timeout:
                 type: boolean
                 description: Is the error a timeout?
                 example: false
         description: Internal server error (default view)
         example:
-            fault: true
+            fault: false
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: false
-            timeout: false
+            timeout: true
         required:
             - name
             - id
@@ -2231,7 +2890,7 @@ definitions:
             message: parameter 'p' must be an integer
             name: bad_request
             temporary: true
-            timeout: true
+            timeout: false
         required:
             - name
             - id
@@ -2274,7 +2933,7 @@ definitions:
             fault:
                 type: boolean
                 description: Is the error a server-side fault?
-                example: true
+                example: false
             id:
                 type: string
                 description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2290,18 +2949,18 @@ definitions:
             temporary:
                 type: boolean
                 description: Is the error temporary?
-                example: true
+                example: false
             timeout:
                 type: boolean
                 description: Is the error a timeout?
-                example: true
+                example: false
         description: Service unavailable (default view)
         example:
-            fault: false
+            fault: true
             id: 123abc
             message: parameter 'p' must be an integer
             name: bad_request
-            temporary: true
+            temporary: false
             timeout: false
         required:
             - name

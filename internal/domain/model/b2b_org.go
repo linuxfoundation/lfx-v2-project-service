@@ -42,3 +42,47 @@ type B2BOrgInput struct {
 	// LogoURL is the URL of the organization's logo image.
 	LogoURL string
 }
+
+// B2BOrgFilters holds the SOQL-pushable filter predicates for SearchB2BOrgs.
+// Only non-empty fields are applied. The zero value means "no filtering".
+type B2BOrgFilters struct {
+	// NameSearch is a free-text substring to match against Account.Name via a
+	// SOQL LIKE predicate. MUST always be lowercase — callers normalise with
+	// strings.ToLower before setting this field so that the same value can be
+	// used in both the SOQL query and the NATS KV cache key.
+	NameSearch string
+
+	// SortOrder controls the ORDER BY clause in the SOQL query. Defaults to
+	// SortOrderName when not set.
+	SortOrder SortOrder
+
+	// PageToken is an opaque cursor returned in a previous B2BOrgPage response.
+	// When non-empty it is decoded to continue fetching from the cache chain.
+	PageToken string
+}
+
+// EffectiveSortOrder returns the sort order to apply, substituting the default
+// (name ascending) when none is explicitly set.
+func (f B2BOrgFilters) EffectiveSortOrder() SortOrder {
+	if f.SortOrder == "" {
+		return SortOrderName
+	}
+	return f.SortOrder
+}
+
+// B2BOrgPage is the result of a paginated SearchB2BOrgs call. It carries the
+// current page of B2BOrg records and an opaque cursor token for the next page
+// (empty when this is the last page).
+type B2BOrgPage struct {
+	// Orgs is the current page of B2BOrg records.
+	Orgs []*B2BOrg
+
+	// NextPageToken is an opaque cursor that can be passed as
+	// B2BOrgFilters.PageToken to retrieve the next page. Empty string means
+	// this is the last page.
+	NextPageToken string
+
+	// TotalSize is the total number of records matching the query as reported
+	// by Salesforce. Set on the first page; may be 0 on subsequent pages.
+	TotalSize int
+}

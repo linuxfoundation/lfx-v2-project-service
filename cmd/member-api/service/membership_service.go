@@ -30,6 +30,7 @@ type membershipServicesrvc struct {
 	storage                  port.MemberReader
 	auth                     domain.Authenticator
 	keyContactWriter         port.KeyContactWriter
+	b2bOrgReader             port.B2BOrgReader
 }
 
 // JWTAuth implements the authorization logic for service "membership-service".
@@ -385,6 +386,125 @@ func (s *membershipServicesrvc) DebugVars(_ context.Context) ([]byte, error) {
 
 // ── Constructor ───────────────────────────────────────────────────────────────
 
+// ── B2B Organizations ─────────────────────────────────────────────────────────
+
+// ListB2bOrgs searches and lists B2B organizations (Salesforce Accounts) by
+// name with cursor-based pagination.
+func (s *membershipServicesrvc) ListB2bOrgs(ctx context.Context, p *membershipservice.ListB2bOrgsPayload) (*membershipservice.ListB2bOrgsResult, error) {
+	var encodedPageToken string
+	if p.PageToken != nil {
+		encodedPageToken = *p.PageToken
+	}
+
+	cursor, err := sfsvc.DecodeCursor(encodedPageToken)
+	if err != nil {
+		return nil, wrapError(ctx, fmt.Errorf("invalid page_token: %w", err))
+	}
+	_ = cursor // Cursor validated; token passed through as-is.
+
+	slog.DebugContext(ctx, "membershipService.list-b2b-orgs",
+		"page_size", p.PageSize,
+		"sort", p.Sort,
+		"page_token_set", encodedPageToken != "",
+		"search_name", p.SearchName,
+	)
+
+	filters := model.B2BOrgFilters{
+		SortOrder: parseSortOrder(p.Sort),
+		PageToken: encodedPageToken,
+	}
+	if p.SearchName != nil && *p.SearchName != "" {
+		filters.NameSearch = strings.ToLower(*p.SearchName)
+	}
+
+	orgPage, err := s.b2bOrgReader.SearchB2BOrgs(ctx, filters, p.PageSize)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	responses := make([]*membershipservice.B2bOrgResponse, 0, len(orgPage.Orgs))
+	for _, org := range orgPage.Orgs {
+		responses = append(responses, convertB2BOrgToResponse(org))
+	}
+
+	metadata := &membershipservice.ListMetadata{}
+	if orgPage.TotalSize > 0 {
+		total := orgPage.TotalSize
+		metadata.TotalSize = &total
+	}
+	if orgPage.NextPageToken != "" {
+		tok := orgPage.NextPageToken
+		metadata.NextPageToken = &tok
+	}
+
+	return &membershipservice.ListB2bOrgsResult{
+		Orgs:     responses,
+		Metadata: metadata,
+	}, nil
+}
+
+// ListB2bOrgMemberships lists all memberships (Assets) across all projects for
+// a given B2B organization UID, with cursor-based pagination and filters.
+func (s *membershipServicesrvc) ListB2bOrgMemberships(ctx context.Context, p *membershipservice.ListB2bOrgMembershipsPayload) (*membershipservice.ListB2bOrgMembershipsResult, error) {
+	var encodedPageToken string
+	if p.PageToken != nil {
+		encodedPageToken = *p.PageToken
+	}
+
+	cursor, err := sfsvc.DecodeCursor(encodedPageToken)
+	if err != nil {
+		return nil, wrapError(ctx, fmt.Errorf("invalid page_token: %w", err))
+	}
+	_ = cursor // Cursor validated; token passed through as-is.
+
+	slog.DebugContext(ctx, "membershipService.list-b2b-org-memberships",
+		"b2b_org_uid", p.B2bOrgUID,
+		"page_size", p.PageSize,
+		"sort", p.Sort,
+		"page_token_set", encodedPageToken != "",
+		"filter", p.Filter,
+		"search_name", p.SearchName,
+	)
+
+	soqlFilters := parseMembershipFilters(p.Filter)
+	soqlFilters.SortOrder = parseSortOrder(p.Sort)
+	soqlFilters.PageToken = encodedPageToken
+	if p.SearchName != nil && *p.SearchName != "" {
+		soqlFilters.CompanyNameSearch = strings.ToLower(*p.SearchName)
+	}
+
+	memberPage, err := s.memberReaderOrchestrator.ListMembershipsForB2BOrg(ctx, *p.B2bOrgUID, soqlFilters, p.PageSize)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	// Apply remaining in-process filters (relationship fields not pushable to
+	// SOQL WHERE). Tier UID and company name search are handled by SOQL.
+	inProcessFilters := parseFilters(p.Filter)
+	delete(inProcessFilters, "tier_uid")
+	memberships := filterMemberships(memberPage.Memberships, inProcessFilters, "")
+
+	responses := make([]*membershipservice.ProjectMembershipResponse, 0, len(memberships))
+	for _, m := range memberships {
+		responses = append(responses, convertProjectMembershipToResponse(m))
+	}
+
+	metadata := &membershipservice.ListMetadata{}
+	if memberPage.TotalSize > 0 {
+		total := memberPage.TotalSize
+		metadata.TotalSize = &total
+	}
+	if memberPage.NextPageToken != "" {
+		tok := memberPage.NextPageToken
+		metadata.NextPageToken = &tok
+	}
+
+	return &membershipservice.ListB2bOrgMembershipsResult{
+		Memberships: responses,
+		Metadata:    metadata,
+	}, nil
+}
+
 // NewMembershipService returns the membership-service implementation with
 // injected dependencies.
 func NewMembershipService(
@@ -392,12 +512,14 @@ func NewMembershipService(
 	storage port.MemberReader,
 	authenticator domain.Authenticator,
 	keyContactWriter port.KeyContactWriter,
+	b2bOrgReader port.B2BOrgReader,
 ) membershipservice.Service {
 	return &membershipServicesrvc{
 		memberReaderOrchestrator: readMemberUseCase,
 		storage:                  storage,
 		auth:                     authenticator,
 		keyContactWriter:         keyContactWriter,
+		b2bOrgReader:             b2bOrgReader,
 	}
 }
 

@@ -6,6 +6,310 @@ servers:
     - url: http://localhost:80
       description: Default server for membership
 paths:
+    /b2b_orgs:
+        get:
+            tags:
+                - membership-service
+            summary: list-b2b-orgs membership-service
+            description: Search and list B2B organizations (Salesforce Accounts) by name with pagination
+            operationId: membership-service#list-b2b-orgs
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: pageSize
+                  in: query
+                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
+                  allowEmptyValue: true
+                  schema:
+                    type: integer
+                    description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
+                    default: 200
+                    example: 200
+                    format: int64
+                    minimum: 1
+                    maximum: 1000
+                  example: 200
+                - name: pageToken
+                  in: query
+                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
+                    example: ""
+                  example: ""
+                - name: sort
+                  in: query
+                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                    default: newest
+                    example: newest
+                    enum:
+                        - name
+                        - newest
+                        - last_modified
+                  example: newest
+                - name: search_name
+                  in: query
+                  description: Search organizations by name (case-insensitive substring match)
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Search organizations by name (case-insensitive substring match)
+                    example: Linux
+                  example: Linux
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListB2bOrgsResponseBody'
+                            example:
+                                metadata:
+                                    next_page_token: ""
+                                    total_size: 100
+                                orgs:
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      domain: https://example.com
+                                      logo_url: https://example.com/logo.png
+                                      name: Example Corp
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      domain: https://example.com
+                                      logo_url: https://example.com/logo.png
+                                      name: Example Corp
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                    - created_at: "2025-01-01T00:00:00Z"
+                                      domain: https://example.com
+                                      logo_url: https://example.com/logo.png
+                                      name: Example Corp
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                "404":
+                    description: 'NotFound: Not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{b2b_org_uid}/memberships:
+        get:
+            tags:
+                - membership-service
+            summary: list-b2b-org-memberships membership-service
+            description: List all memberships (Assets) across all projects for a given B2B organization UID, with pagination and filters
+            operationId: membership-service#list-b2b-org-memberships
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: b2b_org_uid
+                  in: path
+                  description: B2BOrg UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2BOrg UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: pageSize
+                  in: query
+                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
+                  allowEmptyValue: true
+                  schema:
+                    type: integer
+                    description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
+                    default: 200
+                    example: 200
+                    format: int64
+                    minimum: 1
+                    maximum: 1000
+                  example: 200
+                - name: pageToken
+                  in: query
+                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
+                    example: ""
+                  example: ""
+                - name: sort
+                  in: query
+                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
+                    default: newest
+                    example: newest
+                    enum:
+                        - name
+                        - newest
+                        - last_modified
+                  example: newest
+                - name: filter
+                  in: query
+                  description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
+                    example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                  example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: search_name
+                  in: query
+                  description: Search memberships by member company name (case-insensitive substring match)
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Search memberships by member company name (case-insensitive substring match)
+                    example: Linux
+                  example: Linux
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListProjectMembershipsResponseBody'
+                            example:
+                                memberships:
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                      year: "2025"
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                      year: "2025"
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                      year: "2025"
+                                metadata:
+                                    next_page_token: ""
+                                    total_size: 100
+                "404":
+                    description: 'NotFound: B2B organization not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
     /projects/{project_uid}/memberships:
         get:
             tags:
@@ -98,6 +402,31 @@ paths:
                                 $ref: '#/components/schemas/ListProjectMembershipsResponseBody'
                             example:
                                 memberships:
+                                    - agreement_date: "2025-01-01T00:00:00Z"
+                                      annual_full_price: 50000
+                                      auto_renew: true
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      end_date: "2025-12-31T23:59:59Z"
+                                      membership_type: Corporate
+                                      payment_frequency: Annual
+                                      payment_terms: Net 30
+                                      price: 50000
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      purchase_date: "2025-01-15T00:00:00Z"
+                                      renewal_type: Annual
+                                      start_date: "2025-02-01T00:00:00Z"
+                                      status: Active
+                                      tier: Gold
+                                      tier_family: Membership
+                                      tier_name: Gold Corporate Membership
+                                      tier_product_type: Corporate
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
+                                      year: "2025"
                                     - agreement_date: "2025-01-01T00:00:00Z"
                                       annual_full_price: 50000
                                       auto_renew: true
@@ -325,6 +654,23 @@ paths:
                                 $ref: '#/components/schemas/ListMembershipKeyContactsResponseBody'
                             example:
                                 contacts:
+                                    - board_member: false
+                                      company_domain: https://example.com
+                                      company_logo_url: https://example.com/logo.png
+                                      company_name: Example Corp
+                                      created_at: "2025-01-01T00:00:00Z"
+                                      email: john.doe@example.com
+                                      first_name: John
+                                      last_name: Doe
+                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      primary_contact: true
+                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                      role: Voting Representative
+                                      status: Active
+                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      title: CTO
+                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      updated_at: "2025-06-01T12:00:00Z"
                                     - board_member: false
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
@@ -827,20 +1173,6 @@ paths:
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      family: Membership
-                                      name: Gold Corporate Membership
-                                      product_type: Corporate
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      family: Membership
-                                      name: Gold Corporate Membership
-                                      product_type: Corporate
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
                 "404":
                     description: 'NotFound: Project not found'
                     content:
@@ -937,6 +1269,44 @@ paths:
                 - jwt_header_Authorization: []
 components:
     schemas:
+        B2bOrgResponse:
+            type: object
+            properties:
+                created_at:
+                    type: string
+                    description: Creation timestamp
+                    example: "2025-01-01T00:00:00Z"
+                    format: date-time
+                domain:
+                    type: string
+                    description: Organization website domain
+                    example: https://example.com
+                logo_url:
+                    type: string
+                    description: URL of the organization logo
+                    example: https://example.com/logo.png
+                name:
+                    type: string
+                    description: Organization name
+                    example: Example Corp
+                uid:
+                    type: string
+                    description: B2BOrg UID (invertible UUID v8 from Account.Id)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                updated_at:
+                    type: string
+                    description: Last update timestamp
+                    example: "2025-06-01T12:00:00Z"
+                    format: date-time
+            description: A B2B organization (Salesforce Account)
+            example:
+                created_at: "2025-01-01T00:00:00Z"
+                domain: https://example.com
+                logo_url: https://example.com/logo.png
+                name: Example Corp
+                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                updated_at: "2025-06-01T12:00:00Z"
         CreateMembershipKeyContactRequestBody:
             type: object
             properties:
@@ -1012,14 +1382,14 @@ components:
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
-                    example: true
+                    example: false
             description: Project not found
             example:
-                fault: true
+                fault: false
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: false
+                temporary: true
                 timeout: false
             required:
                 - name
@@ -1028,6 +1398,61 @@ components:
                 - temporary
                 - timeout
                 - fault
+        ListB2bOrgsResponseBody:
+            type: object
+            properties:
+                metadata:
+                    $ref: '#/components/schemas/ListMetadata'
+                orgs:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/B2bOrgResponse'
+                    description: List of B2B organizations
+                    example:
+                        - created_at: "2025-01-01T00:00:00Z"
+                          domain: https://example.com
+                          logo_url: https://example.com/logo.png
+                          name: Example Corp
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+                        - created_at: "2025-01-01T00:00:00Z"
+                          domain: https://example.com
+                          logo_url: https://example.com/logo.png
+                          name: Example Corp
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+            example:
+                metadata:
+                    next_page_token: ""
+                    total_size: 100
+                orgs:
+                    - created_at: "2025-01-01T00:00:00Z"
+                      domain: https://example.com
+                      logo_url: https://example.com/logo.png
+                      name: Example Corp
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      domain: https://example.com
+                      logo_url: https://example.com/logo.png
+                      name: Example Corp
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      domain: https://example.com
+                      logo_url: https://example.com/logo.png
+                      name: Example Corp
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      domain: https://example.com
+                      logo_url: https://example.com/logo.png
+                      name: Example Corp
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+            required:
+                - orgs
+                - metadata
         ListMembershipKeyContactsResponseBody:
             type: object
             properties:
@@ -1141,6 +1566,23 @@ components:
                       title: CTO
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
+                    - board_member: false
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      primary_contact: true
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
+                      status: Active
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
             required:
                 - contacts
         ListMetadata:
@@ -1168,31 +1610,6 @@ components:
                         $ref: '#/components/schemas/ProjectMembershipResponse'
                     description: List of project memberships
                     example:
-                        - agreement_date: "2025-01-01T00:00:00Z"
-                          annual_full_price: 50000
-                          auto_renew: true
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
-                          payment_frequency: Annual
-                          payment_terms: Net 30
-                          price: 50000
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          purchase_date: "2025-01-15T00:00:00Z"
-                          renewal_type: Annual
-                          start_date: "2025-02-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          tier_family: Membership
-                          tier_name: Gold Corporate Membership
-                          tier_product_type: Corporate
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                          year: "2025"
                         - agreement_date: "2025-01-01T00:00:00Z"
                           annual_full_price: 50000
                           auto_renew: true
@@ -1322,6 +1739,31 @@ components:
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
                       year: "2025"
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
                 metadata:
                     next_page_token: ""
                     total_size: 100
@@ -1351,15 +1793,22 @@ components:
                           project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                           uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
-                        - created_at: "2025-01-01T00:00:00Z"
-                          family: Membership
-                          name: Gold Corporate Membership
-                          product_type: Corporate
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
             example:
                 tiers:
+                    - created_at: "2025-01-01T00:00:00Z"
+                      family: Membership
+                      name: Gold Corporate Membership
+                      product_type: Corporate
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                    - created_at: "2025-01-01T00:00:00Z"
+                      family: Membership
+                      name: Gold Corporate Membership
+                      product_type: Corporate
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
                     - created_at: "2025-01-01T00:00:00Z"
                       family: Membership
                       name: Gold Corporate Membership

@@ -143,6 +143,19 @@ type soqlProject struct {
 	Slug *string `salesforce:"Slug__c"`
 }
 
+// soqlAccount represents a Salesforce Account record returned by a SOQL query.
+// Used for B2BOrg search and list operations. The IsDeleted field is always
+// false in results (filtered in the WHERE clause) and is included only to
+// satisfy the go-salesforce library's struct requirements.
+type soqlAccount struct {
+	ID               string  `salesforce:"Id"`
+	Name             string  `salesforce:"Name"`
+	LogoURL          *string `salesforce:"Logo_URL__c"`
+	Website          *string `salesforce:"Website"`
+	CreatedDate      string  `salesforce:"CreatedDate"`
+	LastModifiedDate string  `salesforce:"LastModifiedDate"`
+}
+
 // derefString returns the string value of a *string pointer, or an empty string
 // if the pointer is nil.
 func derefString(s *string) string {

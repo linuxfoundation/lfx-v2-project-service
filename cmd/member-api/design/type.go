@@ -319,3 +319,44 @@ func SearchNameAttribute() {
 		dsl.Example("Linux")
 	})
 }
+
+// B2BOrgSearchNameAttribute is the DSL attribute for searching B2B orgs by name.
+func B2BOrgSearchNameAttribute() {
+	dsl.Attribute("search_name", dsl.String, "Search organizations by name (case-insensitive substring match)", func() {
+		dsl.Example("Linux")
+	})
+}
+
+// B2BOrgUIDAttribute adds the b2b_org_uid path parameter attribute.
+func B2BOrgUIDAttribute() {
+	dsl.Attribute("b2b_org_uid", dsl.String, "B2BOrg UID", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
+}
+
+// B2BOrgResponse is the DSL type for a B2B organization (Salesforce Account) response.
+var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
+	dsl.Description("A B2B organization (Salesforce Account)")
+	dsl.Attribute("uid", dsl.String, "B2BOrg UID (invertible UUID v8 from Account.Id)", func() {
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Format(dsl.FormatUUID)
+	})
+	dsl.Attribute("name", dsl.String, "Organization name", func() {
+		dsl.Example("Example Corp")
+	})
+	dsl.Attribute("domain", dsl.String, "Organization website domain", func() {
+		dsl.Example("https://example.com")
+	})
+	dsl.Attribute("logo_url", dsl.String, "URL of the organization logo", func() {
+		dsl.Example("https://example.com/logo.png")
+	})
+	dsl.Attribute("created_at", dsl.String, "Creation timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2025-01-01T00:00:00Z")
+	})
+	dsl.Attribute("updated_at", dsl.String, "Last update timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2025-06-01T12:00:00Z")
+	})
+})

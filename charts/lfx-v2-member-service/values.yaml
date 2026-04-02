@@ -167,6 +167,9 @@ openfga:
   # Note: If it is disabled, then the member service will allow all requests.
   # (Disabling OpenFGA should only be used for local development.)
   enabled: true
+  # lfProjectUID is the static LF project UID used for OpenFGA auditor checks
+  # on the /b2b_orgs endpoints.
+  lfProjectUID: ""
 
 # heimdall is the configuration for the heimdall middleware
 heimdall:

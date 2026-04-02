@@ -239,7 +239,7 @@ func (e *MembershipBatchCacheEntry) DecodeBatchRecords() ([]*model.ProjectMember
 	if err != nil {
 		return nil, fmt.Errorf("creating gzip reader: %w", err)
 	}
-	defer gr.Close()
+	defer gr.Close() //nolint:errcheck // gzip.Reader.Close never returns a meaningful error.
 
 	raw, err := io.ReadAll(gr)
 	if err != nil {
@@ -301,9 +301,100 @@ func (s *Storage) PutMembershipBatch(ctx context.Context, key string, records []
 	return putCached(ctx, s, key, entry)
 }
 
-// ─── Readiness ───────────────────────────────────────────────────────────────
+// ─── SOQL B2BOrg batch cache ──────────────────────────────────────────────────
 
-// IsReady reports whether the underlying NATS connection is healthy.
+// B2BOrgBatchCacheEntry is the value stored for a single SF Account batch in
+// the B2BOrg list/search cache. The records are gzip-compressed JSON to keep
+// entries well under the NATS server's 1 MB max_payload limit.
+type B2BOrgBatchCacheEntry struct {
+	// RecordsGZ is the gzip-compressed JSON encoding of []*model.B2BOrg for
+	// this batch.
+	RecordsGZ []byte `json:"records_gz"`
+	// NextBatchIterator is an 8-character random alphanumeric token that forms
+	// the key segment for the next batch's cache entry. Empty when this is the
+	// last batch. The background goroutine writes the next batch first, then
+	// writes this entry with the iterator populated, so consumers can never
+	// observe a dangling iterator.
+	NextBatchIterator string `json:"next_batch_iterator,omitempty"`
+	// TotalSize is the Salesforce-reported total record count. Populated on
+	// batch 0 only; zero on subsequent batches.
+	TotalSize int `json:"total_size,omitempty"`
+}
+
+// DecodeBatchRecords decompresses and JSON-decodes the B2BOrg records stored
+// in a B2BOrgBatchCacheEntry. Returns an error if decompression or decoding
+// fails.
+func (e *B2BOrgBatchCacheEntry) DecodeBatchRecords() ([]*model.B2BOrg, error) {
+	if len(e.RecordsGZ) == 0 {
+		return nil, nil
+	}
+	gr, err := gzip.NewReader(bytes.NewReader(e.RecordsGZ))
+	if err != nil {
+		return nil, fmt.Errorf("creating gzip reader: %w", err)
+	}
+	defer gr.Close() //nolint:errcheck // gzip.Reader.Close never returns a meaningful error.
+
+	raw, err := io.ReadAll(gr)
+	if err != nil {
+		return nil, fmt.Errorf("decompressing b2b org batch records: %w", err)
+	}
+
+	var records []*model.B2BOrg
+	if err := json.Unmarshal(raw, &records); err != nil {
+		return nil, fmt.Errorf("unmarshalling b2b org batch records: %w", err)
+	}
+	return records, nil
+}
+
+// encodeB2BOrgBatchRecords JSON-marshals and gzip-compresses a slice of B2BOrg
+// records, returning the compressed bytes.
+func encodeB2BOrgBatchRecords(records []*model.B2BOrg) ([]byte, error) {
+	raw, err := json.Marshal(records)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling b2b org batch records: %w", err)
+	}
+
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	if _, err := gw.Write(raw); err != nil {
+		return nil, fmt.Errorf("gzip-compressing b2b org batch records: %w", err)
+	}
+	if err := gw.Close(); err != nil {
+		return nil, fmt.Errorf("flushing gzip writer: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// GetB2BOrgBatch retrieves a cached B2BOrgBatchCacheEntry by key. Returns
+// CacheStatusMiss when no entry exists for the key.
+func (s *Storage) GetB2BOrgBatch(ctx context.Context, key string) (CacheResult[*B2BOrgBatchCacheEntry], error) {
+	return getCached[*B2BOrgBatchCacheEntry](ctx, s, key)
+}
+
+// PutB2BOrgBatch writes a B2BOrgBatchCacheEntry to the KV bucket under the
+// given key, wrapped in a CachedValue envelope. records are gzip-compressed
+// before storage; nextBatchIterator is the token needed to look up the
+// subsequent batch (empty for the last batch); totalSize should be set only
+// for batch 0.
+func (s *Storage) PutB2BOrgBatch(ctx context.Context, key string, records []*model.B2BOrg, nextBatchIterator string, totalSize int) error {
+	if key == "" {
+		return errs.NewValidation("key cannot be empty")
+	}
+
+	gz, err := encodeB2BOrgBatchRecords(records)
+	if err != nil {
+		return errs.NewUnexpected("failed to encode b2b org batch", err)
+	}
+
+	entry := &B2BOrgBatchCacheEntry{
+		RecordsGZ:         gz,
+		NextBatchIterator: nextBatchIterator,
+		TotalSize:         totalSize,
+	}
+	return putCached(ctx, s, key, entry)
+}
+
+// ─── Readiness ───────────────────────────────────────────────────────────────
 func (s *Storage) IsReady(ctx context.Context) error {
 	return s.client.IsReady(ctx)
 }
