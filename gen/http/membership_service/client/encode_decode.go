@@ -1437,7 +1437,6 @@ func EncodeListB2bOrgsRequest(encoder func(*http.Request) goahttp.Encoder) func(
 // membership-service list-b2b-orgs endpoint. restoreBody controls whether the
 // response body should be restored after having been read.
 // DecodeListB2bOrgsResponse may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
 //   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
 //   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
 //   - error: internal error
@@ -1471,20 +1470,6 @@ func DecodeListB2bOrgsResponse(decoder func(*http.Response) goahttp.Decoder, res
 			}
 			res := NewListB2bOrgsResultOK(&body)
 			return res, nil
-		case http.StatusNotFound:
-			var (
-				body ListB2bOrgsNotFoundResponseBody
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("membership-service", "list-b2b-orgs", err)
-			}
-			err = ValidateListB2bOrgsNotFoundResponseBody(&body)
-			if err != nil {
-				return nil, goahttp.ErrValidationError("membership-service", "list-b2b-orgs", err)
-			}
-			return nil, NewListB2bOrgsNotFound(&body)
 		case http.StatusInternalServerError:
 			var (
 				body ListB2bOrgsInternalServerErrorResponseBody
@@ -1863,6 +1848,8 @@ func unmarshalProjectMembershipResponseResponseBodyToMembershipserviceProjectMem
 		UID:              v.UID,
 		TierUID:          v.TierUID,
 		ProjectUID:       v.ProjectUID,
+		ProjectSlug:      v.ProjectSlug,
+		B2bOrgUID:        v.B2bOrgUID,
 		Status:           v.Status,
 		Year:             v.Year,
 		Tier:             v.Tier,
@@ -1911,6 +1898,7 @@ func unmarshalProjectKeyContactResponseResponseBodyToMembershipserviceProjectKey
 		MembershipUID:  v.MembershipUID,
 		TierUID:        v.TierUID,
 		ProjectUID:     v.ProjectUID,
+		B2bOrgUID:      v.B2bOrgUID,
 		Role:           v.Role,
 		Status:         v.Status,
 		BoardMember:    v.BoardMember,

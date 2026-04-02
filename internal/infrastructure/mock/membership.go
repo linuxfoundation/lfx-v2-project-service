@@ -251,11 +251,11 @@ func (m *MockMembershipRepository) IsReady(_ context.Context) error {
 	return nil
 }
 
-// ListMembershipsForB2BOrg returns a MembershipPage of all ProjectMembership
-// records, filtered in-memory by the supplied predicates. The mock does not
-// restrict by B2B org UID — all seeded memberships are returned so that tests
-// can exercise the pagination and filtering logic without needing a real
-// Salesforce Account lookup.
+// ListMembershipsForB2BOrg returns a MembershipPage of ProjectMembership
+// records filtered in-memory by the supplied predicates. The mock does not
+// restrict by B2B org UID — all seeded memberships are eligible — but it
+// does apply status, tier, and company-name-search filters to mirror the
+// behaviour of the real Salesforce SOQL implementation.
 func (m *MockMembershipRepository) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
 	slog.DebugContext(ctx, "mock: listing memberships for b2b org",
 		"b2b_org_uid", b2bOrgUID,
@@ -266,18 +266,43 @@ func (m *MockMembershipRepository) ListMembershipsForB2BOrg(ctx context.Context,
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	filterMap := make(map[string]string)
+	// TierUID is a SOQL-level filter; approximate in-memory by matching the
+	// TierUID field directly on the membership record.
+	if filters.TierUID != "" {
+		filterMap["tier_uid"] = filters.TierUID
+	}
+	// Status is not exposed as a filter — hardcoded to active members only,
+	// mirroring the hardcoded AND Status = 'Active' in the SOQL base query.
+	filterMap["status"] = "Active"
+
 	var result []*model.ProjectMembership
 	for _, ms := range m.memberships {
+		if !matchesMockMemberFilters(ms, filterMap, "") {
+			continue
+		}
+		// CompanyNameSearch mirrors the SOQL LIKE predicate pushed down in the
+		// real implementation. Match only on CompanyName (case-insensitive).
+		if filters.CompanyNameSearch != "" &&
+			!strings.Contains(strings.ToLower(ms.CompanyName), filters.CompanyNameSearch) {
+			continue
+		}
 		result = append(result, ms)
 	}
 
+	// Apply in-memory sort to mirror SOQL ORDER BY behaviour.
 	sortMockMemberships(result, filters.EffectiveSortOrder())
 
+	// Apply a simple page cap (no real cursor support in the mock).
 	if pageSize > 0 && len(result) > pageSize {
 		result = result[:pageSize]
 	}
 
-	return model.MembershipPage{Memberships: result, TotalSize: len(result)}, nil
+	return model.MembershipPage{
+		Memberships:   result,
+		NextPageToken: "", // mock never paginates
+		TotalSize:     len(result),
+	}, nil
 }
 
 // sortMockMemberships sorts a slice of ProjectMembership records in-place

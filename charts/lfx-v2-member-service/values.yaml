@@ -169,7 +169,7 @@ openfga:
   enabled: true
   # lfProjectUID is the static LF project UID used for OpenFGA auditor checks
   # on the /b2b_orgs endpoints.
-  lfProjectUID: ""
+  lfProjectUID: "_null"
 
 # heimdall is the configuration for the heimdall middleware
 heimdall:

@@ -684,24 +684,6 @@ type GetMembershipKeyContactServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListB2bOrgsNotFoundResponseBody is the type of the "membership-service"
-// service "list-b2b-orgs" endpoint HTTP response body for the "NotFound" error.
-type ListB2bOrgsNotFoundResponseBody struct {
-	// Name is the name of this class of errors.
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// ID is a unique identifier for this particular occurrence of the problem.
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Message is a human-readable explanation specific to this occurrence of the
-	// problem.
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-	// Is the error temporary?
-	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
-	// Is the error a timeout?
-	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
-	// Is the error a server-side fault?
-	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
-}
-
 // ListB2bOrgsInternalServerErrorResponseBody is the type of the
 // "membership-service" service "list-b2b-orgs" endpoint HTTP response body for
 // the "InternalServerError" error.
@@ -844,6 +826,10 @@ type ProjectMembershipResponseResponseBody struct {
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
 	// V2 project UUID
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// URL slug of the project this membership belongs to
+	ProjectSlug *string `form:"project_slug,omitempty" json:"project_slug,omitempty" xml:"project_slug,omitempty"`
+	// UID of the B2B organization (Account) this membership belongs to
+	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
 	// Membership status
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
 	// Membership year
@@ -912,6 +898,9 @@ type ProjectKeyContactResponseResponseBody struct {
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
 	// V2 project UUID
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// UID of the B2B organization (Account) this key contact's membership belongs
+	// to
+	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
 	// Contact role designation
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
 	// Role record status
@@ -1195,6 +1184,8 @@ func NewGetProjectMembershipResultOK(body *GetProjectMembershipResponseBody, eta
 		UID:              body.UID,
 		TierUID:          body.TierUID,
 		ProjectUID:       body.ProjectUID,
+		ProjectSlug:      body.ProjectSlug,
+		B2bOrgUID:        body.B2bOrgUID,
 		Status:           body.Status,
 		Year:             body.Year,
 		Tier:             body.Tier,
@@ -1341,6 +1332,7 @@ func NewCreateMembershipKeyContactResultCreated(body *CreateMembershipKeyContact
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
 		BoardMember:    body.BoardMember,
@@ -1430,6 +1422,7 @@ func NewUpdateMembershipKeyContactResultOK(body *UpdateMembershipKeyContactRespo
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
 		BoardMember:    body.BoardMember,
@@ -1564,6 +1557,7 @@ func NewGetMembershipKeyContactResultOK(body *GetMembershipKeyContactResponseBod
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
 		BoardMember:    body.BoardMember,
@@ -1643,21 +1637,6 @@ func NewListB2bOrgsResultOK(body *ListB2bOrgsResponseBody) *membershipservice.Li
 		v.Orgs[i] = unmarshalB2bOrgResponseResponseBodyToMembershipserviceB2bOrgResponse(val)
 	}
 	v.Metadata = unmarshalListMetadataResponseBodyToMembershipserviceListMetadata(body.Metadata)
-
-	return v
-}
-
-// NewListB2bOrgsNotFound builds a membership-service service list-b2b-orgs
-// endpoint NotFound error.
-func NewListB2bOrgsNotFound(body *ListB2bOrgsNotFoundResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
-	}
 
 	return v
 }
@@ -1834,6 +1813,9 @@ func ValidateGetProjectMembershipResponseBody(body *GetProjectMembershipResponse
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
+	if body.B2bOrgUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -1874,6 +1856,9 @@ func ValidateCreateMembershipKeyContactResponseBody(body *CreateMembershipKeyCon
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
+	if body.B2bOrgUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -1898,6 +1883,9 @@ func ValidateUpdateMembershipKeyContactResponseBody(body *UpdateMembershipKeyCon
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
+	if body.B2bOrgUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -1921,6 +1909,9 @@ func ValidateGetMembershipKeyContactResponseBody(body *GetMembershipKeyContactRe
 	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
+	if body.B2bOrgUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -2703,30 +2694,6 @@ func ValidateGetMembershipKeyContactServiceUnavailableResponseBody(body *GetMemb
 	return
 }
 
-// ValidateListB2bOrgsNotFoundResponseBody runs the validations defined on
-// list-b2b-orgs_NotFound_response_body
-func ValidateListB2bOrgsNotFoundResponseBody(body *ListB2bOrgsNotFoundResponseBody) (err error) {
-	if body.Name == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
-	}
-	if body.ID == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
-	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	if body.Temporary == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
-	}
-	if body.Timeout == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
-	}
-	if body.Fault == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
-	}
-	return
-}
-
 // ValidateListB2bOrgsInternalServerErrorResponseBody runs the validations
 // defined on list-b2b-orgs_InternalServerError_response_body
 func ValidateListB2bOrgsInternalServerErrorResponseBody(body *ListB2bOrgsInternalServerErrorResponseBody) (err error) {
@@ -2903,6 +2870,9 @@ func ValidateProjectMembershipResponseResponseBody(body *ProjectMembershipRespon
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
+	if body.B2bOrgUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -2926,6 +2896,9 @@ func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactRespon
 	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
+	if body.B2bOrgUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))

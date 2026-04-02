@@ -457,6 +457,18 @@ func (s *membershipServicesrvc) ListB2bOrgMemberships(ctx context.Context, p *me
 	}
 	_ = cursor // Cursor validated; token passed through as-is.
 
+	// On the first page, verify the B2B org exists before querying memberships.
+	// Subsequent pages skip this check to avoid an extra Salesforce round-trip.
+	if encodedPageToken == "" {
+		_, err := s.b2bOrgReader.GetB2BOrg(ctx, *p.B2bOrgUID)
+		if pkgerrors.IsNotFound(err) {
+			return nil, wrapError(ctx, errNotFound("b2b org not found"))
+		}
+		if err != nil {
+			return nil, wrapError(ctx, err)
+		}
+	}
+
 	slog.DebugContext(ctx, "membershipService.list-b2b-org-memberships",
 		"b2b_org_uid", p.B2bOrgUID,
 		"page_size", p.PageSize,

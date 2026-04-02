@@ -327,6 +327,11 @@ spec:
           config:
             values:
               relation: auditor
+              {{/*
+                Interim workaround: B2B org endpoints are not project-scoped, so
+                we gate them on LF's own project UID until the broader v2 OpenFGA
+                refactor introduces a dedicated resource type for these endpoints.
+              */}}
               object: "project:{{ .Values.openfga.lfProjectUID }}"
         {{- else }}
         {{/*
@@ -358,6 +363,11 @@ spec:
           config:
             values:
               relation: auditor
+              {{/*
+                Interim workaround: B2B org endpoints are not project-scoped, so
+                we gate them on LF's own project UID until the broader v2 OpenFGA
+                refactor introduces a dedicated resource type for these endpoints.
+              */}}
               object: "project:{{ .Values.openfga.lfProjectUID }}"
         {{- else }}
         {{/*

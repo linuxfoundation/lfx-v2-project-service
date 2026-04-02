@@ -1269,19 +1269,6 @@ func EncodeListB2bOrgsError(encoder func(context.Context, http.ResponseWriter) g
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
-		case "NotFound":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListB2bOrgsNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -1563,6 +1550,8 @@ func marshalMembershipserviceProjectMembershipResponseToProjectMembershipRespons
 		UID:              v.UID,
 		TierUID:          v.TierUID,
 		ProjectUID:       v.ProjectUID,
+		ProjectSlug:      v.ProjectSlug,
+		B2bOrgUID:        v.B2bOrgUID,
 		Status:           v.Status,
 		Year:             v.Year,
 		Tier:             v.Tier,
@@ -1611,6 +1600,7 @@ func marshalMembershipserviceProjectKeyContactResponseToProjectKeyContactRespons
 		MembershipUID:  v.MembershipUID,
 		TierUID:        v.TierUID,
 		ProjectUID:     v.ProjectUID,
+		B2bOrgUID:      v.B2bOrgUID,
 		Role:           v.Role,
 		Status:         v.Status,
 		BoardMember:    v.BoardMember,

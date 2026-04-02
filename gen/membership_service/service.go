@@ -388,6 +388,9 @@ type ProjectKeyContactResponse struct {
 	TierUID *string
 	// V2 project UUID
 	ProjectUID *string
+	// UID of the B2B organization (Account) this key contact's membership belongs
+	// to
+	B2bOrgUID *string
 	// Contact role designation
 	Role *string
 	// Role record status
@@ -425,6 +428,10 @@ type ProjectMembershipResponse struct {
 	TierUID *string
 	// V2 project UUID
 	ProjectUID *string
+	// URL slug of the project this membership belongs to
+	ProjectSlug *string
+	// UID of the B2B organization (Account) this membership belongs to
+	B2bOrgUID *string
 	// Membership status
 	Status *string
 	// Membership year

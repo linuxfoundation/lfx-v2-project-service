@@ -535,6 +535,34 @@ func splitIntoBatches(records []*model.ProjectMembership, chunkSize int) [][]*mo
 	return chunks
 }
 
+// resolveProjectUIDsForB2BPage iterates over the memberships on a page and
+// resolves each record's ProjectUID from its ProjectSlug via the resolver,
+// if ProjectUID is not already set. When the slug cannot be resolved the record
+// is still returned (slug-only is acceptable); its TierUID is cleared because
+// the tier endpoint is project-scoped and access control requires a valid
+// project UID to reach it.
+func (r *MemberReader) resolveProjectUIDsForB2BPage(ctx context.Context, page model.MembershipPage) model.MembershipPage {
+	for _, m := range page.Memberships {
+		if m.ProjectUID != "" || m.ProjectSlug == "" {
+			continue
+		}
+		uid, err := r.resolver.UIDFromSlug(ctx, m.ProjectSlug)
+		if err != nil {
+			slog.DebugContext(ctx, "could not resolve project UID from slug for b2b org membership; leaving project_uid empty",
+				"membership_uid", m.UID,
+				"project_slug", m.ProjectSlug,
+				"error", err,
+			)
+			// Clear tier_uid: the tier endpoint is under /projects/{project_uid}
+			// and is inaccessible without a resolved project UID.
+			m.TierUID = ""
+			continue
+		}
+		m.ProjectUID = uid
+	}
+	return page
+}
+
 // ─── B2B Org memberships ──────────────────────────────────────────────────────
 
 // membershipByAccountBatchKeyParams returns the stable SOQL key parameters for
@@ -594,7 +622,7 @@ func (r *MemberReader) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID s
 		case nats.CacheStatusFresh:
 			page, decodeErr := sliceCachedBatch(cacheResult.Value, "", cursor, pageSize, cursor.BatchIndex, batchParams)
 			if decodeErr == nil {
-				return page, nil
+				return r.resolveProjectUIDsForB2BPage(ctx, page), nil
 			}
 			slog.WarnContext(ctx, "failed to decode fresh cached b2b org batch; re-fetching",
 				"cache_key", batchKey, "error", decodeErr,
@@ -607,7 +635,7 @@ func (r *MemberReader) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID s
 						return r.fetchAndCacheAllBatchesByAccount(bgCtx, b2bOrgUID, accountSFID, filters, batchParams)
 					})
 				}
-				return page, nil
+				return r.resolveProjectUIDsForB2BPage(ctx, page), nil
 			}
 			slog.WarnContext(ctx, "failed to decode stale cached b2b org batch; re-fetching",
 				"cache_key", batchKey, "error", decodeErr,
@@ -631,7 +659,7 @@ func (r *MemberReader) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID s
 	if decodeErr != nil {
 		return model.MembershipPage{}, fmt.Errorf("decoding freshly-fetched batch 0 for b2b org %s: %w", b2bOrgUID, decodeErr)
 	}
-	return page, nil
+	return r.resolveProjectUIDsForB2BPage(ctx, page), nil
 }
 
 // fetchAndCacheAllBatchesByAccount fetches the first SF batch by Account SFID

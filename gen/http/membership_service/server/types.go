@@ -684,24 +684,6 @@ type GetMembershipKeyContactServiceUnavailableResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
-// ListB2bOrgsNotFoundResponseBody is the type of the "membership-service"
-// service "list-b2b-orgs" endpoint HTTP response body for the "NotFound" error.
-type ListB2bOrgsNotFoundResponseBody struct {
-	// Name is the name of this class of errors.
-	Name string `form:"name" json:"name" xml:"name"`
-	// ID is a unique identifier for this particular occurrence of the problem.
-	ID string `form:"id" json:"id" xml:"id"`
-	// Message is a human-readable explanation specific to this occurrence of the
-	// problem.
-	Message string `form:"message" json:"message" xml:"message"`
-	// Is the error temporary?
-	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
-	// Is the error a timeout?
-	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
-	// Is the error a server-side fault?
-	Fault bool `form:"fault" json:"fault" xml:"fault"`
-}
-
 // ListB2bOrgsInternalServerErrorResponseBody is the type of the
 // "membership-service" service "list-b2b-orgs" endpoint HTTP response body for
 // the "InternalServerError" error.
@@ -844,6 +826,10 @@ type ProjectMembershipResponseResponseBody struct {
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
 	// V2 project UUID
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// URL slug of the project this membership belongs to
+	ProjectSlug *string `form:"project_slug,omitempty" json:"project_slug,omitempty" xml:"project_slug,omitempty"`
+	// UID of the B2B organization (Account) this membership belongs to
+	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
 	// Membership status
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
 	// Membership year
@@ -912,6 +898,9 @@ type ProjectKeyContactResponseResponseBody struct {
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
 	// V2 project UUID
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// UID of the B2B organization (Account) this key contact's membership belongs
+	// to
+	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
 	// Contact role designation
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
 	// Role record status
@@ -1022,6 +1011,8 @@ func NewGetProjectMembershipResponseBody(res *membershipservice.GetProjectMember
 		UID:              res.Membership.UID,
 		TierUID:          res.Membership.TierUID,
 		ProjectUID:       res.Membership.ProjectUID,
+		ProjectSlug:      res.Membership.ProjectSlug,
+		B2bOrgUID:        res.Membership.B2bOrgUID,
 		Status:           res.Membership.Status,
 		Year:             res.Membership.Year,
 		Tier:             res.Membership.Tier,
@@ -1077,6 +1068,7 @@ func NewCreateMembershipKeyContactResponseBody(res *membershipservice.CreateMemb
 		MembershipUID:  res.Contact.MembershipUID,
 		TierUID:        res.Contact.TierUID,
 		ProjectUID:     res.Contact.ProjectUID,
+		B2bOrgUID:      res.Contact.B2bOrgUID,
 		Role:           res.Contact.Role,
 		Status:         res.Contact.Status,
 		BoardMember:    res.Contact.BoardMember,
@@ -1103,6 +1095,7 @@ func NewUpdateMembershipKeyContactResponseBody(res *membershipservice.UpdateMemb
 		MembershipUID:  res.Contact.MembershipUID,
 		TierUID:        res.Contact.TierUID,
 		ProjectUID:     res.Contact.ProjectUID,
+		B2bOrgUID:      res.Contact.B2bOrgUID,
 		Role:           res.Contact.Role,
 		Status:         res.Contact.Status,
 		BoardMember:    res.Contact.BoardMember,
@@ -1129,6 +1122,7 @@ func NewGetMembershipKeyContactResponseBody(res *membershipservice.GetMembership
 		MembershipUID:  res.Contact.MembershipUID,
 		TierUID:        res.Contact.TierUID,
 		ProjectUID:     res.Contact.ProjectUID,
+		B2bOrgUID:      res.Contact.B2bOrgUID,
 		Role:           res.Contact.Role,
 		Status:         res.Contact.Status,
 		BoardMember:    res.Contact.BoardMember,
@@ -1631,20 +1625,6 @@ func NewGetMembershipKeyContactInternalServerErrorResponseBody(res *goa.ServiceE
 // of the "membership-service" service.
 func NewGetMembershipKeyContactServiceUnavailableResponseBody(res *goa.ServiceError) *GetMembershipKeyContactServiceUnavailableResponseBody {
 	body := &GetMembershipKeyContactServiceUnavailableResponseBody{
-		Name:      res.Name,
-		ID:        res.ID,
-		Message:   res.Message,
-		Temporary: res.Temporary,
-		Timeout:   res.Timeout,
-		Fault:     res.Fault,
-	}
-	return body
-}
-
-// NewListB2bOrgsNotFoundResponseBody builds the HTTP response body from the
-// result of the "list-b2b-orgs" endpoint of the "membership-service" service.
-func NewListB2bOrgsNotFoundResponseBody(res *goa.ServiceError) *ListB2bOrgsNotFoundResponseBody {
-	body := &ListB2bOrgsNotFoundResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,

@@ -420,7 +420,6 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Required("orgs", "metadata")
 		})
 
-		dsl.Error("NotFound", dsl.ErrorResult, "Not found")
 		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
@@ -433,7 +432,6 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Param("search_name")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Response(dsl.StatusOK)
-			dsl.Response("NotFound", dsl.StatusNotFound)
 			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
 			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
 		})

@@ -100,12 +100,6 @@ paths:
                                       name: Example Corp
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
-                "404":
-                    description: 'NotFound: Not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
@@ -215,6 +209,7 @@ paths:
                                     - agreement_date: "2025-01-01T00:00:00Z"
                                       annual_full_price: 50000
                                       auto_renew: true
+                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -224,6 +219,7 @@ paths:
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
+                                      project_slug: kubernetes
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       purchase_date: "2025-01-15T00:00:00Z"
                                       renewal_type: Annual
@@ -240,6 +236,7 @@ paths:
                                     - agreement_date: "2025-01-01T00:00:00Z"
                                       annual_full_price: 50000
                                       auto_renew: true
+                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -249,6 +246,7 @@ paths:
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
+                                      project_slug: kubernetes
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       purchase_date: "2025-01-15T00:00:00Z"
                                       renewal_type: Annual
@@ -265,6 +263,7 @@ paths:
                                     - agreement_date: "2025-01-01T00:00:00Z"
                                       annual_full_price: 50000
                                       auto_renew: true
+                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -274,6 +273,7 @@ paths:
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
+                                      project_slug: kubernetes
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       purchase_date: "2025-01-15T00:00:00Z"
                                       renewal_type: Annual
@@ -405,6 +405,7 @@ paths:
                                     - agreement_date: "2025-01-01T00:00:00Z"
                                       annual_full_price: 50000
                                       auto_renew: true
+                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -414,6 +415,7 @@ paths:
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
+                                      project_slug: kubernetes
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       purchase_date: "2025-01-15T00:00:00Z"
                                       renewal_type: Annual
@@ -430,6 +432,7 @@ paths:
                                     - agreement_date: "2025-01-01T00:00:00Z"
                                       annual_full_price: 50000
                                       auto_renew: true
+                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -439,6 +442,7 @@ paths:
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
+                                      project_slug: kubernetes
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       purchase_date: "2025-01-15T00:00:00Z"
                                       renewal_type: Annual
@@ -455,6 +459,7 @@ paths:
                                     - agreement_date: "2025-01-01T00:00:00Z"
                                       annual_full_price: 50000
                                       auto_renew: true
+                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -464,6 +469,7 @@ paths:
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
+                                      project_slug: kubernetes
                                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                       purchase_date: "2025-01-15T00:00:00Z"
                                       renewal_type: Annual
@@ -564,6 +570,7 @@ paths:
                                 agreement_date: "2025-01-01T00:00:00Z"
                                 annual_full_price: 50000
                                 auto_renew: true
+                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
                                 company_name: Example Corp
@@ -573,6 +580,7 @@ paths:
                                 payment_frequency: Annual
                                 payment_terms: Net 30
                                 price: 50000
+                                project_slug: kubernetes
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                 purchase_date: "2025-01-15T00:00:00Z"
                                 renewal_type: Annual
@@ -654,7 +662,8 @@ paths:
                                 $ref: '#/components/schemas/ListMembershipKeyContactsResponseBody'
                             example:
                                 contacts:
-                                    - board_member: false
+                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      board_member: false
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -671,7 +680,8 @@ paths:
                                       title: CTO
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
-                                    - board_member: false
+                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      board_member: false
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -688,7 +698,8 @@ paths:
                                       title: CTO
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
-                                    - board_member: false
+                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      board_member: false
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -705,7 +716,8 @@ paths:
                                       title: CTO
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
-                                    - board_member: false
+                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                      board_member: false
                                       company_domain: https://example.com
                                       company_logo_url: https://example.com/logo.png
                                       company_name: Example Corp
@@ -803,6 +815,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ProjectKeyContactResponse'
                             example:
+                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 board_member: false
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
@@ -974,6 +987,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ProjectKeyContactResponse'
                             example:
+                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 board_member: false
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
@@ -1078,6 +1092,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ProjectKeyContactResponse'
                             example:
+                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 board_member: false
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
@@ -1362,7 +1377,7 @@ components:
                 fault:
                     type: boolean
                     description: Is the error a server-side fault?
-                    example: true
+                    example: false
                 id:
                     type: string
                     description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1390,7 +1405,7 @@ components:
                 message: parameter 'p' must be an integer
                 name: bad_request
                 temporary: true
-                timeout: false
+                timeout: true
             required:
                 - name
                 - id
@@ -1409,6 +1424,12 @@ components:
                         $ref: '#/components/schemas/B2bOrgResponse'
                     description: List of B2B organizations
                     example:
+                        - created_at: "2025-01-01T00:00:00Z"
+                          domain: https://example.com
+                          logo_url: https://example.com/logo.png
+                          name: Example Corp
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
                         - created_at: "2025-01-01T00:00:00Z"
                           domain: https://example.com
                           logo_url: https://example.com/logo.png
@@ -1462,7 +1483,8 @@ components:
                         $ref: '#/components/schemas/ProjectKeyContactResponse'
                     description: List of key contacts
                     example:
-                        - board_member: false
+                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          board_member: false
                           company_domain: https://example.com
                           company_logo_url: https://example.com/logo.png
                           company_name: Example Corp
@@ -1479,7 +1501,8 @@ components:
                           title: CTO
                           uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
-                        - board_member: false
+                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          board_member: false
                           company_domain: https://example.com
                           company_logo_url: https://example.com/logo.png
                           company_name: Example Corp
@@ -1496,24 +1519,8 @@ components:
                           title: CTO
                           uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
-                        - board_member: false
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          email: john.doe@example.com
-                          first_name: John
-                          last_name: Doe
-                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          primary_contact: true
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          role: Voting Representative
-                          status: Active
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          title: CTO
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                        - board_member: false
+                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          board_member: false
                           company_domain: https://example.com
                           company_logo_url: https://example.com/logo.png
                           company_name: Example Corp
@@ -1532,7 +1539,8 @@ components:
                           updated_at: "2025-06-01T12:00:00Z"
             example:
                 contacts:
-                    - board_member: false
+                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      board_member: false
                       company_domain: https://example.com
                       company_logo_url: https://example.com/logo.png
                       company_name: Example Corp
@@ -1549,24 +1557,8 @@ components:
                       title: CTO
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
-                    - board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - board_member: false
+                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      board_member: false
                       company_domain: https://example.com
                       company_logo_url: https://example.com/logo.png
                       company_name: Example Corp
@@ -1613,6 +1605,7 @@ components:
                         - agreement_date: "2025-01-01T00:00:00Z"
                           annual_full_price: 50000
                           auto_renew: true
+                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           company_domain: https://example.com
                           company_logo_url: https://example.com/logo.png
                           company_name: Example Corp
@@ -1622,6 +1615,7 @@ components:
                           payment_frequency: Annual
                           payment_terms: Net 30
                           price: 50000
+                          project_slug: kubernetes
                           project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                           purchase_date: "2025-01-15T00:00:00Z"
                           renewal_type: Annual
@@ -1638,6 +1632,7 @@ components:
                         - agreement_date: "2025-01-01T00:00:00Z"
                           annual_full_price: 50000
                           auto_renew: true
+                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           company_domain: https://example.com
                           company_logo_url: https://example.com/logo.png
                           company_name: Example Corp
@@ -1647,6 +1642,61 @@ components:
                           payment_frequency: Annual
                           payment_terms: Net 30
                           price: 50000
+                          project_slug: kubernetes
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          purchase_date: "2025-01-15T00:00:00Z"
+                          renewal_type: Annual
+                          start_date: "2025-02-01T00:00:00Z"
+                          status: Active
+                          tier: Gold
+                          tier_family: Membership
+                          tier_name: Gold Corporate Membership
+                          tier_product_type: Corporate
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+                          year: "2025"
+                        - agreement_date: "2025-01-01T00:00:00Z"
+                          annual_full_price: 50000
+                          auto_renew: true
+                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
+                          created_at: "2025-01-01T00:00:00Z"
+                          end_date: "2025-12-31T23:59:59Z"
+                          membership_type: Corporate
+                          payment_frequency: Annual
+                          payment_terms: Net 30
+                          price: 50000
+                          project_slug: kubernetes
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          purchase_date: "2025-01-15T00:00:00Z"
+                          renewal_type: Annual
+                          start_date: "2025-02-01T00:00:00Z"
+                          status: Active
+                          tier: Gold
+                          tier_family: Membership
+                          tier_name: Gold Corporate Membership
+                          tier_product_type: Corporate
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
+                          year: "2025"
+                        - agreement_date: "2025-01-01T00:00:00Z"
+                          annual_full_price: 50000
+                          auto_renew: true
+                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
+                          created_at: "2025-01-01T00:00:00Z"
+                          end_date: "2025-12-31T23:59:59Z"
+                          membership_type: Corporate
+                          payment_frequency: Annual
+                          payment_terms: Net 30
+                          price: 50000
+                          project_slug: kubernetes
                           project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                           purchase_date: "2025-01-15T00:00:00Z"
                           renewal_type: Annual
@@ -1667,6 +1717,7 @@ components:
                     - agreement_date: "2025-01-01T00:00:00Z"
                       annual_full_price: 50000
                       auto_renew: true
+                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       company_domain: https://example.com
                       company_logo_url: https://example.com/logo.png
                       company_name: Example Corp
@@ -1676,6 +1727,7 @@ components:
                       payment_frequency: Annual
                       payment_terms: Net 30
                       price: 50000
+                      project_slug: kubernetes
                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                       purchase_date: "2025-01-15T00:00:00Z"
                       renewal_type: Annual
@@ -1692,6 +1744,7 @@ components:
                     - agreement_date: "2025-01-01T00:00:00Z"
                       annual_full_price: 50000
                       auto_renew: true
+                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       company_domain: https://example.com
                       company_logo_url: https://example.com/logo.png
                       company_name: Example Corp
@@ -1701,56 +1754,7 @@ components:
                       payment_frequency: Annual
                       payment_terms: Net 30
                       price: 50000
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      purchase_date: "2025-01-15T00:00:00Z"
-                      renewal_type: Annual
-                      start_date: "2025-02-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      tier_family: Membership
-                      tier_name: Gold Corporate Membership
-                      tier_product_type: Corporate
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      year: "2025"
-                    - agreement_date: "2025-01-01T00:00:00Z"
-                      annual_full_price: 50000
-                      auto_renew: true
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
-                      payment_frequency: Annual
-                      payment_terms: Net 30
-                      price: 50000
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      purchase_date: "2025-01-15T00:00:00Z"
-                      renewal_type: Annual
-                      start_date: "2025-02-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      tier_family: Membership
-                      tier_name: Gold Corporate Membership
-                      tier_product_type: Corporate
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      year: "2025"
-                    - agreement_date: "2025-01-01T00:00:00Z"
-                      annual_full_price: 50000
-                      auto_renew: true
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
-                      payment_frequency: Annual
-                      payment_terms: Net 30
-                      price: 50000
+                      project_slug: kubernetes
                       project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                       purchase_date: "2025-01-15T00:00:00Z"
                       renewal_type: Annual
@@ -1793,22 +1797,15 @@ components:
                           project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                           uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
+                        - created_at: "2025-01-01T00:00:00Z"
+                          family: Membership
+                          name: Gold Corporate Membership
+                          product_type: Corporate
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
             example:
                 tiers:
-                    - created_at: "2025-01-01T00:00:00Z"
-                      family: Membership
-                      name: Gold Corporate Membership
-                      product_type: Corporate
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - created_at: "2025-01-01T00:00:00Z"
-                      family: Membership
-                      name: Gold Corporate Membership
-                      product_type: Corporate
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
                     - created_at: "2025-01-01T00:00:00Z"
                       family: Membership
                       name: Gold Corporate Membership
@@ -1872,6 +1869,11 @@ components:
         ProjectKeyContactResponse:
             type: object
             properties:
+                b2b_org_uid:
+                    type: string
+                    description: UID of the B2B organization (Account) this key contact's membership belongs to
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
                 board_member:
                     type: boolean
                     description: Whether this contact holds a board member role
@@ -1948,6 +1950,7 @@ components:
                     format: date-time
             description: A key contact (Project_Role__c) scoped to a membership, with denormalized contact and company attributes
             example:
+                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 board_member: false
                 company_domain: https://example.com
                 company_logo_url: https://example.com/logo.png
@@ -1981,6 +1984,11 @@ components:
                     type: boolean
                     description: Whether automatic renewal is enabled
                     example: true
+                b2b_org_uid:
+                    type: string
+                    description: UID of the B2B organization (Account) this membership belongs to
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
                 company_domain:
                     type: string
                     description: Member company website/domain (denormalized from Account.Website)
@@ -2019,6 +2027,10 @@ components:
                     description: Current membership price
                     example: 50000
                     format: double
+                project_slug:
+                    type: string
+                    description: URL slug of the project this membership belongs to
+                    example: kubernetes
                 project_uid:
                     type: string
                     description: V2 project UUID
@@ -2080,6 +2092,7 @@ components:
                 agreement_date: "2025-01-01T00:00:00Z"
                 annual_full_price: 50000
                 auto_renew: true
+                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 company_domain: https://example.com
                 company_logo_url: https://example.com/logo.png
                 company_name: Example Corp
@@ -2089,6 +2102,7 @@ components:
                 payment_frequency: Annual
                 payment_terms: Net 30
                 price: 50000
+                project_slug: kubernetes
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                 purchase_date: "2025-01-15T00:00:00Z"
                 renewal_type: Annual

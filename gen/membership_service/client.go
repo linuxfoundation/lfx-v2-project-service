@@ -199,7 +199,6 @@ func (c *Client) GetMembershipKeyContact(ctx context.Context, p *GetMembershipKe
 // ListB2bOrgs calls the "list-b2b-orgs" endpoint of the "membership-service"
 // service.
 // ListB2bOrgs may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Not found
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error

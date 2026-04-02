@@ -51,7 +51,6 @@ func convertProjectMembershipToResponse(m *model.ProjectMembership) *memberships
 
 	r := &membershipservice.ProjectMembershipResponse{
 		UID:             &m.UID,
-		TierUID:         &m.TierUID,
 		ProjectUID:      &m.ProjectUID,
 		Status:          &m.Status,
 		MembershipType:  &m.MembershipType,
@@ -59,6 +58,21 @@ func convertProjectMembershipToResponse(m *model.ProjectMembership) *memberships
 		Price:           &m.Price,
 		AnnualFullPrice: &m.AnnualFullPrice,
 		CompanyName:     &m.CompanyName,
+	}
+
+	// TierUID requires a valid ProjectUID to be useful (the tier endpoint is
+	// project-scoped). When ProjectUID is empty — which can happen for B2B org
+	// membership results where the project slug could not be resolved to a v2
+	// UUID — omit TierUID to avoid misleading callers.
+	if m.TierUID != "" && m.ProjectUID != "" {
+		r.TierUID = &m.TierUID
+	}
+
+	if m.ProjectSlug != "" {
+		r.ProjectSlug = &m.ProjectSlug
+	}
+	if m.B2BOrgUID != "" {
+		r.B2bOrgUID = &m.B2BOrgUID
 	}
 
 	if m.Year != "" {
@@ -147,6 +161,9 @@ func convertProjectKeyContactToResponse(c *model.KeyContact) *membershipservice.
 	}
 	if c.CompanyDomain != "" {
 		r.CompanyDomain = &c.CompanyDomain
+	}
+	if c.B2BOrgUID != "" {
+		r.B2bOrgUID = &c.B2BOrgUID
 	}
 	if !c.CreatedAt.IsZero() {
 		s := c.CreatedAt.Format("2006-01-02T15:04:05Z07:00")

@@ -144,9 +144,9 @@ type soqlProject struct {
 }
 
 // soqlAccount represents a Salesforce Account record returned by a SOQL query.
-// Used for B2BOrg search and list operations. The IsDeleted field is always
-// false in results (filtered in the WHERE clause) and is included only to
-// satisfy the go-salesforce library's struct requirements.
+// Used for B2BOrg search and list operations. Only non-deleted Accounts that
+// have at least one membership Asset are returned — the WHERE clause filters
+// by IsDeleted = false and a semi-join on Asset.
 type soqlAccount struct {
 	ID               string  `salesforce:"Id"`
 	Name             string  `salesforce:"Name"`

@@ -55,6 +55,13 @@ var ProjectMembershipResponse = dsl.Type("project-membership-response", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
 	})
+	dsl.Attribute("project_slug", dsl.String, "URL slug of the project this membership belongs to", func() {
+		dsl.Example("kubernetes")
+	})
+	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account) this membership belongs to", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
 	dsl.Attribute("status", dsl.String, "Membership status", func() {
 		dsl.Example("Active")
 	})
@@ -147,6 +154,10 @@ var ProjectKeyContactResponse = dsl.Type("project-key-contact-response", func() 
 	dsl.Attribute("project_uid", dsl.String, "V2 project UUID", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
+	})
+	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account) this key contact's membership belongs to", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})
 	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
 		dsl.Example("Voting Representative")
