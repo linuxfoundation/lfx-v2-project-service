@@ -147,14 +147,28 @@ flowchart TD
 ### Key design decisions
 
 - **sObject API + conditional GETs for object reads.** Single-object reads use
-  `GET /services/data/vXX.0/sobjects/{Type}/{Id}` with both `If-None-Match` (carrying the cached
-  ETag) and `If-Modified-Since` (carrying the cached Last-Modified timestamp). A `304 Not Modified`
-  response confirms the cached value is still valid without re-fetching the body, providing
-  standard HTTP-level cache semantics. If 304 responses do not count towards our rate limits, we can revalidate on every object fetch; if not, we can also emulate `max-age` semantics (re-use a cached object _without_ revalidation for a certain number of seconds).
+  `GET /services/data/vXX.0/sobjects/{Type}/{Id}`. Salesforce conditional-GET behaviour differs by
+  object type: `Account` serves both `ETag` and `Last-Modified` response headers, so we send
+  `If-None-Match` and `If-Modified-Since` on subsequent fetches. All other types (`Asset`,
+  `Project_Role__c`, `Product2`) do not serve either header, so we use the `SystemModstamp` field
+  (preferred over `LastModifiedDate`, which does not advance on system-initiated changes) as a
+  surrogate timestamp and send only `If-Modified-Since`. A `304 Not Modified` response confirms
+  the cached value is still valid without re-fetching the body. If 304 responses do not count
+  against Salesforce API rate limits, we can revalidate on every object fetch; otherwise we can
+  emulate `max-age` semantics (re-use a cached object without revalidation for N seconds).
+- **Service-generated ETags for LFX API consumers.** Because Salesforce does not serve ETags on
+  most object types, and because `Last-Modified` timestamps can be trivially manufactured by
+  clients (offering weak lost-update protection), the service generates its own ETags to send to
+  LFX API consumers. Each LFX ETag is a **20-byte truncated, base64url-encoded SHA-256 hash of
+  the serialised domain model object** (not the raw Salesforce payload). This guarantees that any
+  change visible in our domain model — regardless of the underlying sObject type — produces a
+  different ETag, and that consumers must perform a GET before a conditional PUT.
 - **NATS KV as sObject cache only.** The lookup-index keys (e.g.
   `lookup/project/{project_id}/{membership_uid}`) are removed entirely. The Query Service
-  (OpenSearch) is the authoritative source for filtered collections. NATS KV stores only one entry
-  per object UID, holding the serialised domain object, its ETag, its Last-Modified timestamp, and a potential timestamp for `max-age` behavior.
+  (OpenSearch) is the authoritative source for filtered collections. NATS KV stores one entry per
+  object UID holding the serialised domain object, the Salesforce-side conditional-write token
+  (either the SFDC ETag for `Account`, or the `SystemModstamp` string for all other types), and
+  the service-generated LFX ETag. A potential `max-age` revalidation timestamp may also be stored.
 - **SOQL is retained for backfill only.** Full-table SOQL queries are expensive
   and cannot easily support incremental pagination in a live-serving context.
   They shall be used exclusively by the triggerable reindex job, which may be
@@ -559,43 +573,118 @@ tuples reference it (or after a migration sweep).
 
 ### sObject API + conditional GET caching (primary read path)
 
-Individual object reads use the Salesforce sObject REST API:
+Individual object reads use the Salesforce sObject REST API. The conditional-GET strategy differs
+by object type because Salesforce only serves `ETag` and `Last-Modified` response headers on
+`Account` GET responses; all other types (`Asset`, `Project_Role__c`, `Product2`) return neither.
 
+| sObject type | Conditional GET headers sent | Cache revalidation token stored |
+|---|---|---|
+| `Account` (→ `b2b_org`) | `If-None-Match: "<sfdc_etag>"` + `If-Modified-Since: "<last_modified>"` | SFDC ETag string |
+| `Asset` (→ `project_membership`) | `If-Modified-Since: "<system_modstamp>"` | `SystemModstamp` string |
+| `Project_Role__c` (→ `key_contact`) | `If-Modified-Since: "<system_modstamp>"` | `SystemModstamp` string |
+| `Product2` (→ `membership_tier`) | `If-Modified-Since: "<system_modstamp>"` | `SystemModstamp` string |
+
+`SystemModstamp` is preferred over `LastModifiedDate` because it advances on any system-level
+change (automated processes, formula recalculations, etc.), whereas `LastModifiedDate` only
+advances on direct user or API edits. Using `SystemModstamp` prevents false cache hits from
+system-initiated changes.
+
+- A `200 OK` response returns the updated body; the NATS KV entry is refreshed with the new body,
+  revalidation token, and freshly computed LFX ETag.
+- A `304 Not Modified` response confirms the cached value is still valid; no KV write is needed.
+
+#### NATS KV cache envelope
+
+The cache stores one entry per v2 UID. Each entry is a JSON envelope:
+
+```json
+{
+  "sfdc_token":  "<sfdc_etag_or_system_modstamp>",
+  "lfx_etag":    "<20-byte base64url-encoded SHA-256 of domain model>",
+  "data":        { /* serialised domain model object */ }
+}
 ```
-GET /services/data/vXX.0/sobjects/{Type}/{SalesforceId}
-If-None-Match: "<cached_etag>"
-If-Modified-Since: "<cached_last_modified>"
-```
 
-- A `200 OK` response returns the updated body with new `ETag` and `Last-Modified` response
-  headers; the NATS KV entry is refreshed with the new body, ETag, and Last-Modified timestamp.
-- A `304 Not Modified` response confirms the cached value is still valid; no KV write is
-  needed.
+- **`sfdc_token`**: the Salesforce-side revalidation token. For `Account` this is the SFDC ETag
+  string (e.g. `"946-HLG3U"`); for all other types it is the `SystemModstamp` value (e.g.
+  `"2025-04-01T12:34:56.000Z"`). Used on the next conditional GET to Salesforce, and forwarded
+  as the appropriate conditional-write header on mutating requests (see below).
+- **`lfx_etag`**: the service-generated ETag returned to LFX API consumers on `GET` responses.
+  Computed as a 20-byte truncated, base64url-encoded SHA-256 hash of the serialised domain model
+  object — not the raw Salesforce payload. Changes whenever the domain model representation
+  changes, regardless of which Salesforce fields changed.
+- **`data`**: the full serialised domain model object.
 
-The NATS KV cache stores one entry per v2 UID:
-
-| Bucket | Key | Value |
-|--------|-----|-------|
-| `member-service-cache` | `b2b_org.{uid}` | `{etag, last_modified, data}` (JSON) |
-| `member-service-cache` | `project_membership.{uid}` | `{etag, last_modified, data}` (JSON) |
-| `member-service-cache` | `key_contact.{uid}` | `{etag, last_modified, data}` (JSON) |
+| Bucket | Key |
+|--------|-----|
+| `member-service-cache` | `b2b_org.{uid}` |
+| `member-service-cache` | `project_membership.{uid}` |
+| `member-service-cache` | `key_contact.{uid}` |
+| `member-service-cache` | `membership_tier.{uid}` |
 
 No lookup-index keys are stored. Collection access is entirely the Query Service's concern.
 
+#### Conditional writes (PUT / DELETE)
+
+`PUT` and `DELETE` endpoints require the caller to supply an `If-Match` header containing the
+LFX ETag most recently returned by this service on a `GET`. Because Salesforce does not serve
+ETags on most object types, the service cannot simply forward the client's `If-Match` header to
+Salesforce. Instead it performs an explicit read-compare-write cycle:
+
+```mermaid
+sequenceDiagram
+    participant C  as LFX API Consumer
+    participant S  as Member Service
+    participant KV as NATS KV Cache
+    participant SF as Salesforce sObject API
+
+    C->>S: PUT /key_contacts/{uid}<br/>If-Match: "<lfx_etag>"
+
+    S->>KV: Get key_contact.{uid}
+    KV-->>S: {sfdc_token, lfx_etag, data}
+
+    alt LFX ETag mismatch
+        S-->>C: 412 Precondition Failed<br/>(stale read — consumer must re-GET)
+    else LFX ETag matches
+        S->>SF: GET /sobjects/Project_Role__c/{sfid}<br/>If-Modified-Since: "<sfdc_token>"
+        alt 304 Not Modified (SF record unchanged)
+            SF-->>S: 304 Not Modified
+            S->>SF: PATCH /sobjects/Project_Role__c/{sfid}<br/>If-Unmodified-Since: "<sfdc_token>"
+            alt 412 from Salesforce (concurrent external write)
+                SF-->>S: 412 Precondition Failed
+                S-->>C: 412 Precondition Failed<br/>(concurrent external write detected)
+            else Write accepted
+                SF-->>S: 200 OK (updated body)
+                S->>KV: Put key_contact.{uid}<br/>{new sfdc_token, new lfx_etag, new data}
+                S-->>C: 200 OK + ETag: "<new_lfx_etag>"
+            end
+        else 200 OK (SF record changed since our cache)
+            SF-->>S: 200 OK (updated body)
+            note over S: Domain model has changed since<br/>consumer last read — their edit<br/>may now be invalid.
+            S->>KV: Put key_contact.{uid}<br/>{new sfdc_token, new lfx_etag, new data}
+            S-->>C: 412 Precondition Failed<br/>(record changed externally — consumer must re-GET)
+        end
+    end
+```
+
+For `Account` (→ `b2b_org`), the flow is identical except:
+- The Salesforce conditional GET sends `If-None-Match: "<sfdc_token>"` instead of `If-Modified-Since`.
+- The Salesforce conditional write sends `If-Match: "<sfdc_token>"` instead of `If-Unmodified-Since`.
+
 **Read-your-writes:** after any successful write to Salesforce, the service must immediately
-update the corresponding KV entry (with the new ETag, Last-Modified, and body returned by the
-write response) before
-returning the HTTP response to the caller. This ensures subsequent GET requests are coherent
-without a round-trip to Salesforce.
+update the corresponding KV entry (with the new `sfdc_token`, freshly computed `lfx_etag`, and
+updated domain model body) before returning the HTTP response to the caller. This ensures
+subsequent GET requests are coherent without a round-trip to Salesforce.
 
 ### Salesforce PubSub CDC (real-time invalidation)
 
 The PubSub consumer subscribes to Salesforce Change Data Capture channels for `Account`,
 `Asset`, and `Project_Role__c`. On each event it:
 
-1. Re-fetches the affected sObject via the sObject API (unconditionally, without `If-None-Match` or `If-Modified-Since`,
-   since the CDC event implies staleness).
-2. Refreshes the NATS KV entry with the new body, ETag, and Last-Modified timestamp.
+1. Re-fetches the affected sObject via the sObject API unconditionally (without `If-None-Match`
+   or `If-Modified-Since`), since the CDC event implies staleness.
+2. Refreshes the NATS KV entry with the new body, updated `sfdc_token`, and recomputed
+   `lfx_etag`.
 3. Publishes Indexer and FGA Sync messages so downstream indexes stay current.
 
 ### SOQL (backfill only)
@@ -826,10 +915,16 @@ type EventPublisher interface {
 
 ### Step 2: sObject client and conditional GET cache
 
-- Implement a `sObjectClient` that wraps the Salesforce sObject REST API with `If-None-Match`/`If-Modified-Since`
-  conditional GETs and stores `{etag, last_modified, data}` entries in a `member-service-cache` NATS KV bucket.
-- Implement `sObjectReader` adapters for `B2BOrg`, `ProjectMembership`, and `KeyContact` that
-  call `sObjectClient` and deserialise into the domain model types.
+- Implement a `sObjectClient` that wraps the Salesforce sObject REST API with conditional GETs:
+  `If-None-Match`/`If-Modified-Since` for `Account`; `If-Modified-Since` (derived from
+  `SystemModstamp`) for all other types.
+- Store `{sfdc_token, lfx_etag, data}` envelopes in a `member-service-cache` NATS KV bucket (one
+  key per v2 UID; see cache envelope definition in the Salesforce Integration section).
+- Implement `sObjectReader` adapters for `B2BOrg`, `ProjectMembership`, `KeyContact`, and
+  `MembershipTier` that call `sObjectClient` and deserialise into the domain model types.
+- Implement the conditional-write path: read cache → compare LFX ETag → conditional sObject GET
+  → conditional sObject PATCH/DELETE with the best available Salesforce precondition header
+  (`If-Match` for `Account`, `If-Unmodified-Since` for all others).
 - Remove the SOQL-backed KV reader and all lookup-index bucket reads/writes.
 
 ### Step 3: Rename internal types and add `b2b_org_uid`
@@ -917,13 +1012,20 @@ needed — unlike the v1 `temp_sfdc_id` shadow-row pattern.
 
 ### Write-path race conditions and retry logic
 
-**Require `If-Match` or `If-Unmodified-Since` on mutating requests.** `PUT` and `DELETE`
-endpoints should reject requests that do not carry either an `If-Match` header (containing the
-ETag last returned for that object) or an `If-Unmodified-Since` header (containing the
-Last-Modified timestamp). The service forwards whichever header the client supplied to the
-Salesforce sObject API, which enforces the precondition natively and returns `412 Precondition
-Failed` if the record has been modified since the client last read it. This eliminates lost-update
-races without requiring any application-level locking.
+**Require `If-Match` on mutating requests.** `PUT` and `DELETE` endpoints must reject requests
+that do not carry an `If-Match` header containing the LFX ETag most recently returned by this
+service on a `GET`. Because Salesforce does not serve ETags on most sObject types, the service
+cannot simply forward the client header to Salesforce. Instead it performs the read-compare-write
+cycle described in the [Conditional writes](#conditional-writes-put--delete) section above.
+
+The two-tier design provides strong lost-update protection:
+- **LFX ETag check (tier 1):** detects cases where the consumer's view of the domain model is
+  stale — even if the relevant Salesforce fields have not changed, if our domain model has a
+  different representation the client must re-read first.
+- **Salesforce precondition (tier 2):** detects concurrent external writes (e.g. a Salesforce
+  admin or another service) that occurred between the service's cache read and its sObject write.
+  `If-Match` (SFDC ETag) is used for `Account`; `If-Unmodified-Since` (derived from
+  `SystemModstamp`) is used for all other types.
 
 Concurrent duplicate creation attempts (e.g. two simultaneous `POST /key_contacts` for the same
 contact) are a separate concern and must be guarded with either a NATS KV compare-and-set (CAS)
