@@ -59,7 +59,6 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 		Status:           "Active",
 		Year:             "2025",
 		Tier:             "Gold",
-		MembershipType:   "Corporate",
 		AutoRenew:        true,
 		RenewalType:      "Annual",
 		Price:            50000,

@@ -178,7 +178,7 @@ func (r *B2BOrgReader) fetchAndCacheAllB2BOrgBatches(
 
 		converted := make([]*model.B2BOrg, 0, len(remaining))
 		for _, acc := range remaining {
-			org, convErr := convertSOQLToB2BOrg(acc)
+			org, convErr := convertSOQLToB2BOrg(bgCtx, acc)
 			if convErr != nil {
 				slog.WarnContext(bgCtx, "skipping account with invalid SFID during sweep",
 					"sfid", acc.ID, "error", convErr,

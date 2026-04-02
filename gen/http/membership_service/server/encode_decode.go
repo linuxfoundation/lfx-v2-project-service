@@ -1555,7 +1555,6 @@ func marshalMembershipserviceProjectMembershipResponseToProjectMembershipRespons
 		Status:           v.Status,
 		Year:             v.Year,
 		Tier:             v.Tier,
-		MembershipType:   v.MembershipType,
 		AutoRenew:        v.AutoRenew,
 		RenewalType:      v.RenewalType,
 		Price:            v.Price,
@@ -1624,12 +1623,19 @@ func marshalMembershipserviceProjectKeyContactResponseToProjectKeyContactRespons
 // *membershipservice.B2bOrgResponse.
 func marshalMembershipserviceB2bOrgResponseToB2bOrgResponseResponseBody(v *membershipservice.B2bOrgResponse) *B2bOrgResponseResponseBody {
 	res := &B2bOrgResponseResponseBody{
-		UID:       v.UID,
-		Name:      v.Name,
-		Domain:    v.Domain,
-		LogoURL:   v.LogoURL,
-		CreatedAt: v.CreatedAt,
-		UpdatedAt: v.UpdatedAt,
+		UID:           v.UID,
+		Name:          v.Name,
+		Website:       v.Website,
+		PrimaryDomain: v.PrimaryDomain,
+		LogoURL:       v.LogoURL,
+		CreatedAt:     v.CreatedAt,
+		UpdatedAt:     v.UpdatedAt,
+	}
+	if v.DomainAliases != nil {
+		res.DomainAliases = make([]string, len(v.DomainAliases))
+		for i, val := range v.DomainAliases {
+			res.DomainAliases[i] = val
+		}
 	}
 
 	return res

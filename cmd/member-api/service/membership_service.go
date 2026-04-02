@@ -581,10 +581,6 @@ func matchesMembership(m *model.ProjectMembership, filters map[string]string, se
 			if m.Year != value {
 				return false
 			}
-		case "membership_type":
-			if !strings.EqualFold(m.MembershipType, value) {
-				return false
-			}
 		case "company_name":
 			if !strings.Contains(strings.ToLower(m.CompanyName), strings.ToLower(value)) {
 				return false

@@ -26,7 +26,7 @@ import (
 const membershipSOQL = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -45,7 +45,7 @@ WHERE Product2.Family = 'Membership'
 const membershipByIDSOQL = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -67,7 +67,7 @@ WHERE Id = %s
 const membershipsByAccountSOQLBase = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -88,7 +88,7 @@ WHERE AccountId = %s
 const membershipsByProjectSOQLBase = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -418,7 +418,6 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 		Status:           derefString(asset.Status),
 		Year:             derefString(asset.Year),
 		Tier:             derefString(asset.Tier),
-		MembershipType:   derefString(asset.RecordTypeID),
 		AutoRenew:        asset.AutoRenew,
 		RenewalType:      derefString(asset.RenewalType),
 		Price:            asset.Price,

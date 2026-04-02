@@ -836,8 +836,6 @@ type ProjectMembershipResponseResponseBody struct {
 	Year *string `form:"year,omitempty" json:"year,omitempty" xml:"year,omitempty"`
 	// Membership tier label
 	Tier *string `form:"tier,omitempty" json:"tier,omitempty" xml:"tier,omitempty"`
-	// Membership type (derived from Asset RecordType)
-	MembershipType *string `form:"membership_type,omitempty" json:"membership_type,omitempty" xml:"membership_type,omitempty"`
 	// Whether automatic renewal is enabled
 	AutoRenew *bool `form:"auto_renew,omitempty" json:"auto_renew,omitempty" xml:"auto_renew,omitempty"`
 	// Renewal cadence
@@ -878,8 +876,8 @@ type ProjectMembershipResponseResponseBody struct {
 
 // ListMetadataResponseBody is used to define fields on response body types.
 type ListMetadataResponseBody struct {
-	// Total number of records matching the query, as reported by Salesforce. Set
-	// on the first page; may be 0 on continuation pages.
+	// Total number of records matching the query. Set on the first page; may be 0
+	// on continuation pages.
 	TotalSize *int `form:"total_size,omitempty" json:"total_size,omitempty" xml:"total_size,omitempty"`
 	// Opaque cursor for the next page. Pass this value as the page_token query
 	// parameter to retrieve the next page. Empty or absent when this is the last
@@ -931,12 +929,19 @@ type ProjectKeyContactResponseResponseBody struct {
 
 // B2bOrgResponseResponseBody is used to define fields on response body types.
 type B2bOrgResponseResponseBody struct {
-	// B2BOrg UID (invertible UUID v8 from Account.Id)
+	// B2BOrg UID (invertible UUID v8)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Organization website domain
-	Domain *string `form:"domain,omitempty" json:"domain,omitempty" xml:"domain,omitempty"`
+	// Organization website link; may be a bare domain, full URI, or other text
+	// depending on source data quality
+	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
+	// Normalized primary domain; bare host with scheme and path stripped, e.g.
+	// 'example.com'
+	PrimaryDomain *string `form:"primary_domain,omitempty" json:"primary_domain,omitempty" xml:"primary_domain,omitempty"`
+	// Additional normalized domains; each item has the same normalization as
+	// primary_domain
+	DomainAliases []string `form:"domain_aliases,omitempty" json:"domain_aliases,omitempty" xml:"domain_aliases,omitempty"`
 	// URL of the organization logo
 	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
 	// Creation timestamp
@@ -1016,7 +1021,6 @@ func NewGetProjectMembershipResponseBody(res *membershipservice.GetProjectMember
 		Status:           res.Membership.Status,
 		Year:             res.Membership.Year,
 		Tier:             res.Membership.Tier,
-		MembershipType:   res.Membership.MembershipType,
 		AutoRenew:        res.Membership.AutoRenew,
 		RenewalType:      res.Membership.RenewalType,
 		Price:            res.Membership.Price,

@@ -71,9 +71,6 @@ var ProjectMembershipResponse = dsl.Type("project-membership-response", func() {
 	dsl.Attribute("tier", dsl.String, "Membership tier label", func() {
 		dsl.Example("Gold")
 	})
-	dsl.Attribute("membership_type", dsl.String, "Membership type (derived from Asset RecordType)", func() {
-		dsl.Example("Corporate")
-	})
 	dsl.Attribute("auto_renew", dsl.Boolean, "Whether automatic renewal is enabled", func() {
 		dsl.Example(true)
 	})
@@ -207,7 +204,7 @@ var ProjectKeyContactResponse = dsl.Type("project-key-contact-response", func() 
 // ListMetadata is the DSL type for list pagination metadata.
 var ListMetadata = dsl.Type("list-metadata", func() {
 	dsl.Description("Pagination metadata for list responses")
-	dsl.Attribute("total_size", dsl.Int, "Total number of records matching the query, as reported by Salesforce. Set on the first page; may be 0 on continuation pages.", func() {
+	dsl.Attribute("total_size", dsl.Int, "Total number of records matching the query. Set on the first page; may be 0 on continuation pages.", func() {
 		dsl.Example(100)
 	})
 	dsl.Attribute("next_page_token", dsl.String, "Opaque cursor for the next page. Pass this value as the page_token query parameter to retrieve the next page. Empty or absent when this is the last page.", func() {
@@ -346,18 +343,24 @@ func B2BOrgUIDAttribute() {
 	})
 }
 
-// B2BOrgResponse is the DSL type for a B2B organization (Salesforce Account) response.
+// B2BOrgResponse is the DSL type for a B2B organization response.
 var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
-	dsl.Description("A B2B organization (Salesforce Account)")
-	dsl.Attribute("uid", dsl.String, "B2BOrg UID (invertible UUID v8 from Account.Id)", func() {
+	dsl.Description("A B2B organization")
+	dsl.Attribute("uid", dsl.String, "B2BOrg UID (invertible UUID v8)", func() {
 		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 		dsl.Format(dsl.FormatUUID)
 	})
 	dsl.Attribute("name", dsl.String, "Organization name", func() {
 		dsl.Example("Example Corp")
 	})
-	dsl.Attribute("domain", dsl.String, "Organization website domain", func() {
+	dsl.Attribute("website", dsl.String, "Organization website URL; always has a scheme (http or https)", func() {
 		dsl.Example("https://example.com")
+	})
+	dsl.Attribute("primary_domain", dsl.String, "Primary domain; bare host only, no scheme or path, e.g. 'example.com'", func() {
+		dsl.Example("example.com")
+	})
+	dsl.Attribute("domain_aliases", dsl.ArrayOf(dsl.String), "Additional domains; each item is a bare host with the same normalization as primary_domain", func() {
+		dsl.Example([]string{"example.org", "example.net"})
 	})
 	dsl.Attribute("logo_url", dsl.String, "URL of the organization logo", func() {
 		dsl.Example("https://example.com/logo.png")

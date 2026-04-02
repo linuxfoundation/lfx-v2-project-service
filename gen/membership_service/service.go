@@ -75,14 +75,21 @@ const ServiceName = "membership-service"
 // MethodKey key.
 var MethodNames = [14]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "list-b2b-orgs", "list-b2b-org-memberships", "readyz", "livez", "debug-vars"}
 
-// A B2B organization (Salesforce Account)
+// A B2B organization
 type B2bOrgResponse struct {
-	// B2BOrg UID (invertible UUID v8 from Account.Id)
+	// B2BOrg UID (invertible UUID v8)
 	UID *string
 	// Organization name
 	Name *string
-	// Organization website domain
-	Domain *string
+	// Organization website link; may be a bare domain, full URI, or other text
+	// depending on source data quality
+	Website *string
+	// Normalized primary domain; bare host with scheme and path stripped, e.g.
+	// 'example.com'
+	PrimaryDomain *string
+	// Additional normalized domains; each item has the same normalization as
+	// primary_domain
+	DomainAliases []string
 	// URL of the organization logo
 	LogoURL *string
 	// Creation timestamp
@@ -296,8 +303,8 @@ type ListMembershipKeyContactsResult struct {
 
 // Pagination metadata for list responses
 type ListMetadata struct {
-	// Total number of records matching the query, as reported by Salesforce. Set
-	// on the first page; may be 0 on continuation pages.
+	// Total number of records matching the query. Set on the first page; may be 0
+	// on continuation pages.
 	TotalSize *int
 	// Opaque cursor for the next page. Pass this value as the page_token query
 	// parameter to retrieve the next page. Empty or absent when this is the last
@@ -438,8 +445,6 @@ type ProjectMembershipResponse struct {
 	Year *string
 	// Membership tier label
 	Tier *string
-	// Membership type (derived from Asset RecordType)
-	MembershipType *string
 	// Whether automatic renewal is enabled
 	AutoRenew *bool
 	// Renewal cadence

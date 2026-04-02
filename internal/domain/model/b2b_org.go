@@ -5,11 +5,10 @@ package model
 
 import "time"
 
-// B2BOrg represents a B2B organization (Salesforce Account) in the LFX v2
-// domain. It is the canonical entity for a member company, decoupled from the
-// Salesforce wire format.
+// B2BOrg represents a B2B organization in the LFX v2 domain. It is the
+// canonical entity for a member company.
 type B2BOrg struct {
-	// UID is the invertible UUID v8 derived from the Salesforce Account.Id.
+	// UID is the invertible UUID v8 for this organization.
 	UID string `json:"uid"`
 
 	// SFID is the raw Salesforce Account.Id. It is kept internal (not
@@ -19,8 +18,19 @@ type B2BOrg struct {
 	// Name is the organization's display name.
 	Name string `json:"name"`
 
-	// Domain is the organization's primary website domain, e.g. "example.com".
-	Domain string `json:"domain,omitempty"`
+	// Website is the organization's website URL. Always has a scheme (http or
+	// https). Omitted when empty or unparseable.
+	Website string `json:"website,omitempty"`
+
+	// PrimaryDomain is the normalized primary domain for the organization.
+	// Expected to be a bare host such as "example.com"; values that do not
+	// parse as a valid domain are omitted. Omitted when empty or invalid.
+	PrimaryDomain string `json:"primary_domain,omitempty"`
+
+	// DomainAliases is the list of additional normalized domains for the
+	// organization. Each item is normalized with the same rules as
+	// PrimaryDomain; invalid items are dropped.
+	DomainAliases []string `json:"domain_aliases,omitempty"`
 
 	// LogoURL is the URL of the organization's logo image.
 	LogoURL string `json:"logo_url,omitempty"`
@@ -36,8 +46,11 @@ type B2BOrgInput struct {
 	// Name is the organization's display name.
 	Name string
 
-	// Domain is the organization's primary website domain.
-	Domain string
+	// Website is the organization's website link.
+	Website string
+
+	// PrimaryDomain is the canonical primary domain for the organization.
+	PrimaryDomain string
 
 	// LogoURL is the URL of the organization's logo image.
 	LogoURL string
@@ -82,7 +95,7 @@ type B2BOrgPage struct {
 	// this is the last page.
 	NextPageToken string
 
-	// TotalSize is the total number of records matching the query as reported
-	// by Salesforce. Set on the first page; may be 0 on subsequent pages.
+	// TotalSize is the total number of records matching the query. Set on the
+	// first page; may be 0 on subsequent pages.
 	TotalSize int
 }

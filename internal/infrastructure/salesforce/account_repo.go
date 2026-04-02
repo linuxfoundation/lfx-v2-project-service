@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 const accountsSOQLBase = `
 SELECT
     Id, Name, Logo_URL__c, Website,
+    Account_Domain__c, Domain_Alias__c,
     CreatedDate, LastModifiedDate
 FROM Account
 WHERE IsDeleted = false
@@ -110,7 +112,7 @@ func (r *AccountRepo) FetchFirstAccountBatch(ctx context.Context, filters model.
 
 	records := make([]*model.B2BOrg, 0, len(sfResult.Records))
 	for _, acc := range sfResult.Records {
-		org, convErr := convertSOQLToB2BOrg(acc)
+		org, convErr := convertSOQLToB2BOrg(ctx, acc)
 		if convErr != nil {
 			slog.WarnContext(ctx, "skipping account with invalid SFID",
 				"sfid", acc.ID,
@@ -140,25 +142,70 @@ func (r *AccountRepo) FetchAccountBySFID(ctx context.Context, sfid string) (*mod
 	if len(sfResult.Records) == 0 {
 		return nil, nil
 	}
-	return convertSOQLToB2BOrg(sfResult.Records[0])
+	return convertSOQLToB2BOrg(ctx, sfResult.Records[0])
 }
 
 // convertSOQLToB2BOrg converts a Salesforce Account SOQL result to the domain
 // B2BOrg model.
-func convertSOQLToB2BOrg(acc soqlAccount) (*model.B2BOrg, error) {
+func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, error) {
 	uid, err := sfuuid.ToUUID(acc.ID)
 	if err != nil {
 		return nil, fmt.Errorf("converting account SFID %q to UUID: %w", acc.ID, err)
 	}
 
 	org := &model.B2BOrg{
-		UID:     uid,
-		SFID:    acc.ID,
-		Name:    acc.Name,
-		Domain:  derefString(acc.Website),
-		LogoURL: derefString(acc.LogoURL),
+		UID:  uid,
+		SFID: acc.ID,
+		Name: acc.Name,
 	}
 
+	// Normalize Website: ensure it has a scheme so that url.Parse produces a
+	// host. If the value cannot be parsed at all, omit it with a warning.
+	if raw := derefString(acc.Website); raw != "" {
+		if u, parseErr := url.Parse(raw); parseErr == nil {
+			if u.Scheme == "" {
+				u.Scheme = "http"
+			}
+			org.Website = u.String()
+		} else {
+			slog.WarnContext(ctx, "account website could not be parsed, omitting",
+				"sfid", acc.ID,
+				"raw_value", raw,
+			)
+		}
+	}
+
+	// Normalize Account_Domain__c into PrimaryDomain.
+	if raw := derefString(acc.PrimaryDomain); raw != "" {
+		if normalized, ok := normalizeDomain(raw); ok {
+			org.PrimaryDomain = normalized
+		} else {
+			slog.WarnContext(ctx, "account primary domain does not look like a valid domain, omitting",
+				"sfid", acc.ID,
+				"raw_value", raw,
+			)
+		}
+	}
+
+	// Normalize Domain_Alias__c (comma-separated) into DomainAliases.
+	if raw := derefString(acc.DomainAlias); raw != "" {
+		for _, item := range strings.Split(raw, ",") {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				continue
+			}
+			if normalized, ok := normalizeDomain(item); ok {
+				org.DomainAliases = append(org.DomainAliases, normalized)
+			} else {
+				slog.WarnContext(ctx, "account domain alias item does not look like a valid domain, omitting",
+					"sfid", acc.ID,
+					"raw_value", item,
+				)
+			}
+		}
+	}
+
+	org.LogoURL = derefString(acc.LogoURL)
 	org.CreatedAt = parseSOQLTime(acc.CreatedDate)
 	org.UpdatedAt = parseSOQLTime(acc.LastModifiedDate)
 
@@ -170,4 +217,27 @@ func convertSOQLToB2BOrg(acc soqlAccount) (*model.B2BOrg, error) {
 	}
 
 	return org, nil
+}
+
+// normalizeDomain validates and returns the host portion of a bare domain
+// string. Values containing "/" or " " are rejected immediately. Bare domains
+// (no scheme) are handled by reading u.Path, which is where url.Parse places
+// them when no scheme is present.
+func normalizeDomain(s string) (string, bool) {
+	if strings.ContainsAny(s, "/ ") {
+		return "", false
+	}
+	u, err := url.Parse(s)
+	if err != nil {
+		return "", false
+	}
+	host := u.Host
+	if host == "" {
+		// Bare domain: url.Parse puts it in Path when there is no scheme.
+		host = u.Path
+	}
+	if host == "" {
+		return "", false
+	}
+	return host, true
 }

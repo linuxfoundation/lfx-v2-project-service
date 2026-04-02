@@ -83,23 +83,35 @@ paths:
                                     total_size: 100
                                 orgs:
                                     - created_at: "2025-01-01T00:00:00Z"
-                                      domain: https://example.com
+                                      domain_aliases:
+                                        - example.org
+                                        - example.net
                                       logo_url: https://example.com/logo.png
                                       name: Example Corp
+                                      primary_domain: example.com
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
+                                      website: https://example.com
                                     - created_at: "2025-01-01T00:00:00Z"
-                                      domain: https://example.com
+                                      domain_aliases:
+                                        - example.org
+                                        - example.net
                                       logo_url: https://example.com/logo.png
                                       name: Example Corp
+                                      primary_domain: example.com
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
+                                      website: https://example.com
                                     - created_at: "2025-01-01T00:00:00Z"
-                                      domain: https://example.com
+                                      domain_aliases:
+                                        - example.org
+                                        - example.net
                                       logo_url: https://example.com/logo.png
                                       name: Example Corp
+                                      primary_domain: example.com
                                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                       updated_at: "2025-06-01T12:00:00Z"
+                                      website: https://example.com
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
@@ -215,7 +227,6 @@ paths:
                                       company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
                                       end_date: "2025-12-31T23:59:59Z"
-                                      membership_type: Corporate
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
@@ -242,7 +253,6 @@ paths:
                                       company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
                                       end_date: "2025-12-31T23:59:59Z"
-                                      membership_type: Corporate
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
@@ -269,7 +279,6 @@ paths:
                                       company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
                                       end_date: "2025-12-31T23:59:59Z"
-                                      membership_type: Corporate
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
@@ -411,7 +420,6 @@ paths:
                                       company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
                                       end_date: "2025-12-31T23:59:59Z"
-                                      membership_type: Corporate
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
@@ -438,7 +446,6 @@ paths:
                                       company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
                                       end_date: "2025-12-31T23:59:59Z"
-                                      membership_type: Corporate
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
@@ -465,7 +472,6 @@ paths:
                                       company_name: Example Corp
                                       created_at: "2025-01-01T00:00:00Z"
                                       end_date: "2025-12-31T23:59:59Z"
-                                      membership_type: Corporate
                                       payment_frequency: Annual
                                       payment_terms: Net 30
                                       price: 50000
@@ -576,7 +582,6 @@ paths:
                                 company_name: Example Corp
                                 created_at: "2025-01-01T00:00:00Z"
                                 end_date: "2025-12-31T23:59:59Z"
-                                membership_type: Corporate
                                 payment_frequency: Annual
                                 payment_terms: Net 30
                                 price: 50000
@@ -1292,10 +1297,15 @@ components:
                     description: Creation timestamp
                     example: "2025-01-01T00:00:00Z"
                     format: date-time
-                domain:
-                    type: string
-                    description: Organization website domain
-                    example: https://example.com
+                domain_aliases:
+                    type: array
+                    items:
+                        type: string
+                        example: Eius voluptas et aspernatur.
+                    description: Additional normalized domains; each item has the same normalization as primary_domain
+                    example:
+                        - example.org
+                        - example.net
                 logo_url:
                     type: string
                     description: URL of the organization logo
@@ -1304,9 +1314,13 @@ components:
                     type: string
                     description: Organization name
                     example: Example Corp
+                primary_domain:
+                    type: string
+                    description: Normalized primary domain; bare host with scheme and path stripped, e.g. 'example.com'
+                    example: example.com
                 uid:
                     type: string
-                    description: B2BOrg UID (invertible UUID v8 from Account.Id)
+                    description: B2BOrg UID (invertible UUID v8)
                     example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
                 updated_at:
@@ -1314,14 +1328,22 @@ components:
                     description: Last update timestamp
                     example: "2025-06-01T12:00:00Z"
                     format: date-time
-            description: A B2B organization (Salesforce Account)
+                website:
+                    type: string
+                    description: Organization website link; may be a bare domain, full URI, or other text depending on source data quality
+                    example: https://example.com
+            description: A B2B organization
             example:
                 created_at: "2025-01-01T00:00:00Z"
-                domain: https://example.com
+                domain_aliases:
+                    - example.org
+                    - example.net
                 logo_url: https://example.com/logo.png
                 name: Example Corp
+                primary_domain: example.com
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
+                website: https://example.com
         CreateMembershipKeyContactRequestBody:
             type: object
             properties:
@@ -1425,52 +1447,70 @@ components:
                     description: List of B2B organizations
                     example:
                         - created_at: "2025-01-01T00:00:00Z"
-                          domain: https://example.com
+                          domain_aliases:
+                            - example.org
+                            - example.net
                           logo_url: https://example.com/logo.png
                           name: Example Corp
+                          primary_domain: example.com
                           uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
+                          website: https://example.com
                         - created_at: "2025-01-01T00:00:00Z"
-                          domain: https://example.com
+                          domain_aliases:
+                            - example.org
+                            - example.net
                           logo_url: https://example.com/logo.png
                           name: Example Corp
+                          primary_domain: example.com
                           uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
-                        - created_at: "2025-01-01T00:00:00Z"
-                          domain: https://example.com
-                          logo_url: https://example.com/logo.png
-                          name: Example Corp
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
+                          website: https://example.com
             example:
                 metadata:
                     next_page_token: ""
                     total_size: 100
                 orgs:
                     - created_at: "2025-01-01T00:00:00Z"
-                      domain: https://example.com
+                      domain_aliases:
+                        - example.org
+                        - example.net
                       logo_url: https://example.com/logo.png
                       name: Example Corp
+                      primary_domain: example.com
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
+                      website: https://example.com
                     - created_at: "2025-01-01T00:00:00Z"
-                      domain: https://example.com
+                      domain_aliases:
+                        - example.org
+                        - example.net
                       logo_url: https://example.com/logo.png
                       name: Example Corp
+                      primary_domain: example.com
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
+                      website: https://example.com
                     - created_at: "2025-01-01T00:00:00Z"
-                      domain: https://example.com
+                      domain_aliases:
+                        - example.org
+                        - example.net
                       logo_url: https://example.com/logo.png
                       name: Example Corp
+                      primary_domain: example.com
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
+                      website: https://example.com
                     - created_at: "2025-01-01T00:00:00Z"
-                      domain: https://example.com
+                      domain_aliases:
+                        - example.org
+                        - example.net
                       logo_url: https://example.com/logo.png
                       name: Example Corp
+                      primary_domain: example.com
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       updated_at: "2025-06-01T12:00:00Z"
+                      website: https://example.com
             required:
                 - orgs
                 - metadata
@@ -1537,8 +1577,44 @@ components:
                           title: CTO
                           uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                           updated_at: "2025-06-01T12:00:00Z"
+                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          board_member: false
+                          company_domain: https://example.com
+                          company_logo_url: https://example.com/logo.png
+                          company_name: Example Corp
+                          created_at: "2025-01-01T00:00:00Z"
+                          email: john.doe@example.com
+                          first_name: John
+                          last_name: Doe
+                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          primary_contact: true
+                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                          role: Voting Representative
+                          status: Active
+                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          title: CTO
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          updated_at: "2025-06-01T12:00:00Z"
             example:
                 contacts:
+                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      board_member: false
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      email: john.doe@example.com
+                      first_name: John
+                      last_name: Doe
+                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      primary_contact: true
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      role: Voting Representative
+                      status: Active
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      title: CTO
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
                     - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                       board_member: false
                       company_domain: https://example.com
@@ -1586,7 +1662,7 @@ components:
                     example: ""
                 total_size:
                     type: integer
-                    description: Total number of records matching the query, as reported by Salesforce. Set on the first page; may be 0 on continuation pages.
+                    description: Total number of records matching the query. Set on the first page; may be 0 on continuation pages.
                     example: 100
                     format: int64
             description: Pagination metadata for list responses
@@ -1611,7 +1687,6 @@ components:
                           company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
                           end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
                           payment_frequency: Annual
                           payment_terms: Net 30
                           price: 50000
@@ -1638,7 +1713,6 @@ components:
                           company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
                           end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
                           payment_frequency: Annual
                           payment_terms: Net 30
                           price: 50000
@@ -1665,7 +1739,6 @@ components:
                           company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
                           end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
                           payment_frequency: Annual
                           payment_terms: Net 30
                           price: 50000
@@ -1692,7 +1765,6 @@ components:
                           company_name: Example Corp
                           created_at: "2025-01-01T00:00:00Z"
                           end_date: "2025-12-31T23:59:59Z"
-                          membership_type: Corporate
                           payment_frequency: Annual
                           payment_terms: Net 30
                           price: 50000
@@ -1723,7 +1795,6 @@ components:
                       company_name: Example Corp
                       created_at: "2025-01-01T00:00:00Z"
                       end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
                       payment_frequency: Annual
                       payment_terms: Net 30
                       price: 50000
@@ -1750,7 +1821,58 @@ components:
                       company_name: Example Corp
                       created_at: "2025-01-01T00:00:00Z"
                       end_date: "2025-12-31T23:59:59Z"
-                      membership_type: Corporate
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_slug: kubernetes
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
+                      payment_frequency: Annual
+                      payment_terms: Net 30
+                      price: 50000
+                      project_slug: kubernetes
+                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                      purchase_date: "2025-01-15T00:00:00Z"
+                      renewal_type: Annual
+                      start_date: "2025-02-01T00:00:00Z"
+                      status: Active
+                      tier: Gold
+                      tier_family: Membership
+                      tier_name: Gold Corporate Membership
+                      tier_product_type: Corporate
+                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      updated_at: "2025-06-01T12:00:00Z"
+                      year: "2025"
+                    - agreement_date: "2025-01-01T00:00:00Z"
+                      annual_full_price: 50000
+                      auto_renew: true
+                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      company_domain: https://example.com
+                      company_logo_url: https://example.com/logo.png
+                      company_name: Example Corp
+                      created_at: "2025-01-01T00:00:00Z"
+                      end_date: "2025-12-31T23:59:59Z"
                       payment_frequency: Annual
                       payment_terms: Net 30
                       price: 50000
@@ -2010,10 +2132,6 @@ components:
                     type: string
                     description: Membership end date
                     example: "2025-12-31T23:59:59Z"
-                membership_type:
-                    type: string
-                    description: Membership type (derived from Asset RecordType)
-                    example: Corporate
                 payment_frequency:
                     type: string
                     description: Payment frequency
@@ -2098,7 +2216,6 @@ components:
                 company_name: Example Corp
                 created_at: "2025-01-01T00:00:00Z"
                 end_date: "2025-12-31T23:59:59Z"
-                membership_type: Corporate
                 payment_frequency: Annual
                 payment_terms: Net 30
                 price: 50000

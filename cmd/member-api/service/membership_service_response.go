@@ -53,7 +53,6 @@ func convertProjectMembershipToResponse(m *model.ProjectMembership) *memberships
 		UID:             &m.UID,
 		ProjectUID:      &m.ProjectUID,
 		Status:          &m.Status,
-		MembershipType:  &m.MembershipType,
 		AutoRenew:       &m.AutoRenew,
 		Price:           &m.Price,
 		AnnualFullPrice: &m.AnnualFullPrice,
@@ -188,8 +187,14 @@ func convertB2BOrgToResponse(org *model.B2BOrg) *membershipservice.B2bOrgRespons
 		Name: &org.Name,
 	}
 
-	if org.Domain != "" {
-		r.Domain = &org.Domain
+	if org.Website != "" {
+		r.Website = &org.Website
+	}
+	if org.PrimaryDomain != "" {
+		r.PrimaryDomain = &org.PrimaryDomain
+	}
+	if len(org.DomainAliases) > 0 {
+		r.DomainAliases = org.DomainAliases
 	}
 	if org.LogoURL != "" {
 		r.LogoURL = &org.LogoURL
