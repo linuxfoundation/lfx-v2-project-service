@@ -51,7 +51,6 @@ func convertProjectMembershipToResponse(m *model.ProjectMembership) *memberships
 
 	r := &membershipservice.ProjectMembershipResponse{
 		UID:             &m.UID,
-		ProjectUID:      &m.ProjectUID,
 		Status:          &m.Status,
 		AutoRenew:       &m.AutoRenew,
 		Price:           &m.Price,
@@ -67,6 +66,9 @@ func convertProjectMembershipToResponse(m *model.ProjectMembership) *memberships
 		r.TierUID = &m.TierUID
 	}
 
+	if m.ProjectUID != "" {
+		r.ProjectUID = &m.ProjectUID
+	}
 	if m.ProjectSlug != "" {
 		r.ProjectSlug = &m.ProjectSlug
 	}
@@ -138,8 +140,6 @@ func convertProjectKeyContactToResponse(c *model.KeyContact) *membershipservice.
 	r := &membershipservice.ProjectKeyContactResponse{
 		UID:            &c.UID,
 		MembershipUID:  &c.MembershipUID,
-		TierUID:        &c.TierUID,
-		ProjectUID:     &c.ProjectUID,
 		Role:           &c.Role,
 		Status:         &c.Status,
 		BoardMember:    &c.BoardMember,
@@ -147,6 +147,13 @@ func convertProjectKeyContactToResponse(c *model.KeyContact) *membershipservice.
 		FirstName:      &c.FirstName,
 		LastName:       &c.LastName,
 		CompanyName:    &c.CompanyName,
+	}
+
+	if c.TierUID != "" {
+		r.TierUID = &c.TierUID
+	}
+	if c.ProjectUID != "" {
+		r.ProjectUID = &c.ProjectUID
 	}
 
 	if c.Title != "" {
