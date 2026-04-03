@@ -20,9 +20,11 @@ type ProjectMembership struct {
 	// ProjectUID is the v2 UUID of the project this membership belongs to.
 	ProjectUID string `json:"project_uid"`
 
-	// ProjectSlug is the URL slug of the associated project. Used internally
-	// by the resolver to populate ProjectUID; not included in API responses.
-	ProjectSlug string `json:"-"`
+	// ProjectSlug is the URL slug of the associated project (e.g. "kubernetes").
+	// Populated from the Projects__r relationship on the Salesforce Asset record.
+	// Included in API responses and preserved in the cache so that ProjectUID
+	// can be resolved from it after a cache round-trip.
+	ProjectSlug string `json:"project_slug,omitempty"`
 
 	// AccountSFID is the raw Salesforce Account.Id for this membership's
 	// company. Used internally by the write path to associate new Contact
