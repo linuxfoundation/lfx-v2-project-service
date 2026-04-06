@@ -46,8 +46,8 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `logo_url` | string (optional) | URL to the project logo |
 | `website_url` | string (optional) | Project website URL |
 | `repository_url` | string (optional) | Project repository URL |
-| `created_at` | timestamp | Creation time (RFC3339) |
-| `updated_at` | timestamp | Last update time (RFC3339) |
+| `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
+| `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 
 ### Tags
 
@@ -99,17 +99,19 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
 | `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
 | `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
-| `created_at` | timestamp | Creation time (RFC3339) |
-| `updated_at` | timestamp | Last update time (RFC3339) |
+| `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
+| `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 
 ### Tags
 
-| Tag Format | Example | Purpose |
-|---|---|---|
-| `{uid}` | `cbef1ed5-17dc-4a50-84e2-6cddd70f6878` | Direct lookup by UID |
-| `{mission_statement}` | `Advancing open source...` | Lookup by mission statement text |
+Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved by the indexer using the document's own field values.
 
-> Tags are only emitted when the value is non-empty.
+| Tag Template | Resolved Example | Purpose |
+|---|---|---|
+| `{{ uid }}` | `cbef1ed5-17dc-4a50-84e2-6cddd70f6878` | Direct lookup by UID |
+| `{{ mission_statement }}` | `Advancing open source...` | Lookup by mission statement text |
+
+> Tags are only emitted when the corresponding field is non-empty.
 
 ### Access Control (IndexingConfig)
 
