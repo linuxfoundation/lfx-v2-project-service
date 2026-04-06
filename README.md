@@ -45,23 +45,13 @@ This service publishes the following NATS events:
   }
   ```
 
-### Project Tags
+### Indexer Contract
 
-The LFX v2 Project Service generates tags for projects that are sent to the indexer-service.
+This service indexes project data into the indexer service, making it searchable via the query service.
 
-#### Tags Generated for Projects
+Each indexer message includes an `IndexingConfig` that provides pre-computed metadata for the indexer service. When present, it bypasses server-side enrichers and controls how the document is stored, searched, and access-checked in the index. For the full field reference and message format details, see the [indexer service client guide](https://github.com/linuxfoundation/lfx-v2-indexer-service/blob/main/docs/client-guide.md).
 
-When projects are created or updated, the following tag is generated:
-
-| Project Field | Tag Format | Example | Purpose |
-|--------------|-----------|---------|---------|
-| Slug | `project_slug:<value>` | `project_slug:test-project` | Namespaced lookup by slug |
-
-**Note**: Additional project metadata (UID, ParentUID, Name, Description, etc.) is sent via the `IndexingConfig` field.
-
-#### Tags Generated for Project Settings
-
-Project settings generate no tags. All metadata is sent via the `IndexingConfig` field.
+For the data schemas, tags, access control values, parent references, and fulltext fields for all resource types — see [`docs/indexer-contract.md`](docs/indexer-contract.md).
 
 ## Quick Start
 
