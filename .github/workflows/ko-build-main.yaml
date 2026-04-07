@@ -27,7 +27,15 @@ jobs:
       - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d  # v0.9
         with:
           version: v0.18.0
-      - run: |
+      - name: Build and publish project-api image
+        env:
+          VERSION: development
+          GIT_COMMIT: ${{ github.sha }}
+        run: |
+          BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+          export BUILD_TIME
+          GIT_COMMIT=${GIT_COMMIT:0:7}
+          export GIT_COMMIT
           ko build github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api \
             -B \
             --platform linux/amd64,linux/arm64 \

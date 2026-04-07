@@ -18,6 +18,8 @@ import (
 	natsio "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
@@ -295,10 +297,11 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 	}
 
 	// Create and send the project indexer message
-	projectMessage := models.ProjectIndexerMessage{
-		Action: models.ActionCreated,
-		Data:   project,
-		Tags:   []string{}, // Empty tags for root project
+	projectMessage := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionCreated,
+		Data:           project,
+		Tags:           []string{}, // Empty tags for root project
+		IndexingConfig: project.IndexingConfig(),
 	}
 
 	if err := msgBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, projectMessage, false); err != nil {
@@ -307,10 +310,11 @@ func sendIndexMessage(ctx context.Context, natsConn *natsio.Conn, project models
 	}
 
 	// Create and send the project settings indexer message
-	settingsMessage := models.ProjectSettingsIndexerMessage{
-		Action: models.ActionCreated,
-		Data:   settings,
-		Tags:   []string{}, // Empty tags for root project
+	settingsMessage := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionCreated,
+		Data:           settings,
+		Tags:           []string{}, // Empty tags for root project
+		IndexingConfig: settings.IndexingConfig(project.UID),
 	}
 
 	if err := msgBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, settingsMessage, false); err != nil {

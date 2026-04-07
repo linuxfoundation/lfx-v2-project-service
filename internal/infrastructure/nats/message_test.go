@@ -9,6 +9,8 @@ import (
 	"errors"
 	"testing"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
@@ -33,19 +35,19 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send project indexer message",
 			subject: constants.IndexProjectSubject,
-			message: models.ProjectIndexerMessage{
-				Action: models.ActionCreated,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test-project", Name: "test", Slug: "test"},
 				Tags:   []string{"test-project", "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.IndexerMessageEnvelope
+					var msg indexerTypes.IndexerMessageEnvelope
 					err := json.Unmarshal(data, &msg)
 					if err != nil {
 						return false
 					}
-					return msg.Action == models.ActionCreated
+					return msg.Action == indexerConstants.ActionCreated
 				})).Return(nil)
 			},
 			setupCtx: func() context.Context {
@@ -59,8 +61,8 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send project settings indexer message",
 			subject: constants.IndexProjectSettingsSubject,
-			message: models.ProjectSettingsIndexerMessage{
-				Action: models.ActionUpdated,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionUpdated,
 				Data:   models.ProjectSettings{UID: "test-settings", MissionStatement: "test mission"},
 				Tags:   []string{"test-settings", "test mission"},
 			},
@@ -93,8 +95,8 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "nats publish error",
 			subject: constants.IndexProjectSubject,
-			message: models.ProjectIndexerMessage{
-				Action: models.ActionCreated,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test"},
 				Tags:   []string{"test"},
 			},
@@ -142,19 +144,19 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 		{
 			name:    "successful sync send project indexer message",
 			subject: constants.IndexProjectSubject,
-			message: models.ProjectIndexerMessage{
-				Action: models.ActionCreated,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test-project", Name: "test", Slug: "test"},
 				Tags:   []string{"test-project", "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Request", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.IndexerMessageEnvelope
+					var msg indexerTypes.IndexerMessageEnvelope
 					err := json.Unmarshal(data, &msg)
 					if err != nil {
 						return false
 					}
-					return msg.Action == models.ActionCreated
+					return msg.Action == indexerConstants.ActionCreated
 				}), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("ack")}, nil)
 			},
 			setupCtx: func() context.Context {
@@ -168,8 +170,8 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 		{
 			name:    "successful sync send project settings indexer message",
 			subject: constants.IndexProjectSettingsSubject,
-			message: models.ProjectSettingsIndexerMessage{
-				Action: models.ActionUpdated,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionUpdated,
 				Data:   models.ProjectSettings{UID: "test-settings", MissionStatement: "test mission"},
 				Tags:   []string{"test-settings", "test mission"},
 			},
@@ -192,8 +194,8 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 		{
 			name:    "nats request error - sync mode",
 			subject: constants.IndexProjectSubject,
-			message: models.ProjectIndexerMessage{
-				Action: models.ActionCreated,
+			message: indexerTypes.IndexerMessageEnvelope{
+				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test"},
 				Tags:   []string{"test"},
 			},

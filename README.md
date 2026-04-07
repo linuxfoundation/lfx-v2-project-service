@@ -88,45 +88,21 @@ This service uses the generic FGA sync handlers for managing fine-grained access
 
 ### Project Tags
 
-The LFX v2 Project Service generates a set of tags for projects and project settings that are sent to the indexer-service. These tags enable searchability and discoverability of projects through OpenSearch.
+The LFX v2 Project Service generates tags for projects that are sent to the indexer-service.
 
 #### Tags Generated for Projects
 
-When projects are created or updated, the following tags are automatically generated:
+When projects are created or updated, the following tag is generated:
 
 | Project Field | Tag Format | Example | Purpose |
 |--------------|-----------|---------|---------|
-| UID | Plain value | `f1545930-b9b7-420d-942b-eb53c1a63428` | Direct lookup by ID |
-| UID | `project_uid:<value>` | `project_uid:f1545930-b9b7-420d-942b-eb53c1a63428` | Namespaced lookup by ID |
-| ParentUID | `parent_uid:<value>` | `parent_uid:efc80205-b0b3-4943-9395-2b634985a142` | Find child projects of a parent |
-| Slug | Plain value | `test-project-tags-indexed` | Direct lookup by slug |
-| Slug | `project_slug:<value>` | `project_slug:test-project-tags-indexed` | Namespaced lookup by slug |
-| Name | Plain value | `Updated Foo Foundation` | Text search by project name |
-| Description | Plain value | `Updated description for tag testing` | Full-text search in descriptions |
+| Slug | `project_slug:<value>` | `project_slug:test-project` | Namespaced lookup by slug |
+
+**Note**: Additional project metadata (UID, ParentUID, Name, Description, etc.) is sent via the `IndexingConfig` field.
 
 #### Tags Generated for Project Settings
 
-Project settings generate a separate set of tags:
-
-| Settings Field | Tag Format | Example | Purpose |
-|---------------|-----------|---------|---------|
-| UID | Plain value | `f1545930-b9b7-420d-942b-eb53c1a63428` | Direct lookup by ID |
-| UID | `project_uid:<value>` | `project_uid:f1545930-b9b7-420d-942b-eb53c1a63428` | Namespaced lookup by ID |
-| MissionStatement | Plain value | `Updated mission statement for testing tags` | Full-text search in mission statements |
-
-#### How Tags Are Used
-
-Tags serve multiple important purposes in the LFX system:
-
-1. **Indexed Search**: Tags are indexed in OpenSearch, enabling fast lookups and text searches across projects
-
-2. **Relationship Navigation**: Parent-child relationships can be traversed using the parent_uid tags
-
-3. **Multiple Access Patterns**: Both plain value and prefixed tags support different query patterns:
-   - Plain values support general text search (e.g., "find projects containing 'foo'")
-   - Prefixed values support field-specific search (e.g., "find projects with slug 'test-project'")
-
-4. **Data Synchronization**: When projects or settings are updated, their tags are automatically updated, ensuring search results remain current
+Project settings generate no tags. All metadata is sent via the `IndexingConfig` field.
 
 ## Quick Start
 
@@ -344,9 +320,7 @@ To create a new release of the project service:
 
 2. **After the pull request is merged**, create a GitHub release and choose the
    option for GitHub to also tag the repository. The tag must follow the format
-   `v{version}` (e.g., `v0.2.0`). This tag does _not_ have to match the chart
-   version: it is the version for the project release, which will dynamically
-   update the `appVersion` in the released chart.
+   `v{version}` (e.g., `v0.2.0`). The tag version used will be the same as the chart version and app version for the helm chart.
 
 3. **The GitHub Actions workflow will automatically**:
    - Build and publish the container images (project-api and root-project-setup)
@@ -358,8 +332,7 @@ To create a new release of the project service:
 ### Important Notes
 
 - The `appVersion` in `Chart.yaml` should always remain `"latest"` in the committed code.
-- During the release process, the `ko-build-tag.yaml` workflow automatically overrides the `appVersion` with the actual tag version (e.g., `v0.2.0` becomes `0.2.0`).
-- Only update the chart `version` field when making releases - this represents the Helm chart version.
+- During the release process, the `ko-build-tag.yaml` workflow automatically overrides the `appVersion` and `version` with the actual tag version (e.g., `v0.2.0` becomes `0.2.0`).
 - The container image tags are automatically managed by the consolidated CI/CD pipeline using the git tag.
 - Both container images (project-api and root-project-setup) and the Helm chart are published together in a single workflow.
 

@@ -22,6 +22,25 @@ initImage:
 # replicaCount is the number of replicas for the deployment
 replicaCount: 3
 
+# podAnnotations are additional annotations applied to the pod template.
+# Example:
+#   prometheus.io/scrape: "true"
+#   prometheus.io/port: "8080"
+podAnnotations: {}
+
+# podLabels are additional labels applied to the pod template.
+# Example:
+#   team: platform
+#   environment: production
+podLabels: {}
+
+# podDisruptionBudget configures a PodDisruptionBudget for the deployment.
+# Only one of minAvailable or maxUnavailable may be set (not both).
+podDisruptionBudget:
+  enabled: false
+  # minAvailable: 1
+  # maxUnavailable: 1
+
 # resources is the configuration for container resource limits and requests
 resources:
   # limits is the maximum amount of resources the container can use
@@ -49,6 +68,43 @@ app:
   jwtAuthDisabledMockLocalPrincipal: ""
   # use_oidc_contextualizer is a boolean to determine if the OIDC contextualizer should be used
   use_oidc_contextualizer: true
+  # extraEnv is a list of additional environment variables to set in the container.
+  # Supports both simple key-value pairs and Kubernetes field references.
+  extraEnv: []
+  # otel is the configuration for OpenTelemetry tracing
+  otel:
+    # serviceName is the service name for OpenTelemetry resource identification
+    # (default: "lfx-v2-project-service")
+    serviceName: ""
+    # serviceVersion is the service version for OpenTelemetry resource identification
+    # (default: "1.0.0")
+    serviceVersion: ""
+    # protocol specifies the OTLP protocol: "grpc" or "http"
+    # (default: "grpc")
+    protocol: "grpc"
+    # endpoint is the OTLP collector endpoint
+    # For gRPC: typically "host:4317", for HTTP: typically "host:4318"
+    endpoint: ""
+    # insecure disables TLS for the OTLP connection
+    # Set to "true" for in-cluster communication without TLS
+    insecure: "false"
+    # tracesExporter specifies the traces exporter: "otlp" or "none"
+    # (default: "none")
+    tracesExporter: "none"
+    # tracesSampleRatio specifies the sampling ratio for traces (0.0 to 1.0)
+    # A value of 1.0 means all traces are sampled, 0.5 means 50% are sampled
+    # (default: "1.0")
+    tracesSampleRatio: "1.0"
+    # metricsExporter specifies the metrics exporter: "otlp" or "none"
+    # (default: "none")
+    metricsExporter: "none"
+    # logsExporter specifies the logs exporter: "otlp" or "none"
+    # (default: "none")
+    logsExporter: "none"
+    # propagators specifies the propagators to use, comma-separated
+    # Supported values: "tracecontext", "baggage", "jaeger"
+    # (default: "tracecontext,baggage")
+    propagators: "tracecontext,baggage,jaeger"
 
 # traefik is the configuration for Traefik Gateway API routing
 traefik:
@@ -99,6 +155,8 @@ nats:
     keep: true
     # name is the name of the KV bucket for storing project base information
     name: projects
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
     # history is the number of history entries to keep for the KV bucket
     history: 20
     # storage is the storage type for the KV bucket
@@ -120,6 +178,8 @@ nats:
     keep: true
     # name is the name of the KV bucket for storing project settings
     name: project-settings
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
     # history is the number of history entries to keep for the KV bucket
     history: 20
     # storage is the storage type for the KV bucket
