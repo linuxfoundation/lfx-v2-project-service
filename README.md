@@ -51,7 +51,7 @@ This service publishes the following NATS events:
 
 #### Access Control Events
 
-This service uses the generic FGA sync handlers for managing fine-grained access control. All access control messages use the `GenericFGAMessage` envelope format:
+This service uses the generic FGA sync handlers for managing fine-grained access control. All access control messages use the `GenericFGAMessage` envelope format. For the full authoritative reference, see [docs/fga-contract.md](docs/fga-contract.md).
 
 - `lfx.fga-sync.update_access`: Published when project access permissions are updated. This is a full sync operation - any relations not included will be removed. Message format:
 
