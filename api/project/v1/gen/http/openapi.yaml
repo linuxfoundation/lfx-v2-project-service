@@ -831,6 +831,8 @@ definitions:
                 description: The URL of the project entity formation document
                 example: https://example.com/formation.pdf
                 format: uri
+            executive_director:
+                $ref: '#/definitions/UserInfo'
             formation_date:
                 type: string
                 description: The date the project was formed
@@ -979,6 +981,11 @@ definitions:
             description: project foo is a project about bar
             entity_dissolution_date: "2021-12-31"
             entity_formation_document_url: https://example.com/formation.pdf
+            executive_director:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             formation_date: "2021-01-01"
             funding_model:
                 - Crowdfunding
@@ -1087,6 +1094,8 @@ definitions:
                 description: The URL of the project entity formation document
                 example: https://example.com/formation.pdf
                 format: uri
+            executive_director:
+                $ref: '#/definitions/UserInfo'
             formation_date:
                 type: string
                 description: The date the project was formed
@@ -1223,6 +1232,11 @@ definitions:
             description: project foo is a project about bar
             entity_dissolution_date: "2021-12-31"
             entity_formation_document_url: https://example.com/formation.pdf
+            executive_director:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             formation_date: "2021-01-01"
             funding_model:
                 - Crowdfunding
@@ -1295,6 +1309,11 @@ definitions:
                       description: project foo is a project about bar
                       entity_dissolution_date: "2021-12-31"
                       entity_formation_document_url: https://example.com/formation.pdf
+                      executive_director:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
@@ -1348,6 +1367,11 @@ definitions:
                       description: project foo is a project about bar
                       entity_dissolution_date: "2021-12-31"
                       entity_formation_document_url: https://example.com/formation.pdf
+                      executive_director:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
@@ -1401,6 +1425,11 @@ definitions:
                       description: project foo is a project about bar
                       entity_dissolution_date: "2021-12-31"
                       entity_formation_document_url: https://example.com/formation.pdf
+                      executive_director:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
@@ -1454,6 +1483,11 @@ definitions:
                       description: project foo is a project about bar
                       entity_dissolution_date: "2021-12-31"
                       entity_formation_document_url: https://example.com/formation.pdf
+                      executive_director:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       formation_date: "2021-01-01"
                       funding_model:
                         - Crowdfunding
@@ -1509,6 +1543,11 @@ definitions:
                   description: project foo is a project about bar
                   entity_dissolution_date: "2021-12-31"
                   entity_formation_document_url: https://example.com/formation.pdf
+                  executive_director:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
                   formation_date: "2021-01-01"
                   funding_model:
                     - Crowdfunding
@@ -1562,6 +1601,11 @@ definitions:
                   description: project foo is a project about bar
                   entity_dissolution_date: "2021-12-31"
                   entity_formation_document_url: https://example.com/formation.pdf
+                  executive_director:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
                   formation_date: "2021-01-01"
                   funding_model:
                     - Crowdfunding
@@ -1790,6 +1834,8 @@ definitions:
                       email: jane.smith@example.com
                       name: Jane Smith
                       username: janesmith456
+            executive_director:
+                $ref: '#/definitions/UserInfo'
             meeting_coordinators:
                 type: array
                 items:
@@ -1833,6 +1879,11 @@ definitions:
                   email: jane.smith@example.com
                   name: Jane Smith
                   username: janesmith456
+            executive_director:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com
@@ -1880,6 +1931,8 @@ definitions:
                 description: The date and time the project was created
                 example: "2021-01-01T00:00:00Z"
                 format: date-time
+            executive_director:
+                $ref: '#/definitions/UserInfo'
             meeting_coordinators:
                 type: array
                 items:
@@ -1935,6 +1988,11 @@ definitions:
                   name: Jane Smith
                   username: janesmith456
             created_at: "2021-01-01T00:00:00Z"
+            executive_director:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com

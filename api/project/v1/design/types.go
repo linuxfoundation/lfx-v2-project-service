@@ -102,6 +102,7 @@ func ProjectSettingsAttributes() {
 	ProjectWritersAttribute()
 	ProjectMeetingCoordinatorsAttribute()
 	ProjectAuditorsAttribute()
+	ProjectExecutiveDirectorAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
 }
@@ -293,6 +294,18 @@ func ProjectWritersAttribute() {
 				"username": "bobwilson101",
 				"avatar":   "https://example.com/avatar4.jpg",
 			},
+		})
+	})
+}
+
+// ProjectExecutiveDirectorAttribute is the DSL attribute for a project executive director.
+func ProjectExecutiveDirectorAttribute() {
+	Attribute("executive_director", UserInfo, "The executive director of the project with their profile information", func() {
+		Example(map[string]interface{}{
+			"name":     "Jane Smith",
+			"email":    "jane.smith@example.com",
+			"username": "janesmith456",
+			"avatar":   "https://example.com/avatar.jpg",
 		})
 	})
 }

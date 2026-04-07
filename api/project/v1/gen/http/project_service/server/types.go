@@ -67,6 +67,8 @@ type CreateProjectRequestBody struct {
 	MeetingCoordinators []*UserInfoRequestBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 }
 
 // UpdateProjectBaseRequestBody is the type of the "project-service" service
@@ -127,6 +129,8 @@ type UpdateProjectSettingsRequestBody struct {
 	MeetingCoordinators []*UserInfoRequestBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
@@ -195,6 +199,8 @@ type CreateProjectResponseBody struct {
 	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 }
 
 // GetOneProjectBaseResponseBody is the type of the "project-service" service
@@ -271,6 +277,8 @@ type UpdateProjectSettingsResponseBody struct {
 	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -605,6 +613,8 @@ type ProjectFullResponseBody struct {
 	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 }
 
 // UserInfoResponseBody is used to define fields on response body types.
@@ -683,6 +693,8 @@ type ProjectSettingsResponseBody struct {
 	MeetingCoordinators []*UserInfoResponseBody `form:"meeting_coordinators,omitempty" json:"meeting_coordinators,omitempty" xml:"meeting_coordinators,omitempty"`
 	// A list of project auditors with their profile information
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -769,6 +781,9 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
+	if res.ExecutiveDirector != nil {
+		body.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoResponseBody(res.ExecutiveDirector)
+	}
 	return body
 }
 
@@ -838,6 +853,9 @@ func NewGetOneProjectSettingsResponseBody(res *projectservice.GetOneProjectSetti
 			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
+	if res.ProjectSettings.ExecutiveDirector != nil {
+		body.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoResponseBody(res.ProjectSettings.ExecutiveDirector)
+	}
 	return body
 }
 
@@ -906,6 +924,9 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 		for i, val := range res.Auditors {
 			body.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
+	}
+	if res.ExecutiveDirector != nil {
+		body.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoResponseBody(res.ExecutiveDirector)
 	}
 	return body
 }
@@ -1261,6 +1282,9 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 			v.Auditors[i] = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
 	}
+	if body.ExecutiveDirector != nil {
+		v.ExecutiveDirector = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(body.ExecutiveDirector)
+	}
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.XSync = xSync
@@ -1353,6 +1377,9 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 		for i, val := range body.Auditors {
 			v.Auditors[i] = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(val)
 		}
+	}
+	if body.ExecutiveDirector != nil {
+		v.ExecutiveDirector = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(body.ExecutiveDirector)
 	}
 	v.UID = &uid
 	v.Version = version
@@ -1465,6 +1492,11 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 			}
 		}
 	}
+	if body.ExecutiveDirector != nil {
+		if err2 := ValidateUserInfoRequestBody(body.ExecutiveDirector); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	return
 }
 
@@ -1561,6 +1593,11 @@ func ValidateUpdateProjectSettingsRequestBody(body *UpdateProjectSettingsRequest
 			if err2 := ValidateUserInfoRequestBody(e); err2 != nil {
 				err = goa.MergeErrors(err, err2)
 			}
+		}
+	}
+	if body.ExecutiveDirector != nil {
+		if err2 := ValidateUserInfoRequestBody(body.ExecutiveDirector); err2 != nil {
+			err = goa.MergeErrors(err, err2)
 		}
 	}
 	return
