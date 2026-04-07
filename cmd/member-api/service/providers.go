@@ -108,7 +108,7 @@ func sfInit(ctx context.Context) {
 // CloseNATSClient closes the NATS client connection if it was initialised.
 func CloseNATSClient() {
 	if natsClient != nil {
-		natsClient.Close()
+		natsClient.Close() //nolint:errcheck // NATS Close does not return a meaningful error in practice.
 	}
 }
 
@@ -183,6 +183,40 @@ func MemberReaderImpl(ctx context.Context) port.MemberReader {
 			salesforce.NewMembershipRepo(sfClient),
 			salesforce.NewKeyContactRepo(sfClient),
 			resolver,
+			cache,
+		)
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
+		return nil
+	}
+}
+
+// B2BOrgReaderImpl initialises and returns the port.B2BOrgReader implementation
+// selected by the REPOSITORY_SOURCE environment variable:
+//
+//   - "salesforce" (default) — Salesforce SOQL queries with NATS KV caching.
+//   - "mock"                 — In-memory mock that always returns empty pages.
+func B2BOrgReaderImpl(ctx context.Context) port.B2BOrgReader {
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
+
+	switch repoSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock B2B org reader")
+		return mock.NewMockB2BOrgReader()
+
+	case "salesforce":
+		slog.InfoContext(ctx, "initialising Salesforce B2B org reader with NATS KV cache")
+
+		natsInit(ctx)
+		sfInit(ctx)
+
+		cache := nats.NewStorage(natsClient)
+		return salesforce.NewB2BOrgReader(
+			salesforce.NewAccountRepo(sfClient),
 			cache,
 		)
 

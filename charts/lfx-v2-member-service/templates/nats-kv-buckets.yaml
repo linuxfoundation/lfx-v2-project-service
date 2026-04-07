@@ -21,3 +21,24 @@ spec:
   compression: {{ .Values.nats.kv_bucket_cache.compression }}
   ttl: {{ .Values.nats.kv_bucket_cache.ttl }}
 {{- end }}
+---
+{{- if .Values.nats.kv_bucket_sobject_cache.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_sobject_cache.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_sobject_cache.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_sobject_cache.name }}
+  replicas: {{ .Values.nats.kv_bucket_sobject_cache.replicas }}
+  history: {{ .Values.nats.kv_bucket_sobject_cache.history }}
+  storage: {{ .Values.nats.kv_bucket_sobject_cache.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_sobject_cache.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_sobject_cache.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_sobject_cache.compression }}
+  ttl: {{ .Values.nats.kv_bucket_sobject_cache.ttl }}
+{{- end }}

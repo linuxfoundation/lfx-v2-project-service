@@ -26,7 +26,7 @@ import (
 const membershipSOQL = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -45,7 +45,7 @@ WHERE Product2.Family = 'Membership'
 const membershipByIDSOQL = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -60,12 +60,14 @@ WHERE Id = %s
     AND IsDeleted = false
 `
 
-// membershipsByAccountSOQL fetches all membership Assets for a given Account ID.
-// The caller must substitute a quoteSOQL-escaped ID for the %s placeholder.
-const membershipsByAccountSOQL = `
+// membershipsByAccountSOQLBase is the SELECT and fixed WHERE base for
+// FetchMembershipsByAccountSFID and FetchFirstMembershipBatchByAccount. The
+// caller appends additional AND clauses for any active MembershipFilters, then
+// an ORDER BY clause, before executing the query.
+const membershipsByAccountSOQLBase = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -77,8 +79,7 @@ SELECT
 FROM Asset
 WHERE AccountId = %s
     AND Product2.Family = 'Membership'
-    AND IsDeleted = false
-`
+    AND IsDeleted = false`
 
 // membershipsByProjectSOQLBase is the SELECT and fixed WHERE base for
 // FetchMembershipsByProjectSFID and FetchMembershipPage. The caller appends
@@ -87,7 +88,7 @@ WHERE AccountId = %s
 const membershipsByProjectSOQLBase = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
-    Year__c, Tier__c, RecordTypeId, Auto_Renew__c,
+    Year__c, Tier__c, Auto_Renew__c,
     Renewal_Type__c, Price, Annual_Full_Price__c,
     PaymentFrequency__c, PaymentTerms__c,
     Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
@@ -180,8 +181,10 @@ func (r *MembershipRepo) FetchMembershipsByAccountSFID(ctx context.Context, acco
 		"account_sfid", accountSFID,
 	)
 
+	query := fmt.Sprintf(membershipsByAccountSOQLBase, quoteSOQL(accountSFID)) +
+		soqlOrderByClause(model.SortOrderDefault)
 	var assets []soqlAsset
-	if err := r.client.Query(fmt.Sprintf(membershipsByAccountSOQL, quoteSOQL(accountSFID)), &assets); err != nil {
+	if err := r.client.Query(query, &assets); err != nil {
 		return nil, fmt.Errorf("fetching memberships for account %s: %w", accountSFID, err)
 	}
 
@@ -333,6 +336,68 @@ func (r *MembershipRepo) FetchFirstMembershipBatch(ctx context.Context, projectS
 	}, nil
 }
 
+// buildMembershipsByAccountSOQL assembles the full SOQL query string for
+// FetchMembershipsByAccountSFID and FetchFirstMembershipBatchByAccount,
+// appending optional filter predicates and an ORDER BY clause. All interpolated
+// values are passed through quoteSOQL to prevent injection.
+func buildMembershipsByAccountSOQL(ctx context.Context, accountSFID string, filters model.MembershipFilters) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, membershipsByAccountSOQLBase, quoteSOQL(accountSFID))
+	if filters.TierUID != "" {
+		tierSFID, err := sfuuid.ToSFID(filters.TierUID)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to decode tier UID to SFID; using raw value",
+				"tier_uid", filters.TierUID,
+				"error", err,
+			)
+			tierSFID = filters.TierUID
+		}
+		fmt.Fprintf(&b, "\n    AND Product2Id = %s", quoteSOQL(tierSFID))
+	}
+	if filters.CompanyNameSearch != "" {
+		fmt.Fprintf(&b, "\n    AND Account.Name LIKE %s", quoteLikeSOQL(filters.CompanyNameSearch))
+	}
+	b.WriteString(soqlOrderByClause(filters.EffectiveSortOrder()))
+	return b.String()
+}
+
+// FetchFirstMembershipBatchByAccount issues a single SOQL query for the first
+// sfQueryBatchSize membership records for the given Salesforce Account ID,
+// returning the full batch and the Salesforce locator for any remaining records.
+// The caller is responsible for following the locator in a background goroutine
+// via QueryAllPages if SFLocator is non-empty.
+func (r *MembershipRepo) FetchFirstMembershipBatchByAccount(ctx context.Context, accountSFID string, filters model.MembershipFilters) (FirstBatchResult, error) {
+	slog.DebugContext(ctx, "fetching first membership batch by account from Salesforce",
+		"account_sfid", accountSFID,
+		"sort_order", filters.EffectiveSortOrder(),
+	)
+
+	query := buildMembershipsByAccountSOQL(ctx, accountSFID, filters)
+	sfResult, err := QueryPage[soqlAsset](ctx, r.client, query, "")
+	if err != nil {
+		return FirstBatchResult{}, fmt.Errorf("fetching first membership batch for account %s: %w", accountSFID, err)
+	}
+
+	records := make([]*model.ProjectMembership, 0, len(sfResult.Records))
+	for _, asset := range sfResult.Records {
+		m, convErr := convertSOQLToProjectMembership(asset)
+		if convErr != nil {
+			slog.WarnContext(ctx, "skipping membership with invalid SFID",
+				"sfid", asset.ID,
+				"error", convErr,
+			)
+			continue
+		}
+		records = append(records, m)
+	}
+
+	return FirstBatchResult{
+		Records:   records,
+		SFLocator: sfResult.NextPageToken,
+		TotalSize: sfResult.TotalSize,
+	}, nil
+}
+
 // convertSOQLToProjectMembership converts a Salesforce Asset SOQL result to the
 // domain ProjectMembership model. Account (company) and Product2 (tier) fields
 // are denormalized directly onto the struct — no sub-objects are used.
@@ -353,7 +418,6 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 		Status:           derefString(asset.Status),
 		Year:             derefString(asset.Year),
 		Tier:             derefString(asset.Tier),
-		MembershipType:   derefString(asset.RecordTypeID),
 		AutoRenew:        asset.AutoRenew,
 		RenewalType:      derefString(asset.RenewalType),
 		Price:            asset.Price,
@@ -369,6 +433,15 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 	// AccountSFID is kept as an internal field for the write path (contact
 	// association); it is never serialised to API responses.
 	m.AccountSFID = asset.AccountID
+
+	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce Account.Id.
+	// Populated here so callers can link this membership to the B2BOrg entity.
+	// Errors are silently ignored because B2BOrgUID is a convenience field.
+	if asset.AccountID != "" {
+		if orgUID, orgErr := sfuuid.ToUUID(asset.AccountID); orgErr == nil {
+			m.B2BOrgUID = orgUID
+		}
+	}
 
 	// Denormalize Account (company) fields directly onto the membership.
 	if asset.Account != nil {

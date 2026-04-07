@@ -25,7 +25,8 @@ func newTestService() membershipservice.Service {
 	jwtAuth, _ := auth.NewJWTAuth(auth.JWTAuthConfig{
 		MockLocalPrincipal: "test-user",
 	})
-	return NewMembershipService(orchestrator, mockRepo, jwtAuth, nil)
+	b2bOrgReader := mock.NewMockB2BOrgReader()
+	return NewMembershipService(orchestrator, mockRepo, jwtAuth, nil, b2bOrgReader)
 }
 
 // ── Tiers ─────────────────────────────────────────────────────────────────────

@@ -11,4 +11,11 @@ const (
 	// (e.g. "tier/{uid}", "membership/{uid}", "key-contacts/{membership_uid}",
 	// "project-sfid/{uid}", "project-uid/{slug}") to avoid collisions.
 	KVBucketNameCache = "membership-cache"
+
+	// KVBucketNameSObjectCache is the name of the KV bucket used for the new
+	// sObject REST API cache. Keys use the pattern "{type}.{uid}" (e.g.
+	// "b2b_org.{uid}", "project_membership.{uid}"). Values carry HTTP conditional
+	// GET metadata (ETag, Last-Modified) alongside the JSON-encoded sObject body,
+	// enabling If-None-Match / If-Modified-Since cache validation on re-fetch.
+	KVBucketNameSObjectCache = "member-service-cache"
 )

@@ -20,14 +20,22 @@ type ProjectMembership struct {
 	// ProjectUID is the v2 UUID of the project this membership belongs to.
 	ProjectUID string `json:"project_uid"`
 
-	// ProjectSlug is the URL slug of the associated project. Used internally
-	// by the resolver to populate ProjectUID; not included in API responses.
-	ProjectSlug string `json:"-"`
+	// ProjectSlug is the URL slug of the associated project (e.g. "kubernetes").
+	// Populated from the Projects__r relationship on the Salesforce Asset record.
+	// Included in API responses and preserved in the cache so that ProjectUID
+	// can be resolved from it after a cache round-trip.
+	ProjectSlug string `json:"project_slug,omitempty"`
 
 	// AccountSFID is the raw Salesforce Account.Id for this membership's
 	// company. Used internally by the write path to associate new Contact
 	// records with the correct Account; not included in API responses.
 	AccountSFID string `json:"-"`
+
+	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce
+	// Account.Id. Populated by the Salesforce infrastructure layer via
+	// sfuuid.ToUUID(AccountSFID). Not included in API responses until the
+	// B2BOrg entity is surfaced through a dedicated endpoint.
+	B2BOrgUID string `json:"b2b_org_uid,omitempty"`
 
 	// Status is the membership status, e.g. "Active", "Expired".
 	Status string `json:"status"`
@@ -37,9 +45,6 @@ type ProjectMembership struct {
 
 	// Tier is the membership tier label, e.g. "Gold".
 	Tier string `json:"tier,omitempty"`
-
-	// MembershipType is derived from the Asset RecordType, e.g. "Corporate".
-	MembershipType string `json:"membership_type"`
 
 	// AutoRenew indicates whether automatic renewal is enabled.
 	AutoRenew bool `json:"auto_renew"`

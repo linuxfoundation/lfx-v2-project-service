@@ -155,7 +155,6 @@ GET /projects/{project_id}/memberships?filter=status=Active;tier=Gold
 |------------|------------|---------|
 | `status` | Case-insensitive exact | `status=Active` |
 | `tier` | Case-insensitive exact | `tier=Gold` |
-| `membership_type` | Case-insensitive exact | `membership_type=Corporate` |
 | `year` | Exact | `year=2026` |
 | `product_name` | Case-insensitive contains | `product_name=Gold` |
 

@@ -21,7 +21,7 @@ import (
 type MockMembershipRepository struct {
 	tiers       map[string]*model.MembershipTier
 	memberships map[string]*model.ProjectMembership
-	contacts    map[string]*model.ProjectKeyContact
+	contacts    map[string]*model.KeyContact
 	mu          sync.RWMutex
 }
 
@@ -34,7 +34,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 	mock := &MockMembershipRepository{
 		tiers:       make(map[string]*model.MembershipTier),
 		memberships: make(map[string]*model.ProjectMembership),
-		contacts:    make(map[string]*model.ProjectKeyContact),
+		contacts:    make(map[string]*model.KeyContact),
 	}
 
 	// Sample tier (Product2).
@@ -59,7 +59,6 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 		Status:           "Active",
 		Year:             "2025",
 		Tier:             "Gold",
-		MembershipType:   "Corporate",
 		AutoRenew:        true,
 		RenewalType:      "Annual",
 		Price:            50000,
@@ -79,7 +78,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 	mock.memberships[sampleMembership.UID] = sampleMembership
 
 	// Sample key contact (Project_Role__c).
-	sampleContact := &model.ProjectKeyContact{
+	sampleContact := &model.KeyContact{
 		UID:            "contact-role-1",
 		MembershipUID:  "membership-1",
 		TierUID:        "tier-1",
@@ -213,15 +212,15 @@ func (m *MockMembershipRepository) GetMembership(ctx context.Context, membership
 	return ms, nil
 }
 
-// ListKeyContactsForMembership returns all ProjectKeyContact records whose
-// MembershipUID matches the given membership UID.
-func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error) {
+// ListKeyContactsForMembership returns all KeyContact records whose MembershipUID
+// matches the given membership UID.
+func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error) {
 	slog.DebugContext(ctx, "mock: listing key contacts for membership", "membership_uid", membershipUID)
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var result []*model.ProjectKeyContact
+	var result []*model.KeyContact
 	for _, c := range m.contacts {
 		if c.MembershipUID == membershipUID {
 			result = append(result, c)
@@ -231,8 +230,8 @@ func (m *MockMembershipRepository) ListKeyContactsForMembership(ctx context.Cont
 	return result, nil
 }
 
-// GetKeyContact returns the ProjectKeyContact identified by keyContactUID.
-func (m *MockMembershipRepository) GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error) {
+// GetKeyContact returns the KeyContact identified by keyContactUID.
+func (m *MockMembershipRepository) GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error) {
 	slog.DebugContext(ctx, "mock: getting key contact", "uid", keyContactUID)
 
 	m.mu.RLock()
@@ -249,6 +248,60 @@ func (m *MockMembershipRepository) GetKeyContact(ctx context.Context, keyContact
 // IsReady always returns nil for mock implementations.
 func (m *MockMembershipRepository) IsReady(_ context.Context) error {
 	return nil
+}
+
+// ListMembershipsForB2BOrg returns a MembershipPage of ProjectMembership
+// records filtered in-memory by the supplied predicates. The mock does not
+// restrict by B2B org UID — all seeded memberships are eligible — but it
+// does apply status, tier, and company-name-search filters to mirror the
+// behaviour of the real Salesforce SOQL implementation.
+func (m *MockMembershipRepository) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
+	slog.DebugContext(ctx, "mock: listing memberships for b2b org",
+		"b2b_org_uid", b2bOrgUID,
+		"sort_order", filters.EffectiveSortOrder(),
+		"page_size", pageSize,
+	)
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	filterMap := make(map[string]string)
+	// TierUID is a SOQL-level filter; approximate in-memory by matching the
+	// TierUID field directly on the membership record.
+	if filters.TierUID != "" {
+		filterMap["tier_uid"] = filters.TierUID
+	}
+	// Status is not exposed as a filter — hardcoded to active members only,
+	// mirroring the hardcoded AND Status = 'Active' in the SOQL base query.
+	filterMap["status"] = "Active"
+
+	var result []*model.ProjectMembership
+	for _, ms := range m.memberships {
+		if !matchesMockMemberFilters(ms, filterMap, "") {
+			continue
+		}
+		// CompanyNameSearch mirrors the SOQL LIKE predicate pushed down in the
+		// real implementation. Match only on CompanyName (case-insensitive).
+		if filters.CompanyNameSearch != "" &&
+			!strings.Contains(strings.ToLower(ms.CompanyName), filters.CompanyNameSearch) {
+			continue
+		}
+		result = append(result, ms)
+	}
+
+	// Apply in-memory sort to mirror SOQL ORDER BY behaviour.
+	sortMockMemberships(result, filters.EffectiveSortOrder())
+
+	// Apply a simple page cap (no real cursor support in the mock).
+	if pageSize > 0 && len(result) > pageSize {
+		result = result[:pageSize]
+	}
+
+	return model.MembershipPage{
+		Memberships:   result,
+		NextPageToken: "", // mock never paginates
+		TotalSize:     len(result),
+	}, nil
 }
 
 // sortMockMemberships sorts a slice of ProjectMembership records in-place
@@ -322,4 +375,25 @@ func matchesMockMemberFilters(ms *model.ProjectMembership, filters map[string]st
 	}
 
 	return true
+}
+
+// MockB2BOrgReader provides a no-op mock implementation of port.B2BOrgReader
+// for local development when REPOSITORY_SOURCE=mock.
+type MockB2BOrgReader struct{}
+
+// NewMockB2BOrgReader creates a new MockB2BOrgReader.
+func NewMockB2BOrgReader() *MockB2BOrgReader {
+	return &MockB2BOrgReader{}
+}
+
+// SearchB2BOrgs always returns an empty page. Satisfies port.B2BOrgReader for
+// local development without Salesforce.
+func (m *MockB2BOrgReader) SearchB2BOrgs(_ context.Context, _ model.B2BOrgFilters, _ int) (model.B2BOrgPage, error) {
+	return model.B2BOrgPage{Orgs: []*model.B2BOrg{}}, nil
+}
+
+// GetB2BOrg always returns not-found. Satisfies port.B2BOrgReader for local
+// development without Salesforce.
+func (m *MockB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+	return nil, errors.NewNotFound("b2b org not found in mock")
 }

@@ -54,11 +54,11 @@ type KeyContactInput struct {
 	PrimaryContact *bool
 }
 
-// ProjectKeyContact represents a key contact (Project_Role__c) for a specific
+// KeyContact represents a key contact (Project_Role__c) for a specific
 // membership within a project. Contact and company attributes are denormalized
 // directly onto this struct — there are no separate Contact or Organization
 // sub-objects. This avoids any dependency on the User Service or Org Service.
-type ProjectKeyContact struct {
+type KeyContact struct {
 	// UID is the invertible UUID v8 derived from the Salesforce Project_Role__c.Id.
 	UID string `json:"uid"`
 
@@ -74,6 +74,12 @@ type ProjectKeyContact struct {
 	// ProjectSlug is the URL slug of the associated project. Used internally
 	// by the resolver to populate ProjectUID; not included in API responses.
 	ProjectSlug string `json:"-"`
+
+	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce
+	// Account.Id of the membership's company. Populated from AccountId on the
+	// parent Asset's Account relationship; not included in API responses until
+	// the B2BOrg entity is surfaced through a dedicated endpoint.
+	B2BOrgUID string `json:"b2b_org_uid,omitempty"`
 
 	// Role is the contact's role designation, e.g. "Voting Representative".
 	Role string `json:"role"`

@@ -57,6 +57,16 @@ func GetMembershipKeyContactMembershipServicePath(projectUID string, membershipU
 	return fmt.Sprintf("/projects/%v/memberships/%v/key_contacts/%v", projectUID, membershipUID, contactUID)
 }
 
+// ListB2bOrgsMembershipServicePath returns the URL path to the membership-service service list-b2b-orgs HTTP endpoint.
+func ListB2bOrgsMembershipServicePath() string {
+	return "/b2b_orgs"
+}
+
+// ListB2bOrgMembershipsMembershipServicePath returns the URL path to the membership-service service list-b2b-org-memberships HTTP endpoint.
+func ListB2bOrgMembershipsMembershipServicePath(b2bOrgUID string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/memberships", b2bOrgUID)
+}
+
 // ReadyzMembershipServicePath returns the URL path to the membership-service service readyz HTTP endpoint.
 func ReadyzMembershipServicePath() string {
 	return "/readyz"

@@ -122,7 +122,6 @@ func TestConvertProjectMembershipToResponse(t *testing.T) {
 				Status:           "Active",
 				Year:             "2025",
 				Tier:             "Gold",
-				MembershipType:   "Corporate",
 				AutoRenew:        true,
 				RenewalType:      "Annual",
 				Price:            50000.00,
@@ -147,15 +146,28 @@ func TestConvertProjectMembershipToResponse(t *testing.T) {
 		{
 			name: "membership with only required fields",
 			input: &model.ProjectMembership{
-				UID:            "membership-uid-2",
-				TierUID:        "tier-uid-2",
-				ProjectUID:     "b1234567-89ab-cdef-0123-456789abcdef",
-				Status:         "Expired",
-				MembershipType: "Corporate",
-				AutoRenew:      false,
-				CompanyName:    "Minimal Corp",
-				CreatedAt:      now,
-				UpdatedAt:      now,
+				UID:         "membership-uid-2",
+				TierUID:     "tier-uid-2",
+				ProjectUID:  "b1234567-89ab-cdef-0123-456789abcdef",
+				Status:      "Expired",
+				AutoRenew:   false,
+				CompanyName: "Minimal Corp",
+				CreatedAt:   now,
+				UpdatedAt:   now,
+			},
+			wantNil: false,
+		},
+		{
+			name: "B2B membership with empty project_uid omits uuid fields",
+			input: &model.ProjectMembership{
+				UID:         "membership-uid-3",
+				TierUID:     "tier-uid-3",
+				ProjectUID:  "",
+				Status:      "Active",
+				AutoRenew:   false,
+				CompanyName: "Unresolved Corp",
+				CreatedAt:   now,
+				UpdatedAt:   now,
 			},
 			wantNil: false,
 		},
@@ -175,17 +187,23 @@ func TestConvertProjectMembershipToResponse(t *testing.T) {
 			require.NotNil(t, result.UID)
 			assert.Equal(t, tt.input.UID, *result.UID)
 
-			require.NotNil(t, result.TierUID)
-			assert.Equal(t, tt.input.TierUID, *result.TierUID)
+			// TierUID is omitted when ProjectUID is empty (would be misleading without it).
+			if tt.input.TierUID != "" && tt.input.ProjectUID != "" {
+				require.NotNil(t, result.TierUID)
+				assert.Equal(t, tt.input.TierUID, *result.TierUID)
+			} else {
+				assert.Nil(t, result.TierUID)
+			}
 
-			require.NotNil(t, result.ProjectUID)
-			assert.Equal(t, tt.input.ProjectUID, *result.ProjectUID)
+			if tt.input.ProjectUID != "" {
+				require.NotNil(t, result.ProjectUID)
+				assert.Equal(t, tt.input.ProjectUID, *result.ProjectUID)
+			} else {
+				assert.Nil(t, result.ProjectUID)
+			}
 
 			require.NotNil(t, result.Status)
 			assert.Equal(t, tt.input.Status, *result.Status)
-
-			require.NotNil(t, result.MembershipType)
-			assert.Equal(t, tt.input.MembershipType, *result.MembershipType)
 
 			require.NotNil(t, result.AutoRenew)
 			assert.Equal(t, tt.input.AutoRenew, *result.AutoRenew)
@@ -252,7 +270,7 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		input   *model.ProjectKeyContact
+		input   *model.KeyContact
 		wantNil bool
 	}{
 		{
@@ -262,7 +280,7 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 		},
 		{
 			name: "full key contact maps all fields",
-			input: &model.ProjectKeyContact{
+			input: &model.KeyContact{
 				UID:            "kc-uid-1",
 				MembershipUID:  "membership-uid-1",
 				TierUID:        "tier-uid-1",
@@ -285,7 +303,7 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 		},
 		{
 			name: "key contact without optional fields",
-			input: &model.ProjectKeyContact{
+			input: &model.KeyContact{
 				UID:           "kc-uid-2",
 				MembershipUID: "membership-uid-2",
 				TierUID:       "tier-uid-2",
@@ -295,6 +313,23 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 				FirstName:     "Jane",
 				LastName:      "Smith",
 				CompanyName:   "Minimal Corp",
+				CreatedAt:     now,
+				UpdatedAt:     now,
+			},
+			wantNil: false,
+		},
+		{
+			name: "key contact with empty tier_uid and project_uid omits them",
+			input: &model.KeyContact{
+				UID:           "kc-uid-3",
+				MembershipUID: "membership-uid-3",
+				TierUID:       "",
+				ProjectUID:    "",
+				Role:          "Technical Contact",
+				Status:        "Active",
+				FirstName:     "Alex",
+				LastName:      "Lee",
+				CompanyName:   "Unresolved Corp",
 				CreatedAt:     now,
 				UpdatedAt:     now,
 			},
@@ -319,11 +354,19 @@ func TestConvertProjectKeyContactToResponse(t *testing.T) {
 			require.NotNil(t, result.MembershipUID)
 			assert.Equal(t, tt.input.MembershipUID, *result.MembershipUID)
 
-			require.NotNil(t, result.TierUID)
-			assert.Equal(t, tt.input.TierUID, *result.TierUID)
+			if tt.input.TierUID != "" {
+				require.NotNil(t, result.TierUID)
+				assert.Equal(t, tt.input.TierUID, *result.TierUID)
+			} else {
+				assert.Nil(t, result.TierUID)
+			}
 
-			require.NotNil(t, result.ProjectUID)
-			assert.Equal(t, tt.input.ProjectUID, *result.ProjectUID)
+			if tt.input.ProjectUID != "" {
+				require.NotNil(t, result.ProjectUID)
+				assert.Equal(t, tt.input.ProjectUID, *result.ProjectUID)
+			} else {
+				assert.Nil(t, result.ProjectUID)
+			}
 
 			require.NotNil(t, result.Role)
 			assert.Equal(t, tt.input.Role, *result.Role)

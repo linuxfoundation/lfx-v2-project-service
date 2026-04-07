@@ -55,6 +55,13 @@ var ProjectMembershipResponse = dsl.Type("project-membership-response", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
 	})
+	dsl.Attribute("project_slug", dsl.String, "URL slug of the project this membership belongs to", func() {
+		dsl.Example("kubernetes")
+	})
+	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account) this membership belongs to", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
 	dsl.Attribute("status", dsl.String, "Membership status", func() {
 		dsl.Example("Active")
 	})
@@ -63,9 +70,6 @@ var ProjectMembershipResponse = dsl.Type("project-membership-response", func() {
 	})
 	dsl.Attribute("tier", dsl.String, "Membership tier label", func() {
 		dsl.Example("Gold")
-	})
-	dsl.Attribute("membership_type", dsl.String, "Membership type (derived from Asset RecordType)", func() {
-		dsl.Example("Corporate")
 	})
 	dsl.Attribute("auto_renew", dsl.Boolean, "Whether automatic renewal is enabled", func() {
 		dsl.Example(true)
@@ -148,6 +152,10 @@ var ProjectKeyContactResponse = dsl.Type("project-key-contact-response", func() 
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
 	})
+	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account) this key contact's membership belongs to", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
 	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
 		dsl.Example("Voting Representative")
 	})
@@ -196,7 +204,7 @@ var ProjectKeyContactResponse = dsl.Type("project-key-contact-response", func() 
 // ListMetadata is the DSL type for list pagination metadata.
 var ListMetadata = dsl.Type("list-metadata", func() {
 	dsl.Description("Pagination metadata for list responses")
-	dsl.Attribute("total_size", dsl.Int, "Total number of records matching the query, as reported by Salesforce. Set on the first page; may be 0 on continuation pages.", func() {
+	dsl.Attribute("total_size", dsl.Int, "Total number of records matching the query. Set on the first page; may be 0 on continuation pages.", func() {
 		dsl.Example(100)
 	})
 	dsl.Attribute("next_page_token", dsl.String, "Opaque cursor for the next page. Pass this value as the page_token query parameter to retrieve the next page. Empty or absent when this is the last page.", func() {
@@ -319,3 +327,51 @@ func SearchNameAttribute() {
 		dsl.Example("Linux")
 	})
 }
+
+// B2BOrgSearchNameAttribute is the DSL attribute for searching B2B orgs by name.
+func B2BOrgSearchNameAttribute() {
+	dsl.Attribute("search_name", dsl.String, "Search organizations by name (case-insensitive substring match)", func() {
+		dsl.Example("Linux")
+	})
+}
+
+// B2BOrgUIDAttribute adds the b2b_org_uid path parameter attribute.
+func B2BOrgUIDAttribute() {
+	dsl.Attribute("b2b_org_uid", dsl.String, "B2BOrg UID", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
+}
+
+// B2BOrgResponse is the DSL type for a B2B organization response.
+var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
+	dsl.Description("A B2B organization")
+	dsl.Attribute("uid", dsl.String, "B2BOrg UID (invertible UUID v8)", func() {
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Format(dsl.FormatUUID)
+	})
+	dsl.Attribute("name", dsl.String, "Organization name", func() {
+		dsl.Example("Example Corp")
+	})
+	dsl.Attribute("website", dsl.String, "Organization website URL; always has a scheme (http or https)", func() {
+		dsl.Format(dsl.FormatURI)
+		dsl.Example("https://example.com")
+	})
+	dsl.Attribute("primary_domain", dsl.String, "Primary domain; bare host only, no scheme or path, e.g. 'example.com'", func() {
+		dsl.Example("example.com")
+	})
+	dsl.Attribute("domain_aliases", dsl.ArrayOf(dsl.String), "Additional domains; each item is a bare host with the same normalization as primary_domain", func() {
+		dsl.Example([]string{"example.org", "example.net"})
+	})
+	dsl.Attribute("logo_url", dsl.String, "URL of the organization logo", func() {
+		dsl.Example("https://example.com/logo.png")
+	})
+	dsl.Attribute("created_at", dsl.String, "Creation timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2025-01-01T00:00:00Z")
+	})
+	dsl.Attribute("updated_at", dsl.String, "Last update timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2025-06-01T12:00:00Z")
+	})
+})

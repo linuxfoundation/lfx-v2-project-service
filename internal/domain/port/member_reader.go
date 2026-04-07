@@ -31,12 +31,20 @@ type MemberReader interface {
 	// GetMembership returns a single ProjectMembership by its UID.
 	GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error)
 
-	// ListKeyContactsForMembership returns all ProjectKeyContact records for
+	// ListKeyContactsForMembership returns all KeyContact records for
 	// the given membership UID.
-	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.ProjectKeyContact, error)
+	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error)
 
-	// GetKeyContact returns a single ProjectKeyContact by its UID.
-	GetKeyContact(ctx context.Context, keyContactUID string) (*model.ProjectKeyContact, error)
+	// GetKeyContact returns a single KeyContact by its UID.
+	GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error)
+
+	// ListMembershipsForB2BOrg returns a single page of ProjectMembership
+	// records for the given v2 B2BOrg UID across all projects. The page size
+	// and continuation token are encoded in filters.PageToken (empty = first
+	// page). The returned MembershipPage carries an opaque NextPageToken for
+	// the caller to pass on the next request; an empty NextPageToken means
+	// this is the last page.
+	ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error)
 
 	// IsReady reports whether the underlying storage is reachable.
 	IsReady(ctx context.Context) error
