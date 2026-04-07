@@ -133,6 +133,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		Writers:             payload.Writers,
 		Auditors:            payload.Auditors,
 		MeetingCoordinators: payload.MeetingCoordinators,
+		ExecutiveDirector:   payload.ExecutiveDirector,
 	}
 
 	projectDB, err := ConvertToDBProjectBase(project)
@@ -185,6 +186,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 				Writers:             extractUsernames(projectSettingsDB.Writers),
 				Auditors:            extractUsernames(projectSettingsDB.Auditors),
 				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
+				ExecutiveDirector:   extractUsername(projectSettingsDB.ExecutiveDirector),
 			},
 		}
 		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
@@ -450,6 +452,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 				Writers:             extractUsernames(projectSettingsDB.Writers),
 				Auditors:            extractUsernames(projectSettingsDB.Auditors),
 				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
+				ExecutiveDirector:   extractUsername(projectSettingsDB.ExecutiveDirector),
 			},
 		}
 		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)
@@ -539,6 +542,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		Writers:             payload.Writers,
 		Auditors:            payload.Auditors,
 		MeetingCoordinators: payload.MeetingCoordinators,
+		ExecutiveDirector:   payload.ExecutiveDirector,
 		UpdatedAt:           misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
 	if existingProjectSettingsDB.CreatedAt != nil {
@@ -590,6 +594,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 				Writers:             extractUsernames(projectSettingsDB.Writers),
 				Auditors:            extractUsernames(projectSettingsDB.Auditors),
 				MeetingCoordinators: extractUsernames(projectSettingsDB.MeetingCoordinators),
+				ExecutiveDirector:   extractUsername(projectSettingsDB.ExecutiveDirector),
 			},
 		}
 		return s.MessageBuilder.SendAccessMessage(ctx, constants.UpdateAccessProjectSubject, msg, runSync)

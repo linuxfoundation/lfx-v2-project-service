@@ -132,6 +132,8 @@ type CreateProjectPayload struct {
 	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfo
 }
 
 // DeleteProjectPayload is the payload type of the project-service service
@@ -329,6 +331,8 @@ type ProjectFull struct {
 	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfo
 }
 
 // ProjectSettings is the result type of the project-service service
@@ -346,6 +350,8 @@ type ProjectSettings struct {
 	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfo
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
@@ -437,6 +443,8 @@ type UpdateProjectSettingsPayload struct {
 	MeetingCoordinators []*UserInfo
 	// A list of project auditors with their profile information
 	Auditors []*UserInfo
+	// The executive director of the project with their profile information
+	ExecutiveDirector *UserInfo
 }
 
 // User information including profile details.
