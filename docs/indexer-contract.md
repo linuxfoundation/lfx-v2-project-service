@@ -15,6 +15,10 @@ This document is the authoritative reference for all data the project service se
 
 ## Project
 
+**Object type:** `project`
+
+**NATS subject:** `lfx.index.project`
+
 **Source struct:** `internal/domain/models/project.go` — `ProjectBase`
 
 **Indexed on:** create, update, delete of a project.
@@ -84,6 +88,10 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 ---
 
 ## Project Settings
+
+**Object type:** `project_settings`
+
+**NATS subject:** `lfx.index.project_settings`
 
 **Source struct:** `internal/domain/models/project.go` — `ProjectSettings`
 
