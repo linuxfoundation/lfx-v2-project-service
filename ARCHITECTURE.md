@@ -51,19 +51,6 @@ Authorization is checked by the Heimdall API gateway exclusively using the
 organization-authorized individuals. This is the primary gap the next phase must
 close.
 
-### Current domain model
-
-```
-model/
-  MembershipTier       — Product2 record scoped to a project
-  ProjectMembership    — Asset record scoped to a project (company attrs denormalized)
-  ProjectKeyContact    — Project_Role__c record (contact + company attrs denormalized)
-  KeyContactInput      — Mutable fields for create / update
-```
-
-The `member` OpenFGA type exists in the platform model but is not yet used — current permission
-checks are delegated entirely to the `project` type.
-
 ### Current NATS KV bucket layout
 
 NATS KV (bucket `membership-cache`) serves as a stale-while-revalidate cache in front of
@@ -86,6 +73,36 @@ writes results into KV split across one or more batch entries (written tail-firs
 batch's next-iterator is valid before the head is committed), then serves from the freshly-
 written batch. On a stale hit the cached batch is returned immediately while a background
 goroutine re-fetches batch 0 from Salesforce.
+
+### Interim detour endpoints (LFXV2-1382)
+
+As a short-term detour (shipped in v0.5.x), two additional non-idiomatic search endpoints were
+added while the full v2 architecture was being developed:
+
+| Method | Path | Description | FGA check |
+|--------|------|-------------|-----------|
+| GET | `/b2b_orgs` | Search B2B orgs by name (SOQL-backed) | static `lfProjectUID` on `project` type |
+| GET | `/b2b_orgs/{uid}/memberships` | List memberships for a B2B org (SOQL-backed) | static `lfProjectUID` on `project` type |
+
+These endpoints use **SOQL-backed batch caching** (not the sObject conditional GET cache) and a
+static `lfProjectUID` OpenFGA check — neither of which aligns with the target architecture. They
+are interim only and will be **removed** as part of LFXV2-1359 (see [Detour Cleanup](#detour-cleanup) below).
+
+### Current domain model (post-detour)
+
+The domain model has already been updated to reflect the target architecture names (LFXV2-1358,
+shipped in v0.5.x). Note that these renames are **target-state**, not interim:
+
+```
+model/
+  B2BOrg            — Salesforce Account (renamed from Member; B2BOrgInput for mutations)
+  ProjectMembership — Asset record; now carries B2BOrgUID (derived from AccountSFID)
+  KeyContact        — Project_Role__c record (renamed from ProjectKeyContact); carries B2BOrgUID
+  KeyContactInput   — Mutable fields for create / update
+```
+
+The `MembershipTier` type (Product2) remains in the domain model but will not have a dedicated
+API endpoint in the v2 surface — tiers are a Query Service pseudotype only.
 
 ---
 
@@ -903,9 +920,87 @@ type EventPublisher interface {
 
 ---
 
+## Detour Cleanup
+
+The LFXV2-1382 detour (v0.5.x) introduced a mix of target-architecture building blocks and
+non-idiomatic interim code. The building blocks are already in place and should be kept; the
+interim code must be removed as part of the normal implementation sequence.
+
+### Keep (already target-architecture)
+
+The following additions from LFXV2-1382 align with the target architecture and should be
+retained or refined in subsequent tickets:
+
+- **`model.B2BOrg` / `model.B2BOrgInput`** — first-class entity types (LFXV2-1358 scope).
+- **`model.ProjectKeyContact` → `model.KeyContact` rename** and **`B2BOrgUID` on
+  `ProjectMembership` and `KeyContact`** — correct target-state names.
+- **`port.B2BOrgReader.GetB2BOrg`** (single-object read), **`port.B2BOrgWriter`**,
+  **`port.EventPublisher`** — target-architecture ports.
+- **`convertSOQLToB2BOrg` / `soqlAccount` struct** — needed for the backfill SOQL path
+  (LFXV2-1365).
+- **`B2BOrgResponse` Goa type**, **`B2BOrgUIDAttribute`**, **`convertB2BOrgToResponse`** —
+  correct response types (will be refined in LFXV2-1359).
+- **`project_slug` / `b2b_org_uid` on Goa response types**, removal of `membership_type` field.
+- **`member-service-cache` NATS KV bucket** — the sObject conditional GET cache bucket
+  (LFXV2-1357 scope).
+- **sObject client** (`sobject_client.go`, `sobject_cache.go`, `sobject_readers.go`) — the
+  sObject REST + conditional GET implementation (LFXV2-1357 scope).
+
+### Remove (non-idiomatic detour, replaced by target architecture)
+
+The following additions from LFXV2-1382 do **not** align with the target architecture and must
+be removed during the implementation sequence below. Primary owners are LFXV2-1359 (API +
+handlers) and LFXV2-1366 (Helm chart).
+
+**Goa API design (`cmd/member-api/design/`):**
+
+- `list-b2b-orgs` and `list-b2b-org-memberships` Goa methods — replaced by the Query Service.
+- `B2BOrgSearchNameAttribute` helper — used only by the removed methods.
+
+**Service layer (`cmd/member-api/service/`):**
+
+- `ListB2bOrgs` and `ListB2bOrgMemberships` service handlers.
+
+**Domain ports (`internal/domain/port/`):**
+
+- `port.B2BOrgReader.SearchB2BOrgs` — remove; only `GetB2BOrg` is retained.
+- `port.MemberReader.ListMembershipsForB2BOrg` — remove; collection access is Query Service only.
+
+**Salesforce infrastructure (`internal/infrastructure/salesforce/`):**
+
+- SOQL search implementation in `salesforce/b2b_org_reader.go` — rewrite to sObject-backed
+  `GetB2BOrg` only; remove `SearchB2BOrgs` SOQL path.
+- `fetchAndCacheAllBatchesByAccount`, `resolveProjectUIDsForB2BPage` in `member_reader.go` —
+  batch pagination helpers for the detour list endpoint; remove.
+- `AccountRepo.FetchFirstAccountBatch` and `buildAccountsSOQL` — detour-only SOQL helpers;
+  repurpose `soqlAccount` / `convertSOQLToB2BOrg` for backfill only and remove the batch
+  fetcher.
+
+**Domain model (`internal/domain/model/`):**
+
+- `B2BOrgFilters`, `B2BOrgPage` in `model/b2b_org.go` — pagination types for the removed
+  search endpoint; remove.
+
+**NATS storage (`internal/infrastructure/nats/`):**
+
+- `B2BOrgBatchCacheEntry`, `GetB2BOrgBatch`, `PutB2BOrgBatch` in `storage.go` — SOQL batch
+  cache for the detour search endpoint; remove.
+- `fetchAndCacheAllBatchesByAccount` cache helpers in `member_reader.go` — remove.
+
+**Helm chart (`charts/lfx-v2-member-service/`):**
+
+- Heimdall rules with static `lfProjectUID` check (detour workaround in `ruleset.yaml`).
+- HTTPRoute entries for `/b2b_orgs` (search) and `/b2b_orgs/{uid}/memberships` in
+  `httproute.yaml`.
+- `openfga.lfProjectUID` value in `values.yaml` (no longer needed after rule removal).
+
+---
+
 ## Implementation Plan
 
-### Step 1: OpenFGA model update (lfx-v2-helm)
+### Step 1: OpenFGA model update (lfx-v2-helm) — *In Review*
+
+> **Status:** PR open on lfx-v2-helm (see LFXV2-1356).
 
 - Add `b2b_org`, `project_membership`, and `key_contact` type definitions to
   `charts/lfx-platform/templates/openfga/model.yaml`.
@@ -913,7 +1008,11 @@ type EventPublisher interface {
   in-file versioning guidelines).
 - Remove the stub `member` type (after confirming no existing tuples reference it).
 
-### Step 2: sObject client and conditional GET cache
+### Step 2: sObject client and conditional GET cache — *Done*
+
+> **Status:** Merged in LFXV2-1357 (PR #23). The `sObjectClient`, `sobject_cache.go`, and
+> `sobject_readers.go` are already in the codebase. The `member-service-cache` NATS KV bucket
+> is declared in the Helm chart.
 
 - Implement a `sObjectClient` that wraps the Salesforce sObject REST API with conditional GETs:
   `If-None-Match`/`If-Modified-Since` for `Account`; `If-Modified-Since` (derived from
@@ -927,21 +1026,30 @@ type EventPublisher interface {
   (`If-Match` for `Account`, `If-Unmodified-Since` for all others).
 - Remove the SOQL-backed KV reader and all lookup-index bucket reads/writes.
 
-### Step 3: Rename internal types and add `b2b_org_uid`
+### Step 3: Rename internal types and add `b2b_org_uid` — *Done*
+
+> **Status:** Merged in LFXV2-1358 (PR #25). `model.B2BOrg`, `model.KeyContact` rename,
+> `B2BOrgUID` fields, and new ports are already in the codebase.
 
 - Rename `model.Member` → `model.B2BOrg`; update all callsites.
 - Rename `model.ProjectKeyContact` → `model.KeyContact`; update all callsites.
 - Add `B2BOrgUID` field to `ProjectMembership` and `KeyContact`; populate from `AccountSFID`
   via `sfuuid.FromSFID` in the Salesforce infrastructure layer.
 
-### Step 4: Root API paths (Goa design)
+### Step 4: Root API paths (Goa design) — includes detour cleanup
+
+> See the [Detour Cleanup](#detour-cleanup) section for the full list of items to remove as
+> part of this step.
 
 - Add `b2b_org` (GET/POST/PUT) and `key_contact` (GET/POST/PUT/DELETE) service methods to the
   Goa design at the root paths described in the Target API Layout section above.
-- Add `project_membership` GET only — no write methods (lifecycle is managed in Salesforce by
-  the Sales team; mutations arrive via PubSub CDC or backfill, not the HTTP API).
+- Add `project_membership` **GET only** — no write methods (lifecycle is managed in Salesforce
+  by the Sales team; mutations arrive via PubSub CDC or backfill, not the HTTP API).
 - Remove all project-scoped drill-down methods entirely (no aliases, no 410 stubs).
-- Regenerate the Goa server code (`make gen`).
+- Remove the detour `list-b2b-orgs` and `list-b2b-org-memberships` Goa methods.
+- Regenerate the Goa server code (`make apigen`).
+- Remove detour service handlers (`ListB2bOrgs`, `ListB2bOrgMemberships`) and associated
+  ports, SOQL infrastructure, and NATS batch cache entries (see Detour Cleanup section).
 
 ### Step 5: FGA Sync integration
 
@@ -975,10 +1083,16 @@ type EventPublisher interface {
 - Run as an asynchronous goroutine; return `202 Accepted` immediately with a run ID for log
   correlation.
 
-### Step 9: Heimdall RuleSet update
+### Step 9: Heimdall RuleSet update — includes detour cleanup
+
+> See the [Detour Cleanup](#detour-cleanup) section for the Helm chart items to remove as
+> part of this step.
 
 - Update `charts/lfx-v2-member-service/templates/ruleset.yaml`: remove all project-scoped
-  rules, add rules for the new root paths and the team-membership-based create/reindex rules.
+  rules and the interim detour rules (static `lfProjectUID` checks), add rules for the new
+  root paths and the team-membership-based create/reindex rules.
+- Remove detour HTTPRoute entries for `/b2b_orgs` search and `/b2b_orgs/{uid}/memberships`.
+- Remove `openfga.lfProjectUID` from `values.yaml`.
 
 ---
 
