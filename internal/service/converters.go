@@ -104,6 +104,9 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 		if len(settings.MeetingCoordinators) > 0 {
 			full.MeetingCoordinators = convertUsersToAPI(settings.MeetingCoordinators)
 		}
+		if settings.ExecutiveDirector != nil {
+			full.ExecutiveDirector = convertUserToAPI(settings.ExecutiveDirector)
+		}
 
 		// Handle settings fields that are pointers
 		if settings.AnnouncementDate != nil {
@@ -320,6 +323,9 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*models.Proj
 	if settings.MeetingCoordinators != nil {
 		s.MeetingCoordinators = convertUsersFromAPI(settings.MeetingCoordinators)
 	}
+	if settings.ExecutiveDirector != nil {
+		s.ExecutiveDirector = convertUserFromAPI(settings.ExecutiveDirector)
+	}
 	if settings.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
 		if err != nil {
@@ -362,6 +368,9 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 	}
 	if len(s.MeetingCoordinators) > 0 {
 		settings.MeetingCoordinators = convertUsersToAPI(s.MeetingCoordinators)
+	}
+	if s.ExecutiveDirector != nil {
+		settings.ExecutiveDirector = convertUserToAPI(s.ExecutiveDirector)
 	}
 
 	// Handle settings fields that are pointers
@@ -425,6 +434,48 @@ func convertUsersFromAPI(apiUsers []*projsvc.UserInfo) []models.UserInfo {
 	return users
 }
 
+// convertUserToAPI converts a single domain UserInfo pointer to an API UserInfo pointer.
+func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
+	if user == nil {
+		return nil
+	}
+	return &projsvc.UserInfo{
+		Name:     misc.StringPtr(user.Name),
+		Email:    misc.StringPtr(user.Email),
+		Username: misc.StringPtr(user.Username),
+		Avatar:   misc.StringPtr(user.Avatar),
+	}
+}
+
+// convertUserFromAPI converts a single API UserInfo pointer to a domain UserInfo pointer.
+func convertUserFromAPI(apiUser *projsvc.UserInfo) *models.UserInfo {
+	if apiUser == nil {
+		return nil
+	}
+	user := &models.UserInfo{}
+	if apiUser.Name != nil {
+		user.Name = *apiUser.Name
+	}
+	if apiUser.Email != nil {
+		user.Email = *apiUser.Email
+	}
+	if apiUser.Username != nil {
+		user.Username = *apiUser.Username
+	}
+	if apiUser.Avatar != nil {
+		user.Avatar = *apiUser.Avatar
+	}
+	return user
+}
+
+// extractUsername extracts the username from a single UserInfo pointer. Returns empty string if nil.
+func extractUsername(user *models.UserInfo) string {
+	if user == nil {
+		return ""
+	}
+	return user.Username
+}
+
 // extractUsernames extracts usernames from UserInfo slice for access control
 func extractUsernames(users []models.UserInfo) []string {
 	if len(users) == 0 {
@@ -451,6 +502,9 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 	}
 	if coordinators := extractUsernames(projectSettingsDB.MeetingCoordinators); len(coordinators) > 0 {
 		relations["meeting_coordinator"] = coordinators
+	}
+	if ed := extractUsername(projectSettingsDB.ExecutiveDirector); ed != "" {
+		relations["executive_director"] = []string{ed}
 	}
 
 	// Build references map for parent relationship

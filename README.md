@@ -37,8 +37,6 @@ This service publishes the following NATS events:
 
 #### Project Data Events
 
-- `lfx.index.project`: Published when a project is created, updated, or deleted. Contains the project base data and tags for indexing.
-- `lfx.index.project_settings`: Published when project settings are created or updated. Contains the project settings data and tags for indexing.
 - `lfx.projects-api.project_settings.updated`: Published when project settings are updated. Contains both the old and new settings to allow downstream services to react to changes. Message format:
 
   ```json
@@ -49,7 +47,18 @@ This service publishes the following NATS events:
   }
   ```
 
-#### Access Control Events
+#### Indexer Contract
+
+This service indexes project data into the indexer service, making it searchable via the query service.
+
+- `lfx.index.project`: Published when a project is created, updated, or deleted. Contains the project base data and tags for indexing.
+- `lfx.index.project_settings`: Published when project settings are created or updated. Contains the project settings data and tags for indexing.
+
+Each indexer message includes an `IndexingConfig` that provides pre-computed metadata for the indexer service. When present, it bypasses server-side enrichers and controls how the document is stored, searched, and access-checked in the index. For the full field reference and message format details, see the [indexer service client guide](https://github.com/linuxfoundation/lfx-v2-indexer-service/blob/main/docs/client-guide.md).
+
+For the data schemas, tags, access control values, parent references, and fulltext fields for all resource types — see [`docs/indexer-contract.md`](docs/indexer-contract.md).
+
+#### FGA Sync Contract
 
 This service uses the generic FGA sync handlers for managing fine-grained access control. All access control messages use the `GenericFGAMessage` envelope format. For the full authoritative reference, see [docs/fga-contract.md](docs/fga-contract.md).
 
@@ -65,7 +74,8 @@ This service uses the generic FGA sync handlers for managing fine-grained access
       "relations": {
         "writer": ["username1", "username2"],
         "auditor": ["username3"],
-        "meeting_coordinator": ["username4"]
+        "meeting_coordinator": ["username4"],
+        "executive_director": ["username5"]
       },
       "references": {
         "parent": ["project:parent-uid"]
@@ -85,24 +95,6 @@ This service uses the generic FGA sync handlers for managing fine-grained access
     }
   }
   ```
-
-### Project Tags
-
-The LFX v2 Project Service generates tags for projects that are sent to the indexer-service.
-
-#### Tags Generated for Projects
-
-When projects are created or updated, the following tag is generated:
-
-| Project Field | Tag Format | Example | Purpose |
-|--------------|-----------|---------|---------|
-| Slug | `project_slug:<value>` | `project_slug:test-project` | Namespaced lookup by slug |
-
-**Note**: Additional project metadata (UID, ParentUID, Name, Description, etc.) is sent via the `IndexingConfig` field.
-
-#### Tags Generated for Project Settings
-
-Project settings generate no tags. All metadata is sent via the `IndexingConfig` field.
 
 ## Quick Start
 

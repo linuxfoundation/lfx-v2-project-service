@@ -133,6 +133,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		Writers:             payload.Writers,
 		Auditors:            payload.Auditors,
 		MeetingCoordinators: payload.MeetingCoordinators,
+		ExecutiveDirector:   payload.ExecutiveDirector,
 	}
 
 	projectDB, err := ConvertToDBProjectBase(project)
@@ -521,6 +522,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		Writers:             payload.Writers,
 		Auditors:            payload.Auditors,
 		MeetingCoordinators: payload.MeetingCoordinators,
+		ExecutiveDirector:   payload.ExecutiveDirector,
 		UpdatedAt:           misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
 	if existingProjectSettingsDB.CreatedAt != nil {

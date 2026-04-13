@@ -1273,6 +1273,9 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 			res.Auditors[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
 		}
 	}
+	if v.ExecutiveDirector != nil {
+		res.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.ExecutiveDirector)
+	}
 
 	return res
 }
