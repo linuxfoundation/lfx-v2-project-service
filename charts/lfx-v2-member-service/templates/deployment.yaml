@@ -13,10 +13,12 @@ spec:
   selector:
     matchLabels:
       app: {{ .Chart.Name }}
+      app.kubernetes.io/name: {{ .Chart.Name }}
   template:
     metadata:
       labels:
         app: {{ .Chart.Name }}
+        app.kubernetes.io/name: {{ .Chart.Name }}
     spec:
       containers:
         - name: app
