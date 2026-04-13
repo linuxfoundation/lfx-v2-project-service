@@ -1078,6 +1078,9 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 			res.Auditors[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
 		}
 	}
+	if v.ExecutiveDirector != nil {
+		res.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoResponseBody(v.ExecutiveDirector)
+	}
 
 	return res
 }

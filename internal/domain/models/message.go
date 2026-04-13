@@ -12,6 +12,7 @@ type ProjectAccessData struct {
 	Writers             []string `json:"writers"`
 	Auditors            []string `json:"auditors"`
 	MeetingCoordinators []string `json:"meeting_coordinators"`
+	ExecutiveDirector   string   `json:"executive_director,omitempty"`
 }
 
 // ProjectAccessMessage is a type-safe NATS message for project access control operations.
