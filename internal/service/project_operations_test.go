@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -155,7 +156,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("models.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -388,10 +389,10 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 				)
 				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), models.GenericFGAMessage{
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), fgatypes.GenericFGAMessage{
 					ObjectType: "project",
 					Operation:  "delete_access",
-					Data:       models.DeleteAccessData{UID: "test-project-uid"},
+					Data:       fgatypes.GenericDeleteData{UID: "test-project-uid"},
 				}, mock.AnythingOfType("bool")).Return(nil)
 			},
 			wantErr: false,
@@ -558,10 +559,10 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 				)
 				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(456)).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), models.GenericFGAMessage{
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), fgatypes.GenericFGAMessage{
 					ObjectType: "project",
 					Operation:  "delete_access",
-					Data:       models.DeleteAccessData{UID: "test-project-uid"},
+					Data:       fgatypes.GenericDeleteData{UID: "test-project-uid"},
 				}, mock.AnythingOfType("bool")).Return(nil)
 			},
 			wantErr: false,
@@ -723,10 +724,10 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				mockBuilder.On("SendAccessMessage",
 					mock.Anything,
 					"lfx.fga-sync.update_access",
-					models.GenericFGAMessage{
+					fgatypes.GenericFGAMessage{
 						ObjectType: "project",
 						Operation:  "update_access",
-						Data: models.UpdateAccessData{
+						Data: fgatypes.GenericAccessData{
 							UID:        "project-uid-1",
 							Public:     true,
 							Relations:  make(map[string][]string),
@@ -767,10 +768,10 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				mockBuilder.On("SendAccessMessage",
 					mock.Anything,
 					"lfx.fga-sync.update_access",
-					models.GenericFGAMessage{
+					fgatypes.GenericFGAMessage{
 						ObjectType: "project",
 						Operation:  "update_access",
-						Data: models.UpdateAccessData{
+						Data: fgatypes.GenericAccessData{
 							UID:        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
 							Public:     false,
 							Relations:  make(map[string][]string),
@@ -872,14 +873,14 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockBuilder.On("SendAccessMessage",
 					mock.Anything,
 					"lfx.fga-sync.update_access",
-					mock.AnythingOfType("models.GenericFGAMessage"),
+					mock.AnythingOfType("types.GenericFGAMessage"),
 					mock.AnythingOfType("bool"),
 				).Return(nil).Run(func(args mock.Arguments) {
-					msg, ok := args.Get(2).(models.GenericFGAMessage)
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
 					require.True(t, ok)
 					assert.Equal(t, "project", msg.ObjectType)
 					assert.Equal(t, "update_access", msg.Operation)
-					data, ok := msg.Data.(models.UpdateAccessData)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
 					require.True(t, ok)
 					assert.Equal(t, "project-uid-1", data.UID)
 				})

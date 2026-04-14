@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/go-viper/mapstructure/v2"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
 )
@@ -148,7 +148,7 @@ func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string,
 // SendAccessMessage sends access control messages to NATS using the generic FGA sync format.
 func (m *MessageBuilder) SendAccessMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
 	switch msg := message.(type) {
-	case models.GenericFGAMessage:
+	case fgatypes.GenericFGAMessage:
 		messageBytes, err := json.Marshal(msg)
 		if err != nil {
 			slog.ErrorContext(ctx, "error marshalling FGA message into JSON", constants.ErrKey, err)

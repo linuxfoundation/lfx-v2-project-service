@@ -9,6 +9,8 @@ import (
 	"errors"
 	"testing"
 
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -241,11 +243,11 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 	}{
 		{
 			name:    "successful send update access message",
-			subject: constants.FGASyncUpdateAccessSubject,
-			message: models.GenericFGAMessage{
+			subject: fgaconstants.GenericUpdateAccessSubject,
+			message: fgatypes.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "update_access",
-				Data: models.UpdateAccessData{
+				Data: fgatypes.GenericAccessData{
 					UID:    "test-uid",
 					Public: true,
 					Relations: map[string][]string{
@@ -258,30 +260,30 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+				mockConn.On("Publish", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
 			name:    "successful send delete access message",
-			subject: constants.FGASyncDeleteAccessSubject,
-			message: models.GenericFGAMessage{
+			subject: fgaconstants.GenericDeleteAccessSubject,
+			message: fgatypes.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "delete_access",
-				Data: models.DeleteAccessData{
+				Data: fgatypes.GenericDeleteData{
 					UID: "test-uid-to-delete",
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.FGASyncDeleteAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+				mockConn.On("Publish", fgaconstants.GenericDeleteAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
 			name:    "unsupported message type",
-			subject: constants.FGASyncUpdateAccessSubject,
+			subject: fgaconstants.GenericUpdateAccessSubject,
 			message: 123, // Invalid type - int is not supported
 			setupMocks: func(mockConn *MockNATSConn) {
 				// No publish expected
@@ -291,14 +293,14 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 		},
 		{
 			name:    "nats publish error",
-			subject: constants.FGASyncUpdateAccessSubject,
-			message: models.GenericFGAMessage{
+			subject: fgaconstants.GenericUpdateAccessSubject,
+			message: fgatypes.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "update_access",
-				Data:       models.UpdateAccessData{UID: "test"},
+				Data:       fgatypes.GenericAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
+				mockConn.On("Publish", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -339,11 +341,11 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 	}{
 		{
 			name:    "successful sync send update access message",
-			subject: constants.FGASyncUpdateAccessSubject,
-			message: models.GenericFGAMessage{
+			subject: fgaconstants.GenericUpdateAccessSubject,
+			message: fgatypes.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "update_access",
-				Data: models.UpdateAccessData{
+				Data: fgatypes.GenericAccessData{
 					UID:    "test-uid",
 					Public: true,
 					Relations: map[string][]string{
@@ -356,37 +358,37 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
+				mockConn.On("Request", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
 			name:    "successful sync send delete access message",
-			subject: constants.FGASyncDeleteAccessSubject,
-			message: models.GenericFGAMessage{
+			subject: fgaconstants.GenericDeleteAccessSubject,
+			message: fgatypes.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "delete_access",
-				Data: models.DeleteAccessData{
+				Data: fgatypes.GenericDeleteData{
 					UID: "test-uid-to-delete",
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.FGASyncDeleteAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
+				mockConn.On("Request", fgaconstants.GenericDeleteAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
 			name:    "nats request error - sync mode",
-			subject: constants.FGASyncUpdateAccessSubject,
-			message: models.GenericFGAMessage{
+			subject: fgaconstants.GenericUpdateAccessSubject,
+			message: fgatypes.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "update_access",
-				Data:       models.UpdateAccessData{UID: "test"},
+				Data:       fgatypes.GenericAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.FGASyncUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(nil, errors.New("nats request timeout"))
+				mockConn.On("Request", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(nil, errors.New("nats request timeout"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,

@@ -22,16 +22,6 @@ const (
 	// The subject is of the form: lfx.index.project_settings
 	IndexProjectSettingsSubject = "lfx.index.project_settings"
 
-	// FGASyncUpdateAccessSubject is the subject for FGA sync update_access operations.
-	// Uses the generic, resource-agnostic FGA Sync handler.
-	// The subject is of the form: lfx.fga-sync.update_access
-	FGASyncUpdateAccessSubject = "lfx.fga-sync.update_access"
-
-	// FGASyncDeleteAccessSubject is the subject for FGA sync delete_access operations.
-	// Uses the generic, resource-agnostic FGA Sync handler.
-	// The subject is of the form: lfx.fga-sync.delete_access
-	FGASyncDeleteAccessSubject = "lfx.fga-sync.delete_access"
-
 	// ProjectSettingsUpdatedSubject is the subject for project settings change events.
 	// This event is published when project settings are updated, containing both before and after states.
 	// The subject is of the form: lfx.projects-api.project_settings.updated

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
@@ -179,7 +181,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g.Go(func() error {
 		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
+		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -435,7 +437,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	g.Go(func() error {
 		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
+		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -567,7 +569,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	g.Go(func() error {
 		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncUpdateAccessSubject, msg, runSync)
+		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg, runSync)
 	})
 
 	g.Go(func() error {
@@ -683,14 +685,14 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	})
 
 	g.Go(func() error {
-		msg := models.GenericFGAMessage{
+		msg := fgatypes.GenericFGAMessage{
 			ObjectType: "project",
 			Operation:  "delete_access",
-			Data: models.DeleteAccessData{
+			Data: fgatypes.GenericDeleteData{
 				UID: *payload.UID,
 			},
 		}
-		return s.MessageBuilder.SendAccessMessage(ctx, constants.FGASyncDeleteAccessSubject, msg, runSync)
+		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg, runSync)
 	})
 
 	if err := g.Wait(); err != nil {
