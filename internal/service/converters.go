@@ -6,6 +6,8 @@ package service
 import (
 	"time"
 
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
@@ -486,6 +488,42 @@ func extractUsernames(users []models.UserInfo) []string {
 		usernames[i] = user.Username
 	}
 	return usernames
+}
+
+// buildFGAUpdateAccessMessage builds a GenericFGAMessage for update_access operations.
+// It constructs the relations map from project settings and references map from project base.
+func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsDB *models.ProjectSettings) fgatypes.GenericFGAMessage {
+	// Build relations map for FGA sync
+	relations := make(map[string][]string)
+	if writers := extractUsernames(projectSettingsDB.Writers); len(writers) > 0 {
+		relations[fgaconstants.RelationWriter] = writers
+	}
+	if auditors := extractUsernames(projectSettingsDB.Auditors); len(auditors) > 0 {
+		relations[fgaconstants.RelationAuditor] = auditors
+	}
+	if coordinators := extractUsernames(projectSettingsDB.MeetingCoordinators); len(coordinators) > 0 {
+		relations[fgaconstants.RelationMeetingCoordinator] = coordinators
+	}
+	if ed := extractUsername(projectSettingsDB.ExecutiveDirector); ed != "" {
+		relations["executive_director"] = []string{ed}
+	}
+
+	// Build references map for parent relationship
+	references := make(map[string][]string)
+	if projectDB.ParentUID != "" {
+		references[fgaconstants.RelationParent] = []string{fgaconstants.ObjectTypeProject + projectDB.ParentUID}
+	}
+
+	return fgatypes.GenericFGAMessage{
+		ObjectType: "project",
+		Operation:  "update_access",
+		Data: fgatypes.GenericAccessData{
+			UID:        projectDB.UID,
+			Public:     projectDB.Public,
+			Relations:  relations,
+			References: references,
+		},
+	}
 }
 
 // createTestUserInfo creates a UserInfo for testing purposes

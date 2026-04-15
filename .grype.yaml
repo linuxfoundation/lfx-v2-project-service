@@ -1,0 +1,20 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+
+# Grype vulnerability scan configuration.
+# See: https://github.com/anchore/grype#configuration
+
+ignore:
+  # GHSA-hfvc-g4fc-pqhx affects go.opentelemetry.io/otel/sdk.
+  # Fixed in v1.43.0, which requires Go 1.25. Cannot upgrade until the MegaLinter
+  # Docker image (currently Go 1.24.7) supports Go 1.25.
+  - vulnerability: GHSA-hfvc-g4fc-pqhx
+
+  # GHSA-w8rr-5gcm-pp58 affects several opentelemetry exporter packages.
+  # Fixed versions (v1.43.0 / v0.19.0) require Go 1.25. Same constraint as above.
+  - vulnerability: GHSA-w8rr-5gcm-pp58
+
+  # GHSA-xmrv-pmrh-hhx2 affects github.com/aws/aws-sdk-go-v2 packages.
+  # Fixed in aws-sdk-go-v2/service/s3 v1.97.3 and eventstream v1.7.8, but upgrading
+  # these pulls in otel v1.43.0 transitively, which again requires Go 1.25.
+  - vulnerability: GHSA-xmrv-pmrh-hhx2

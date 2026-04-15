@@ -35,6 +35,8 @@ This service handles the following NATS subjects for inter-service communication
 
 This service publishes the following NATS events:
 
+#### Project Data Events
+
 - `lfx.projects-api.project_settings.updated`: Published when project settings are updated. Contains both the old and new settings to allow downstream services to react to changes. Message format:
 
   ```json
@@ -45,13 +47,54 @@ This service publishes the following NATS events:
   }
   ```
 
-### Indexer Contract
+#### Indexer Contract
 
 This service indexes project data into the indexer service, making it searchable via the query service.
+
+- `lfx.index.project`: Published when a project is created, updated, or deleted. Contains the project base data and tags for indexing.
+- `lfx.index.project_settings`: Published when project settings are created or updated. Contains the project settings data and tags for indexing.
 
 Each indexer message includes an `IndexingConfig` that provides pre-computed metadata for the indexer service. When present, it bypasses server-side enrichers and controls how the document is stored, searched, and access-checked in the index. For the full field reference and message format details, see the [indexer service client guide](https://github.com/linuxfoundation/lfx-v2-indexer-service/blob/main/docs/client-guide.md).
 
 For the data schemas, tags, access control values, parent references, and fulltext fields for all resource types — see [`docs/indexer-contract.md`](docs/indexer-contract.md).
+
+#### FGA Sync Contract
+
+This service uses the generic FGA sync handlers for managing fine-grained access control. All access control messages use the `GenericFGAMessage` envelope format. For the full authoritative reference, see [docs/fga-contract.md](docs/fga-contract.md).
+
+- `lfx.fga-sync.update_access`: Published when project access permissions are updated. This is a full sync operation - any relations not included will be removed. Message format:
+
+  ```json
+  {
+    "object_type": "project",
+    "operation": "update_access",
+    "data": {
+      "uid": "project-uid",
+      "public": true,
+      "relations": {
+        "writer": ["username1", "username2"],
+        "auditor": ["username3"],
+        "meeting_coordinator": ["username4"],
+        "executive_director": ["username5"]
+      },
+      "references": {
+        "parent": ["project:parent-uid"]
+      }
+    }
+  }
+  ```
+
+- `lfx.fga-sync.delete_access`: Published when a project is deleted. Removes all access control tuples for the project. Message format:
+
+  ```json
+  {
+    "object_type": "project",
+    "operation": "delete_access",
+    "data": {
+      "uid": "project-uid"
+    }
+  }
+  ```
 
 ## Quick Start
 

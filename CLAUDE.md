@@ -160,15 +160,55 @@ Complete API endpoint documentation and NATS message handlers are now documented
 "lfx.projects-api.get_slug"            // Get project slug by UID
 "lfx.projects-api.get_logo"            // Get project logo URL by UID
 "lfx.projects-api.slug_to_uid"         // Convert slug to UID
+"lfx.projects-api.get_parent_uid"      // Get parent project UID
 
 // Outbound events (published by this service)
-"lfx.index.project"                    // Project created/updated for indexing
-"lfx.index.project_settings"           // Settings updated for indexing
-"lfx.update_access.project"            // Project access control updates
-"lfx.update_access.project_settings"   // Project settings access control updates
-"lfx.delete_all_access.project"        // Project access control deletion
-"lfx.delete_all_access.project_settings" // Project settings access control deletion
+"lfx.index.project"                    // Project created/updated/deleted for indexing
+"lfx.index.project_settings"           // Settings created/updated for indexing
+"lfx.projects-api.project_settings.updated" // Settings changed (before/after)
+"lfx.fga-sync.update_access"           // Generic FGA access control updates
+"lfx.fga-sync.delete_access"           // Generic FGA access control deletion
 ```
+
+### FGA Sync Message Format
+
+The service uses the generic FGA sync handlers for access control. All messages use the `GenericFGAMessage` envelope:
+
+```go
+// Update access control (full sync)
+GenericFGAMessage{
+    ObjectType: "project",
+    Operation: "update_access",
+    Data: UpdateAccessData{
+        UID: "project-uid",
+        Public: true,
+        Relations: map[string][]string{
+            "writer": []string{"username1", "username2"},
+            "auditor": []string{"username3"},
+            "meeting_coordinator": []string{"username4"},
+        },
+        References: map[string][]string{
+            "parent": []string{"project:parent-uid"},
+        },
+    },
+}
+
+// Delete all access control
+GenericFGAMessage{
+    ObjectType: "project",
+    Operation: "delete_access",
+    Data: DeleteAccessData{
+        UID: "project-uid",
+    },
+}
+```
+
+**Key Points:**
+
+- Relations map user roles to usernames (e.g., `"writer": ["user1", "user2"]`)
+- References map object relationships with formatted UIDs (e.g., `"parent": ["project:parent-uid"]`)
+- Update operations are full sync - any relations not included will be removed
+- Delete operations remove all access control tuples for the resource
 
 ## Testing Patterns
 
