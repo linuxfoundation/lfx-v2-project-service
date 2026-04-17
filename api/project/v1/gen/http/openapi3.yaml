@@ -2638,7 +2638,7 @@ components:
                     type: string
                     description: The avatar URL of the user
                     example: https://example.com/avatar.jpg
-                    format: uri
+                    pattern: ^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+
                 email:
                     type: string
                     description: The email address of the user
