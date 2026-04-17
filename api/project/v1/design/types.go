@@ -254,7 +254,7 @@ var UserInfo = Type("UserInfo", func() {
 	})
 	Attribute("avatar", String, "The avatar URL of the user", func() {
 		Example("https://example.com/avatar.jpg")
-		Pattern(`^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+`)
+		Pattern(`^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+$`)
 	})
 })
 

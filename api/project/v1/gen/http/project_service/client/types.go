@@ -2114,7 +2114,7 @@ func ValidateUserInfoResponseBody(body *UserInfoResponseBody) (err error) {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
 	}
 	if body.Avatar != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$"))
 	}
 	return
 }
@@ -2126,7 +2126,7 @@ func ValidateUserInfoRequestBody(body *UserInfoRequestBody) (err error) {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
 	}
 	if body.Avatar != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$"))
 	}
 	return
 }
