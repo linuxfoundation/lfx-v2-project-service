@@ -54,6 +54,9 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 	if base.LegalParentUID != "" {
 		full.LegalParentUID = &base.LegalParentUID
 	}
+	if base.Funding != "" {
+		full.Funding = &base.Funding
+	}
 	if base.CharterURL != "" {
 		full.CharterURL = &base.CharterURL
 	}
@@ -163,6 +166,9 @@ func ConvertToDBProjectBase(project *projsvc.ProjectBase) (*models.ProjectBase, 
 	if project.LegalParentUID != nil {
 		p.LegalParentUID = *project.LegalParentUID
 	}
+	if project.Funding != nil {
+		p.Funding = *project.Funding
+	}
 	if project.FundingModel != nil {
 		p.FundingModel = project.FundingModel
 	}
@@ -254,6 +260,9 @@ func ConvertToServiceProjectBase(p *models.ProjectBase) *projsvc.ProjectBase {
 	}
 	if p.LegalParentUID != "" {
 		project.LegalParentUID = &p.LegalParentUID
+	}
+	if p.Funding != "" {
+		project.Funding = &p.Funding
 	}
 	if p.EntityFormationDocumentURL != "" {
 		project.EntityFormationDocumentURL = &p.EntityFormationDocumentURL

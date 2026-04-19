@@ -33,6 +33,8 @@ type CreateProjectRequestBody struct {
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
 	// The category of the project
 	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// The funding status of the project
+	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
@@ -90,6 +92,8 @@ type UpdateProjectBaseRequestBody struct {
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
 	// The category of the project
 	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// The funding status of the project
+	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
@@ -161,6 +165,8 @@ type CreateProjectResponseBody struct {
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
 	// The category of the project
 	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// The funding status of the project
+	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
@@ -232,6 +238,8 @@ type UpdateProjectBaseResponseBody struct {
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
 	// The category of the project
 	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// The funding status of the project
+	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
@@ -575,6 +583,8 @@ type ProjectFullResponseBody struct {
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
 	// The category of the project
 	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// The funding status of the project
+	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
@@ -649,6 +659,8 @@ type ProjectBaseResponseBody struct {
 	Stage *string `form:"stage,omitempty" json:"stage,omitempty" xml:"stage,omitempty"`
 	// The category of the project
 	Category *string `form:"category,omitempty" json:"category,omitempty" xml:"category,omitempty"`
+	// The funding status of the project
+	Funding *string `form:"funding,omitempty" json:"funding,omitempty" xml:"funding,omitempty"`
 	// A list of funding models for the project
 	FundingModel []string `form:"funding_model,omitempty" json:"funding_model,omitempty" xml:"funding_model,omitempty"`
 	// The URL of the project charter document
@@ -741,6 +753,7 @@ func NewCreateProjectResponseBody(res *projectservice.ProjectFull) *CreateProjec
 		ParentUID:                  res.ParentUID,
 		Stage:                      res.Stage,
 		Category:                   res.Category,
+		Funding:                    res.Funding,
 		CharterURL:                 res.CharterURL,
 		LegalEntityType:            res.LegalEntityType,
 		LegalEntityName:            res.LegalEntityName,
@@ -801,6 +814,7 @@ func NewGetOneProjectBaseResponseBody(res *projectservice.GetOneProjectBaseResul
 		ParentUID:                  res.Project.ParentUID,
 		Stage:                      res.Project.Stage,
 		Category:                   res.Project.Category,
+		Funding:                    res.Project.Funding,
 		CharterURL:                 res.Project.CharterURL,
 		LegalEntityType:            res.Project.LegalEntityType,
 		LegalEntityName:            res.Project.LegalEntityName,
@@ -873,6 +887,7 @@ func NewUpdateProjectBaseResponseBody(res *projectservice.ProjectBase) *UpdatePr
 		ParentUID:                  res.ParentUID,
 		Stage:                      res.Stage,
 		Category:                   res.Category,
+		Funding:                    res.Funding,
 		CharterURL:                 res.CharterURL,
 		LegalEntityType:            res.LegalEntityType,
 		LegalEntityName:            res.LegalEntityName,
@@ -1244,6 +1259,7 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 		ParentUID:                  *body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
+		Funding:                    body.Funding,
 		CharterURL:                 body.CharterURL,
 		LegalEntityType:            body.LegalEntityType,
 		LegalEntityName:            body.LegalEntityName,
@@ -1326,6 +1342,7 @@ func NewUpdateProjectBasePayload(body *UpdateProjectBaseRequestBody, uid string,
 		ParentUID:                  *body.ParentUID,
 		Stage:                      body.Stage,
 		Category:                   body.Category,
+		Funding:                    body.Funding,
 		CharterURL:                 body.CharterURL,
 		LegalEntityType:            body.LegalEntityType,
 		LegalEntityName:            body.LegalEntityName,
@@ -1434,6 +1451,11 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.category", *body.Category, []any{"Active", "Adopted", "Archived", "At-Large", "Early Adoption", "Emeritus", "Graduated", "Growth", "Idle", "Impact", "Incubating", "Kanister", "Mature", "Pre-LFESS", "Sandbox", "SIG", "Standards", "TAC", "Working Group", "TAG", "NONE"}))
 		}
 	}
+	if body.Funding != nil {
+		if !(*body.Funding == "Funded" || *body.Funding == "Unfunded" || *body.Funding == "Supported by Parent Project") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding", *body.Funding, []any{"Funded", "Unfunded", "Supported by Parent Project"}))
+		}
+	}
 	for _, e := range body.FundingModel {
 		if !(e == "Crowdfunding" || e == "Membership" || e == "Alternate Funding") {
 			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding_model[*]", e, []any{"Crowdfunding", "Membership", "Alternate Funding"}))
@@ -1529,6 +1551,11 @@ func ValidateUpdateProjectBaseRequestBody(body *UpdateProjectBaseRequestBody) (e
 	if body.Category != nil {
 		if !(*body.Category == "Active" || *body.Category == "Adopted" || *body.Category == "Archived" || *body.Category == "At-Large" || *body.Category == "Early Adoption" || *body.Category == "Emeritus" || *body.Category == "Graduated" || *body.Category == "Growth" || *body.Category == "Idle" || *body.Category == "Impact" || *body.Category == "Incubating" || *body.Category == "Kanister" || *body.Category == "Mature" || *body.Category == "Pre-LFESS" || *body.Category == "Sandbox" || *body.Category == "SIG" || *body.Category == "Standards" || *body.Category == "TAC" || *body.Category == "Working Group" || *body.Category == "TAG" || *body.Category == "NONE") {
 			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.category", *body.Category, []any{"Active", "Adopted", "Archived", "At-Large", "Early Adoption", "Emeritus", "Graduated", "Growth", "Idle", "Impact", "Incubating", "Kanister", "Mature", "Pre-LFESS", "Sandbox", "SIG", "Standards", "TAC", "Working Group", "TAG", "NONE"}))
+		}
+	}
+	if body.Funding != nil {
+		if !(*body.Funding == "Funded" || *body.Funding == "Unfunded" || *body.Funding == "Supported by Parent Project") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.funding", *body.Funding, []any{"Funded", "Unfunded", "Supported by Parent Project"}))
 		}
 	}
 	for _, e := range body.FundingModel {

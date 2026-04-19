@@ -636,6 +636,14 @@ definitions:
                 description: The date the project was formed
                 example: "2021-01-01"
                 format: date
+            funding:
+                type: string
+                description: The funding status of the project
+                example: Funded
+                enum:
+                    - Funded
+                    - Unfunded
+                    - Supported by Parent Project
             funding_model:
                 type: array
                 items:
@@ -738,6 +746,7 @@ definitions:
             entity_dissolution_date: "2021-12-31"
             entity_formation_document_url: https://example.com/formation.pdf
             formation_date: "2021-01-01"
+            funding: Funded
             funding_model:
                 - Crowdfunding
             is_foundation: false
@@ -838,6 +847,14 @@ definitions:
                 description: The date the project was formed
                 example: "2021-01-01"
                 format: date
+            funding:
+                type: string
+                description: The funding status of the project
+                example: Funded
+                enum:
+                    - Funded
+                    - Unfunded
+                    - Supported by Parent Project
             funding_model:
                 type: array
                 items:
@@ -987,6 +1004,7 @@ definitions:
                 name: Jane Smith
                 username: janesmith456
             formation_date: "2021-01-01"
+            funding: Funded
             funding_model:
                 - Crowdfunding
             is_foundation: false
@@ -1101,6 +1119,14 @@ definitions:
                 description: The date the project was formed
                 example: "2021-01-01"
                 format: date
+            funding:
+                type: string
+                description: The funding status of the project
+                example: Funded
+                enum:
+                    - Funded
+                    - Unfunded
+                    - Supported by Parent Project
             funding_model:
                 type: array
                 items:
@@ -1238,6 +1264,7 @@ definitions:
                 name: Jane Smith
                 username: janesmith456
             formation_date: "2021-01-01"
+            funding: Funded
             funding_model:
                 - Crowdfunding
             is_foundation: false
@@ -1315,6 +1342,7 @@ definitions:
                         name: Jane Smith
                         username: janesmith456
                       formation_date: "2021-01-01"
+                      funding: Funded
                       funding_model:
                         - Crowdfunding
                       is_foundation: false
@@ -1373,6 +1401,7 @@ definitions:
                         name: Jane Smith
                         username: janesmith456
                       formation_date: "2021-01-01"
+                      funding: Funded
                       funding_model:
                         - Crowdfunding
                       is_foundation: false
@@ -1431,6 +1460,7 @@ definitions:
                         name: Jane Smith
                         username: janesmith456
                       formation_date: "2021-01-01"
+                      funding: Funded
                       funding_model:
                         - Crowdfunding
                       is_foundation: false
@@ -1489,6 +1519,7 @@ definitions:
                         name: Jane Smith
                         username: janesmith456
                       formation_date: "2021-01-01"
+                      funding: Funded
                       funding_model:
                         - Crowdfunding
                       is_foundation: false
@@ -1549,6 +1580,7 @@ definitions:
                     name: Jane Smith
                     username: janesmith456
                   formation_date: "2021-01-01"
+                  funding: Funded
                   funding_model:
                     - Crowdfunding
                   is_foundation: false
@@ -1607,6 +1639,7 @@ definitions:
                     name: Jane Smith
                     username: janesmith456
                   formation_date: "2021-01-01"
+                  funding: Funded
                   funding_model:
                     - Crowdfunding
                   is_foundation: false
@@ -1702,6 +1735,14 @@ definitions:
                 description: The date the project was formed
                 example: "2021-01-01"
                 format: date
+            funding:
+                type: string
+                description: The funding status of the project
+                example: Funded
+                enum:
+                    - Funded
+                    - Unfunded
+                    - Supported by Parent Project
             funding_model:
                 type: array
                 items:
@@ -1792,6 +1833,7 @@ definitions:
             entity_dissolution_date: "2021-12-31"
             entity_formation_document_url: https://example.com/formation.pdf
             formation_date: "2021-01-01"
+            funding: Funded
             funding_model:
                 - Crowdfunding
             is_foundation: false

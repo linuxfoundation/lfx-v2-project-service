@@ -71,6 +71,7 @@ func ProjectBaseAttributes() {
 	ProjectParentUIDAttribute()
 	ProjectStageAttribute()
 	ProjectCategoryAttribute()
+	ProjectFundingAttribute()
 	ProjectFundingModelAttribute()
 	ProjectCharterURLAttribute()
 	ProjectLegalEntityTypeAttribute()
@@ -357,6 +358,18 @@ func ProjectLegalParentUIDAttribute() {
 	Attribute("legal_parent_uid", String, "The UID of the legal parent entity, should be empty if there is none", func() {
 		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")
 		Format(FormatUUID)
+	})
+}
+
+// ProjectFundingAttribute is the DSL attribute for a project funding status.
+func ProjectFundingAttribute() {
+	Attribute("funding", String, "The funding status of the project", func() {
+		Example("Funded")
+		Enum(
+			"Funded",
+			"Unfunded",
+			"Supported by Parent Project",
+		)
 	})
 }
 

@@ -98,6 +98,8 @@ type CreateProjectPayload struct {
 	Stage *string
 	// The category of the project
 	Category *string
+	// The funding status of the project
+	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
 	// The URL of the project charter document
@@ -242,6 +244,8 @@ type ProjectBase struct {
 	Stage *string
 	// The category of the project
 	Category *string
+	// The funding status of the project
+	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
 	// The URL of the project charter document
@@ -293,6 +297,8 @@ type ProjectFull struct {
 	Stage *string
 	// The category of the project
 	Category *string
+	// The funding status of the project
+	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
 	// The URL of the project charter document
@@ -394,6 +400,8 @@ type UpdateProjectBasePayload struct {
 	Stage *string
 	// The category of the project
 	Category *string
+	// The funding status of the project
+	Funding *string
 	// A list of funding models for the project
 	FundingModel []string
 	// The URL of the project charter document
