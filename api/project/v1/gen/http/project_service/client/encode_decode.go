@@ -1233,6 +1233,7 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 		ParentUID:                  v.ParentUID,
 		Stage:                      v.Stage,
 		Category:                   v.Category,
+		Funding:                    v.Funding,
 		CharterURL:                 v.CharterURL,
 		LegalEntityType:            v.LegalEntityType,
 		LegalEntityName:            v.LegalEntityName,

@@ -33,6 +33,7 @@ type ProjectBase struct {
 	LegalEntityType            string     `json:"legal_entity_type"`
 	LegalEntityName            string     `json:"legal_entity_name"`
 	LegalParentUID             string     `json:"legal_parent_uid"`
+	Funding                    string     `json:"funding"`
 	FundingModel               []string   `json:"funding_model"`
 	EntityDissolutionDate      *time.Time `json:"entity_dissolution_date"`
 	EntityFormationDocumentURL string     `json:"entity_formation_document_url"`
