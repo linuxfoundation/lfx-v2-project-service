@@ -111,6 +111,12 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 		if settings.ExecutiveDirector != nil {
 			full.ExecutiveDirector = convertUserToAPI(settings.ExecutiveDirector)
 		}
+		if settings.ProgramManager != nil {
+			full.ProgramManager = convertUserToAPI(settings.ProgramManager)
+		}
+		if settings.OpportunityOwner != nil {
+			full.OpportunityOwner = convertUserToAPI(settings.OpportunityOwner)
+		}
 
 		// Handle settings fields that are pointers
 		if settings.AnnouncementDate != nil {
@@ -336,6 +342,12 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*models.Proj
 	if settings.ExecutiveDirector != nil {
 		s.ExecutiveDirector = convertUserFromAPI(settings.ExecutiveDirector)
 	}
+	if settings.ProgramManager != nil {
+		s.ProgramManager = convertUserFromAPI(settings.ProgramManager)
+	}
+	if settings.OpportunityOwner != nil {
+		s.OpportunityOwner = convertUserFromAPI(settings.OpportunityOwner)
+	}
 	if settings.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
 		if err != nil {
@@ -381,6 +393,12 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 	}
 	if s.ExecutiveDirector != nil {
 		settings.ExecutiveDirector = convertUserToAPI(s.ExecutiveDirector)
+	}
+	if s.ProgramManager != nil {
+		settings.ProgramManager = convertUserToAPI(s.ProgramManager)
+	}
+	if s.OpportunityOwner != nil {
+		settings.OpportunityOwner = convertUserToAPI(s.OpportunityOwner)
 	}
 
 	// Handle settings fields that are pointers

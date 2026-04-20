@@ -918,10 +918,14 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+            opportunity_owner:
+                $ref: '#/definitions/UserInfo'
             parent_uid:
                 type: string
                 description: The UID of the parent project, required and must be a valid UUID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            program_manager:
+                $ref: '#/definitions/UserInfo'
             public:
                 type: boolean
                 description: Whether the project is public
@@ -1023,7 +1027,17 @@ definitions:
                   username: janesmith456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
             name: Foo Foundation
+            opportunity_owner:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            program_manager:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             public: true
             repository_url: https://example.com/project
             slug: project-slug
@@ -1190,10 +1204,14 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+            opportunity_owner:
+                $ref: '#/definitions/UserInfo'
             parent_uid:
                 type: string
                 description: The UID of the parent project, required and must be a valid UUID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            program_manager:
+                $ref: '#/definitions/UserInfo'
             public:
                 type: boolean
                 description: Whether the project is public
@@ -1283,7 +1301,17 @@ definitions:
                   username: janesmith456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
             name: Foo Foundation
+            opportunity_owner:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            program_manager:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             public: true
             repository_url: https://example.com/project
             slug: project-slug
@@ -1361,7 +1389,17 @@ definitions:
                           username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
+                      opportunity_owner:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      program_manager:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       public: true
                       repository_url: https://example.com/project
                       slug: project-slug
@@ -1420,7 +1458,17 @@ definitions:
                           username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
+                      opportunity_owner:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      program_manager:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       public: true
                       repository_url: https://example.com/project
                       slug: project-slug
@@ -1479,7 +1527,17 @@ definitions:
                           username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
+                      opportunity_owner:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      program_manager:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       public: true
                       repository_url: https://example.com/project
                       slug: project-slug
@@ -1538,7 +1596,17 @@ definitions:
                           username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
+                      opportunity_owner:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      program_manager:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
                       public: true
                       repository_url: https://example.com/project
                       slug: project-slug
@@ -1599,7 +1667,17 @@ definitions:
                       username: janesmith456
                   mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                   name: Foo Foundation
+                  opportunity_owner:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
                   parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  program_manager:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
                   public: true
                   repository_url: https://example.com/project
                   slug: project-slug
@@ -1658,7 +1736,17 @@ definitions:
                       username: janesmith456
                   mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                   name: Foo Foundation
+                  opportunity_owner:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
                   parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                  program_manager:
+                    avatar: https://example.com/avatar.jpg
+                    email: jane.smith@example.com
+                    name: Jane Smith
+                    username: janesmith456
                   public: true
                   repository_url: https://example.com/project
                   slug: project-slug
@@ -1896,6 +1984,10 @@ definitions:
                 type: string
                 description: The mission statement of the project
                 example: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            opportunity_owner:
+                $ref: '#/definitions/UserInfo'
+            program_manager:
+                $ref: '#/definitions/UserInfo'
             writers:
                 type: array
                 items:
@@ -1936,6 +2028,16 @@ definitions:
                   name: Jane Smith
                   username: janesmith456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            opportunity_owner:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
+            program_manager:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             writers:
                 - avatar: https://example.com/avatar3.jpg
                   email: alice.johnson@example.com
@@ -1993,6 +2095,10 @@ definitions:
                 type: string
                 description: The mission statement of the project
                 example: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            opportunity_owner:
+                $ref: '#/definitions/UserInfo'
+            program_manager:
+                $ref: '#/definitions/UserInfo'
             uid:
                 type: string
                 description: Project UID -- v2 uid, not related to v1 id directly
@@ -2045,6 +2151,16 @@ definitions:
                   name: Jane Smith
                   username: janesmith456
             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+            opportunity_owner:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
+            program_manager:
+                avatar: https://example.com/avatar.jpg
+                email: jane.smith@example.com
+                name: Jane Smith
+                username: janesmith456
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2021-01-01T00:00:00Z"
             writers:

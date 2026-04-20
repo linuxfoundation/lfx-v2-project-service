@@ -71,6 +71,10 @@ type CreateProjectRequestBody struct {
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// The program manager of the project with their profile information
+	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
+	// The opportunity owner of the project with their profile information
+	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
 }
 
 // UpdateProjectBaseRequestBody is the type of the "project-service" service
@@ -135,6 +139,10 @@ type UpdateProjectSettingsRequestBody struct {
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// The program manager of the project with their profile information
+	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
+	// The opportunity owner of the project with their profile information
+	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
@@ -207,6 +215,10 @@ type CreateProjectResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// The program manager of the project with their profile information
+	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
+	// The opportunity owner of the project with their profile information
+	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
 }
 
 // GetOneProjectBaseResponseBody is the type of the "project-service" service
@@ -287,6 +299,10 @@ type UpdateProjectSettingsResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// The program manager of the project with their profile information
+	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
+	// The opportunity owner of the project with their profile information
+	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -625,6 +641,10 @@ type ProjectFullResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// The program manager of the project with their profile information
+	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
+	// The opportunity owner of the project with their profile information
+	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
 }
 
 // UserInfoResponseBody is used to define fields on response body types.
@@ -719,6 +739,10 @@ type ProjectSettingsResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// The program manager of the project with their profile information
+	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
+	// The opportunity owner of the project with their profile information
+	OpportunityOwner *UserInfoResponseBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
@@ -778,6 +802,12 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 	}
 	if p.ExecutiveDirector != nil {
 		body.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ExecutiveDirector)
+	}
+	if p.ProgramManager != nil {
+		body.ProgramManager = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ProgramManager)
+	}
+	if p.OpportunityOwner != nil {
+		body.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoRequestBody(p.OpportunityOwner)
 	}
 	return body
 }
@@ -845,6 +875,12 @@ func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettings
 	}
 	if p.ExecutiveDirector != nil {
 		body.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ExecutiveDirector)
+	}
+	if p.ProgramManager != nil {
+		body.ProgramManager = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ProgramManager)
+	}
+	if p.OpportunityOwner != nil {
+		body.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoRequestBody(p.OpportunityOwner)
 	}
 	return body
 }
@@ -951,6 +987,12 @@ func NewCreateProjectProjectFullCreated(body *CreateProjectResponseBody) *projec
 	}
 	if body.ExecutiveDirector != nil {
 		v.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ExecutiveDirector)
+	}
+	if body.ProgramManager != nil {
+		v.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ProgramManager)
+	}
+	if body.OpportunityOwner != nil {
+		v.OpportunityOwner = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.OpportunityOwner)
 	}
 
 	return v
@@ -1105,6 +1147,12 @@ func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, e
 	}
 	if body.ExecutiveDirector != nil {
 		v.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ExecutiveDirector)
+	}
+	if body.ProgramManager != nil {
+		v.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ProgramManager)
+	}
+	if body.OpportunityOwner != nil {
+		v.OpportunityOwner = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.OpportunityOwner)
 	}
 	res := &projectservice.GetOneProjectSettingsResult{
 		ProjectSettings: v,
@@ -1270,6 +1318,12 @@ func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsRespon
 	}
 	if body.ExecutiveDirector != nil {
 		v.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ExecutiveDirector)
+	}
+	if body.ProgramManager != nil {
+		v.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ProgramManager)
+	}
+	if body.OpportunityOwner != nil {
+		v.OpportunityOwner = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.OpportunityOwner)
 	}
 
 	return v
@@ -1486,6 +1540,16 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 			err = goa.MergeErrors(err, err2)
 		}
 	}
+	if body.ProgramManager != nil {
+		if err2 := ValidateUserInfoResponseBody(body.ProgramManager); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.OpportunityOwner != nil {
+		if err2 := ValidateUserInfoResponseBody(body.OpportunityOwner); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	return
 }
 
@@ -1591,6 +1655,16 @@ func ValidateGetOneProjectSettingsResponseBody(body *GetOneProjectSettingsRespon
 	}
 	if body.ExecutiveDirector != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ExecutiveDirector); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.ProgramManager != nil {
+		if err2 := ValidateUserInfoResponseBody(body.ProgramManager); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.OpportunityOwner != nil {
+		if err2 := ValidateUserInfoResponseBody(body.OpportunityOwner); err2 != nil {
 			err = goa.MergeErrors(err, err2)
 		}
 	}
@@ -1705,6 +1779,16 @@ func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsRespon
 	}
 	if body.ExecutiveDirector != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ExecutiveDirector); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.ProgramManager != nil {
+		if err2 := ValidateUserInfoResponseBody(body.ProgramManager); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.OpportunityOwner != nil {
+		if err2 := ValidateUserInfoResponseBody(body.OpportunityOwner); err2 != nil {
 			err = goa.MergeErrors(err, err2)
 		}
 	}
@@ -2141,6 +2225,16 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 			err = goa.MergeErrors(err, err2)
 		}
 	}
+	if body.ProgramManager != nil {
+		if err2 := ValidateUserInfoResponseBody(body.ProgramManager); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.OpportunityOwner != nil {
+		if err2 := ValidateUserInfoResponseBody(body.OpportunityOwner); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	return
 }
 
@@ -2270,6 +2364,16 @@ func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err
 	}
 	if body.ExecutiveDirector != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ExecutiveDirector); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.ProgramManager != nil {
+		if err2 := ValidateUserInfoResponseBody(body.ProgramManager); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.OpportunityOwner != nil {
+		if err2 := ValidateUserInfoResponseBody(body.OpportunityOwner); err2 != nil {
 			err = goa.MergeErrors(err, err2)
 		}
 	}
