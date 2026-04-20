@@ -534,12 +534,6 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 	if ed := extractUsername(projectSettingsDB.ExecutiveDirector); ed != "" {
 		relations["executive_director"] = []string{ed}
 	}
-	if pm := extractUsername(projectSettingsDB.ProgramManager); pm != "" {
-		relations["program_manager"] = []string{pm}
-	}
-	if oo := extractUsername(projectSettingsDB.OpportunityOwner); oo != "" {
-		relations["opportunity_owner"] = []string{oo}
-	}
 
 	// Build references map for parent relationship
 	references := make(map[string][]string)
