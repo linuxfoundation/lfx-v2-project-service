@@ -11,6 +11,8 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
   {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
 spec:
   bucket: {{ .Values.nats.kv_bucket_project_base.name }}
   replicas: {{ .Values.nats.kv_bucket_project_base.replicas }}
@@ -31,6 +33,8 @@ metadata:
   annotations:
     "helm.sh/resource-policy": keep
   {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
 spec:
   bucket: {{ .Values.nats.kv_bucket_project_settings.name }}
   replicas: {{ .Values.nats.kv_bucket_project_settings.replicas }}
