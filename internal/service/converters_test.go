@@ -153,6 +153,20 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "with program_manager and opportunity_owner",
+			input: &projsvc.ProjectSettings{
+				UID:             misc.StringPtr("test-uid"),
+				ProgramManager:  createTestAPIUserInfo("pm1", "PM One", "pm1@example.com", ""),
+				OpportunityOwner: createTestAPIUserInfo("oo1", "OO One", "oo1@example.com", ""),
+			},
+			expected: &models.ProjectSettings{
+				UID:             "test-uid",
+				ProgramManager:  &models.UserInfo{Username: "pm1", Name: "PM One", Email: "pm1@example.com"},
+				OpportunityOwner: &models.UserInfo{Username: "oo1", Name: "OO One", Email: "oo1@example.com"},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -169,6 +183,8 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 				assert.Equal(t, tt.expected.Writers, result.Writers)
 				assert.Equal(t, tt.expected.Auditors, result.Auditors)
 				assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
+				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
+				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 			}
 		})
 	}
@@ -226,6 +242,26 @@ func TestConvertToProjectFull(t *testing.T) {
 			},
 		},
 		{
+			name: "with program_manager and opportunity_owner",
+			base: &models.ProjectBase{
+				UID:  "test-uid",
+				Slug: "test-slug",
+			},
+			settings: &models.ProjectSettings{
+				UID:              "test-uid",
+				ProgramManager:   &models.UserInfo{Username: "pm1", Name: "PM One", Email: "pm1@example.com"},
+				OpportunityOwner: &models.UserInfo{Username: "oo1", Name: "OO One", Email: "oo1@example.com"},
+			},
+			expected: &projsvc.ProjectFull{
+				UID:              misc.StringPtr("test-uid"),
+				Slug:             misc.StringPtr("test-slug"),
+				Public:           misc.BoolPtr(false),
+				AutojoinEnabled:  misc.BoolPtr(false),
+				ProgramManager:   createTestAPIUserInfo("pm1", "PM One", "pm1@example.com", ""),
+				OpportunityOwner: createTestAPIUserInfo("oo1", "OO One", "oo1@example.com", ""),
+			},
+		},
+		{
 			name:     "nil base",
 			base:     nil,
 			settings: &models.ProjectSettings{},
@@ -263,6 +299,8 @@ func TestConvertToProjectFull(t *testing.T) {
 				if tt.expected.MissionStatement != nil {
 					assert.Equal(t, tt.expected.MissionStatement, result.MissionStatement)
 				}
+				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
+				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 			}
 		})
 	}
@@ -390,6 +428,19 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				UID: misc.StringPtr("test-uid"),
 			},
 		},
+		{
+			name: "with program_manager and opportunity_owner",
+			input: &models.ProjectSettings{
+				UID:              "test-uid",
+				ProgramManager:   &models.UserInfo{Username: "pm1", Name: "PM One", Email: "pm1@example.com"},
+				OpportunityOwner: &models.UserInfo{Username: "oo1", Name: "OO One", Email: "oo1@example.com"},
+			},
+			expected: &projsvc.ProjectSettings{
+				UID:              misc.StringPtr("test-uid"),
+				ProgramManager:   createTestAPIUserInfo("pm1", "PM One", "pm1@example.com", ""),
+				OpportunityOwner: createTestAPIUserInfo("oo1", "OO One", "oo1@example.com", ""),
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -402,6 +453,8 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 			assert.Equal(t, tt.expected.Writers, result.Writers)
 			assert.Equal(t, tt.expected.Auditors, result.Auditors)
 			assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
+			assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
+			assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 		})
 	}
 }
