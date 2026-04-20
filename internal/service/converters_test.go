@@ -156,13 +156,13 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 		{
 			name: "with program_manager and opportunity_owner",
 			input: &projsvc.ProjectSettings{
-				UID:             misc.StringPtr("test-uid"),
-				ProgramManager:  createTestAPIUserInfo("pm1", "PM One", "pm1@example.com", ""),
+				UID:              misc.StringPtr("test-uid"),
+				ProgramManager:   createTestAPIUserInfo("pm1", "PM One", "pm1@example.com", ""),
 				OpportunityOwner: createTestAPIUserInfo("oo1", "OO One", "oo1@example.com", ""),
 			},
 			expected: &models.ProjectSettings{
-				UID:             "test-uid",
-				ProgramManager:  &models.UserInfo{Username: "pm1", Name: "PM One", Email: "pm1@example.com"},
+				UID:              "test-uid",
+				ProgramManager:   &models.UserInfo{Username: "pm1", Name: "PM One", Email: "pm1@example.com"},
 				OpportunityOwner: &models.UserInfo{Username: "oo1", Name: "OO One", Email: "oo1@example.com"},
 			},
 			wantErr: false,
