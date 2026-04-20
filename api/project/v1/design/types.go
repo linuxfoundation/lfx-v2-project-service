@@ -104,6 +104,8 @@ func ProjectSettingsAttributes() {
 	ProjectMeetingCoordinatorsAttribute()
 	ProjectAuditorsAttribute()
 	ProjectExecutiveDirectorAttribute()
+	ProjectProgramManagerAttribute()
+	ProjectOpportunityOwnerAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
 }
@@ -302,6 +304,30 @@ func ProjectWritersAttribute() {
 // ProjectExecutiveDirectorAttribute is the DSL attribute for a project executive director.
 func ProjectExecutiveDirectorAttribute() {
 	Attribute("executive_director", UserInfo, "The executive director of the project with their profile information", func() {
+		Example(map[string]interface{}{
+			"name":     "Jane Smith",
+			"email":    "jane.smith@example.com",
+			"username": "janesmith456",
+			"avatar":   "https://example.com/avatar.jpg",
+		})
+	})
+}
+
+// ProjectProgramManagerAttribute is the DSL attribute for a project program manager.
+func ProjectProgramManagerAttribute() {
+	Attribute("program_manager", UserInfo, "The program manager of the project with their profile information", func() {
+		Example(map[string]interface{}{
+			"name":     "Jane Smith",
+			"email":    "jane.smith@example.com",
+			"username": "janesmith456",
+			"avatar":   "https://example.com/avatar.jpg",
+		})
+	})
+}
+
+// ProjectOpportunityOwnerAttribute is the DSL attribute for a project opportunity owner.
+func ProjectOpportunityOwnerAttribute() {
+	Attribute("opportunity_owner", UserInfo, "The opportunity owner of the project with their profile information", func() {
 		Example(map[string]interface{}{
 			"name":     "Jane Smith",
 			"email":    "jane.smith@example.com",

@@ -1082,6 +1082,12 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 	if v.ExecutiveDirector != nil {
 		res.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoResponseBody(v.ExecutiveDirector)
 	}
+	if v.ProgramManager != nil {
+		res.ProgramManager = marshalProjectserviceUserInfoToUserInfoResponseBody(v.ProgramManager)
+	}
+	if v.OpportunityOwner != nil {
+		res.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoResponseBody(v.OpportunityOwner)
+	}
 
 	return res
 }

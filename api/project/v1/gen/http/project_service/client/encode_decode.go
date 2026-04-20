@@ -1277,6 +1277,12 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 	if v.ExecutiveDirector != nil {
 		res.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.ExecutiveDirector)
 	}
+	if v.ProgramManager != nil {
+		res.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.ProgramManager)
+	}
+	if v.OpportunityOwner != nil {
+		res.OpportunityOwner = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.OpportunityOwner)
+	}
 
 	return res
 }

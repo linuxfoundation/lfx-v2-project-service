@@ -56,6 +56,8 @@ type ProjectSettings struct {
 	Writers             []UserInfo `json:"writers"`
 	MeetingCoordinators []UserInfo `json:"meeting_coordinators"`
 	ExecutiveDirector   *UserInfo  `json:"executive_director,omitempty"`
+	ProgramManager      *UserInfo  `json:"program_manager,omitempty"`
+	OpportunityOwner    *UserInfo  `json:"opportunity_owner,omitempty"`
 	CreatedAt           *time.Time `json:"created_at"`
 	UpdatedAt           *time.Time `json:"updated_at"`
 }

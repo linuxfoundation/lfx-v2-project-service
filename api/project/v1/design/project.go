@@ -94,6 +94,8 @@ var _ = Service("project-service", func() {
 			ProjectMeetingCoordinatorsAttribute()
 			ProjectAuditorsAttribute()
 			ProjectExecutiveDirectorAttribute()
+			ProjectProgramManagerAttribute()
+			ProjectOpportunityOwnerAttribute()
 
 			// TODO: figure out what the required attributes are for projects
 			// Same requirements apply to PUT endpoints.
@@ -270,6 +272,8 @@ var _ = Service("project-service", func() {
 			ProjectMeetingCoordinatorsAttribute()
 			ProjectAuditorsAttribute()
 			ProjectExecutiveDirectorAttribute()
+			ProjectProgramManagerAttribute()
+			ProjectOpportunityOwnerAttribute()
 		})
 
 		Result(ProjectSettings)
