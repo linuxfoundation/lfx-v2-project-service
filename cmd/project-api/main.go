@@ -234,7 +234,12 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 	handler = middleware.RequestIDMiddleware()(handler)
 	handler = middleware.AuthorizationMiddleware()(handler)
 	// Wrap the handler with OpenTelemetry instrumentation
-	handler = otelhttp.NewHandler(handler, "project-service")
+	handler = otelhttp.NewHandler(handler, "project-service",
+		otelhttp.WithFilter(func(r *http.Request) bool {
+			p := r.URL.Path
+			return p != "/healthz" && p != "/livez" && p != "/readyz"
+		}),
+	)
 
 	// Set up http listener in a goroutine using provided command line parameters.
 	var addr string
