@@ -93,7 +93,10 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 			return nil, domain.ErrInternal
 		}
 		if !exists {
-			slog.InfoContext(ctx, "parent project not found")
+			slog.InfoContext(ctx, "parent project not found",
+				slog.String("parent_uid", payload.ParentUID),
+				slog.String("project_slug", payload.Slug),
+			)
 			return nil, domain.ErrInvalidParentProject
 		}
 	}
@@ -362,8 +365,10 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 			return nil, domain.ErrInternal
 		}
 		if !exists {
-			slog.InfoContext(ctx, "parent project not found")
-			return nil, domain.ErrProjectNotFound
+			slog.InfoContext(ctx, "parent project not found",
+				slog.String("parent_uid", payload.ParentUID),
+			)
+			return nil, domain.ErrInvalidParentProject
 		}
 	}
 
