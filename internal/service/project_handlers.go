@@ -47,7 +47,7 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 	response, err = handler(ctx, msg)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {
-			slog.InfoContext(ctx, "project not found while handling message",
+			slog.WarnContext(ctx, "project not found while handling message",
 				constants.ErrKey, err,
 			)
 		} else {
