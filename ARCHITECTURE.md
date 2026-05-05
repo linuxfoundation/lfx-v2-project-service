@@ -131,34 +131,40 @@ The goal of the next phase is to graduate the member service to full v2 platform
 
 ```mermaid
 flowchart TD
-    SF["Salesforce (B2B)"]
-
+    %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+    UI["LFX Self Service UI"]
+    QuerySvc["Query Service"]
+    Consumers["Other v2 Consumers"]
     subgraph svc["LFX v2 Member Service"]
-        SObj["sObject Client\n(conditional GET cache in NATS KV)"]
-        SOQL["SOQL Client\n(backfill only)"]
-        PubSub["PubSub Consumer"]
         API["Member API (Goa / HTTP)\n/b2b_orgs\n/project_memberships\n/key_contacts"]
         RPC["NATS RPC\n(project ID map)"]
+        SObj["sObject Client\n(conditional GET cache in NATS KV)"]
+        API --> SObj
+        SOQL["SOQL Client\n(backfill only)"]
+        PubSub["PubSub Consumer"]
         PUB["Change Event Publisher\nlfx.index.*\nlfx.fga-sync.*"]
     end
-
-    Indexer["Indexer Service → OpenSearch"]
+    KV["NATS KV\n(sObject conditional GET cache)"]
+    Indexer["Indexer Service"]
     FGASync["FGA Sync Service → OpenFGA"]
-    Consumers["Other v2 Consumers"]
-
-    SF -- "sObject REST (ETag/Last-Modified)" --> SObj
-    SF -- "SOQL (backfill)" --> SOQL
-    SF -- "PubSub CDC" --> PubSub
-    SObj -- "cache by UID" --> KV["NATS KV\n(sObject conditional GET cache)"]
-    KV -- "read" --> API
-    PubSub -- "invalidate + re-fetch" --> SObj
-    API --> PUB
-    PubSub --> PUB
-    SOQL --> PUB
-
+    OpenSearch["OpenSearch"]
+    SF["Salesforce (B2B)"]
+    UI --> API
+    UI --> QuerySvc
+    QuerySvc --> OpenSearch
+    PubSub -- "denormalization\nfetches" --> SObj
+    SObj -- "set/get cache by UID" --> KV
     PUB --> Indexer
     PUB --> FGASync
     PUB --> Consumers
+    Indexer --> OpenSearch
+    Indexer -- "notify" --> Consumers
+    SOQL --> PUB
+    PubSub --> PUB
+    API --> PUB
+    SObj -- "sObject REST (ETag/Last-Modified)" --> SF
+    SOQL -- "SOQL (backfill)" --> SF
+    PubSub <-- "PubSub CDC" --> SF
 ```
 
 ### Key design decisions
