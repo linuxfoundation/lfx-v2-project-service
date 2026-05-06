@@ -534,6 +534,11 @@ func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*m
 		linkUID := strings.TrimPrefix(key, prefix)
 		entry, err := s.getLink(ctx, linkUID)
 		if err != nil {
+			if errors.Is(err, domain.ErrLinkNotFound) {
+				// Stale index key — backing record was deleted; skip and continue.
+				slog.WarnContext(ctx, "stale link index key found, skipping", "link_uid", linkUID)
+				continue
+			}
 			slog.ErrorContext(ctx, "error getting link from NATS KV store", constants.ErrKey, err, "link_uid", linkUID)
 			return nil, domain.ErrInternal
 		}
@@ -563,9 +568,14 @@ func (s *NatsRepository) CreateLink(ctx context.Context, link *models.ProjectLin
 	}
 
 	// Write the per-project index key so ListLinks can filter without a full scan.
+	// If this fails, roll back the link record so the store stays consistent.
 	lookupKey := fmt.Sprintf(constants.KVLookupLinkKey, link.ProjectUID, link.UID)
 	if _, err = s.Links.Put(ctx, lookupKey, []byte(link.UID)); err != nil {
-		slog.WarnContext(ctx, "error writing link index key to NATS KV store", constants.ErrKey, err, "key", lookupKey)
+		slog.ErrorContext(ctx, "error writing link index key to NATS KV store; rolling back link record", constants.ErrKey, err, "key", lookupKey)
+		if rbErr := s.Links.Purge(ctx, link.UID); rbErr != nil {
+			slog.ErrorContext(ctx, "error rolling back link record from NATS KV store", constants.ErrKey, rbErr, "link_uid", link.UID)
+		}
+		return domain.ErrInternal
 	}
 
 	return nil
