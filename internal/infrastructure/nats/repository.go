@@ -515,8 +515,9 @@ func (s *NatsRepository) GetLink(ctx context.Context, projectUID, linkUID string
 	return link, entry.Revision(), nil
 }
 
-// ListLinks lists all links for a given project.
+// ListLinks lists all links for a given project using the per-project index prefix.
 func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error) {
+	prefix := fmt.Sprintf("lookup/project-links/%s/", projectUID)
 	keysLister, err := s.Links.ListKeys(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "error listing link keys from NATS KV store", constants.ErrKey, err)
@@ -525,9 +526,14 @@ func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*m
 
 	links := []*models.ProjectLink{}
 	for key := range keysLister.Keys() {
-		entry, err := s.getLink(ctx, key)
+		if !strings.HasPrefix(key, prefix) {
+			continue
+		}
+
+		linkUID := strings.TrimPrefix(key, prefix)
+		entry, err := s.getLink(ctx, linkUID)
 		if err != nil {
-			slog.ErrorContext(ctx, "error getting link from NATS KV store", constants.ErrKey, err, "link_uid", key)
+			slog.ErrorContext(ctx, "error getting link from NATS KV store", constants.ErrKey, err, "link_uid", linkUID)
 			return nil, domain.ErrInternal
 		}
 
@@ -536,15 +542,13 @@ func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*m
 			return nil, domain.ErrUnmarshal
 		}
 
-		if link.ProjectUID == projectUID {
-			links = append(links, link)
-		}
+		links = append(links, link)
 	}
 
 	return links, nil
 }
 
-// CreateLink stores a new project link.
+// CreateLink stores a new project link and writes a per-project index key.
 func (s *NatsRepository) CreateLink(ctx context.Context, link *models.ProjectLink) error {
 	data, err := json.Marshal(link)
 	if err != nil {
@@ -557,18 +561,20 @@ func (s *NatsRepository) CreateLink(ctx context.Context, link *models.ProjectLin
 		return domain.ErrInternal
 	}
 
+	// Write the per-project index key so ListLinks can filter without a full scan.
+	lookupKey := fmt.Sprintf(constants.KVLookupLinkKey, link.ProjectUID, link.UID)
+	if _, err = s.Links.Put(ctx, lookupKey, []byte(link.UID)); err != nil {
+		slog.WarnContext(ctx, "error writing link index key to NATS KV store", constants.ErrKey, err, "key", lookupKey)
+	}
+
 	return nil
 }
 
-// DeleteLink deletes a project link with optimistic concurrency.
+// DeleteLink deletes a project link with optimistic concurrency and removes its index key.
 func (s *NatsRepository) DeleteLink(ctx context.Context, projectUID, linkUID string, revision uint64) error {
-	// Cross-tenant guard
 	link, _, err := s.GetLink(ctx, projectUID, linkUID)
 	if err != nil {
 		return err
-	}
-	if link.ProjectUID != projectUID {
-		return domain.ErrLinkNotFound
 	}
 
 	if err = s.Links.Delete(ctx, linkUID, jetstream.LastRevision(revision)); err != nil {
@@ -578,6 +584,12 @@ func (s *NatsRepository) DeleteLink(ctx context.Context, projectUID, linkUID str
 		}
 		slog.ErrorContext(ctx, "error deleting link from NATS KV store", constants.ErrKey, err)
 		return domain.ErrInternal
+	}
+
+	// Clean up the per-project index key (fire-and-forget; log on failure)
+	lookupKey := fmt.Sprintf(constants.KVLookupLinkKey, link.ProjectUID, link.UID)
+	if err = s.Links.Purge(ctx, lookupKey); err != nil {
+		slog.WarnContext(ctx, "error purging link index key from NATS KV store", constants.ErrKey, err, "key", lookupKey)
 	}
 
 	return nil
@@ -774,6 +786,39 @@ func (s *NatsRepository) GetDocumentFile(ctx context.Context, documentUID string
 	}
 
 	return data, nil
+}
+
+// ListDocuments lists all document metadata for a given project.
+func (s *NatsRepository) ListDocuments(ctx context.Context, projectUID string) ([]*models.ProjectDocument, error) {
+	keysLister, err := s.Documents.ListKeys(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "error listing document keys from NATS KV store", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	docs := []*models.ProjectDocument{}
+	for key := range keysLister.Keys() {
+		if strings.HasPrefix(key, "lookup/") {
+			continue
+		}
+
+		entry, err := s.getDocumentMetadata(ctx, key)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting document from NATS KV store", constants.ErrKey, err, "document_uid", key)
+			return nil, domain.ErrInternal
+		}
+
+		doc, err := s.getDocumentMetadataUnmarshal(ctx, entry)
+		if err != nil {
+			return nil, domain.ErrUnmarshal
+		}
+
+		if doc.ProjectUID == projectUID {
+			docs = append(docs, doc)
+		}
+	}
+
+	return docs, nil
 }
 
 // CreateDocumentMetadata stores document metadata. The caller must first reserve the unique name

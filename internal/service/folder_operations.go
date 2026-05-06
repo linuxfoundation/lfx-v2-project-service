@@ -26,6 +26,10 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 		return nil, domain.ErrServiceUnavailable
 	}
 
+	if name == "" {
+		return nil, domain.ErrValidationFailed
+	}
+
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 
 	exists, err := s.ProjectRepository.ProjectExists(ctx, projectUID)
@@ -163,6 +167,17 @@ func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUI
 	}
 	for _, l := range links {
 		if l.FolderUID != nil && *l.FolderUID == folderUID {
+			return domain.ErrFolderNotEmpty
+		}
+	}
+
+	// Block deletion if the folder still has documents.
+	docs, err := s.DocumentRepository.ListDocuments(ctx, projectUID)
+	if err != nil {
+		return domain.ErrInternal
+	}
+	for _, d := range docs {
+		if d.FolderUID != nil && *d.FolderUID == folderUID {
 			return domain.ErrFolderNotEmpty
 		}
 	}

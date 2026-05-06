@@ -104,6 +104,16 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			},
 			wantErr: domain.ErrDocumentNameExists,
 		},
+		{
+			name:        "empty name rejected",
+			projectUID:  "proj-1",
+			docName:     "",
+			contentType: "application/pdf",
+			fileData:    validFile,
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
 	}
 
 	for _, tt := range tests {

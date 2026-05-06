@@ -26,6 +26,10 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		return nil, domain.ErrServiceUnavailable
 	}
 
+	if name == "" {
+		return nil, domain.ErrValidationFailed
+	}
+
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 
 	exists, err := s.ProjectRepository.ProjectExists(ctx, projectUID)

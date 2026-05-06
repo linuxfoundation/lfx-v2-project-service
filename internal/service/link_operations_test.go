@@ -86,6 +86,15 @@ func TestProjectsService_CreateLink(t *testing.T) {
 			},
 			wantErr: domain.ErrInternal,
 		},
+		{
+			name:       "empty name rejected",
+			projectUID: "proj-1",
+			linkName:   "",
+			url:        "https://example.com",
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockLink *domain.MockLinkRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
 	}
 
 	for _, tt := range tests {

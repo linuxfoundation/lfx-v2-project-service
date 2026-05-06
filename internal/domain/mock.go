@@ -148,6 +148,14 @@ func (m *MockDocumentRepository) DeleteDocumentFile(ctx context.Context, documen
 	return args.Error(0)
 }
 
+func (m *MockDocumentRepository) ListDocuments(ctx context.Context, projectUID string) ([]*models.ProjectDocument, error) {
+	args := m.Called(ctx, projectUID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*models.ProjectDocument), args.Error(1)
+}
+
 func (m *MockDocumentRepository) UniqueDocumentName(ctx context.Context, doc *models.ProjectDocument) (string, error) {
 	args := m.Called(ctx, doc)
 	return args.String(0), args.Error(1)

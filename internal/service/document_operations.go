@@ -33,6 +33,10 @@ func (s *ProjectsService) UploadDocument(
 		return nil, domain.ErrServiceUnavailable
 	}
 
+	if name == "" {
+		return nil, domain.ErrValidationFailed
+	}
+
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 
 	if !models.AllowedDocumentContentTypes[contentType] {

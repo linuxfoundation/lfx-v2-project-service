@@ -28,6 +28,10 @@ const (
 
 	// KVLookupDocumentPrefix is the lookup key prefix for project document name uniqueness.
 	KVLookupDocumentPrefix = "lookup/project-documents/%s"
+
+	// KVLookupLinkKey is the per-project link index key.
+	// Format: lookup/project-links/<projectUID>/<linkUID>
+	KVLookupLinkKey = "lookup/project-links/%s/%s"
 )
 
 // NATS subjects that the project service sends messages about.

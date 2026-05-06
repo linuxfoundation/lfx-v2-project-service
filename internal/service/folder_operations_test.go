@@ -66,6 +66,14 @@ func TestProjectsService_CreateFolder(t *testing.T) {
 			},
 			wantErr: domain.ErrInternal,
 		},
+		{
+			name:       "empty name rejected",
+			projectUID: "proj-1",
+			folderName: "",
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
 	}
 
 	for _, tt := range tests {
@@ -208,28 +216,42 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 		projectUID string
 		folderUID  string
 		ifMatch    *string
-		setupMocks func(*domain.MockFolderRepository, *domain.MockLinkRepository, *domain.MockMessageBuilder)
+		setupMocks func(*domain.MockFolderRepository, *domain.MockLinkRepository, *domain.MockDocumentRepository, *domain.MockMessageBuilder)
 		wantErr    error
 	}{
 		{
-			name:       "success with no links",
+			name:       "success with no links or documents",
 			projectUID: "proj-1",
 			folderUID:  "folder-1",
 			ifMatch:    misc.StringPtr("2"),
-			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
 				mockLink.On("ListLinks", mock.Anything, "proj-1").Return([]*models.ProjectLink{}, nil)
+				mockDoc.On("ListDocuments", mock.Anything, "proj-1").Return([]*models.ProjectDocument{}, nil)
 				mockFolder.On("DeleteFolder", mock.Anything, "proj-1", "folder-1", uint64(2)).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
 			},
 		},
 		{
-			name:       "folder not empty",
+			name:       "folder not empty due to link",
 			projectUID: "proj-1",
 			folderUID:  "folder-1",
 			ifMatch:    misc.StringPtr("2"),
-			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
 				mockLink.On("ListLinks", mock.Anything, "proj-1").Return([]*models.ProjectLink{
 					{UID: "link-1", ProjectUID: "proj-1", FolderUID: misc.StringPtr("folder-1"), Name: "L", URL: "https://example.com", CreatedAt: now, UpdatedAt: now},
+				}, nil)
+			},
+			wantErr: domain.ErrFolderNotEmpty,
+		},
+		{
+			name:       "folder not empty due to document",
+			projectUID: "proj-1",
+			folderUID:  "folder-1",
+			ifMatch:    misc.StringPtr("2"),
+			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
+				mockLink.On("ListLinks", mock.Anything, "proj-1").Return([]*models.ProjectLink{}, nil)
+				mockDoc.On("ListDocuments", mock.Anything, "proj-1").Return([]*models.ProjectDocument{
+					{UID: "doc-1", ProjectUID: "proj-1", FolderUID: misc.StringPtr("folder-1"), Name: "D", CreatedAt: now, UpdatedAt: now},
 				}, nil)
 			},
 			wantErr: domain.ErrFolderNotEmpty,
@@ -239,7 +261,7 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 			projectUID: "proj-1",
 			folderUID:  "folder-1",
 			ifMatch:    nil,
-			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
 			},
 			wantErr: domain.ErrValidationFailed,
 		},
@@ -248,8 +270,9 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 			projectUID: "proj-1",
 			folderUID:  "folder-1",
 			ifMatch:    misc.StringPtr("1"),
-			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockFolder *domain.MockFolderRepository, mockLink *domain.MockLinkRepository, mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
 				mockLink.On("ListLinks", mock.Anything, "proj-1").Return([]*models.ProjectLink{}, nil)
+				mockDoc.On("ListDocuments", mock.Anything, "proj-1").Return([]*models.ProjectDocument{}, nil)
 				mockFolder.On("DeleteFolder", mock.Anything, "proj-1", "folder-1", uint64(1)).Return(domain.ErrRevisionMismatch)
 			},
 			wantErr: domain.ErrRevisionMismatch,
@@ -261,7 +284,8 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 			svc, _, mockMsg, _ := setupServiceForTesting()
 			mockFolder := svc.FolderRepository.(*domain.MockFolderRepository)
 			mockLink := svc.LinkRepository.(*domain.MockLinkRepository)
-			tt.setupMocks(mockFolder, mockLink, mockMsg)
+			mockDoc := svc.DocumentRepository.(*domain.MockDocumentRepository)
+			tt.setupMocks(mockFolder, mockLink, mockDoc, mockMsg)
 
 			err := svc.DeleteFolder(context.Background(), tt.projectUID, tt.folderUID, tt.ifMatch, false)
 
@@ -273,6 +297,7 @@ func TestProjectsService_DeleteFolder(t *testing.T) {
 
 			mockFolder.AssertExpectations(t)
 			mockLink.AssertExpectations(t)
+			mockDoc.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
 		})
 	}
