@@ -4,10 +4,12 @@
 package nats
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 
@@ -20,6 +22,10 @@ import (
 type NatsRepository struct {
 	Projects        INatsKeyValue
 	ProjectSettings INatsKeyValue
+	Links           INatsKeyValue
+	Folders         INatsKeyValue
+	Documents       INatsKeyValue
+	DocumentFiles   INatsObjectStore
 }
 
 func NewNatsRepository(projects INatsKeyValue, projectSettings INatsKeyValue) *NatsRepository {
@@ -468,5 +474,388 @@ func (s *NatsRepository) DeleteProject(ctx context.Context, projectUID string, r
 		return domain.ErrInternal
 	}
 
+	return nil
+}
+
+// ─── Links ───────────────────────────────────────────────────────────────────
+
+func (s *NatsRepository) getLink(ctx context.Context, linkUID string) (jetstream.KeyValueEntry, error) {
+	return s.Links.Get(ctx, linkUID)
+}
+
+func (s *NatsRepository) getLinkUnmarshal(ctx context.Context, entry jetstream.KeyValueEntry) (*models.ProjectLink, error) {
+	link := &models.ProjectLink{}
+	if err := json.Unmarshal(entry.Value(), link); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling link from NATS KV store", constants.ErrKey, err)
+		return nil, err
+	}
+	return link, nil
+}
+
+// GetLink gets a project link, verifying it belongs to the given project.
+func (s *NatsRepository) GetLink(ctx context.Context, projectUID, linkUID string) (*models.ProjectLink, uint64, error) {
+	entry, err := s.getLink(ctx, linkUID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, 0, domain.ErrLinkNotFound
+		}
+		slog.ErrorContext(ctx, "error getting link from NATS KV store", constants.ErrKey, err, "link_uid", linkUID)
+		return nil, 0, domain.ErrInternal
+	}
+
+	link, err := s.getLinkUnmarshal(ctx, entry)
+	if err != nil {
+		return nil, 0, domain.ErrUnmarshal
+	}
+
+	if link.ProjectUID != projectUID {
+		return nil, 0, domain.ErrLinkNotFound
+	}
+
+	return link, entry.Revision(), nil
+}
+
+// ListLinks lists all links for a given project.
+func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error) {
+	keysLister, err := s.Links.ListKeys(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "error listing link keys from NATS KV store", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	links := []*models.ProjectLink{}
+	for key := range keysLister.Keys() {
+		entry, err := s.getLink(ctx, key)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting link from NATS KV store", constants.ErrKey, err, "link_uid", key)
+			return nil, domain.ErrInternal
+		}
+
+		link, err := s.getLinkUnmarshal(ctx, entry)
+		if err != nil {
+			return nil, domain.ErrUnmarshal
+		}
+
+		if link.ProjectUID == projectUID {
+			links = append(links, link)
+		}
+	}
+
+	return links, nil
+}
+
+// CreateLink stores a new project link.
+func (s *NatsRepository) CreateLink(ctx context.Context, link *models.ProjectLink) error {
+	data, err := json.Marshal(link)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling link into JSON", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	if _, err = s.Links.Put(ctx, link.UID, data); err != nil {
+		slog.ErrorContext(ctx, "error putting link into NATS KV store", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	return nil
+}
+
+// DeleteLink deletes a project link with optimistic concurrency.
+func (s *NatsRepository) DeleteLink(ctx context.Context, projectUID, linkUID string, revision uint64) error {
+	// Cross-tenant guard
+	link, _, err := s.GetLink(ctx, projectUID, linkUID)
+	if err != nil {
+		return err
+	}
+	if link.ProjectUID != projectUID {
+		return domain.ErrLinkNotFound
+	}
+
+	if err = s.Links.Delete(ctx, linkUID, jetstream.LastRevision(revision)); err != nil {
+		if strings.Contains(err.Error(), "wrong last sequence") {
+			slog.WarnContext(ctx, "revision mismatch deleting link", constants.ErrKey, err)
+			return domain.ErrRevisionMismatch
+		}
+		slog.ErrorContext(ctx, "error deleting link from NATS KV store", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	return nil
+}
+
+// ─── Folders ─────────────────────────────────────────────────────────────────
+
+func (s *NatsRepository) getFolder(ctx context.Context, folderUID string) (jetstream.KeyValueEntry, error) {
+	return s.Folders.Get(ctx, folderUID)
+}
+
+func (s *NatsRepository) getFolderUnmarshal(ctx context.Context, entry jetstream.KeyValueEntry) (*models.ProjectFolder, error) {
+	folder := &models.ProjectFolder{}
+	if err := json.Unmarshal(entry.Value(), folder); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling folder from NATS KV store", constants.ErrKey, err)
+		return nil, err
+	}
+	return folder, nil
+}
+
+// GetFolder gets a project folder, verifying it belongs to the given project.
+func (s *NatsRepository) GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error) {
+	entry, err := s.getFolder(ctx, folderUID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, 0, domain.ErrFolderNotFound
+		}
+		slog.ErrorContext(ctx, "error getting folder from NATS KV store", constants.ErrKey, err, "folder_uid", folderUID)
+		return nil, 0, domain.ErrInternal
+	}
+
+	folder, err := s.getFolderUnmarshal(ctx, entry)
+	if err != nil {
+		return nil, 0, domain.ErrUnmarshal
+	}
+
+	if folder.ProjectUID != projectUID {
+		return nil, 0, domain.ErrFolderNotFound
+	}
+
+	return folder, entry.Revision(), nil
+}
+
+// ListFolders lists all folders for a given project.
+func (s *NatsRepository) ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error) {
+	keysLister, err := s.Folders.ListKeys(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "error listing folder keys from NATS KV store", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	folders := []*models.ProjectFolder{}
+	for key := range keysLister.Keys() {
+		// Skip lookup keys
+		if strings.HasPrefix(key, "lookup/") {
+			continue
+		}
+
+		entry, err := s.getFolder(ctx, key)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting folder from NATS KV store", constants.ErrKey, err, "folder_uid", key)
+			return nil, domain.ErrInternal
+		}
+
+		folder, err := s.getFolderUnmarshal(ctx, entry)
+		if err != nil {
+			return nil, domain.ErrUnmarshal
+		}
+
+		if folder.ProjectUID == projectUID {
+			folders = append(folders, folder)
+		}
+	}
+
+	return folders, nil
+}
+
+// CreateFolder stores a new project folder. The caller must first reserve the unique name
+// via UniqueFolderName and roll back via DeleteUniqueFolderName on failure.
+func (s *NatsRepository) CreateFolder(ctx context.Context, folder *models.ProjectFolder) error {
+	data, err := json.Marshal(folder)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling folder into JSON", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	if _, err = s.Folders.Put(ctx, folder.UID, data); err != nil {
+		slog.ErrorContext(ctx, "error putting folder into NATS KV store", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	return nil
+}
+
+// DeleteFolder deletes a project folder with optimistic concurrency.
+func (s *NatsRepository) DeleteFolder(ctx context.Context, projectUID, folderUID string, revision uint64) error {
+	folder, _, err := s.GetFolder(ctx, projectUID, folderUID)
+	if err != nil {
+		return err
+	}
+
+	if err = s.Folders.Delete(ctx, folderUID, jetstream.LastRevision(revision)); err != nil {
+		if strings.Contains(err.Error(), "wrong last sequence") {
+			slog.WarnContext(ctx, "revision mismatch deleting folder", constants.ErrKey, err)
+			return domain.ErrRevisionMismatch
+		}
+		slog.ErrorContext(ctx, "error deleting folder from NATS KV store", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	// Clean up the unique name lookup key (fire-and-forget; log on failure)
+	uniqueKey := fmt.Sprintf(constants.KVLookupFolderPrefix, folder.BuildIndexKey(ctx))
+	if err = s.Folders.Purge(ctx, uniqueKey); err != nil {
+		slog.WarnContext(ctx, "error purging folder lookup key from NATS KV store", constants.ErrKey, err, "key", uniqueKey)
+	}
+
+	return nil
+}
+
+// UniqueFolderName atomically reserves a per-project folder name.
+// Returns the lookup key on success, ErrFolderNameExists if already taken.
+func (s *NatsRepository) UniqueFolderName(ctx context.Context, folder *models.ProjectFolder) (string, error) {
+	uniqueKey := fmt.Sprintf(constants.KVLookupFolderPrefix, folder.BuildIndexKey(ctx))
+	if _, err := s.Folders.Create(ctx, uniqueKey, []byte(folder.UID)); err != nil {
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			return "", domain.ErrFolderNameExists
+		}
+		slog.ErrorContext(ctx, "error reserving folder name in NATS KV store", constants.ErrKey, err)
+		return "", domain.ErrInternal
+	}
+	return uniqueKey, nil
+}
+
+// DeleteUniqueFolderName releases a previously reserved folder name lookup key.
+func (s *NatsRepository) DeleteUniqueFolderName(ctx context.Context, uniqueKey string) error {
+	if err := s.Folders.Purge(ctx, uniqueKey); err != nil {
+		slog.ErrorContext(ctx, "error purging folder lookup key from NATS KV store", constants.ErrKey, err, "key", uniqueKey)
+		return domain.ErrInternal
+	}
+	return nil
+}
+
+// ─── Documents ────────────────────────────────────────────────────────────────
+
+func (s *NatsRepository) getDocumentMetadata(ctx context.Context, documentUID string) (jetstream.KeyValueEntry, error) {
+	return s.Documents.Get(ctx, documentUID)
+}
+
+func (s *NatsRepository) getDocumentMetadataUnmarshal(ctx context.Context, entry jetstream.KeyValueEntry) (*models.ProjectDocument, error) {
+	doc := &models.ProjectDocument{}
+	if err := json.Unmarshal(entry.Value(), doc); err != nil {
+		slog.ErrorContext(ctx, "error unmarshalling document from NATS KV store", constants.ErrKey, err)
+		return nil, err
+	}
+	return doc, nil
+}
+
+// GetDocumentMetadata gets document metadata, verifying it belongs to the given project.
+func (s *NatsRepository) GetDocumentMetadata(ctx context.Context, projectUID, documentUID string) (*models.ProjectDocument, uint64, error) {
+	entry, err := s.getDocumentMetadata(ctx, documentUID)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, 0, domain.ErrDocumentNotFound
+		}
+		slog.ErrorContext(ctx, "error getting document from NATS KV store", constants.ErrKey, err, "document_uid", documentUID)
+		return nil, 0, domain.ErrInternal
+	}
+
+	doc, err := s.getDocumentMetadataUnmarshal(ctx, entry)
+	if err != nil {
+		return nil, 0, domain.ErrUnmarshal
+	}
+
+	if doc.ProjectUID != projectUID {
+		return nil, 0, domain.ErrDocumentNotFound
+	}
+
+	return doc, entry.Revision(), nil
+}
+
+// GetDocumentFile retrieves the binary file content from the NATS Object Store.
+func (s *NatsRepository) GetDocumentFile(ctx context.Context, documentUID string) ([]byte, error) {
+	result, err := s.DocumentFiles.Get(ctx, documentUID)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting document file from NATS object store", constants.ErrKey, err, "document_uid", documentUID)
+		return nil, domain.ErrDocumentNotFound
+	}
+	defer func() { _ = result.Close() }()
+
+	data, err := io.ReadAll(result)
+	if err != nil {
+		slog.ErrorContext(ctx, "error reading document file from NATS object store", constants.ErrKey, err, "document_uid", documentUID)
+		return nil, domain.ErrInternal
+	}
+
+	return data, nil
+}
+
+// CreateDocumentMetadata stores document metadata. The caller must first reserve the unique name
+// via UniqueDocumentName and roll back via DeleteUniqueDocumentName on failure.
+func (s *NatsRepository) CreateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument) error {
+	data, err := json.Marshal(doc)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling document into JSON", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	if _, err = s.Documents.Put(ctx, doc.UID, data); err != nil {
+		slog.ErrorContext(ctx, "error putting document into NATS KV store", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	return nil
+}
+
+// PutDocumentFile stores binary file content in the NATS Object Store.
+func (s *NatsRepository) PutDocumentFile(ctx context.Context, documentUID string, fileData []byte) error {
+	meta := jetstream.ObjectMeta{Name: documentUID}
+	if _, err := s.DocumentFiles.Put(ctx, meta, bytes.NewReader(fileData)); err != nil {
+		slog.ErrorContext(ctx, "error putting document file into NATS object store", constants.ErrKey, err, "document_uid", documentUID)
+		return domain.ErrInternal
+	}
+	return nil
+}
+
+// DeleteDocumentMetadata deletes document metadata with optimistic concurrency.
+func (s *NatsRepository) DeleteDocumentMetadata(ctx context.Context, projectUID, documentUID string, revision uint64) error {
+	doc, _, err := s.GetDocumentMetadata(ctx, projectUID, documentUID)
+	if err != nil {
+		return err
+	}
+
+	if err = s.Documents.Delete(ctx, documentUID, jetstream.LastRevision(revision)); err != nil {
+		if strings.Contains(err.Error(), "wrong last sequence") {
+			slog.WarnContext(ctx, "revision mismatch deleting document", constants.ErrKey, err)
+			return domain.ErrRevisionMismatch
+		}
+		slog.ErrorContext(ctx, "error deleting document from NATS KV store", constants.ErrKey, err)
+		return domain.ErrInternal
+	}
+
+	// Clean up the unique name lookup key (fire-and-forget; log on failure)
+	uniqueKey := fmt.Sprintf(constants.KVLookupDocumentPrefix, doc.BuildIndexKey(ctx))
+	if err = s.Documents.Purge(ctx, uniqueKey); err != nil {
+		slog.WarnContext(ctx, "error purging document lookup key from NATS KV store", constants.ErrKey, err, "key", uniqueKey)
+	}
+
+	return nil
+}
+
+// DeleteDocumentFile removes the binary file from the NATS Object Store.
+func (s *NatsRepository) DeleteDocumentFile(ctx context.Context, documentUID string) error {
+	if err := s.DocumentFiles.Delete(ctx, documentUID); err != nil {
+		slog.ErrorContext(ctx, "error deleting document file from NATS object store", constants.ErrKey, err, "document_uid", documentUID)
+		return domain.ErrInternal
+	}
+	return nil
+}
+
+// UniqueDocumentName atomically reserves a per-project document name.
+// Returns the lookup key on success, ErrDocumentNameExists if already taken.
+func (s *NatsRepository) UniqueDocumentName(ctx context.Context, doc *models.ProjectDocument) (string, error) {
+	uniqueKey := fmt.Sprintf(constants.KVLookupDocumentPrefix, doc.BuildIndexKey(ctx))
+	if _, err := s.Documents.Create(ctx, uniqueKey, []byte(doc.UID)); err != nil {
+		if errors.Is(err, jetstream.ErrKeyExists) {
+			return "", domain.ErrDocumentNameExists
+		}
+		slog.ErrorContext(ctx, "error reserving document name in NATS KV store", constants.ErrKey, err)
+		return "", domain.ErrInternal
+	}
+	return uniqueKey, nil
+}
+
+// DeleteUniqueDocumentName releases a previously reserved document name lookup key.
+func (s *NatsRepository) DeleteUniqueDocumentName(ctx context.Context, uniqueKey string) error {
+	if err := s.Documents.Purge(ctx, uniqueKey); err != nil {
+		slog.ErrorContext(ctx, "error purging document lookup key from NATS KV store", constants.ErrKey, err, "key", uniqueKey)
+		return domain.ErrInternal
+	}
 	return nil
 }

@@ -216,6 +216,7 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 		customEncoder,
 		nil,
 		nil,
+		uploadDocumentDecoder,
 		koDataDir,
 		koDataDir,
 		koDataDir,
@@ -313,10 +314,14 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulC
 	}
 
 	// Get the key-value stores for the service.
-	svc.service.ProjectRepository, err = getKeyValueStores(ctx, natsConn)
+	repo, err := getKeyValueStores(ctx, natsConn)
 	if err != nil {
 		return natsConn, err
 	}
+	svc.service.ProjectRepository = repo
+	svc.service.DocumentRepository = repo
+	svc.service.LinkRepository = repo
+	svc.service.FolderRepository = repo
 
 	svc.service.MessageBuilder = &internalnats.MessageBuilder{
 		NatsConn: natsConn,
@@ -353,6 +358,34 @@ func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (*internalnats.
 		return kvStores, err
 	}
 	kvStores.ProjectSettings = projectSettingsKV
+
+	linksKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectLinks)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectLinks)
+		return kvStores, err
+	}
+	kvStores.Links = linksKV
+
+	foldersKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectFolders)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectFolders)
+		return kvStores, err
+	}
+	kvStores.Folders = foldersKV
+
+	documentsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectDocuments)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectDocuments)
+		return kvStores, err
+	}
+	kvStores.Documents = documentsKV
+
+	documentFiles, err := js.ObjectStore(ctx, constants.ObjectStoreNameProjectDocuments)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream object store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.ObjectStoreNameProjectDocuments)
+		return kvStores, err
+	}
+	kvStores.DocumentFiles = documentFiles
 
 	return kvStores, nil
 }

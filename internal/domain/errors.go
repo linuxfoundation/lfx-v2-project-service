@@ -25,4 +25,23 @@ var (
 	ErrValidationFailed = errors.New("validation failed")
 	// ErrCannotDeleteNonCrowdfundingProject is returned when attempting to delete a project whose funding model is not exactly ["Crowdfunding"].
 	ErrCannotDeleteNonCrowdfundingProject = errors.New("project can only be deleted if its funding model is Crowdfunding only")
+
+	// ErrDocumentNotFound is returned when a document is not found.
+	ErrDocumentNotFound = errors.New("document not found")
+	// ErrDocumentNameExists is returned when a document with the same name already exists.
+	ErrDocumentNameExists = errors.New("document with the same name already exists for this project")
+	// ErrInvalidContentType is returned when the uploaded file has a disallowed MIME type.
+	ErrInvalidContentType = errors.New("content type is not allowed")
+	// ErrFileTooLarge is returned when the uploaded file exceeds the maximum allowed size.
+	ErrFileTooLarge = errors.New("file size exceeds maximum allowed size")
+
+	// ErrLinkNotFound is returned when a link is not found.
+	ErrLinkNotFound = errors.New("link not found")
+
+	// ErrFolderNotFound is returned when a folder is not found.
+	ErrFolderNotFound = errors.New("folder not found")
+	// ErrFolderNameExists is returned when a folder with the same name already exists.
+	ErrFolderNameExists = errors.New("folder with the same name already exists for this project")
+	// ErrFolderNotEmpty is returned when attempting to delete a folder that still contains links or documents.
+	ErrFolderNotEmpty = errors.New("folder cannot be deleted because it contains links; remove all links from the folder first")
 )

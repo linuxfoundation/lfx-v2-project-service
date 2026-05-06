@@ -19,15 +19,31 @@ func handleError(err error) error {
 	case domain.ErrValidationFailed:
 		return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 	case domain.ErrRevisionMismatch:
-		return createResponse(http.StatusBadRequest, domain.ErrRevisionMismatch)
+		return createResponse(http.StatusConflict, domain.ErrRevisionMismatch)
 	case domain.ErrInvalidParentProject:
 		return createResponse(http.StatusBadRequest, domain.ErrInvalidParentProject)
 	case domain.ErrCannotDeleteNonCrowdfundingProject:
 		return createResponse(http.StatusBadRequest, domain.ErrCannotDeleteNonCrowdfundingProject)
+	case domain.ErrInvalidContentType:
+		return createResponse(http.StatusBadRequest, domain.ErrInvalidContentType)
+	case domain.ErrFileTooLarge:
+		return createResponse(http.StatusBadRequest, domain.ErrFileTooLarge)
 	case domain.ErrProjectNotFound:
 		return createResponse(http.StatusNotFound, domain.ErrProjectNotFound)
+	case domain.ErrDocumentNotFound:
+		return createResponse(http.StatusNotFound, domain.ErrDocumentNotFound)
+	case domain.ErrLinkNotFound:
+		return createResponse(http.StatusNotFound, domain.ErrLinkNotFound)
+	case domain.ErrFolderNotFound:
+		return createResponse(http.StatusNotFound, domain.ErrFolderNotFound)
 	case domain.ErrProjectSlugExists:
 		return createResponse(http.StatusConflict, domain.ErrProjectSlugExists)
+	case domain.ErrDocumentNameExists:
+		return createResponse(http.StatusConflict, domain.ErrDocumentNameExists)
+	case domain.ErrFolderNameExists:
+		return createResponse(http.StatusConflict, domain.ErrFolderNameExists)
+	case domain.ErrFolderNotEmpty:
+		return createResponse(http.StatusConflict, domain.ErrFolderNotEmpty)
 	case domain.ErrInternal, domain.ErrUnmarshal:
 		return createResponse(http.StatusInternalServerError, domain.ErrInternal)
 	}

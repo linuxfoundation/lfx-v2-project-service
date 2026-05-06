@@ -107,6 +107,129 @@ func (m *MockProjectRepository) DeleteProject(ctx context.Context, projectUID st
 	return args.Error(0)
 }
 
+// MockDocumentRepository implements DocumentRepository for testing.
+type MockDocumentRepository struct {
+	mock.Mock
+}
+
+func (m *MockDocumentRepository) GetDocumentMetadata(ctx context.Context, projectUID, documentUID string) (*models.ProjectDocument, uint64, error) {
+	args := m.Called(ctx, projectUID, documentUID)
+	if args.Get(0) == nil {
+		return nil, args.Get(1).(uint64), args.Error(2)
+	}
+	return args.Get(0).(*models.ProjectDocument), args.Get(1).(uint64), args.Error(2)
+}
+
+func (m *MockDocumentRepository) GetDocumentFile(ctx context.Context, documentUID string) ([]byte, error) {
+	args := m.Called(ctx, documentUID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]byte), args.Error(1)
+}
+
+func (m *MockDocumentRepository) CreateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument) error {
+	args := m.Called(ctx, doc)
+	return args.Error(0)
+}
+
+func (m *MockDocumentRepository) PutDocumentFile(ctx context.Context, documentUID string, fileData []byte) error {
+	args := m.Called(ctx, documentUID, fileData)
+	return args.Error(0)
+}
+
+func (m *MockDocumentRepository) DeleteDocumentMetadata(ctx context.Context, projectUID, documentUID string, revision uint64) error {
+	args := m.Called(ctx, projectUID, documentUID, revision)
+	return args.Error(0)
+}
+
+func (m *MockDocumentRepository) DeleteDocumentFile(ctx context.Context, documentUID string) error {
+	args := m.Called(ctx, documentUID)
+	return args.Error(0)
+}
+
+func (m *MockDocumentRepository) UniqueDocumentName(ctx context.Context, doc *models.ProjectDocument) (string, error) {
+	args := m.Called(ctx, doc)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockDocumentRepository) DeleteUniqueDocumentName(ctx context.Context, uniqueKey string) error {
+	args := m.Called(ctx, uniqueKey)
+	return args.Error(0)
+}
+
+// MockLinkRepository implements LinkRepository for testing.
+type MockLinkRepository struct {
+	mock.Mock
+}
+
+func (m *MockLinkRepository) GetLink(ctx context.Context, projectUID, linkUID string) (*models.ProjectLink, uint64, error) {
+	args := m.Called(ctx, projectUID, linkUID)
+	if args.Get(0) == nil {
+		return nil, args.Get(1).(uint64), args.Error(2)
+	}
+	return args.Get(0).(*models.ProjectLink), args.Get(1).(uint64), args.Error(2)
+}
+
+func (m *MockLinkRepository) ListLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error) {
+	args := m.Called(ctx, projectUID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*models.ProjectLink), args.Error(1)
+}
+
+func (m *MockLinkRepository) CreateLink(ctx context.Context, link *models.ProjectLink) error {
+	args := m.Called(ctx, link)
+	return args.Error(0)
+}
+
+func (m *MockLinkRepository) DeleteLink(ctx context.Context, projectUID, linkUID string, revision uint64) error {
+	args := m.Called(ctx, projectUID, linkUID, revision)
+	return args.Error(0)
+}
+
+// MockFolderRepository implements FolderRepository for testing.
+type MockFolderRepository struct {
+	mock.Mock
+}
+
+func (m *MockFolderRepository) GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error) {
+	args := m.Called(ctx, projectUID, folderUID)
+	if args.Get(0) == nil {
+		return nil, args.Get(1).(uint64), args.Error(2)
+	}
+	return args.Get(0).(*models.ProjectFolder), args.Get(1).(uint64), args.Error(2)
+}
+
+func (m *MockFolderRepository) ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error) {
+	args := m.Called(ctx, projectUID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*models.ProjectFolder), args.Error(1)
+}
+
+func (m *MockFolderRepository) CreateFolder(ctx context.Context, folder *models.ProjectFolder) error {
+	args := m.Called(ctx, folder)
+	return args.Error(0)
+}
+
+func (m *MockFolderRepository) DeleteFolder(ctx context.Context, projectUID, folderUID string, revision uint64) error {
+	args := m.Called(ctx, projectUID, folderUID, revision)
+	return args.Error(0)
+}
+
+func (m *MockFolderRepository) UniqueFolderName(ctx context.Context, folder *models.ProjectFolder) (string, error) {
+	args := m.Called(ctx, folder)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockFolderRepository) DeleteUniqueFolderName(ctx context.Context, uniqueKey string) error {
+	args := m.Called(ctx, uniqueKey)
+	return args.Error(0)
+}
+
 // MockMessageBuilder implements MessageBuilder for testing
 type MockMessageBuilder struct {
 	mock.Mock

@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"unicode/utf8"
 
 	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	goa "goa.design/goa/v3/pkg"
@@ -608,6 +609,681 @@ func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectSer
 	}
 	v := &projectservice.DeleteProjectPayload{}
 	v.UID = &uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildCreateProjectLinkPayload builds the payload for the project-service
+// create-project-link endpoint from CLI flags.
+func BuildCreateProjectLinkPayload(projectServiceCreateProjectLinkBody string, projectServiceCreateProjectLinkUID string, projectServiceCreateProjectLinkVersion string, projectServiceCreateProjectLinkBearerToken string, projectServiceCreateProjectLinkXSync string) (*projectservice.CreateProjectLinkPayload, error) {
+	var err error
+	var body CreateProjectLinkRequestBody
+	{
+		err = json.Unmarshal([]byte(projectServiceCreateProjectLinkBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"description\": \"A description of the resource\",\n      \"folder_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"name\": \"My Resource\",\n      \"url\": \"https://example.com\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
+		}
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", body.URL, goa.FormatURI))
+		if body.FolderUID != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = projectServiceCreateProjectLinkUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceCreateProjectLinkVersion != "" {
+			version = &projectServiceCreateProjectLinkVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceCreateProjectLinkBearerToken != "" {
+			bearerToken = &projectServiceCreateProjectLinkBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceCreateProjectLinkXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceCreateProjectLinkXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	v := &projectservice.CreateProjectLinkPayload{
+		Name:        body.Name,
+		URL:         body.URL,
+		Description: body.Description,
+		FolderUID:   body.FolderUID,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v, nil
+}
+
+// BuildGetProjectLinkPayload builds the payload for the project-service
+// get-project-link endpoint from CLI flags.
+func BuildGetProjectLinkPayload(projectServiceGetProjectLinkUID string, projectServiceGetProjectLinkLinkUID string, projectServiceGetProjectLinkVersion string, projectServiceGetProjectLinkBearerToken string) (*projectservice.GetProjectLinkPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceGetProjectLinkUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var linkUID string
+	{
+		linkUID = projectServiceGetProjectLinkLinkUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("link_uid", linkUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceGetProjectLinkVersion != "" {
+			version = &projectServiceGetProjectLinkVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceGetProjectLinkBearerToken != "" {
+			bearerToken = &projectServiceGetProjectLinkBearerToken
+		}
+	}
+	v := &projectservice.GetProjectLinkPayload{}
+	v.UID = uid
+	v.LinkUID = linkUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildListProjectLinksPayload builds the payload for the project-service
+// list-project-links endpoint from CLI flags.
+func BuildListProjectLinksPayload(projectServiceListProjectLinksUID string, projectServiceListProjectLinksVersion string, projectServiceListProjectLinksBearerToken string) (*projectservice.ListProjectLinksPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceListProjectLinksUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceListProjectLinksVersion != "" {
+			version = &projectServiceListProjectLinksVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceListProjectLinksBearerToken != "" {
+			bearerToken = &projectServiceListProjectLinksBearerToken
+		}
+	}
+	v := &projectservice.ListProjectLinksPayload{}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildDeleteProjectLinkPayload builds the payload for the project-service
+// delete-project-link endpoint from CLI flags.
+func BuildDeleteProjectLinkPayload(projectServiceDeleteProjectLinkUID string, projectServiceDeleteProjectLinkLinkUID string, projectServiceDeleteProjectLinkVersion string, projectServiceDeleteProjectLinkBearerToken string, projectServiceDeleteProjectLinkXSync string, projectServiceDeleteProjectLinkIfMatch string) (*projectservice.DeleteProjectLinkPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceDeleteProjectLinkUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var linkUID string
+	{
+		linkUID = projectServiceDeleteProjectLinkLinkUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("link_uid", linkUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceDeleteProjectLinkVersion != "" {
+			version = &projectServiceDeleteProjectLinkVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceDeleteProjectLinkBearerToken != "" {
+			bearerToken = &projectServiceDeleteProjectLinkBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceDeleteProjectLinkXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceDeleteProjectLinkXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	var ifMatch *string
+	{
+		if projectServiceDeleteProjectLinkIfMatch != "" {
+			ifMatch = &projectServiceDeleteProjectLinkIfMatch
+		}
+	}
+	v := &projectservice.DeleteProjectLinkPayload{}
+	v.UID = uid
+	v.LinkUID = linkUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildCreateProjectFolderPayload builds the payload for the project-service
+// create-project-folder endpoint from CLI flags.
+func BuildCreateProjectFolderPayload(projectServiceCreateProjectFolderBody string, projectServiceCreateProjectFolderUID string, projectServiceCreateProjectFolderVersion string, projectServiceCreateProjectFolderBearerToken string, projectServiceCreateProjectFolderXSync string) (*projectservice.CreateProjectFolderPayload, error) {
+	var err error
+	var body CreateProjectFolderRequestBody
+	{
+		err = json.Unmarshal([]byte(projectServiceCreateProjectFolderBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"name\": \"My Resource\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = projectServiceCreateProjectFolderUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceCreateProjectFolderVersion != "" {
+			version = &projectServiceCreateProjectFolderVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceCreateProjectFolderBearerToken != "" {
+			bearerToken = &projectServiceCreateProjectFolderBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceCreateProjectFolderXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceCreateProjectFolderXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	v := &projectservice.CreateProjectFolderPayload{
+		Name: body.Name,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v, nil
+}
+
+// BuildGetProjectFolderPayload builds the payload for the project-service
+// get-project-folder endpoint from CLI flags.
+func BuildGetProjectFolderPayload(projectServiceGetProjectFolderUID string, projectServiceGetProjectFolderFolderUID string, projectServiceGetProjectFolderVersion string, projectServiceGetProjectFolderBearerToken string) (*projectservice.GetProjectFolderPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceGetProjectFolderUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var folderUID string
+	{
+		folderUID = projectServiceGetProjectFolderFolderUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("folder_uid", folderUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceGetProjectFolderVersion != "" {
+			version = &projectServiceGetProjectFolderVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceGetProjectFolderBearerToken != "" {
+			bearerToken = &projectServiceGetProjectFolderBearerToken
+		}
+	}
+	v := &projectservice.GetProjectFolderPayload{}
+	v.UID = uid
+	v.FolderUID = folderUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildListProjectFoldersPayload builds the payload for the project-service
+// list-project-folders endpoint from CLI flags.
+func BuildListProjectFoldersPayload(projectServiceListProjectFoldersUID string, projectServiceListProjectFoldersVersion string, projectServiceListProjectFoldersBearerToken string) (*projectservice.ListProjectFoldersPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceListProjectFoldersUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceListProjectFoldersVersion != "" {
+			version = &projectServiceListProjectFoldersVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceListProjectFoldersBearerToken != "" {
+			bearerToken = &projectServiceListProjectFoldersBearerToken
+		}
+	}
+	v := &projectservice.ListProjectFoldersPayload{}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildDeleteProjectFolderPayload builds the payload for the project-service
+// delete-project-folder endpoint from CLI flags.
+func BuildDeleteProjectFolderPayload(projectServiceDeleteProjectFolderUID string, projectServiceDeleteProjectFolderFolderUID string, projectServiceDeleteProjectFolderVersion string, projectServiceDeleteProjectFolderBearerToken string, projectServiceDeleteProjectFolderXSync string, projectServiceDeleteProjectFolderIfMatch string) (*projectservice.DeleteProjectFolderPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceDeleteProjectFolderUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var folderUID string
+	{
+		folderUID = projectServiceDeleteProjectFolderFolderUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("folder_uid", folderUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceDeleteProjectFolderVersion != "" {
+			version = &projectServiceDeleteProjectFolderVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceDeleteProjectFolderBearerToken != "" {
+			bearerToken = &projectServiceDeleteProjectFolderBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceDeleteProjectFolderXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceDeleteProjectFolderXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	var ifMatch *string
+	{
+		if projectServiceDeleteProjectFolderIfMatch != "" {
+			ifMatch = &projectServiceDeleteProjectFolderIfMatch
+		}
+	}
+	v := &projectservice.DeleteProjectFolderPayload{}
+	v.UID = uid
+	v.FolderUID = folderUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildUploadProjectDocumentPayload builds the payload for the project-service
+// upload-project-document endpoint from CLI flags.
+func BuildUploadProjectDocumentPayload(projectServiceUploadProjectDocumentBody string, projectServiceUploadProjectDocumentUID string, projectServiceUploadProjectDocumentVersion string, projectServiceUploadProjectDocumentBearerToken string, projectServiceUploadProjectDocumentXSync string) (*projectservice.UploadProjectDocumentPayload, error) {
+	var err error
+	var body UploadProjectDocumentRequestBody
+	{
+		err = json.Unmarshal([]byte(projectServiceUploadProjectDocumentBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"content_type\": \"application/pdf\",\n      \"description\": \"A description of the resource\",\n      \"file\": \"Li4u\",\n      \"file_name\": \"report.pdf\",\n      \"folder_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"name\": \"My Resource\"\n   }'")
+		}
+		if body.File == nil {
+			err = goa.MergeErrors(err, goa.MissingFieldError("file", "body"))
+		}
+		if utf8.RuneCountInString(body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
+		}
+		if body.FolderUID != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = projectServiceUploadProjectDocumentUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceUploadProjectDocumentVersion != "" {
+			version = &projectServiceUploadProjectDocumentVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceUploadProjectDocumentBearerToken != "" {
+			bearerToken = &projectServiceUploadProjectDocumentBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceUploadProjectDocumentXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceUploadProjectDocumentXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	v := &projectservice.UploadProjectDocumentPayload{
+		Name:        body.Name,
+		Description: body.Description,
+		FolderUID:   body.FolderUID,
+		File:        body.File,
+		FileName:    body.FileName,
+		ContentType: body.ContentType,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v, nil
+}
+
+// BuildGetProjectDocumentPayload builds the payload for the project-service
+// get-project-document endpoint from CLI flags.
+func BuildGetProjectDocumentPayload(projectServiceGetProjectDocumentUID string, projectServiceGetProjectDocumentDocumentUID string, projectServiceGetProjectDocumentVersion string, projectServiceGetProjectDocumentBearerToken string) (*projectservice.GetProjectDocumentPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceGetProjectDocumentUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var documentUID string
+	{
+		documentUID = projectServiceGetProjectDocumentDocumentUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("document_uid", documentUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceGetProjectDocumentVersion != "" {
+			version = &projectServiceGetProjectDocumentVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceGetProjectDocumentBearerToken != "" {
+			bearerToken = &projectServiceGetProjectDocumentBearerToken
+		}
+	}
+	v := &projectservice.GetProjectDocumentPayload{}
+	v.UID = uid
+	v.DocumentUID = documentUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildDownloadProjectDocumentPayload builds the payload for the
+// project-service download-project-document endpoint from CLI flags.
+func BuildDownloadProjectDocumentPayload(projectServiceDownloadProjectDocumentUID string, projectServiceDownloadProjectDocumentDocumentUID string, projectServiceDownloadProjectDocumentVersion string, projectServiceDownloadProjectDocumentBearerToken string) (*projectservice.DownloadProjectDocumentPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceDownloadProjectDocumentUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var documentUID string
+	{
+		documentUID = projectServiceDownloadProjectDocumentDocumentUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("document_uid", documentUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceDownloadProjectDocumentVersion != "" {
+			version = &projectServiceDownloadProjectDocumentVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceDownloadProjectDocumentBearerToken != "" {
+			bearerToken = &projectServiceDownloadProjectDocumentBearerToken
+		}
+	}
+	v := &projectservice.DownloadProjectDocumentPayload{}
+	v.UID = uid
+	v.DocumentUID = documentUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildDeleteProjectDocumentPayload builds the payload for the project-service
+// delete-project-document endpoint from CLI flags.
+func BuildDeleteProjectDocumentPayload(projectServiceDeleteProjectDocumentUID string, projectServiceDeleteProjectDocumentDocumentUID string, projectServiceDeleteProjectDocumentVersion string, projectServiceDeleteProjectDocumentBearerToken string, projectServiceDeleteProjectDocumentXSync string, projectServiceDeleteProjectDocumentIfMatch string) (*projectservice.DeleteProjectDocumentPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceDeleteProjectDocumentUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var documentUID string
+	{
+		documentUID = projectServiceDeleteProjectDocumentDocumentUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("document_uid", documentUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceDeleteProjectDocumentVersion != "" {
+			version = &projectServiceDeleteProjectDocumentVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceDeleteProjectDocumentBearerToken != "" {
+			bearerToken = &projectServiceDeleteProjectDocumentBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceDeleteProjectDocumentXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceDeleteProjectDocumentXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	var ifMatch *string
+	{
+		if projectServiceDeleteProjectDocumentIfMatch != "" {
+			ifMatch = &projectServiceDeleteProjectDocumentIfMatch
+		}
+	}
+	v := &projectservice.DeleteProjectDocumentPayload{}
+	v.UID = uid
+	v.DocumentUID = documentUID
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.XSync = xSync

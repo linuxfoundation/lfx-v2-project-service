@@ -5,6 +5,7 @@ package nats
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -100,14 +101,35 @@ func (m *MockNatsMsg) Subject() string {
 type INatsKeyValue interface {
 	ListKeys(context.Context, ...jetstream.WatchOpt) (jetstream.KeyLister, error)
 	Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error)
+	Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error)
 	Put(context.Context, string, []byte) (uint64, error)
 	Update(context.Context, string, []byte, uint64) (uint64, error)
 	Delete(context.Context, string, ...jetstream.KVDeleteOpt) error
+	Purge(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error
+}
+
+// INatsObjectStore is a NATS Object Store interface needed for document file storage.
+type INatsObjectStore interface {
+	Put(ctx context.Context, meta jetstream.ObjectMeta, r io.Reader) (*jetstream.ObjectInfo, error)
+	Get(ctx context.Context, name string, opts ...jetstream.GetObjectOpt) (jetstream.ObjectResult, error)
+	Delete(ctx context.Context, name string) error
 }
 
 // MockKeyValue is a mock implementation of the [INatsKeyValue] interface.
 type MockKeyValue struct {
 	mock.Mock
+}
+
+// Create is a mock method for the [INatsKeyValue] interface.
+func (m *MockKeyValue) Create(ctx context.Context, key string, value []byte, _ ...jetstream.KVCreateOpt) (uint64, error) {
+	args := m.Called(ctx, key, value)
+	return args.Get(0).(uint64), args.Error(1)
+}
+
+// Purge is a mock method for the [INatsKeyValue] interface.
+func (m *MockKeyValue) Purge(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
+	args := m.Called(ctx, key, opts)
+	return args.Error(0)
 }
 
 // Put is a mock method for the [INatsKeyValue] interface.
@@ -228,4 +250,33 @@ func (m *MockKeyValueEntry) Operation() jetstream.KeyValueOp {
 func (m *MockKeyValueEntry) Bucket() string {
 	args := m.Called()
 	return args.String(0)
+}
+
+// MockObjectStore is a mock implementation of the [INatsObjectStore] interface.
+type MockObjectStore struct {
+	mock.Mock
+}
+
+// Put is a mock method for the [INatsObjectStore] interface.
+func (m *MockObjectStore) Put(ctx context.Context, meta jetstream.ObjectMeta, r io.Reader) (*jetstream.ObjectInfo, error) {
+	args := m.Called(ctx, meta, r)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*jetstream.ObjectInfo), args.Error(1)
+}
+
+// Get is a mock method for the [INatsObjectStore] interface.
+func (m *MockObjectStore) Get(ctx context.Context, name string, opts ...jetstream.GetObjectOpt) (jetstream.ObjectResult, error) {
+	args := m.Called(ctx, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(jetstream.ObjectResult), args.Error(1)
+}
+
+// Delete is a mock method for the [INatsObjectStore] interface.
+func (m *MockObjectStore) Delete(ctx context.Context, name string) error {
+	args := m.Called(ctx, name)
+	return args.Error(0)
 }

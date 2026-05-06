@@ -25,7 +25,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|readyz|livez)",
+		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|readyz|livez|create-project-link|get-project-link|list-project-links|delete-project-link|create-project-folder|get-project-folder|list-project-folders|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
 	}
 }
 
@@ -43,6 +43,7 @@ func ParseEndpoint(
 	enc func(*http.Request) goahttp.Encoder,
 	dec func(*http.Response) goahttp.Decoder,
 	restore bool,
+	projectServiceUploadProjectDocumentEncoderFn projectservicec.ProjectServiceUploadProjectDocumentEncoderFunc,
 ) (goa.Endpoint, any, error) {
 	var (
 		projectServiceFlags = flag.NewFlagSet("project-service", flag.ContinueOnError)
@@ -93,6 +94,85 @@ func ParseEndpoint(
 		projectServiceReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
 
 		projectServiceLivezFlags = flag.NewFlagSet("livez", flag.ExitOnError)
+
+		projectServiceCreateProjectLinkFlags           = flag.NewFlagSet("create-project-link", flag.ExitOnError)
+		projectServiceCreateProjectLinkBodyFlag        = projectServiceCreateProjectLinkFlags.String("body", "REQUIRED", "")
+		projectServiceCreateProjectLinkUIDFlag         = projectServiceCreateProjectLinkFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceCreateProjectLinkVersionFlag     = projectServiceCreateProjectLinkFlags.String("version", "", "")
+		projectServiceCreateProjectLinkBearerTokenFlag = projectServiceCreateProjectLinkFlags.String("bearer-token", "", "")
+		projectServiceCreateProjectLinkXSyncFlag       = projectServiceCreateProjectLinkFlags.String("x-sync", "", "")
+
+		projectServiceGetProjectLinkFlags           = flag.NewFlagSet("get-project-link", flag.ExitOnError)
+		projectServiceGetProjectLinkUIDFlag         = projectServiceGetProjectLinkFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceGetProjectLinkLinkUIDFlag     = projectServiceGetProjectLinkFlags.String("link-uid", "REQUIRED", "Link UID")
+		projectServiceGetProjectLinkVersionFlag     = projectServiceGetProjectLinkFlags.String("version", "", "")
+		projectServiceGetProjectLinkBearerTokenFlag = projectServiceGetProjectLinkFlags.String("bearer-token", "", "")
+
+		projectServiceListProjectLinksFlags           = flag.NewFlagSet("list-project-links", flag.ExitOnError)
+		projectServiceListProjectLinksUIDFlag         = projectServiceListProjectLinksFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceListProjectLinksVersionFlag     = projectServiceListProjectLinksFlags.String("version", "", "")
+		projectServiceListProjectLinksBearerTokenFlag = projectServiceListProjectLinksFlags.String("bearer-token", "", "")
+
+		projectServiceDeleteProjectLinkFlags           = flag.NewFlagSet("delete-project-link", flag.ExitOnError)
+		projectServiceDeleteProjectLinkUIDFlag         = projectServiceDeleteProjectLinkFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceDeleteProjectLinkLinkUIDFlag     = projectServiceDeleteProjectLinkFlags.String("link-uid", "REQUIRED", "Link UID")
+		projectServiceDeleteProjectLinkVersionFlag     = projectServiceDeleteProjectLinkFlags.String("version", "", "")
+		projectServiceDeleteProjectLinkBearerTokenFlag = projectServiceDeleteProjectLinkFlags.String("bearer-token", "", "")
+		projectServiceDeleteProjectLinkXSyncFlag       = projectServiceDeleteProjectLinkFlags.String("x-sync", "", "")
+		projectServiceDeleteProjectLinkIfMatchFlag     = projectServiceDeleteProjectLinkFlags.String("if-match", "", "")
+
+		projectServiceCreateProjectFolderFlags           = flag.NewFlagSet("create-project-folder", flag.ExitOnError)
+		projectServiceCreateProjectFolderBodyFlag        = projectServiceCreateProjectFolderFlags.String("body", "REQUIRED", "")
+		projectServiceCreateProjectFolderUIDFlag         = projectServiceCreateProjectFolderFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceCreateProjectFolderVersionFlag     = projectServiceCreateProjectFolderFlags.String("version", "", "")
+		projectServiceCreateProjectFolderBearerTokenFlag = projectServiceCreateProjectFolderFlags.String("bearer-token", "", "")
+		projectServiceCreateProjectFolderXSyncFlag       = projectServiceCreateProjectFolderFlags.String("x-sync", "", "")
+
+		projectServiceGetProjectFolderFlags           = flag.NewFlagSet("get-project-folder", flag.ExitOnError)
+		projectServiceGetProjectFolderUIDFlag         = projectServiceGetProjectFolderFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceGetProjectFolderFolderUIDFlag   = projectServiceGetProjectFolderFlags.String("folder-uid", "REQUIRED", "Folder UID")
+		projectServiceGetProjectFolderVersionFlag     = projectServiceGetProjectFolderFlags.String("version", "", "")
+		projectServiceGetProjectFolderBearerTokenFlag = projectServiceGetProjectFolderFlags.String("bearer-token", "", "")
+
+		projectServiceListProjectFoldersFlags           = flag.NewFlagSet("list-project-folders", flag.ExitOnError)
+		projectServiceListProjectFoldersUIDFlag         = projectServiceListProjectFoldersFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceListProjectFoldersVersionFlag     = projectServiceListProjectFoldersFlags.String("version", "", "")
+		projectServiceListProjectFoldersBearerTokenFlag = projectServiceListProjectFoldersFlags.String("bearer-token", "", "")
+
+		projectServiceDeleteProjectFolderFlags           = flag.NewFlagSet("delete-project-folder", flag.ExitOnError)
+		projectServiceDeleteProjectFolderUIDFlag         = projectServiceDeleteProjectFolderFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceDeleteProjectFolderFolderUIDFlag   = projectServiceDeleteProjectFolderFlags.String("folder-uid", "REQUIRED", "Folder UID")
+		projectServiceDeleteProjectFolderVersionFlag     = projectServiceDeleteProjectFolderFlags.String("version", "", "")
+		projectServiceDeleteProjectFolderBearerTokenFlag = projectServiceDeleteProjectFolderFlags.String("bearer-token", "", "")
+		projectServiceDeleteProjectFolderXSyncFlag       = projectServiceDeleteProjectFolderFlags.String("x-sync", "", "")
+		projectServiceDeleteProjectFolderIfMatchFlag     = projectServiceDeleteProjectFolderFlags.String("if-match", "", "")
+
+		projectServiceUploadProjectDocumentFlags           = flag.NewFlagSet("upload-project-document", flag.ExitOnError)
+		projectServiceUploadProjectDocumentBodyFlag        = projectServiceUploadProjectDocumentFlags.String("body", "REQUIRED", "")
+		projectServiceUploadProjectDocumentUIDFlag         = projectServiceUploadProjectDocumentFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceUploadProjectDocumentVersionFlag     = projectServiceUploadProjectDocumentFlags.String("version", "", "")
+		projectServiceUploadProjectDocumentBearerTokenFlag = projectServiceUploadProjectDocumentFlags.String("bearer-token", "", "")
+		projectServiceUploadProjectDocumentXSyncFlag       = projectServiceUploadProjectDocumentFlags.String("x-sync", "", "")
+
+		projectServiceGetProjectDocumentFlags           = flag.NewFlagSet("get-project-document", flag.ExitOnError)
+		projectServiceGetProjectDocumentUIDFlag         = projectServiceGetProjectDocumentFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceGetProjectDocumentDocumentUIDFlag = projectServiceGetProjectDocumentFlags.String("document-uid", "REQUIRED", "Document UID")
+		projectServiceGetProjectDocumentVersionFlag     = projectServiceGetProjectDocumentFlags.String("version", "", "")
+		projectServiceGetProjectDocumentBearerTokenFlag = projectServiceGetProjectDocumentFlags.String("bearer-token", "", "")
+
+		projectServiceDownloadProjectDocumentFlags           = flag.NewFlagSet("download-project-document", flag.ExitOnError)
+		projectServiceDownloadProjectDocumentUIDFlag         = projectServiceDownloadProjectDocumentFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceDownloadProjectDocumentDocumentUIDFlag = projectServiceDownloadProjectDocumentFlags.String("document-uid", "REQUIRED", "Document UID")
+		projectServiceDownloadProjectDocumentVersionFlag     = projectServiceDownloadProjectDocumentFlags.String("version", "", "")
+		projectServiceDownloadProjectDocumentBearerTokenFlag = projectServiceDownloadProjectDocumentFlags.String("bearer-token", "", "")
+
+		projectServiceDeleteProjectDocumentFlags           = flag.NewFlagSet("delete-project-document", flag.ExitOnError)
+		projectServiceDeleteProjectDocumentUIDFlag         = projectServiceDeleteProjectDocumentFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceDeleteProjectDocumentDocumentUIDFlag = projectServiceDeleteProjectDocumentFlags.String("document-uid", "REQUIRED", "Document UID")
+		projectServiceDeleteProjectDocumentVersionFlag     = projectServiceDeleteProjectDocumentFlags.String("version", "", "")
+		projectServiceDeleteProjectDocumentBearerTokenFlag = projectServiceDeleteProjectDocumentFlags.String("bearer-token", "", "")
+		projectServiceDeleteProjectDocumentXSyncFlag       = projectServiceDeleteProjectDocumentFlags.String("x-sync", "", "")
+		projectServiceDeleteProjectDocumentIfMatchFlag     = projectServiceDeleteProjectDocumentFlags.String("if-match", "", "")
 	)
 	projectServiceFlags.Usage = projectServiceUsage
 	projectServiceGetProjectsFlags.Usage = projectServiceGetProjectsUsage
@@ -104,6 +184,18 @@ func ParseEndpoint(
 	projectServiceDeleteProjectFlags.Usage = projectServiceDeleteProjectUsage
 	projectServiceReadyzFlags.Usage = projectServiceReadyzUsage
 	projectServiceLivezFlags.Usage = projectServiceLivezUsage
+	projectServiceCreateProjectLinkFlags.Usage = projectServiceCreateProjectLinkUsage
+	projectServiceGetProjectLinkFlags.Usage = projectServiceGetProjectLinkUsage
+	projectServiceListProjectLinksFlags.Usage = projectServiceListProjectLinksUsage
+	projectServiceDeleteProjectLinkFlags.Usage = projectServiceDeleteProjectLinkUsage
+	projectServiceCreateProjectFolderFlags.Usage = projectServiceCreateProjectFolderUsage
+	projectServiceGetProjectFolderFlags.Usage = projectServiceGetProjectFolderUsage
+	projectServiceListProjectFoldersFlags.Usage = projectServiceListProjectFoldersUsage
+	projectServiceDeleteProjectFolderFlags.Usage = projectServiceDeleteProjectFolderUsage
+	projectServiceUploadProjectDocumentFlags.Usage = projectServiceUploadProjectDocumentUsage
+	projectServiceGetProjectDocumentFlags.Usage = projectServiceGetProjectDocumentUsage
+	projectServiceDownloadProjectDocumentFlags.Usage = projectServiceDownloadProjectDocumentUsage
+	projectServiceDeleteProjectDocumentFlags.Usage = projectServiceDeleteProjectDocumentUsage
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
@@ -166,6 +258,42 @@ func ParseEndpoint(
 			case "livez":
 				epf = projectServiceLivezFlags
 
+			case "create-project-link":
+				epf = projectServiceCreateProjectLinkFlags
+
+			case "get-project-link":
+				epf = projectServiceGetProjectLinkFlags
+
+			case "list-project-links":
+				epf = projectServiceListProjectLinksFlags
+
+			case "delete-project-link":
+				epf = projectServiceDeleteProjectLinkFlags
+
+			case "create-project-folder":
+				epf = projectServiceCreateProjectFolderFlags
+
+			case "get-project-folder":
+				epf = projectServiceGetProjectFolderFlags
+
+			case "list-project-folders":
+				epf = projectServiceListProjectFoldersFlags
+
+			case "delete-project-folder":
+				epf = projectServiceDeleteProjectFolderFlags
+
+			case "upload-project-document":
+				epf = projectServiceUploadProjectDocumentFlags
+
+			case "get-project-document":
+				epf = projectServiceGetProjectDocumentFlags
+
+			case "download-project-document":
+				epf = projectServiceDownloadProjectDocumentFlags
+
+			case "delete-project-document":
+				epf = projectServiceDeleteProjectDocumentFlags
+
 			}
 
 		}
@@ -216,6 +344,42 @@ func ParseEndpoint(
 				endpoint = c.Readyz()
 			case "livez":
 				endpoint = c.Livez()
+			case "create-project-link":
+				endpoint = c.CreateProjectLink()
+				data, err = projectservicec.BuildCreateProjectLinkPayload(*projectServiceCreateProjectLinkBodyFlag, *projectServiceCreateProjectLinkUIDFlag, *projectServiceCreateProjectLinkVersionFlag, *projectServiceCreateProjectLinkBearerTokenFlag, *projectServiceCreateProjectLinkXSyncFlag)
+			case "get-project-link":
+				endpoint = c.GetProjectLink()
+				data, err = projectservicec.BuildGetProjectLinkPayload(*projectServiceGetProjectLinkUIDFlag, *projectServiceGetProjectLinkLinkUIDFlag, *projectServiceGetProjectLinkVersionFlag, *projectServiceGetProjectLinkBearerTokenFlag)
+			case "list-project-links":
+				endpoint = c.ListProjectLinks()
+				data, err = projectservicec.BuildListProjectLinksPayload(*projectServiceListProjectLinksUIDFlag, *projectServiceListProjectLinksVersionFlag, *projectServiceListProjectLinksBearerTokenFlag)
+			case "delete-project-link":
+				endpoint = c.DeleteProjectLink()
+				data, err = projectservicec.BuildDeleteProjectLinkPayload(*projectServiceDeleteProjectLinkUIDFlag, *projectServiceDeleteProjectLinkLinkUIDFlag, *projectServiceDeleteProjectLinkVersionFlag, *projectServiceDeleteProjectLinkBearerTokenFlag, *projectServiceDeleteProjectLinkXSyncFlag, *projectServiceDeleteProjectLinkIfMatchFlag)
+			case "create-project-folder":
+				endpoint = c.CreateProjectFolder()
+				data, err = projectservicec.BuildCreateProjectFolderPayload(*projectServiceCreateProjectFolderBodyFlag, *projectServiceCreateProjectFolderUIDFlag, *projectServiceCreateProjectFolderVersionFlag, *projectServiceCreateProjectFolderBearerTokenFlag, *projectServiceCreateProjectFolderXSyncFlag)
+			case "get-project-folder":
+				endpoint = c.GetProjectFolder()
+				data, err = projectservicec.BuildGetProjectFolderPayload(*projectServiceGetProjectFolderUIDFlag, *projectServiceGetProjectFolderFolderUIDFlag, *projectServiceGetProjectFolderVersionFlag, *projectServiceGetProjectFolderBearerTokenFlag)
+			case "list-project-folders":
+				endpoint = c.ListProjectFolders()
+				data, err = projectservicec.BuildListProjectFoldersPayload(*projectServiceListProjectFoldersUIDFlag, *projectServiceListProjectFoldersVersionFlag, *projectServiceListProjectFoldersBearerTokenFlag)
+			case "delete-project-folder":
+				endpoint = c.DeleteProjectFolder()
+				data, err = projectservicec.BuildDeleteProjectFolderPayload(*projectServiceDeleteProjectFolderUIDFlag, *projectServiceDeleteProjectFolderFolderUIDFlag, *projectServiceDeleteProjectFolderVersionFlag, *projectServiceDeleteProjectFolderBearerTokenFlag, *projectServiceDeleteProjectFolderXSyncFlag, *projectServiceDeleteProjectFolderIfMatchFlag)
+			case "upload-project-document":
+				endpoint = c.UploadProjectDocument(projectServiceUploadProjectDocumentEncoderFn)
+				data, err = projectservicec.BuildUploadProjectDocumentPayload(*projectServiceUploadProjectDocumentBodyFlag, *projectServiceUploadProjectDocumentUIDFlag, *projectServiceUploadProjectDocumentVersionFlag, *projectServiceUploadProjectDocumentBearerTokenFlag, *projectServiceUploadProjectDocumentXSyncFlag)
+			case "get-project-document":
+				endpoint = c.GetProjectDocument()
+				data, err = projectservicec.BuildGetProjectDocumentPayload(*projectServiceGetProjectDocumentUIDFlag, *projectServiceGetProjectDocumentDocumentUIDFlag, *projectServiceGetProjectDocumentVersionFlag, *projectServiceGetProjectDocumentBearerTokenFlag)
+			case "download-project-document":
+				endpoint = c.DownloadProjectDocument()
+				data, err = projectservicec.BuildDownloadProjectDocumentPayload(*projectServiceDownloadProjectDocumentUIDFlag, *projectServiceDownloadProjectDocumentDocumentUIDFlag, *projectServiceDownloadProjectDocumentVersionFlag, *projectServiceDownloadProjectDocumentBearerTokenFlag)
+			case "delete-project-document":
+				endpoint = c.DeleteProjectDocument()
+				data, err = projectservicec.BuildDeleteProjectDocumentPayload(*projectServiceDeleteProjectDocumentUIDFlag, *projectServiceDeleteProjectDocumentDocumentUIDFlag, *projectServiceDeleteProjectDocumentVersionFlag, *projectServiceDeleteProjectDocumentBearerTokenFlag, *projectServiceDeleteProjectDocumentXSyncFlag, *projectServiceDeleteProjectDocumentIfMatchFlag)
 			}
 		}
 	}
@@ -241,6 +405,18 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    delete-project: Delete an existing project.`)
 	fmt.Fprintln(os.Stderr, `    readyz: Check if the service is able to take inbound requests.`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
+	fmt.Fprintln(os.Stderr, `    create-project-link: Create a new link for a project.`)
+	fmt.Fprintln(os.Stderr, `    get-project-link: Get a single project link.`)
+	fmt.Fprintln(os.Stderr, `    list-project-links: List all links for a project.`)
+	fmt.Fprintln(os.Stderr, `    delete-project-link: Delete a project link.`)
+	fmt.Fprintln(os.Stderr, `    create-project-folder: Create a new folder for a project.`)
+	fmt.Fprintln(os.Stderr, `    get-project-folder: Get a single project folder.`)
+	fmt.Fprintln(os.Stderr, `    list-project-folders: List all folders for a project.`)
+	fmt.Fprintln(os.Stderr, `    delete-project-folder: Delete a project folder. The folder must be empty.`)
+	fmt.Fprintln(os.Stderr, `    upload-project-document: Upload a new document for a project (multipart/form-data).`)
+	fmt.Fprintln(os.Stderr, `    get-project-document: Get project document metadata.`)
+	fmt.Fprintln(os.Stderr, `    download-project-document: Download the binary file of a project document.`)
+	fmt.Fprintln(os.Stderr, `    delete-project-document: Delete a project document.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s project-service COMMAND --help\n", os.Args[0])
@@ -445,4 +621,306 @@ func projectServiceLivezUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service livez")
+}
+
+func projectServiceCreateProjectLinkUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service create-project-link", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Create a new link for a project.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service create-project-link --body '{\n      \"description\": \"A description of the resource\",\n      \"folder_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"name\": \"My Resource\",\n      \"url\": \"https://example.com\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true")
+}
+
+func projectServiceGetProjectLinkUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service get-project-link", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -link-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Get a single project link.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -link-uid STRING: Link UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service get-project-link --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --link-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceListProjectLinksUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service list-project-links", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `List all links for a project.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service list-project-links --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceDeleteProjectLinkUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service delete-project-link", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -link-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Delete a project link.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -link-uid STRING: Link UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service delete-project-link --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --link-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true --if-match \"123\"")
+}
+
+func projectServiceCreateProjectFolderUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service create-project-folder", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Create a new folder for a project.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service create-project-folder --body '{\n      \"name\": \"My Resource\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true")
+}
+
+func projectServiceGetProjectFolderUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service get-project-folder", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -folder-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Get a single project folder.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -folder-uid STRING: Folder UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service get-project-folder --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --folder-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceListProjectFoldersUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service list-project-folders", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `List all folders for a project.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service list-project-folders --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceDeleteProjectFolderUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service delete-project-folder", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -folder-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Delete a project folder. The folder must be empty.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -folder-uid STRING: Folder UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service delete-project-folder --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --folder-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true --if-match \"123\"")
+}
+
+func projectServiceUploadProjectDocumentUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service upload-project-document", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Upload a new document for a project (multipart/form-data).`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service upload-project-document --body '{\n      \"content_type\": \"application/pdf\",\n      \"description\": \"A description of the resource\",\n      \"file\": \"Li4u\",\n      \"file_name\": \"report.pdf\",\n      \"folder_uid\": \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\",\n      \"name\": \"My Resource\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true")
+}
+
+func projectServiceGetProjectDocumentUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service get-project-document", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -document-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Get project document metadata.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -document-uid STRING: Document UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service get-project-document --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --document-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceDownloadProjectDocumentUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service download-project-document", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -document-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Download the binary file of a project document.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -document-uid STRING: Document UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service download-project-document --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --document-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func projectServiceDeleteProjectDocumentUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service delete-project-document", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -document-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Delete a project document.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -document-uid STRING: Document UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service delete-project-document --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --document-uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true --if-match \"123\"")
 }

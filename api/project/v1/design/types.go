@@ -544,3 +544,107 @@ var ServiceUnavailableError = Type("ServiceUnavailableError", func() {
 	})
 	Required("code", "message")
 })
+
+//
+// Shared sub-resource attributes
+//
+
+// ResourceUIDAttribute is the DSL attribute for a sub-resource UID path parameter.
+func ResourceUIDAttribute(field, description string) {
+	Attribute(field, String, description, func() {
+		Format(FormatUUID)
+		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")
+	})
+}
+
+// ResourceNameAttribute is the DSL attribute for a sub-resource name.
+func ResourceNameAttribute(field, description string) {
+	Attribute(field, String, description, func() {
+		MinLength(1)
+		Example("My Resource")
+	})
+}
+
+// ResourceDescriptionAttribute is the DSL attribute for a sub-resource description.
+func ResourceDescriptionAttribute(field, description string) {
+	Attribute(field, String, description, func() {
+		Example("A description of the resource")
+	})
+}
+
+// ResourceCreatedByAttribute is the DSL attribute for the username who created a resource.
+func ResourceCreatedByAttribute(field string) {
+	Attribute(field, String, "Username of the principal who created this resource", func() {
+		Example("johndoe")
+	})
+}
+
+// ResourceTimestampAttribute is the DSL attribute for a created_at / updated_at timestamp.
+func ResourceTimestampAttribute(field string) {
+	Attribute(field, String, "RFC3339 timestamp", func() {
+		Format(FormatDateTime)
+		Example("2024-01-01T00:00:00Z")
+	})
+}
+
+//
+// ProjectLink types
+//
+
+// ProjectLink is the DSL type for a project link.
+var ProjectLink = Type("ProjectLink", func() {
+	Description("A URL bookmark associated with a project.")
+	ResourceUIDAttribute("uid", "Link UID")
+	ProjectUIDAttribute()
+	ResourceUIDAttribute("folder_uid", "Folder UID that this link belongs to (optional)")
+	ResourceNameAttribute("name", "Link display name")
+	Attribute("url", String, "The URL of the link", func() {
+		Format(FormatURI)
+		Example("https://example.com")
+	})
+	ResourceDescriptionAttribute("description", "A description of the link")
+	ResourceCreatedByAttribute("created_by_username")
+	ResourceTimestampAttribute("created_at")
+	ResourceTimestampAttribute("updated_at")
+})
+
+//
+// ProjectFolder types
+//
+
+// ProjectFolder is the DSL type for a project folder.
+var ProjectFolder = Type("ProjectFolder", func() {
+	Description("An organizational folder for project links and documents.")
+	ResourceUIDAttribute("uid", "Folder UID")
+	ProjectUIDAttribute()
+	ResourceNameAttribute("name", "Folder display name")
+	ResourceCreatedByAttribute("created_by_username")
+	ResourceTimestampAttribute("created_at")
+	ResourceTimestampAttribute("updated_at")
+})
+
+//
+// ProjectDocument types
+//
+
+// ProjectDocument is the DSL type for a project document.
+var ProjectDocument = Type("ProjectDocument", func() {
+	Description("A file attachment associated with a project.")
+	ResourceUIDAttribute("uid", "Document UID")
+	ProjectUIDAttribute()
+	ResourceUIDAttribute("folder_uid", "Folder UID that this document belongs to (optional)")
+	ResourceNameAttribute("name", "Document display name")
+	ResourceDescriptionAttribute("description", "A description of the document")
+	Attribute("file_name", String, "Original uploaded file name", func() {
+		Example("report.pdf")
+	})
+	Attribute("file_size", Int64, "File size in bytes", func() {
+		Example(int64(204800))
+	})
+	Attribute("content_type", String, "MIME type of the file", func() {
+		Example("application/pdf")
+	})
+	ResourceCreatedByAttribute("uploaded_by_username")
+	ResourceTimestampAttribute("created_at")
+	ResourceTimestampAttribute("updated_at")
+})

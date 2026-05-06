@@ -35,6 +35,30 @@ type Service interface {
 	Readyz(context.Context) (res []byte, err error)
 	// Check if the service is alive.
 	Livez(context.Context) (res []byte, err error)
+	// Create a new link for a project.
+	CreateProjectLink(context.Context, *CreateProjectLinkPayload) (res *ProjectLink, err error)
+	// Get a single project link.
+	GetProjectLink(context.Context, *GetProjectLinkPayload) (res *GetProjectLinkResult, err error)
+	// List all links for a project.
+	ListProjectLinks(context.Context, *ListProjectLinksPayload) (res *ListProjectLinksResult, err error)
+	// Delete a project link.
+	DeleteProjectLink(context.Context, *DeleteProjectLinkPayload) (err error)
+	// Create a new folder for a project.
+	CreateProjectFolder(context.Context, *CreateProjectFolderPayload) (res *ProjectFolder, err error)
+	// Get a single project folder.
+	GetProjectFolder(context.Context, *GetProjectFolderPayload) (res *GetProjectFolderResult, err error)
+	// List all folders for a project.
+	ListProjectFolders(context.Context, *ListProjectFoldersPayload) (res *ListProjectFoldersResult, err error)
+	// Delete a project folder. The folder must be empty.
+	DeleteProjectFolder(context.Context, *DeleteProjectFolderPayload) (err error)
+	// Upload a new document for a project (multipart/form-data).
+	UploadProjectDocument(context.Context, *UploadProjectDocumentPayload) (res *ProjectDocument, err error)
+	// Get project document metadata.
+	GetProjectDocument(context.Context, *GetProjectDocumentPayload) (res *GetProjectDocumentResult, err error)
+	// Download the binary file of a project document.
+	DownloadProjectDocument(context.Context, *DownloadProjectDocumentPayload) (res *DownloadProjectDocumentResult, err error)
+	// Delete a project document.
+	DeleteProjectDocument(context.Context, *DeleteProjectDocumentPayload) (err error)
 }
 
 // Auther defines the authorization functions to be implemented by the service.
@@ -57,7 +81,7 @@ const ServiceName = "project-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [9]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "readyz", "livez"}
+var MethodNames = [21]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "readyz", "livez", "create-project-link", "get-project-link", "list-project-links", "delete-project-link", "create-project-folder", "get-project-folder", "list-project-folders", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
 
 type BadRequestError struct {
 	// HTTP status code
@@ -71,6 +95,42 @@ type ConflictError struct {
 	Code string
 	// Error message
 	Message string
+}
+
+// CreateProjectFolderPayload is the payload type of the project-service
+// service create-project-folder method.
+type CreateProjectFolderPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Folder display name
+	Name string
+}
+
+// CreateProjectLinkPayload is the payload type of the project-service service
+// create-project-link method.
+type CreateProjectLinkPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Link display name
+	Name string
+	// The URL of the link
+	URL string
+	// A description of the link
+	Description *string
+	// Folder UID to place the link in (optional)
+	FolderUID *string
 }
 
 // CreateProjectPayload is the payload type of the project-service service
@@ -142,6 +202,57 @@ type CreateProjectPayload struct {
 	OpportunityOwner *UserInfo
 }
 
+// DeleteProjectDocumentPayload is the payload type of the project-service
+// service delete-project-document method.
+type DeleteProjectDocumentPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Document UID
+	DocumentUID string
+}
+
+// DeleteProjectFolderPayload is the payload type of the project-service
+// service delete-project-folder method.
+type DeleteProjectFolderPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Folder UID
+	FolderUID string
+}
+
+// DeleteProjectLinkPayload is the payload type of the project-service service
+// delete-project-link method.
+type DeleteProjectLinkPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Link UID
+	LinkUID string
+}
+
 // DeleteProjectPayload is the payload type of the project-service service
 // delete-project method.
 type DeleteProjectPayload struct {
@@ -155,6 +266,30 @@ type DeleteProjectPayload struct {
 	Version *string
 	// Project UID -- v2 uid, not related to v1 id directly
 	UID *string
+}
+
+// DownloadProjectDocumentPayload is the payload type of the project-service
+// service download-project-document method.
+type DownloadProjectDocumentPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Document UID
+	DocumentUID string
+}
+
+// DownloadProjectDocumentResult is the result type of the project-service
+// service download-project-document method.
+type DownloadProjectDocumentResult struct {
+	// File binary content
+	Content []byte
+	// MIME type of the file
+	ContentType *string
+	// Content-Disposition header
+	ContentDisposition *string
 }
 
 // GetOneProjectBasePayload is the payload type of the project-service service
@@ -195,6 +330,69 @@ type GetOneProjectSettingsResult struct {
 	Etag *string
 }
 
+// GetProjectDocumentPayload is the payload type of the project-service service
+// get-project-document method.
+type GetProjectDocumentPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Document UID
+	DocumentUID string
+}
+
+// GetProjectDocumentResult is the result type of the project-service service
+// get-project-document method.
+type GetProjectDocumentResult struct {
+	Document *ProjectDocument
+	// ETag header value
+	Etag *string
+}
+
+// GetProjectFolderPayload is the payload type of the project-service service
+// get-project-folder method.
+type GetProjectFolderPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Folder UID
+	FolderUID string
+}
+
+// GetProjectFolderResult is the result type of the project-service service
+// get-project-folder method.
+type GetProjectFolderResult struct {
+	Folder *ProjectFolder
+	// ETag header value
+	Etag *string
+}
+
+// GetProjectLinkPayload is the payload type of the project-service service
+// get-project-link method.
+type GetProjectLinkPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Link UID
+	LinkUID string
+}
+
+// GetProjectLinkResult is the result type of the project-service service
+// get-project-link method.
+type GetProjectLinkResult struct {
+	Link *ProjectLink
+	// ETag header value
+	Etag *string
+}
+
 // GetProjectsPayload is the payload type of the project-service service
 // get-projects method.
 type GetProjectsPayload struct {
@@ -218,6 +416,42 @@ type InternalServerError struct {
 	Code string
 	// Error message
 	Message string
+}
+
+// ListProjectFoldersPayload is the payload type of the project-service service
+// list-project-folders method.
+type ListProjectFoldersPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+}
+
+// ListProjectFoldersResult is the result type of the project-service service
+// list-project-folders method.
+type ListProjectFoldersResult struct {
+	// List of project folders
+	Folders []*ProjectFolder
+}
+
+// ListProjectLinksPayload is the payload type of the project-service service
+// list-project-links method.
+type ListProjectLinksPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+}
+
+// ListProjectLinksResult is the result type of the project-service service
+// list-project-links method.
+type ListProjectLinksResult struct {
+	// List of project links
+	Links []*ProjectLink
 }
 
 type NotFoundError struct {
@@ -277,6 +511,46 @@ type ProjectBase struct {
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
+	UpdatedAt *string
+}
+
+// ProjectDocument is the result type of the project-service service
+// upload-project-document method.
+type ProjectDocument struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
+	// Folder UID that this document belongs to (optional)
+	FolderUID *string
+	// Document display name
+	Name *string
+	// A description of the document
+	Description *string
+	// Original uploaded file name
+	FileName *string
+	// File size in bytes
+	FileSize *int64
+	// MIME type of the file
+	ContentType *string
+	// Username of the principal who created this resource
+	UploadedByUsername *string
+	// RFC3339 timestamp
+	CreatedAt *string
+	// RFC3339 timestamp
+	UpdatedAt *string
+}
+
+// ProjectFolder is the result type of the project-service service
+// create-project-folder method.
+type ProjectFolder struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
+	// Folder display name
+	Name *string
+	// Username of the principal who created this resource
+	CreatedByUsername *string
+	// RFC3339 timestamp
+	CreatedAt *string
+	// RFC3339 timestamp
 	UpdatedAt *string
 }
 
@@ -347,6 +621,27 @@ type ProjectFull struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+}
+
+// ProjectLink is the result type of the project-service service
+// create-project-link method.
+type ProjectLink struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string
+	// Folder UID that this link belongs to (optional)
+	FolderUID *string
+	// Link display name
+	Name *string
+	// The URL of the link
+	URL *string
+	// A description of the link
+	Description *string
+	// Username of the principal who created this resource
+	CreatedByUsername *string
+	// RFC3339 timestamp
+	CreatedAt *string
+	// RFC3339 timestamp
+	UpdatedAt *string
 }
 
 // ProjectSettings is the result type of the project-service service
@@ -469,6 +764,31 @@ type UpdateProjectSettingsPayload struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+}
+
+// UploadProjectDocumentPayload is the payload type of the project-service
+// service upload-project-document method.
+type UploadProjectDocumentPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// Document display name
+	Name string
+	// A description of the document
+	Description *string
+	// Folder UID to place the document in (optional)
+	FolderUID *string
+	// File contents
+	File []byte
+	// Original file name including extension
+	FileName string
+	// MIME type of the file
+	ContentType string
 }
 
 // User information including profile details.

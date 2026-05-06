@@ -18,15 +18,27 @@ import (
 
 // Endpoints wraps the "project-service" service endpoints.
 type Endpoints struct {
-	GetProjects           goa.Endpoint
-	CreateProject         goa.Endpoint
-	GetOneProjectBase     goa.Endpoint
-	GetOneProjectSettings goa.Endpoint
-	UpdateProjectBase     goa.Endpoint
-	UpdateProjectSettings goa.Endpoint
-	DeleteProject         goa.Endpoint
-	Readyz                goa.Endpoint
-	Livez                 goa.Endpoint
+	GetProjects             goa.Endpoint
+	CreateProject           goa.Endpoint
+	GetOneProjectBase       goa.Endpoint
+	GetOneProjectSettings   goa.Endpoint
+	UpdateProjectBase       goa.Endpoint
+	UpdateProjectSettings   goa.Endpoint
+	DeleteProject           goa.Endpoint
+	Readyz                  goa.Endpoint
+	Livez                   goa.Endpoint
+	CreateProjectLink       goa.Endpoint
+	GetProjectLink          goa.Endpoint
+	ListProjectLinks        goa.Endpoint
+	DeleteProjectLink       goa.Endpoint
+	CreateProjectFolder     goa.Endpoint
+	GetProjectFolder        goa.Endpoint
+	ListProjectFolders      goa.Endpoint
+	DeleteProjectFolder     goa.Endpoint
+	UploadProjectDocument   goa.Endpoint
+	GetProjectDocument      goa.Endpoint
+	DownloadProjectDocument goa.Endpoint
+	DeleteProjectDocument   goa.Endpoint
 }
 
 // NewEndpoints wraps the methods of the "project-service" service with
@@ -35,15 +47,27 @@ func NewEndpoints(s Service) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
 	return &Endpoints{
-		GetProjects:           NewGetProjectsEndpoint(s, a.JWTAuth),
-		CreateProject:         NewCreateProjectEndpoint(s, a.JWTAuth),
-		GetOneProjectBase:     NewGetOneProjectBaseEndpoint(s, a.JWTAuth),
-		GetOneProjectSettings: NewGetOneProjectSettingsEndpoint(s, a.JWTAuth),
-		UpdateProjectBase:     NewUpdateProjectBaseEndpoint(s, a.JWTAuth),
-		UpdateProjectSettings: NewUpdateProjectSettingsEndpoint(s, a.JWTAuth),
-		DeleteProject:         NewDeleteProjectEndpoint(s, a.JWTAuth),
-		Readyz:                NewReadyzEndpoint(s),
-		Livez:                 NewLivezEndpoint(s),
+		GetProjects:             NewGetProjectsEndpoint(s, a.JWTAuth),
+		CreateProject:           NewCreateProjectEndpoint(s, a.JWTAuth),
+		GetOneProjectBase:       NewGetOneProjectBaseEndpoint(s, a.JWTAuth),
+		GetOneProjectSettings:   NewGetOneProjectSettingsEndpoint(s, a.JWTAuth),
+		UpdateProjectBase:       NewUpdateProjectBaseEndpoint(s, a.JWTAuth),
+		UpdateProjectSettings:   NewUpdateProjectSettingsEndpoint(s, a.JWTAuth),
+		DeleteProject:           NewDeleteProjectEndpoint(s, a.JWTAuth),
+		Readyz:                  NewReadyzEndpoint(s),
+		Livez:                   NewLivezEndpoint(s),
+		CreateProjectLink:       NewCreateProjectLinkEndpoint(s, a.JWTAuth),
+		GetProjectLink:          NewGetProjectLinkEndpoint(s, a.JWTAuth),
+		ListProjectLinks:        NewListProjectLinksEndpoint(s, a.JWTAuth),
+		DeleteProjectLink:       NewDeleteProjectLinkEndpoint(s, a.JWTAuth),
+		CreateProjectFolder:     NewCreateProjectFolderEndpoint(s, a.JWTAuth),
+		GetProjectFolder:        NewGetProjectFolderEndpoint(s, a.JWTAuth),
+		ListProjectFolders:      NewListProjectFoldersEndpoint(s, a.JWTAuth),
+		DeleteProjectFolder:     NewDeleteProjectFolderEndpoint(s, a.JWTAuth),
+		UploadProjectDocument:   NewUploadProjectDocumentEndpoint(s, a.JWTAuth),
+		GetProjectDocument:      NewGetProjectDocumentEndpoint(s, a.JWTAuth),
+		DownloadProjectDocument: NewDownloadProjectDocumentEndpoint(s, a.JWTAuth),
+		DeleteProjectDocument:   NewDeleteProjectDocumentEndpoint(s, a.JWTAuth),
 	}
 }
 
@@ -59,6 +83,18 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.DeleteProject = m(e.DeleteProject)
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
+	e.CreateProjectLink = m(e.CreateProjectLink)
+	e.GetProjectLink = m(e.GetProjectLink)
+	e.ListProjectLinks = m(e.ListProjectLinks)
+	e.DeleteProjectLink = m(e.DeleteProjectLink)
+	e.CreateProjectFolder = m(e.CreateProjectFolder)
+	e.GetProjectFolder = m(e.GetProjectFolder)
+	e.ListProjectFolders = m(e.ListProjectFolders)
+	e.DeleteProjectFolder = m(e.DeleteProjectFolder)
+	e.UploadProjectDocument = m(e.UploadProjectDocument)
+	e.GetProjectDocument = m(e.GetProjectDocument)
+	e.DownloadProjectDocument = m(e.DownloadProjectDocument)
+	e.DeleteProjectDocument = m(e.DeleteProjectDocument)
 }
 
 // NewGetProjectsEndpoint returns an endpoint function that calls the method
@@ -235,5 +271,281 @@ func NewReadyzEndpoint(s Service) goa.Endpoint {
 func NewLivezEndpoint(s Service) goa.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		return s.Livez(ctx)
+	}
+}
+
+// NewCreateProjectLinkEndpoint returns an endpoint function that calls the
+// method "create-project-link" of service "project-service".
+func NewCreateProjectLinkEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*CreateProjectLinkPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.CreateProjectLink(ctx, p)
+	}
+}
+
+// NewGetProjectLinkEndpoint returns an endpoint function that calls the method
+// "get-project-link" of service "project-service".
+func NewGetProjectLinkEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*GetProjectLinkPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.GetProjectLink(ctx, p)
+	}
+}
+
+// NewListProjectLinksEndpoint returns an endpoint function that calls the
+// method "list-project-links" of service "project-service".
+func NewListProjectLinksEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*ListProjectLinksPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.ListProjectLinks(ctx, p)
+	}
+}
+
+// NewDeleteProjectLinkEndpoint returns an endpoint function that calls the
+// method "delete-project-link" of service "project-service".
+func NewDeleteProjectLinkEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*DeleteProjectLinkPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.DeleteProjectLink(ctx, p)
+	}
+}
+
+// NewCreateProjectFolderEndpoint returns an endpoint function that calls the
+// method "create-project-folder" of service "project-service".
+func NewCreateProjectFolderEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*CreateProjectFolderPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.CreateProjectFolder(ctx, p)
+	}
+}
+
+// NewGetProjectFolderEndpoint returns an endpoint function that calls the
+// method "get-project-folder" of service "project-service".
+func NewGetProjectFolderEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*GetProjectFolderPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.GetProjectFolder(ctx, p)
+	}
+}
+
+// NewListProjectFoldersEndpoint returns an endpoint function that calls the
+// method "list-project-folders" of service "project-service".
+func NewListProjectFoldersEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*ListProjectFoldersPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.ListProjectFolders(ctx, p)
+	}
+}
+
+// NewDeleteProjectFolderEndpoint returns an endpoint function that calls the
+// method "delete-project-folder" of service "project-service".
+func NewDeleteProjectFolderEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*DeleteProjectFolderPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.DeleteProjectFolder(ctx, p)
+	}
+}
+
+// NewUploadProjectDocumentEndpoint returns an endpoint function that calls the
+// method "upload-project-document" of service "project-service".
+func NewUploadProjectDocumentEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UploadProjectDocumentPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UploadProjectDocument(ctx, p)
+	}
+}
+
+// NewGetProjectDocumentEndpoint returns an endpoint function that calls the
+// method "get-project-document" of service "project-service".
+func NewGetProjectDocumentEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*GetProjectDocumentPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.GetProjectDocument(ctx, p)
+	}
+}
+
+// NewDownloadProjectDocumentEndpoint returns an endpoint function that calls
+// the method "download-project-document" of service "project-service".
+func NewDownloadProjectDocumentEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*DownloadProjectDocumentPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.DownloadProjectDocument(ctx, p)
+	}
+}
+
+// NewDeleteProjectDocumentEndpoint returns an endpoint function that calls the
+// method "delete-project-document" of service "project-service".
+func NewDeleteProjectDocumentEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*DeleteProjectDocumentPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.DeleteProjectDocument(ctx, p)
 	}
 }

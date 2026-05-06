@@ -10,6 +10,8 @@
 package client
 
 import (
+	"unicode/utf8"
+
 	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	goa "goa.design/goa/v3/pkg"
 )
@@ -143,6 +145,43 @@ type UpdateProjectSettingsRequestBody struct {
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+}
+
+// CreateProjectLinkRequestBody is the type of the "project-service" service
+// "create-project-link" endpoint HTTP request body.
+type CreateProjectLinkRequestBody struct {
+	// Link display name
+	Name string `form:"name" json:"name" xml:"name"`
+	// The URL of the link
+	URL string `form:"url" json:"url" xml:"url"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Folder UID to place the link in (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+}
+
+// CreateProjectFolderRequestBody is the type of the "project-service" service
+// "create-project-folder" endpoint HTTP request body.
+type CreateProjectFolderRequestBody struct {
+	// Folder display name
+	Name string `form:"name" json:"name" xml:"name"`
+}
+
+// UploadProjectDocumentRequestBody is the type of the "project-service"
+// service "upload-project-document" endpoint HTTP request body.
+type UploadProjectDocumentRequestBody struct {
+	// Document display name
+	Name string `form:"name" json:"name" xml:"name"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Folder UID to place the document in (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// File contents
+	File []byte `form:"file" json:"file" xml:"file"`
+	// Original file name including extension
+	FileName string `form:"file_name" json:"file_name" xml:"file_name"`
+	// MIME type of the file
+	ContentType string `form:"content_type" json:"content_type" xml:"content_type"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
@@ -308,6 +347,93 @@ type UpdateProjectSettingsResponseBody struct {
 	// The date and time the project was last updated
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
+
+// CreateProjectLinkResponseBody is the type of the "project-service" service
+// "create-project-link" endpoint HTTP response body.
+type CreateProjectLinkResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Folder UID that this link belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Link display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The URL of the link
+	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// GetProjectLinkResponseBody is the type of the "project-service" service
+// "get-project-link" endpoint HTTP response body.
+type GetProjectLinkResponseBody ProjectLinkResponseBody
+
+// ListProjectLinksResponseBody is the type of the "project-service" service
+// "list-project-links" endpoint HTTP response body.
+type ListProjectLinksResponseBody struct {
+	// List of project links
+	Links []*ProjectLinkResponseBody `form:"links,omitempty" json:"links,omitempty" xml:"links,omitempty"`
+}
+
+// CreateProjectFolderResponseBody is the type of the "project-service" service
+// "create-project-folder" endpoint HTTP response body.
+type CreateProjectFolderResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Folder display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// GetProjectFolderResponseBody is the type of the "project-service" service
+// "get-project-folder" endpoint HTTP response body.
+type GetProjectFolderResponseBody ProjectFolderResponseBody
+
+// ListProjectFoldersResponseBody is the type of the "project-service" service
+// "list-project-folders" endpoint HTTP response body.
+type ListProjectFoldersResponseBody struct {
+	// List of project folders
+	Folders []*ProjectFolderResponseBody `form:"folders,omitempty" json:"folders,omitempty" xml:"folders,omitempty"`
+}
+
+// UploadProjectDocumentResponseBody is the type of the "project-service"
+// service "upload-project-document" endpoint HTTP response body.
+type UploadProjectDocumentResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Folder UID that this document belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Document display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Original uploaded file name
+	FileName *string `form:"file_name,omitempty" json:"file_name,omitempty" xml:"file_name,omitempty"`
+	// File size in bytes
+	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
+	// MIME type of the file
+	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
+	// Username of the principal who created this resource
+	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// GetProjectDocumentResponseBody is the type of the "project-service" service
+// "get-project-document" endpoint HTTP response body.
+type GetProjectDocumentResponseBody ProjectDocumentResponseBody
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
 // service "get-projects" endpoint HTTP response body for the "BadRequest"
@@ -579,6 +705,476 @@ type ReadyzServiceUnavailableResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
+// CreateProjectLinkBadRequestResponseBody is the type of the "project-service"
+// service "create-project-link" endpoint HTTP response body for the
+// "BadRequest" error.
+type CreateProjectLinkBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectLinkInternalServerErrorResponseBody is the type of the
+// "project-service" service "create-project-link" endpoint HTTP response body
+// for the "InternalServerError" error.
+type CreateProjectLinkInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectLinkNotFoundResponseBody is the type of the "project-service"
+// service "create-project-link" endpoint HTTP response body for the "NotFound"
+// error.
+type CreateProjectLinkNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectLinkServiceUnavailableResponseBody is the type of the
+// "project-service" service "create-project-link" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type CreateProjectLinkServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectLinkInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-project-link" endpoint HTTP response body for
+// the "InternalServerError" error.
+type GetProjectLinkInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectLinkNotFoundResponseBody is the type of the "project-service"
+// service "get-project-link" endpoint HTTP response body for the "NotFound"
+// error.
+type GetProjectLinkNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectLinkServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-project-link" endpoint HTTP response body for
+// the "ServiceUnavailable" error.
+type GetProjectLinkServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ListProjectLinksInternalServerErrorResponseBody is the type of the
+// "project-service" service "list-project-links" endpoint HTTP response body
+// for the "InternalServerError" error.
+type ListProjectLinksInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ListProjectLinksNotFoundResponseBody is the type of the "project-service"
+// service "list-project-links" endpoint HTTP response body for the "NotFound"
+// error.
+type ListProjectLinksNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ListProjectLinksServiceUnavailableResponseBody is the type of the
+// "project-service" service "list-project-links" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type ListProjectLinksServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectLinkBadRequestResponseBody is the type of the "project-service"
+// service "delete-project-link" endpoint HTTP response body for the
+// "BadRequest" error.
+type DeleteProjectLinkBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectLinkConflictResponseBody is the type of the "project-service"
+// service "delete-project-link" endpoint HTTP response body for the "Conflict"
+// error.
+type DeleteProjectLinkConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectLinkInternalServerErrorResponseBody is the type of the
+// "project-service" service "delete-project-link" endpoint HTTP response body
+// for the "InternalServerError" error.
+type DeleteProjectLinkInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectLinkNotFoundResponseBody is the type of the "project-service"
+// service "delete-project-link" endpoint HTTP response body for the "NotFound"
+// error.
+type DeleteProjectLinkNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectLinkServiceUnavailableResponseBody is the type of the
+// "project-service" service "delete-project-link" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type DeleteProjectLinkServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectFolderBadRequestResponseBody is the type of the
+// "project-service" service "create-project-folder" endpoint HTTP response
+// body for the "BadRequest" error.
+type CreateProjectFolderBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectFolderConflictResponseBody is the type of the "project-service"
+// service "create-project-folder" endpoint HTTP response body for the
+// "Conflict" error.
+type CreateProjectFolderConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectFolderInternalServerErrorResponseBody is the type of the
+// "project-service" service "create-project-folder" endpoint HTTP response
+// body for the "InternalServerError" error.
+type CreateProjectFolderInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectFolderNotFoundResponseBody is the type of the "project-service"
+// service "create-project-folder" endpoint HTTP response body for the
+// "NotFound" error.
+type CreateProjectFolderNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// CreateProjectFolderServiceUnavailableResponseBody is the type of the
+// "project-service" service "create-project-folder" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type CreateProjectFolderServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectFolderInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-project-folder" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetProjectFolderInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectFolderNotFoundResponseBody is the type of the "project-service"
+// service "get-project-folder" endpoint HTTP response body for the "NotFound"
+// error.
+type GetProjectFolderNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectFolderServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-project-folder" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type GetProjectFolderServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ListProjectFoldersInternalServerErrorResponseBody is the type of the
+// "project-service" service "list-project-folders" endpoint HTTP response body
+// for the "InternalServerError" error.
+type ListProjectFoldersInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ListProjectFoldersNotFoundResponseBody is the type of the "project-service"
+// service "list-project-folders" endpoint HTTP response body for the
+// "NotFound" error.
+type ListProjectFoldersNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ListProjectFoldersServiceUnavailableResponseBody is the type of the
+// "project-service" service "list-project-folders" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type ListProjectFoldersServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectFolderBadRequestResponseBody is the type of the
+// "project-service" service "delete-project-folder" endpoint HTTP response
+// body for the "BadRequest" error.
+type DeleteProjectFolderBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectFolderConflictResponseBody is the type of the "project-service"
+// service "delete-project-folder" endpoint HTTP response body for the
+// "Conflict" error.
+type DeleteProjectFolderConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectFolderInternalServerErrorResponseBody is the type of the
+// "project-service" service "delete-project-folder" endpoint HTTP response
+// body for the "InternalServerError" error.
+type DeleteProjectFolderInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectFolderNotFoundResponseBody is the type of the "project-service"
+// service "delete-project-folder" endpoint HTTP response body for the
+// "NotFound" error.
+type DeleteProjectFolderNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectFolderServiceUnavailableResponseBody is the type of the
+// "project-service" service "delete-project-folder" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type DeleteProjectFolderServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UploadProjectDocumentBadRequestResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "BadRequest" error.
+type UploadProjectDocumentBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UploadProjectDocumentConflictResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "Conflict" error.
+type UploadProjectDocumentConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UploadProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "InternalServerError" error.
+type UploadProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UploadProjectDocumentNotFoundResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "NotFound" error.
+type UploadProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// UploadProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type UploadProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-project-document" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectDocumentNotFoundResponseBody is the type of the "project-service"
+// service "get-project-document" endpoint HTTP response body for the
+// "NotFound" error.
+type GetProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// GetProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-project-document" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type GetProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DownloadProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "download-project-document" endpoint HTTP response
+// body for the "InternalServerError" error.
+type DownloadProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DownloadProjectDocumentNotFoundResponseBody is the type of the
+// "project-service" service "download-project-document" endpoint HTTP response
+// body for the "NotFound" error.
+type DownloadProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DownloadProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "download-project-document" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type DownloadProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectDocumentBadRequestResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "BadRequest" error.
+type DeleteProjectDocumentBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectDocumentConflictResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "Conflict" error.
+type DeleteProjectDocumentConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "InternalServerError" error.
+type DeleteProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectDocumentNotFoundResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "NotFound" error.
+type DeleteProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type DeleteProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
 // ProjectFullResponseBody is used to define fields on response body types.
 type ProjectFullResponseBody struct {
 	// Project UID -- v2 uid, not related to v1 id directly
@@ -749,6 +1345,64 @@ type ProjectSettingsResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// ProjectLinkResponseBody is used to define fields on response body types.
+type ProjectLinkResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Folder UID that this link belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Link display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The URL of the link
+	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// ProjectFolderResponseBody is used to define fields on response body types.
+type ProjectFolderResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Folder display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// ProjectDocumentResponseBody is used to define fields on response body types.
+type ProjectDocumentResponseBody struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Folder UID that this document belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Document display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Original uploaded file name
+	FileName *string `form:"file_name,omitempty" json:"file_name,omitempty" xml:"file_name,omitempty"`
+	// File size in bytes
+	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
+	// MIME type of the file
+	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
+	// Username of the principal who created this resource
+	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
 // NewCreateProjectRequestBody builds the HTTP request body from the payload of
 // the "create-project" endpoint of the "project-service" service.
 func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *CreateProjectRequestBody {
@@ -881,6 +1535,44 @@ func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettings
 	}
 	if p.OpportunityOwner != nil {
 		body.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoRequestBody(p.OpportunityOwner)
+	}
+	return body
+}
+
+// NewCreateProjectLinkRequestBody builds the HTTP request body from the
+// payload of the "create-project-link" endpoint of the "project-service"
+// service.
+func NewCreateProjectLinkRequestBody(p *projectservice.CreateProjectLinkPayload) *CreateProjectLinkRequestBody {
+	body := &CreateProjectLinkRequestBody{
+		Name:        p.Name,
+		URL:         p.URL,
+		Description: p.Description,
+		FolderUID:   p.FolderUID,
+	}
+	return body
+}
+
+// NewCreateProjectFolderRequestBody builds the HTTP request body from the
+// payload of the "create-project-folder" endpoint of the "project-service"
+// service.
+func NewCreateProjectFolderRequestBody(p *projectservice.CreateProjectFolderPayload) *CreateProjectFolderRequestBody {
+	body := &CreateProjectFolderRequestBody{
+		Name: p.Name,
+	}
+	return body
+}
+
+// NewUploadProjectDocumentRequestBody builds the HTTP request body from the
+// payload of the "upload-project-document" endpoint of the "project-service"
+// service.
+func NewUploadProjectDocumentRequestBody(p *projectservice.UploadProjectDocumentPayload) *UploadProjectDocumentRequestBody {
+	body := &UploadProjectDocumentRequestBody{
+		Name:        p.Name,
+		Description: p.Description,
+		FolderUID:   p.FolderUID,
+		File:        p.File,
+		FileName:    p.FileName,
+		ContentType: p.ContentType,
 	}
 	return body
 }
@@ -1428,6 +2120,674 @@ func NewReadyzServiceUnavailable(body *ReadyzServiceUnavailableResponseBody) *pr
 	return v
 }
 
+// NewCreateProjectLinkProjectLinkCreated builds a "project-service" service
+// "create-project-link" endpoint result from a HTTP "Created" response.
+func NewCreateProjectLinkProjectLinkCreated(body *CreateProjectLinkResponseBody) *projectservice.ProjectLink {
+	v := &projectservice.ProjectLink{
+		UID:               body.UID,
+		FolderUID:         body.FolderUID,
+		Name:              body.Name,
+		URL:               body.URL,
+		Description:       body.Description,
+		CreatedByUsername: body.CreatedByUsername,
+		CreatedAt:         body.CreatedAt,
+		UpdatedAt:         body.UpdatedAt,
+	}
+
+	return v
+}
+
+// NewCreateProjectLinkBadRequest builds a project-service service
+// create-project-link endpoint BadRequest error.
+func NewCreateProjectLinkBadRequest(body *CreateProjectLinkBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectLinkInternalServerError builds a project-service service
+// create-project-link endpoint InternalServerError error.
+func NewCreateProjectLinkInternalServerError(body *CreateProjectLinkInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectLinkNotFound builds a project-service service
+// create-project-link endpoint NotFound error.
+func NewCreateProjectLinkNotFound(body *CreateProjectLinkNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectLinkServiceUnavailable builds a project-service service
+// create-project-link endpoint ServiceUnavailable error.
+func NewCreateProjectLinkServiceUnavailable(body *CreateProjectLinkServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectLinkResultOK builds a "project-service" service
+// "get-project-link" endpoint result from a HTTP "OK" response.
+func NewGetProjectLinkResultOK(body *GetProjectLinkResponseBody, etag *string) *projectservice.GetProjectLinkResult {
+	v := &projectservice.ProjectLink{
+		UID:               body.UID,
+		FolderUID:         body.FolderUID,
+		Name:              body.Name,
+		URL:               body.URL,
+		Description:       body.Description,
+		CreatedByUsername: body.CreatedByUsername,
+		CreatedAt:         body.CreatedAt,
+		UpdatedAt:         body.UpdatedAt,
+	}
+	res := &projectservice.GetProjectLinkResult{
+		Link: v,
+	}
+	res.Etag = etag
+
+	return res
+}
+
+// NewGetProjectLinkInternalServerError builds a project-service service
+// get-project-link endpoint InternalServerError error.
+func NewGetProjectLinkInternalServerError(body *GetProjectLinkInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectLinkNotFound builds a project-service service get-project-link
+// endpoint NotFound error.
+func NewGetProjectLinkNotFound(body *GetProjectLinkNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectLinkServiceUnavailable builds a project-service service
+// get-project-link endpoint ServiceUnavailable error.
+func NewGetProjectLinkServiceUnavailable(body *GetProjectLinkServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewListProjectLinksResultOK builds a "project-service" service
+// "list-project-links" endpoint result from a HTTP "OK" response.
+func NewListProjectLinksResultOK(body *ListProjectLinksResponseBody) *projectservice.ListProjectLinksResult {
+	v := &projectservice.ListProjectLinksResult{}
+	v.Links = make([]*projectservice.ProjectLink, len(body.Links))
+	for i, val := range body.Links {
+		v.Links[i] = unmarshalProjectLinkResponseBodyToProjectserviceProjectLink(val)
+	}
+
+	return v
+}
+
+// NewListProjectLinksInternalServerError builds a project-service service
+// list-project-links endpoint InternalServerError error.
+func NewListProjectLinksInternalServerError(body *ListProjectLinksInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewListProjectLinksNotFound builds a project-service service
+// list-project-links endpoint NotFound error.
+func NewListProjectLinksNotFound(body *ListProjectLinksNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewListProjectLinksServiceUnavailable builds a project-service service
+// list-project-links endpoint ServiceUnavailable error.
+func NewListProjectLinksServiceUnavailable(body *ListProjectLinksServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectLinkBadRequest builds a project-service service
+// delete-project-link endpoint BadRequest error.
+func NewDeleteProjectLinkBadRequest(body *DeleteProjectLinkBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectLinkConflict builds a project-service service
+// delete-project-link endpoint Conflict error.
+func NewDeleteProjectLinkConflict(body *DeleteProjectLinkConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectLinkInternalServerError builds a project-service service
+// delete-project-link endpoint InternalServerError error.
+func NewDeleteProjectLinkInternalServerError(body *DeleteProjectLinkInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectLinkNotFound builds a project-service service
+// delete-project-link endpoint NotFound error.
+func NewDeleteProjectLinkNotFound(body *DeleteProjectLinkNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectLinkServiceUnavailable builds a project-service service
+// delete-project-link endpoint ServiceUnavailable error.
+func NewDeleteProjectLinkServiceUnavailable(body *DeleteProjectLinkServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectFolderProjectFolderCreated builds a "project-service"
+// service "create-project-folder" endpoint result from a HTTP "Created"
+// response.
+func NewCreateProjectFolderProjectFolderCreated(body *CreateProjectFolderResponseBody) *projectservice.ProjectFolder {
+	v := &projectservice.ProjectFolder{
+		UID:               body.UID,
+		Name:              body.Name,
+		CreatedByUsername: body.CreatedByUsername,
+		CreatedAt:         body.CreatedAt,
+		UpdatedAt:         body.UpdatedAt,
+	}
+
+	return v
+}
+
+// NewCreateProjectFolderBadRequest builds a project-service service
+// create-project-folder endpoint BadRequest error.
+func NewCreateProjectFolderBadRequest(body *CreateProjectFolderBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectFolderConflict builds a project-service service
+// create-project-folder endpoint Conflict error.
+func NewCreateProjectFolderConflict(body *CreateProjectFolderConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectFolderInternalServerError builds a project-service service
+// create-project-folder endpoint InternalServerError error.
+func NewCreateProjectFolderInternalServerError(body *CreateProjectFolderInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectFolderNotFound builds a project-service service
+// create-project-folder endpoint NotFound error.
+func NewCreateProjectFolderNotFound(body *CreateProjectFolderNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewCreateProjectFolderServiceUnavailable builds a project-service service
+// create-project-folder endpoint ServiceUnavailable error.
+func NewCreateProjectFolderServiceUnavailable(body *CreateProjectFolderServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectFolderResultOK builds a "project-service" service
+// "get-project-folder" endpoint result from a HTTP "OK" response.
+func NewGetProjectFolderResultOK(body *GetProjectFolderResponseBody, etag *string) *projectservice.GetProjectFolderResult {
+	v := &projectservice.ProjectFolder{
+		UID:               body.UID,
+		Name:              body.Name,
+		CreatedByUsername: body.CreatedByUsername,
+		CreatedAt:         body.CreatedAt,
+		UpdatedAt:         body.UpdatedAt,
+	}
+	res := &projectservice.GetProjectFolderResult{
+		Folder: v,
+	}
+	res.Etag = etag
+
+	return res
+}
+
+// NewGetProjectFolderInternalServerError builds a project-service service
+// get-project-folder endpoint InternalServerError error.
+func NewGetProjectFolderInternalServerError(body *GetProjectFolderInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectFolderNotFound builds a project-service service
+// get-project-folder endpoint NotFound error.
+func NewGetProjectFolderNotFound(body *GetProjectFolderNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectFolderServiceUnavailable builds a project-service service
+// get-project-folder endpoint ServiceUnavailable error.
+func NewGetProjectFolderServiceUnavailable(body *GetProjectFolderServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewListProjectFoldersResultOK builds a "project-service" service
+// "list-project-folders" endpoint result from a HTTP "OK" response.
+func NewListProjectFoldersResultOK(body *ListProjectFoldersResponseBody) *projectservice.ListProjectFoldersResult {
+	v := &projectservice.ListProjectFoldersResult{}
+	v.Folders = make([]*projectservice.ProjectFolder, len(body.Folders))
+	for i, val := range body.Folders {
+		v.Folders[i] = unmarshalProjectFolderResponseBodyToProjectserviceProjectFolder(val)
+	}
+
+	return v
+}
+
+// NewListProjectFoldersInternalServerError builds a project-service service
+// list-project-folders endpoint InternalServerError error.
+func NewListProjectFoldersInternalServerError(body *ListProjectFoldersInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewListProjectFoldersNotFound builds a project-service service
+// list-project-folders endpoint NotFound error.
+func NewListProjectFoldersNotFound(body *ListProjectFoldersNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewListProjectFoldersServiceUnavailable builds a project-service service
+// list-project-folders endpoint ServiceUnavailable error.
+func NewListProjectFoldersServiceUnavailable(body *ListProjectFoldersServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectFolderBadRequest builds a project-service service
+// delete-project-folder endpoint BadRequest error.
+func NewDeleteProjectFolderBadRequest(body *DeleteProjectFolderBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectFolderConflict builds a project-service service
+// delete-project-folder endpoint Conflict error.
+func NewDeleteProjectFolderConflict(body *DeleteProjectFolderConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectFolderInternalServerError builds a project-service service
+// delete-project-folder endpoint InternalServerError error.
+func NewDeleteProjectFolderInternalServerError(body *DeleteProjectFolderInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectFolderNotFound builds a project-service service
+// delete-project-folder endpoint NotFound error.
+func NewDeleteProjectFolderNotFound(body *DeleteProjectFolderNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectFolderServiceUnavailable builds a project-service service
+// delete-project-folder endpoint ServiceUnavailable error.
+func NewDeleteProjectFolderServiceUnavailable(body *DeleteProjectFolderServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUploadProjectDocumentProjectDocumentCreated builds a "project-service"
+// service "upload-project-document" endpoint result from a HTTP "Created"
+// response.
+func NewUploadProjectDocumentProjectDocumentCreated(body *UploadProjectDocumentResponseBody) *projectservice.ProjectDocument {
+	v := &projectservice.ProjectDocument{
+		UID:                body.UID,
+		FolderUID:          body.FolderUID,
+		Name:               body.Name,
+		Description:        body.Description,
+		FileName:           body.FileName,
+		FileSize:           body.FileSize,
+		ContentType:        body.ContentType,
+		UploadedByUsername: body.UploadedByUsername,
+		CreatedAt:          body.CreatedAt,
+		UpdatedAt:          body.UpdatedAt,
+	}
+
+	return v
+}
+
+// NewUploadProjectDocumentBadRequest builds a project-service service
+// upload-project-document endpoint BadRequest error.
+func NewUploadProjectDocumentBadRequest(body *UploadProjectDocumentBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUploadProjectDocumentConflict builds a project-service service
+// upload-project-document endpoint Conflict error.
+func NewUploadProjectDocumentConflict(body *UploadProjectDocumentConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUploadProjectDocumentInternalServerError builds a project-service service
+// upload-project-document endpoint InternalServerError error.
+func NewUploadProjectDocumentInternalServerError(body *UploadProjectDocumentInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUploadProjectDocumentNotFound builds a project-service service
+// upload-project-document endpoint NotFound error.
+func NewUploadProjectDocumentNotFound(body *UploadProjectDocumentNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUploadProjectDocumentServiceUnavailable builds a project-service service
+// upload-project-document endpoint ServiceUnavailable error.
+func NewUploadProjectDocumentServiceUnavailable(body *UploadProjectDocumentServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectDocumentResultOK builds a "project-service" service
+// "get-project-document" endpoint result from a HTTP "OK" response.
+func NewGetProjectDocumentResultOK(body *GetProjectDocumentResponseBody, etag *string) *projectservice.GetProjectDocumentResult {
+	v := &projectservice.ProjectDocument{
+		UID:                body.UID,
+		FolderUID:          body.FolderUID,
+		Name:               body.Name,
+		Description:        body.Description,
+		FileName:           body.FileName,
+		FileSize:           body.FileSize,
+		ContentType:        body.ContentType,
+		UploadedByUsername: body.UploadedByUsername,
+		CreatedAt:          body.CreatedAt,
+		UpdatedAt:          body.UpdatedAt,
+	}
+	res := &projectservice.GetProjectDocumentResult{
+		Document: v,
+	}
+	res.Etag = etag
+
+	return res
+}
+
+// NewGetProjectDocumentInternalServerError builds a project-service service
+// get-project-document endpoint InternalServerError error.
+func NewGetProjectDocumentInternalServerError(body *GetProjectDocumentInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectDocumentNotFound builds a project-service service
+// get-project-document endpoint NotFound error.
+func NewGetProjectDocumentNotFound(body *GetProjectDocumentNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewGetProjectDocumentServiceUnavailable builds a project-service service
+// get-project-document endpoint ServiceUnavailable error.
+func NewGetProjectDocumentServiceUnavailable(body *GetProjectDocumentServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDownloadProjectDocumentResultOK builds a "project-service" service
+// "download-project-document" endpoint result from a HTTP "OK" response.
+func NewDownloadProjectDocumentResultOK(body []byte, contentType *string, contentDisposition *string) *projectservice.DownloadProjectDocumentResult {
+	v := body
+	res := &projectservice.DownloadProjectDocumentResult{
+		Content: v,
+	}
+	res.ContentType = contentType
+	res.ContentDisposition = contentDisposition
+
+	return res
+}
+
+// NewDownloadProjectDocumentInternalServerError builds a project-service
+// service download-project-document endpoint InternalServerError error.
+func NewDownloadProjectDocumentInternalServerError(body *DownloadProjectDocumentInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDownloadProjectDocumentNotFound builds a project-service service
+// download-project-document endpoint NotFound error.
+func NewDownloadProjectDocumentNotFound(body *DownloadProjectDocumentNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDownloadProjectDocumentServiceUnavailable builds a project-service
+// service download-project-document endpoint ServiceUnavailable error.
+func NewDownloadProjectDocumentServiceUnavailable(body *DownloadProjectDocumentServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectDocumentBadRequest builds a project-service service
+// delete-project-document endpoint BadRequest error.
+func NewDeleteProjectDocumentBadRequest(body *DeleteProjectDocumentBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectDocumentConflict builds a project-service service
+// delete-project-document endpoint Conflict error.
+func NewDeleteProjectDocumentConflict(body *DeleteProjectDocumentConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectDocumentInternalServerError builds a project-service service
+// delete-project-document endpoint InternalServerError error.
+func NewDeleteProjectDocumentInternalServerError(body *DeleteProjectDocumentInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectDocumentNotFound builds a project-service service
+// delete-project-document endpoint NotFound error.
+func NewDeleteProjectDocumentNotFound(body *DeleteProjectDocumentNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectDocumentServiceUnavailable builds a project-service service
+// delete-project-document endpoint ServiceUnavailable error.
+func NewDeleteProjectDocumentServiceUnavailable(body *DeleteProjectDocumentServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
 // ValidateGetProjectsResponseBody runs the validations defined on
 // Get-ProjectsResponseBody
 func ValidateGetProjectsResponseBody(body *GetProjectsResponseBody) (err error) {
@@ -1801,6 +3161,176 @@ func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsRespon
 	return
 }
 
+// ValidateCreateProjectLinkResponseBody runs the validations defined on
+// Create-Project-LinkResponseBody
+func ValidateCreateProjectLinkResponseBody(body *CreateProjectLinkResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.URL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateGetProjectLinkResponseBody runs the validations defined on
+// Get-Project-LinkResponseBody
+func ValidateGetProjectLinkResponseBody(body *GetProjectLinkResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.URL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateListProjectLinksResponseBody runs the validations defined on
+// List-Project-LinksResponseBody
+func ValidateListProjectLinksResponseBody(body *ListProjectLinksResponseBody) (err error) {
+	if body.Links == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("links", "body"))
+	}
+	for _, e := range body.Links {
+		if e != nil {
+			if err2 := ValidateProjectLinkResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	return
+}
+
+// ValidateCreateProjectFolderResponseBody runs the validations defined on
+// Create-Project-FolderResponseBody
+func ValidateCreateProjectFolderResponseBody(body *CreateProjectFolderResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateGetProjectFolderResponseBody runs the validations defined on
+// Get-Project-FolderResponseBody
+func ValidateGetProjectFolderResponseBody(body *GetProjectFolderResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateListProjectFoldersResponseBody runs the validations defined on
+// List-Project-FoldersResponseBody
+func ValidateListProjectFoldersResponseBody(body *ListProjectFoldersResponseBody) (err error) {
+	if body.Folders == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("folders", "body"))
+	}
+	for _, e := range body.Folders {
+		if e != nil {
+			if err2 := ValidateProjectFolderResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	return
+}
+
+// ValidateUploadProjectDocumentResponseBody runs the validations defined on
+// Upload-Project-DocumentResponseBody
+func ValidateUploadProjectDocumentResponseBody(body *UploadProjectDocumentResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateGetProjectDocumentResponseBody runs the validations defined on
+// Get-Project-DocumentResponseBody
+func ValidateGetProjectDocumentResponseBody(body *GetProjectDocumentResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
 // ValidateGetProjectsBadRequestResponseBody runs the validations defined on
 // get-projects_BadRequest_response_body
 func ValidateGetProjectsBadRequestResponseBody(body *GetProjectsBadRequestResponseBody) (err error) {
@@ -2129,6 +3659,578 @@ func ValidateReadyzServiceUnavailableResponseBody(body *ReadyzServiceUnavailable
 	return
 }
 
+// ValidateCreateProjectLinkBadRequestResponseBody runs the validations defined
+// on create-project-link_BadRequest_response_body
+func ValidateCreateProjectLinkBadRequestResponseBody(body *CreateProjectLinkBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectLinkInternalServerErrorResponseBody runs the
+// validations defined on create-project-link_InternalServerError_response_body
+func ValidateCreateProjectLinkInternalServerErrorResponseBody(body *CreateProjectLinkInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectLinkNotFoundResponseBody runs the validations defined
+// on create-project-link_NotFound_response_body
+func ValidateCreateProjectLinkNotFoundResponseBody(body *CreateProjectLinkNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectLinkServiceUnavailableResponseBody runs the validations
+// defined on create-project-link_ServiceUnavailable_response_body
+func ValidateCreateProjectLinkServiceUnavailableResponseBody(body *CreateProjectLinkServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectLinkInternalServerErrorResponseBody runs the validations
+// defined on get-project-link_InternalServerError_response_body
+func ValidateGetProjectLinkInternalServerErrorResponseBody(body *GetProjectLinkInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectLinkNotFoundResponseBody runs the validations defined on
+// get-project-link_NotFound_response_body
+func ValidateGetProjectLinkNotFoundResponseBody(body *GetProjectLinkNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectLinkServiceUnavailableResponseBody runs the validations
+// defined on get-project-link_ServiceUnavailable_response_body
+func ValidateGetProjectLinkServiceUnavailableResponseBody(body *GetProjectLinkServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateListProjectLinksInternalServerErrorResponseBody runs the validations
+// defined on list-project-links_InternalServerError_response_body
+func ValidateListProjectLinksInternalServerErrorResponseBody(body *ListProjectLinksInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateListProjectLinksNotFoundResponseBody runs the validations defined on
+// list-project-links_NotFound_response_body
+func ValidateListProjectLinksNotFoundResponseBody(body *ListProjectLinksNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateListProjectLinksServiceUnavailableResponseBody runs the validations
+// defined on list-project-links_ServiceUnavailable_response_body
+func ValidateListProjectLinksServiceUnavailableResponseBody(body *ListProjectLinksServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectLinkBadRequestResponseBody runs the validations defined
+// on delete-project-link_BadRequest_response_body
+func ValidateDeleteProjectLinkBadRequestResponseBody(body *DeleteProjectLinkBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectLinkConflictResponseBody runs the validations defined
+// on delete-project-link_Conflict_response_body
+func ValidateDeleteProjectLinkConflictResponseBody(body *DeleteProjectLinkConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectLinkInternalServerErrorResponseBody runs the
+// validations defined on delete-project-link_InternalServerError_response_body
+func ValidateDeleteProjectLinkInternalServerErrorResponseBody(body *DeleteProjectLinkInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectLinkNotFoundResponseBody runs the validations defined
+// on delete-project-link_NotFound_response_body
+func ValidateDeleteProjectLinkNotFoundResponseBody(body *DeleteProjectLinkNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectLinkServiceUnavailableResponseBody runs the validations
+// defined on delete-project-link_ServiceUnavailable_response_body
+func ValidateDeleteProjectLinkServiceUnavailableResponseBody(body *DeleteProjectLinkServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectFolderBadRequestResponseBody runs the validations
+// defined on create-project-folder_BadRequest_response_body
+func ValidateCreateProjectFolderBadRequestResponseBody(body *CreateProjectFolderBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectFolderConflictResponseBody runs the validations defined
+// on create-project-folder_Conflict_response_body
+func ValidateCreateProjectFolderConflictResponseBody(body *CreateProjectFolderConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectFolderInternalServerErrorResponseBody runs the
+// validations defined on
+// create-project-folder_InternalServerError_response_body
+func ValidateCreateProjectFolderInternalServerErrorResponseBody(body *CreateProjectFolderInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectFolderNotFoundResponseBody runs the validations defined
+// on create-project-folder_NotFound_response_body
+func ValidateCreateProjectFolderNotFoundResponseBody(body *CreateProjectFolderNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateCreateProjectFolderServiceUnavailableResponseBody runs the
+// validations defined on create-project-folder_ServiceUnavailable_response_body
+func ValidateCreateProjectFolderServiceUnavailableResponseBody(body *CreateProjectFolderServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectFolderInternalServerErrorResponseBody runs the validations
+// defined on get-project-folder_InternalServerError_response_body
+func ValidateGetProjectFolderInternalServerErrorResponseBody(body *GetProjectFolderInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectFolderNotFoundResponseBody runs the validations defined on
+// get-project-folder_NotFound_response_body
+func ValidateGetProjectFolderNotFoundResponseBody(body *GetProjectFolderNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectFolderServiceUnavailableResponseBody runs the validations
+// defined on get-project-folder_ServiceUnavailable_response_body
+func ValidateGetProjectFolderServiceUnavailableResponseBody(body *GetProjectFolderServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateListProjectFoldersInternalServerErrorResponseBody runs the
+// validations defined on list-project-folders_InternalServerError_response_body
+func ValidateListProjectFoldersInternalServerErrorResponseBody(body *ListProjectFoldersInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateListProjectFoldersNotFoundResponseBody runs the validations defined
+// on list-project-folders_NotFound_response_body
+func ValidateListProjectFoldersNotFoundResponseBody(body *ListProjectFoldersNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateListProjectFoldersServiceUnavailableResponseBody runs the
+// validations defined on list-project-folders_ServiceUnavailable_response_body
+func ValidateListProjectFoldersServiceUnavailableResponseBody(body *ListProjectFoldersServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectFolderBadRequestResponseBody runs the validations
+// defined on delete-project-folder_BadRequest_response_body
+func ValidateDeleteProjectFolderBadRequestResponseBody(body *DeleteProjectFolderBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectFolderConflictResponseBody runs the validations defined
+// on delete-project-folder_Conflict_response_body
+func ValidateDeleteProjectFolderConflictResponseBody(body *DeleteProjectFolderConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectFolderInternalServerErrorResponseBody runs the
+// validations defined on
+// delete-project-folder_InternalServerError_response_body
+func ValidateDeleteProjectFolderInternalServerErrorResponseBody(body *DeleteProjectFolderInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectFolderNotFoundResponseBody runs the validations defined
+// on delete-project-folder_NotFound_response_body
+func ValidateDeleteProjectFolderNotFoundResponseBody(body *DeleteProjectFolderNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectFolderServiceUnavailableResponseBody runs the
+// validations defined on delete-project-folder_ServiceUnavailable_response_body
+func ValidateDeleteProjectFolderServiceUnavailableResponseBody(body *DeleteProjectFolderServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUploadProjectDocumentBadRequestResponseBody runs the validations
+// defined on upload-project-document_BadRequest_response_body
+func ValidateUploadProjectDocumentBadRequestResponseBody(body *UploadProjectDocumentBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUploadProjectDocumentConflictResponseBody runs the validations
+// defined on upload-project-document_Conflict_response_body
+func ValidateUploadProjectDocumentConflictResponseBody(body *UploadProjectDocumentConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUploadProjectDocumentInternalServerErrorResponseBody runs the
+// validations defined on
+// upload-project-document_InternalServerError_response_body
+func ValidateUploadProjectDocumentInternalServerErrorResponseBody(body *UploadProjectDocumentInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUploadProjectDocumentNotFoundResponseBody runs the validations
+// defined on upload-project-document_NotFound_response_body
+func ValidateUploadProjectDocumentNotFoundResponseBody(body *UploadProjectDocumentNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUploadProjectDocumentServiceUnavailableResponseBody runs the
+// validations defined on
+// upload-project-document_ServiceUnavailable_response_body
+func ValidateUploadProjectDocumentServiceUnavailableResponseBody(body *UploadProjectDocumentServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectDocumentInternalServerErrorResponseBody runs the
+// validations defined on get-project-document_InternalServerError_response_body
+func ValidateGetProjectDocumentInternalServerErrorResponseBody(body *GetProjectDocumentInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectDocumentNotFoundResponseBody runs the validations defined
+// on get-project-document_NotFound_response_body
+func ValidateGetProjectDocumentNotFoundResponseBody(body *GetProjectDocumentNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectDocumentServiceUnavailableResponseBody runs the
+// validations defined on get-project-document_ServiceUnavailable_response_body
+func ValidateGetProjectDocumentServiceUnavailableResponseBody(body *GetProjectDocumentServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDownloadProjectDocumentInternalServerErrorResponseBody runs the
+// validations defined on
+// download-project-document_InternalServerError_response_body
+func ValidateDownloadProjectDocumentInternalServerErrorResponseBody(body *DownloadProjectDocumentInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDownloadProjectDocumentNotFoundResponseBody runs the validations
+// defined on download-project-document_NotFound_response_body
+func ValidateDownloadProjectDocumentNotFoundResponseBody(body *DownloadProjectDocumentNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDownloadProjectDocumentServiceUnavailableResponseBody runs the
+// validations defined on
+// download-project-document_ServiceUnavailable_response_body
+func ValidateDownloadProjectDocumentServiceUnavailableResponseBody(body *DownloadProjectDocumentServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectDocumentBadRequestResponseBody runs the validations
+// defined on delete-project-document_BadRequest_response_body
+func ValidateDeleteProjectDocumentBadRequestResponseBody(body *DeleteProjectDocumentBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectDocumentConflictResponseBody runs the validations
+// defined on delete-project-document_Conflict_response_body
+func ValidateDeleteProjectDocumentConflictResponseBody(body *DeleteProjectDocumentConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectDocumentInternalServerErrorResponseBody runs the
+// validations defined on
+// delete-project-document_InternalServerError_response_body
+func ValidateDeleteProjectDocumentInternalServerErrorResponseBody(body *DeleteProjectDocumentInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectDocumentNotFoundResponseBody runs the validations
+// defined on delete-project-document_NotFound_response_body
+func ValidateDeleteProjectDocumentNotFoundResponseBody(body *DeleteProjectDocumentNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectDocumentServiceUnavailableResponseBody runs the
+// validations defined on
+// delete-project-document_ServiceUnavailable_response_body
+func ValidateDeleteProjectDocumentServiceUnavailableResponseBody(body *DeleteProjectDocumentServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
 // ValidateProjectFullResponseBody runs the validations defined on
 // ProjectFullResponseBody
 func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) {
@@ -2375,6 +4477,75 @@ func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err
 	if body.OpportunityOwner != nil {
 		if err2 := ValidateUserInfoResponseBody(body.OpportunityOwner); err2 != nil {
 			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateProjectLinkResponseBody runs the validations defined on
+// ProjectLinkResponseBody
+func ValidateProjectLinkResponseBody(body *ProjectLinkResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.URL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateProjectFolderResponseBody runs the validations defined on
+// ProjectFolderResponseBody
+func ValidateProjectFolderResponseBody(body *ProjectFolderResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateProjectDocumentResponseBody runs the validations defined on
+// ProjectDocumentResponseBody
+func ValidateProjectDocumentResponseBody(body *ProjectDocumentResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
 		}
 	}
 	if body.CreatedAt != nil {
