@@ -66,16 +66,23 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 		return nil, err
 	}
 
-	go func() {
-		msg := indexerTypes.IndexerMessageEnvelope{
-			Action:         indexerConstants.ActionCreated,
-			Data:           *folder,
-			IndexingConfig: folder.IndexingConfig(),
-		}
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkFolderSubject, msg, xSync); err != nil {
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionCreated,
+		Data:           *folder,
+		IndexingConfig: folder.IndexingConfig(),
+	}
+	if xSync {
+		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkFolderSubject, msg, true); err != nil {
 			slog.WarnContext(ctx, "error sending folder indexer message", constants.ErrKey, err)
 		}
-	}()
+	} else {
+		bgCtx := context.WithoutCancel(ctx)
+		go func() {
+			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectLinkFolderSubject, msg, false); err != nil {
+				slog.WarnContext(bgCtx, "error sending folder indexer message", constants.ErrKey, err)
+			}
+		}()
+	}
 
 	return folder, nil
 }
@@ -186,11 +193,18 @@ func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUI
 		return err
 	}
 
-	go func() {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkFolderSubject, folderUID, xSync); err != nil {
+	if xSync {
+		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkFolderSubject, folderUID, true); err != nil {
 			slog.WarnContext(ctx, "error sending folder delete indexer message", constants.ErrKey, err)
 		}
-	}()
+	} else {
+		bgCtx := context.WithoutCancel(ctx)
+		go func() {
+			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectLinkFolderSubject, folderUID, false); err != nil {
+				slog.WarnContext(bgCtx, "error sending folder delete indexer message", constants.ErrKey, err)
+			}
+		}()
+	}
 
 	return nil
 }

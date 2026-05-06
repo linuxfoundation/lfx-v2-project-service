@@ -96,22 +96,32 @@ func (s *ProjectsService) UploadDocument(
 	}
 
 	if err := s.DocumentRepository.CreateDocumentMetadata(ctx, doc); err != nil {
+		if rbErr := s.DocumentRepository.DeleteDocumentFile(ctx, doc.UID); rbErr != nil {
+			slog.ErrorContext(ctx, "error rolling back document file upload", constants.ErrKey, rbErr)
+		}
 		if rbErr := s.DocumentRepository.DeleteUniqueDocumentName(ctx, uniqueKey); rbErr != nil {
 			slog.ErrorContext(ctx, "error rolling back document name reservation", constants.ErrKey, rbErr)
 		}
 		return nil, err
 	}
 
-	go func() {
-		msg := indexerTypes.IndexerMessageEnvelope{
-			Action:         indexerConstants.ActionCreated,
-			Data:           *doc,
-			IndexingConfig: doc.IndexingConfig(),
-		}
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, xSync); err != nil {
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionCreated,
+		Data:           *doc,
+		IndexingConfig: doc.IndexingConfig(),
+	}
+	if xSync {
+		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, true); err != nil {
 			slog.WarnContext(ctx, "error sending document indexer message", constants.ErrKey, err)
 		}
-	}()
+	} else {
+		bgCtx := context.WithoutCancel(ctx)
+		go func() {
+			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
+				slog.WarnContext(bgCtx, "error sending document indexer message", constants.ErrKey, err)
+			}
+		}()
+	}
 
 	return doc, nil
 }
@@ -201,17 +211,24 @@ func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, docume
 	}
 
 	// Delete the binary file fire-and-forget; failure is logged but not propagated.
+	bgCtx := context.WithoutCancel(ctx)
 	go func() {
-		if err := s.DocumentRepository.DeleteDocumentFile(ctx, documentUID); err != nil {
-			slog.WarnContext(ctx, "error deleting document file from object store", constants.ErrKey, err)
+		if err := s.DocumentRepository.DeleteDocumentFile(bgCtx, documentUID); err != nil {
+			slog.WarnContext(bgCtx, "error deleting document file from object store", constants.ErrKey, err)
 		}
 	}()
 
-	go func() {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, documentUID, xSync); err != nil {
+	if xSync {
+		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, documentUID, true); err != nil {
 			slog.WarnContext(ctx, "error sending document delete indexer message", constants.ErrKey, err)
 		}
-	}()
+	} else {
+		go func() {
+			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, documentUID, false); err != nil {
+				slog.WarnContext(bgCtx, "error sending document delete indexer message", constants.ErrKey, err)
+			}
+		}()
+	}
 
 	return nil
 }

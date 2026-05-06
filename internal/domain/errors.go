@@ -43,5 +43,5 @@ var (
 	// ErrFolderNameExists is returned when a folder with the same name already exists.
 	ErrFolderNameExists = errors.New("folder with the same name already exists for this project")
 	// ErrFolderNotEmpty is returned when attempting to delete a folder that still contains links or documents.
-	ErrFolderNotEmpty = errors.New("folder cannot be deleted because it contains links; remove all links from the folder first")
+	ErrFolderNotEmpty = errors.New("folder cannot be deleted because it contains links or documents; remove all items from the folder first")
 )

@@ -16,6 +16,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -774,8 +775,11 @@ func (s *NatsRepository) GetDocumentMetadata(ctx context.Context, projectUID, do
 func (s *NatsRepository) GetDocumentFile(ctx context.Context, documentUID string) ([]byte, error) {
 	result, err := s.DocumentFiles.Get(ctx, documentUID)
 	if err != nil {
+		if errors.Is(err, nats.ErrObjectNotFound) {
+			return nil, domain.ErrDocumentNotFound
+		}
 		slog.ErrorContext(ctx, "error getting document file from NATS object store", constants.ErrKey, err, "document_uid", documentUID)
-		return nil, domain.ErrDocumentNotFound
+		return nil, domain.ErrInternal
 	}
 	defer func() { _ = result.Close() }()
 

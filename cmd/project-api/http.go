@@ -12,10 +12,13 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
+// maxTextPartSize caps the bytes read for text multipart fields (name, description, folder_uid).
+const maxTextPartSize = 4096
+
 // uploadDocumentDecoder is the multipart decoder for the upload-project-document endpoint.
 // It reads each multipart part, filling in the payload fields for name, description,
 // folder_uid, and the binary file content. File parts are capped at MaxDocumentFileSize+1
-// to detect oversized uploads at read time.
+// to detect oversized uploads at read time. Text fields are capped at maxTextPartSize.
 func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocumentPayload) error {
 	payload := *p
 	if payload == nil {
@@ -35,14 +38,14 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 		fieldName := part.FormName()
 		switch fieldName {
 		case "name":
-			data, err := io.ReadAll(part)
+			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize))
 			if err != nil {
 				return err
 			}
 			payload.Name = string(data)
 
 		case "description":
-			data, err := io.ReadAll(part)
+			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize))
 			if err != nil {
 				return err
 			}
@@ -50,12 +53,13 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 			payload.Description = &s
 
 		case "folder_uid":
-			data, err := io.ReadAll(part)
+			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize))
 			if err != nil {
 				return err
 			}
-			s := string(data)
-			payload.FolderUID = &s
+			if s := string(data); s != "" {
+				payload.FolderUID = &s
+			}
 
 		case "file":
 			payload.FileName = part.FileName()

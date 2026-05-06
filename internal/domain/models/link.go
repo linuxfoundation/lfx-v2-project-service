@@ -28,6 +28,9 @@ type ProjectLink struct {
 
 // BuildIndexKey returns a SHA-256 hash of projectUID|uid for use as a storage key.
 func (l *ProjectLink) BuildIndexKey(_ context.Context) string {
+	if l == nil {
+		return ""
+	}
 	data := fmt.Sprintf("%s|%s", l.ProjectUID, l.UID)
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])

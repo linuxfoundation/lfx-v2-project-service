@@ -267,7 +267,7 @@ nats:
     # storage is the storage type for the Object Store
     storage: file
     # maxBytes is the maximum number of bytes in the Object Store (-1 for unlimited)
-    maxBytes: -1
+    maxBytes: 10737418240  # 10GB
 
 # openfga is the configuration for the OpenFGA server
 openfga:

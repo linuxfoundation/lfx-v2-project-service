@@ -487,7 +487,7 @@ spec:
         methods:
           - GET
         routes:
-          - path: /projects/:uid/documents/:doc_uid
+          - path: /projects/:uid/documents/:document_uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -514,7 +514,7 @@ spec:
         methods:
           - GET
         routes:
-          - path: /projects/:uid/documents/:doc_uid/download
+          - path: /projects/:uid/documents/:document_uid/download
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -541,7 +541,7 @@ spec:
         methods:
           - DELETE
         routes:
-          - path: /projects/:uid/documents/:doc_uid
+          - path: /projects/:uid/documents/:document_uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator

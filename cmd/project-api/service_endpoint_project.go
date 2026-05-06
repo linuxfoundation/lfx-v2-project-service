@@ -25,9 +25,9 @@ func handleError(err error) error {
 	case domain.ErrCannotDeleteNonCrowdfundingProject:
 		return createResponse(http.StatusBadRequest, domain.ErrCannotDeleteNonCrowdfundingProject)
 	case domain.ErrInvalidContentType:
-		return createResponse(http.StatusBadRequest, domain.ErrInvalidContentType)
+		return createResponse(http.StatusUnsupportedMediaType, domain.ErrInvalidContentType)
 	case domain.ErrFileTooLarge:
-		return createResponse(http.StatusBadRequest, domain.ErrFileTooLarge)
+		return createResponse(http.StatusRequestEntityTooLarge, domain.ErrFileTooLarge)
 	case domain.ErrProjectNotFound:
 		return createResponse(http.StatusNotFound, domain.ErrProjectNotFound)
 	case domain.ErrDocumentNotFound:
