@@ -74,6 +74,7 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 	if xSync {
 		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkFolderSubject, msg, true); err != nil {
 			slog.WarnContext(ctx, "error sending folder indexer message", constants.ErrKey, err)
+			return nil, err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
@@ -170,6 +171,7 @@ func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUI
 	if xSync {
 		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkFolderSubject, folderUID, true); err != nil {
 			slog.WarnContext(ctx, "error sending folder delete indexer message", constants.ErrKey, err)
+			return err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)

@@ -33,7 +33,7 @@ func (s *ProjectsService) UploadDocument(
 		return nil, domain.ErrServiceUnavailable
 	}
 
-	if name == "" {
+	if name == "" || fileName == "" {
 		return nil, domain.ErrValidationFailed
 	}
 
@@ -113,6 +113,7 @@ func (s *ProjectsService) UploadDocument(
 	if xSync {
 		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, true); err != nil {
 			slog.WarnContext(ctx, "error sending document indexer message", constants.ErrKey, err)
+			return nil, err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
@@ -221,6 +222,7 @@ func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, docume
 	if xSync {
 		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, documentUID, true); err != nil {
 			slog.WarnContext(ctx, "error sending document delete indexer message", constants.ErrKey, err)
+			return err
 		}
 	} else {
 		go func() {

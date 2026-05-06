@@ -80,6 +80,7 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 	if xSync {
 		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, true); err != nil {
 			slog.WarnContext(ctx, "error sending link indexer message", constants.ErrKey, err)
+			return nil, err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
@@ -153,6 +154,7 @@ func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID st
 	if xSync {
 		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, linkUID, true); err != nil {
 			slog.WarnContext(ctx, "error sending link delete indexer message", constants.ErrKey, err)
+			return err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)

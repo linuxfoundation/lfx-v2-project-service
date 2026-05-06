@@ -128,7 +128,11 @@ func (m *MockKeyValue) Create(ctx context.Context, key string, value []byte, _ .
 
 // Purge is a mock method for the [INatsKeyValue] interface.
 func (m *MockKeyValue) Purge(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
-	args := m.Called(ctx, key, opts)
+	varArgs := []interface{}{ctx, key}
+	for _, o := range opts {
+		varArgs = append(varArgs, o)
+	}
+	args := m.Called(varArgs...)
 	return args.Error(0)
 }
 
@@ -155,7 +159,11 @@ func (m *MockKeyValue) Update(ctx context.Context, key string, value []byte, rev
 
 // Delete is a mock method for the [INatsKeyValue] interface.
 func (m *MockKeyValue) Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error {
-	args := m.Called(ctx, key, opts)
+	varArgs := []interface{}{ctx, key}
+	for _, o := range opts {
+		varArgs = append(varArgs, o)
+	}
+	args := m.Called(varArgs...)
 	return args.Error(0)
 }
 
