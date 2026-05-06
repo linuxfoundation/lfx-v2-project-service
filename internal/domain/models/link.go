@@ -26,7 +26,7 @@ type ProjectLink struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-// BuildIndexKey returns a SHA-256 hash of projectUID|uid for use as a storage key.
+// BuildIndexKey returns a SHA-256 hash of projectUID|uid used by the indexer service.
 func (l *ProjectLink) BuildIndexKey(_ context.Context) string {
 	if l == nil {
 		return ""

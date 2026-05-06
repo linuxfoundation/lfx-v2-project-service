@@ -16,7 +16,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -516,7 +515,9 @@ func (s *NatsRepository) GetLink(ctx context.Context, projectUID, linkUID string
 	return link, entry.Revision(), nil
 }
 
-// ListLinks lists all links for a given project using the per-project index prefix.
+// ListLinks lists all links for a given project by scanning all bucket keys and
+// filtering client-side on the per-project index prefix. NATS KV ListKeys does not
+// support server-side prefix filtering, so this is still O(total keys in the bucket).
 func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error) {
 	prefix := fmt.Sprintf("lookup/project-links/%s/", projectUID)
 	keysLister, err := s.Links.ListKeys(ctx)
@@ -534,7 +535,7 @@ func (s *NatsRepository) ListLinks(ctx context.Context, projectUID string) ([]*m
 		linkUID := strings.TrimPrefix(key, prefix)
 		entry, err := s.getLink(ctx, linkUID)
 		if err != nil {
-			if errors.Is(err, domain.ErrLinkNotFound) {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				// Stale index key — backing record was deleted; skip and continue.
 				slog.WarnContext(ctx, "stale link index key found, skipping", "link_uid", linkUID)
 				continue
@@ -751,7 +752,7 @@ func (s *NatsRepository) GetDocumentMetadata(ctx context.Context, projectUID, do
 func (s *NatsRepository) GetDocumentFile(ctx context.Context, documentUID string) ([]byte, error) {
 	result, err := s.DocumentFiles.Get(ctx, documentUID)
 	if err != nil {
-		if errors.Is(err, nats.ErrObjectNotFound) {
+		if errors.Is(err, jetstream.ErrObjectNotFound) {
 			return nil, domain.ErrDocumentNotFound
 		}
 		slog.ErrorContext(ctx, "error getting document file from NATS object store", constants.ErrKey, err, "document_uid", documentUID)

@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -38,24 +39,33 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 		fieldName := part.FormName()
 		switch fieldName {
 		case "name":
-			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize))
+			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize+1))
 			if err != nil {
 				return err
+			}
+			if int64(len(data)) > maxTextPartSize {
+				return fmt.Errorf("field 'name' exceeds maximum length of %d bytes", maxTextPartSize)
 			}
 			payload.Name = string(data)
 
 		case "description":
-			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize))
+			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize+1))
 			if err != nil {
 				return err
+			}
+			if int64(len(data)) > maxTextPartSize {
+				return fmt.Errorf("field 'description' exceeds maximum length of %d bytes", maxTextPartSize)
 			}
 			s := string(data)
 			payload.Description = &s
 
 		case "folder_uid":
-			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize))
+			data, err := io.ReadAll(io.LimitReader(part, maxTextPartSize+1))
 			if err != nil {
 				return err
+			}
+			if int64(len(data)) > maxTextPartSize {
+				return fmt.Errorf("field 'folder_uid' exceeds maximum length of %d bytes", maxTextPartSize)
 			}
 			if s := string(data); s != "" {
 				payload.FolderUID = &s
