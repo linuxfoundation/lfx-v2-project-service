@@ -44,3 +44,69 @@ spec:
   maxBytes: {{ .Values.nats.kv_bucket_project_settings.maxBytes }}
   compression: {{ .Values.nats.kv_bucket_project_settings.compression }}
 {{- end }}
+---
+{{- if .Values.nats.kv_bucket_project_links.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_project_links.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_project_links.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_project_links.name }}
+  replicas: {{ .Values.nats.kv_bucket_project_links.replicas }}
+  history: {{ .Values.nats.kv_bucket_project_links.history }}
+  storage: {{ .Values.nats.kv_bucket_project_links.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_project_links.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_project_links.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_project_links.compression }}
+{{- end }}
+---
+{{- if .Values.nats.kv_bucket_project_folders.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_project_folders.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_project_folders.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_project_folders.name }}
+  replicas: {{ .Values.nats.kv_bucket_project_folders.replicas }}
+  history: {{ .Values.nats.kv_bucket_project_folders.history }}
+  storage: {{ .Values.nats.kv_bucket_project_folders.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_project_folders.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_project_folders.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_project_folders.compression }}
+{{- end }}
+---
+{{- if .Values.nats.kv_bucket_project_documents.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_project_documents.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_project_documents.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_project_documents.name }}
+  replicas: {{ .Values.nats.kv_bucket_project_documents.replicas }}
+  history: {{ .Values.nats.kv_bucket_project_documents.history }}
+  storage: {{ .Values.nats.kv_bucket_project_documents.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_project_documents.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_project_documents.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_project_documents.compression }}
+{{- end }}
