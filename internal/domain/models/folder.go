@@ -57,7 +57,7 @@ func (f *ProjectFolder) Tags() []string {
 
 	if f.UID != "" {
 		tags = append(tags, f.UID)
-		tags = append(tags, fmt.Sprintf("project_link_folder_uid:%s", f.UID))
+		tags = append(tags, fmt.Sprintf("project_folder_uid:%s", f.UID))
 	}
 
 	if f.ProjectUID != "" {

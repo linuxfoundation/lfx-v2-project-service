@@ -52,8 +52,8 @@ const (
 	// IndexProjectLinkSubject is the subject for project link indexing.
 	IndexProjectLinkSubject = "lfx.index.project_link"
 
-	// IndexProjectLinkFolderSubject is the subject for project link folder indexing.
-	IndexProjectLinkFolderSubject = "lfx.index.project_link_folder"
+	// IndexProjectFolderSubject is the subject for project folder indexing.
+	IndexProjectFolderSubject = "lfx.index.project_folder"
 
 	// IndexProjectDocumentSubject is the subject for project document indexing.
 	IndexProjectDocumentSubject = "lfx.index.project_document"
