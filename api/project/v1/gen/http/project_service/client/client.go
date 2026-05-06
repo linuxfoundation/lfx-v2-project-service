@@ -63,10 +63,6 @@ type Client struct {
 	// get-project-link endpoint.
 	GetProjectLinkDoer goahttp.Doer
 
-	// ListProjectLinks Doer is the HTTP client used to make requests to the
-	// list-project-links endpoint.
-	ListProjectLinksDoer goahttp.Doer
-
 	// DeleteProjectLink Doer is the HTTP client used to make requests to the
 	// delete-project-link endpoint.
 	DeleteProjectLinkDoer goahttp.Doer
@@ -78,10 +74,6 @@ type Client struct {
 	// GetProjectFolder Doer is the HTTP client used to make requests to the
 	// get-project-folder endpoint.
 	GetProjectFolderDoer goahttp.Doer
-
-	// ListProjectFolders Doer is the HTTP client used to make requests to the
-	// list-project-folders endpoint.
-	ListProjectFoldersDoer goahttp.Doer
 
 	// DeleteProjectFolder Doer is the HTTP client used to make requests to the
 	// delete-project-folder endpoint.
@@ -140,11 +132,9 @@ func NewClient(
 		LivezDoer:                   doer,
 		CreateProjectLinkDoer:       doer,
 		GetProjectLinkDoer:          doer,
-		ListProjectLinksDoer:        doer,
 		DeleteProjectLinkDoer:       doer,
 		CreateProjectFolderDoer:     doer,
 		GetProjectFolderDoer:        doer,
-		ListProjectFoldersDoer:      doer,
 		DeleteProjectFolderDoer:     doer,
 		UploadProjectDocumentDoer:   doer,
 		GetProjectDocumentDoer:      doer,
@@ -412,30 +402,6 @@ func (c *Client) GetProjectLink() goa.Endpoint {
 	}
 }
 
-// ListProjectLinks returns an endpoint that makes HTTP requests to the
-// project-service service list-project-links server.
-func (c *Client) ListProjectLinks() goa.Endpoint {
-	var (
-		encodeRequest  = EncodeListProjectLinksRequest(c.encoder)
-		decodeResponse = DecodeListProjectLinksResponse(c.decoder, c.RestoreResponseBody)
-	)
-	return func(ctx context.Context, v any) (any, error) {
-		req, err := c.BuildListProjectLinksRequest(ctx, v)
-		if err != nil {
-			return nil, err
-		}
-		err = encodeRequest(req, v)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := c.ListProjectLinksDoer.Do(req)
-		if err != nil {
-			return nil, goahttp.ErrRequestError("project-service", "list-project-links", err)
-		}
-		return decodeResponse(resp)
-	}
-}
-
 // DeleteProjectLink returns an endpoint that makes HTTP requests to the
 // project-service service delete-project-link server.
 func (c *Client) DeleteProjectLink() goa.Endpoint {
@@ -503,30 +469,6 @@ func (c *Client) GetProjectFolder() goa.Endpoint {
 		resp, err := c.GetProjectFolderDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("project-service", "get-project-folder", err)
-		}
-		return decodeResponse(resp)
-	}
-}
-
-// ListProjectFolders returns an endpoint that makes HTTP requests to the
-// project-service service list-project-folders server.
-func (c *Client) ListProjectFolders() goa.Endpoint {
-	var (
-		encodeRequest  = EncodeListProjectFoldersRequest(c.encoder)
-		decodeResponse = DecodeListProjectFoldersResponse(c.decoder, c.RestoreResponseBody)
-	)
-	return func(ctx context.Context, v any) (any, error) {
-		req, err := c.BuildListProjectFoldersRequest(ctx, v)
-		if err != nil {
-			return nil, err
-		}
-		err = encodeRequest(req, v)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := c.ListProjectFoldersDoer.Do(req)
-		if err != nil {
-			return nil, goahttp.ErrRequestError("project-service", "list-project-folders", err)
 		}
 		return decodeResponse(resp)
 	}

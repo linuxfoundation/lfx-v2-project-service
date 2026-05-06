@@ -61,7 +61,6 @@ type LinkRepository interface {
 // FolderRepository defines the interface for project folder storage operations.
 type FolderRepository interface {
 	GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error)
-	ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error)
 	CreateFolder(ctx context.Context, folder *models.ProjectFolder) error
 	DeleteFolder(ctx context.Context, projectUID, folderUID string, revision uint64) error
 	UniqueFolderName(ctx context.Context, folder *models.ProjectFolder) (string, error)

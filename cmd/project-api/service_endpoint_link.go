@@ -60,21 +60,6 @@ func (s *ProjectsAPI) GetProjectLink(ctx context.Context, payload *projsvc.GetPr
 	}, nil
 }
 
-// ListProjectLinks lists all links for a project.
-func (s *ProjectsAPI) ListProjectLinks(ctx context.Context, payload *projsvc.ListProjectLinksPayload) (*projsvc.ListProjectLinksResult, error) {
-	links, err := s.service.ListLinks(ctx, payload.UID)
-	if err != nil {
-		return nil, handleError(err)
-	}
-
-	result := make([]*projsvc.ProjectLink, 0, len(links))
-	for _, l := range links {
-		result = append(result, toServiceLink(l))
-	}
-
-	return &projsvc.ListProjectLinksResult{Links: result}, nil
-}
-
 // DeleteProjectLink deletes a project link.
 func (s *ProjectsAPI) DeleteProjectLink(ctx context.Context, payload *projsvc.DeleteProjectLinkPayload) error {
 	xSync := false

@@ -93,41 +93,6 @@ var _ = Service("project-service", func() {
 		})
 	})
 
-	Method("list-project-links", func() {
-		Description("List all links for a project.")
-
-		Security(JWTAuth)
-
-		Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			ProjectUIDAttribute()
-			Required("uid")
-		})
-
-		Result(func() {
-			Attribute("links", ArrayOf(ProjectLink), "List of project links")
-			Required("links")
-		})
-
-		Error("NotFound", NotFoundError, "Project not found")
-		Error("InternalServerError", InternalServerError, "Internal server error")
-		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
-
-		HTTP(func() {
-			GET("/projects/{uid}/links")
-			Params(func() {
-				Param("version:v")
-				Param("uid")
-			})
-			Header("bearer_token:Authorization")
-			Response(StatusOK)
-			Response("NotFound", StatusNotFound)
-			Response("InternalServerError", StatusInternalServerError)
-			Response("ServiceUnavailable", StatusServiceUnavailable)
-		})
-	})
-
 	Method("delete-project-link", func() {
 		Description("Delete a project link.")
 

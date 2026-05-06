@@ -265,33 +265,6 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
 
-    - id: "rule:lfx:lfx-v2-project-service:project_links:list"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /projects/:uid/links
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: viewer
-              object: "project:{{ "{{- .Request.URL.Captures.uid -}}" }}"
-        {{- else }}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
     - id: "rule:lfx:lfx-v2-project-service:project_links:get"
       allow_encoded_slashes: "off"
       match:
@@ -364,33 +337,6 @@ spec:
           config:
             values:
               relation: writer
-              object: "project:{{ "{{- .Request.URL.Captures.uid -}}" }}"
-        {{- else }}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-project-service:project_folders:list"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /projects/:uid/folders
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: viewer
               object: "project:{{ "{{- .Request.URL.Captures.uid -}}" }}"
         {{- else }}
         - authorizer: allow_all

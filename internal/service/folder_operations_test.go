@@ -155,59 +155,6 @@ func TestProjectsService_GetFolder(t *testing.T) {
 	}
 }
 
-func TestProjectsService_ListFolders(t *testing.T) {
-	now := time.Now()
-
-	tests := []struct {
-		name           string
-		projectUID     string
-		setupMocks     func(*domain.MockProjectRepository, *domain.MockFolderRepository)
-		expectedLength int
-		wantErr        error
-	}{
-		{
-			name:       "success",
-			projectUID: "proj-1",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockFolder *domain.MockFolderRepository) {
-				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
-				mockFolder.On("ListFolders", mock.Anything, "proj-1").Return([]*models.ProjectFolder{
-					{UID: "folder-1", ProjectUID: "proj-1", Name: "Governance", CreatedAt: now, UpdatedAt: now},
-				}, nil)
-			},
-			expectedLength: 1,
-		},
-		{
-			name:       "project not found",
-			projectUID: "missing",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockFolder *domain.MockFolderRepository) {
-				mockRepo.On("ProjectExists", mock.Anything, "missing").Return(false, nil)
-			},
-			wantErr: domain.ErrProjectNotFound,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc, mockRepo, _, _ := setupServiceForTesting()
-			mockFolder := svc.FolderRepository.(*domain.MockFolderRepository)
-			tt.setupMocks(mockRepo, mockFolder)
-
-			folders, err := svc.ListFolders(context.Background(), tt.projectUID)
-
-			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
-				assert.Nil(t, folders)
-			} else {
-				assert.NoError(t, err)
-				assert.Len(t, folders, tt.expectedLength)
-			}
-
-			mockRepo.AssertExpectations(t)
-			mockFolder.AssertExpectations(t)
-		})
-	}
-}
-
 func TestProjectsService_DeleteFolder(t *testing.T) {
 	now := time.Now()
 

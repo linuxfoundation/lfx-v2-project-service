@@ -113,32 +113,6 @@ func (s *ProjectsService) GetLink(ctx context.Context, projectUID, linkUID strin
 	return link, revisionStr, nil
 }
 
-// ListLinks lists all links for a project.
-func (s *ProjectsService) ListLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error) {
-	if !s.ServiceReady() {
-		slog.ErrorContext(ctx, "service not ready")
-		return nil, domain.ErrServiceUnavailable
-	}
-
-	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
-
-	exists, err := s.ProjectRepository.ProjectExists(ctx, projectUID)
-	if err != nil {
-		slog.ErrorContext(ctx, "error checking if project exists", constants.ErrKey, err)
-		return nil, domain.ErrInternal
-	}
-	if !exists {
-		return nil, domain.ErrProjectNotFound
-	}
-
-	links, err := s.LinkRepository.ListLinks(ctx, projectUID)
-	if err != nil {
-		return nil, err
-	}
-
-	return links, nil
-}
-
 // DeleteLink deletes a project link with optimistic concurrency.
 func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID string, ifMatch *string, xSync bool) error {
 	if !s.ServiceReady() {

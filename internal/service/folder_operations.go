@@ -110,32 +110,6 @@ func (s *ProjectsService) GetFolder(ctx context.Context, projectUID, folderUID s
 	return folder, revisionStr, nil
 }
 
-// ListFolders lists all folders for a project.
-func (s *ProjectsService) ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error) {
-	if !s.ServiceReady() {
-		slog.ErrorContext(ctx, "service not ready")
-		return nil, domain.ErrServiceUnavailable
-	}
-
-	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
-
-	exists, err := s.ProjectRepository.ProjectExists(ctx, projectUID)
-	if err != nil {
-		slog.ErrorContext(ctx, "error checking if project exists", constants.ErrKey, err)
-		return nil, domain.ErrInternal
-	}
-	if !exists {
-		return nil, domain.ErrProjectNotFound
-	}
-
-	folders, err := s.FolderRepository.ListFolders(ctx, projectUID)
-	if err != nil {
-		return nil, err
-	}
-
-	return folders, nil
-}
-
 // DeleteFolder deletes a project folder with optimistic concurrency.
 // Returns ErrFolderNotEmpty if the folder still has links.
 func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string, xSync bool) error {

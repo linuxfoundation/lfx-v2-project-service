@@ -34,11 +34,9 @@ type Server struct {
 	Livez                   http.Handler
 	CreateProjectLink       http.Handler
 	GetProjectLink          http.Handler
-	ListProjectLinks        http.Handler
 	DeleteProjectLink       http.Handler
 	CreateProjectFolder     http.Handler
 	GetProjectFolder        http.Handler
-	ListProjectFolders      http.Handler
 	DeleteProjectFolder     http.Handler
 	UploadProjectDocument   http.Handler
 	GetProjectDocument      http.Handler
@@ -114,11 +112,9 @@ func New(
 			{"Livez", "GET", "/livez"},
 			{"CreateProjectLink", "POST", "/projects/{uid}/links"},
 			{"GetProjectLink", "GET", "/projects/{uid}/links/{link_uid}"},
-			{"ListProjectLinks", "GET", "/projects/{uid}/links"},
 			{"DeleteProjectLink", "DELETE", "/projects/{uid}/links/{link_uid}"},
 			{"CreateProjectFolder", "POST", "/projects/{uid}/folders"},
 			{"GetProjectFolder", "GET", "/projects/{uid}/folders/{folder_uid}"},
-			{"ListProjectFolders", "GET", "/projects/{uid}/folders"},
 			{"DeleteProjectFolder", "DELETE", "/projects/{uid}/folders/{folder_uid}"},
 			{"UploadProjectDocument", "POST", "/projects/{uid}/documents"},
 			{"GetProjectDocument", "GET", "/projects/{uid}/documents/{document_uid}"},
@@ -140,11 +136,9 @@ func New(
 		Livez:                   NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
 		CreateProjectLink:       NewCreateProjectLinkHandler(e.CreateProjectLink, mux, decoder, encoder, errhandler, formatter),
 		GetProjectLink:          NewGetProjectLinkHandler(e.GetProjectLink, mux, decoder, encoder, errhandler, formatter),
-		ListProjectLinks:        NewListProjectLinksHandler(e.ListProjectLinks, mux, decoder, encoder, errhandler, formatter),
 		DeleteProjectLink:       NewDeleteProjectLinkHandler(e.DeleteProjectLink, mux, decoder, encoder, errhandler, formatter),
 		CreateProjectFolder:     NewCreateProjectFolderHandler(e.CreateProjectFolder, mux, decoder, encoder, errhandler, formatter),
 		GetProjectFolder:        NewGetProjectFolderHandler(e.GetProjectFolder, mux, decoder, encoder, errhandler, formatter),
-		ListProjectFolders:      NewListProjectFoldersHandler(e.ListProjectFolders, mux, decoder, encoder, errhandler, formatter),
 		DeleteProjectFolder:     NewDeleteProjectFolderHandler(e.DeleteProjectFolder, mux, decoder, encoder, errhandler, formatter),
 		UploadProjectDocument:   NewUploadProjectDocumentHandler(e.UploadProjectDocument, mux, NewProjectServiceUploadProjectDocumentDecoder(mux, projectServiceUploadProjectDocumentDecoderFn), encoder, errhandler, formatter),
 		GetProjectDocument:      NewGetProjectDocumentHandler(e.GetProjectDocument, mux, decoder, encoder, errhandler, formatter),
@@ -173,11 +167,9 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.Livez = m(s.Livez)
 	s.CreateProjectLink = m(s.CreateProjectLink)
 	s.GetProjectLink = m(s.GetProjectLink)
-	s.ListProjectLinks = m(s.ListProjectLinks)
 	s.DeleteProjectLink = m(s.DeleteProjectLink)
 	s.CreateProjectFolder = m(s.CreateProjectFolder)
 	s.GetProjectFolder = m(s.GetProjectFolder)
-	s.ListProjectFolders = m(s.ListProjectFolders)
 	s.DeleteProjectFolder = m(s.DeleteProjectFolder)
 	s.UploadProjectDocument = m(s.UploadProjectDocument)
 	s.GetProjectDocument = m(s.GetProjectDocument)
@@ -201,11 +193,9 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountLivezHandler(mux, h.Livez)
 	MountCreateProjectLinkHandler(mux, h.CreateProjectLink)
 	MountGetProjectLinkHandler(mux, h.GetProjectLink)
-	MountListProjectLinksHandler(mux, h.ListProjectLinks)
 	MountDeleteProjectLinkHandler(mux, h.DeleteProjectLink)
 	MountCreateProjectFolderHandler(mux, h.CreateProjectFolder)
 	MountGetProjectFolderHandler(mux, h.GetProjectFolder)
-	MountListProjectFoldersHandler(mux, h.ListProjectFolders)
 	MountDeleteProjectFolderHandler(mux, h.DeleteProjectFolder)
 	MountUploadProjectDocumentHandler(mux, h.UploadProjectDocument)
 	MountGetProjectDocumentHandler(mux, h.GetProjectDocument)
@@ -796,60 +786,6 @@ func NewGetProjectLinkHandler(
 	})
 }
 
-// MountListProjectLinksHandler configures the mux to serve the
-// "project-service" service "list-project-links" endpoint.
-func MountListProjectLinksHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/projects/{uid}/links", f)
-}
-
-// NewListProjectLinksHandler creates a HTTP handler which loads the HTTP
-// request and calls the "project-service" service "list-project-links"
-// endpoint.
-func NewListProjectLinksHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeListProjectLinksRequest(mux, decoder)
-		encodeResponse = EncodeListProjectLinksResponse(encoder)
-		encodeError    = EncodeListProjectLinksError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "list-project-links")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
 // MountDeleteProjectLinkHandler configures the mux to serve the
 // "project-service" service "delete-project-link" endpoint.
 func MountDeleteProjectLinkHandler(mux goahttp.Muxer, h http.Handler) {
@@ -989,60 +925,6 @@ func NewGetProjectFolderHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "get-project-folder")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
-// MountListProjectFoldersHandler configures the mux to serve the
-// "project-service" service "list-project-folders" endpoint.
-func MountListProjectFoldersHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/projects/{uid}/folders", f)
-}
-
-// NewListProjectFoldersHandler creates a HTTP handler which loads the HTTP
-// request and calls the "project-service" service "list-project-folders"
-// endpoint.
-func NewListProjectFoldersHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeListProjectFoldersRequest(mux, decoder)
-		encodeResponse = EncodeListProjectFoldersResponse(encoder)
-		encodeError    = EncodeListProjectFoldersError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "list-project-folders")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
 		payload, err := decodeRequest(r)
 		if err != nil {

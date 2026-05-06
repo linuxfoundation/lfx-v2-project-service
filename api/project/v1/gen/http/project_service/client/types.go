@@ -373,13 +373,6 @@ type CreateProjectLinkResponseBody struct {
 // "get-project-link" endpoint HTTP response body.
 type GetProjectLinkResponseBody ProjectLinkResponseBody
 
-// ListProjectLinksResponseBody is the type of the "project-service" service
-// "list-project-links" endpoint HTTP response body.
-type ListProjectLinksResponseBody struct {
-	// List of project links
-	Links []*ProjectLinkResponseBody `form:"links,omitempty" json:"links,omitempty" xml:"links,omitempty"`
-}
-
 // CreateProjectFolderResponseBody is the type of the "project-service" service
 // "create-project-folder" endpoint HTTP response body.
 type CreateProjectFolderResponseBody struct {
@@ -398,13 +391,6 @@ type CreateProjectFolderResponseBody struct {
 // GetProjectFolderResponseBody is the type of the "project-service" service
 // "get-project-folder" endpoint HTTP response body.
 type GetProjectFolderResponseBody ProjectFolderResponseBody
-
-// ListProjectFoldersResponseBody is the type of the "project-service" service
-// "list-project-folders" endpoint HTTP response body.
-type ListProjectFoldersResponseBody struct {
-	// List of project folders
-	Folders []*ProjectFolderResponseBody `form:"folders,omitempty" json:"folders,omitempty" xml:"folders,omitempty"`
-}
 
 // UploadProjectDocumentResponseBody is the type of the "project-service"
 // service "upload-project-document" endpoint HTTP response body.
@@ -775,36 +761,6 @@ type GetProjectLinkServiceUnavailableResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
-// ListProjectLinksInternalServerErrorResponseBody is the type of the
-// "project-service" service "list-project-links" endpoint HTTP response body
-// for the "InternalServerError" error.
-type ListProjectLinksInternalServerErrorResponseBody struct {
-	// HTTP status code
-	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
-	// Error message
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-}
-
-// ListProjectLinksNotFoundResponseBody is the type of the "project-service"
-// service "list-project-links" endpoint HTTP response body for the "NotFound"
-// error.
-type ListProjectLinksNotFoundResponseBody struct {
-	// HTTP status code
-	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
-	// Error message
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-}
-
-// ListProjectLinksServiceUnavailableResponseBody is the type of the
-// "project-service" service "list-project-links" endpoint HTTP response body
-// for the "ServiceUnavailable" error.
-type ListProjectLinksServiceUnavailableResponseBody struct {
-	// HTTP status code
-	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
-	// Error message
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-}
-
 // DeleteProjectLinkBadRequestResponseBody is the type of the "project-service"
 // service "delete-project-link" endpoint HTTP response body for the
 // "BadRequest" error.
@@ -929,36 +885,6 @@ type GetProjectFolderNotFoundResponseBody struct {
 // "project-service" service "get-project-folder" endpoint HTTP response body
 // for the "ServiceUnavailable" error.
 type GetProjectFolderServiceUnavailableResponseBody struct {
-	// HTTP status code
-	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
-	// Error message
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-}
-
-// ListProjectFoldersInternalServerErrorResponseBody is the type of the
-// "project-service" service "list-project-folders" endpoint HTTP response body
-// for the "InternalServerError" error.
-type ListProjectFoldersInternalServerErrorResponseBody struct {
-	// HTTP status code
-	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
-	// Error message
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-}
-
-// ListProjectFoldersNotFoundResponseBody is the type of the "project-service"
-// service "list-project-folders" endpoint HTTP response body for the
-// "NotFound" error.
-type ListProjectFoldersNotFoundResponseBody struct {
-	// HTTP status code
-	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
-	// Error message
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-}
-
-// ListProjectFoldersServiceUnavailableResponseBody is the type of the
-// "project-service" service "list-project-folders" endpoint HTTP response body
-// for the "ServiceUnavailable" error.
-type ListProjectFoldersServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
@@ -2235,51 +2161,6 @@ func NewGetProjectLinkServiceUnavailable(body *GetProjectLinkServiceUnavailableR
 	return v
 }
 
-// NewListProjectLinksResultOK builds a "project-service" service
-// "list-project-links" endpoint result from a HTTP "OK" response.
-func NewListProjectLinksResultOK(body *ListProjectLinksResponseBody) *projectservice.ListProjectLinksResult {
-	v := &projectservice.ListProjectLinksResult{}
-	v.Links = make([]*projectservice.ProjectLink, len(body.Links))
-	for i, val := range body.Links {
-		v.Links[i] = unmarshalProjectLinkResponseBodyToProjectserviceProjectLink(val)
-	}
-
-	return v
-}
-
-// NewListProjectLinksInternalServerError builds a project-service service
-// list-project-links endpoint InternalServerError error.
-func NewListProjectLinksInternalServerError(body *ListProjectLinksInternalServerErrorResponseBody) *projectservice.InternalServerError {
-	v := &projectservice.InternalServerError{
-		Code:    *body.Code,
-		Message: *body.Message,
-	}
-
-	return v
-}
-
-// NewListProjectLinksNotFound builds a project-service service
-// list-project-links endpoint NotFound error.
-func NewListProjectLinksNotFound(body *ListProjectLinksNotFoundResponseBody) *projectservice.NotFoundError {
-	v := &projectservice.NotFoundError{
-		Code:    *body.Code,
-		Message: *body.Message,
-	}
-
-	return v
-}
-
-// NewListProjectLinksServiceUnavailable builds a project-service service
-// list-project-links endpoint ServiceUnavailable error.
-func NewListProjectLinksServiceUnavailable(body *ListProjectLinksServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
-	v := &projectservice.ServiceUnavailableError{
-		Code:    *body.Code,
-		Message: *body.Message,
-	}
-
-	return v
-}
-
 // NewDeleteProjectLinkBadRequest builds a project-service service
 // delete-project-link endpoint BadRequest error.
 func NewDeleteProjectLinkBadRequest(body *DeleteProjectLinkBadRequestResponseBody) *projectservice.BadRequestError {
@@ -2448,51 +2329,6 @@ func NewGetProjectFolderNotFound(body *GetProjectFolderNotFoundResponseBody) *pr
 // NewGetProjectFolderServiceUnavailable builds a project-service service
 // get-project-folder endpoint ServiceUnavailable error.
 func NewGetProjectFolderServiceUnavailable(body *GetProjectFolderServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
-	v := &projectservice.ServiceUnavailableError{
-		Code:    *body.Code,
-		Message: *body.Message,
-	}
-
-	return v
-}
-
-// NewListProjectFoldersResultOK builds a "project-service" service
-// "list-project-folders" endpoint result from a HTTP "OK" response.
-func NewListProjectFoldersResultOK(body *ListProjectFoldersResponseBody) *projectservice.ListProjectFoldersResult {
-	v := &projectservice.ListProjectFoldersResult{}
-	v.Folders = make([]*projectservice.ProjectFolder, len(body.Folders))
-	for i, val := range body.Folders {
-		v.Folders[i] = unmarshalProjectFolderResponseBodyToProjectserviceProjectFolder(val)
-	}
-
-	return v
-}
-
-// NewListProjectFoldersInternalServerError builds a project-service service
-// list-project-folders endpoint InternalServerError error.
-func NewListProjectFoldersInternalServerError(body *ListProjectFoldersInternalServerErrorResponseBody) *projectservice.InternalServerError {
-	v := &projectservice.InternalServerError{
-		Code:    *body.Code,
-		Message: *body.Message,
-	}
-
-	return v
-}
-
-// NewListProjectFoldersNotFound builds a project-service service
-// list-project-folders endpoint NotFound error.
-func NewListProjectFoldersNotFound(body *ListProjectFoldersNotFoundResponseBody) *projectservice.NotFoundError {
-	v := &projectservice.NotFoundError{
-		Code:    *body.Code,
-		Message: *body.Message,
-	}
-
-	return v
-}
-
-// NewListProjectFoldersServiceUnavailable builds a project-service service
-// list-project-folders endpoint ServiceUnavailable error.
-func NewListProjectFoldersServiceUnavailable(body *ListProjectFoldersServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
 	v := &projectservice.ServiceUnavailableError{
 		Code:    *body.Code,
 		Message: *body.Message,
@@ -3213,22 +3049,6 @@ func ValidateGetProjectLinkResponseBody(body *GetProjectLinkResponseBody) (err e
 	return
 }
 
-// ValidateListProjectLinksResponseBody runs the validations defined on
-// List-Project-LinksResponseBody
-func ValidateListProjectLinksResponseBody(body *ListProjectLinksResponseBody) (err error) {
-	if body.Links == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("links", "body"))
-	}
-	for _, e := range body.Links {
-		if e != nil {
-			if err2 := ValidateProjectLinkResponseBody(e); err2 != nil {
-				err = goa.MergeErrors(err, err2)
-			}
-		}
-	}
-	return
-}
-
 // ValidateCreateProjectFolderResponseBody runs the validations defined on
 // Create-Project-FolderResponseBody
 func ValidateCreateProjectFolderResponseBody(body *CreateProjectFolderResponseBody) (err error) {
@@ -3265,22 +3085,6 @@ func ValidateGetProjectFolderResponseBody(body *GetProjectFolderResponseBody) (e
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
-	}
-	return
-}
-
-// ValidateListProjectFoldersResponseBody runs the validations defined on
-// List-Project-FoldersResponseBody
-func ValidateListProjectFoldersResponseBody(body *ListProjectFoldersResponseBody) (err error) {
-	if body.Folders == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("folders", "body"))
-	}
-	for _, e := range body.Folders {
-		if e != nil {
-			if err2 := ValidateProjectFolderResponseBody(e); err2 != nil {
-				err = goa.MergeErrors(err, err2)
-			}
-		}
 	}
 	return
 }
@@ -3743,42 +3547,6 @@ func ValidateGetProjectLinkServiceUnavailableResponseBody(body *GetProjectLinkSe
 	return
 }
 
-// ValidateListProjectLinksInternalServerErrorResponseBody runs the validations
-// defined on list-project-links_InternalServerError_response_body
-func ValidateListProjectLinksInternalServerErrorResponseBody(body *ListProjectLinksInternalServerErrorResponseBody) (err error) {
-	if body.Code == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
-	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	return
-}
-
-// ValidateListProjectLinksNotFoundResponseBody runs the validations defined on
-// list-project-links_NotFound_response_body
-func ValidateListProjectLinksNotFoundResponseBody(body *ListProjectLinksNotFoundResponseBody) (err error) {
-	if body.Code == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
-	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	return
-}
-
-// ValidateListProjectLinksServiceUnavailableResponseBody runs the validations
-// defined on list-project-links_ServiceUnavailable_response_body
-func ValidateListProjectLinksServiceUnavailableResponseBody(body *ListProjectLinksServiceUnavailableResponseBody) (err error) {
-	if body.Code == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
-	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	return
-}
-
 // ValidateDeleteProjectLinkBadRequestResponseBody runs the validations defined
 // on delete-project-link_BadRequest_response_body
 func ValidateDeleteProjectLinkBadRequestResponseBody(body *DeleteProjectLinkBadRequestResponseBody) (err error) {
@@ -3927,42 +3695,6 @@ func ValidateGetProjectFolderNotFoundResponseBody(body *GetProjectFolderNotFound
 // ValidateGetProjectFolderServiceUnavailableResponseBody runs the validations
 // defined on get-project-folder_ServiceUnavailable_response_body
 func ValidateGetProjectFolderServiceUnavailableResponseBody(body *GetProjectFolderServiceUnavailableResponseBody) (err error) {
-	if body.Code == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
-	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	return
-}
-
-// ValidateListProjectFoldersInternalServerErrorResponseBody runs the
-// validations defined on list-project-folders_InternalServerError_response_body
-func ValidateListProjectFoldersInternalServerErrorResponseBody(body *ListProjectFoldersInternalServerErrorResponseBody) (err error) {
-	if body.Code == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
-	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	return
-}
-
-// ValidateListProjectFoldersNotFoundResponseBody runs the validations defined
-// on list-project-folders_NotFound_response_body
-func ValidateListProjectFoldersNotFoundResponseBody(body *ListProjectFoldersNotFoundResponseBody) (err error) {
-	if body.Code == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
-	}
-	if body.Message == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
-	}
-	return
-}
-
-// ValidateListProjectFoldersServiceUnavailableResponseBody runs the
-// validations defined on list-project-folders_ServiceUnavailable_response_body
-func ValidateListProjectFoldersServiceUnavailableResponseBody(body *ListProjectFoldersServiceUnavailableResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}

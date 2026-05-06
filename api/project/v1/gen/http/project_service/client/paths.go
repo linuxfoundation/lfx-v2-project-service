@@ -68,11 +68,6 @@ func GetProjectLinkProjectServicePath(uid string, linkUID string) string {
 	return fmt.Sprintf("/projects/%v/links/%v", uid, linkUID)
 }
 
-// ListProjectLinksProjectServicePath returns the URL path to the project-service service list-project-links HTTP endpoint.
-func ListProjectLinksProjectServicePath(uid string) string {
-	return fmt.Sprintf("/projects/%v/links", uid)
-}
-
 // DeleteProjectLinkProjectServicePath returns the URL path to the project-service service delete-project-link HTTP endpoint.
 func DeleteProjectLinkProjectServicePath(uid string, linkUID string) string {
 	return fmt.Sprintf("/projects/%v/links/%v", uid, linkUID)
@@ -86,11 +81,6 @@ func CreateProjectFolderProjectServicePath(uid string) string {
 // GetProjectFolderProjectServicePath returns the URL path to the project-service service get-project-folder HTTP endpoint.
 func GetProjectFolderProjectServicePath(uid string, folderUID string) string {
 	return fmt.Sprintf("/projects/%v/folders/%v", uid, folderUID)
-}
-
-// ListProjectFoldersProjectServicePath returns the URL path to the project-service service list-project-folders HTTP endpoint.
-func ListProjectFoldersProjectServicePath(uid string) string {
-	return fmt.Sprintf("/projects/%v/folders", uid)
 }
 
 // DeleteProjectFolderProjectServicePath returns the URL path to the project-service service delete-project-folder HTTP endpoint.

@@ -210,14 +210,6 @@ func (m *MockFolderRepository) GetFolder(ctx context.Context, projectUID, folder
 	return args.Get(0).(*models.ProjectFolder), args.Get(1).(uint64), args.Error(2)
 }
 
-func (m *MockFolderRepository) ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error) {
-	args := m.Called(ctx, projectUID)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]*models.ProjectFolder), args.Error(1)
-}
-
 func (m *MockFolderRepository) CreateFolder(ctx context.Context, folder *models.ProjectFolder) error {
 	args := m.Called(ctx, folder)
 	return args.Error(0)

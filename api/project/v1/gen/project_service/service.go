@@ -39,16 +39,12 @@ type Service interface {
 	CreateProjectLink(context.Context, *CreateProjectLinkPayload) (res *ProjectLink, err error)
 	// Get a single project link.
 	GetProjectLink(context.Context, *GetProjectLinkPayload) (res *GetProjectLinkResult, err error)
-	// List all links for a project.
-	ListProjectLinks(context.Context, *ListProjectLinksPayload) (res *ListProjectLinksResult, err error)
 	// Delete a project link.
 	DeleteProjectLink(context.Context, *DeleteProjectLinkPayload) (err error)
 	// Create a new folder for a project.
 	CreateProjectFolder(context.Context, *CreateProjectFolderPayload) (res *ProjectFolder, err error)
 	// Get a single project folder.
 	GetProjectFolder(context.Context, *GetProjectFolderPayload) (res *GetProjectFolderResult, err error)
-	// List all folders for a project.
-	ListProjectFolders(context.Context, *ListProjectFoldersPayload) (res *ListProjectFoldersResult, err error)
 	// Delete a project folder. The folder must be empty.
 	DeleteProjectFolder(context.Context, *DeleteProjectFolderPayload) (err error)
 	// Upload a new document for a project (multipart/form-data).
@@ -81,7 +77,7 @@ const ServiceName = "project-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [21]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "readyz", "livez", "create-project-link", "get-project-link", "list-project-links", "delete-project-link", "create-project-folder", "get-project-folder", "list-project-folders", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
+var MethodNames = [19]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "readyz", "livez", "create-project-link", "get-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
 
 type BadRequestError struct {
 	// HTTP status code
@@ -416,42 +412,6 @@ type InternalServerError struct {
 	Code string
 	// Error message
 	Message string
-}
-
-// ListProjectFoldersPayload is the payload type of the project-service service
-// list-project-folders method.
-type ListProjectFoldersPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// Project UID -- v2 uid, not related to v1 id directly
-	UID string
-}
-
-// ListProjectFoldersResult is the result type of the project-service service
-// list-project-folders method.
-type ListProjectFoldersResult struct {
-	// List of project folders
-	Folders []*ProjectFolder
-}
-
-// ListProjectLinksPayload is the payload type of the project-service service
-// list-project-links method.
-type ListProjectLinksPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// Project UID -- v2 uid, not related to v1 id directly
-	UID string
-}
-
-// ListProjectLinksResult is the result type of the project-service service
-// list-project-links method.
-type ListProjectLinksResult struct {
-	// List of project links
-	Links []*ProjectLink
 }
 
 type NotFoundError struct {

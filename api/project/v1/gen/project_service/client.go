@@ -28,11 +28,9 @@ type Client struct {
 	LivezEndpoint                   goa.Endpoint
 	CreateProjectLinkEndpoint       goa.Endpoint
 	GetProjectLinkEndpoint          goa.Endpoint
-	ListProjectLinksEndpoint        goa.Endpoint
 	DeleteProjectLinkEndpoint       goa.Endpoint
 	CreateProjectFolderEndpoint     goa.Endpoint
 	GetProjectFolderEndpoint        goa.Endpoint
-	ListProjectFoldersEndpoint      goa.Endpoint
 	DeleteProjectFolderEndpoint     goa.Endpoint
 	UploadProjectDocumentEndpoint   goa.Endpoint
 	GetProjectDocumentEndpoint      goa.Endpoint
@@ -41,7 +39,7 @@ type Client struct {
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, readyz, livez, createProjectLink, getProjectLink, listProjectLinks, deleteProjectLink, createProjectFolder, getProjectFolder, listProjectFolders, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
+func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, readyz, livez, createProjectLink, getProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
 	return &Client{
 		GetProjectsEndpoint:             getProjects,
 		CreateProjectEndpoint:           createProject,
@@ -54,11 +52,9 @@ func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSetti
 		LivezEndpoint:                   livez,
 		CreateProjectLinkEndpoint:       createProjectLink,
 		GetProjectLinkEndpoint:          getProjectLink,
-		ListProjectLinksEndpoint:        listProjectLinks,
 		DeleteProjectLinkEndpoint:       deleteProjectLink,
 		CreateProjectFolderEndpoint:     createProjectFolder,
 		GetProjectFolderEndpoint:        getProjectFolder,
-		ListProjectFoldersEndpoint:      listProjectFolders,
 		DeleteProjectFolderEndpoint:     deleteProjectFolder,
 		UploadProjectDocumentEndpoint:   uploadProjectDocument,
 		GetProjectDocumentEndpoint:      getProjectDocument,
@@ -236,22 +232,6 @@ func (c *Client) GetProjectLink(ctx context.Context, p *GetProjectLinkPayload) (
 	return ires.(*GetProjectLinkResult), nil
 }
 
-// ListProjectLinks calls the "list-project-links" endpoint of the
-// "project-service" service.
-// ListProjectLinks may return the following errors:
-//   - "NotFound" (type *NotFoundError): Project not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
-//   - error: internal error
-func (c *Client) ListProjectLinks(ctx context.Context, p *ListProjectLinksPayload) (res *ListProjectLinksResult, err error) {
-	var ires any
-	ires, err = c.ListProjectLinksEndpoint(ctx, p)
-	if err != nil {
-		return
-	}
-	return ires.(*ListProjectLinksResult), nil
-}
-
 // DeleteProjectLink calls the "delete-project-link" endpoint of the
 // "project-service" service.
 // DeleteProjectLink may return the following errors:
@@ -298,22 +278,6 @@ func (c *Client) GetProjectFolder(ctx context.Context, p *GetProjectFolderPayloa
 		return
 	}
 	return ires.(*GetProjectFolderResult), nil
-}
-
-// ListProjectFolders calls the "list-project-folders" endpoint of the
-// "project-service" service.
-// ListProjectFolders may return the following errors:
-//   - "NotFound" (type *NotFoundError): Project not found
-//   - "InternalServerError" (type *InternalServerError): Internal server error
-//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
-//   - error: internal error
-func (c *Client) ListProjectFolders(ctx context.Context, p *ListProjectFoldersPayload) (res *ListProjectFoldersResult, err error) {
-	var ires any
-	ires, err = c.ListProjectFoldersEndpoint(ctx, p)
-	if err != nil {
-		return
-	}
-	return ires.(*ListProjectFoldersResult), nil
 }
 
 // DeleteProjectFolder calls the "delete-project-folder" endpoint of the

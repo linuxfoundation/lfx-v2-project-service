@@ -89,41 +89,6 @@ var _ = Service("project-service", func() {
 		})
 	})
 
-	Method("list-project-folders", func() {
-		Description("List all folders for a project.")
-
-		Security(JWTAuth)
-
-		Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			ProjectUIDAttribute()
-			Required("uid")
-		})
-
-		Result(func() {
-			Attribute("folders", ArrayOf(ProjectFolder), "List of project folders")
-			Required("folders")
-		})
-
-		Error("NotFound", NotFoundError, "Project not found")
-		Error("InternalServerError", InternalServerError, "Internal server error")
-		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
-
-		HTTP(func() {
-			GET("/projects/{uid}/folders")
-			Params(func() {
-				Param("version:v")
-				Param("uid")
-			})
-			Header("bearer_token:Authorization")
-			Response(StatusOK)
-			Response("NotFound", StatusNotFound)
-			Response("InternalServerError", StatusInternalServerError)
-			Response("ServiceUnavailable", StatusServiceUnavailable)
-		})
-	})
-
 	Method("delete-project-folder", func() {
 		Description("Delete a project folder. The folder must be empty.")
 

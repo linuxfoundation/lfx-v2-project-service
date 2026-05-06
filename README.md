@@ -21,17 +21,15 @@ The LFX v2 Project Service is a RESTful API service that manages projects within
   - `GET` - fetch a project's settings information by its UID
   - `PUT` - update a project's settings by its UID
 - `/projects/:id/links`:
-  - `GET` - list all links for a project
   - `POST` - create a new link for a project
 - `/projects/:id/links/:link_uid`:
   - `GET` - fetch a single link by its UID (returns ETag header)
   - `DELETE` - delete a link (requires `If-Match: <etag>`)
 - `/projects/:id/folders`:
-  - `GET` - list all folders for a project
   - `POST` - create a new folder for a project (name must be unique per project)
 - `/projects/:id/folders/:folder_uid`:
   - `GET` - fetch a single folder by its UID (returns ETag header)
-  - `DELETE` - delete a folder (requires `If-Match: <etag>`; blocked if folder has links)
+  - `DELETE` - delete a folder (requires `If-Match: <etag>`; blocked if folder has links or documents)
 - `/projects/:id/documents`:
   - `POST` - upload a document file for a project (multipart/form-data: `name`, `description`, `folder_uid`, `file`; max 10 MB; allowed MIME types: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, PNG, JPEG, GIF, ZIP)
 - `/projects/:id/documents/:doc_uid`:

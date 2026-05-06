@@ -736,44 +736,6 @@ func BuildGetProjectLinkPayload(projectServiceGetProjectLinkUID string, projectS
 	return v, nil
 }
 
-// BuildListProjectLinksPayload builds the payload for the project-service
-// list-project-links endpoint from CLI flags.
-func BuildListProjectLinksPayload(projectServiceListProjectLinksUID string, projectServiceListProjectLinksVersion string, projectServiceListProjectLinksBearerToken string) (*projectservice.ListProjectLinksPayload, error) {
-	var err error
-	var uid string
-	{
-		uid = projectServiceListProjectLinksUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
-	}
-	var version *string
-	{
-		if projectServiceListProjectLinksVersion != "" {
-			version = &projectServiceListProjectLinksVersion
-			if !(*version == "1") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
-			}
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	var bearerToken *string
-	{
-		if projectServiceListProjectLinksBearerToken != "" {
-			bearerToken = &projectServiceListProjectLinksBearerToken
-		}
-	}
-	v := &projectservice.ListProjectLinksPayload{}
-	v.UID = uid
-	v.Version = version
-	v.BearerToken = bearerToken
-
-	return v, nil
-}
-
 // BuildDeleteProjectLinkPayload builds the payload for the project-service
 // delete-project-link endpoint from CLI flags.
 func BuildDeleteProjectLinkPayload(projectServiceDeleteProjectLinkUID string, projectServiceDeleteProjectLinkLinkUID string, projectServiceDeleteProjectLinkVersion string, projectServiceDeleteProjectLinkBearerToken string, projectServiceDeleteProjectLinkXSync string, projectServiceDeleteProjectLinkIfMatch string) (*projectservice.DeleteProjectLinkPayload, error) {
@@ -946,44 +908,6 @@ func BuildGetProjectFolderPayload(projectServiceGetProjectFolderUID string, proj
 	v := &projectservice.GetProjectFolderPayload{}
 	v.UID = uid
 	v.FolderUID = folderUID
-	v.Version = version
-	v.BearerToken = bearerToken
-
-	return v, nil
-}
-
-// BuildListProjectFoldersPayload builds the payload for the project-service
-// list-project-folders endpoint from CLI flags.
-func BuildListProjectFoldersPayload(projectServiceListProjectFoldersUID string, projectServiceListProjectFoldersVersion string, projectServiceListProjectFoldersBearerToken string) (*projectservice.ListProjectFoldersPayload, error) {
-	var err error
-	var uid string
-	{
-		uid = projectServiceListProjectFoldersUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
-	}
-	var version *string
-	{
-		if projectServiceListProjectFoldersVersion != "" {
-			version = &projectServiceListProjectFoldersVersion
-			if !(*version == "1") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
-			}
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	var bearerToken *string
-	{
-		if projectServiceListProjectFoldersBearerToken != "" {
-			bearerToken = &projectServiceListProjectFoldersBearerToken
-		}
-	}
-	v := &projectservice.ListProjectFoldersPayload{}
-	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
 

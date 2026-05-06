@@ -634,40 +634,6 @@ func (s *NatsRepository) GetFolder(ctx context.Context, projectUID, folderUID st
 	return folder, entry.Revision(), nil
 }
 
-// ListFolders lists all folders for a given project.
-func (s *NatsRepository) ListFolders(ctx context.Context, projectUID string) ([]*models.ProjectFolder, error) {
-	keysLister, err := s.Folders.ListKeys(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "error listing folder keys from NATS KV store", constants.ErrKey, err)
-		return nil, domain.ErrInternal
-	}
-
-	folders := []*models.ProjectFolder{}
-	for key := range keysLister.Keys() {
-		// Skip lookup keys
-		if strings.HasPrefix(key, "lookup/") {
-			continue
-		}
-
-		entry, err := s.getFolder(ctx, key)
-		if err != nil {
-			slog.ErrorContext(ctx, "error getting folder from NATS KV store", constants.ErrKey, err, "folder_uid", key)
-			return nil, domain.ErrInternal
-		}
-
-		folder, err := s.getFolderUnmarshal(ctx, entry)
-		if err != nil {
-			return nil, domain.ErrUnmarshal
-		}
-
-		if folder.ProjectUID == projectUID {
-			folders = append(folders, folder)
-		}
-	}
-
-	return folders, nil
-}
-
 // CreateFolder stores a new project folder. The caller must first reserve the unique name
 // via UniqueFolderName and roll back via DeleteUniqueFolderName on failure.
 func (s *NatsRepository) CreateFolder(ctx context.Context, folder *models.ProjectFolder) error {

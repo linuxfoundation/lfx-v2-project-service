@@ -29,11 +29,9 @@ type Endpoints struct {
 	Livez                   goa.Endpoint
 	CreateProjectLink       goa.Endpoint
 	GetProjectLink          goa.Endpoint
-	ListProjectLinks        goa.Endpoint
 	DeleteProjectLink       goa.Endpoint
 	CreateProjectFolder     goa.Endpoint
 	GetProjectFolder        goa.Endpoint
-	ListProjectFolders      goa.Endpoint
 	DeleteProjectFolder     goa.Endpoint
 	UploadProjectDocument   goa.Endpoint
 	GetProjectDocument      goa.Endpoint
@@ -58,11 +56,9 @@ func NewEndpoints(s Service) *Endpoints {
 		Livez:                   NewLivezEndpoint(s),
 		CreateProjectLink:       NewCreateProjectLinkEndpoint(s, a.JWTAuth),
 		GetProjectLink:          NewGetProjectLinkEndpoint(s, a.JWTAuth),
-		ListProjectLinks:        NewListProjectLinksEndpoint(s, a.JWTAuth),
 		DeleteProjectLink:       NewDeleteProjectLinkEndpoint(s, a.JWTAuth),
 		CreateProjectFolder:     NewCreateProjectFolderEndpoint(s, a.JWTAuth),
 		GetProjectFolder:        NewGetProjectFolderEndpoint(s, a.JWTAuth),
-		ListProjectFolders:      NewListProjectFoldersEndpoint(s, a.JWTAuth),
 		DeleteProjectFolder:     NewDeleteProjectFolderEndpoint(s, a.JWTAuth),
 		UploadProjectDocument:   NewUploadProjectDocumentEndpoint(s, a.JWTAuth),
 		GetProjectDocument:      NewGetProjectDocumentEndpoint(s, a.JWTAuth),
@@ -85,11 +81,9 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.Livez = m(e.Livez)
 	e.CreateProjectLink = m(e.CreateProjectLink)
 	e.GetProjectLink = m(e.GetProjectLink)
-	e.ListProjectLinks = m(e.ListProjectLinks)
 	e.DeleteProjectLink = m(e.DeleteProjectLink)
 	e.CreateProjectFolder = m(e.CreateProjectFolder)
 	e.GetProjectFolder = m(e.GetProjectFolder)
-	e.ListProjectFolders = m(e.ListProjectFolders)
 	e.DeleteProjectFolder = m(e.DeleteProjectFolder)
 	e.UploadProjectDocument = m(e.UploadProjectDocument)
 	e.GetProjectDocument = m(e.GetProjectDocument)
@@ -320,29 +314,6 @@ func NewGetProjectLinkEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.En
 	}
 }
 
-// NewListProjectLinksEndpoint returns an endpoint function that calls the
-// method "list-project-links" of service "project-service".
-func NewListProjectLinksEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
-	return func(ctx context.Context, req any) (any, error) {
-		p := req.(*ListProjectLinksPayload)
-		var err error
-		sc := security.JWTScheme{
-			Name:           "jwt",
-			Scopes:         []string{},
-			RequiredScopes: []string{},
-		}
-		var token string
-		if p.BearerToken != nil {
-			token = *p.BearerToken
-		}
-		ctx, err = authJWTFn(ctx, token, &sc)
-		if err != nil {
-			return nil, err
-		}
-		return s.ListProjectLinks(ctx, p)
-	}
-}
-
 // NewDeleteProjectLinkEndpoint returns an endpoint function that calls the
 // method "delete-project-link" of service "project-service".
 func NewDeleteProjectLinkEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
@@ -409,29 +380,6 @@ func NewGetProjectFolderEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.
 			return nil, err
 		}
 		return s.GetProjectFolder(ctx, p)
-	}
-}
-
-// NewListProjectFoldersEndpoint returns an endpoint function that calls the
-// method "list-project-folders" of service "project-service".
-func NewListProjectFoldersEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
-	return func(ctx context.Context, req any) (any, error) {
-		p := req.(*ListProjectFoldersPayload)
-		var err error
-		sc := security.JWTScheme{
-			Name:           "jwt",
-			Scopes:         []string{},
-			RequiredScopes: []string{},
-		}
-		var token string
-		if p.BearerToken != nil {
-			token = *p.BearerToken
-		}
-		ctx, err = authJWTFn(ctx, token, &sc)
-		if err != nil {
-			return nil, err
-		}
-		return s.ListProjectFolders(ctx, p)
 	}
 }
 

@@ -373,13 +373,6 @@ type CreateProjectLinkResponseBody struct {
 // "get-project-link" endpoint HTTP response body.
 type GetProjectLinkResponseBody ProjectLinkResponseBody
 
-// ListProjectLinksResponseBody is the type of the "project-service" service
-// "list-project-links" endpoint HTTP response body.
-type ListProjectLinksResponseBody struct {
-	// List of project links
-	Links []*ProjectLinkResponseBody `form:"links" json:"links" xml:"links"`
-}
-
 // CreateProjectFolderResponseBody is the type of the "project-service" service
 // "create-project-folder" endpoint HTTP response body.
 type CreateProjectFolderResponseBody struct {
@@ -398,13 +391,6 @@ type CreateProjectFolderResponseBody struct {
 // GetProjectFolderResponseBody is the type of the "project-service" service
 // "get-project-folder" endpoint HTTP response body.
 type GetProjectFolderResponseBody ProjectFolderResponseBody
-
-// ListProjectFoldersResponseBody is the type of the "project-service" service
-// "list-project-folders" endpoint HTTP response body.
-type ListProjectFoldersResponseBody struct {
-	// List of project folders
-	Folders []*ProjectFolderResponseBody `form:"folders" json:"folders" xml:"folders"`
-}
 
 // UploadProjectDocumentResponseBody is the type of the "project-service"
 // service "upload-project-document" endpoint HTTP response body.
@@ -775,36 +761,6 @@ type GetProjectLinkServiceUnavailableResponseBody struct {
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
-// ListProjectLinksInternalServerErrorResponseBody is the type of the
-// "project-service" service "list-project-links" endpoint HTTP response body
-// for the "InternalServerError" error.
-type ListProjectLinksInternalServerErrorResponseBody struct {
-	// HTTP status code
-	Code string `form:"code" json:"code" xml:"code"`
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListProjectLinksNotFoundResponseBody is the type of the "project-service"
-// service "list-project-links" endpoint HTTP response body for the "NotFound"
-// error.
-type ListProjectLinksNotFoundResponseBody struct {
-	// HTTP status code
-	Code string `form:"code" json:"code" xml:"code"`
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListProjectLinksServiceUnavailableResponseBody is the type of the
-// "project-service" service "list-project-links" endpoint HTTP response body
-// for the "ServiceUnavailable" error.
-type ListProjectLinksServiceUnavailableResponseBody struct {
-	// HTTP status code
-	Code string `form:"code" json:"code" xml:"code"`
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
 // DeleteProjectLinkBadRequestResponseBody is the type of the "project-service"
 // service "delete-project-link" endpoint HTTP response body for the
 // "BadRequest" error.
@@ -929,36 +885,6 @@ type GetProjectFolderNotFoundResponseBody struct {
 // "project-service" service "get-project-folder" endpoint HTTP response body
 // for the "ServiceUnavailable" error.
 type GetProjectFolderServiceUnavailableResponseBody struct {
-	// HTTP status code
-	Code string `form:"code" json:"code" xml:"code"`
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListProjectFoldersInternalServerErrorResponseBody is the type of the
-// "project-service" service "list-project-folders" endpoint HTTP response body
-// for the "InternalServerError" error.
-type ListProjectFoldersInternalServerErrorResponseBody struct {
-	// HTTP status code
-	Code string `form:"code" json:"code" xml:"code"`
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListProjectFoldersNotFoundResponseBody is the type of the "project-service"
-// service "list-project-folders" endpoint HTTP response body for the
-// "NotFound" error.
-type ListProjectFoldersNotFoundResponseBody struct {
-	// HTTP status code
-	Code string `form:"code" json:"code" xml:"code"`
-	// Error message
-	Message string `form:"message" json:"message" xml:"message"`
-}
-
-// ListProjectFoldersServiceUnavailableResponseBody is the type of the
-// "project-service" service "list-project-folders" endpoint HTTP response body
-// for the "ServiceUnavailable" error.
-type ListProjectFoldersServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code string `form:"code" json:"code" xml:"code"`
 	// Error message
@@ -1675,21 +1601,6 @@ func NewGetProjectLinkResponseBody(res *projectservice.GetProjectLinkResult) *Ge
 	return body
 }
 
-// NewListProjectLinksResponseBody builds the HTTP response body from the
-// result of the "list-project-links" endpoint of the "project-service" service.
-func NewListProjectLinksResponseBody(res *projectservice.ListProjectLinksResult) *ListProjectLinksResponseBody {
-	body := &ListProjectLinksResponseBody{}
-	if res.Links != nil {
-		body.Links = make([]*ProjectLinkResponseBody, len(res.Links))
-		for i, val := range res.Links {
-			body.Links[i] = marshalProjectserviceProjectLinkToProjectLinkResponseBody(val)
-		}
-	} else {
-		body.Links = []*ProjectLinkResponseBody{}
-	}
-	return body
-}
-
 // NewCreateProjectFolderResponseBody builds the HTTP response body from the
 // result of the "create-project-folder" endpoint of the "project-service"
 // service.
@@ -1713,22 +1624,6 @@ func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult)
 		CreatedByUsername: res.Folder.CreatedByUsername,
 		CreatedAt:         res.Folder.CreatedAt,
 		UpdatedAt:         res.Folder.UpdatedAt,
-	}
-	return body
-}
-
-// NewListProjectFoldersResponseBody builds the HTTP response body from the
-// result of the "list-project-folders" endpoint of the "project-service"
-// service.
-func NewListProjectFoldersResponseBody(res *projectservice.ListProjectFoldersResult) *ListProjectFoldersResponseBody {
-	body := &ListProjectFoldersResponseBody{}
-	if res.Folders != nil {
-		body.Folders = make([]*ProjectFolderResponseBody, len(res.Folders))
-		for i, val := range res.Folders {
-			body.Folders[i] = marshalProjectserviceProjectFolderToProjectFolderResponseBody(val)
-		}
-	} else {
-		body.Folders = []*ProjectFolderResponseBody{}
 	}
 	return body
 }
@@ -2138,39 +2033,6 @@ func NewGetProjectLinkServiceUnavailableResponseBody(res *projectservice.Service
 	return body
 }
 
-// NewListProjectLinksInternalServerErrorResponseBody builds the HTTP response
-// body from the result of the "list-project-links" endpoint of the
-// "project-service" service.
-func NewListProjectLinksInternalServerErrorResponseBody(res *projectservice.InternalServerError) *ListProjectLinksInternalServerErrorResponseBody {
-	body := &ListProjectLinksInternalServerErrorResponseBody{
-		Code:    res.Code,
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListProjectLinksNotFoundResponseBody builds the HTTP response body from
-// the result of the "list-project-links" endpoint of the "project-service"
-// service.
-func NewListProjectLinksNotFoundResponseBody(res *projectservice.NotFoundError) *ListProjectLinksNotFoundResponseBody {
-	body := &ListProjectLinksNotFoundResponseBody{
-		Code:    res.Code,
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListProjectLinksServiceUnavailableResponseBody builds the HTTP response
-// body from the result of the "list-project-links" endpoint of the
-// "project-service" service.
-func NewListProjectLinksServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *ListProjectLinksServiceUnavailableResponseBody {
-	body := &ListProjectLinksServiceUnavailableResponseBody{
-		Code:    res.Code,
-		Message: res.Message,
-	}
-	return body
-}
-
 // NewDeleteProjectLinkBadRequestResponseBody builds the HTTP response body
 // from the result of the "delete-project-link" endpoint of the
 // "project-service" service.
@@ -2308,39 +2170,6 @@ func NewGetProjectFolderNotFoundResponseBody(res *projectservice.NotFoundError) 
 // "project-service" service.
 func NewGetProjectFolderServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *GetProjectFolderServiceUnavailableResponseBody {
 	body := &GetProjectFolderServiceUnavailableResponseBody{
-		Code:    res.Code,
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListProjectFoldersInternalServerErrorResponseBody builds the HTTP
-// response body from the result of the "list-project-folders" endpoint of the
-// "project-service" service.
-func NewListProjectFoldersInternalServerErrorResponseBody(res *projectservice.InternalServerError) *ListProjectFoldersInternalServerErrorResponseBody {
-	body := &ListProjectFoldersInternalServerErrorResponseBody{
-		Code:    res.Code,
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListProjectFoldersNotFoundResponseBody builds the HTTP response body from
-// the result of the "list-project-folders" endpoint of the "project-service"
-// service.
-func NewListProjectFoldersNotFoundResponseBody(res *projectservice.NotFoundError) *ListProjectFoldersNotFoundResponseBody {
-	body := &ListProjectFoldersNotFoundResponseBody{
-		Code:    res.Code,
-		Message: res.Message,
-	}
-	return body
-}
-
-// NewListProjectFoldersServiceUnavailableResponseBody builds the HTTP response
-// body from the result of the "list-project-folders" endpoint of the
-// "project-service" service.
-func NewListProjectFoldersServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *ListProjectFoldersServiceUnavailableResponseBody {
-	body := &ListProjectFoldersServiceUnavailableResponseBody{
 		Code:    res.Code,
 		Message: res.Message,
 	}
@@ -2802,17 +2631,6 @@ func NewGetProjectLinkPayload(uid string, linkUID string, version *string, beare
 	return v
 }
 
-// NewListProjectLinksPayload builds a project-service service
-// list-project-links endpoint payload.
-func NewListProjectLinksPayload(uid string, version *string, bearerToken *string) *projectservice.ListProjectLinksPayload {
-	v := &projectservice.ListProjectLinksPayload{}
-	v.UID = uid
-	v.Version = version
-	v.BearerToken = bearerToken
-
-	return v
-}
-
 // NewDeleteProjectLinkPayload builds a project-service service
 // delete-project-link endpoint payload.
 func NewDeleteProjectLinkPayload(uid string, linkUID string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.DeleteProjectLinkPayload {
@@ -2847,17 +2665,6 @@ func NewGetProjectFolderPayload(uid string, folderUID string, version *string, b
 	v := &projectservice.GetProjectFolderPayload{}
 	v.UID = uid
 	v.FolderUID = folderUID
-	v.Version = version
-	v.BearerToken = bearerToken
-
-	return v
-}
-
-// NewListProjectFoldersPayload builds a project-service service
-// list-project-folders endpoint payload.
-func NewListProjectFoldersPayload(uid string, version *string, bearerToken *string) *projectservice.ListProjectFoldersPayload {
-	v := &projectservice.ListProjectFoldersPayload{}
-	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
 

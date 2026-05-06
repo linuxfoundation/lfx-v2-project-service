@@ -55,21 +55,6 @@ func (s *ProjectsAPI) GetProjectFolder(ctx context.Context, payload *projsvc.Get
 	}, nil
 }
 
-// ListProjectFolders lists all folders for a project.
-func (s *ProjectsAPI) ListProjectFolders(ctx context.Context, payload *projsvc.ListProjectFoldersPayload) (*projsvc.ListProjectFoldersResult, error) {
-	folders, err := s.service.ListFolders(ctx, payload.UID)
-	if err != nil {
-		return nil, handleError(err)
-	}
-
-	result := make([]*projsvc.ProjectFolder, 0, len(folders))
-	for _, f := range folders {
-		result = append(result, toServiceFolder(f))
-	}
-
-	return &projsvc.ListProjectFoldersResult{Folders: result}, nil
-}
-
 // DeleteProjectFolder deletes a project folder.
 func (s *ProjectsAPI) DeleteProjectFolder(ctx context.Context, payload *projsvc.DeleteProjectFolderPayload) error {
 	xSync := false

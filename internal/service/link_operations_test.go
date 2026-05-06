@@ -178,69 +178,6 @@ func TestProjectsService_GetLink(t *testing.T) {
 	}
 }
 
-func TestProjectsService_ListLinks(t *testing.T) {
-	now := time.Now()
-
-	tests := []struct {
-		name           string
-		projectUID     string
-		setupMocks     func(*domain.MockProjectRepository, *domain.MockLinkRepository)
-		expectedLength int
-		wantErr        error
-	}{
-		{
-			name:       "success with links",
-			projectUID: "proj-1",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockLink *domain.MockLinkRepository) {
-				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
-				mockLink.On("ListLinks", mock.Anything, "proj-1").Return([]*models.ProjectLink{
-					{UID: "link-1", ProjectUID: "proj-1", Name: "L1", URL: "https://example.com", CreatedAt: now, UpdatedAt: now},
-					{UID: "link-2", ProjectUID: "proj-1", Name: "L2", URL: "https://example2.com", CreatedAt: now, UpdatedAt: now},
-				}, nil)
-			},
-			expectedLength: 2,
-		},
-		{
-			name:       "success with no links",
-			projectUID: "proj-1",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockLink *domain.MockLinkRepository) {
-				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
-				mockLink.On("ListLinks", mock.Anything, "proj-1").Return([]*models.ProjectLink{}, nil)
-			},
-			expectedLength: 0,
-		},
-		{
-			name:       "project not found",
-			projectUID: "missing",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockLink *domain.MockLinkRepository) {
-				mockRepo.On("ProjectExists", mock.Anything, "missing").Return(false, nil)
-			},
-			wantErr: domain.ErrProjectNotFound,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc, mockRepo, _, _ := setupServiceForTesting()
-			mockLink := svc.LinkRepository.(*domain.MockLinkRepository)
-			tt.setupMocks(mockRepo, mockLink)
-
-			links, err := svc.ListLinks(context.Background(), tt.projectUID)
-
-			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
-				assert.Nil(t, links)
-			} else {
-				assert.NoError(t, err)
-				assert.Len(t, links, tt.expectedLength)
-			}
-
-			mockRepo.AssertExpectations(t)
-			mockLink.AssertExpectations(t)
-		})
-	}
-}
-
 func TestProjectsService_DeleteLink(t *testing.T) {
 	tests := []struct {
 		name       string
