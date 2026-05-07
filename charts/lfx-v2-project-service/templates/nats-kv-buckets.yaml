@@ -6,7 +6,7 @@ apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue
 metadata:
   name: {{ .Values.nats.kv_bucket_project_base.name }}
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
   {{- if .Values.nats.kv_bucket_project_base.keep }}
   annotations:
     "helm.sh/resource-policy": keep
@@ -28,7 +28,7 @@ apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue
 metadata:
   name: {{ .Values.nats.kv_bucket_project_settings.name }}
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
   {{- if .Values.nats.kv_bucket_project_settings.keep }}
   annotations:
     "helm.sh/resource-policy": keep
@@ -50,7 +50,7 @@ apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue
 metadata:
   name: {{ .Values.nats.kv_bucket_project_links.name }}
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
   {{- if .Values.nats.kv_bucket_project_links.keep }}
   annotations:
     "helm.sh/resource-policy": keep
@@ -72,7 +72,7 @@ apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue
 metadata:
   name: {{ .Values.nats.kv_bucket_project_folders.name }}
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
   {{- if .Values.nats.kv_bucket_project_folders.keep }}
   annotations:
     "helm.sh/resource-policy": keep
@@ -94,7 +94,7 @@ apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue
 metadata:
   name: {{ .Values.nats.kv_bucket_project_documents.name }}
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
   {{- if .Values.nats.kv_bucket_project_documents.keep }}
   annotations:
     "helm.sh/resource-policy": keep

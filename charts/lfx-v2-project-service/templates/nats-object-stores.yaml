@@ -6,7 +6,7 @@ apiVersion: jetstream.nats.io/v1beta2
 kind: ObjectStore
 metadata:
   name: {{ .Values.nats.object_store_project_documents.name }}
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
   {{- if .Values.nats.object_store_project_documents.keep }}
   annotations:
     "helm.sh/resource-policy": keep
