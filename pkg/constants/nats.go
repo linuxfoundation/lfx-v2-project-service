@@ -14,7 +14,7 @@ const (
 	// KVStoreNameProjectLinks is the name of the KV store for project links.
 	KVStoreNameProjectLinks = "project-links"
 
-	// KVStoreNameProjectFolders is the name of the KV store for project link folders.
+	// KVStoreNameProjectFolders is the name of the KV store for project folders.
 	KVStoreNameProjectFolders = "project-folders"
 
 	// KVStoreNameProjectDocuments is the name of the KV store for project document metadata.
