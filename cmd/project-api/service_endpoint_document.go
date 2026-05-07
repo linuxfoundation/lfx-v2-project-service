@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
@@ -119,19 +120,29 @@ func (b *documentDownloadBody) Read(p []byte) (n int, err error) {
 
 func (b *documentDownloadBody) Close() error { return nil }
 
+// WriteTo is called by Goa's transport layer (server.go NewDownloadProjectDocumentHandler) after the
+// no-op EncodeDownloadProjectDocumentResponse returns. Because that encoder never calls WriteHeader,
+// the headers set here are guaranteed to arrive before the implicit WriteHeader(200) that Go's
+// http.ResponseWriter triggers on the first w.Write call.
 func (b *documentDownloadBody) WriteTo(w io.Writer) (int64, error) {
 	if hw, ok := w.(http.ResponseWriter); ok {
 		if b.contentType != "" {
 			hw.Header().Set("Content-Type", b.contentType)
 		}
 		if b.fileName != "" {
-			safeName := strings.Map(func(r rune) rune {
-				if r == '"' || r == '\\' || r == '\n' || r == '\r' {
+			// ASCII fallback: strip non-ASCII and chars illegal inside quoted-string.
+			asciiFallback := strings.Map(func(r rune) rune {
+				if r > 127 || r == '"' || r == '\\' || r == '\n' || r == '\r' {
 					return '_'
 				}
 				return r
 			}, b.fileName)
-			hw.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safeName))
+			// RFC 6266 dual form: legacy agents use filename="…", modern agents prefer filename*=UTF-8''…
+			hw.Header().Set("Content-Disposition", fmt.Sprintf(
+				`attachment; filename="%s"; filename*=UTF-8''%s`,
+				asciiFallback,
+				url.PathEscape(b.fileName),
+			))
 		}
 	}
 	n, err := w.Write(b.data)

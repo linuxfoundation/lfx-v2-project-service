@@ -4,12 +4,14 @@
 package main
 
 import (
-	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"mime/multipart"
+	"net/http"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
@@ -45,7 +47,8 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 				return err
 			}
 			if int64(len(data)) > maxTextPartSize {
-				return fmt.Errorf("field 'name' exceeds maximum length of %d bytes", maxTextPartSize)
+				slog.Warn("multipart field exceeds max size", "field", "name", "max_bytes", maxTextPartSize)
+				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 			}
 			payload.Name = string(data)
 
@@ -55,7 +58,8 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 				return err
 			}
 			if int64(len(data)) > maxTextPartSize {
-				return fmt.Errorf("field 'description' exceeds maximum length of %d bytes", maxTextPartSize)
+				slog.Warn("multipart field exceeds max size", "field", "description", "max_bytes", maxTextPartSize)
+				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 			}
 			s := string(data)
 			payload.Description = &s
@@ -66,7 +70,8 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 				return err
 			}
 			if int64(len(data)) > maxTextPartSize {
-				return fmt.Errorf("field 'folder_uid' exceeds maximum length of %d bytes", maxTextPartSize)
+				slog.Warn("multipart field exceeds max size", "field", "folder_uid", "max_bytes", maxTextPartSize)
+				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 			}
 			if s := string(data); s != "" {
 				payload.FolderUID = &s
@@ -78,7 +83,8 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 				return err
 			}
 			if int64(len(data)) > maxTextPartSize {
-				return fmt.Errorf("field 'file_name' exceeds maximum length of %d bytes", maxTextPartSize)
+				slog.Warn("multipart field exceeds max size", "field", "file_name", "max_bytes", maxTextPartSize)
+				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 			}
 			payload.FileName = string(data)
 
@@ -88,7 +94,8 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 				return err
 			}
 			if int64(len(data)) > maxTextPartSize {
-				return fmt.Errorf("field 'content_type' exceeds maximum length of %d bytes", maxTextPartSize)
+				slog.Warn("multipart field exceeds max size", "field", "content_type", "max_bytes", maxTextPartSize)
+				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
 			}
 			if ct, _, err := mime.ParseMediaType(string(data)); err == nil {
 				payload.ContentType = ct

@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,11 +41,29 @@ func (s *ProjectsService) UploadDocument(
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 
+	if len(fileData) == 0 {
+		return nil, domain.ErrValidationFailed
+	}
 	if !models.AllowedDocumentContentTypes[contentType] {
 		return nil, domain.ErrInvalidContentType
 	}
 	if int64(len(fileData)) > models.MaxDocumentFileSize {
 		return nil, domain.ErrFileTooLarge
+	}
+
+	// Sniff actual content type as layered defence against client-supplied MIME spoofing.
+	sniffed := http.DetectContentType(fileData)
+	if idx := strings.Index(sniffed, ";"); idx != -1 {
+		sniffed = strings.TrimSpace(sniffed[:idx])
+	}
+	switch {
+	case models.AllowedDocumentContentTypes[sniffed]:
+		contentType = sniffed
+	case sniffed == "application/octet-stream":
+		// Cannot reliably detect format (e.g. .doc, .xls, .ppt). Keep declared type.
+	default:
+		slog.WarnContext(ctx, "sniffed content type not in allowlist", "sniffed", sniffed, "declared", contentType)
+		return nil, domain.ErrInvalidContentType
 	}
 
 	exists, err := s.ProjectRepository.ProjectExists(ctx, projectUID)

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	neturl "net/url"
 	"strconv"
 	"time"
 
@@ -27,6 +28,11 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 	}
 
 	if name == "" {
+		return nil, domain.ErrValidationFailed
+	}
+
+	parsed, parseErr := neturl.Parse(url)
+	if parseErr != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
 		return nil, domain.ErrValidationFailed
 	}
 

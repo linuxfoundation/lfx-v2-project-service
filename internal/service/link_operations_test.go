@@ -95,6 +95,33 @@ func TestProjectsService_CreateLink(t *testing.T) {
 			},
 			wantErr: domain.ErrValidationFailed,
 		},
+		{
+			name:       "non-http scheme rejected",
+			projectUID: "proj-1",
+			linkName:   "Malicious",
+			url:        "javascript:alert(1)",
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockLink *domain.MockLinkRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:       "relative URL rejected",
+			projectUID: "proj-1",
+			linkName:   "Relative",
+			url:        "/some/path",
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockLink *domain.MockLinkRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
+		{
+			name:       "empty URL rejected",
+			projectUID: "proj-1",
+			linkName:   "Empty",
+			url:        "",
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockLink *domain.MockLinkRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			},
+			wantErr: domain.ErrValidationFailed,
+		},
 	}
 
 	for _, tt := range tests {
