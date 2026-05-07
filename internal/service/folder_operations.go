@@ -168,15 +168,23 @@ func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUI
 		return err
 	}
 
+	deleteMsg := indexerTypes.IndexerMessageEnvelope{
+		Action: indexerConstants.ActionDeleted,
+		Data:   folderUID,
+		IndexingConfig: (&models.ProjectFolder{
+			UID:        folderUID,
+			ProjectUID: projectUID,
+		}).IndexingConfig(),
+	}
 	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, folderUID, true); err != nil {
+		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, deleteMsg, true); err != nil {
 			slog.WarnContext(ctx, "error sending folder delete indexer message", constants.ErrKey, err)
 			return err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
 		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectFolderSubject, folderUID, false); err != nil {
+			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectFolderSubject, deleteMsg, false); err != nil {
 				slog.WarnContext(bgCtx, "error sending folder delete indexer message", constants.ErrKey, err)
 			}
 		}()

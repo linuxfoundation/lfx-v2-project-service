@@ -595,7 +595,7 @@ func ResourceTimestampAttribute(field string) {
 var ProjectLink = Type("ProjectLink", func() {
 	Description("A URL bookmark associated with a project.")
 	ResourceUIDAttribute("uid", "Link UID")
-	ProjectUIDAttribute()
+	ResourceUIDAttribute("project_uid", "Project UID this link belongs to")
 	ResourceUIDAttribute("folder_uid", "Folder UID that this link belongs to (optional)")
 	ResourceNameAttribute("name", "Link display name")
 	Attribute("url", String, "The URL of the link", func() {
@@ -616,7 +616,7 @@ var ProjectLink = Type("ProjectLink", func() {
 var ProjectFolder = Type("ProjectFolder", func() {
 	Description("An organizational folder for project links and documents.")
 	ResourceUIDAttribute("uid", "Folder UID")
-	ProjectUIDAttribute()
+	ResourceUIDAttribute("project_uid", "Project UID this folder belongs to")
 	ResourceNameAttribute("name", "Folder display name")
 	ResourceCreatedByAttribute("created_by_username")
 	ResourceTimestampAttribute("created_at")

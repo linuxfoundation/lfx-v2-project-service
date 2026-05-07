@@ -219,14 +219,22 @@ func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, docume
 		}
 	}()
 
+	deleteMsg := indexerTypes.IndexerMessageEnvelope{
+		Action: indexerConstants.ActionDeleted,
+		Data:   documentUID,
+		IndexingConfig: (&models.ProjectDocument{
+			UID:        documentUID,
+			ProjectUID: projectUID,
+		}).IndexingConfig(),
+	}
 	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, documentUID, true); err != nil {
+		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, deleteMsg, true); err != nil {
 			slog.WarnContext(ctx, "error sending document delete indexer message", constants.ErrKey, err)
 			return err
 		}
 	} else {
 		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, documentUID, false); err != nil {
+			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectDocumentSubject, deleteMsg, false); err != nil {
 				slog.WarnContext(bgCtx, "error sending document delete indexer message", constants.ErrKey, err)
 			}
 		}()

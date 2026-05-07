@@ -2600,33 +2600,10 @@ func DecodeDownloadProjectDocumentResponse(decoder func(*http.Response) goahttp.
 			defer func() {
 				resp.Body = io.NopCloser(bytes.NewBuffer(b))
 			}()
-		} else {
-			defer resp.Body.Close()
 		}
 		switch resp.StatusCode {
 		case http.StatusOK:
-			var (
-				body []byte
-				err  error
-			)
-			err = decoder(resp).Decode(&body)
-			if err != nil {
-				return nil, goahttp.ErrDecodingError("project-service", "download-project-document", err)
-			}
-			var (
-				contentType        *string
-				contentDisposition *string
-			)
-			contentTypeRaw := resp.Header.Get("Content-Type")
-			if contentTypeRaw != "" {
-				contentType = &contentTypeRaw
-			}
-			contentDispositionRaw := resp.Header.Get("Content-Disposition")
-			if contentDispositionRaw != "" {
-				contentDisposition = &contentDispositionRaw
-			}
-			res := NewDownloadProjectDocumentResultOK(body, contentType, contentDisposition)
-			return res, nil
+			return nil, nil
 		case http.StatusInternalServerError:
 			var (
 				body DownloadProjectDocumentInternalServerErrorResponseBody

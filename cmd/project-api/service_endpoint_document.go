@@ -6,6 +6,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -81,18 +84,57 @@ func (s *ProjectsAPI) GetProjectDocument(ctx context.Context, payload *projsvc.G
 }
 
 // DownloadProjectDocument streams the document binary.
-func (s *ProjectsAPI) DownloadProjectDocument(ctx context.Context, payload *projsvc.DownloadProjectDocumentPayload) (*projsvc.DownloadProjectDocumentResult, error) {
+func (s *ProjectsAPI) DownloadProjectDocument(ctx context.Context, payload *projsvc.DownloadProjectDocumentPayload) (io.ReadCloser, error) {
 	fileData, doc, err := s.service.GetDocumentFile(ctx, payload.UID, payload.DocumentUID)
 	if err != nil {
 		return nil, handleError(err)
 	}
 
-	disposition := fmt.Sprintf("attachment; filename=%q", doc.FileName)
-	return &projsvc.DownloadProjectDocumentResult{
-		Content:            fileData,
-		ContentType:        &doc.ContentType,
-		ContentDisposition: &disposition,
+	return &documentDownloadBody{
+		data:        fileData,
+		contentType: doc.ContentType,
+		fileName:    doc.FileName,
 	}, nil
+}
+
+// documentDownloadBody is an io.ReadCloser that also implements io.WriterTo.
+// Goa calls WriteTo(w) with the http.ResponseWriter when SkipResponseBodyEncodeDecode
+// is set, so headers are written before the body without touching generated code.
+type documentDownloadBody struct {
+	data        []byte
+	contentType string
+	fileName    string
+	offset      int
+}
+
+func (b *documentDownloadBody) Read(p []byte) (n int, err error) {
+	if b.offset >= len(b.data) {
+		return 0, io.EOF
+	}
+	n = copy(p, b.data[b.offset:])
+	b.offset += n
+	return n, nil
+}
+
+func (b *documentDownloadBody) Close() error { return nil }
+
+func (b *documentDownloadBody) WriteTo(w io.Writer) (int64, error) {
+	if hw, ok := w.(http.ResponseWriter); ok {
+		if b.contentType != "" {
+			hw.Header().Set("Content-Type", b.contentType)
+		}
+		if b.fileName != "" {
+			safeName := strings.Map(func(r rune) rune {
+				if r == '"' || r == '\\' || r == '\n' || r == '\r' {
+					return '_'
+				}
+				return r
+			}, b.fileName)
+			hw.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, safeName))
+		}
+	}
+	n, err := w.Write(b.data)
+	return int64(n), err
 }
 
 // DeleteProjectDocument deletes a project document.

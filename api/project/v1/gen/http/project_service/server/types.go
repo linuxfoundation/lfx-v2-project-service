@@ -351,8 +351,10 @@ type UpdateProjectSettingsResponseBody struct {
 // CreateProjectLinkResponseBody is the type of the "project-service" service
 // "create-project-link" endpoint HTTP response body.
 type CreateProjectLinkResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Link UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this link belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this link belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Link display name
@@ -376,8 +378,10 @@ type GetProjectLinkResponseBody ProjectLinkResponseBody
 // CreateProjectFolderResponseBody is the type of the "project-service" service
 // "create-project-folder" endpoint HTTP response body.
 type CreateProjectFolderResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Folder UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this folder belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Username of the principal who created this resource
@@ -1261,8 +1265,10 @@ type ProjectSettingsResponseBody struct {
 
 // ProjectLinkResponseBody is used to define fields on response body types.
 type ProjectLinkResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Link UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this link belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this link belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Link display name
@@ -1281,8 +1287,10 @@ type ProjectLinkResponseBody struct {
 
 // ProjectFolderResponseBody is used to define fields on response body types.
 type ProjectFolderResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Folder UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this folder belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Username of the principal who created this resource
@@ -1574,6 +1582,7 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 func NewCreateProjectLinkResponseBody(res *projectservice.ProjectLink) *CreateProjectLinkResponseBody {
 	body := &CreateProjectLinkResponseBody{
 		UID:               res.UID,
+		ProjectUID:        res.ProjectUID,
 		FolderUID:         res.FolderUID,
 		Name:              res.Name,
 		URL:               res.URL,
@@ -1590,6 +1599,7 @@ func NewCreateProjectLinkResponseBody(res *projectservice.ProjectLink) *CreatePr
 func NewGetProjectLinkResponseBody(res *projectservice.GetProjectLinkResult) *GetProjectLinkResponseBody {
 	body := &GetProjectLinkResponseBody{
 		UID:               res.Link.UID,
+		ProjectUID:        res.Link.ProjectUID,
 		FolderUID:         res.Link.FolderUID,
 		Name:              res.Link.Name,
 		URL:               res.Link.URL,
@@ -1607,6 +1617,7 @@ func NewGetProjectLinkResponseBody(res *projectservice.GetProjectLinkResult) *Ge
 func NewCreateProjectFolderResponseBody(res *projectservice.ProjectFolder) *CreateProjectFolderResponseBody {
 	body := &CreateProjectFolderResponseBody{
 		UID:               res.UID,
+		ProjectUID:        res.ProjectUID,
 		Name:              res.Name,
 		CreatedByUsername: res.CreatedByUsername,
 		CreatedAt:         res.CreatedAt,
@@ -1620,6 +1631,7 @@ func NewCreateProjectFolderResponseBody(res *projectservice.ProjectFolder) *Crea
 func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult) *GetProjectFolderResponseBody {
 	body := &GetProjectFolderResponseBody{
 		UID:               res.Folder.UID,
+		ProjectUID:        res.Folder.ProjectUID,
 		Name:              res.Folder.Name,
 		CreatedByUsername: res.Folder.CreatedByUsername,
 		CreatedAt:         res.Folder.CreatedAt,

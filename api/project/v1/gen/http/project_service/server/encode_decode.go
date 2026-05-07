@@ -2177,18 +2177,7 @@ func EncodeGetProjectDocumentError(encoder func(context.Context, http.ResponseWr
 // returned by the project-service download-project-document endpoint.
 func EncodeDownloadProjectDocumentResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*projectservice.DownloadProjectDocumentResult)
-		ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/octet-stream")
-		enc := encoder(ctx, w)
-		body := res.Content
-		if res.ContentType != nil {
-			w.Header().Set("Content-Type", *res.ContentType)
-		}
-		if res.ContentDisposition != nil {
-			w.Header().Set("Content-Disposition", *res.ContentDisposition)
-		}
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
+		return nil
 	}
 }
 

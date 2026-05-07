@@ -121,13 +121,6 @@ var _ = Service("project-service", func() {
 			Required("uid", "document_uid")
 		})
 
-		Result(func() {
-			Attribute("content", Bytes, "File binary content")
-			Attribute("content_type", String, "MIME type of the file")
-			Attribute("content_disposition", String, "Content-Disposition header")
-			Required("content")
-		})
-
 		Error("NotFound", NotFoundError, "Resource not found")
 		Error("InternalServerError", InternalServerError, "Internal server error")
 		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
@@ -140,12 +133,8 @@ var _ = Service("project-service", func() {
 				Param("document_uid")
 			})
 			Header("bearer_token:Authorization")
-			Response(StatusOK, func() {
-				ContentType("application/octet-stream")
-				Header("content_type:Content-Type")
-				Header("content_disposition:Content-Disposition")
-				Body("content")
-			})
+			SkipResponseBodyEncodeDecode()
+			Response(StatusOK)
 			Response("NotFound", StatusNotFound)
 			Response("InternalServerError", StatusInternalServerError)
 			Response("ServiceUnavailable", StatusServiceUnavailable)

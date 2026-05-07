@@ -11,6 +11,7 @@ package projectservice
 
 import (
 	"context"
+	"io"
 
 	"goa.design/goa/v3/security"
 )
@@ -52,7 +53,11 @@ type Service interface {
 	// Get project document metadata.
 	GetProjectDocument(context.Context, *GetProjectDocumentPayload) (res *GetProjectDocumentResult, err error)
 	// Download the binary file of a project document.
-	DownloadProjectDocument(context.Context, *DownloadProjectDocumentPayload) (res *DownloadProjectDocumentResult, err error)
+
+	// If body implements [io.WriterTo], that implementation will be used instead.
+	// Consider [goa.design/goa/v3/pkg.SkipResponseWriter] to adapt existing
+	// implementations.
+	DownloadProjectDocument(context.Context, *DownloadProjectDocumentPayload) (body io.ReadCloser, err error)
 	// Delete a project document.
 	DeleteProjectDocument(context.Context, *DeleteProjectDocumentPayload) (err error)
 }
@@ -277,17 +282,6 @@ type DownloadProjectDocumentPayload struct {
 	DocumentUID string
 }
 
-// DownloadProjectDocumentResult is the result type of the project-service
-// service download-project-document method.
-type DownloadProjectDocumentResult struct {
-	// File binary content
-	Content []byte
-	// MIME type of the file
-	ContentType *string
-	// Content-Disposition header
-	ContentDisposition *string
-}
-
 // GetOneProjectBasePayload is the payload type of the project-service service
 // get-one-project-base method.
 type GetOneProjectBasePayload struct {
@@ -502,8 +496,10 @@ type ProjectDocument struct {
 // ProjectFolder is the result type of the project-service service
 // create-project-folder method.
 type ProjectFolder struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Folder UID
 	UID *string
+	// Project UID this folder belongs to
+	ProjectUID *string
 	// Folder display name
 	Name *string
 	// Username of the principal who created this resource
@@ -586,8 +582,10 @@ type ProjectFull struct {
 // ProjectLink is the result type of the project-service service
 // create-project-link method.
 type ProjectLink struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Link UID
 	UID *string
+	// Project UID this link belongs to
+	ProjectUID *string
 	// Folder UID that this link belongs to (optional)
 	FolderUID *string
 	// Link display name

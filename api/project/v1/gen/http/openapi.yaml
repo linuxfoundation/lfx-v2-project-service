@@ -602,8 +602,6 @@ paths:
             summary: download-project-document project-service
             description: Download the binary file of a project document.
             operationId: project-service#download-project-document
-            produces:
-                - application/octet-stream
             parameters:
                 - name: v
                   in: query
@@ -632,16 +630,6 @@ paths:
             responses:
                 "200":
                     description: OK response.
-                    schema:
-                        type: string
-                        format: byte
-                    headers:
-                        Content-Disposition:
-                            description: Content-Disposition header
-                            type: string
-                        Content-Type:
-                            description: MIME type of the file
-                            type: string
                 "404":
                     description: Not Found response.
                     schema:
@@ -1606,9 +1594,14 @@ definitions:
                 description: Folder display name
                 example: My Resource
                 minLength: 1
+            project_uid:
+                type: string
+                description: Project UID this folder belongs to
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
             uid:
                 type: string
-                description: Project UID -- v2 uid, not related to v1 id directly
+                description: Folder UID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 format: uuid
             updated_at:
@@ -1620,6 +1613,7 @@ definitions:
             created_at: "2024-01-01T00:00:00Z"
             created_by_username: johndoe
             name: My Resource
+            project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2024-01-01T00:00:00Z"
     ProjectFull:
@@ -1940,9 +1934,14 @@ definitions:
                 description: Link display name
                 example: My Resource
                 minLength: 1
+            project_uid:
+                type: string
+                description: Project UID this link belongs to
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
             uid:
                 type: string
-                description: Project UID -- v2 uid, not related to v1 id directly
+                description: Link UID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 format: uuid
             updated_at:
@@ -1961,6 +1960,7 @@ definitions:
             description: A description of the resource
             folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             name: My Resource
+            project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2024-01-01T00:00:00Z"
             url: https://example.com
@@ -2099,7 +2099,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Crowdfunding
+                    example: Membership
                     enum:
                         - Crowdfunding
                         - Membership
@@ -2726,144 +2726,6 @@ definitions:
                       email: bob.wilson@example.com
                       name: Bob Wilson
                       username: bobwilson101
-                - announcement_date: "2021-01-01"
-                  auditors:
-                    - avatar: https://example.com/avatar1.jpg
-                      email: john.doe@example.com
-                      name: John Doe
-                      username: johndoe123
-                    - avatar: https://example.com/avatar2.jpg
-                      email: jane.smith@example.com
-                      name: Jane Smith
-                      username: janesmith456
-                  autojoin_enabled: false
-                  category: Active
-                  charter_url: https://example.com/charter.pdf
-                  created_at: "2021-01-01T00:00:00Z"
-                  description: project foo is a project about bar
-                  entity_dissolution_date: "2021-12-31"
-                  entity_formation_document_url: https://example.com/formation.pdf
-                  executive_director:
-                    avatar: https://example.com/avatar.jpg
-                    email: jane.smith@example.com
-                    name: Jane Smith
-                    username: janesmith456
-                  formation_date: "2021-01-01"
-                  funding: Funded
-                  funding_model:
-                    - Crowdfunding
-                  is_foundation: false
-                  legal_entity_name: Example Foundation LLC
-                  legal_entity_type: Subproject
-                  legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  logo_url: https://example.com/logo.png
-                  meeting_coordinators:
-                    - avatar: https://example.com/avatar1.jpg
-                      email: john.doe@example.com
-                      name: John Doe
-                      username: johndoe123
-                    - avatar: https://example.com/avatar2.jpg
-                      email: jane.smith@example.com
-                      name: Jane Smith
-                      username: janesmith456
-                  mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                  name: Foo Foundation
-                  opportunity_owner:
-                    avatar: https://example.com/avatar.jpg
-                    email: jane.smith@example.com
-                    name: Jane Smith
-                    username: janesmith456
-                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  program_manager:
-                    avatar: https://example.com/avatar.jpg
-                    email: jane.smith@example.com
-                    name: Jane Smith
-                    username: janesmith456
-                  public: true
-                  repository_url: https://example.com/project
-                  slug: project-slug
-                  stage: Formation - Exploratory
-                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  updated_at: "2021-01-01T00:00:00Z"
-                  website_url: https://example.com
-                  writers:
-                    - avatar: https://example.com/avatar3.jpg
-                      email: alice.johnson@example.com
-                      name: Alice Johnson
-                      username: alicejohnson789
-                    - avatar: https://example.com/avatar4.jpg
-                      email: bob.wilson@example.com
-                      name: Bob Wilson
-                      username: bobwilson101
-                - announcement_date: "2021-01-01"
-                  auditors:
-                    - avatar: https://example.com/avatar1.jpg
-                      email: john.doe@example.com
-                      name: John Doe
-                      username: johndoe123
-                    - avatar: https://example.com/avatar2.jpg
-                      email: jane.smith@example.com
-                      name: Jane Smith
-                      username: janesmith456
-                  autojoin_enabled: false
-                  category: Active
-                  charter_url: https://example.com/charter.pdf
-                  created_at: "2021-01-01T00:00:00Z"
-                  description: project foo is a project about bar
-                  entity_dissolution_date: "2021-12-31"
-                  entity_formation_document_url: https://example.com/formation.pdf
-                  executive_director:
-                    avatar: https://example.com/avatar.jpg
-                    email: jane.smith@example.com
-                    name: Jane Smith
-                    username: janesmith456
-                  formation_date: "2021-01-01"
-                  funding: Funded
-                  funding_model:
-                    - Crowdfunding
-                  is_foundation: false
-                  legal_entity_name: Example Foundation LLC
-                  legal_entity_type: Subproject
-                  legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  logo_url: https://example.com/logo.png
-                  meeting_coordinators:
-                    - avatar: https://example.com/avatar1.jpg
-                      email: john.doe@example.com
-                      name: John Doe
-                      username: johndoe123
-                    - avatar: https://example.com/avatar2.jpg
-                      email: jane.smith@example.com
-                      name: Jane Smith
-                      username: janesmith456
-                  mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                  name: Foo Foundation
-                  opportunity_owner:
-                    avatar: https://example.com/avatar.jpg
-                    email: jane.smith@example.com
-                    name: Jane Smith
-                    username: janesmith456
-                  parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  program_manager:
-                    avatar: https://example.com/avatar.jpg
-                    email: jane.smith@example.com
-                    name: Jane Smith
-                    username: janesmith456
-                  public: true
-                  repository_url: https://example.com/project
-                  slug: project-slug
-                  stage: Formation - Exploratory
-                  uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  updated_at: "2021-01-01T00:00:00Z"
-                  website_url: https://example.com
-                  writers:
-                    - avatar: https://example.com/avatar3.jpg
-                      email: alice.johnson@example.com
-                      name: Alice Johnson
-                      username: alicejohnson789
-                    - avatar: https://example.com/avatar4.jpg
-                      email: bob.wilson@example.com
-                      name: Bob Wilson
-                      username: bobwilson101
         required:
             - projects
     ProjectServiceUpdateProjectBaseRequestBody:
@@ -2936,7 +2798,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Membership
+                    example: Crowdfunding
                     enum:
                         - Crowdfunding
                         - Membership

@@ -351,8 +351,10 @@ type UpdateProjectSettingsResponseBody struct {
 // CreateProjectLinkResponseBody is the type of the "project-service" service
 // "create-project-link" endpoint HTTP response body.
 type CreateProjectLinkResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Link UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this link belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this link belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Link display name
@@ -376,8 +378,10 @@ type GetProjectLinkResponseBody ProjectLinkResponseBody
 // CreateProjectFolderResponseBody is the type of the "project-service" service
 // "create-project-folder" endpoint HTTP response body.
 type CreateProjectFolderResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Folder UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this folder belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Username of the principal who created this resource
@@ -1273,8 +1277,10 @@ type ProjectSettingsResponseBody struct {
 
 // ProjectLinkResponseBody is used to define fields on response body types.
 type ProjectLinkResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Link UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this link belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this link belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Link display name
@@ -1293,8 +1299,10 @@ type ProjectLinkResponseBody struct {
 
 // ProjectFolderResponseBody is used to define fields on response body types.
 type ProjectFolderResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Folder UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this folder belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// Username of the principal who created this resource
@@ -2051,6 +2059,7 @@ func NewReadyzServiceUnavailable(body *ReadyzServiceUnavailableResponseBody) *pr
 func NewCreateProjectLinkProjectLinkCreated(body *CreateProjectLinkResponseBody) *projectservice.ProjectLink {
 	v := &projectservice.ProjectLink{
 		UID:               body.UID,
+		ProjectUID:        body.ProjectUID,
 		FolderUID:         body.FolderUID,
 		Name:              body.Name,
 		URL:               body.URL,
@@ -2112,6 +2121,7 @@ func NewCreateProjectLinkServiceUnavailable(body *CreateProjectLinkServiceUnavai
 func NewGetProjectLinkResultOK(body *GetProjectLinkResponseBody, etag *string) *projectservice.GetProjectLinkResult {
 	v := &projectservice.ProjectLink{
 		UID:               body.UID,
+		ProjectUID:        body.ProjectUID,
 		FolderUID:         body.FolderUID,
 		Name:              body.Name,
 		URL:               body.URL,
@@ -2222,6 +2232,7 @@ func NewDeleteProjectLinkServiceUnavailable(body *DeleteProjectLinkServiceUnavai
 func NewCreateProjectFolderProjectFolderCreated(body *CreateProjectFolderResponseBody) *projectservice.ProjectFolder {
 	v := &projectservice.ProjectFolder{
 		UID:               body.UID,
+		ProjectUID:        body.ProjectUID,
 		Name:              body.Name,
 		CreatedByUsername: body.CreatedByUsername,
 		CreatedAt:         body.CreatedAt,
@@ -2291,6 +2302,7 @@ func NewCreateProjectFolderServiceUnavailable(body *CreateProjectFolderServiceUn
 func NewGetProjectFolderResultOK(body *GetProjectFolderResponseBody, etag *string) *projectservice.GetProjectFolderResult {
 	v := &projectservice.ProjectFolder{
 		UID:               body.UID,
+		ProjectUID:        body.ProjectUID,
 		Name:              body.Name,
 		CreatedByUsername: body.CreatedByUsername,
 		CreatedAt:         body.CreatedAt,
@@ -2521,19 +2533,6 @@ func NewGetProjectDocumentServiceUnavailable(body *GetProjectDocumentServiceUnav
 	}
 
 	return v
-}
-
-// NewDownloadProjectDocumentResultOK builds a "project-service" service
-// "download-project-document" endpoint result from a HTTP "OK" response.
-func NewDownloadProjectDocumentResultOK(body []byte, contentType *string, contentDisposition *string) *projectservice.DownloadProjectDocumentResult {
-	v := body
-	res := &projectservice.DownloadProjectDocumentResult{
-		Content: v,
-	}
-	res.ContentType = contentType
-	res.ContentDisposition = contentDisposition
-
-	return res
 }
 
 // NewDownloadProjectDocumentInternalServerError builds a project-service
@@ -3003,6 +3002,9 @@ func ValidateCreateProjectLinkResponseBody(body *CreateProjectLinkResponseBody) 
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
 	if body.FolderUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
 	}
@@ -3028,6 +3030,9 @@ func ValidateCreateProjectLinkResponseBody(body *CreateProjectLinkResponseBody) 
 func ValidateGetProjectLinkResponseBody(body *GetProjectLinkResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
 	if body.FolderUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
@@ -3055,6 +3060,9 @@ func ValidateCreateProjectFolderResponseBody(body *CreateProjectFolderResponseBo
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
@@ -3074,6 +3082,9 @@ func ValidateCreateProjectFolderResponseBody(body *CreateProjectFolderResponseBo
 func ValidateGetProjectFolderResponseBody(body *GetProjectFolderResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
@@ -4226,6 +4237,9 @@ func ValidateProjectLinkResponseBody(body *ProjectLinkResponseBody) (err error) 
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
 	if body.FolderUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
 	}
@@ -4251,6 +4265,9 @@ func ValidateProjectLinkResponseBody(body *ProjectLinkResponseBody) (err error) 
 func ValidateProjectFolderResponseBody(body *ProjectFolderResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {

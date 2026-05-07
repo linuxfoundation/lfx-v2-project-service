@@ -566,7 +566,12 @@ func (c *Client) DownloadProjectDocument() goa.Endpoint {
 		if err != nil {
 			return nil, goahttp.ErrRequestError("project-service", "download-project-document", err)
 		}
-		return decodeResponse(resp)
+		_, err = decodeResponse(resp)
+		if err != nil {
+			resp.Body.Close()
+			return nil, err
+		}
+		return &projectservice.DownloadProjectDocumentResponseData{Body: resp.Body}, nil
 	}
 }
 

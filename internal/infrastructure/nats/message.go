@@ -102,7 +102,7 @@ func (m *MessageBuilder) sendIndexerMessage(
 		}
 	case indexerConstants.ActionDeleted:
 		// The data should just be a string of the UID being deleted.
-		payload = data
+		payload = string(data)
 	}
 
 	message := indexerTypes.IndexerMessageEnvelope{
@@ -128,10 +128,27 @@ func (m *MessageBuilder) sendIndexerMessage(
 func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
 	switch msg := message.(type) {
 	case indexerTypes.IndexerMessageEnvelope:
-		dataBytes, err := json.Marshal(msg.Data)
-		if err != nil {
-			slog.ErrorContext(ctx, "error marshalling message data into JSON", constants.ErrKey, err)
-			return err
+		var dataBytes []byte
+		if msg.Action == indexerConstants.ActionDeleted {
+			// For delete, Data is the UID string — pass as raw bytes so sendIndexerMessage
+			// can convert back to string without an extra JSON-encoding layer.
+			if uid, ok := msg.Data.(string); ok {
+				dataBytes = []byte(uid)
+			} else {
+				var err error
+				dataBytes, err = json.Marshal(msg.Data)
+				if err != nil {
+					slog.ErrorContext(ctx, "error marshalling message data into JSON", constants.ErrKey, err)
+					return err
+				}
+			}
+		} else {
+			var err error
+			dataBytes, err = json.Marshal(msg.Data)
+			if err != nil {
+				slog.ErrorContext(ctx, "error marshalling message data into JSON", constants.ErrKey, err)
+				return err
+			}
 		}
 		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, msg.IndexingConfig, sync)
 

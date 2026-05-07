@@ -10,7 +10,9 @@
 package server
 
 import (
+	"bufio"
 	"context"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"path"
@@ -1156,10 +1158,45 @@ func NewDownloadProjectDocumentHandler(
 			}
 			return
 		}
+		o := res.(*projectservice.DownloadProjectDocumentResponseData)
+		defer o.Body.Close()
+		if wt, ok := o.Body.(io.WriterTo); ok {
+			if err := encodeResponse(ctx, w, res); err != nil {
+				if errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
+			}
+			n, err := wt.WriteTo(w)
+			if err != nil {
+				if n == 0 {
+					if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+						errhandler(ctx, w, err)
+					}
+				} else {
+					http.NewResponseController(w).Flush()
+					panic(http.ErrAbortHandler) // too late to write an error
+				}
+			}
+			return
+		}
+		// handle immediate read error like a returned error
+		buf := bufio.NewReader(o.Body)
+		if _, err := buf.Peek(1); err != nil && err != io.EOF {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
 		if err := encodeResponse(ctx, w, res); err != nil {
 			if errhandler != nil {
 				errhandler(ctx, w, err)
 			}
+			return
+		}
+		if _, err := io.Copy(w, buf); err != nil {
+			http.NewResponseController(w).Flush()
+			panic(http.ErrAbortHandler) // too late to write an error
 		}
 	})
 }

@@ -151,15 +151,23 @@ func (s *ProjectsService) DeleteLink(ctx context.Context, projectUID, linkUID st
 		return err
 	}
 
+	deleteMsg := indexerTypes.IndexerMessageEnvelope{
+		Action: indexerConstants.ActionDeleted,
+		Data:   linkUID,
+		IndexingConfig: (&models.ProjectLink{
+			UID:        linkUID,
+			ProjectUID: projectUID,
+		}).IndexingConfig(),
+	}
 	if xSync {
-		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, linkUID, true); err != nil {
+		if err := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, deleteMsg, true); err != nil {
 			slog.WarnContext(ctx, "error sending link delete indexer message", constants.ErrKey, err)
 			return err
 		}
 	} else {
 		bgCtx := context.WithoutCancel(ctx)
 		go func() {
-			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, linkUID, false); err != nil {
+			if err := s.MessageBuilder.SendIndexerMessage(bgCtx, constants.IndexProjectLinkSubject, deleteMsg, false); err != nil {
 				slog.WarnContext(bgCtx, "error sending link delete indexer message", constants.ErrKey, err)
 			}
 		}()

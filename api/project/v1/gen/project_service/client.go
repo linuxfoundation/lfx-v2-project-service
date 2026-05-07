@@ -11,6 +11,7 @@ package projectservice
 
 import (
 	"context"
+	"io"
 
 	goa "goa.design/goa/v3/pkg"
 )
@@ -335,13 +336,14 @@ func (c *Client) GetProjectDocument(ctx context.Context, p *GetProjectDocumentPa
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
-func (c *Client) DownloadProjectDocument(ctx context.Context, p *DownloadProjectDocumentPayload) (res *DownloadProjectDocumentResult, err error) {
+func (c *Client) DownloadProjectDocument(ctx context.Context, p *DownloadProjectDocumentPayload) (resp io.ReadCloser, err error) {
 	var ires any
 	ires, err = c.DownloadProjectDocumentEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*DownloadProjectDocumentResult), nil
+	o := ires.(*DownloadProjectDocumentResponseData)
+	return o.Body, nil
 }
 
 // DeleteProjectDocument calls the "delete-project-document" endpoint of the

@@ -11,6 +11,7 @@ package projectservice
 
 import (
 	"context"
+	"io"
 
 	goa "goa.design/goa/v3/pkg"
 	"goa.design/goa/v3/security"
@@ -37,6 +38,13 @@ type Endpoints struct {
 	GetProjectDocument      goa.Endpoint
 	DownloadProjectDocument goa.Endpoint
 	DeleteProjectDocument   goa.Endpoint
+}
+
+// DownloadProjectDocumentResponseData holds both the result and the HTTP
+// response body reader of the "download-project-document" method.
+type DownloadProjectDocumentResponseData struct {
+	// Body streams the HTTP response body.
+	Body io.ReadCloser
 }
 
 // NewEndpoints wraps the methods of the "project-service" service with
@@ -471,7 +479,11 @@ func NewDownloadProjectDocumentEndpoint(s Service, authJWTFn security.AuthJWTFun
 		if err != nil {
 			return nil, err
 		}
-		return s.DownloadProjectDocument(ctx, p)
+		body, err := s.DownloadProjectDocument(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		return &DownloadProjectDocumentResponseData{Body: body}, nil
 	}
 }
 

@@ -16,12 +16,13 @@ func toServiceLink(l *models.ProjectLink) *projsvc.ProjectLink {
 		return nil
 	}
 	link := &projsvc.ProjectLink{
-		UID:       &l.UID,
-		FolderUID: l.FolderUID,
-		Name:      &l.Name,
-		URL:       &l.URL,
-		CreatedAt: misc.StringPtr(l.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
-		UpdatedAt: misc.StringPtr(l.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
+		UID:        &l.UID,
+		ProjectUID: &l.ProjectUID,
+		FolderUID:  l.FolderUID,
+		Name:       &l.Name,
+		URL:        &l.URL,
+		CreatedAt:  misc.StringPtr(l.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
+		UpdatedAt:  misc.StringPtr(l.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
 	if l.Description != "" {
 		link.Description = &l.Description

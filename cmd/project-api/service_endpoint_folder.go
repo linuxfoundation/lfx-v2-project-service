@@ -16,10 +16,11 @@ func toServiceFolder(f *models.ProjectFolder) *projsvc.ProjectFolder {
 		return nil
 	}
 	folder := &projsvc.ProjectFolder{
-		UID:       &f.UID,
-		Name:      &f.Name,
-		CreatedAt: misc.StringPtr(f.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
-		UpdatedAt: misc.StringPtr(f.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
+		UID:        &f.UID,
+		ProjectUID: &f.ProjectUID,
+		Name:       &f.Name,
+		CreatedAt:  misc.StringPtr(f.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
+		UpdatedAt:  misc.StringPtr(f.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
 	if f.CreatedByUsername != "" {
 		folder.CreatedByUsername = &f.CreatedByUsername
