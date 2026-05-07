@@ -33,6 +33,11 @@ func createResponse(code int, err error) error {
 			Code:    strconv.Itoa(code),
 			Message: err.Error(),
 		}
+	case http.StatusUnsupportedMediaType, http.StatusRequestEntityTooLarge:
+		return &projsvc.BadRequestError{
+			Code:    strconv.Itoa(code),
+			Message: err.Error(),
+		}
 	case http.StatusInternalServerError:
 		return &projsvc.InternalServerError{
 			Code:    strconv.Itoa(code),

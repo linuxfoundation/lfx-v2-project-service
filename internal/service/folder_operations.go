@@ -112,7 +112,7 @@ func (s *ProjectsService) GetFolder(ctx context.Context, projectUID, folderUID s
 }
 
 // DeleteFolder deletes a project folder with optimistic concurrency.
-// Returns ErrFolderNotEmpty if the folder still has links.
+// Returns ErrFolderNotEmpty if the folder still has links or documents.
 func (s *ProjectsService) DeleteFolder(ctx context.Context, projectUID, folderUID string, ifMatch *string, xSync bool) error {
 	if !s.ServiceReady() {
 		slog.ErrorContext(ctx, "service not ready")

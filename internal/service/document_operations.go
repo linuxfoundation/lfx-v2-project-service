@@ -55,7 +55,10 @@ func (s *ProjectsService) UploadDocument(
 		return nil, domain.ErrProjectNotFound
 	}
 
-	if folderUID != nil && *folderUID != "" {
+	if folderUID != nil && *folderUID == "" {
+		folderUID = nil
+	}
+	if folderUID != nil {
 		_, _, err := s.FolderRepository.GetFolder(ctx, projectUID, *folderUID)
 		if err != nil {
 			if errors.Is(err, domain.ErrFolderNotFound) {
