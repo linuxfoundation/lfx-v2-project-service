@@ -856,6 +856,7 @@ func EncodeUpdateProjectSettingsRequest(encoder func(*http.Request) goahttp.Enco
 // controls whether the response body should be restored after having been read.
 // DecodeUpdateProjectSettingsResponse may return the following errors:
 //   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
@@ -904,6 +905,20 @@ func DecodeUpdateProjectSettingsResponse(decoder func(*http.Response) goahttp.De
 				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
 			}
 			return nil, NewUpdateProjectSettingsBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateProjectSettingsConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-settings", err)
+			}
+			err = ValidateUpdateProjectSettingsConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
+			}
+			return nil, NewUpdateProjectSettingsConflict(&body)
 		case http.StatusInternalServerError:
 			var (
 				body UpdateProjectSettingsInternalServerErrorResponseBody
@@ -1019,6 +1034,7 @@ func EncodeDeleteProjectRequest(encoder func(*http.Request) goahttp.Encoder) fun
 // response body should be restored after having been read.
 // DecodeDeleteProjectResponse may return the following errors:
 //   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
@@ -1054,6 +1070,20 @@ func DecodeDeleteProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 				return nil, goahttp.ErrValidationError("project-service", "delete-project", err)
 			}
 			return nil, NewDeleteProjectBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body DeleteProjectConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project", err)
+			}
+			err = ValidateDeleteProjectConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project", err)
+			}
+			return nil, NewDeleteProjectConflict(&body)
 		case http.StatusInternalServerError:
 			var (
 				body DeleteProjectInternalServerErrorResponseBody

@@ -471,8 +471,10 @@ type ProjectBase struct {
 // ProjectDocument is the result type of the project-service service
 // upload-project-document method.
 type ProjectDocument struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Document UID
 	UID *string
+	// Project UID this document belongs to
+	ProjectUID *string
 	// Folder UID that this document belongs to (optional)
 	FolderUID *string
 	// Document display name

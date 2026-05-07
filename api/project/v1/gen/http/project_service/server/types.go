@@ -399,8 +399,10 @@ type GetProjectFolderResponseBody ProjectFolderResponseBody
 // UploadProjectDocumentResponseBody is the type of the "project-service"
 // service "upload-project-document" endpoint HTTP response body.
 type UploadProjectDocumentResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Document UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this document belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this document belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Document display name
@@ -615,6 +617,16 @@ type UpdateProjectSettingsBadRequestResponseBody struct {
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
+// UpdateProjectSettingsConflictResponseBody is the type of the
+// "project-service" service "update-project-settings" endpoint HTTP response
+// body for the "Conflict" error.
+type UpdateProjectSettingsConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
 // UpdateProjectSettingsInternalServerErrorResponseBody is the type of the
 // "project-service" service "update-project-settings" endpoint HTTP response
 // body for the "InternalServerError" error.
@@ -649,6 +661,16 @@ type UpdateProjectSettingsServiceUnavailableResponseBody struct {
 // service "delete-project" endpoint HTTP response body for the "BadRequest"
 // error.
 type DeleteProjectBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectConflictResponseBody is the type of the "project-service"
+// service "delete-project" endpoint HTTP response body for the "Conflict"
+// error.
+type DeleteProjectConflictResponseBody struct {
 	// HTTP status code
 	Code string `form:"code" json:"code" xml:"code"`
 	// Error message
@@ -1303,8 +1325,10 @@ type ProjectFolderResponseBody struct {
 
 // ProjectDocumentResponseBody is used to define fields on response body types.
 type ProjectDocumentResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Document UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this document belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this document belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Document display name
@@ -1646,6 +1670,7 @@ func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult)
 func NewUploadProjectDocumentResponseBody(res *projectservice.ProjectDocument) *UploadProjectDocumentResponseBody {
 	body := &UploadProjectDocumentResponseBody{
 		UID:                res.UID,
+		ProjectUID:         res.ProjectUID,
 		FolderUID:          res.FolderUID,
 		Name:               res.Name,
 		Description:        res.Description,
@@ -1665,6 +1690,7 @@ func NewUploadProjectDocumentResponseBody(res *projectservice.ProjectDocument) *
 func NewGetProjectDocumentResponseBody(res *projectservice.GetProjectDocumentResult) *GetProjectDocumentResponseBody {
 	body := &GetProjectDocumentResponseBody{
 		UID:                res.Document.UID,
+		ProjectUID:         res.Document.ProjectUID,
 		FolderUID:          res.Document.FolderUID,
 		Name:               res.Document.Name,
 		Description:        res.Document.Description,
@@ -1884,6 +1910,17 @@ func NewUpdateProjectSettingsBadRequestResponseBody(res *projectservice.BadReque
 	return body
 }
 
+// NewUpdateProjectSettingsConflictResponseBody builds the HTTP response body
+// from the result of the "update-project-settings" endpoint of the
+// "project-service" service.
+func NewUpdateProjectSettingsConflictResponseBody(res *projectservice.ConflictError) *UpdateProjectSettingsConflictResponseBody {
+	body := &UpdateProjectSettingsConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
 // NewUpdateProjectSettingsInternalServerErrorResponseBody builds the HTTP
 // response body from the result of the "update-project-settings" endpoint of
 // the "project-service" service.
@@ -1921,6 +1958,16 @@ func NewUpdateProjectSettingsServiceUnavailableResponseBody(res *projectservice.
 // the result of the "delete-project" endpoint of the "project-service" service.
 func NewDeleteProjectBadRequestResponseBody(res *projectservice.BadRequestError) *DeleteProjectBadRequestResponseBody {
 	body := &DeleteProjectBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectConflictResponseBody builds the HTTP response body from the
+// result of the "delete-project" endpoint of the "project-service" service.
+func NewDeleteProjectConflictResponseBody(res *projectservice.ConflictError) *DeleteProjectConflictResponseBody {
+	body := &DeleteProjectConflictResponseBody{
 		Code:    res.Code,
 		Message: res.Message,
 	}

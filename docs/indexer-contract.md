@@ -212,9 +212,9 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 
 ## Project Folder
 
-**Object type:** `project_link_folder`
+**Object type:** `project_folder`
 
-**NATS subject:** `lfx.index.project_link_folder`
+**NATS subject:** `lfx.index.project_folder`
 
 **Source struct:** `internal/domain/models/folder.go` — `ProjectFolder`
 
@@ -236,7 +236,7 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | Tag Format | Example | Purpose |
 |---|---|---|
 | `{uid}` | `folder-123` | Direct lookup by UID |
-| `project_link_folder_uid:{uid}` | `project_link_folder_uid:folder-123` | Find folders by UID |
+| `project_folder_uid:{uid}` | `project_folder_uid:folder-123` | Find folders by UID |
 | `project_uid:{project_uid}` | `project_uid:proj-456` | Find all folders for a project |
 
 ### Access Control (IndexingConfig)

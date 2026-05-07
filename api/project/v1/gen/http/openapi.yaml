@@ -341,6 +341,13 @@ paths:
                         required:
                             - code
                             - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
                 "500":
                     description: Internal Server Error response.
                     schema:
@@ -1230,6 +1237,13 @@ paths:
                         required:
                             - code
                             - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
                 "500":
                     description: Internal Server Error response.
                     schema:
@@ -1551,9 +1565,14 @@ definitions:
                 description: Document display name
                 example: My Resource
                 minLength: 1
+            project_uid:
+                type: string
+                description: Project UID this document belongs to
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
             uid:
                 type: string
-                description: Project UID -- v2 uid, not related to v1 id directly
+                description: Document UID
                 example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 format: uuid
             updated_at:
@@ -1573,6 +1592,7 @@ definitions:
             file_size: 204800
             folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             name: My Resource
+            project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2024-01-01T00:00:00Z"
             uploaded_by_username: johndoe

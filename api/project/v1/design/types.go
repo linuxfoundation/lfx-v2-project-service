@@ -631,7 +631,7 @@ var ProjectFolder = Type("ProjectFolder", func() {
 var ProjectDocument = Type("ProjectDocument", func() {
 	Description("A file attachment associated with a project.")
 	ResourceUIDAttribute("uid", "Document UID")
-	ProjectUIDAttribute()
+	ResourceUIDAttribute("project_uid", "Project UID this document belongs to")
 	ResourceUIDAttribute("folder_uid", "Folder UID that this document belongs to (optional)")
 	ResourceNameAttribute("name", "Document display name")
 	ResourceDescriptionAttribute("description", "A description of the document")

@@ -152,6 +152,7 @@ func (c *Client) UpdateProjectBase(ctx context.Context, p *UpdateProjectBasePayl
 // UpdateProjectSettings may return the following errors:
 //   - "BadRequest" (type *BadRequestError): Bad request
 //   - "NotFound" (type *NotFoundError): Resource not found
+//   - "Conflict" (type *ConflictError): Revision mismatch
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
@@ -169,6 +170,7 @@ func (c *Client) UpdateProjectSettings(ctx context.Context, p *UpdateProjectSett
 // DeleteProject may return the following errors:
 //   - "NotFound" (type *NotFoundError): Resource not found
 //   - "BadRequest" (type *BadRequestError): Bad request
+//   - "Conflict" (type *ConflictError): Revision mismatch
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error

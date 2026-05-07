@@ -399,8 +399,10 @@ type GetProjectFolderResponseBody ProjectFolderResponseBody
 // UploadProjectDocumentResponseBody is the type of the "project-service"
 // service "upload-project-document" endpoint HTTP response body.
 type UploadProjectDocumentResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Document UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this document belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this document belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Document display name
@@ -615,6 +617,16 @@ type UpdateProjectSettingsBadRequestResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
+// UpdateProjectSettingsConflictResponseBody is the type of the
+// "project-service" service "update-project-settings" endpoint HTTP response
+// body for the "Conflict" error.
+type UpdateProjectSettingsConflictResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
 // UpdateProjectSettingsInternalServerErrorResponseBody is the type of the
 // "project-service" service "update-project-settings" endpoint HTTP response
 // body for the "InternalServerError" error.
@@ -649,6 +661,16 @@ type UpdateProjectSettingsServiceUnavailableResponseBody struct {
 // service "delete-project" endpoint HTTP response body for the "BadRequest"
 // error.
 type DeleteProjectBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// DeleteProjectConflictResponseBody is the type of the "project-service"
+// service "delete-project" endpoint HTTP response body for the "Conflict"
+// error.
+type DeleteProjectConflictResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
@@ -1315,8 +1337,10 @@ type ProjectFolderResponseBody struct {
 
 // ProjectDocumentResponseBody is used to define fields on response body types.
 type ProjectDocumentResponseBody struct {
-	// Project UID -- v2 uid, not related to v1 id directly
+	// Document UID
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this document belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder UID that this document belongs to (optional)
 	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
 	// Document display name
@@ -1966,6 +1990,17 @@ func NewUpdateProjectSettingsBadRequest(body *UpdateProjectSettingsBadRequestRes
 	return v
 }
 
+// NewUpdateProjectSettingsConflict builds a project-service service
+// update-project-settings endpoint Conflict error.
+func NewUpdateProjectSettingsConflict(body *UpdateProjectSettingsConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
 // NewUpdateProjectSettingsInternalServerError builds a project-service service
 // update-project-settings endpoint InternalServerError error.
 func NewUpdateProjectSettingsInternalServerError(body *UpdateProjectSettingsInternalServerErrorResponseBody) *projectservice.InternalServerError {
@@ -2003,6 +2038,17 @@ func NewUpdateProjectSettingsServiceUnavailable(body *UpdateProjectSettingsServi
 // endpoint BadRequest error.
 func NewDeleteProjectBadRequest(body *DeleteProjectBadRequestResponseBody) *projectservice.BadRequestError {
 	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewDeleteProjectConflict builds a project-service service delete-project
+// endpoint Conflict error.
+func NewDeleteProjectConflict(body *DeleteProjectConflictResponseBody) *projectservice.ConflictError {
+	v := &projectservice.ConflictError{
 		Code:    *body.Code,
 		Message: *body.Message,
 	}
@@ -2410,6 +2456,7 @@ func NewDeleteProjectFolderServiceUnavailable(body *DeleteProjectFolderServiceUn
 func NewUploadProjectDocumentProjectDocumentCreated(body *UploadProjectDocumentResponseBody) *projectservice.ProjectDocument {
 	v := &projectservice.ProjectDocument{
 		UID:                body.UID,
+		ProjectUID:         body.ProjectUID,
 		FolderUID:          body.FolderUID,
 		Name:               body.Name,
 		Description:        body.Description,
@@ -2484,6 +2531,7 @@ func NewUploadProjectDocumentServiceUnavailable(body *UploadProjectDocumentServi
 func NewGetProjectDocumentResultOK(body *GetProjectDocumentResponseBody, etag *string) *projectservice.GetProjectDocumentResult {
 	v := &projectservice.ProjectDocument{
 		UID:                body.UID,
+		ProjectUID:         body.ProjectUID,
 		FolderUID:          body.FolderUID,
 		Name:               body.Name,
 		Description:        body.Description,
@@ -3106,6 +3154,9 @@ func ValidateUploadProjectDocumentResponseBody(body *UploadProjectDocumentRespon
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	}
 	if body.FolderUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
 	}
@@ -3128,6 +3179,9 @@ func ValidateUploadProjectDocumentResponseBody(body *UploadProjectDocumentRespon
 func ValidateGetProjectDocumentResponseBody(body *GetProjectDocumentResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
 	if body.FolderUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
@@ -3376,6 +3430,18 @@ func ValidateUpdateProjectSettingsBadRequestResponseBody(body *UpdateProjectSett
 	return
 }
 
+// ValidateUpdateProjectSettingsConflictResponseBody runs the validations
+// defined on update-project-settings_Conflict_response_body
+func ValidateUpdateProjectSettingsConflictResponseBody(body *UpdateProjectSettingsConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
 // ValidateUpdateProjectSettingsInternalServerErrorResponseBody runs the
 // validations defined on
 // update-project-settings_InternalServerError_response_body
@@ -3417,6 +3483,18 @@ func ValidateUpdateProjectSettingsServiceUnavailableResponseBody(body *UpdatePro
 // ValidateDeleteProjectBadRequestResponseBody runs the validations defined on
 // delete-project_BadRequest_response_body
 func ValidateDeleteProjectBadRequestResponseBody(body *DeleteProjectBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateDeleteProjectConflictResponseBody runs the validations defined on
+// delete-project_Conflict_response_body
+func ValidateDeleteProjectConflictResponseBody(body *DeleteProjectConflictResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}
@@ -4288,6 +4366,9 @@ func ValidateProjectFolderResponseBody(body *ProjectFolderResponseBody) (err err
 func ValidateProjectDocumentResponseBody(body *ProjectDocumentResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.ProjectUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
 	}
 	if body.FolderUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
