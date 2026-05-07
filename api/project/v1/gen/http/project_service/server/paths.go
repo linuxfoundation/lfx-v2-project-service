@@ -57,3 +57,53 @@ func ReadyzProjectServicePath() string {
 func LivezProjectServicePath() string {
 	return "/livez"
 }
+
+// CreateProjectLinkProjectServicePath returns the URL path to the project-service service create-project-link HTTP endpoint.
+func CreateProjectLinkProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v/links", uid)
+}
+
+// GetProjectLinkProjectServicePath returns the URL path to the project-service service get-project-link HTTP endpoint.
+func GetProjectLinkProjectServicePath(uid string, linkUID string) string {
+	return fmt.Sprintf("/projects/%v/links/%v", uid, linkUID)
+}
+
+// DeleteProjectLinkProjectServicePath returns the URL path to the project-service service delete-project-link HTTP endpoint.
+func DeleteProjectLinkProjectServicePath(uid string, linkUID string) string {
+	return fmt.Sprintf("/projects/%v/links/%v", uid, linkUID)
+}
+
+// CreateProjectFolderProjectServicePath returns the URL path to the project-service service create-project-folder HTTP endpoint.
+func CreateProjectFolderProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v/folders", uid)
+}
+
+// GetProjectFolderProjectServicePath returns the URL path to the project-service service get-project-folder HTTP endpoint.
+func GetProjectFolderProjectServicePath(uid string, folderUID string) string {
+	return fmt.Sprintf("/projects/%v/folders/%v", uid, folderUID)
+}
+
+// DeleteProjectFolderProjectServicePath returns the URL path to the project-service service delete-project-folder HTTP endpoint.
+func DeleteProjectFolderProjectServicePath(uid string, folderUID string) string {
+	return fmt.Sprintf("/projects/%v/folders/%v", uid, folderUID)
+}
+
+// UploadProjectDocumentProjectServicePath returns the URL path to the project-service service upload-project-document HTTP endpoint.
+func UploadProjectDocumentProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v/documents", uid)
+}
+
+// GetProjectDocumentProjectServicePath returns the URL path to the project-service service get-project-document HTTP endpoint.
+func GetProjectDocumentProjectServicePath(uid string, documentUID string) string {
+	return fmt.Sprintf("/projects/%v/documents/%v", uid, documentUID)
+}
+
+// DownloadProjectDocumentProjectServicePath returns the URL path to the project-service service download-project-document HTTP endpoint.
+func DownloadProjectDocumentProjectServicePath(uid string, documentUID string) string {
+	return fmt.Sprintf("/projects/%v/documents/%v/download", uid, documentUID)
+}
+
+// DeleteProjectDocumentProjectServicePath returns the URL path to the project-service service delete-project-document HTTP endpoint.
+func DeleteProjectDocumentProjectServicePath(uid string, documentUID string) string {
+	return fmt.Sprintf("/projects/%v/documents/%v", uid, documentUID)
+}

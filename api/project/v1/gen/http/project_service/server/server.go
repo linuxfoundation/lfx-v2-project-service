@@ -10,7 +10,10 @@
 package server
 
 import (
+	"bufio"
 	"context"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"path"
 
@@ -21,20 +24,30 @@ import (
 
 // Server lists the project-service service endpoint HTTP handlers.
 type Server struct {
-	Mounts                []*MountPoint
-	GetProjects           http.Handler
-	CreateProject         http.Handler
-	GetOneProjectBase     http.Handler
-	GetOneProjectSettings http.Handler
-	UpdateProjectBase     http.Handler
-	UpdateProjectSettings http.Handler
-	DeleteProject         http.Handler
-	Readyz                http.Handler
-	Livez                 http.Handler
-	GenHTTPOpenapiJSON    http.Handler
-	GenHTTPOpenapiYaml    http.Handler
-	GenHTTPOpenapi3JSON   http.Handler
-	GenHTTPOpenapi3Yaml   http.Handler
+	Mounts                  []*MountPoint
+	GetProjects             http.Handler
+	CreateProject           http.Handler
+	GetOneProjectBase       http.Handler
+	GetOneProjectSettings   http.Handler
+	UpdateProjectBase       http.Handler
+	UpdateProjectSettings   http.Handler
+	DeleteProject           http.Handler
+	Readyz                  http.Handler
+	Livez                   http.Handler
+	CreateProjectLink       http.Handler
+	GetProjectLink          http.Handler
+	DeleteProjectLink       http.Handler
+	CreateProjectFolder     http.Handler
+	GetProjectFolder        http.Handler
+	DeleteProjectFolder     http.Handler
+	UploadProjectDocument   http.Handler
+	GetProjectDocument      http.Handler
+	DownloadProjectDocument http.Handler
+	DeleteProjectDocument   http.Handler
+	GenHTTPOpenapiJSON      http.Handler
+	GenHTTPOpenapiYaml      http.Handler
+	GenHTTPOpenapi3JSON     http.Handler
+	GenHTTPOpenapi3Yaml     http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -47,6 +60,11 @@ type MountPoint struct {
 	// mounted handler.
 	Pattern string
 }
+
+// ProjectServiceUploadProjectDocumentDecoderFunc is the type to decode
+// multipart request for the "project-service" service
+// "upload-project-document" endpoint.
+type ProjectServiceUploadProjectDocumentDecoderFunc func(*multipart.Reader, **projectservice.UploadProjectDocumentPayload) error
 
 // New instantiates HTTP handlers for all the project-service service endpoints
 // using the provided encoder and decoder. The handlers are mounted on the
@@ -61,6 +79,7 @@ func New(
 	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
 	errhandler func(context.Context, http.ResponseWriter, error),
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
+	projectServiceUploadProjectDocumentDecoderFn ProjectServiceUploadProjectDocumentDecoderFunc,
 	fileSystemGenHTTPOpenapiJSON http.FileSystem,
 	fileSystemGenHTTPOpenapiYaml http.FileSystem,
 	fileSystemGenHTTPOpenapi3JSON http.FileSystem,
@@ -93,24 +112,44 @@ func New(
 			{"DeleteProject", "DELETE", "/projects/{uid}"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
+			{"CreateProjectLink", "POST", "/projects/{uid}/links"},
+			{"GetProjectLink", "GET", "/projects/{uid}/links/{link_uid}"},
+			{"DeleteProjectLink", "DELETE", "/projects/{uid}/links/{link_uid}"},
+			{"CreateProjectFolder", "POST", "/projects/{uid}/folders"},
+			{"GetProjectFolder", "GET", "/projects/{uid}/folders/{folder_uid}"},
+			{"DeleteProjectFolder", "DELETE", "/projects/{uid}/folders/{folder_uid}"},
+			{"UploadProjectDocument", "POST", "/projects/{uid}/documents"},
+			{"GetProjectDocument", "GET", "/projects/{uid}/documents/{document_uid}"},
+			{"DownloadProjectDocument", "GET", "/projects/{uid}/documents/{document_uid}/download"},
+			{"DeleteProjectDocument", "DELETE", "/projects/{uid}/documents/{document_uid}"},
 			{"Serve gen/http/openapi.json", "GET", "/_projects/openapi.json"},
 			{"Serve gen/http/openapi.yaml", "GET", "/_projects/openapi.yaml"},
 			{"Serve gen/http/openapi3.json", "GET", "/_projects/openapi3.json"},
 			{"Serve gen/http/openapi3.yaml", "GET", "/_projects/openapi3.yaml"},
 		},
-		GetProjects:           NewGetProjectsHandler(e.GetProjects, mux, decoder, encoder, errhandler, formatter),
-		CreateProject:         NewCreateProjectHandler(e.CreateProject, mux, decoder, encoder, errhandler, formatter),
-		GetOneProjectBase:     NewGetOneProjectBaseHandler(e.GetOneProjectBase, mux, decoder, encoder, errhandler, formatter),
-		GetOneProjectSettings: NewGetOneProjectSettingsHandler(e.GetOneProjectSettings, mux, decoder, encoder, errhandler, formatter),
-		UpdateProjectBase:     NewUpdateProjectBaseHandler(e.UpdateProjectBase, mux, decoder, encoder, errhandler, formatter),
-		UpdateProjectSettings: NewUpdateProjectSettingsHandler(e.UpdateProjectSettings, mux, decoder, encoder, errhandler, formatter),
-		DeleteProject:         NewDeleteProjectHandler(e.DeleteProject, mux, decoder, encoder, errhandler, formatter),
-		Readyz:                NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
-		Livez:                 NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
-		GenHTTPOpenapiJSON:    http.FileServer(fileSystemGenHTTPOpenapiJSON),
-		GenHTTPOpenapiYaml:    http.FileServer(fileSystemGenHTTPOpenapiYaml),
-		GenHTTPOpenapi3JSON:   http.FileServer(fileSystemGenHTTPOpenapi3JSON),
-		GenHTTPOpenapi3Yaml:   http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
+		GetProjects:             NewGetProjectsHandler(e.GetProjects, mux, decoder, encoder, errhandler, formatter),
+		CreateProject:           NewCreateProjectHandler(e.CreateProject, mux, decoder, encoder, errhandler, formatter),
+		GetOneProjectBase:       NewGetOneProjectBaseHandler(e.GetOneProjectBase, mux, decoder, encoder, errhandler, formatter),
+		GetOneProjectSettings:   NewGetOneProjectSettingsHandler(e.GetOneProjectSettings, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectBase:       NewUpdateProjectBaseHandler(e.UpdateProjectBase, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectSettings:   NewUpdateProjectSettingsHandler(e.UpdateProjectSettings, mux, decoder, encoder, errhandler, formatter),
+		DeleteProject:           NewDeleteProjectHandler(e.DeleteProject, mux, decoder, encoder, errhandler, formatter),
+		Readyz:                  NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
+		Livez:                   NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
+		CreateProjectLink:       NewCreateProjectLinkHandler(e.CreateProjectLink, mux, decoder, encoder, errhandler, formatter),
+		GetProjectLink:          NewGetProjectLinkHandler(e.GetProjectLink, mux, decoder, encoder, errhandler, formatter),
+		DeleteProjectLink:       NewDeleteProjectLinkHandler(e.DeleteProjectLink, mux, decoder, encoder, errhandler, formatter),
+		CreateProjectFolder:     NewCreateProjectFolderHandler(e.CreateProjectFolder, mux, decoder, encoder, errhandler, formatter),
+		GetProjectFolder:        NewGetProjectFolderHandler(e.GetProjectFolder, mux, decoder, encoder, errhandler, formatter),
+		DeleteProjectFolder:     NewDeleteProjectFolderHandler(e.DeleteProjectFolder, mux, decoder, encoder, errhandler, formatter),
+		UploadProjectDocument:   NewUploadProjectDocumentHandler(e.UploadProjectDocument, mux, NewProjectServiceUploadProjectDocumentDecoder(mux, projectServiceUploadProjectDocumentDecoderFn), encoder, errhandler, formatter),
+		GetProjectDocument:      NewGetProjectDocumentHandler(e.GetProjectDocument, mux, decoder, encoder, errhandler, formatter),
+		DownloadProjectDocument: NewDownloadProjectDocumentHandler(e.DownloadProjectDocument, mux, decoder, encoder, errhandler, formatter),
+		DeleteProjectDocument:   NewDeleteProjectDocumentHandler(e.DeleteProjectDocument, mux, decoder, encoder, errhandler, formatter),
+		GenHTTPOpenapiJSON:      http.FileServer(fileSystemGenHTTPOpenapiJSON),
+		GenHTTPOpenapiYaml:      http.FileServer(fileSystemGenHTTPOpenapiYaml),
+		GenHTTPOpenapi3JSON:     http.FileServer(fileSystemGenHTTPOpenapi3JSON),
+		GenHTTPOpenapi3Yaml:     http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
 	}
 }
 
@@ -128,6 +167,16 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.DeleteProject = m(s.DeleteProject)
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
+	s.CreateProjectLink = m(s.CreateProjectLink)
+	s.GetProjectLink = m(s.GetProjectLink)
+	s.DeleteProjectLink = m(s.DeleteProjectLink)
+	s.CreateProjectFolder = m(s.CreateProjectFolder)
+	s.GetProjectFolder = m(s.GetProjectFolder)
+	s.DeleteProjectFolder = m(s.DeleteProjectFolder)
+	s.UploadProjectDocument = m(s.UploadProjectDocument)
+	s.GetProjectDocument = m(s.GetProjectDocument)
+	s.DownloadProjectDocument = m(s.DownloadProjectDocument)
+	s.DeleteProjectDocument = m(s.DeleteProjectDocument)
 }
 
 // MethodNames returns the methods served.
@@ -144,6 +193,16 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountDeleteProjectHandler(mux, h.DeleteProject)
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
+	MountCreateProjectLinkHandler(mux, h.CreateProjectLink)
+	MountGetProjectLinkHandler(mux, h.GetProjectLink)
+	MountDeleteProjectLinkHandler(mux, h.DeleteProjectLink)
+	MountCreateProjectFolderHandler(mux, h.CreateProjectFolder)
+	MountGetProjectFolderHandler(mux, h.GetProjectFolder)
+	MountDeleteProjectFolderHandler(mux, h.DeleteProjectFolder)
+	MountUploadProjectDocumentHandler(mux, h.UploadProjectDocument)
+	MountGetProjectDocumentHandler(mux, h.GetProjectDocument)
+	MountDownloadProjectDocumentHandler(mux, h.DownloadProjectDocument)
+	MountDeleteProjectDocumentHandler(mux, h.DeleteProjectDocument)
 	MountGenHTTPOpenapiJSON(mux, http.StripPrefix("/_projects", h.GenHTTPOpenapiJSON))
 	MountGenHTTPOpenapiYaml(mux, http.StripPrefix("/_projects", h.GenHTTPOpenapiYaml))
 	MountGenHTTPOpenapi3JSON(mux, http.StripPrefix("/_projects", h.GenHTTPOpenapi3JSON))
@@ -608,6 +667,580 @@ func NewLivezHandler(
 		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
 		var err error
 		res, err := endpoint(ctx, nil)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountCreateProjectLinkHandler configures the mux to serve the
+// "project-service" service "create-project-link" endpoint.
+func MountCreateProjectLinkHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/projects/{uid}/links", f)
+}
+
+// NewCreateProjectLinkHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "create-project-link"
+// endpoint.
+func NewCreateProjectLinkHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeCreateProjectLinkRequest(mux, decoder)
+		encodeResponse = EncodeCreateProjectLinkResponse(encoder)
+		encodeError    = EncodeCreateProjectLinkError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "create-project-link")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountGetProjectLinkHandler configures the mux to serve the "project-service"
+// service "get-project-link" endpoint.
+func MountGetProjectLinkHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/projects/{uid}/links/{link_uid}", f)
+}
+
+// NewGetProjectLinkHandler creates a HTTP handler which loads the HTTP request
+// and calls the "project-service" service "get-project-link" endpoint.
+func NewGetProjectLinkHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeGetProjectLinkRequest(mux, decoder)
+		encodeResponse = EncodeGetProjectLinkResponse(encoder)
+		encodeError    = EncodeGetProjectLinkError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-project-link")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountDeleteProjectLinkHandler configures the mux to serve the
+// "project-service" service "delete-project-link" endpoint.
+func MountDeleteProjectLinkHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("DELETE", "/projects/{uid}/links/{link_uid}", f)
+}
+
+// NewDeleteProjectLinkHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "delete-project-link"
+// endpoint.
+func NewDeleteProjectLinkHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeDeleteProjectLinkRequest(mux, decoder)
+		encodeResponse = EncodeDeleteProjectLinkResponse(encoder)
+		encodeError    = EncodeDeleteProjectLinkError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "delete-project-link")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountCreateProjectFolderHandler configures the mux to serve the
+// "project-service" service "create-project-folder" endpoint.
+func MountCreateProjectFolderHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/projects/{uid}/folders", f)
+}
+
+// NewCreateProjectFolderHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "create-project-folder"
+// endpoint.
+func NewCreateProjectFolderHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeCreateProjectFolderRequest(mux, decoder)
+		encodeResponse = EncodeCreateProjectFolderResponse(encoder)
+		encodeError    = EncodeCreateProjectFolderError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "create-project-folder")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountGetProjectFolderHandler configures the mux to serve the
+// "project-service" service "get-project-folder" endpoint.
+func MountGetProjectFolderHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/projects/{uid}/folders/{folder_uid}", f)
+}
+
+// NewGetProjectFolderHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "get-project-folder"
+// endpoint.
+func NewGetProjectFolderHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeGetProjectFolderRequest(mux, decoder)
+		encodeResponse = EncodeGetProjectFolderResponse(encoder)
+		encodeError    = EncodeGetProjectFolderError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-project-folder")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountDeleteProjectFolderHandler configures the mux to serve the
+// "project-service" service "delete-project-folder" endpoint.
+func MountDeleteProjectFolderHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("DELETE", "/projects/{uid}/folders/{folder_uid}", f)
+}
+
+// NewDeleteProjectFolderHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "delete-project-folder"
+// endpoint.
+func NewDeleteProjectFolderHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeDeleteProjectFolderRequest(mux, decoder)
+		encodeResponse = EncodeDeleteProjectFolderResponse(encoder)
+		encodeError    = EncodeDeleteProjectFolderError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "delete-project-folder")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountUploadProjectDocumentHandler configures the mux to serve the
+// "project-service" service "upload-project-document" endpoint.
+func MountUploadProjectDocumentHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/projects/{uid}/documents", f)
+}
+
+// NewUploadProjectDocumentHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "upload-project-document"
+// endpoint.
+func NewUploadProjectDocumentHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeUploadProjectDocumentRequest(mux, decoder)
+		encodeResponse = EncodeUploadProjectDocumentResponse(encoder)
+		encodeError    = EncodeUploadProjectDocumentError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "upload-project-document")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountGetProjectDocumentHandler configures the mux to serve the
+// "project-service" service "get-project-document" endpoint.
+func MountGetProjectDocumentHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/projects/{uid}/documents/{document_uid}", f)
+}
+
+// NewGetProjectDocumentHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "get-project-document"
+// endpoint.
+func NewGetProjectDocumentHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeGetProjectDocumentRequest(mux, decoder)
+		encodeResponse = EncodeGetProjectDocumentResponse(encoder)
+		encodeError    = EncodeGetProjectDocumentError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-project-document")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountDownloadProjectDocumentHandler configures the mux to serve the
+// "project-service" service "download-project-document" endpoint.
+func MountDownloadProjectDocumentHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/projects/{uid}/documents/{document_uid}/download", f)
+}
+
+// NewDownloadProjectDocumentHandler creates a HTTP handler which loads the
+// HTTP request and calls the "project-service" service
+// "download-project-document" endpoint.
+func NewDownloadProjectDocumentHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeDownloadProjectDocumentRequest(mux, decoder)
+		encodeResponse = EncodeDownloadProjectDocumentResponse(encoder)
+		encodeError    = EncodeDownloadProjectDocumentError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "download-project-document")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		o := res.(*projectservice.DownloadProjectDocumentResponseData)
+		defer o.Body.Close()
+		if wt, ok := o.Body.(io.WriterTo); ok {
+			if err := encodeResponse(ctx, w, res); err != nil {
+				if errhandler != nil {
+					errhandler(ctx, w, err)
+				}
+				return
+			}
+			n, err := wt.WriteTo(w)
+			if err != nil {
+				if n == 0 {
+					if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+						errhandler(ctx, w, err)
+					}
+				} else {
+					http.NewResponseController(w).Flush()
+					panic(http.ErrAbortHandler) // too late to write an error
+				}
+			}
+			return
+		}
+		// handle immediate read error like a returned error
+		buf := bufio.NewReader(o.Body)
+		if _, err := buf.Peek(1); err != nil && err != io.EOF {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if _, err := io.Copy(w, buf); err != nil {
+			http.NewResponseController(w).Flush()
+			panic(http.ErrAbortHandler) // too late to write an error
+		}
+	})
+}
+
+// MountDeleteProjectDocumentHandler configures the mux to serve the
+// "project-service" service "delete-project-document" endpoint.
+func MountDeleteProjectDocumentHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("DELETE", "/projects/{uid}/documents/{document_uid}", f)
+}
+
+// NewDeleteProjectDocumentHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "delete-project-document"
+// endpoint.
+func NewDeleteProjectDocumentHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeDeleteProjectDocumentRequest(mux, decoder)
+		encodeResponse = EncodeDeleteProjectDocumentResponse(encoder)
+		encodeError    = EncodeDeleteProjectDocumentError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "delete-project-document")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
 		if err != nil {
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)

@@ -11,8 +11,10 @@ package client
 
 import (
 	"context"
+	"mime/multipart"
 	"net/http"
 
+	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	goahttp "goa.design/goa/v3/http"
 	goa "goa.design/goa/v3/pkg"
 )
@@ -53,6 +55,46 @@ type Client struct {
 	// Livez Doer is the HTTP client used to make requests to the livez endpoint.
 	LivezDoer goahttp.Doer
 
+	// CreateProjectLink Doer is the HTTP client used to make requests to the
+	// create-project-link endpoint.
+	CreateProjectLinkDoer goahttp.Doer
+
+	// GetProjectLink Doer is the HTTP client used to make requests to the
+	// get-project-link endpoint.
+	GetProjectLinkDoer goahttp.Doer
+
+	// DeleteProjectLink Doer is the HTTP client used to make requests to the
+	// delete-project-link endpoint.
+	DeleteProjectLinkDoer goahttp.Doer
+
+	// CreateProjectFolder Doer is the HTTP client used to make requests to the
+	// create-project-folder endpoint.
+	CreateProjectFolderDoer goahttp.Doer
+
+	// GetProjectFolder Doer is the HTTP client used to make requests to the
+	// get-project-folder endpoint.
+	GetProjectFolderDoer goahttp.Doer
+
+	// DeleteProjectFolder Doer is the HTTP client used to make requests to the
+	// delete-project-folder endpoint.
+	DeleteProjectFolderDoer goahttp.Doer
+
+	// UploadProjectDocument Doer is the HTTP client used to make requests to the
+	// upload-project-document endpoint.
+	UploadProjectDocumentDoer goahttp.Doer
+
+	// GetProjectDocument Doer is the HTTP client used to make requests to the
+	// get-project-document endpoint.
+	GetProjectDocumentDoer goahttp.Doer
+
+	// DownloadProjectDocument Doer is the HTTP client used to make requests to the
+	// download-project-document endpoint.
+	DownloadProjectDocumentDoer goahttp.Doer
+
+	// DeleteProjectDocument Doer is the HTTP client used to make requests to the
+	// delete-project-document endpoint.
+	DeleteProjectDocumentDoer goahttp.Doer
+
 	// RestoreResponseBody controls whether the response bodies are reset after
 	// decoding so they can be read again.
 	RestoreResponseBody bool
@@ -62,6 +104,11 @@ type Client struct {
 	encoder func(*http.Request) goahttp.Encoder
 	decoder func(*http.Response) goahttp.Decoder
 }
+
+// ProjectServiceUploadProjectDocumentEncoderFunc is the type to encode
+// multipart request for the "project-service" service
+// "upload-project-document" endpoint.
+type ProjectServiceUploadProjectDocumentEncoderFunc func(*multipart.Writer, *projectservice.UploadProjectDocumentPayload) error
 
 // NewClient instantiates HTTP clients for all the project-service service
 // servers.
@@ -74,20 +121,30 @@ func NewClient(
 	restoreBody bool,
 ) *Client {
 	return &Client{
-		GetProjectsDoer:           doer,
-		CreateProjectDoer:         doer,
-		GetOneProjectBaseDoer:     doer,
-		GetOneProjectSettingsDoer: doer,
-		UpdateProjectBaseDoer:     doer,
-		UpdateProjectSettingsDoer: doer,
-		DeleteProjectDoer:         doer,
-		ReadyzDoer:                doer,
-		LivezDoer:                 doer,
-		RestoreResponseBody:       restoreBody,
-		scheme:                    scheme,
-		host:                      host,
-		decoder:                   dec,
-		encoder:                   enc,
+		GetProjectsDoer:             doer,
+		CreateProjectDoer:           doer,
+		GetOneProjectBaseDoer:       doer,
+		GetOneProjectSettingsDoer:   doer,
+		UpdateProjectBaseDoer:       doer,
+		UpdateProjectSettingsDoer:   doer,
+		DeleteProjectDoer:           doer,
+		ReadyzDoer:                  doer,
+		LivezDoer:                   doer,
+		CreateProjectLinkDoer:       doer,
+		GetProjectLinkDoer:          doer,
+		DeleteProjectLinkDoer:       doer,
+		CreateProjectFolderDoer:     doer,
+		GetProjectFolderDoer:        doer,
+		DeleteProjectFolderDoer:     doer,
+		UploadProjectDocumentDoer:   doer,
+		GetProjectDocumentDoer:      doer,
+		DownloadProjectDocumentDoer: doer,
+		DeleteProjectDocumentDoer:   doer,
+		RestoreResponseBody:         restoreBody,
+		scheme:                      scheme,
+		host:                        host,
+		decoder:                     dec,
+		encoder:                     enc,
 	}
 }
 
@@ -292,6 +349,251 @@ func (c *Client) Livez() goa.Endpoint {
 		resp, err := c.LivezDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("project-service", "livez", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// CreateProjectLink returns an endpoint that makes HTTP requests to the
+// project-service service create-project-link server.
+func (c *Client) CreateProjectLink() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeCreateProjectLinkRequest(c.encoder)
+		decodeResponse = DecodeCreateProjectLinkResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildCreateProjectLinkRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.CreateProjectLinkDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "create-project-link", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// GetProjectLink returns an endpoint that makes HTTP requests to the
+// project-service service get-project-link server.
+func (c *Client) GetProjectLink() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeGetProjectLinkRequest(c.encoder)
+		decodeResponse = DecodeGetProjectLinkResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildGetProjectLinkRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.GetProjectLinkDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "get-project-link", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// DeleteProjectLink returns an endpoint that makes HTTP requests to the
+// project-service service delete-project-link server.
+func (c *Client) DeleteProjectLink() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeDeleteProjectLinkRequest(c.encoder)
+		decodeResponse = DecodeDeleteProjectLinkResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildDeleteProjectLinkRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.DeleteProjectLinkDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "delete-project-link", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// CreateProjectFolder returns an endpoint that makes HTTP requests to the
+// project-service service create-project-folder server.
+func (c *Client) CreateProjectFolder() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeCreateProjectFolderRequest(c.encoder)
+		decodeResponse = DecodeCreateProjectFolderResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildCreateProjectFolderRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.CreateProjectFolderDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "create-project-folder", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// GetProjectFolder returns an endpoint that makes HTTP requests to the
+// project-service service get-project-folder server.
+func (c *Client) GetProjectFolder() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeGetProjectFolderRequest(c.encoder)
+		decodeResponse = DecodeGetProjectFolderResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildGetProjectFolderRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.GetProjectFolderDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "get-project-folder", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// DeleteProjectFolder returns an endpoint that makes HTTP requests to the
+// project-service service delete-project-folder server.
+func (c *Client) DeleteProjectFolder() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeDeleteProjectFolderRequest(c.encoder)
+		decodeResponse = DecodeDeleteProjectFolderResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildDeleteProjectFolderRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.DeleteProjectFolderDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "delete-project-folder", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UploadProjectDocument returns an endpoint that makes HTTP requests to the
+// project-service service upload-project-document server.
+func (c *Client) UploadProjectDocument(projectServiceUploadProjectDocumentEncoderFn ProjectServiceUploadProjectDocumentEncoderFunc) goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUploadProjectDocumentRequest(NewProjectServiceUploadProjectDocumentEncoder(projectServiceUploadProjectDocumentEncoderFn))
+		decodeResponse = DecodeUploadProjectDocumentResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUploadProjectDocumentRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UploadProjectDocumentDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "upload-project-document", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// GetProjectDocument returns an endpoint that makes HTTP requests to the
+// project-service service get-project-document server.
+func (c *Client) GetProjectDocument() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeGetProjectDocumentRequest(c.encoder)
+		decodeResponse = DecodeGetProjectDocumentResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildGetProjectDocumentRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.GetProjectDocumentDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "get-project-document", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// DownloadProjectDocument returns an endpoint that makes HTTP requests to the
+// project-service service download-project-document server.
+func (c *Client) DownloadProjectDocument() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeDownloadProjectDocumentRequest(c.encoder)
+		decodeResponse = DecodeDownloadProjectDocumentResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildDownloadProjectDocumentRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.DownloadProjectDocumentDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "download-project-document", err)
+		}
+		_, err = decodeResponse(resp)
+		if err != nil {
+			resp.Body.Close()
+			return nil, err
+		}
+		return &projectservice.DownloadProjectDocumentResponseData{Body: resp.Body}, nil
+	}
+}
+
+// DeleteProjectDocument returns an endpoint that makes HTTP requests to the
+// project-service service delete-project-document server.
+func (c *Client) DeleteProjectDocument() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeDeleteProjectDocumentRequest(c.encoder)
+		decodeResponse = DecodeDeleteProjectDocumentResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildDeleteProjectDocumentRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.DeleteProjectDocumentDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "delete-project-document", err)
 		}
 		return decodeResponse(resp)
 	}

@@ -24,6 +24,7 @@ import (
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
 	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	internalnats "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
@@ -216,6 +217,7 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 		customEncoder,
 		nil,
 		nil,
+		uploadDocumentDecoder,
 		koDataDir,
 		koDataDir,
 		koDataDir,
@@ -233,6 +235,9 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 	handler = middleware.RequestLoggerMiddleware()(handler)
 	handler = middleware.RequestIDMiddleware()(handler)
 	handler = middleware.AuthorizationMiddleware()(handler)
+	// Cap total request body size to bound DoS exposure from unbounded multipart reads.
+	// 1 MB headroom above the file limit covers multipart boundaries and all text fields.
+	handler = middleware.BodyLimitMiddleware(models.MaxDocumentFileSize + 1<<20)(handler)
 	// Wrap the handler with OpenTelemetry instrumentation
 	handler = otelhttp.NewHandler(handler, "project-service",
 		otelhttp.WithFilter(func(r *http.Request) bool {
@@ -313,10 +318,14 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulC
 	}
 
 	// Get the key-value stores for the service.
-	svc.service.ProjectRepository, err = getKeyValueStores(ctx, natsConn)
+	repo, err := getKeyValueStores(ctx, natsConn)
 	if err != nil {
 		return natsConn, err
 	}
+	svc.service.ProjectRepository = repo
+	svc.service.DocumentRepository = repo
+	svc.service.LinkRepository = repo
+	svc.service.FolderRepository = repo
 
 	svc.service.MessageBuilder = &internalnats.MessageBuilder{
 		NatsConn: natsConn,
@@ -353,6 +362,34 @@ func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (*internalnats.
 		return kvStores, err
 	}
 	kvStores.ProjectSettings = projectSettingsKV
+
+	linksKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectLinks)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectLinks)
+		return kvStores, err
+	}
+	kvStores.Links = linksKV
+
+	foldersKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectFolders)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectFolders)
+		return kvStores, err
+	}
+	kvStores.Folders = foldersKV
+
+	documentsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectDocuments)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectDocuments)
+		return kvStores, err
+	}
+	kvStores.Documents = documentsKV
+
+	documentFiles, err := js.ObjectStore(ctx, constants.ObjectStoreNameProjectDocuments)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting NATS JetStream object store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.ObjectStoreNameProjectDocuments)
+		return kvStores, err
+	}
+	kvStores.DocumentFiles = documentFiles
 
 	return kvStores, nil
 }

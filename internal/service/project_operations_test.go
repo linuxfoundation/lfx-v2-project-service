@@ -624,6 +624,9 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 
 				service = NewProjectsService(mockAuth, ServiceConfig{SkipEtagValidation: true})
 				service.ProjectRepository = mockRepo
+				service.DocumentRepository = &domain.MockDocumentRepository{}
+				service.LinkRepository = &domain.MockLinkRepository{}
+				service.FolderRepository = &domain.MockFolderRepository{}
 				service.MessageBuilder = mockBuilder
 			} else {
 				// Use default setup

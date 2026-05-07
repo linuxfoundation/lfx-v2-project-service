@@ -381,6 +381,12 @@ This means:
    # Create KV stores
    nats kv add projects --history=20 --storage=file
    nats kv add project-settings --history=20 --storage=file
+   nats kv add project-links --history=20 --storage=file
+   nats kv add project-folders --history=20 --storage=file
+   nats kv add project-documents-metadata --history=20 --storage=file
+
+   # Create Object Store for document binaries
+   nats object add project-documents --storage=file
    ```
 
 3. **Run the Service**

@@ -191,6 +191,84 @@ nats:
     # compression is a boolean to determine if the KV bucket should be compressed
     compression: true
 
+  # kv_bucket_project_links is the configuration for the KV bucket for storing project link records
+  kv_bucket_project_links:
+    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
+    creation: true
+    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
+    keep: true
+    # name is the name of the KV bucket
+    name: project-links
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
+    # history is the number of history entries to keep for the KV bucket
+    history: 20
+    # storage is the storage type for the KV bucket
+    storage: file
+    # maxValueSize is the maximum size of a value in the KV bucket
+    maxValueSize: 10485760  # 10MB
+    # maxBytes is the maximum number of bytes in the KV bucket
+    maxBytes: 1073741824  # 1GB
+    # compression is a boolean to determine if the KV bucket should be compressed
+    compression: true
+
+  # kv_bucket_project_folders is the configuration for the KV bucket for storing project folder records
+  kv_bucket_project_folders:
+    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
+    creation: true
+    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
+    keep: true
+    # name is the name of the KV bucket
+    name: project-folders
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
+    # history is the number of history entries to keep for the KV bucket
+    history: 20
+    # storage is the storage type for the KV bucket
+    storage: file
+    # maxValueSize is the maximum size of a value in the KV bucket
+    maxValueSize: 10485760  # 10MB
+    # maxBytes is the maximum number of bytes in the KV bucket
+    maxBytes: 1073741824  # 1GB
+    # compression is a boolean to determine if the KV bucket should be compressed
+    compression: true
+
+  # kv_bucket_project_documents is the configuration for the KV bucket for storing project document metadata
+  kv_bucket_project_documents:
+    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
+    creation: true
+    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall
+    keep: true
+    # name is the name of the KV bucket
+    name: project-documents-metadata
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
+    # history is the number of history entries to keep for the KV bucket
+    history: 20
+    # storage is the storage type for the KV bucket
+    storage: file
+    # maxValueSize is the maximum size of a value in the KV bucket
+    maxValueSize: 10485760  # 10MB
+    # maxBytes is the maximum number of bytes in the KV bucket
+    maxBytes: 1073741824  # 1GB
+    # compression is a boolean to determine if the KV bucket should be compressed
+    compression: true
+
+  # object_store_project_documents is the configuration for the NATS Object Store for project file data
+  object_store_project_documents:
+    # creation is a boolean to determine if the Object Store should be created via the helm chart.
+    creation: true
+    # keep is a boolean to determine if the Object Store should be preserved during helm uninstall
+    keep: true
+    # name is the name of the Object Store bucket
+    name: project-documents
+    # replicas is the number of replicas for the Object Store
+    replicas: 1
+    # storage is the storage type for the Object Store
+    storage: file
+    # maxBytes is the maximum number of bytes in the Object Store (-1 for unlimited)
+    maxBytes: 10737418240  # 10GB
+
 # openfga is the configuration for the OpenFGA server
 openfga:
   # enabled is a boolean to determine if the OpenFGA server should be enabled for authorization

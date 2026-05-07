@@ -10,6 +10,8 @@
 package server
 
 import (
+	"unicode/utf8"
+
 	projectservice "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	goa "goa.design/goa/v3/pkg"
 )
@@ -143,6 +145,43 @@ type UpdateProjectSettingsRequestBody struct {
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
+}
+
+// CreateProjectLinkRequestBody is the type of the "project-service" service
+// "create-project-link" endpoint HTTP request body.
+type CreateProjectLinkRequestBody struct {
+	// Link display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The URL of the link
+	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Folder UID to place the link in (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+}
+
+// CreateProjectFolderRequestBody is the type of the "project-service" service
+// "create-project-folder" endpoint HTTP request body.
+type CreateProjectFolderRequestBody struct {
+	// Folder display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+}
+
+// UploadProjectDocumentRequestBody is the type of the "project-service"
+// service "upload-project-document" endpoint HTTP request body.
+type UploadProjectDocumentRequestBody struct {
+	// Document display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Folder UID to place the document in (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// File contents
+	File []byte `form:"file,omitempty" json:"file,omitempty" xml:"file,omitempty"`
+	// Original file name including extension
+	FileName *string `form:"file_name,omitempty" json:"file_name,omitempty" xml:"file_name,omitempty"`
+	// MIME type of the file
+	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
 }
 
 // GetProjectsResponseBody is the type of the "project-service" service
@@ -308,6 +347,85 @@ type UpdateProjectSettingsResponseBody struct {
 	// The date and time the project was last updated
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
+
+// CreateProjectLinkResponseBody is the type of the "project-service" service
+// "create-project-link" endpoint HTTP response body.
+type CreateProjectLinkResponseBody struct {
+	// Link UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this link belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder UID that this link belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Link display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The URL of the link
+	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// GetProjectLinkResponseBody is the type of the "project-service" service
+// "get-project-link" endpoint HTTP response body.
+type GetProjectLinkResponseBody ProjectLinkResponseBody
+
+// CreateProjectFolderResponseBody is the type of the "project-service" service
+// "create-project-folder" endpoint HTTP response body.
+type CreateProjectFolderResponseBody struct {
+	// Folder UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this folder belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// GetProjectFolderResponseBody is the type of the "project-service" service
+// "get-project-folder" endpoint HTTP response body.
+type GetProjectFolderResponseBody ProjectFolderResponseBody
+
+// UploadProjectDocumentResponseBody is the type of the "project-service"
+// service "upload-project-document" endpoint HTTP response body.
+type UploadProjectDocumentResponseBody struct {
+	// Document UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this document belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder UID that this document belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Document display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Original uploaded file name
+	FileName *string `form:"file_name,omitempty" json:"file_name,omitempty" xml:"file_name,omitempty"`
+	// File size in bytes
+	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
+	// MIME type of the file
+	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
+	// Username of the principal who created this resource
+	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// GetProjectDocumentResponseBody is the type of the "project-service" service
+// "get-project-document" endpoint HTTP response body.
+type GetProjectDocumentResponseBody ProjectDocumentResponseBody
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
 // service "get-projects" endpoint HTTP response body for the "BadRequest"
@@ -499,6 +617,16 @@ type UpdateProjectSettingsBadRequestResponseBody struct {
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
+// UpdateProjectSettingsConflictResponseBody is the type of the
+// "project-service" service "update-project-settings" endpoint HTTP response
+// body for the "Conflict" error.
+type UpdateProjectSettingsConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
 // UpdateProjectSettingsInternalServerErrorResponseBody is the type of the
 // "project-service" service "update-project-settings" endpoint HTTP response
 // body for the "InternalServerError" error.
@@ -539,6 +667,16 @@ type DeleteProjectBadRequestResponseBody struct {
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
+// DeleteProjectConflictResponseBody is the type of the "project-service"
+// service "delete-project" endpoint HTTP response body for the "Conflict"
+// error.
+type DeleteProjectConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
 // DeleteProjectInternalServerErrorResponseBody is the type of the
 // "project-service" service "delete-project" endpoint HTTP response body for
 // the "InternalServerError" error.
@@ -573,6 +711,416 @@ type DeleteProjectServiceUnavailableResponseBody struct {
 // service "readyz" endpoint HTTP response body for the "ServiceUnavailable"
 // error.
 type ReadyzServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectLinkBadRequestResponseBody is the type of the "project-service"
+// service "create-project-link" endpoint HTTP response body for the
+// "BadRequest" error.
+type CreateProjectLinkBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectLinkInternalServerErrorResponseBody is the type of the
+// "project-service" service "create-project-link" endpoint HTTP response body
+// for the "InternalServerError" error.
+type CreateProjectLinkInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectLinkNotFoundResponseBody is the type of the "project-service"
+// service "create-project-link" endpoint HTTP response body for the "NotFound"
+// error.
+type CreateProjectLinkNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectLinkServiceUnavailableResponseBody is the type of the
+// "project-service" service "create-project-link" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type CreateProjectLinkServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectLinkInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-project-link" endpoint HTTP response body for
+// the "InternalServerError" error.
+type GetProjectLinkInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectLinkNotFoundResponseBody is the type of the "project-service"
+// service "get-project-link" endpoint HTTP response body for the "NotFound"
+// error.
+type GetProjectLinkNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectLinkServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-project-link" endpoint HTTP response body for
+// the "ServiceUnavailable" error.
+type GetProjectLinkServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectLinkBadRequestResponseBody is the type of the "project-service"
+// service "delete-project-link" endpoint HTTP response body for the
+// "BadRequest" error.
+type DeleteProjectLinkBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectLinkConflictResponseBody is the type of the "project-service"
+// service "delete-project-link" endpoint HTTP response body for the "Conflict"
+// error.
+type DeleteProjectLinkConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectLinkInternalServerErrorResponseBody is the type of the
+// "project-service" service "delete-project-link" endpoint HTTP response body
+// for the "InternalServerError" error.
+type DeleteProjectLinkInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectLinkNotFoundResponseBody is the type of the "project-service"
+// service "delete-project-link" endpoint HTTP response body for the "NotFound"
+// error.
+type DeleteProjectLinkNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectLinkServiceUnavailableResponseBody is the type of the
+// "project-service" service "delete-project-link" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type DeleteProjectLinkServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectFolderBadRequestResponseBody is the type of the
+// "project-service" service "create-project-folder" endpoint HTTP response
+// body for the "BadRequest" error.
+type CreateProjectFolderBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectFolderConflictResponseBody is the type of the "project-service"
+// service "create-project-folder" endpoint HTTP response body for the
+// "Conflict" error.
+type CreateProjectFolderConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectFolderInternalServerErrorResponseBody is the type of the
+// "project-service" service "create-project-folder" endpoint HTTP response
+// body for the "InternalServerError" error.
+type CreateProjectFolderInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectFolderNotFoundResponseBody is the type of the "project-service"
+// service "create-project-folder" endpoint HTTP response body for the
+// "NotFound" error.
+type CreateProjectFolderNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// CreateProjectFolderServiceUnavailableResponseBody is the type of the
+// "project-service" service "create-project-folder" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type CreateProjectFolderServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectFolderInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-project-folder" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetProjectFolderInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectFolderNotFoundResponseBody is the type of the "project-service"
+// service "get-project-folder" endpoint HTTP response body for the "NotFound"
+// error.
+type GetProjectFolderNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectFolderServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-project-folder" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type GetProjectFolderServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectFolderBadRequestResponseBody is the type of the
+// "project-service" service "delete-project-folder" endpoint HTTP response
+// body for the "BadRequest" error.
+type DeleteProjectFolderBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectFolderConflictResponseBody is the type of the "project-service"
+// service "delete-project-folder" endpoint HTTP response body for the
+// "Conflict" error.
+type DeleteProjectFolderConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectFolderInternalServerErrorResponseBody is the type of the
+// "project-service" service "delete-project-folder" endpoint HTTP response
+// body for the "InternalServerError" error.
+type DeleteProjectFolderInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectFolderNotFoundResponseBody is the type of the "project-service"
+// service "delete-project-folder" endpoint HTTP response body for the
+// "NotFound" error.
+type DeleteProjectFolderNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectFolderServiceUnavailableResponseBody is the type of the
+// "project-service" service "delete-project-folder" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type DeleteProjectFolderServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UploadProjectDocumentBadRequestResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "BadRequest" error.
+type UploadProjectDocumentBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UploadProjectDocumentConflictResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "Conflict" error.
+type UploadProjectDocumentConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UploadProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "InternalServerError" error.
+type UploadProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UploadProjectDocumentNotFoundResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "NotFound" error.
+type UploadProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// UploadProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "upload-project-document" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type UploadProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "get-project-document" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectDocumentNotFoundResponseBody is the type of the "project-service"
+// service "get-project-document" endpoint HTTP response body for the
+// "NotFound" error.
+type GetProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// GetProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "get-project-document" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type GetProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DownloadProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "download-project-document" endpoint HTTP response
+// body for the "InternalServerError" error.
+type DownloadProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DownloadProjectDocumentNotFoundResponseBody is the type of the
+// "project-service" service "download-project-document" endpoint HTTP response
+// body for the "NotFound" error.
+type DownloadProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DownloadProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "download-project-document" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type DownloadProjectDocumentServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectDocumentBadRequestResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "BadRequest" error.
+type DeleteProjectDocumentBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectDocumentConflictResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "Conflict" error.
+type DeleteProjectDocumentConflictResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectDocumentInternalServerErrorResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "InternalServerError" error.
+type DeleteProjectDocumentInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectDocumentNotFoundResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "NotFound" error.
+type DeleteProjectDocumentNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// DeleteProjectDocumentServiceUnavailableResponseBody is the type of the
+// "project-service" service "delete-project-document" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type DeleteProjectDocumentServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code string `form:"code" json:"code" xml:"code"`
 	// Error message
@@ -734,6 +1282,70 @@ type ProjectSettingsResponseBody struct {
 	// The date and time the project was created
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// ProjectLinkResponseBody is used to define fields on response body types.
+type ProjectLinkResponseBody struct {
+	// Link UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this link belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder UID that this link belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Link display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The URL of the link
+	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
+	// A description of the link
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// ProjectFolderResponseBody is used to define fields on response body types.
+type ProjectFolderResponseBody struct {
+	// Folder UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this folder belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Username of the principal who created this resource
+	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// ProjectDocumentResponseBody is used to define fields on response body types.
+type ProjectDocumentResponseBody struct {
+	// Document UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// Project UID this document belongs to
+	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Folder UID that this document belongs to (optional)
+	FolderUID *string `form:"folder_uid,omitempty" json:"folder_uid,omitempty" xml:"folder_uid,omitempty"`
+	// Document display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// A description of the document
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Original uploaded file name
+	FileName *string `form:"file_name,omitempty" json:"file_name,omitempty" xml:"file_name,omitempty"`
+	// File size in bytes
+	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
+	// MIME type of the file
+	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
+	// Username of the principal who created this resource
+	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// RFC3339 timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// RFC3339 timestamp
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
@@ -988,6 +1600,110 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 	return body
 }
 
+// NewCreateProjectLinkResponseBody builds the HTTP response body from the
+// result of the "create-project-link" endpoint of the "project-service"
+// service.
+func NewCreateProjectLinkResponseBody(res *projectservice.ProjectLink) *CreateProjectLinkResponseBody {
+	body := &CreateProjectLinkResponseBody{
+		UID:               res.UID,
+		ProjectUID:        res.ProjectUID,
+		FolderUID:         res.FolderUID,
+		Name:              res.Name,
+		URL:               res.URL,
+		Description:       res.Description,
+		CreatedByUsername: res.CreatedByUsername,
+		CreatedAt:         res.CreatedAt,
+		UpdatedAt:         res.UpdatedAt,
+	}
+	return body
+}
+
+// NewGetProjectLinkResponseBody builds the HTTP response body from the result
+// of the "get-project-link" endpoint of the "project-service" service.
+func NewGetProjectLinkResponseBody(res *projectservice.GetProjectLinkResult) *GetProjectLinkResponseBody {
+	body := &GetProjectLinkResponseBody{
+		UID:               res.Link.UID,
+		ProjectUID:        res.Link.ProjectUID,
+		FolderUID:         res.Link.FolderUID,
+		Name:              res.Link.Name,
+		URL:               res.Link.URL,
+		Description:       res.Link.Description,
+		CreatedByUsername: res.Link.CreatedByUsername,
+		CreatedAt:         res.Link.CreatedAt,
+		UpdatedAt:         res.Link.UpdatedAt,
+	}
+	return body
+}
+
+// NewCreateProjectFolderResponseBody builds the HTTP response body from the
+// result of the "create-project-folder" endpoint of the "project-service"
+// service.
+func NewCreateProjectFolderResponseBody(res *projectservice.ProjectFolder) *CreateProjectFolderResponseBody {
+	body := &CreateProjectFolderResponseBody{
+		UID:               res.UID,
+		ProjectUID:        res.ProjectUID,
+		Name:              res.Name,
+		CreatedByUsername: res.CreatedByUsername,
+		CreatedAt:         res.CreatedAt,
+		UpdatedAt:         res.UpdatedAt,
+	}
+	return body
+}
+
+// NewGetProjectFolderResponseBody builds the HTTP response body from the
+// result of the "get-project-folder" endpoint of the "project-service" service.
+func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult) *GetProjectFolderResponseBody {
+	body := &GetProjectFolderResponseBody{
+		UID:               res.Folder.UID,
+		ProjectUID:        res.Folder.ProjectUID,
+		Name:              res.Folder.Name,
+		CreatedByUsername: res.Folder.CreatedByUsername,
+		CreatedAt:         res.Folder.CreatedAt,
+		UpdatedAt:         res.Folder.UpdatedAt,
+	}
+	return body
+}
+
+// NewUploadProjectDocumentResponseBody builds the HTTP response body from the
+// result of the "upload-project-document" endpoint of the "project-service"
+// service.
+func NewUploadProjectDocumentResponseBody(res *projectservice.ProjectDocument) *UploadProjectDocumentResponseBody {
+	body := &UploadProjectDocumentResponseBody{
+		UID:                res.UID,
+		ProjectUID:         res.ProjectUID,
+		FolderUID:          res.FolderUID,
+		Name:               res.Name,
+		Description:        res.Description,
+		FileName:           res.FileName,
+		FileSize:           res.FileSize,
+		ContentType:        res.ContentType,
+		UploadedByUsername: res.UploadedByUsername,
+		CreatedAt:          res.CreatedAt,
+		UpdatedAt:          res.UpdatedAt,
+	}
+	return body
+}
+
+// NewGetProjectDocumentResponseBody builds the HTTP response body from the
+// result of the "get-project-document" endpoint of the "project-service"
+// service.
+func NewGetProjectDocumentResponseBody(res *projectservice.GetProjectDocumentResult) *GetProjectDocumentResponseBody {
+	body := &GetProjectDocumentResponseBody{
+		UID:                res.Document.UID,
+		ProjectUID:         res.Document.ProjectUID,
+		FolderUID:          res.Document.FolderUID,
+		Name:               res.Document.Name,
+		Description:        res.Document.Description,
+		FileName:           res.Document.FileName,
+		FileSize:           res.Document.FileSize,
+		ContentType:        res.Document.ContentType,
+		UploadedByUsername: res.Document.UploadedByUsername,
+		CreatedAt:          res.Document.CreatedAt,
+		UpdatedAt:          res.Document.UpdatedAt,
+	}
+	return body
+}
+
 // NewGetProjectsBadRequestResponseBody builds the HTTP response body from the
 // result of the "get-projects" endpoint of the "project-service" service.
 func NewGetProjectsBadRequestResponseBody(res *projectservice.BadRequestError) *GetProjectsBadRequestResponseBody {
@@ -1194,6 +1910,17 @@ func NewUpdateProjectSettingsBadRequestResponseBody(res *projectservice.BadReque
 	return body
 }
 
+// NewUpdateProjectSettingsConflictResponseBody builds the HTTP response body
+// from the result of the "update-project-settings" endpoint of the
+// "project-service" service.
+func NewUpdateProjectSettingsConflictResponseBody(res *projectservice.ConflictError) *UpdateProjectSettingsConflictResponseBody {
+	body := &UpdateProjectSettingsConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
 // NewUpdateProjectSettingsInternalServerErrorResponseBody builds the HTTP
 // response body from the result of the "update-project-settings" endpoint of
 // the "project-service" service.
@@ -1237,6 +1964,16 @@ func NewDeleteProjectBadRequestResponseBody(res *projectservice.BadRequestError)
 	return body
 }
 
+// NewDeleteProjectConflictResponseBody builds the HTTP response body from the
+// result of the "delete-project" endpoint of the "project-service" service.
+func NewDeleteProjectConflictResponseBody(res *projectservice.ConflictError) *DeleteProjectConflictResponseBody {
+	body := &DeleteProjectConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
 // NewDeleteProjectInternalServerErrorResponseBody builds the HTTP response
 // body from the result of the "delete-project" endpoint of the
 // "project-service" service.
@@ -1273,6 +2010,456 @@ func NewDeleteProjectServiceUnavailableResponseBody(res *projectservice.ServiceU
 // the result of the "readyz" endpoint of the "project-service" service.
 func NewReadyzServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *ReadyzServiceUnavailableResponseBody {
 	body := &ReadyzServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectLinkBadRequestResponseBody builds the HTTP response body
+// from the result of the "create-project-link" endpoint of the
+// "project-service" service.
+func NewCreateProjectLinkBadRequestResponseBody(res *projectservice.BadRequestError) *CreateProjectLinkBadRequestResponseBody {
+	body := &CreateProjectLinkBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectLinkInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "create-project-link" endpoint of the
+// "project-service" service.
+func NewCreateProjectLinkInternalServerErrorResponseBody(res *projectservice.InternalServerError) *CreateProjectLinkInternalServerErrorResponseBody {
+	body := &CreateProjectLinkInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectLinkNotFoundResponseBody builds the HTTP response body from
+// the result of the "create-project-link" endpoint of the "project-service"
+// service.
+func NewCreateProjectLinkNotFoundResponseBody(res *projectservice.NotFoundError) *CreateProjectLinkNotFoundResponseBody {
+	body := &CreateProjectLinkNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectLinkServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "create-project-link" endpoint of the
+// "project-service" service.
+func NewCreateProjectLinkServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *CreateProjectLinkServiceUnavailableResponseBody {
+	body := &CreateProjectLinkServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectLinkInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "get-project-link" endpoint of the
+// "project-service" service.
+func NewGetProjectLinkInternalServerErrorResponseBody(res *projectservice.InternalServerError) *GetProjectLinkInternalServerErrorResponseBody {
+	body := &GetProjectLinkInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectLinkNotFoundResponseBody builds the HTTP response body from the
+// result of the "get-project-link" endpoint of the "project-service" service.
+func NewGetProjectLinkNotFoundResponseBody(res *projectservice.NotFoundError) *GetProjectLinkNotFoundResponseBody {
+	body := &GetProjectLinkNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectLinkServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "get-project-link" endpoint of the
+// "project-service" service.
+func NewGetProjectLinkServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *GetProjectLinkServiceUnavailableResponseBody {
+	body := &GetProjectLinkServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectLinkBadRequestResponseBody builds the HTTP response body
+// from the result of the "delete-project-link" endpoint of the
+// "project-service" service.
+func NewDeleteProjectLinkBadRequestResponseBody(res *projectservice.BadRequestError) *DeleteProjectLinkBadRequestResponseBody {
+	body := &DeleteProjectLinkBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectLinkConflictResponseBody builds the HTTP response body from
+// the result of the "delete-project-link" endpoint of the "project-service"
+// service.
+func NewDeleteProjectLinkConflictResponseBody(res *projectservice.ConflictError) *DeleteProjectLinkConflictResponseBody {
+	body := &DeleteProjectLinkConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectLinkInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "delete-project-link" endpoint of the
+// "project-service" service.
+func NewDeleteProjectLinkInternalServerErrorResponseBody(res *projectservice.InternalServerError) *DeleteProjectLinkInternalServerErrorResponseBody {
+	body := &DeleteProjectLinkInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectLinkNotFoundResponseBody builds the HTTP response body from
+// the result of the "delete-project-link" endpoint of the "project-service"
+// service.
+func NewDeleteProjectLinkNotFoundResponseBody(res *projectservice.NotFoundError) *DeleteProjectLinkNotFoundResponseBody {
+	body := &DeleteProjectLinkNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectLinkServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "delete-project-link" endpoint of the
+// "project-service" service.
+func NewDeleteProjectLinkServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *DeleteProjectLinkServiceUnavailableResponseBody {
+	body := &DeleteProjectLinkServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectFolderBadRequestResponseBody builds the HTTP response body
+// from the result of the "create-project-folder" endpoint of the
+// "project-service" service.
+func NewCreateProjectFolderBadRequestResponseBody(res *projectservice.BadRequestError) *CreateProjectFolderBadRequestResponseBody {
+	body := &CreateProjectFolderBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectFolderConflictResponseBody builds the HTTP response body
+// from the result of the "create-project-folder" endpoint of the
+// "project-service" service.
+func NewCreateProjectFolderConflictResponseBody(res *projectservice.ConflictError) *CreateProjectFolderConflictResponseBody {
+	body := &CreateProjectFolderConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectFolderInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "create-project-folder" endpoint of the
+// "project-service" service.
+func NewCreateProjectFolderInternalServerErrorResponseBody(res *projectservice.InternalServerError) *CreateProjectFolderInternalServerErrorResponseBody {
+	body := &CreateProjectFolderInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectFolderNotFoundResponseBody builds the HTTP response body
+// from the result of the "create-project-folder" endpoint of the
+// "project-service" service.
+func NewCreateProjectFolderNotFoundResponseBody(res *projectservice.NotFoundError) *CreateProjectFolderNotFoundResponseBody {
+	body := &CreateProjectFolderNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewCreateProjectFolderServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "create-project-folder" endpoint of the
+// "project-service" service.
+func NewCreateProjectFolderServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *CreateProjectFolderServiceUnavailableResponseBody {
+	body := &CreateProjectFolderServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectFolderInternalServerErrorResponseBody builds the HTTP response
+// body from the result of the "get-project-folder" endpoint of the
+// "project-service" service.
+func NewGetProjectFolderInternalServerErrorResponseBody(res *projectservice.InternalServerError) *GetProjectFolderInternalServerErrorResponseBody {
+	body := &GetProjectFolderInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectFolderNotFoundResponseBody builds the HTTP response body from
+// the result of the "get-project-folder" endpoint of the "project-service"
+// service.
+func NewGetProjectFolderNotFoundResponseBody(res *projectservice.NotFoundError) *GetProjectFolderNotFoundResponseBody {
+	body := &GetProjectFolderNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectFolderServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "get-project-folder" endpoint of the
+// "project-service" service.
+func NewGetProjectFolderServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *GetProjectFolderServiceUnavailableResponseBody {
+	body := &GetProjectFolderServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectFolderBadRequestResponseBody builds the HTTP response body
+// from the result of the "delete-project-folder" endpoint of the
+// "project-service" service.
+func NewDeleteProjectFolderBadRequestResponseBody(res *projectservice.BadRequestError) *DeleteProjectFolderBadRequestResponseBody {
+	body := &DeleteProjectFolderBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectFolderConflictResponseBody builds the HTTP response body
+// from the result of the "delete-project-folder" endpoint of the
+// "project-service" service.
+func NewDeleteProjectFolderConflictResponseBody(res *projectservice.ConflictError) *DeleteProjectFolderConflictResponseBody {
+	body := &DeleteProjectFolderConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectFolderInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "delete-project-folder" endpoint of the
+// "project-service" service.
+func NewDeleteProjectFolderInternalServerErrorResponseBody(res *projectservice.InternalServerError) *DeleteProjectFolderInternalServerErrorResponseBody {
+	body := &DeleteProjectFolderInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectFolderNotFoundResponseBody builds the HTTP response body
+// from the result of the "delete-project-folder" endpoint of the
+// "project-service" service.
+func NewDeleteProjectFolderNotFoundResponseBody(res *projectservice.NotFoundError) *DeleteProjectFolderNotFoundResponseBody {
+	body := &DeleteProjectFolderNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectFolderServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "delete-project-folder" endpoint of the
+// "project-service" service.
+func NewDeleteProjectFolderServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *DeleteProjectFolderServiceUnavailableResponseBody {
+	body := &DeleteProjectFolderServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUploadProjectDocumentBadRequestResponseBody builds the HTTP response body
+// from the result of the "upload-project-document" endpoint of the
+// "project-service" service.
+func NewUploadProjectDocumentBadRequestResponseBody(res *projectservice.BadRequestError) *UploadProjectDocumentBadRequestResponseBody {
+	body := &UploadProjectDocumentBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUploadProjectDocumentConflictResponseBody builds the HTTP response body
+// from the result of the "upload-project-document" endpoint of the
+// "project-service" service.
+func NewUploadProjectDocumentConflictResponseBody(res *projectservice.ConflictError) *UploadProjectDocumentConflictResponseBody {
+	body := &UploadProjectDocumentConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUploadProjectDocumentInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "upload-project-document" endpoint of
+// the "project-service" service.
+func NewUploadProjectDocumentInternalServerErrorResponseBody(res *projectservice.InternalServerError) *UploadProjectDocumentInternalServerErrorResponseBody {
+	body := &UploadProjectDocumentInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUploadProjectDocumentNotFoundResponseBody builds the HTTP response body
+// from the result of the "upload-project-document" endpoint of the
+// "project-service" service.
+func NewUploadProjectDocumentNotFoundResponseBody(res *projectservice.NotFoundError) *UploadProjectDocumentNotFoundResponseBody {
+	body := &UploadProjectDocumentNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUploadProjectDocumentServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "upload-project-document" endpoint of
+// the "project-service" service.
+func NewUploadProjectDocumentServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *UploadProjectDocumentServiceUnavailableResponseBody {
+	body := &UploadProjectDocumentServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectDocumentInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "get-project-document" endpoint of the
+// "project-service" service.
+func NewGetProjectDocumentInternalServerErrorResponseBody(res *projectservice.InternalServerError) *GetProjectDocumentInternalServerErrorResponseBody {
+	body := &GetProjectDocumentInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectDocumentNotFoundResponseBody builds the HTTP response body from
+// the result of the "get-project-document" endpoint of the "project-service"
+// service.
+func NewGetProjectDocumentNotFoundResponseBody(res *projectservice.NotFoundError) *GetProjectDocumentNotFoundResponseBody {
+	body := &GetProjectDocumentNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewGetProjectDocumentServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "get-project-document" endpoint of the
+// "project-service" service.
+func NewGetProjectDocumentServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *GetProjectDocumentServiceUnavailableResponseBody {
+	body := &GetProjectDocumentServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDownloadProjectDocumentInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "download-project-document" endpoint of
+// the "project-service" service.
+func NewDownloadProjectDocumentInternalServerErrorResponseBody(res *projectservice.InternalServerError) *DownloadProjectDocumentInternalServerErrorResponseBody {
+	body := &DownloadProjectDocumentInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDownloadProjectDocumentNotFoundResponseBody builds the HTTP response body
+// from the result of the "download-project-document" endpoint of the
+// "project-service" service.
+func NewDownloadProjectDocumentNotFoundResponseBody(res *projectservice.NotFoundError) *DownloadProjectDocumentNotFoundResponseBody {
+	body := &DownloadProjectDocumentNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDownloadProjectDocumentServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "download-project-document" endpoint of
+// the "project-service" service.
+func NewDownloadProjectDocumentServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *DownloadProjectDocumentServiceUnavailableResponseBody {
+	body := &DownloadProjectDocumentServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectDocumentBadRequestResponseBody builds the HTTP response body
+// from the result of the "delete-project-document" endpoint of the
+// "project-service" service.
+func NewDeleteProjectDocumentBadRequestResponseBody(res *projectservice.BadRequestError) *DeleteProjectDocumentBadRequestResponseBody {
+	body := &DeleteProjectDocumentBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectDocumentConflictResponseBody builds the HTTP response body
+// from the result of the "delete-project-document" endpoint of the
+// "project-service" service.
+func NewDeleteProjectDocumentConflictResponseBody(res *projectservice.ConflictError) *DeleteProjectDocumentConflictResponseBody {
+	body := &DeleteProjectDocumentConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectDocumentInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "delete-project-document" endpoint of
+// the "project-service" service.
+func NewDeleteProjectDocumentInternalServerErrorResponseBody(res *projectservice.InternalServerError) *DeleteProjectDocumentInternalServerErrorResponseBody {
+	body := &DeleteProjectDocumentInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectDocumentNotFoundResponseBody builds the HTTP response body
+// from the result of the "delete-project-document" endpoint of the
+// "project-service" service.
+func NewDeleteProjectDocumentNotFoundResponseBody(res *projectservice.NotFoundError) *DeleteProjectDocumentNotFoundResponseBody {
+	body := &DeleteProjectDocumentNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewDeleteProjectDocumentServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "delete-project-document" endpoint of
+// the "project-service" service.
+func NewDeleteProjectDocumentServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *DeleteProjectDocumentServiceUnavailableResponseBody {
+	body := &DeleteProjectDocumentServiceUnavailableResponseBody{
 		Code:    res.Code,
 		Message: res.Message,
 	}
@@ -1466,6 +2653,146 @@ func NewUpdateProjectSettingsPayload(body *UpdateProjectSettingsRequestBody, uid
 func NewDeleteProjectPayload(uid string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.DeleteProjectPayload {
 	v := &projectservice.DeleteProjectPayload{}
 	v.UID = &uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewCreateProjectLinkPayload builds a project-service service
+// create-project-link endpoint payload.
+func NewCreateProjectLinkPayload(body *CreateProjectLinkRequestBody, uid string, version *string, bearerToken *string, xSync *bool) *projectservice.CreateProjectLinkPayload {
+	v := &projectservice.CreateProjectLinkPayload{
+		Name:        *body.Name,
+		URL:         *body.URL,
+		Description: body.Description,
+		FolderUID:   body.FolderUID,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v
+}
+
+// NewGetProjectLinkPayload builds a project-service service get-project-link
+// endpoint payload.
+func NewGetProjectLinkPayload(uid string, linkUID string, version *string, bearerToken *string) *projectservice.GetProjectLinkPayload {
+	v := &projectservice.GetProjectLinkPayload{}
+	v.UID = uid
+	v.LinkUID = linkUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewDeleteProjectLinkPayload builds a project-service service
+// delete-project-link endpoint payload.
+func NewDeleteProjectLinkPayload(uid string, linkUID string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.DeleteProjectLinkPayload {
+	v := &projectservice.DeleteProjectLinkPayload{}
+	v.UID = uid
+	v.LinkUID = linkUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewCreateProjectFolderPayload builds a project-service service
+// create-project-folder endpoint payload.
+func NewCreateProjectFolderPayload(body *CreateProjectFolderRequestBody, uid string, version *string, bearerToken *string, xSync *bool) *projectservice.CreateProjectFolderPayload {
+	v := &projectservice.CreateProjectFolderPayload{
+		Name: *body.Name,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v
+}
+
+// NewGetProjectFolderPayload builds a project-service service
+// get-project-folder endpoint payload.
+func NewGetProjectFolderPayload(uid string, folderUID string, version *string, bearerToken *string) *projectservice.GetProjectFolderPayload {
+	v := &projectservice.GetProjectFolderPayload{}
+	v.UID = uid
+	v.FolderUID = folderUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewDeleteProjectFolderPayload builds a project-service service
+// delete-project-folder endpoint payload.
+func NewDeleteProjectFolderPayload(uid string, folderUID string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.DeleteProjectFolderPayload {
+	v := &projectservice.DeleteProjectFolderPayload{}
+	v.UID = uid
+	v.FolderUID = folderUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewUploadProjectDocumentPayload builds a project-service service
+// upload-project-document endpoint payload.
+func NewUploadProjectDocumentPayload(body *UploadProjectDocumentRequestBody, uid string, version *string, bearerToken *string, xSync *bool) *projectservice.UploadProjectDocumentPayload {
+	v := &projectservice.UploadProjectDocumentPayload{
+		Name:        *body.Name,
+		Description: body.Description,
+		FolderUID:   body.FolderUID,
+		File:        body.File,
+		FileName:    *body.FileName,
+		ContentType: *body.ContentType,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v
+}
+
+// NewGetProjectDocumentPayload builds a project-service service
+// get-project-document endpoint payload.
+func NewGetProjectDocumentPayload(uid string, documentUID string, version *string, bearerToken *string) *projectservice.GetProjectDocumentPayload {
+	v := &projectservice.GetProjectDocumentPayload{}
+	v.UID = uid
+	v.DocumentUID = documentUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewDownloadProjectDocumentPayload builds a project-service service
+// download-project-document endpoint payload.
+func NewDownloadProjectDocumentPayload(uid string, documentUID string, version *string, bearerToken *string) *projectservice.DownloadProjectDocumentPayload {
+	v := &projectservice.DownloadProjectDocumentPayload{}
+	v.UID = uid
+	v.DocumentUID = documentUID
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewDeleteProjectDocumentPayload builds a project-service service
+// delete-project-document endpoint payload.
+func NewDeleteProjectDocumentPayload(uid string, documentUID string, version *string, bearerToken *string, xSync *bool, ifMatch *string) *projectservice.DeleteProjectDocumentPayload {
+	v := &projectservice.DeleteProjectDocumentPayload{}
+	v.UID = uid
+	v.DocumentUID = documentUID
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.XSync = xSync
@@ -1700,6 +3027,69 @@ func ValidateUpdateProjectSettingsRequestBody(body *UpdateProjectSettingsRequest
 		if err2 := ValidateUserInfoRequestBody(body.OpportunityOwner); err2 != nil {
 			err = goa.MergeErrors(err, err2)
 		}
+	}
+	return
+}
+
+// ValidateCreateProjectLinkRequestBody runs the validations defined on
+// Create-Project-LinkRequestBody
+func ValidateCreateProjectLinkRequestBody(body *CreateProjectLinkRequestBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.URL == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("url", "body"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.URL != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
+	}
+	return
+}
+
+// ValidateCreateProjectFolderRequestBody runs the validations defined on
+// Create-Project-FolderRequestBody
+func ValidateCreateProjectFolderRequestBody(body *CreateProjectFolderRequestBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	return
+}
+
+// ValidateUploadProjectDocumentRequestBody runs the validations defined on
+// Upload-Project-DocumentRequestBody
+func ValidateUploadProjectDocumentRequestBody(body *UploadProjectDocumentRequestBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.File == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("file", "body"))
+	}
+	if body.FileName == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("file_name", "body"))
+	}
+	if body.ContentType == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("content_type", "body"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.FolderUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.folder_uid", *body.FolderUID, goa.FormatUUID))
 	}
 	return
 }

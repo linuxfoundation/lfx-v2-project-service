@@ -36,3 +36,33 @@ type ProjectRepository interface {
 	ListAllProjectsBase(ctx context.Context) ([]*models.ProjectBase, error)
 	ListAllProjectsSettings(ctx context.Context) ([]*models.ProjectSettings, error)
 }
+
+// DocumentRepository defines the interface for project document storage operations.
+type DocumentRepository interface {
+	GetDocumentMetadata(ctx context.Context, projectUID, documentUID string) (*models.ProjectDocument, uint64, error)
+	GetDocumentFile(ctx context.Context, documentUID string) ([]byte, error)
+	ListDocuments(ctx context.Context, projectUID string) ([]*models.ProjectDocument, error)
+	CreateDocumentMetadata(ctx context.Context, doc *models.ProjectDocument) error
+	PutDocumentFile(ctx context.Context, documentUID string, fileData []byte) error
+	DeleteDocumentMetadata(ctx context.Context, projectUID, documentUID string, revision uint64) error
+	DeleteDocumentFile(ctx context.Context, documentUID string) error
+	UniqueDocumentName(ctx context.Context, doc *models.ProjectDocument) (string, error)
+	DeleteUniqueDocumentName(ctx context.Context, uniqueKey string) error
+}
+
+// LinkRepository defines the interface for project link storage operations.
+type LinkRepository interface {
+	GetLink(ctx context.Context, projectUID, linkUID string) (*models.ProjectLink, uint64, error)
+	ListLinks(ctx context.Context, projectUID string) ([]*models.ProjectLink, error)
+	CreateLink(ctx context.Context, link *models.ProjectLink) error
+	DeleteLink(ctx context.Context, projectUID, linkUID string, revision uint64) error
+}
+
+// FolderRepository defines the interface for project folder storage operations.
+type FolderRepository interface {
+	GetFolder(ctx context.Context, projectUID, folderUID string) (*models.ProjectFolder, uint64, error)
+	CreateFolder(ctx context.Context, folder *models.ProjectFolder) error
+	DeleteFolder(ctx context.Context, projectUID, folderUID string, revision uint64) error
+	UniqueFolderName(ctx context.Context, folder *models.ProjectFolder) (string, error)
+	DeleteUniqueFolderName(ctx context.Context, uniqueKey string) error
+}

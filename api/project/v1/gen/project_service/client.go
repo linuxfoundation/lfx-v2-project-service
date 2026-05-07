@@ -11,35 +11,56 @@ package projectservice
 
 import (
 	"context"
+	"io"
 
 	goa "goa.design/goa/v3/pkg"
 )
 
 // Client is the "project-service" service client.
 type Client struct {
-	GetProjectsEndpoint           goa.Endpoint
-	CreateProjectEndpoint         goa.Endpoint
-	GetOneProjectBaseEndpoint     goa.Endpoint
-	GetOneProjectSettingsEndpoint goa.Endpoint
-	UpdateProjectBaseEndpoint     goa.Endpoint
-	UpdateProjectSettingsEndpoint goa.Endpoint
-	DeleteProjectEndpoint         goa.Endpoint
-	ReadyzEndpoint                goa.Endpoint
-	LivezEndpoint                 goa.Endpoint
+	GetProjectsEndpoint             goa.Endpoint
+	CreateProjectEndpoint           goa.Endpoint
+	GetOneProjectBaseEndpoint       goa.Endpoint
+	GetOneProjectSettingsEndpoint   goa.Endpoint
+	UpdateProjectBaseEndpoint       goa.Endpoint
+	UpdateProjectSettingsEndpoint   goa.Endpoint
+	DeleteProjectEndpoint           goa.Endpoint
+	ReadyzEndpoint                  goa.Endpoint
+	LivezEndpoint                   goa.Endpoint
+	CreateProjectLinkEndpoint       goa.Endpoint
+	GetProjectLinkEndpoint          goa.Endpoint
+	DeleteProjectLinkEndpoint       goa.Endpoint
+	CreateProjectFolderEndpoint     goa.Endpoint
+	GetProjectFolderEndpoint        goa.Endpoint
+	DeleteProjectFolderEndpoint     goa.Endpoint
+	UploadProjectDocumentEndpoint   goa.Endpoint
+	GetProjectDocumentEndpoint      goa.Endpoint
+	DownloadProjectDocumentEndpoint goa.Endpoint
+	DeleteProjectDocumentEndpoint   goa.Endpoint
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, readyz, livez goa.Endpoint) *Client {
+func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, readyz, livez, createProjectLink, getProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
 	return &Client{
-		GetProjectsEndpoint:           getProjects,
-		CreateProjectEndpoint:         createProject,
-		GetOneProjectBaseEndpoint:     getOneProjectBase,
-		GetOneProjectSettingsEndpoint: getOneProjectSettings,
-		UpdateProjectBaseEndpoint:     updateProjectBase,
-		UpdateProjectSettingsEndpoint: updateProjectSettings,
-		DeleteProjectEndpoint:         deleteProject,
-		ReadyzEndpoint:                readyz,
-		LivezEndpoint:                 livez,
+		GetProjectsEndpoint:             getProjects,
+		CreateProjectEndpoint:           createProject,
+		GetOneProjectBaseEndpoint:       getOneProjectBase,
+		GetOneProjectSettingsEndpoint:   getOneProjectSettings,
+		UpdateProjectBaseEndpoint:       updateProjectBase,
+		UpdateProjectSettingsEndpoint:   updateProjectSettings,
+		DeleteProjectEndpoint:           deleteProject,
+		ReadyzEndpoint:                  readyz,
+		LivezEndpoint:                   livez,
+		CreateProjectLinkEndpoint:       createProjectLink,
+		GetProjectLinkEndpoint:          getProjectLink,
+		DeleteProjectLinkEndpoint:       deleteProjectLink,
+		CreateProjectFolderEndpoint:     createProjectFolder,
+		GetProjectFolderEndpoint:        getProjectFolder,
+		DeleteProjectFolderEndpoint:     deleteProjectFolder,
+		UploadProjectDocumentEndpoint:   uploadProjectDocument,
+		GetProjectDocumentEndpoint:      getProjectDocument,
+		DownloadProjectDocumentEndpoint: downloadProjectDocument,
+		DeleteProjectDocumentEndpoint:   deleteProjectDocument,
 	}
 }
 
@@ -131,6 +152,7 @@ func (c *Client) UpdateProjectBase(ctx context.Context, p *UpdateProjectBasePayl
 // UpdateProjectSettings may return the following errors:
 //   - "BadRequest" (type *BadRequestError): Bad request
 //   - "NotFound" (type *NotFoundError): Resource not found
+//   - "Conflict" (type *ConflictError): Revision mismatch
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
@@ -148,6 +170,7 @@ func (c *Client) UpdateProjectSettings(ctx context.Context, p *UpdateProjectSett
 // DeleteProject may return the following errors:
 //   - "NotFound" (type *NotFoundError): Resource not found
 //   - "BadRequest" (type *BadRequestError): Bad request
+//   - "Conflict" (type *ConflictError): Revision mismatch
 //   - "InternalServerError" (type *InternalServerError): Internal server error
 //   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
 //   - error: internal error
@@ -177,4 +200,164 @@ func (c *Client) Livez(ctx context.Context) (res []byte, err error) {
 		return
 	}
 	return ires.([]byte), nil
+}
+
+// CreateProjectLink calls the "create-project-link" endpoint of the
+// "project-service" service.
+// CreateProjectLink may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Project not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) CreateProjectLink(ctx context.Context, p *CreateProjectLinkPayload) (res *ProjectLink, err error) {
+	var ires any
+	ires, err = c.CreateProjectLinkEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ProjectLink), nil
+}
+
+// GetProjectLink calls the "get-project-link" endpoint of the
+// "project-service" service.
+// GetProjectLink may return the following errors:
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) GetProjectLink(ctx context.Context, p *GetProjectLinkPayload) (res *GetProjectLinkResult, err error) {
+	var ires any
+	ires, err = c.GetProjectLinkEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*GetProjectLinkResult), nil
+}
+
+// DeleteProjectLink calls the "delete-project-link" endpoint of the
+// "project-service" service.
+// DeleteProjectLink may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "Conflict" (type *ConflictError): Revision mismatch
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) DeleteProjectLink(ctx context.Context, p *DeleteProjectLinkPayload) (err error) {
+	_, err = c.DeleteProjectLinkEndpoint(ctx, p)
+	return
+}
+
+// CreateProjectFolder calls the "create-project-folder" endpoint of the
+// "project-service" service.
+// CreateProjectFolder may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Project not found
+//   - "Conflict" (type *ConflictError): Folder name already exists
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) CreateProjectFolder(ctx context.Context, p *CreateProjectFolderPayload) (res *ProjectFolder, err error) {
+	var ires any
+	ires, err = c.CreateProjectFolderEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ProjectFolder), nil
+}
+
+// GetProjectFolder calls the "get-project-folder" endpoint of the
+// "project-service" service.
+// GetProjectFolder may return the following errors:
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) GetProjectFolder(ctx context.Context, p *GetProjectFolderPayload) (res *GetProjectFolderResult, err error) {
+	var ires any
+	ires, err = c.GetProjectFolderEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*GetProjectFolderResult), nil
+}
+
+// DeleteProjectFolder calls the "delete-project-folder" endpoint of the
+// "project-service" service.
+// DeleteProjectFolder may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "Conflict" (type *ConflictError): Folder not empty or revision mismatch
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) DeleteProjectFolder(ctx context.Context, p *DeleteProjectFolderPayload) (err error) {
+	_, err = c.DeleteProjectFolderEndpoint(ctx, p)
+	return
+}
+
+// UploadProjectDocument calls the "upload-project-document" endpoint of the
+// "project-service" service.
+// UploadProjectDocument may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Project not found
+//   - "Conflict" (type *ConflictError): Document name already exists
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) UploadProjectDocument(ctx context.Context, p *UploadProjectDocumentPayload) (res *ProjectDocument, err error) {
+	var ires any
+	ires, err = c.UploadProjectDocumentEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ProjectDocument), nil
+}
+
+// GetProjectDocument calls the "get-project-document" endpoint of the
+// "project-service" service.
+// GetProjectDocument may return the following errors:
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) GetProjectDocument(ctx context.Context, p *GetProjectDocumentPayload) (res *GetProjectDocumentResult, err error) {
+	var ires any
+	ires, err = c.GetProjectDocumentEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*GetProjectDocumentResult), nil
+}
+
+// DownloadProjectDocument calls the "download-project-document" endpoint of
+// the "project-service" service.
+// DownloadProjectDocument may return the following errors:
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) DownloadProjectDocument(ctx context.Context, p *DownloadProjectDocumentPayload) (resp io.ReadCloser, err error) {
+	var ires any
+	ires, err = c.DownloadProjectDocumentEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	o := ires.(*DownloadProjectDocumentResponseData)
+	return o.Body, nil
+}
+
+// DeleteProjectDocument calls the "delete-project-document" endpoint of the
+// "project-service" service.
+// DeleteProjectDocument may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Resource not found
+//   - "Conflict" (type *ConflictError): Revision mismatch
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) DeleteProjectDocument(ctx context.Context, p *DeleteProjectDocumentPayload) (err error) {
+	_, err = c.DeleteProjectDocumentEndpoint(ctx, p)
+	return
 }

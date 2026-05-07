@@ -10,6 +10,28 @@ const (
 
 	// KVStoreNameProjectSettings is the name of the KV store for project settings.
 	KVStoreNameProjectSettings = "project-settings"
+
+	// KVStoreNameProjectLinks is the name of the KV store for project links.
+	KVStoreNameProjectLinks = "project-links"
+
+	// KVStoreNameProjectFolders is the name of the KV store for project folders.
+	KVStoreNameProjectFolders = "project-folders"
+
+	// KVStoreNameProjectDocuments is the name of the KV store for project document metadata.
+	KVStoreNameProjectDocuments = "project-documents-metadata"
+
+	// ObjectStoreNameProjectDocuments is the name of the object store for project document files.
+	ObjectStoreNameProjectDocuments = "project-documents"
+
+	// KVLookupFolderPrefix is the lookup key prefix for project folder name uniqueness.
+	KVLookupFolderPrefix = "lookup/project-folders/%s"
+
+	// KVLookupDocumentPrefix is the lookup key prefix for project document name uniqueness.
+	KVLookupDocumentPrefix = "lookup/project-documents/%s"
+
+	// KVLookupLinkKey is the per-project link index key.
+	// Format: lookup/project-links/<projectUID>/<linkUID>
+	KVLookupLinkKey = "lookup/project-links/%s/%s"
 )
 
 // NATS subjects that the project service sends messages about.
@@ -26,6 +48,15 @@ const (
 	// This event is published when project settings are updated, containing both before and after states.
 	// The subject is of the form: lfx.projects-api.project_settings.updated
 	ProjectSettingsUpdatedSubject = "lfx.projects-api.project_settings.updated"
+
+	// IndexProjectLinkSubject is the subject for project link indexing.
+	IndexProjectLinkSubject = "lfx.index.project_link"
+
+	// IndexProjectFolderSubject is the subject for project folder indexing.
+	IndexProjectFolderSubject = "lfx.index.project_folder"
+
+	// IndexProjectDocumentSubject is the subject for project document indexing.
+	IndexProjectDocumentSubject = "lfx.index.project_document"
 )
 
 // NATS wildcard subjects that the project service handles messages about.

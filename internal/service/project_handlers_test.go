@@ -631,9 +631,12 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 				)
 
 				return &ProjectsService{
-					ProjectRepository: mockRepo,
-					MessageBuilder:    &domain.MockMessageBuilder{},
-					Auth:              &auth.MockJWTAuth{},
+					ProjectRepository:  mockRepo,
+					DocumentRepository: &domain.MockDocumentRepository{},
+					LinkRepository:     &domain.MockLinkRepository{},
+					FolderRepository:   &domain.MockFolderRepository{},
+					MessageBuilder:     &domain.MockMessageBuilder{},
+					Auth:               &auth.MockJWTAuth{},
 				}
 			},
 			subject:     constants.ProjectGetNameSubject,

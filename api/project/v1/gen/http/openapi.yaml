@@ -341,6 +341,765 @@ paths:
                         required:
                             - code
                             - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/documents:
+        post:
+            tags:
+                - project-service
+            summary: upload-project-document project-service
+            description: Upload a new document for a project (multipart/form-data).
+            operationId: project-service#upload-project-document
+            consumes:
+                - multipart/form-data
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
+                - name: Upload-Project-DocumentRequestBody
+                  in: formData
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ProjectServiceUploadProjectDocumentRequestBody'
+                    required:
+                        - name
+                        - file
+                        - file_name
+                        - content_type
+            responses:
+                "201":
+                    description: Created response.
+                    schema:
+                        $ref: '#/definitions/ProjectDocument'
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/documents/{document_uid}:
+        get:
+            tags:
+                - project-service
+            summary: get-project-document project-service
+            description: Get project document metadata.
+            operationId: project-service#get-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: document_uid
+                  in: path
+                  description: Document UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/ProjectServiceGetProjectDocumentResponseBody'
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            type: string
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+        delete:
+            tags:
+                - project-service
+            summary: delete-project-document project-service
+            description: Delete a project document.
+            operationId: project-service#delete-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: document_uid
+                  in: path
+                  description: Document UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  required: false
+                  type: string
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/documents/{document_uid}/download:
+        get:
+            tags:
+                - project-service
+            summary: download-project-document project-service
+            description: Download the binary file of a project document.
+            operationId: project-service#download-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: document_uid
+                  in: path
+                  description: Document UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/folders:
+        post:
+            tags:
+                - project-service
+            summary: create-project-folder project-service
+            description: Create a new folder for a project.
+            operationId: project-service#create-project-folder
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
+                - name: Create-Project-FolderRequestBody
+                  in: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ProjectServiceCreateProjectFolderRequestBody'
+                    required:
+                        - name
+            responses:
+                "201":
+                    description: Created response.
+                    schema:
+                        $ref: '#/definitions/ProjectFolder'
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/folders/{folder_uid}:
+        get:
+            tags:
+                - project-service
+            summary: get-project-folder project-service
+            description: Get a single project folder.
+            operationId: project-service#get-project-folder
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: folder_uid
+                  in: path
+                  description: Folder UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/ProjectServiceGetProjectFolderResponseBody'
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            type: string
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+        delete:
+            tags:
+                - project-service
+            summary: delete-project-folder project-service
+            description: Delete a project folder. The folder must be empty.
+            operationId: project-service#delete-project-folder
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: folder_uid
+                  in: path
+                  description: Folder UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  required: false
+                  type: string
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/links:
+        post:
+            tags:
+                - project-service
+            summary: create-project-link project-service
+            description: Create a new link for a project.
+            operationId: project-service#create-project-link
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
+                - name: Create-Project-LinkRequestBody
+                  in: body
+                  required: true
+                  schema:
+                    $ref: '#/definitions/ProjectServiceCreateProjectLinkRequestBody'
+                    required:
+                        - name
+                        - url
+            responses:
+                "201":
+                    description: Created response.
+                    schema:
+                        $ref: '#/definitions/ProjectLink'
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/links/{link_uid}:
+        get:
+            tags:
+                - project-service
+            summary: get-project-link project-service
+            description: Get a single project link.
+            operationId: project-service#get-project-link
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: link_uid
+                  in: path
+                  description: Link UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/ProjectServiceGetProjectLinkResponseBody'
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            type: string
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
+        delete:
+            tags:
+                - project-service
+            summary: delete-project-link project-service
+            description: Delete a project link.
+            operationId: project-service#delete-project-link
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  type: string
+                  format: uuid
+                - name: link_uid
+                  in: path
+                  description: Link UID
+                  required: true
+                  type: string
+                  format: uuid
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  required: false
+                  type: boolean
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  required: false
+                  type: string
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
+                        required:
+                            - code
+                            - message
                 "500":
                     description: Internal Server Error response.
                     schema:
@@ -475,6 +1234,13 @@ paths:
                     description: Not Found response.
                     schema:
                         $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "409":
+                    description: Conflict response.
+                    schema:
+                        $ref: '#/definitions/ConflictError'
                         required:
                             - code
                             - message
@@ -763,6 +1529,113 @@ definitions:
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2021-01-01T00:00:00Z"
             website_url: https://example.com
+    ProjectDocument:
+        title: ProjectDocument
+        type: object
+        properties:
+            content_type:
+                type: string
+                description: MIME type of the file
+                example: application/pdf
+            created_at:
+                type: string
+                description: RFC3339 timestamp
+                example: "2024-01-01T00:00:00Z"
+                format: date-time
+            description:
+                type: string
+                description: A description of the document
+                example: A description of the resource
+            file_name:
+                type: string
+                description: Original uploaded file name
+                example: report.pdf
+            file_size:
+                type: integer
+                description: File size in bytes
+                example: 204800
+                format: int64
+            folder_uid:
+                type: string
+                description: Folder UID that this document belongs to (optional)
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            name:
+                type: string
+                description: Document display name
+                example: My Resource
+                minLength: 1
+            project_uid:
+                type: string
+                description: Project UID this document belongs to
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            uid:
+                type: string
+                description: Document UID
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            updated_at:
+                type: string
+                description: RFC3339 timestamp
+                example: "2024-01-01T00:00:00Z"
+                format: date-time
+            uploaded_by_username:
+                type: string
+                description: Username of the principal who created this resource
+                example: johndoe
+        example:
+            content_type: application/pdf
+            created_at: "2024-01-01T00:00:00Z"
+            description: A description of the resource
+            file_name: report.pdf
+            file_size: 204800
+            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            name: My Resource
+            project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            updated_at: "2024-01-01T00:00:00Z"
+            uploaded_by_username: johndoe
+    ProjectFolder:
+        title: ProjectFolder
+        type: object
+        properties:
+            created_at:
+                type: string
+                description: RFC3339 timestamp
+                example: "2024-01-01T00:00:00Z"
+                format: date-time
+            created_by_username:
+                type: string
+                description: Username of the principal who created this resource
+                example: johndoe
+            name:
+                type: string
+                description: Folder display name
+                example: My Resource
+                minLength: 1
+            project_uid:
+                type: string
+                description: Project UID this folder belongs to
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            uid:
+                type: string
+                description: Folder UID
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            updated_at:
+                type: string
+                description: RFC3339 timestamp
+                example: "2024-01-01T00:00:00Z"
+                format: date-time
+        example:
+            created_at: "2024-01-01T00:00:00Z"
+            created_by_username: johndoe
+            name: My Resource
+            project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            updated_at: "2024-01-01T00:00:00Z"
     ProjectFull:
         title: ProjectFull
         type: object
@@ -1054,6 +1927,107 @@ definitions:
                   email: bob.wilson@example.com
                   name: Bob Wilson
                   username: bobwilson101
+    ProjectLink:
+        title: ProjectLink
+        type: object
+        properties:
+            created_at:
+                type: string
+                description: RFC3339 timestamp
+                example: "2024-01-01T00:00:00Z"
+                format: date-time
+            created_by_username:
+                type: string
+                description: Username of the principal who created this resource
+                example: johndoe
+            description:
+                type: string
+                description: A description of the link
+                example: A description of the resource
+            folder_uid:
+                type: string
+                description: Folder UID that this link belongs to (optional)
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            name:
+                type: string
+                description: Link display name
+                example: My Resource
+                minLength: 1
+            project_uid:
+                type: string
+                description: Project UID this link belongs to
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            uid:
+                type: string
+                description: Link UID
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            updated_at:
+                type: string
+                description: RFC3339 timestamp
+                example: "2024-01-01T00:00:00Z"
+                format: date-time
+            url:
+                type: string
+                description: The URL of the link
+                example: https://example.com
+                format: uri
+        example:
+            created_at: "2024-01-01T00:00:00Z"
+            created_by_username: johndoe
+            description: A description of the resource
+            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            name: My Resource
+            project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            updated_at: "2024-01-01T00:00:00Z"
+            url: https://example.com
+    ProjectServiceCreateProjectFolderRequestBody:
+        title: ProjectServiceCreateProjectFolderRequestBody
+        type: object
+        properties:
+            name:
+                type: string
+                description: Folder display name
+                example: My Resource
+                minLength: 1
+        example:
+            name: My Resource
+        required:
+            - name
+    ProjectServiceCreateProjectLinkRequestBody:
+        title: ProjectServiceCreateProjectLinkRequestBody
+        type: object
+        properties:
+            description:
+                type: string
+                description: A description of the link
+                example: A description of the resource
+            folder_uid:
+                type: string
+                description: Folder UID to place the link in (optional)
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            name:
+                type: string
+                description: Link display name
+                example: My Resource
+                minLength: 1
+            url:
+                type: string
+                description: The URL of the link
+                example: https://example.com
+                format: uri
+        example:
+            description: A description of the resource
+            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            name: My Resource
+            url: https://example.com
+        required:
+            - name
+            - url
     ProjectServiceCreateProjectRequestBody:
         title: ProjectServiceCreateProjectRequestBody
         type: object
@@ -1337,6 +2311,15 @@ definitions:
     ProjectServiceGetOneProjectSettingsResponseBody:
         title: ProjectServiceGetOneProjectSettingsResponseBody
         $ref: '#/definitions/ProjectSettings'
+    ProjectServiceGetProjectDocumentResponseBody:
+        title: ProjectServiceGetProjectDocumentResponseBody
+        $ref: '#/definitions/ProjectDocument'
+    ProjectServiceGetProjectFolderResponseBody:
+        title: ProjectServiceGetProjectFolderResponseBody
+        $ref: '#/definitions/ProjectFolder'
+    ProjectServiceGetProjectLinkResponseBody:
+        title: ProjectServiceGetProjectLinkResponseBody
+        $ref: '#/definitions/ProjectLink'
     ProjectServiceGetProjectsResponseBody:
         title: ProjectServiceGetProjectsResponseBody
         type: object
@@ -2047,6 +3030,55 @@ definitions:
                   email: bob.wilson@example.com
                   name: Bob Wilson
                   username: bobwilson101
+    ProjectServiceUploadProjectDocumentRequestBody:
+        title: ProjectServiceUploadProjectDocumentRequestBody
+        type: object
+        properties:
+            content_type:
+                type: string
+                description: MIME type of the file
+                example: application/pdf
+            description:
+                type: string
+                description: A description of the document
+                example: A description of the resource
+            file:
+                type: string
+                description: File contents
+                example:
+                    - 46
+                    - 46
+                    - 46
+                format: byte
+            file_name:
+                type: string
+                description: Original file name including extension
+                example: report.pdf
+            folder_uid:
+                type: string
+                description: Folder UID to place the document in (optional)
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+            name:
+                type: string
+                description: Document display name
+                example: My Resource
+                minLength: 1
+        example:
+            content_type: application/pdf
+            description: A description of the resource
+            file:
+                - 46
+                - 46
+                - 46
+            file_name: report.pdf
+            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            name: My Resource
+        required:
+            - name
+            - file
+            - file_name
+            - content_type
     ProjectSettings:
         title: ProjectSettings
         type: object

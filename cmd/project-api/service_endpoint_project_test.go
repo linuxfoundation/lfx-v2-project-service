@@ -32,9 +32,12 @@ func setupAPI() (*ProjectsAPI, *domain.MockProjectRepository, *domain.MockMessag
 	mockJwtAuth := &auth.MockJWTAuth{}
 
 	projectService := &service.ProjectsService{
-		ProjectRepository: mockRepo,
-		MessageBuilder:    mockMessageBuilder,
-		Auth:              mockJwtAuth,
+		ProjectRepository:  mockRepo,
+		DocumentRepository: &domain.MockDocumentRepository{},
+		LinkRepository:     &domain.MockLinkRepository{},
+		FolderRepository:   &domain.MockFolderRepository{},
+		MessageBuilder:     mockMessageBuilder,
+		Auth:               mockJwtAuth,
 	}
 
 	api := &ProjectsAPI{

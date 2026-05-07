@@ -9,10 +9,13 @@ import (
 
 // ProjectsService implements the projsvc.Service interface and domain.MessageHandler
 type ProjectsService struct {
-	ProjectRepository domain.ProjectRepository
-	MessageBuilder    domain.MessageBuilder
-	Auth              domain.Authenticator
-	Config            ServiceConfig
+	ProjectRepository  domain.ProjectRepository
+	DocumentRepository domain.DocumentRepository
+	LinkRepository     domain.LinkRepository
+	FolderRepository   domain.FolderRepository
+	MessageBuilder     domain.MessageBuilder
+	Auth               domain.Authenticator
+	Config             ServiceConfig
 }
 
 // NewProjectsService creates a new ProjectsService.
@@ -25,7 +28,8 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig) *Projec
 
 // ServiceReady checks if the service is ready for use.
 func (s *ProjectsService) ServiceReady() bool {
-	return s.ProjectRepository != nil && s.MessageBuilder != nil
+	return s.ProjectRepository != nil && s.MessageBuilder != nil &&
+		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil
 }
 
 // ServiceConfig is the configuration for the ProjectsService.

@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -855,6 +856,7 @@ func EncodeUpdateProjectSettingsRequest(encoder func(*http.Request) goahttp.Enco
 // controls whether the response body should be restored after having been read.
 // DecodeUpdateProjectSettingsResponse may return the following errors:
 //   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
@@ -903,6 +905,20 @@ func DecodeUpdateProjectSettingsResponse(decoder func(*http.Response) goahttp.De
 				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
 			}
 			return nil, NewUpdateProjectSettingsBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateProjectSettingsConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "update-project-settings", err)
+			}
+			err = ValidateUpdateProjectSettingsConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "update-project-settings", err)
+			}
+			return nil, NewUpdateProjectSettingsConflict(&body)
 		case http.StatusInternalServerError:
 			var (
 				body UpdateProjectSettingsInternalServerErrorResponseBody
@@ -1018,6 +1034,7 @@ func EncodeDeleteProjectRequest(encoder func(*http.Request) goahttp.Encoder) fun
 // response body should be restored after having been read.
 // DecodeDeleteProjectResponse may return the following errors:
 //   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
 //   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
 //   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
 //   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
@@ -1053,6 +1070,20 @@ func DecodeDeleteProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 				return nil, goahttp.ErrValidationError("project-service", "delete-project", err)
 			}
 			return nil, NewDeleteProjectBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body DeleteProjectConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project", err)
+			}
+			err = ValidateDeleteProjectConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project", err)
+			}
+			return nil, NewDeleteProjectConflict(&body)
 		case http.StatusInternalServerError:
 			var (
 				body DeleteProjectInternalServerErrorResponseBody
@@ -1215,6 +1246,1605 @@ func DecodeLivezResponse(decoder func(*http.Response) goahttp.Decoder, restoreBo
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("project-service", "livez", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildCreateProjectLinkRequest instantiates a HTTP request object with method
+// and path set to call the "project-service" service "create-project-link"
+// endpoint
+func (c *Client) BuildCreateProjectLinkRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*projectservice.CreateProjectLinkPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "create-project-link", "*projectservice.CreateProjectLinkPayload", v)
+		}
+		uid = p.UID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateProjectLinkProjectServicePath(uid)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "create-project-link", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeCreateProjectLinkRequest returns an encoder for requests sent to the
+// project-service create-project-link server.
+func EncodeCreateProjectLinkRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.CreateProjectLinkPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "create-project-link", "*projectservice.CreateProjectLinkPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewCreateProjectLinkRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("project-service", "create-project-link", err)
+		}
+		return nil
+	}
+}
+
+// DecodeCreateProjectLinkResponse returns a decoder for responses returned by
+// the project-service create-project-link endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeCreateProjectLinkResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeCreateProjectLinkResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusCreated:
+			var (
+				body CreateProjectLinkResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-link", err)
+			}
+			err = ValidateCreateProjectLinkResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-link", err)
+			}
+			res := NewCreateProjectLinkProjectLinkCreated(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body CreateProjectLinkBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-link", err)
+			}
+			err = ValidateCreateProjectLinkBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-link", err)
+			}
+			return nil, NewCreateProjectLinkBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body CreateProjectLinkInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-link", err)
+			}
+			err = ValidateCreateProjectLinkInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-link", err)
+			}
+			return nil, NewCreateProjectLinkInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body CreateProjectLinkNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-link", err)
+			}
+			err = ValidateCreateProjectLinkNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-link", err)
+			}
+			return nil, NewCreateProjectLinkNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body CreateProjectLinkServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-link", err)
+			}
+			err = ValidateCreateProjectLinkServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-link", err)
+			}
+			return nil, NewCreateProjectLinkServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "create-project-link", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildGetProjectLinkRequest instantiates a HTTP request object with method
+// and path set to call the "project-service" service "get-project-link"
+// endpoint
+func (c *Client) BuildGetProjectLinkRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid     string
+		linkUID string
+	)
+	{
+		p, ok := v.(*projectservice.GetProjectLinkPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "get-project-link", "*projectservice.GetProjectLinkPayload", v)
+		}
+		uid = p.UID
+		linkUID = p.LinkUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectLinkProjectServicePath(uid, linkUID)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "get-project-link", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeGetProjectLinkRequest returns an encoder for requests sent to the
+// project-service get-project-link server.
+func EncodeGetProjectLinkRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.GetProjectLinkPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "get-project-link", "*projectservice.GetProjectLinkPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeGetProjectLinkResponse returns a decoder for responses returned by the
+// project-service get-project-link endpoint. restoreBody controls whether the
+// response body should be restored after having been read.
+// DecodeGetProjectLinkResponse may return the following errors:
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeGetProjectLinkResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body GetProjectLinkResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-link", err)
+			}
+			err = ValidateGetProjectLinkResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-link", err)
+			}
+			var (
+				etag *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			res := NewGetProjectLinkResultOK(&body, etag)
+			return res, nil
+		case http.StatusInternalServerError:
+			var (
+				body GetProjectLinkInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-link", err)
+			}
+			err = ValidateGetProjectLinkInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-link", err)
+			}
+			return nil, NewGetProjectLinkInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body GetProjectLinkNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-link", err)
+			}
+			err = ValidateGetProjectLinkNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-link", err)
+			}
+			return nil, NewGetProjectLinkNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body GetProjectLinkServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-link", err)
+			}
+			err = ValidateGetProjectLinkServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-link", err)
+			}
+			return nil, NewGetProjectLinkServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "get-project-link", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeleteProjectLinkRequest instantiates a HTTP request object with method
+// and path set to call the "project-service" service "delete-project-link"
+// endpoint
+func (c *Client) BuildDeleteProjectLinkRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid     string
+		linkUID string
+	)
+	{
+		p, ok := v.(*projectservice.DeleteProjectLinkPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "delete-project-link", "*projectservice.DeleteProjectLinkPayload", v)
+		}
+		uid = p.UID
+		linkUID = p.LinkUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteProjectLinkProjectServicePath(uid, linkUID)}
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "delete-project-link", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeDeleteProjectLinkRequest returns an encoder for requests sent to the
+// project-service delete-project-link server.
+func EncodeDeleteProjectLinkRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.DeleteProjectLinkPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "delete-project-link", "*projectservice.DeleteProjectLinkPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeDeleteProjectLinkResponse returns a decoder for responses returned by
+// the project-service delete-project-link endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeDeleteProjectLinkResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeDeleteProjectLinkResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusNoContent:
+			return nil, nil
+		case http.StatusBadRequest:
+			var (
+				body DeleteProjectLinkBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-link", err)
+			}
+			err = ValidateDeleteProjectLinkBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-link", err)
+			}
+			return nil, NewDeleteProjectLinkBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body DeleteProjectLinkConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-link", err)
+			}
+			err = ValidateDeleteProjectLinkConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-link", err)
+			}
+			return nil, NewDeleteProjectLinkConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body DeleteProjectLinkInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-link", err)
+			}
+			err = ValidateDeleteProjectLinkInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-link", err)
+			}
+			return nil, NewDeleteProjectLinkInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body DeleteProjectLinkNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-link", err)
+			}
+			err = ValidateDeleteProjectLinkNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-link", err)
+			}
+			return nil, NewDeleteProjectLinkNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body DeleteProjectLinkServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-link", err)
+			}
+			err = ValidateDeleteProjectLinkServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-link", err)
+			}
+			return nil, NewDeleteProjectLinkServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "delete-project-link", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildCreateProjectFolderRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "create-project-folder" endpoint
+func (c *Client) BuildCreateProjectFolderRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*projectservice.CreateProjectFolderPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "create-project-folder", "*projectservice.CreateProjectFolderPayload", v)
+		}
+		uid = p.UID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateProjectFolderProjectServicePath(uid)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "create-project-folder", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeCreateProjectFolderRequest returns an encoder for requests sent to the
+// project-service create-project-folder server.
+func EncodeCreateProjectFolderRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.CreateProjectFolderPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "create-project-folder", "*projectservice.CreateProjectFolderPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewCreateProjectFolderRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("project-service", "create-project-folder", err)
+		}
+		return nil
+	}
+}
+
+// DecodeCreateProjectFolderResponse returns a decoder for responses returned
+// by the project-service create-project-folder endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeCreateProjectFolderResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeCreateProjectFolderResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusCreated:
+			var (
+				body CreateProjectFolderResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-folder", err)
+			}
+			err = ValidateCreateProjectFolderResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-folder", err)
+			}
+			res := NewCreateProjectFolderProjectFolderCreated(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body CreateProjectFolderBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-folder", err)
+			}
+			err = ValidateCreateProjectFolderBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-folder", err)
+			}
+			return nil, NewCreateProjectFolderBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body CreateProjectFolderConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-folder", err)
+			}
+			err = ValidateCreateProjectFolderConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-folder", err)
+			}
+			return nil, NewCreateProjectFolderConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body CreateProjectFolderInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-folder", err)
+			}
+			err = ValidateCreateProjectFolderInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-folder", err)
+			}
+			return nil, NewCreateProjectFolderInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body CreateProjectFolderNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-folder", err)
+			}
+			err = ValidateCreateProjectFolderNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-folder", err)
+			}
+			return nil, NewCreateProjectFolderNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body CreateProjectFolderServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "create-project-folder", err)
+			}
+			err = ValidateCreateProjectFolderServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "create-project-folder", err)
+			}
+			return nil, NewCreateProjectFolderServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "create-project-folder", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildGetProjectFolderRequest instantiates a HTTP request object with method
+// and path set to call the "project-service" service "get-project-folder"
+// endpoint
+func (c *Client) BuildGetProjectFolderRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid       string
+		folderUID string
+	)
+	{
+		p, ok := v.(*projectservice.GetProjectFolderPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "get-project-folder", "*projectservice.GetProjectFolderPayload", v)
+		}
+		uid = p.UID
+		folderUID = p.FolderUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectFolderProjectServicePath(uid, folderUID)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "get-project-folder", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeGetProjectFolderRequest returns an encoder for requests sent to the
+// project-service get-project-folder server.
+func EncodeGetProjectFolderRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.GetProjectFolderPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "get-project-folder", "*projectservice.GetProjectFolderPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeGetProjectFolderResponse returns a decoder for responses returned by
+// the project-service get-project-folder endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeGetProjectFolderResponse may return the following errors:
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeGetProjectFolderResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body GetProjectFolderResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-folder", err)
+			}
+			err = ValidateGetProjectFolderResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-folder", err)
+			}
+			var (
+				etag *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			res := NewGetProjectFolderResultOK(&body, etag)
+			return res, nil
+		case http.StatusInternalServerError:
+			var (
+				body GetProjectFolderInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-folder", err)
+			}
+			err = ValidateGetProjectFolderInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-folder", err)
+			}
+			return nil, NewGetProjectFolderInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body GetProjectFolderNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-folder", err)
+			}
+			err = ValidateGetProjectFolderNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-folder", err)
+			}
+			return nil, NewGetProjectFolderNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body GetProjectFolderServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-folder", err)
+			}
+			err = ValidateGetProjectFolderServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-folder", err)
+			}
+			return nil, NewGetProjectFolderServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "get-project-folder", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeleteProjectFolderRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "delete-project-folder" endpoint
+func (c *Client) BuildDeleteProjectFolderRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid       string
+		folderUID string
+	)
+	{
+		p, ok := v.(*projectservice.DeleteProjectFolderPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "delete-project-folder", "*projectservice.DeleteProjectFolderPayload", v)
+		}
+		uid = p.UID
+		folderUID = p.FolderUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteProjectFolderProjectServicePath(uid, folderUID)}
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "delete-project-folder", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeDeleteProjectFolderRequest returns an encoder for requests sent to the
+// project-service delete-project-folder server.
+func EncodeDeleteProjectFolderRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.DeleteProjectFolderPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "delete-project-folder", "*projectservice.DeleteProjectFolderPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeDeleteProjectFolderResponse returns a decoder for responses returned
+// by the project-service delete-project-folder endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeDeleteProjectFolderResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeDeleteProjectFolderResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusNoContent:
+			return nil, nil
+		case http.StatusBadRequest:
+			var (
+				body DeleteProjectFolderBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-folder", err)
+			}
+			err = ValidateDeleteProjectFolderBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-folder", err)
+			}
+			return nil, NewDeleteProjectFolderBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body DeleteProjectFolderConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-folder", err)
+			}
+			err = ValidateDeleteProjectFolderConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-folder", err)
+			}
+			return nil, NewDeleteProjectFolderConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body DeleteProjectFolderInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-folder", err)
+			}
+			err = ValidateDeleteProjectFolderInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-folder", err)
+			}
+			return nil, NewDeleteProjectFolderInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body DeleteProjectFolderNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-folder", err)
+			}
+			err = ValidateDeleteProjectFolderNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-folder", err)
+			}
+			return nil, NewDeleteProjectFolderNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body DeleteProjectFolderServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-folder", err)
+			}
+			err = ValidateDeleteProjectFolderServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-folder", err)
+			}
+			return nil, NewDeleteProjectFolderServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "delete-project-folder", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildUploadProjectDocumentRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "upload-project-document" endpoint
+func (c *Client) BuildUploadProjectDocumentRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*projectservice.UploadProjectDocumentPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "upload-project-document", "*projectservice.UploadProjectDocumentPayload", v)
+		}
+		uid = p.UID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UploadProjectDocumentProjectServicePath(uid)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "upload-project-document", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUploadProjectDocumentRequest returns an encoder for requests sent to
+// the project-service upload-project-document server.
+func EncodeUploadProjectDocumentRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.UploadProjectDocumentPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "upload-project-document", "*projectservice.UploadProjectDocumentPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		if err := encoder(req).Encode(p); err != nil {
+			return goahttp.ErrEncodingError("project-service", "upload-project-document", err)
+		}
+		return nil
+	}
+}
+
+// NewProjectServiceUploadProjectDocumentEncoder returns an encoder to encode
+// the multipart request for the "project-service" service
+// "upload-project-document" endpoint.
+func NewProjectServiceUploadProjectDocumentEncoder(encoderFn ProjectServiceUploadProjectDocumentEncoderFunc) func(r *http.Request) goahttp.Encoder {
+	return func(r *http.Request) goahttp.Encoder {
+		body := &bytes.Buffer{}
+		mw := multipart.NewWriter(body)
+		return goahttp.EncodingFunc(func(v any) error {
+			p := v.(*projectservice.UploadProjectDocumentPayload)
+			if err := encoderFn(mw, p); err != nil {
+				return err
+			}
+			r.Body = io.NopCloser(body)
+			r.Header.Set("Content-Type", mw.FormDataContentType())
+			return mw.Close()
+		})
+	}
+}
+
+// DecodeUploadProjectDocumentResponse returns a decoder for responses returned
+// by the project-service upload-project-document endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeUploadProjectDocumentResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUploadProjectDocumentResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusCreated:
+			var (
+				body UploadProjectDocumentResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "upload-project-document", err)
+			}
+			err = ValidateUploadProjectDocumentResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "upload-project-document", err)
+			}
+			res := NewUploadProjectDocumentProjectDocumentCreated(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body UploadProjectDocumentBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "upload-project-document", err)
+			}
+			err = ValidateUploadProjectDocumentBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "upload-project-document", err)
+			}
+			return nil, NewUploadProjectDocumentBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UploadProjectDocumentConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "upload-project-document", err)
+			}
+			err = ValidateUploadProjectDocumentConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "upload-project-document", err)
+			}
+			return nil, NewUploadProjectDocumentConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UploadProjectDocumentInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "upload-project-document", err)
+			}
+			err = ValidateUploadProjectDocumentInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "upload-project-document", err)
+			}
+			return nil, NewUploadProjectDocumentInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body UploadProjectDocumentNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "upload-project-document", err)
+			}
+			err = ValidateUploadProjectDocumentNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "upload-project-document", err)
+			}
+			return nil, NewUploadProjectDocumentNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UploadProjectDocumentServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "upload-project-document", err)
+			}
+			err = ValidateUploadProjectDocumentServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "upload-project-document", err)
+			}
+			return nil, NewUploadProjectDocumentServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "upload-project-document", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildGetProjectDocumentRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "get-project-document" endpoint
+func (c *Client) BuildGetProjectDocumentRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid         string
+		documentUID string
+	)
+	{
+		p, ok := v.(*projectservice.GetProjectDocumentPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "get-project-document", "*projectservice.GetProjectDocumentPayload", v)
+		}
+		uid = p.UID
+		documentUID = p.DocumentUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetProjectDocumentProjectServicePath(uid, documentUID)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "get-project-document", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeGetProjectDocumentRequest returns an encoder for requests sent to the
+// project-service get-project-document server.
+func EncodeGetProjectDocumentRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.GetProjectDocumentPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "get-project-document", "*projectservice.GetProjectDocumentPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeGetProjectDocumentResponse returns a decoder for responses returned by
+// the project-service get-project-document endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeGetProjectDocumentResponse may return the following errors:
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeGetProjectDocumentResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body GetProjectDocumentResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-document", err)
+			}
+			err = ValidateGetProjectDocumentResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-document", err)
+			}
+			var (
+				etag *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			res := NewGetProjectDocumentResultOK(&body, etag)
+			return res, nil
+		case http.StatusInternalServerError:
+			var (
+				body GetProjectDocumentInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-document", err)
+			}
+			err = ValidateGetProjectDocumentInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-document", err)
+			}
+			return nil, NewGetProjectDocumentInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body GetProjectDocumentNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-document", err)
+			}
+			err = ValidateGetProjectDocumentNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-document", err)
+			}
+			return nil, NewGetProjectDocumentNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body GetProjectDocumentServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "get-project-document", err)
+			}
+			err = ValidateGetProjectDocumentServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "get-project-document", err)
+			}
+			return nil, NewGetProjectDocumentServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "get-project-document", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDownloadProjectDocumentRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "download-project-document" endpoint
+func (c *Client) BuildDownloadProjectDocumentRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid         string
+		documentUID string
+	)
+	{
+		p, ok := v.(*projectservice.DownloadProjectDocumentPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "download-project-document", "*projectservice.DownloadProjectDocumentPayload", v)
+		}
+		uid = p.UID
+		documentUID = p.DocumentUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DownloadProjectDocumentProjectServicePath(uid, documentUID)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "download-project-document", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeDownloadProjectDocumentRequest returns an encoder for requests sent to
+// the project-service download-project-document server.
+func EncodeDownloadProjectDocumentRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.DownloadProjectDocumentPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "download-project-document", "*projectservice.DownloadProjectDocumentPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeDownloadProjectDocumentResponse returns a decoder for responses
+// returned by the project-service download-project-document endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeDownloadProjectDocumentResponse may return the following errors:
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeDownloadProjectDocumentResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			return nil, nil
+		case http.StatusInternalServerError:
+			var (
+				body DownloadProjectDocumentInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "download-project-document", err)
+			}
+			err = ValidateDownloadProjectDocumentInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "download-project-document", err)
+			}
+			return nil, NewDownloadProjectDocumentInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body DownloadProjectDocumentNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "download-project-document", err)
+			}
+			err = ValidateDownloadProjectDocumentNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "download-project-document", err)
+			}
+			return nil, NewDownloadProjectDocumentNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body DownloadProjectDocumentServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "download-project-document", err)
+			}
+			err = ValidateDownloadProjectDocumentServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "download-project-document", err)
+			}
+			return nil, NewDownloadProjectDocumentServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "download-project-document", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeleteProjectDocumentRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "delete-project-document" endpoint
+func (c *Client) BuildDeleteProjectDocumentRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid         string
+		documentUID string
+	)
+	{
+		p, ok := v.(*projectservice.DeleteProjectDocumentPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "delete-project-document", "*projectservice.DeleteProjectDocumentPayload", v)
+		}
+		uid = p.UID
+		documentUID = p.DocumentUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteProjectDocumentProjectServicePath(uid, documentUID)}
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "delete-project-document", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeDeleteProjectDocumentRequest returns an encoder for requests sent to
+// the project-service delete-project-document server.
+func EncodeDeleteProjectDocumentRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.DeleteProjectDocumentPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "delete-project-document", "*projectservice.DeleteProjectDocumentPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.XSync != nil {
+			head := *p.XSync
+			headStr := strconv.FormatBool(head)
+			req.Header.Set("X-Sync", headStr)
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeDeleteProjectDocumentResponse returns a decoder for responses returned
+// by the project-service delete-project-document endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeDeleteProjectDocumentResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "Conflict" (type *projectservice.ConflictError): http.StatusConflict
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeDeleteProjectDocumentResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusNoContent:
+			return nil, nil
+		case http.StatusBadRequest:
+			var (
+				body DeleteProjectDocumentBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-document", err)
+			}
+			err = ValidateDeleteProjectDocumentBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-document", err)
+			}
+			return nil, NewDeleteProjectDocumentBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body DeleteProjectDocumentConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-document", err)
+			}
+			err = ValidateDeleteProjectDocumentConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-document", err)
+			}
+			return nil, NewDeleteProjectDocumentConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body DeleteProjectDocumentInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-document", err)
+			}
+			err = ValidateDeleteProjectDocumentInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-document", err)
+			}
+			return nil, NewDeleteProjectDocumentInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body DeleteProjectDocumentNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-document", err)
+			}
+			err = ValidateDeleteProjectDocumentNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-document", err)
+			}
+			return nil, NewDeleteProjectDocumentNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body DeleteProjectDocumentServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "delete-project-document", err)
+			}
+			err = ValidateDeleteProjectDocumentServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "delete-project-document", err)
+			}
+			return nil, NewDeleteProjectDocumentServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "delete-project-document", resp.StatusCode, string(body))
 		}
 	}
 }

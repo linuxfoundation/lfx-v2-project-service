@@ -562,6 +562,15 @@ paths:
                             example:
                                 code: "404"
                                 message: The resource was not found.
+                "409":
+                    description: 'Conflict: Revision mismatch'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
@@ -815,6 +824,1009 @@ paths:
                             example:
                                 code: "409"
                                 message: The resource already exists.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/documents:
+        post:
+            tags:
+                - project-service
+            summary: upload-project-document project-service
+            description: Upload a new document for a project (multipart/form-data).
+            operationId: project-service#upload-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  allowEmptyValue: true
+                  schema:
+                    type: boolean
+                    description: X-Sync header value for performing operations synchronously
+                    example: true
+                  example: true
+            requestBody:
+                required: true
+                content:
+                    multipart/form-data:
+                        schema:
+                            $ref: '#/components/schemas/UploadProjectDocumentPayload'
+                        example:
+                            content_type: application/pdf
+                            description: A description of the resource
+                            file:
+                                - 46
+                                - 46
+                                - 46
+                            file_name: report.pdf
+                            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                            name: My Resource
+            responses:
+                "201":
+                    description: Created response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectDocument'
+                            example:
+                                content_type: application/pdf
+                                created_at: "2024-01-01T00:00:00Z"
+                                description: A description of the resource
+                                file_name: report.pdf
+                                file_size: 204800
+                                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                name: My Resource
+                                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                updated_at: "2024-01-01T00:00:00Z"
+                                uploaded_by_username: johndoe
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Project not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "409":
+                    description: 'Conflict: Document name already exists'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/documents/{document_uid}:
+        delete:
+            tags:
+                - project-service
+            summary: delete-project-document project-service
+            description: Delete a project document.
+            operationId: project-service#delete-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: document_uid
+                  in: path
+                  description: Document UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Document UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  allowEmptyValue: true
+                  schema:
+                    type: boolean
+                    description: X-Sync header value for performing operations synchronously
+                    example: true
+                  example: true
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "409":
+                    description: 'Conflict: Revision mismatch'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+        get:
+            tags:
+                - project-service
+            summary: get-project-document project-service
+            description: Get project document metadata.
+            operationId: project-service#get-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: document_uid
+                  in: path
+                  description: Document UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Document UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectDocument'
+                            example:
+                                content_type: application/pdf
+                                created_at: "2024-01-01T00:00:00Z"
+                                description: A description of the resource
+                                file_name: report.pdf
+                                file_size: 204800
+                                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                name: My Resource
+                                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                updated_at: "2024-01-01T00:00:00Z"
+                                uploaded_by_username: johndoe
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/documents/{document_uid}/download:
+        get:
+            tags:
+                - project-service
+            summary: download-project-document project-service
+            description: Download the binary file of a project document.
+            operationId: project-service#download-project-document
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: document_uid
+                  in: path
+                  description: Document UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Document UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                type: string
+                                format: binary
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/folders:
+        post:
+            tags:
+                - project-service
+            summary: create-project-folder project-service
+            description: Create a new folder for a project.
+            operationId: project-service#create-project-folder
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  allowEmptyValue: true
+                  schema:
+                    type: boolean
+                    description: X-Sync header value for performing operations synchronously
+                    example: true
+                  example: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateProjectFolderRequestBody'
+                        example:
+                            name: My Resource
+            responses:
+                "201":
+                    description: Created response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectFolder'
+                            example:
+                                created_at: "2024-01-01T00:00:00Z"
+                                created_by_username: johndoe
+                                name: My Resource
+                                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                updated_at: "2024-01-01T00:00:00Z"
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Project not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "409":
+                    description: 'Conflict: Folder name already exists'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/folders/{folder_uid}:
+        delete:
+            tags:
+                - project-service
+            summary: delete-project-folder project-service
+            description: Delete a project folder. The folder must be empty.
+            operationId: project-service#delete-project-folder
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: folder_uid
+                  in: path
+                  description: Folder UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Folder UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  allowEmptyValue: true
+                  schema:
+                    type: boolean
+                    description: X-Sync header value for performing operations synchronously
+                    example: true
+                  example: true
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "409":
+                    description: 'Conflict: Folder not empty or revision mismatch'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+        get:
+            tags:
+                - project-service
+            summary: get-project-folder project-service
+            description: Get a single project folder.
+            operationId: project-service#get-project-folder
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: folder_uid
+                  in: path
+                  description: Folder UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Folder UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectFolder'
+                            example:
+                                created_at: "2024-01-01T00:00:00Z"
+                                created_by_username: johndoe
+                                name: My Resource
+                                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                updated_at: "2024-01-01T00:00:00Z"
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/links:
+        post:
+            tags:
+                - project-service
+            summary: create-project-link project-service
+            description: Create a new link for a project.
+            operationId: project-service#create-project-link
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  allowEmptyValue: true
+                  schema:
+                    type: boolean
+                    description: X-Sync header value for performing operations synchronously
+                    example: true
+                  example: true
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateProjectLinkRequestBody'
+                        example:
+                            description: A description of the resource
+                            folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                            name: My Resource
+                            url: https://example.com
+            responses:
+                "201":
+                    description: Created response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectLink'
+                            example:
+                                created_at: "2024-01-01T00:00:00Z"
+                                created_by_username: johndoe
+                                description: A description of the resource
+                                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                name: My Resource
+                                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                updated_at: "2024-01-01T00:00:00Z"
+                                url: https://example.com
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Project not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+    /projects/{uid}/links/{link_uid}:
+        delete:
+            tags:
+                - project-service
+            summary: delete-project-link project-service
+            description: Delete a project link.
+            operationId: project-service#delete-project-link
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: link_uid
+                  in: path
+                  description: Link UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Link UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: X-Sync
+                  in: header
+                  description: X-Sync header value for performing operations synchronously
+                  allowEmptyValue: true
+                  schema:
+                    type: boolean
+                    description: X-Sync header value for performing operations synchronously
+                    example: true
+                  example: true
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "409":
+                    description: 'Conflict: Revision mismatch'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
+        get:
+            tags:
+                - project-service
+            summary: get-project-link project-service
+            description: Get a single project link.
+            operationId: project-service#get-project-link
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Project UID -- v2 uid, not related to v1 id directly
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID -- v2 uid, not related to v1 id directly
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                - name: link_uid
+                  in: path
+                  description: Link UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Link UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                  example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectLink'
+                            example:
+                                created_at: "2024-01-01T00:00:00Z"
+                                created_by_username: johndoe
+                                description: A description of the resource
+                                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                name: My Resource
+                                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                updated_at: "2024-01-01T00:00:00Z"
+                                url: https://example.com
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
@@ -1126,6 +2138,15 @@ paths:
                             example:
                                 code: "404"
                                 message: The resource was not found.
+                "409":
+                    description: 'Conflict: Revision mismatch'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ConflictError'
+                            example:
+                                code: "409"
+                                message: The resource already exists.
                 "500":
                     description: 'InternalServerError: Internal server error'
                     content:
@@ -1182,6 +2203,48 @@ components:
             required:
                 - code
                 - message
+        CreateProjectFolderRequestBody:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Folder display name
+                    example: My Resource
+                    minLength: 1
+            example:
+                name: My Resource
+            required:
+                - name
+        CreateProjectLinkRequestBody:
+            type: object
+            properties:
+                description:
+                    type: string
+                    description: A description of the link
+                    example: A description of the resource
+                folder_uid:
+                    type: string
+                    description: Folder UID to place the link in (optional)
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                name:
+                    type: string
+                    description: Link display name
+                    example: My Resource
+                    minLength: 1
+                url:
+                    type: string
+                    description: The URL of the link
+                    example: https://example.com
+                    format: uri
+            example:
+                description: A description of the resource
+                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                name: My Resource
+                url: https://example.com
+            required:
+                - name
+                - url
         CreateProjectRequestBody:
             type: object
             properties:
@@ -2177,6 +3240,113 @@ components:
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2021-01-01T00:00:00Z"
                 website_url: https://example.com
+        ProjectDocument:
+            type: object
+            properties:
+                content_type:
+                    type: string
+                    description: MIME type of the file
+                    example: application/pdf
+                created_at:
+                    type: string
+                    description: RFC3339 timestamp
+                    example: "2024-01-01T00:00:00Z"
+                    format: date-time
+                description:
+                    type: string
+                    description: A description of the document
+                    example: A description of the resource
+                file_name:
+                    type: string
+                    description: Original uploaded file name
+                    example: report.pdf
+                file_size:
+                    type: integer
+                    description: File size in bytes
+                    example: 204800
+                    format: int64
+                folder_uid:
+                    type: string
+                    description: Folder UID that this document belongs to (optional)
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                name:
+                    type: string
+                    description: Document display name
+                    example: My Resource
+                    minLength: 1
+                project_uid:
+                    type: string
+                    description: Project UID this document belongs to
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                uid:
+                    type: string
+                    description: Document UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                updated_at:
+                    type: string
+                    description: RFC3339 timestamp
+                    example: "2024-01-01T00:00:00Z"
+                    format: date-time
+                uploaded_by_username:
+                    type: string
+                    description: Username of the principal who created this resource
+                    example: johndoe
+            description: A file attachment associated with a project.
+            example:
+                content_type: application/pdf
+                created_at: "2024-01-01T00:00:00Z"
+                description: A description of the resource
+                file_name: report.pdf
+                file_size: 204800
+                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                name: My Resource
+                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                updated_at: "2024-01-01T00:00:00Z"
+                uploaded_by_username: johndoe
+        ProjectFolder:
+            type: object
+            properties:
+                created_at:
+                    type: string
+                    description: RFC3339 timestamp
+                    example: "2024-01-01T00:00:00Z"
+                    format: date-time
+                created_by_username:
+                    type: string
+                    description: Username of the principal who created this resource
+                    example: johndoe
+                name:
+                    type: string
+                    description: Folder display name
+                    example: My Resource
+                    minLength: 1
+                project_uid:
+                    type: string
+                    description: Project UID this folder belongs to
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                uid:
+                    type: string
+                    description: Folder UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                updated_at:
+                    type: string
+                    description: RFC3339 timestamp
+                    example: "2024-01-01T00:00:00Z"
+                    format: date-time
+            description: An organizational folder for project links and documents.
+            example:
+                created_at: "2024-01-01T00:00:00Z"
+                created_by_username: johndoe
+                name: My Resource
+                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                updated_at: "2024-01-01T00:00:00Z"
         ProjectFull:
             type: object
             properties:
@@ -2467,6 +3637,63 @@ components:
                       email: bob.wilson@example.com
                       name: Bob Wilson
                       username: bobwilson101
+        ProjectLink:
+            type: object
+            properties:
+                created_at:
+                    type: string
+                    description: RFC3339 timestamp
+                    example: "2024-01-01T00:00:00Z"
+                    format: date-time
+                created_by_username:
+                    type: string
+                    description: Username of the principal who created this resource
+                    example: johndoe
+                description:
+                    type: string
+                    description: A description of the link
+                    example: A description of the resource
+                folder_uid:
+                    type: string
+                    description: Folder UID that this link belongs to (optional)
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                name:
+                    type: string
+                    description: Link display name
+                    example: My Resource
+                    minLength: 1
+                project_uid:
+                    type: string
+                    description: Project UID this link belongs to
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                uid:
+                    type: string
+                    description: Link UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                updated_at:
+                    type: string
+                    description: RFC3339 timestamp
+                    example: "2024-01-01T00:00:00Z"
+                    format: date-time
+                url:
+                    type: string
+                    description: The URL of the link
+                    example: https://example.com
+                    format: uri
+            description: A URL bookmark associated with a project.
+            example:
+                created_at: "2024-01-01T00:00:00Z"
+                created_by_username: johndoe
+                description: A description of the resource
+                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                name: My Resource
+                project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                updated_at: "2024-01-01T00:00:00Z"
+                url: https://example.com
         ProjectSettings:
             type: object
             properties:
@@ -2888,6 +4115,55 @@ components:
                       email: bob.wilson@example.com
                       name: Bob Wilson
                       username: bobwilson101
+        UploadProjectDocumentPayload:
+            type: object
+            properties:
+                content_type:
+                    type: string
+                    description: MIME type of the file
+                    example: application/pdf
+                description:
+                    type: string
+                    description: A description of the document
+                    example: A description of the resource
+                file:
+                    type: string
+                    description: File contents
+                    example:
+                        - 46
+                        - 46
+                        - 46
+                    format: binary
+                file_name:
+                    type: string
+                    description: Original file name including extension
+                    example: report.pdf
+                folder_uid:
+                    type: string
+                    description: Folder UID to place the document in (optional)
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+                name:
+                    type: string
+                    description: Document display name
+                    example: My Resource
+                    minLength: 1
+            description: Multipart/form-data payload for uploading a project document.
+            example:
+                content_type: application/pdf
+                description: A description of the resource
+                file:
+                    - 46
+                    - 46
+                    - 46
+                file_name: report.pdf
+                folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                name: My Resource
+            required:
+                - name
+                - file
+                - file_name
+                - content_type
         UserInfo:
             type: object
             properties:

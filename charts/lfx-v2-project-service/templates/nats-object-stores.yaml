@@ -1,0 +1,21 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+{{- if .Values.nats.object_store_project_documents.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: ObjectStore
+metadata:
+  name: {{ .Values.nats.object_store_project_documents.name }}
+  namespace: lfx
+  {{- if .Values.nats.object_store_project_documents.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.object_store_project_documents.name }}
+  replicas: {{ .Values.nats.object_store_project_documents.replicas }}
+  storage: {{ .Values.nats.object_store_project_documents.storage }}
+  maxBytes: {{ .Values.nats.object_store_project_documents.maxBytes }}
+{{- end }}

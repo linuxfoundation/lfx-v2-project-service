@@ -48,9 +48,12 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 			name: "service ready with all dependencies",
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
-					ProjectRepository: &domain.MockProjectRepository{},
-					MessageBuilder:    &domain.MockMessageBuilder{},
-					Auth:              &auth.MockJWTAuth{},
+					ProjectRepository:  &domain.MockProjectRepository{},
+					DocumentRepository: &domain.MockDocumentRepository{},
+					LinkRepository:     &domain.MockLinkRepository{},
+					FolderRepository:   &domain.MockFolderRepository{},
+					MessageBuilder:     &domain.MockMessageBuilder{},
+					Auth:               &auth.MockJWTAuth{},
 				}
 			},
 			expectedReady: true,
@@ -92,9 +95,12 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 			name: "service ready without auth (auth is not checked in ServiceReady)",
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
-					ProjectRepository: &domain.MockProjectRepository{},
-					MessageBuilder:    &domain.MockMessageBuilder{},
-					Auth:              nil,
+					ProjectRepository:  &domain.MockProjectRepository{},
+					DocumentRepository: &domain.MockDocumentRepository{},
+					LinkRepository:     &domain.MockLinkRepository{},
+					FolderRepository:   &domain.MockFolderRepository{},
+					MessageBuilder:     &domain.MockMessageBuilder{},
+					Auth:               nil,
 				}
 			},
 			expectedReady: true,
@@ -142,6 +148,9 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 
 	service := NewProjectsService(mockAuth, ServiceConfig{})
 	service.ProjectRepository = mockRepo
+	service.DocumentRepository = &domain.MockDocumentRepository{}
+	service.LinkRepository = &domain.MockLinkRepository{}
+	service.FolderRepository = &domain.MockFolderRepository{}
 	service.MessageBuilder = mockBuilder
 
 	return service, mockRepo, mockBuilder, mockAuth
