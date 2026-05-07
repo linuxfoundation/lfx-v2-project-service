@@ -24,10 +24,10 @@ func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
 		ProjectUID: &d.ProjectUID,
 		FolderUID:  d.FolderUID,
 		Name:       &d.Name,
-		FileName:  &d.FileName,
-		FileSize:  &d.FileSize,
-		CreatedAt: misc.StringPtr(d.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
-		UpdatedAt: misc.StringPtr(d.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
+		FileName:   &d.FileName,
+		FileSize:   &d.FileSize,
+		CreatedAt:  misc.StringPtr(d.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
+		UpdatedAt:  misc.StringPtr(d.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
 	if d.Description != "" {
 		doc.Description = &d.Description
