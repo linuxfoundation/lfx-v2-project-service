@@ -92,11 +92,6 @@ func InitStructureLogConfig() slog.Handler {
 		f()
 	}
 
-	slog.Info("log config",
-		"logLevel", logOptions.Level,
-		"addSource", logOptions.AddSource,
-	)
-
 	h = slog.NewJSONHandler(os.Stdout, logOptions)
 	log.SetFlags(log.Llongfile)
 
@@ -106,6 +101,11 @@ func InitStructureLogConfig() slog.Handler {
 	// Wrap with contextHandler to support context-based attributes
 	logger := contextHandler{otelHandler}
 	slog.SetDefault(slog.New(logger))
+
+	slog.Info("log config",
+		"logLevel", logOptions.Level,
+		"addSource", logOptions.AddSource,
+	)
 
 	return logger
 }
