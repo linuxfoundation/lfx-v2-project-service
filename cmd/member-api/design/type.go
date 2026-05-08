@@ -237,101 +237,38 @@ func ETagAttribute() {
 	})
 }
 
-// ProjectUIDAttribute is the DSL attribute for the project path parameter.
-// Callers pass a v2 project UUID.
-func ProjectUIDAttribute() {
-	dsl.Attribute("project_uid", dsl.String, "V2 project UUID", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
+// IfMatchAttribute is the DSL attribute for the If-Match request header (conditional request).
+func IfMatchAttribute() {
+	dsl.Attribute("if_match", dsl.String, "If-Match header value for conditional requests", func() {
+		dsl.Example("123")
 	})
 }
 
-// TierUIDAttribute is the DSL attribute for the tier (Product2) UID path parameter.
-func TierUIDAttribute() {
-	dsl.Attribute("tier_uid", dsl.String, "Membership tier UID", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+// IfNoneMatchAttribute is the DSL attribute for the If-None-Match request header (conditional request).
+func IfNoneMatchAttribute() {
+	dsl.Attribute("if_none_match", dsl.String, "If-None-Match header value for conditional requests", func() {
+		dsl.Example("123")
 	})
 }
 
-// MembershipUIDAttribute is the DSL attribute for the membership (Asset) UID path parameter.
-func MembershipUIDAttribute() {
-	dsl.Attribute("membership_uid", dsl.String, "Membership UID", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+// IfModifiedSinceAttribute is the DSL attribute for the If-Modified-Since request header (conditional request).
+func IfModifiedSinceAttribute() {
+	dsl.Attribute("if_modified_since", dsl.String, "If-Modified-Since header value for conditional requests (HTTP date format)", func() {
+		dsl.Example("Wed, 21 Oct 2025 07:28:00 GMT")
 	})
 }
 
-// ContactUIDAttribute is the DSL attribute for the key contact UID path parameter.
-func ContactUIDAttribute() {
-	dsl.Attribute("contact_uid", dsl.String, "Key contact UID", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+// IfUnmodifiedSinceAttribute is the DSL attribute for the If-Unmodified-Since request header (conditional request).
+func IfUnmodifiedSinceAttribute() {
+	dsl.Attribute("if_unmodified_since", dsl.String, "If-Unmodified-Since header value for conditional requests (HTTP date format)", func() {
+		dsl.Example("Wed, 21 Oct 2025 07:28:00 GMT")
 	})
 }
 
-// PageSizeAttribute is the DSL attribute for the page-size query parameter.
-// The server normalises the value to the nearest supported batch size (10, 50,
-// 100, 200, 500, or 1000). Values below 10 are raised to 10; values above 1000
-// are capped at 1000. The default of 200 matches the Salesforce minimum batch
-// size and is appropriate for most callers.
-func PageSizeAttribute() {
-	dsl.Attribute("pageSize", dsl.Int, "Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.", func() {
-		dsl.Default(200)
-		dsl.Minimum(1)
-		dsl.Maximum(1000)
-		dsl.Example(200)
-	})
-}
-
-// PageTokenAttribute is the DSL attribute for the opaque continuation cursor.
-// Consumers copy the next_page_token value from a previous list response
-// metadata object into this parameter to fetch the next page. Tokens are issued
-// by Salesforce and are valid for 15 minutes.
-func PageTokenAttribute() {
-	dsl.Attribute("pageToken", dsl.String, "Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.", func() {
-		dsl.Example("")
-	})
-}
-
-// SortAttribute is the DSL attribute for the sort-order query parameter.
-// Supported values: "name" (A→Z by company name), "newest" (CreatedDate DESC),
-// "last_modified" (LastModifiedDate DESC). Defaults to "newest".
-func SortAttribute() {
-	dsl.Attribute("sort", dsl.String, "Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).", func() {
-		dsl.Default("newest")
-		dsl.Enum("name", "newest", "last_modified")
-		dsl.Example("newest")
-	})
-}
-
-// FilterAttribute is the DSL attribute for the filter query parameter.
-// Supported keys for membership list endpoints:
-//
-//   - tier_uid — Tier UUID (from ListProjectTiers). Decoded to a Salesforce
-//     Product2Id for an exact-match SOQL filter. Only active
-//     members are returned regardless of this filter.
-//
-// Note: status is not an exposed filter — all membership queries return active
-// members only. Other keys (company_name, tier_name, project_slug) are applied
-// in-process after the Salesforce query and are less efficient for large projects.
-func FilterAttribute() {
-	dsl.Attribute("filter", dsl.String, "Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.", func() {
-		dsl.Example("tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
-	})
-}
-
-// SearchNameAttribute is the DSL attribute for searching memberships by company name.
-func SearchNameAttribute() {
-	dsl.Attribute("search_name", dsl.String, "Search memberships by member company name (case-insensitive substring match)", func() {
-		dsl.Example("Linux")
-	})
-}
-
-// B2BOrgSearchNameAttribute is the DSL attribute for searching B2B orgs by name.
-func B2BOrgSearchNameAttribute() {
-	dsl.Attribute("search_name", dsl.String, "Search organizations by name (case-insensitive substring match)", func() {
-		dsl.Example("Linux")
+// LastModifiedAttribute is the DSL attribute for the Last-Modified response header.
+func LastModifiedAttribute() {
+	dsl.Attribute("last_modified", dsl.String, "Last-Modified header value (HTTP date format)", func() {
+		dsl.Example("Wed, 21 Oct 2025 07:28:00 GMT")
 	})
 }
 
@@ -374,4 +311,102 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 		dsl.Format(dsl.FormatDateTime)
 		dsl.Example("2025-06-01T12:00:00Z")
 	})
+})
+
+// B2BOrgCreateBody is the DSL type for creating a B2B organization.
+var B2BOrgCreateBody = dsl.Type("b2b-org-create-body", func() {
+	dsl.Description("Request body for creating a B2B organization")
+	dsl.Attribute("name", dsl.String, "Organization name", func() {
+		dsl.Example("Example Corp")
+	})
+	dsl.Required("name")
+})
+
+// B2BOrgUpdateBody is the DSL type for updating a B2B organization.
+var B2BOrgUpdateBody = dsl.Type("b2b-org-update-body", func() {
+	dsl.Description("Request body for updating a B2B organization")
+	dsl.Attribute("name", dsl.String, "Organization name", func() {
+		dsl.Example("Example Corp")
+	})
+})
+
+// KeyContactCreateBody is the DSL type for creating a key contact.
+var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
+	dsl.Description("Request body for creating a key contact (Project_Role__c record)")
+	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account)", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
+	dsl.Attribute("project_uid", dsl.String, "V2 project UUID", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
+	})
+	dsl.Attribute("membership_uid", dsl.String, "Membership UID", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
+	dsl.Attribute("email", dsl.String, "Contact email address; used to resolve or create the Salesforce Contact record", func() {
+		dsl.Format(dsl.FormatEmail)
+		dsl.Example("john.doe@example.com")
+	})
+	dsl.Attribute("first_name", dsl.String, "Contact first name; used when creating a new Contact on miss", func() {
+		dsl.Example("John")
+	})
+	dsl.Attribute("last_name", dsl.String, "Contact last name; used when creating a new Contact on miss", func() {
+		dsl.Example("Doe")
+	})
+	dsl.Attribute("title", dsl.String, "Contact job title; used when creating a new Contact on miss", func() {
+		dsl.Example("CTO")
+	})
+	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
+		dsl.Example("Voting Representative")
+	})
+	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
+		dsl.Example("Active")
+	})
+	dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
+		dsl.Example(false)
+	})
+	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
+		dsl.Example(false)
+	})
+	dsl.Required("b2b_org_uid", "project_uid", "membership_uid", "email", "first_name", "last_name")
+})
+
+// KeyContactUpdateBody is the DSL type for updating a key contact.
+var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
+	dsl.Description("Request body for updating a key contact (Project_Role__c record)")
+	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
+		dsl.Example("Voting Representative")
+	})
+	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
+		dsl.Example("Active")
+	})
+	dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
+		dsl.Example(false)
+	})
+	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
+		dsl.Example(false)
+	})
+	dsl.Attribute("title", dsl.String, "Contact job title", func() {
+		dsl.Example("CTO")
+	})
+})
+
+// AdminReindexPayload is the DSL type for the reindex admin action request.
+var AdminReindexPayload = dsl.Type("admin-reindex-payload", func() {
+	dsl.Description("Request payload for triggering a reindex operation")
+	dsl.Attribute("types", dsl.ArrayOf(dsl.String), "List of entity types to reindex (optional; if empty, reindex all types)", func() {
+		dsl.Example([]string{"membership", "key_contact"})
+	})
+})
+
+// AdminReindexResult is the DSL type for the reindex admin action result.
+var AdminReindexResult = dsl.Type("admin-reindex-result", func() {
+	dsl.Description("Result of a reindex operation")
+	dsl.Attribute("run_id", dsl.String, "Correlation ID for the reindex run (for log lookups)", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
+	dsl.Required("run_id")
 })

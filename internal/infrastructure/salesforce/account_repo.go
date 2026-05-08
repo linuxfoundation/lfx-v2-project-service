@@ -34,23 +34,6 @@ WHERE IsDeleted = false
             AND IsDeleted = false
     )`
 
-// FirstAccountBatchResult is the return type of FetchFirstAccountBatch. It
-// carries the first sfQueryBatchSize Account records, the Salesforce locator
-// for the remainder (if any), and the total result set size reported by
-// Salesforce.
-type FirstAccountBatchResult struct {
-	// Records is the full first SF batch (up to sfQueryBatchSize records).
-	Records []*model.B2BOrg
-
-	// SFLocator is the raw Salesforce nextRecordsUrl for the records beyond
-	// the first batch. Empty when the first batch contains all results (i.e.
-	// the result set is ≤ sfQueryBatchSize records).
-	SFLocator string
-
-	// TotalSize is the total record count reported by Salesforce.
-	TotalSize int
-}
-
 // AccountRepo handles Salesforce SOQL queries for Account (B2BOrg) records.
 type AccountRepo struct {
 	client *sf.Salesforce
@@ -59,75 +42,6 @@ type AccountRepo struct {
 // NewAccountRepo creates a new AccountRepo backed by the given Salesforce client.
 func NewAccountRepo(client *sf.Salesforce) *AccountRepo {
 	return &AccountRepo{client: client}
-}
-
-// buildAccountsSOQL assembles the full SOQL query string for
-// FetchFirstAccountBatch, appending an optional LIKE predicate for NameSearch
-// and an ORDER BY clause. All interpolated values are passed through quoteSOQL
-// to prevent injection.
-func buildAccountsSOQL(_ context.Context, filters model.B2BOrgFilters) string {
-	var b strings.Builder
-	b.WriteString(accountsSOQLBase)
-	if filters.NameSearch != "" {
-		// NameSearch is always lowercase by contract (normalised by the
-		// caller), so the same value is used in both the SOQL query and the
-		// NATS KV cache key. quoteLikeSOQL handles escaping and quoting in a
-		// single pass, producing a complete '%term%' literal for interpolation.
-		fmt.Fprintf(&b, "\n    AND Name LIKE %s", quoteLikeSOQL(filters.NameSearch))
-	}
-	b.WriteString(accountSortOrderClause(filters.EffectiveSortOrder()))
-	return b.String()
-}
-
-// accountSortOrderClause returns the ORDER BY fragment for Account queries.
-// An unrecognised or empty sort order falls back to name ascending.
-func accountSortOrderClause(order model.SortOrder) string {
-	switch order {
-	case model.SortOrderLastModified:
-		return "\nORDER BY LastModifiedDate DESC NULLS LAST"
-	case model.SortOrderNewest:
-		return "\nORDER BY CreatedDate DESC NULLS LAST"
-	default:
-		// SortOrderName and any unrecognised value.
-		return "\nORDER BY Name ASC NULLS LAST"
-	}
-}
-
-// FetchFirstAccountBatch issues a single SOQL query for the first
-// sfQueryBatchSize Account records matching the given filters, returning the
-// full batch and the Salesforce locator for any remaining records. The caller
-// is responsible for following the locator in a background goroutine via
-// QueryAllPages if SFLocator is non-empty.
-func (r *AccountRepo) FetchFirstAccountBatch(ctx context.Context, filters model.B2BOrgFilters) (FirstAccountBatchResult, error) {
-	slog.DebugContext(ctx, "fetching first account batch from Salesforce",
-		"name_search", filters.NameSearch,
-		"sort_order", filters.EffectiveSortOrder(),
-	)
-
-	query := buildAccountsSOQL(ctx, filters)
-	sfResult, err := QueryPage[soqlAccount](ctx, r.client, query, "")
-	if err != nil {
-		return FirstAccountBatchResult{}, fmt.Errorf("fetching first account batch: %w", err)
-	}
-
-	records := make([]*model.B2BOrg, 0, len(sfResult.Records))
-	for _, acc := range sfResult.Records {
-		org, convErr := convertSOQLToB2BOrg(ctx, acc)
-		if convErr != nil {
-			slog.WarnContext(ctx, "skipping account with invalid SFID",
-				"sfid", acc.ID,
-				"error", convErr,
-			)
-			continue
-		}
-		records = append(records, org)
-	}
-
-	return FirstAccountBatchResult{
-		Records:   records,
-		SFLocator: sfResult.NextPageToken,
-		TotalSize: sfResult.TotalSize,
-	}, nil
 }
 
 // FetchAccountBySFID fetches a single Account record from Salesforce by its

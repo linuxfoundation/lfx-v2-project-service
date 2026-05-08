@@ -6,18 +6,11 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 )
-
-// errNotFound constructs a domain NotFound error with the given message. Used
-// inline in handler methods to produce a consistent 404 response via wrapError.
-func errNotFound(msg string) error {
-	return pkgerrors.NewNotFound(msg, fmt.Errorf("handler assertion"))
-}
 
 // wrapError maps a domain error to the appropriate Goa service error type.
 // The generated Make* helpers return *goa.ServiceError, which has a correctly
@@ -40,6 +33,11 @@ func wrapError(ctx context.Context, err error) error {
 	var serviceUnavailable pkgerrors.ServiceUnavailable
 	if errors.As(err, &serviceUnavailable) {
 		return membershipservice.MakeServiceUnavailable(err)
+	}
+
+	var notImplemented pkgerrors.NotImplemented
+	if errors.As(err, &notImplemented) {
+		return membershipservice.MakeNotImplemented(err)
 	}
 
 	return membershipservice.MakeInternalServerError(err)

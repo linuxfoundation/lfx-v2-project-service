@@ -44,3 +44,23 @@ func NewServiceUnavailable(message string, err ...error) ServiceUnavailable {
 		},
 	}
 }
+
+// NotImplemented represents a not implemented error in the application.
+type NotImplemented struct {
+	base
+}
+
+// Error returns the error message for NotImplemented.
+func (ni NotImplemented) Error() string {
+	return ni.error()
+}
+
+// NewNotImplemented creates a new NotImplemented error with the provided message.
+func NewNotImplemented(message string, err ...error) NotImplemented {
+	return NotImplemented{
+		base: base{
+			message: message,
+			err:     errors.Join(err...),
+		},
+	}
+}

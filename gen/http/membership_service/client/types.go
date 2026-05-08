@@ -13,11 +13,30 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
-// CreateMembershipKeyContactRequestBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// request body.
-type CreateMembershipKeyContactRequestBody struct {
-	// Contact email address; used to resolve or create the B2B Salesforce Contact
+// CreateB2bOrgRequestBody is the type of the "membership-service" service
+// "create-b2b-org" endpoint HTTP request body.
+type CreateB2bOrgRequestBody struct {
+	// Organization name
+	Name string `form:"name" json:"name" xml:"name"`
+}
+
+// UpdateB2bOrgRequestBody is the type of the "membership-service" service
+// "update-b2b-org" endpoint HTTP request body.
+type UpdateB2bOrgRequestBody struct {
+	// Organization name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+}
+
+// CreateKeyContactRequestBody is the type of the "membership-service" service
+// "create-key-contact" endpoint HTTP request body.
+type CreateKeyContactRequestBody struct {
+	// UID of the B2B organization (Account)
+	B2bOrgUID string `form:"b2b_org_uid" json:"b2b_org_uid" xml:"b2b_org_uid"`
+	// V2 project UUID
+	ProjectUID string `form:"project_uid" json:"project_uid" xml:"project_uid"`
+	// Membership UID
+	MembershipUID string `form:"membership_uid" json:"membership_uid" xml:"membership_uid"`
+	// Contact email address; used to resolve or create the Salesforce Contact
 	// record
 	Email string `form:"email" json:"email" xml:"email"`
 	// Contact first name; used when creating a new Contact on miss
@@ -36,10 +55,9 @@ type CreateMembershipKeyContactRequestBody struct {
 	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
 }
 
-// UpdateMembershipKeyContactRequestBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// request body.
-type UpdateMembershipKeyContactRequestBody struct {
+// UpdateKeyContactRequestBody is the type of the "membership-service" service
+// "update-key-contact" endpoint HTTP request body.
+type UpdateKeyContactRequestBody struct {
 	// Contact role designation, e.g. 'Voting Representative'
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
 	// Role record status, e.g. 'Active'
@@ -48,76 +66,56 @@ type UpdateMembershipKeyContactRequestBody struct {
 	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
+	// Contact job title
+	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
 }
 
-// ListProjectTiersResponseBody is the type of the "membership-service" service
-// "list-project-tiers" endpoint HTTP response body.
-type ListProjectTiersResponseBody struct {
-	// List of membership tiers
-	Tiers []*MembershipTierResponseResponseBody `form:"tiers,omitempty" json:"tiers,omitempty" xml:"tiers,omitempty"`
+// AdminReindexRequestBody is the type of the "membership-service" service
+// "admin-reindex" endpoint HTTP request body.
+type AdminReindexRequestBody struct {
+	// List of entity types to reindex (optional; if empty, reindex all types)
+	Types []string `form:"types,omitempty" json:"types,omitempty" xml:"types,omitempty"`
 }
 
-// GetProjectTierResponseBody is the type of the "membership-service" service
-// "get-project-tier" endpoint HTTP response body.
-type GetProjectTierResponseBody MembershipTierResponseResponseBody
+// GetB2bOrgResponseBody is the type of the "membership-service" service
+// "get-b2b-org" endpoint HTTP response body.
+type GetB2bOrgResponseBody B2bOrgResponseResponseBody
 
-// ListProjectMembershipsResponseBody is the type of the "membership-service"
-// service "list-project-memberships" endpoint HTTP response body.
-type ListProjectMembershipsResponseBody struct {
-	// List of project memberships
-	Memberships []*ProjectMembershipResponseResponseBody `form:"memberships,omitempty" json:"memberships,omitempty" xml:"memberships,omitempty"`
-	// Pagination metadata
-	Metadata *ListMetadataResponseBody `form:"metadata,omitempty" json:"metadata,omitempty" xml:"metadata,omitempty"`
-}
+// CreateB2bOrgResponseBody is the type of the "membership-service" service
+// "create-b2b-org" endpoint HTTP response body.
+type CreateB2bOrgResponseBody B2bOrgResponseResponseBody
+
+// UpdateB2bOrgResponseBody is the type of the "membership-service" service
+// "update-b2b-org" endpoint HTTP response body.
+type UpdateB2bOrgResponseBody B2bOrgResponseResponseBody
 
 // GetProjectMembershipResponseBody is the type of the "membership-service"
 // service "get-project-membership" endpoint HTTP response body.
 type GetProjectMembershipResponseBody ProjectMembershipResponseResponseBody
 
-// ListMembershipKeyContactsResponseBody is the type of the
-// "membership-service" service "list-membership-key-contacts" endpoint HTTP
-// response body.
-type ListMembershipKeyContactsResponseBody struct {
-	// List of key contacts
-	Contacts []*ProjectKeyContactResponseResponseBody `form:"contacts,omitempty" json:"contacts,omitempty" xml:"contacts,omitempty"`
+// GetKeyContactResponseBody is the type of the "membership-service" service
+// "get-key-contact" endpoint HTTP response body.
+type GetKeyContactResponseBody ProjectKeyContactResponseResponseBody
+
+// CreateKeyContactResponseBody is the type of the "membership-service" service
+// "create-key-contact" endpoint HTTP response body.
+type CreateKeyContactResponseBody ProjectKeyContactResponseResponseBody
+
+// UpdateKeyContactResponseBody is the type of the "membership-service" service
+// "update-key-contact" endpoint HTTP response body.
+type UpdateKeyContactResponseBody ProjectKeyContactResponseResponseBody
+
+// AdminReindexResponseBody is the type of the "membership-service" service
+// "admin-reindex" endpoint HTTP response body.
+type AdminReindexResponseBody struct {
+	// Correlation ID for the reindex run (for log lookups)
+	RunID *string `form:"run_id,omitempty" json:"run_id,omitempty" xml:"run_id,omitempty"`
 }
 
-// CreateMembershipKeyContactResponseBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// response body.
-type CreateMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
-
-// UpdateMembershipKeyContactResponseBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// response body.
-type UpdateMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
-
-// GetMembershipKeyContactResponseBody is the type of the "membership-service"
-// service "get-membership-key-contact" endpoint HTTP response body.
-type GetMembershipKeyContactResponseBody ProjectKeyContactResponseResponseBody
-
-// ListB2bOrgsResponseBody is the type of the "membership-service" service
-// "list-b2b-orgs" endpoint HTTP response body.
-type ListB2bOrgsResponseBody struct {
-	// List of B2B organizations
-	Orgs []*B2bOrgResponseResponseBody `form:"orgs,omitempty" json:"orgs,omitempty" xml:"orgs,omitempty"`
-	// Pagination metadata
-	Metadata *ListMetadataResponseBody `form:"metadata,omitempty" json:"metadata,omitempty" xml:"metadata,omitempty"`
-}
-
-// ListB2bOrgMembershipsResponseBody is the type of the "membership-service"
-// service "list-b2b-org-memberships" endpoint HTTP response body.
-type ListB2bOrgMembershipsResponseBody struct {
-	// List of memberships for the B2B organization
-	Memberships []*ProjectMembershipResponseResponseBody `form:"memberships,omitempty" json:"memberships,omitempty" xml:"memberships,omitempty"`
-	// Pagination metadata
-	Metadata *ListMetadataResponseBody `form:"metadata,omitempty" json:"metadata,omitempty" xml:"metadata,omitempty"`
-}
-
-// ListProjectTiersNotFoundResponseBody is the type of the "membership-service"
-// service "list-project-tiers" endpoint HTTP response body for the "NotFound"
+// GetB2bOrgNotImplementedResponseBody is the type of the "membership-service"
+// service "get-b2b-org" endpoint HTTP response body for the "NotImplemented"
 // error.
-type ListProjectTiersNotFoundResponseBody struct {
+type GetB2bOrgNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -133,10 +131,9 @@ type ListProjectTiersNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListProjectTiersInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-project-tiers" endpoint HTTP response
-// body for the "InternalServerError" error.
-type ListProjectTiersInternalServerErrorResponseBody struct {
+// GetB2bOrgNotFoundResponseBody is the type of the "membership-service"
+// service "get-b2b-org" endpoint HTTP response body for the "NotFound" error.
+type GetB2bOrgNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -152,10 +149,9 @@ type ListProjectTiersInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListProjectTiersServiceUnavailableResponseBody is the type of the
-// "membership-service" service "list-project-tiers" endpoint HTTP response
-// body for the "ServiceUnavailable" error.
-type ListProjectTiersServiceUnavailableResponseBody struct {
+// GetB2bOrgBadRequestResponseBody is the type of the "membership-service"
+// service "get-b2b-org" endpoint HTTP response body for the "BadRequest" error.
+type GetB2bOrgBadRequestResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -171,10 +167,86 @@ type ListProjectTiersServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// GetProjectTierNotFoundResponseBody is the type of the "membership-service"
-// service "get-project-tier" endpoint HTTP response body for the "NotFound"
+// GetB2bOrgPreconditionFailedResponseBody is the type of the
+// "membership-service" service "get-b2b-org" endpoint HTTP response body for
+// the "PreconditionFailed" error.
+type GetB2bOrgPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// GetB2bOrgInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-b2b-org" endpoint HTTP response body for
+// the "InternalServerError" error.
+type GetB2bOrgInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// GetB2bOrgServiceUnavailableResponseBody is the type of the
+// "membership-service" service "get-b2b-org" endpoint HTTP response body for
+// the "ServiceUnavailable" error.
+type GetB2bOrgServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// CreateB2bOrgNotImplementedResponseBody is the type of the
+// "membership-service" service "create-b2b-org" endpoint HTTP response body
+// for the "NotImplemented" error.
+type CreateB2bOrgNotImplementedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// CreateB2bOrgNotFoundResponseBody is the type of the "membership-service"
+// service "create-b2b-org" endpoint HTTP response body for the "NotFound"
 // error.
-type GetProjectTierNotFoundResponseBody struct {
+type CreateB2bOrgNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -190,10 +262,48 @@ type GetProjectTierNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// GetProjectTierInternalServerErrorResponseBody is the type of the
-// "membership-service" service "get-project-tier" endpoint HTTP response body
+// CreateB2bOrgBadRequestResponseBody is the type of the "membership-service"
+// service "create-b2b-org" endpoint HTTP response body for the "BadRequest"
+// error.
+type CreateB2bOrgBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// CreateB2bOrgPreconditionFailedResponseBody is the type of the
+// "membership-service" service "create-b2b-org" endpoint HTTP response body
+// for the "PreconditionFailed" error.
+type CreateB2bOrgPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// CreateB2bOrgInternalServerErrorResponseBody is the type of the
+// "membership-service" service "create-b2b-org" endpoint HTTP response body
 // for the "InternalServerError" error.
-type GetProjectTierInternalServerErrorResponseBody struct {
+type CreateB2bOrgInternalServerErrorResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -209,10 +319,10 @@ type GetProjectTierInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// GetProjectTierServiceUnavailableResponseBody is the type of the
-// "membership-service" service "get-project-tier" endpoint HTTP response body
+// CreateB2bOrgServiceUnavailableResponseBody is the type of the
+// "membership-service" service "create-b2b-org" endpoint HTTP response body
 // for the "ServiceUnavailable" error.
-type GetProjectTierServiceUnavailableResponseBody struct {
+type CreateB2bOrgServiceUnavailableResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -228,10 +338,10 @@ type GetProjectTierServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListProjectMembershipsNotFoundResponseBody is the type of the
-// "membership-service" service "list-project-memberships" endpoint HTTP
-// response body for the "NotFound" error.
-type ListProjectMembershipsNotFoundResponseBody struct {
+// UpdateB2bOrgNotImplementedResponseBody is the type of the
+// "membership-service" service "update-b2b-org" endpoint HTTP response body
+// for the "NotImplemented" error.
+type UpdateB2bOrgNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -247,10 +357,10 @@ type ListProjectMembershipsNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListProjectMembershipsBadRequestResponseBody is the type of the
-// "membership-service" service "list-project-memberships" endpoint HTTP
-// response body for the "BadRequest" error.
-type ListProjectMembershipsBadRequestResponseBody struct {
+// UpdateB2bOrgNotFoundResponseBody is the type of the "membership-service"
+// service "update-b2b-org" endpoint HTTP response body for the "NotFound"
+// error.
+type UpdateB2bOrgNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -266,10 +376,10 @@ type ListProjectMembershipsBadRequestResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListProjectMembershipsInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-project-memberships" endpoint HTTP
-// response body for the "InternalServerError" error.
-type ListProjectMembershipsInternalServerErrorResponseBody struct {
+// UpdateB2bOrgBadRequestResponseBody is the type of the "membership-service"
+// service "update-b2b-org" endpoint HTTP response body for the "BadRequest"
+// error.
+type UpdateB2bOrgBadRequestResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -285,10 +395,67 @@ type ListProjectMembershipsInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListProjectMembershipsServiceUnavailableResponseBody is the type of the
-// "membership-service" service "list-project-memberships" endpoint HTTP
-// response body for the "ServiceUnavailable" error.
-type ListProjectMembershipsServiceUnavailableResponseBody struct {
+// UpdateB2bOrgPreconditionFailedResponseBody is the type of the
+// "membership-service" service "update-b2b-org" endpoint HTTP response body
+// for the "PreconditionFailed" error.
+type UpdateB2bOrgPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgInternalServerErrorResponseBody is the type of the
+// "membership-service" service "update-b2b-org" endpoint HTTP response body
+// for the "InternalServerError" error.
+type UpdateB2bOrgInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgServiceUnavailableResponseBody is the type of the
+// "membership-service" service "update-b2b-org" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type UpdateB2bOrgServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// GetProjectMembershipNotImplementedResponseBody is the type of the
+// "membership-service" service "get-project-membership" endpoint HTTP response
+// body for the "NotImplemented" error.
+type GetProjectMembershipNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -308,6 +475,44 @@ type ListProjectMembershipsServiceUnavailableResponseBody struct {
 // "membership-service" service "get-project-membership" endpoint HTTP response
 // body for the "NotFound" error.
 type GetProjectMembershipNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// GetProjectMembershipBadRequestResponseBody is the type of the
+// "membership-service" service "get-project-membership" endpoint HTTP response
+// body for the "BadRequest" error.
+type GetProjectMembershipBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// GetProjectMembershipPreconditionFailedResponseBody is the type of the
+// "membership-service" service "get-project-membership" endpoint HTTP response
+// body for the "PreconditionFailed" error.
+type GetProjectMembershipPreconditionFailedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -361,10 +566,10 @@ type GetProjectMembershipServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListMembershipKeyContactsNotFoundResponseBody is the type of the
-// "membership-service" service "list-membership-key-contacts" endpoint HTTP
-// response body for the "NotFound" error.
-type ListMembershipKeyContactsNotFoundResponseBody struct {
+// GetKeyContactNotImplementedResponseBody is the type of the
+// "membership-service" service "get-key-contact" endpoint HTTP response body
+// for the "NotImplemented" error.
+type GetKeyContactNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -380,10 +585,10 @@ type ListMembershipKeyContactsNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListMembershipKeyContactsInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-membership-key-contacts" endpoint HTTP
-// response body for the "InternalServerError" error.
-type ListMembershipKeyContactsInternalServerErrorResponseBody struct {
+// GetKeyContactNotFoundResponseBody is the type of the "membership-service"
+// service "get-key-contact" endpoint HTTP response body for the "NotFound"
+// error.
+type GetKeyContactNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -399,10 +604,10 @@ type ListMembershipKeyContactsInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListMembershipKeyContactsServiceUnavailableResponseBody is the type of the
-// "membership-service" service "list-membership-key-contacts" endpoint HTTP
-// response body for the "ServiceUnavailable" error.
-type ListMembershipKeyContactsServiceUnavailableResponseBody struct {
+// GetKeyContactBadRequestResponseBody is the type of the "membership-service"
+// service "get-key-contact" endpoint HTTP response body for the "BadRequest"
+// error.
+type GetKeyContactBadRequestResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -418,10 +623,10 @@ type ListMembershipKeyContactsServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// CreateMembershipKeyContactNotFoundResponseBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// response body for the "NotFound" error.
-type CreateMembershipKeyContactNotFoundResponseBody struct {
+// GetKeyContactPreconditionFailedResponseBody is the type of the
+// "membership-service" service "get-key-contact" endpoint HTTP response body
+// for the "PreconditionFailed" error.
+type GetKeyContactPreconditionFailedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -437,10 +642,10 @@ type CreateMembershipKeyContactNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// CreateMembershipKeyContactBadRequestResponseBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// response body for the "BadRequest" error.
-type CreateMembershipKeyContactBadRequestResponseBody struct {
+// GetKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "get-key-contact" endpoint HTTP response body
+// for the "InternalServerError" error.
+type GetKeyContactInternalServerErrorResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -456,10 +661,10 @@ type CreateMembershipKeyContactBadRequestResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// CreateMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type CreateMembershipKeyContactInternalServerErrorResponseBody struct {
+// GetKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "get-key-contact" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type GetKeyContactServiceUnavailableResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -475,10 +680,10 @@ type CreateMembershipKeyContactInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// CreateMembershipKeyContactServiceUnavailableResponseBody is the type of the
-// "membership-service" service "create-membership-key-contact" endpoint HTTP
-// response body for the "ServiceUnavailable" error.
-type CreateMembershipKeyContactServiceUnavailableResponseBody struct {
+// CreateKeyContactNotImplementedResponseBody is the type of the
+// "membership-service" service "create-key-contact" endpoint HTTP response
+// body for the "NotImplemented" error.
+type CreateKeyContactNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -494,10 +699,10 @@ type CreateMembershipKeyContactServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// UpdateMembershipKeyContactNotFoundResponseBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// response body for the "NotFound" error.
-type UpdateMembershipKeyContactNotFoundResponseBody struct {
+// CreateKeyContactNotFoundResponseBody is the type of the "membership-service"
+// service "create-key-contact" endpoint HTTP response body for the "NotFound"
+// error.
+type CreateKeyContactNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -513,10 +718,10 @@ type UpdateMembershipKeyContactNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// UpdateMembershipKeyContactBadRequestResponseBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// response body for the "BadRequest" error.
-type UpdateMembershipKeyContactBadRequestResponseBody struct {
+// CreateKeyContactBadRequestResponseBody is the type of the
+// "membership-service" service "create-key-contact" endpoint HTTP response
+// body for the "BadRequest" error.
+type CreateKeyContactBadRequestResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -532,10 +737,10 @@ type UpdateMembershipKeyContactBadRequestResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// UpdateMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type UpdateMembershipKeyContactInternalServerErrorResponseBody struct {
+// CreateKeyContactPreconditionFailedResponseBody is the type of the
+// "membership-service" service "create-key-contact" endpoint HTTP response
+// body for the "PreconditionFailed" error.
+type CreateKeyContactPreconditionFailedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -551,10 +756,10 @@ type UpdateMembershipKeyContactInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// UpdateMembershipKeyContactServiceUnavailableResponseBody is the type of the
-// "membership-service" service "update-membership-key-contact" endpoint HTTP
-// response body for the "ServiceUnavailable" error.
-type UpdateMembershipKeyContactServiceUnavailableResponseBody struct {
+// CreateKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "create-key-contact" endpoint HTTP response
+// body for the "InternalServerError" error.
+type CreateKeyContactInternalServerErrorResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -570,10 +775,10 @@ type UpdateMembershipKeyContactServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// DeleteMembershipKeyContactNotFoundResponseBody is the type of the
-// "membership-service" service "delete-membership-key-contact" endpoint HTTP
-// response body for the "NotFound" error.
-type DeleteMembershipKeyContactNotFoundResponseBody struct {
+// CreateKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "create-key-contact" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type CreateKeyContactServiceUnavailableResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -589,10 +794,10 @@ type DeleteMembershipKeyContactNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// DeleteMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "delete-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type DeleteMembershipKeyContactInternalServerErrorResponseBody struct {
+// UpdateKeyContactNotImplementedResponseBody is the type of the
+// "membership-service" service "update-key-contact" endpoint HTTP response
+// body for the "NotImplemented" error.
+type UpdateKeyContactNotImplementedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -608,10 +813,10 @@ type DeleteMembershipKeyContactInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// DeleteMembershipKeyContactServiceUnavailableResponseBody is the type of the
-// "membership-service" service "delete-membership-key-contact" endpoint HTTP
-// response body for the "ServiceUnavailable" error.
-type DeleteMembershipKeyContactServiceUnavailableResponseBody struct {
+// UpdateKeyContactNotFoundResponseBody is the type of the "membership-service"
+// service "update-key-contact" endpoint HTTP response body for the "NotFound"
+// error.
+type UpdateKeyContactNotFoundResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -627,10 +832,10 @@ type DeleteMembershipKeyContactServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// GetMembershipKeyContactNotFoundResponseBody is the type of the
-// "membership-service" service "get-membership-key-contact" endpoint HTTP
-// response body for the "NotFound" error.
-type GetMembershipKeyContactNotFoundResponseBody struct {
+// UpdateKeyContactBadRequestResponseBody is the type of the
+// "membership-service" service "update-key-contact" endpoint HTTP response
+// body for the "BadRequest" error.
+type UpdateKeyContactBadRequestResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -646,10 +851,10 @@ type GetMembershipKeyContactNotFoundResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// GetMembershipKeyContactInternalServerErrorResponseBody is the type of the
-// "membership-service" service "get-membership-key-contact" endpoint HTTP
-// response body for the "InternalServerError" error.
-type GetMembershipKeyContactInternalServerErrorResponseBody struct {
+// UpdateKeyContactPreconditionFailedResponseBody is the type of the
+// "membership-service" service "update-key-contact" endpoint HTTP response
+// body for the "PreconditionFailed" error.
+type UpdateKeyContactPreconditionFailedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -665,10 +870,10 @@ type GetMembershipKeyContactInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// GetMembershipKeyContactServiceUnavailableResponseBody is the type of the
-// "membership-service" service "get-membership-key-contact" endpoint HTTP
-// response body for the "ServiceUnavailable" error.
-type GetMembershipKeyContactServiceUnavailableResponseBody struct {
+// UpdateKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "update-key-contact" endpoint HTTP response
+// body for the "InternalServerError" error.
+type UpdateKeyContactInternalServerErrorResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -684,10 +889,218 @@ type GetMembershipKeyContactServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListB2bOrgsInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-b2b-orgs" endpoint HTTP response body for
+// UpdateKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "update-key-contact" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type UpdateKeyContactServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteKeyContactNotImplementedResponseBody is the type of the
+// "membership-service" service "delete-key-contact" endpoint HTTP response
+// body for the "NotImplemented" error.
+type DeleteKeyContactNotImplementedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteKeyContactNotFoundResponseBody is the type of the "membership-service"
+// service "delete-key-contact" endpoint HTTP response body for the "NotFound"
+// error.
+type DeleteKeyContactNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteKeyContactBadRequestResponseBody is the type of the
+// "membership-service" service "delete-key-contact" endpoint HTTP response
+// body for the "BadRequest" error.
+type DeleteKeyContactBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteKeyContactPreconditionFailedResponseBody is the type of the
+// "membership-service" service "delete-key-contact" endpoint HTTP response
+// body for the "PreconditionFailed" error.
+type DeleteKeyContactPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteKeyContactInternalServerErrorResponseBody is the type of the
+// "membership-service" service "delete-key-contact" endpoint HTTP response
+// body for the "InternalServerError" error.
+type DeleteKeyContactInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteKeyContactServiceUnavailableResponseBody is the type of the
+// "membership-service" service "delete-key-contact" endpoint HTTP response
+// body for the "ServiceUnavailable" error.
+type DeleteKeyContactServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AdminReindexNotImplementedResponseBody is the type of the
+// "membership-service" service "admin-reindex" endpoint HTTP response body for
+// the "NotImplemented" error.
+type AdminReindexNotImplementedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AdminReindexNotFoundResponseBody is the type of the "membership-service"
+// service "admin-reindex" endpoint HTTP response body for the "NotFound" error.
+type AdminReindexNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AdminReindexBadRequestResponseBody is the type of the "membership-service"
+// service "admin-reindex" endpoint HTTP response body for the "BadRequest"
+// error.
+type AdminReindexBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AdminReindexPreconditionFailedResponseBody is the type of the
+// "membership-service" service "admin-reindex" endpoint HTTP response body for
+// the "PreconditionFailed" error.
+type AdminReindexPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AdminReindexInternalServerErrorResponseBody is the type of the
+// "membership-service" service "admin-reindex" endpoint HTTP response body for
 // the "InternalServerError" error.
-type ListB2bOrgsInternalServerErrorResponseBody struct {
+type AdminReindexInternalServerErrorResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -703,67 +1116,10 @@ type ListB2bOrgsInternalServerErrorResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// ListB2bOrgsServiceUnavailableResponseBody is the type of the
-// "membership-service" service "list-b2b-orgs" endpoint HTTP response body for
+// AdminReindexServiceUnavailableResponseBody is the type of the
+// "membership-service" service "admin-reindex" endpoint HTTP response body for
 // the "ServiceUnavailable" error.
-type ListB2bOrgsServiceUnavailableResponseBody struct {
-	// Name is the name of this class of errors.
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// ID is a unique identifier for this particular occurrence of the problem.
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Message is a human-readable explanation specific to this occurrence of the
-	// problem.
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-	// Is the error temporary?
-	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
-	// Is the error a timeout?
-	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
-	// Is the error a server-side fault?
-	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
-}
-
-// ListB2bOrgMembershipsNotFoundResponseBody is the type of the
-// "membership-service" service "list-b2b-org-memberships" endpoint HTTP
-// response body for the "NotFound" error.
-type ListB2bOrgMembershipsNotFoundResponseBody struct {
-	// Name is the name of this class of errors.
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// ID is a unique identifier for this particular occurrence of the problem.
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Message is a human-readable explanation specific to this occurrence of the
-	// problem.
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-	// Is the error temporary?
-	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
-	// Is the error a timeout?
-	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
-	// Is the error a server-side fault?
-	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
-}
-
-// ListB2bOrgMembershipsInternalServerErrorResponseBody is the type of the
-// "membership-service" service "list-b2b-org-memberships" endpoint HTTP
-// response body for the "InternalServerError" error.
-type ListB2bOrgMembershipsInternalServerErrorResponseBody struct {
-	// Name is the name of this class of errors.
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// ID is a unique identifier for this particular occurrence of the problem.
-	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
-	// Message is a human-readable explanation specific to this occurrence of the
-	// problem.
-	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
-	// Is the error temporary?
-	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
-	// Is the error a timeout?
-	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
-	// Is the error a server-side fault?
-	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
-}
-
-// ListB2bOrgMembershipsServiceUnavailableResponseBody is the type of the
-// "membership-service" service "list-b2b-org-memberships" endpoint HTTP
-// response body for the "ServiceUnavailable" error.
-type ListB2bOrgMembershipsServiceUnavailableResponseBody struct {
+type AdminReindexServiceUnavailableResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -798,19 +1154,21 @@ type ReadyzServiceUnavailableResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
-// MembershipTierResponseResponseBody is used to define fields on response body
-// types.
-type MembershipTierResponseResponseBody struct {
-	// Tier UID (invertible UUID v8 from Product2.Id)
+// B2bOrgResponseResponseBody is used to define fields on response body types.
+type B2bOrgResponseResponseBody struct {
+	// B2BOrg UID (invertible UUID v8)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// V2 project UUID
-	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
-	// Product name, e.g. 'Gold Corporate Membership'
+	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Product family, e.g. 'Membership'
-	Family *string `form:"family,omitempty" json:"family,omitempty" xml:"family,omitempty"`
-	// Product type (Type__c)
-	ProductType *string `form:"product_type,omitempty" json:"product_type,omitempty" xml:"product_type,omitempty"`
+	// Organization website URL; always has a scheme (http or https)
+	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
+	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
+	PrimaryDomain *string `form:"primary_domain,omitempty" json:"primary_domain,omitempty" xml:"primary_domain,omitempty"`
+	// Additional domains; each item is a bare host with the same normalization as
+	// primary_domain
+	DomainAliases []string `form:"domain_aliases,omitempty" json:"domain_aliases,omitempty" xml:"domain_aliases,omitempty"`
+	// URL of the organization logo
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
 	// Creation timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// Last update timestamp
@@ -874,17 +1232,6 @@ type ProjectMembershipResponseResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
-// ListMetadataResponseBody is used to define fields on response body types.
-type ListMetadataResponseBody struct {
-	// Total number of records matching the query. Set on the first page; may be 0
-	// on continuation pages.
-	TotalSize *int `form:"total_size,omitempty" json:"total_size,omitempty" xml:"total_size,omitempty"`
-	// Opaque cursor for the next page. Pass this value as the page_token query
-	// parameter to retrieve the next page. Empty or absent when this is the last
-	// page.
-	NextPageToken *string `form:"next_page_token,omitempty" json:"next_page_token,omitempty" xml:"next_page_token,omitempty"`
-}
-
 // ProjectKeyContactResponseResponseBody is used to define fields on response
 // body types.
 type ProjectKeyContactResponseResponseBody struct {
@@ -927,32 +1274,31 @@ type ProjectKeyContactResponseResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
-// B2bOrgResponseResponseBody is used to define fields on response body types.
-type B2bOrgResponseResponseBody struct {
-	// B2BOrg UID (invertible UUID v8)
-	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
-	// Organization name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Organization website URL; always has a scheme (http or https)
-	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
-	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
-	PrimaryDomain *string `form:"primary_domain,omitempty" json:"primary_domain,omitempty" xml:"primary_domain,omitempty"`
-	// Additional domains; each item is a bare host with the same normalization as
-	// primary_domain
-	DomainAliases []string `form:"domain_aliases,omitempty" json:"domain_aliases,omitempty" xml:"domain_aliases,omitempty"`
-	// URL of the organization logo
-	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
-	// Creation timestamp
-	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
-	// Last update timestamp
-	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+// NewCreateB2bOrgRequestBody builds the HTTP request body from the payload of
+// the "create-b2b-org" endpoint of the "membership-service" service.
+func NewCreateB2bOrgRequestBody(p *membershipservice.CreateB2bOrgPayload) *CreateB2bOrgRequestBody {
+	body := &CreateB2bOrgRequestBody{
+		Name: p.Name,
+	}
+	return body
 }
 
-// NewCreateMembershipKeyContactRequestBody builds the HTTP request body from
-// the payload of the "create-membership-key-contact" endpoint of the
-// "membership-service" service.
-func NewCreateMembershipKeyContactRequestBody(p *membershipservice.CreateMembershipKeyContactPayload) *CreateMembershipKeyContactRequestBody {
-	body := &CreateMembershipKeyContactRequestBody{
+// NewUpdateB2bOrgRequestBody builds the HTTP request body from the payload of
+// the "update-b2b-org" endpoint of the "membership-service" service.
+func NewUpdateB2bOrgRequestBody(p *membershipservice.UpdateB2bOrgPayload) *UpdateB2bOrgRequestBody {
+	body := &UpdateB2bOrgRequestBody{
+		Name: p.Name,
+	}
+	return body
+}
+
+// NewCreateKeyContactRequestBody builds the HTTP request body from the payload
+// of the "create-key-contact" endpoint of the "membership-service" service.
+func NewCreateKeyContactRequestBody(p *membershipservice.CreateKeyContactPayload) *CreateKeyContactRequestBody {
+	body := &CreateKeyContactRequestBody{
+		B2bOrgUID:      p.B2bOrgUID,
+		ProjectUID:     p.ProjectUID,
+		MembershipUID:  p.MembershipUID,
 		Email:          p.Email,
 		FirstName:      p.FirstName,
 		LastName:       p.LastName,
@@ -965,102 +1311,62 @@ func NewCreateMembershipKeyContactRequestBody(p *membershipservice.CreateMembers
 	return body
 }
 
-// NewUpdateMembershipKeyContactRequestBody builds the HTTP request body from
-// the payload of the "update-membership-key-contact" endpoint of the
-// "membership-service" service.
-func NewUpdateMembershipKeyContactRequestBody(p *membershipservice.UpdateMembershipKeyContactPayload) *UpdateMembershipKeyContactRequestBody {
-	body := &UpdateMembershipKeyContactRequestBody{
+// NewUpdateKeyContactRequestBody builds the HTTP request body from the payload
+// of the "update-key-contact" endpoint of the "membership-service" service.
+func NewUpdateKeyContactRequestBody(p *membershipservice.UpdateKeyContactPayload) *UpdateKeyContactRequestBody {
+	body := &UpdateKeyContactRequestBody{
 		Role:           p.Role,
 		Status:         p.Status,
 		BoardMember:    p.BoardMember,
 		PrimaryContact: p.PrimaryContact,
+		Title:          p.Title,
 	}
 	return body
 }
 
-// NewListProjectTiersResultOK builds a "membership-service" service
-// "list-project-tiers" endpoint result from a HTTP "OK" response.
-func NewListProjectTiersResultOK(body *ListProjectTiersResponseBody) *membershipservice.ListProjectTiersResult {
-	v := &membershipservice.ListProjectTiersResult{}
-	v.Tiers = make([]*membershipservice.MembershipTierResponse, len(body.Tiers))
-	for i, val := range body.Tiers {
-		if val == nil {
-			v.Tiers[i] = nil
-			continue
+// NewAdminReindexRequestBody builds the HTTP request body from the payload of
+// the "admin-reindex" endpoint of the "membership-service" service.
+func NewAdminReindexRequestBody(p *membershipservice.AdminReindexPayload) *AdminReindexRequestBody {
+	body := &AdminReindexRequestBody{}
+	if p.Types != nil {
+		body.Types = make([]string, len(p.Types))
+		for i, val := range p.Types {
+			body.Types[i] = val
 		}
-		v.Tiers[i] = unmarshalMembershipTierResponseResponseBodyToMembershipserviceMembershipTierResponse(val)
 	}
-
-	return v
+	return body
 }
 
-// NewListProjectTiersNotFound builds a membership-service service
-// list-project-tiers endpoint NotFound error.
-func NewListProjectTiersNotFound(body *ListProjectTiersNotFoundResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
+// NewGetB2bOrgResultOK builds a "membership-service" service "get-b2b-org"
+// endpoint result from a HTTP "OK" response.
+func NewGetB2bOrgResultOK(body *GetB2bOrgResponseBody, etag *string, lastModified *string) *membershipservice.GetB2bOrgResult {
+	v := &membershipservice.B2bOrgResponse{
+		UID:           body.UID,
+		Name:          body.Name,
+		Website:       body.Website,
+		PrimaryDomain: body.PrimaryDomain,
+		LogoURL:       body.LogoURL,
+		CreatedAt:     body.CreatedAt,
+		UpdatedAt:     body.UpdatedAt,
 	}
-
-	return v
-}
-
-// NewListProjectTiersInternalServerError builds a membership-service service
-// list-project-tiers endpoint InternalServerError error.
-func NewListProjectTiersInternalServerError(body *ListProjectTiersInternalServerErrorResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
+	if body.DomainAliases != nil {
+		v.DomainAliases = make([]string, len(body.DomainAliases))
+		for i, val := range body.DomainAliases {
+			v.DomainAliases[i] = val
+		}
 	}
-
-	return v
-}
-
-// NewListProjectTiersServiceUnavailable builds a membership-service service
-// list-project-tiers endpoint ServiceUnavailable error.
-func NewListProjectTiersServiceUnavailable(body *ListProjectTiersServiceUnavailableResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
+	res := &membershipservice.GetB2bOrgResult{
+		B2bOrg: v,
 	}
-
-	return v
-}
-
-// NewGetProjectTierResultOK builds a "membership-service" service
-// "get-project-tier" endpoint result from a HTTP "OK" response.
-func NewGetProjectTierResultOK(body *GetProjectTierResponseBody) *membershipservice.GetProjectTierResult {
-	v := &membershipservice.MembershipTierResponse{
-		UID:         body.UID,
-		ProjectUID:  body.ProjectUID,
-		Name:        body.Name,
-		Family:      body.Family,
-		ProductType: body.ProductType,
-		CreatedAt:   body.CreatedAt,
-		UpdatedAt:   body.UpdatedAt,
-	}
-	res := &membershipservice.GetProjectTierResult{
-		Tier: v,
-	}
+	res.Etag = etag
+	res.LastModified = lastModified
 
 	return res
 }
 
-// NewGetProjectTierNotFound builds a membership-service service
-// get-project-tier endpoint NotFound error.
-func NewGetProjectTierNotFound(body *GetProjectTierNotFoundResponseBody) *goa.ServiceError {
+// NewGetB2bOrgNotImplemented builds a membership-service service get-b2b-org
+// endpoint NotImplemented error.
+func NewGetB2bOrgNotImplemented(body *GetB2bOrgNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1073,9 +1379,9 @@ func NewGetProjectTierNotFound(body *GetProjectTierNotFoundResponseBody) *goa.Se
 	return v
 }
 
-// NewGetProjectTierInternalServerError builds a membership-service service
-// get-project-tier endpoint InternalServerError error.
-func NewGetProjectTierInternalServerError(body *GetProjectTierInternalServerErrorResponseBody) *goa.ServiceError {
+// NewGetB2bOrgNotFound builds a membership-service service get-b2b-org
+// endpoint NotFound error.
+func NewGetB2bOrgNotFound(body *GetB2bOrgNotFoundResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1088,9 +1394,9 @@ func NewGetProjectTierInternalServerError(body *GetProjectTierInternalServerErro
 	return v
 }
 
-// NewGetProjectTierServiceUnavailable builds a membership-service service
-// get-project-tier endpoint ServiceUnavailable error.
-func NewGetProjectTierServiceUnavailable(body *GetProjectTierServiceUnavailableResponseBody) *goa.ServiceError {
+// NewGetB2bOrgBadRequest builds a membership-service service get-b2b-org
+// endpoint BadRequest error.
+func NewGetB2bOrgBadRequest(body *GetB2bOrgBadRequestResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1103,26 +1409,81 @@ func NewGetProjectTierServiceUnavailable(body *GetProjectTierServiceUnavailableR
 	return v
 }
 
-// NewListProjectMembershipsResultOK builds a "membership-service" service
-// "list-project-memberships" endpoint result from a HTTP "OK" response.
-func NewListProjectMembershipsResultOK(body *ListProjectMembershipsResponseBody) *membershipservice.ListProjectMembershipsResult {
-	v := &membershipservice.ListProjectMembershipsResult{}
-	v.Memberships = make([]*membershipservice.ProjectMembershipResponse, len(body.Memberships))
-	for i, val := range body.Memberships {
-		if val == nil {
-			v.Memberships[i] = nil
-			continue
+// NewGetB2bOrgPreconditionFailed builds a membership-service service
+// get-b2b-org endpoint PreconditionFailed error.
+func NewGetB2bOrgPreconditionFailed(body *GetB2bOrgPreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewGetB2bOrgInternalServerError builds a membership-service service
+// get-b2b-org endpoint InternalServerError error.
+func NewGetB2bOrgInternalServerError(body *GetB2bOrgInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewGetB2bOrgServiceUnavailable builds a membership-service service
+// get-b2b-org endpoint ServiceUnavailable error.
+func NewGetB2bOrgServiceUnavailable(body *GetB2bOrgServiceUnavailableResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewCreateB2bOrgResultCreated builds a "membership-service" service
+// "create-b2b-org" endpoint result from a HTTP "Created" response.
+func NewCreateB2bOrgResultCreated(body *CreateB2bOrgResponseBody, etag *string, lastModified *string) *membershipservice.CreateB2bOrgResult {
+	v := &membershipservice.B2bOrgResponse{
+		UID:           body.UID,
+		Name:          body.Name,
+		Website:       body.Website,
+		PrimaryDomain: body.PrimaryDomain,
+		LogoURL:       body.LogoURL,
+		CreatedAt:     body.CreatedAt,
+		UpdatedAt:     body.UpdatedAt,
+	}
+	if body.DomainAliases != nil {
+		v.DomainAliases = make([]string, len(body.DomainAliases))
+		for i, val := range body.DomainAliases {
+			v.DomainAliases[i] = val
 		}
-		v.Memberships[i] = unmarshalProjectMembershipResponseResponseBodyToMembershipserviceProjectMembershipResponse(val)
 	}
-	v.Metadata = unmarshalListMetadataResponseBodyToMembershipserviceListMetadata(body.Metadata)
+	res := &membershipservice.CreateB2bOrgResult{
+		B2bOrg: v,
+	}
+	res.Etag = etag
+	res.LastModified = lastModified
 
-	return v
+	return res
 }
 
-// NewListProjectMembershipsNotFound builds a membership-service service
-// list-project-memberships endpoint NotFound error.
-func NewListProjectMembershipsNotFound(body *ListProjectMembershipsNotFoundResponseBody) *goa.ServiceError {
+// NewCreateB2bOrgNotImplemented builds a membership-service service
+// create-b2b-org endpoint NotImplemented error.
+func NewCreateB2bOrgNotImplemented(body *CreateB2bOrgNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1135,9 +1496,9 @@ func NewListProjectMembershipsNotFound(body *ListProjectMembershipsNotFoundRespo
 	return v
 }
 
-// NewListProjectMembershipsBadRequest builds a membership-service service
-// list-project-memberships endpoint BadRequest error.
-func NewListProjectMembershipsBadRequest(body *ListProjectMembershipsBadRequestResponseBody) *goa.ServiceError {
+// NewCreateB2bOrgNotFound builds a membership-service service create-b2b-org
+// endpoint NotFound error.
+func NewCreateB2bOrgNotFound(body *CreateB2bOrgNotFoundResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1150,9 +1511,9 @@ func NewListProjectMembershipsBadRequest(body *ListProjectMembershipsBadRequestR
 	return v
 }
 
-// NewListProjectMembershipsInternalServerError builds a membership-service
-// service list-project-memberships endpoint InternalServerError error.
-func NewListProjectMembershipsInternalServerError(body *ListProjectMembershipsInternalServerErrorResponseBody) *goa.ServiceError {
+// NewCreateB2bOrgBadRequest builds a membership-service service create-b2b-org
+// endpoint BadRequest error.
+func NewCreateB2bOrgBadRequest(body *CreateB2bOrgBadRequestResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1165,9 +1526,156 @@ func NewListProjectMembershipsInternalServerError(body *ListProjectMembershipsIn
 	return v
 }
 
-// NewListProjectMembershipsServiceUnavailable builds a membership-service
-// service list-project-memberships endpoint ServiceUnavailable error.
-func NewListProjectMembershipsServiceUnavailable(body *ListProjectMembershipsServiceUnavailableResponseBody) *goa.ServiceError {
+// NewCreateB2bOrgPreconditionFailed builds a membership-service service
+// create-b2b-org endpoint PreconditionFailed error.
+func NewCreateB2bOrgPreconditionFailed(body *CreateB2bOrgPreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewCreateB2bOrgInternalServerError builds a membership-service service
+// create-b2b-org endpoint InternalServerError error.
+func NewCreateB2bOrgInternalServerError(body *CreateB2bOrgInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewCreateB2bOrgServiceUnavailable builds a membership-service service
+// create-b2b-org endpoint ServiceUnavailable error.
+func NewCreateB2bOrgServiceUnavailable(body *CreateB2bOrgServiceUnavailableResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgResultOK builds a "membership-service" service
+// "update-b2b-org" endpoint result from a HTTP "OK" response.
+func NewUpdateB2bOrgResultOK(body *UpdateB2bOrgResponseBody, etag *string, lastModified *string) *membershipservice.UpdateB2bOrgResult {
+	v := &membershipservice.B2bOrgResponse{
+		UID:           body.UID,
+		Name:          body.Name,
+		Website:       body.Website,
+		PrimaryDomain: body.PrimaryDomain,
+		LogoURL:       body.LogoURL,
+		CreatedAt:     body.CreatedAt,
+		UpdatedAt:     body.UpdatedAt,
+	}
+	if body.DomainAliases != nil {
+		v.DomainAliases = make([]string, len(body.DomainAliases))
+		for i, val := range body.DomainAliases {
+			v.DomainAliases[i] = val
+		}
+	}
+	res := &membershipservice.UpdateB2bOrgResult{
+		B2bOrg: v,
+	}
+	res.Etag = etag
+	res.LastModified = lastModified
+
+	return res
+}
+
+// NewUpdateB2bOrgNotImplemented builds a membership-service service
+// update-b2b-org endpoint NotImplemented error.
+func NewUpdateB2bOrgNotImplemented(body *UpdateB2bOrgNotImplementedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgNotFound builds a membership-service service update-b2b-org
+// endpoint NotFound error.
+func NewUpdateB2bOrgNotFound(body *UpdateB2bOrgNotFoundResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgBadRequest builds a membership-service service update-b2b-org
+// endpoint BadRequest error.
+func NewUpdateB2bOrgBadRequest(body *UpdateB2bOrgBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgPreconditionFailed builds a membership-service service
+// update-b2b-org endpoint PreconditionFailed error.
+func NewUpdateB2bOrgPreconditionFailed(body *UpdateB2bOrgPreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgInternalServerError builds a membership-service service
+// update-b2b-org endpoint InternalServerError error.
+func NewUpdateB2bOrgInternalServerError(body *UpdateB2bOrgInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgServiceUnavailable builds a membership-service service
+// update-b2b-org endpoint ServiceUnavailable error.
+func NewUpdateB2bOrgServiceUnavailable(body *UpdateB2bOrgServiceUnavailableResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1182,7 +1690,7 @@ func NewListProjectMembershipsServiceUnavailable(body *ListProjectMembershipsSer
 
 // NewGetProjectMembershipResultOK builds a "membership-service" service
 // "get-project-membership" endpoint result from a HTTP "OK" response.
-func NewGetProjectMembershipResultOK(body *GetProjectMembershipResponseBody, etag *string) *membershipservice.GetProjectMembershipResult {
+func NewGetProjectMembershipResultOK(body *GetProjectMembershipResponseBody, etag *string, lastModified *string) *membershipservice.GetProjectMembershipResult {
 	v := &membershipservice.ProjectMembershipResponse{
 		UID:              body.UID,
 		TierUID:          body.TierUID,
@@ -1212,16 +1720,62 @@ func NewGetProjectMembershipResultOK(body *GetProjectMembershipResponseBody, eta
 		UpdatedAt:        body.UpdatedAt,
 	}
 	res := &membershipservice.GetProjectMembershipResult{
-		Membership: v,
+		ProjectMembership: v,
 	}
 	res.Etag = etag
+	res.LastModified = lastModified
 
 	return res
+}
+
+// NewGetProjectMembershipNotImplemented builds a membership-service service
+// get-project-membership endpoint NotImplemented error.
+func NewGetProjectMembershipNotImplemented(body *GetProjectMembershipNotImplementedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
 }
 
 // NewGetProjectMembershipNotFound builds a membership-service service
 // get-project-membership endpoint NotFound error.
 func NewGetProjectMembershipNotFound(body *GetProjectMembershipNotFoundResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewGetProjectMembershipBadRequest builds a membership-service service
+// get-project-membership endpoint BadRequest error.
+func NewGetProjectMembershipBadRequest(body *GetProjectMembershipBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewGetProjectMembershipPreconditionFailed builds a membership-service
+// service get-project-membership endpoint PreconditionFailed error.
+func NewGetProjectMembershipPreconditionFailed(body *GetProjectMembershipPreconditionFailedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1264,71 +1818,9 @@ func NewGetProjectMembershipServiceUnavailable(body *GetProjectMembershipService
 	return v
 }
 
-// NewListMembershipKeyContactsResultOK builds a "membership-service" service
-// "list-membership-key-contacts" endpoint result from a HTTP "OK" response.
-func NewListMembershipKeyContactsResultOK(body *ListMembershipKeyContactsResponseBody) *membershipservice.ListMembershipKeyContactsResult {
-	v := &membershipservice.ListMembershipKeyContactsResult{}
-	v.Contacts = make([]*membershipservice.ProjectKeyContactResponse, len(body.Contacts))
-	for i, val := range body.Contacts {
-		if val == nil {
-			v.Contacts[i] = nil
-			continue
-		}
-		v.Contacts[i] = unmarshalProjectKeyContactResponseResponseBodyToMembershipserviceProjectKeyContactResponse(val)
-	}
-
-	return v
-}
-
-// NewListMembershipKeyContactsNotFound builds a membership-service service
-// list-membership-key-contacts endpoint NotFound error.
-func NewListMembershipKeyContactsNotFound(body *ListMembershipKeyContactsNotFoundResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
-	}
-
-	return v
-}
-
-// NewListMembershipKeyContactsInternalServerError builds a membership-service
-// service list-membership-key-contacts endpoint InternalServerError error.
-func NewListMembershipKeyContactsInternalServerError(body *ListMembershipKeyContactsInternalServerErrorResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
-	}
-
-	return v
-}
-
-// NewListMembershipKeyContactsServiceUnavailable builds a membership-service
-// service list-membership-key-contacts endpoint ServiceUnavailable error.
-func NewListMembershipKeyContactsServiceUnavailable(body *ListMembershipKeyContactsServiceUnavailableResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
-	}
-
-	return v
-}
-
-// NewCreateMembershipKeyContactResultCreated builds a "membership-service"
-// service "create-membership-key-contact" endpoint result from a HTTP
-// "Created" response.
-func NewCreateMembershipKeyContactResultCreated(body *CreateMembershipKeyContactResponseBody) *membershipservice.CreateMembershipKeyContactResult {
+// NewGetKeyContactResultOK builds a "membership-service" service
+// "get-key-contact" endpoint result from a HTTP "OK" response.
+func NewGetKeyContactResultOK(body *GetKeyContactResponseBody, etag *string, lastModified *string) *membershipservice.GetKeyContactResult {
 	v := &membershipservice.ProjectKeyContactResponse{
 		UID:            body.UID,
 		MembershipUID:  body.MembershipUID,
@@ -1349,16 +1841,18 @@ func NewCreateMembershipKeyContactResultCreated(body *CreateMembershipKeyContact
 		CreatedAt:      body.CreatedAt,
 		UpdatedAt:      body.UpdatedAt,
 	}
-	res := &membershipservice.CreateMembershipKeyContactResult{
-		Contact: v,
+	res := &membershipservice.GetKeyContactResult{
+		KeyContact: v,
 	}
+	res.Etag = etag
+	res.LastModified = lastModified
 
 	return res
 }
 
-// NewCreateMembershipKeyContactNotFound builds a membership-service service
-// create-membership-key-contact endpoint NotFound error.
-func NewCreateMembershipKeyContactNotFound(body *CreateMembershipKeyContactNotFoundResponseBody) *goa.ServiceError {
+// NewGetKeyContactNotImplemented builds a membership-service service
+// get-key-contact endpoint NotImplemented error.
+func NewGetKeyContactNotImplemented(body *GetKeyContactNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1371,9 +1865,9 @@ func NewCreateMembershipKeyContactNotFound(body *CreateMembershipKeyContactNotFo
 	return v
 }
 
-// NewCreateMembershipKeyContactBadRequest builds a membership-service service
-// create-membership-key-contact endpoint BadRequest error.
-func NewCreateMembershipKeyContactBadRequest(body *CreateMembershipKeyContactBadRequestResponseBody) *goa.ServiceError {
+// NewGetKeyContactNotFound builds a membership-service service get-key-contact
+// endpoint NotFound error.
+func NewGetKeyContactNotFound(body *GetKeyContactNotFoundResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1386,9 +1880,9 @@ func NewCreateMembershipKeyContactBadRequest(body *CreateMembershipKeyContactBad
 	return v
 }
 
-// NewCreateMembershipKeyContactInternalServerError builds a membership-service
-// service create-membership-key-contact endpoint InternalServerError error.
-func NewCreateMembershipKeyContactInternalServerError(body *CreateMembershipKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
+// NewGetKeyContactBadRequest builds a membership-service service
+// get-key-contact endpoint BadRequest error.
+func NewGetKeyContactBadRequest(body *GetKeyContactBadRequestResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1401,9 +1895,9 @@ func NewCreateMembershipKeyContactInternalServerError(body *CreateMembershipKeyC
 	return v
 }
 
-// NewCreateMembershipKeyContactServiceUnavailable builds a membership-service
-// service create-membership-key-contact endpoint ServiceUnavailable error.
-func NewCreateMembershipKeyContactServiceUnavailable(body *CreateMembershipKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
+// NewGetKeyContactPreconditionFailed builds a membership-service service
+// get-key-contact endpoint PreconditionFailed error.
+func NewGetKeyContactPreconditionFailed(body *GetKeyContactPreconditionFailedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1416,9 +1910,39 @@ func NewCreateMembershipKeyContactServiceUnavailable(body *CreateMembershipKeyCo
 	return v
 }
 
-// NewUpdateMembershipKeyContactResultOK builds a "membership-service" service
-// "update-membership-key-contact" endpoint result from a HTTP "OK" response.
-func NewUpdateMembershipKeyContactResultOK(body *UpdateMembershipKeyContactResponseBody) *membershipservice.UpdateMembershipKeyContactResult {
+// NewGetKeyContactInternalServerError builds a membership-service service
+// get-key-contact endpoint InternalServerError error.
+func NewGetKeyContactInternalServerError(body *GetKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewGetKeyContactServiceUnavailable builds a membership-service service
+// get-key-contact endpoint ServiceUnavailable error.
+func NewGetKeyContactServiceUnavailable(body *GetKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewCreateKeyContactResultCreated builds a "membership-service" service
+// "create-key-contact" endpoint result from a HTTP "Created" response.
+func NewCreateKeyContactResultCreated(body *CreateKeyContactResponseBody, etag *string, lastModified *string) *membershipservice.CreateKeyContactResult {
 	v := &membershipservice.ProjectKeyContactResponse{
 		UID:            body.UID,
 		MembershipUID:  body.MembershipUID,
@@ -1439,16 +1963,18 @@ func NewUpdateMembershipKeyContactResultOK(body *UpdateMembershipKeyContactRespo
 		CreatedAt:      body.CreatedAt,
 		UpdatedAt:      body.UpdatedAt,
 	}
-	res := &membershipservice.UpdateMembershipKeyContactResult{
-		Contact: v,
+	res := &membershipservice.CreateKeyContactResult{
+		KeyContact: v,
 	}
+	res.Etag = etag
+	res.LastModified = lastModified
 
 	return res
 }
 
-// NewUpdateMembershipKeyContactNotFound builds a membership-service service
-// update-membership-key-contact endpoint NotFound error.
-func NewUpdateMembershipKeyContactNotFound(body *UpdateMembershipKeyContactNotFoundResponseBody) *goa.ServiceError {
+// NewCreateKeyContactNotImplemented builds a membership-service service
+// create-key-contact endpoint NotImplemented error.
+func NewCreateKeyContactNotImplemented(body *CreateKeyContactNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1461,9 +1987,9 @@ func NewUpdateMembershipKeyContactNotFound(body *UpdateMembershipKeyContactNotFo
 	return v
 }
 
-// NewUpdateMembershipKeyContactBadRequest builds a membership-service service
-// update-membership-key-contact endpoint BadRequest error.
-func NewUpdateMembershipKeyContactBadRequest(body *UpdateMembershipKeyContactBadRequestResponseBody) *goa.ServiceError {
+// NewCreateKeyContactNotFound builds a membership-service service
+// create-key-contact endpoint NotFound error.
+func NewCreateKeyContactNotFound(body *CreateKeyContactNotFoundResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1476,9 +2002,9 @@ func NewUpdateMembershipKeyContactBadRequest(body *UpdateMembershipKeyContactBad
 	return v
 }
 
-// NewUpdateMembershipKeyContactInternalServerError builds a membership-service
-// service update-membership-key-contact endpoint InternalServerError error.
-func NewUpdateMembershipKeyContactInternalServerError(body *UpdateMembershipKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
+// NewCreateKeyContactBadRequest builds a membership-service service
+// create-key-contact endpoint BadRequest error.
+func NewCreateKeyContactBadRequest(body *CreateKeyContactBadRequestResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1491,9 +2017,9 @@ func NewUpdateMembershipKeyContactInternalServerError(body *UpdateMembershipKeyC
 	return v
 }
 
-// NewUpdateMembershipKeyContactServiceUnavailable builds a membership-service
-// service update-membership-key-contact endpoint ServiceUnavailable error.
-func NewUpdateMembershipKeyContactServiceUnavailable(body *UpdateMembershipKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
+// NewCreateKeyContactPreconditionFailed builds a membership-service service
+// create-key-contact endpoint PreconditionFailed error.
+func NewCreateKeyContactPreconditionFailed(body *CreateKeyContactPreconditionFailedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1506,9 +2032,9 @@ func NewUpdateMembershipKeyContactServiceUnavailable(body *UpdateMembershipKeyCo
 	return v
 }
 
-// NewDeleteMembershipKeyContactNotFound builds a membership-service service
-// delete-membership-key-contact endpoint NotFound error.
-func NewDeleteMembershipKeyContactNotFound(body *DeleteMembershipKeyContactNotFoundResponseBody) *goa.ServiceError {
+// NewCreateKeyContactInternalServerError builds a membership-service service
+// create-key-contact endpoint InternalServerError error.
+func NewCreateKeyContactInternalServerError(body *CreateKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1521,9 +2047,9 @@ func NewDeleteMembershipKeyContactNotFound(body *DeleteMembershipKeyContactNotFo
 	return v
 }
 
-// NewDeleteMembershipKeyContactInternalServerError builds a membership-service
-// service delete-membership-key-contact endpoint InternalServerError error.
-func NewDeleteMembershipKeyContactInternalServerError(body *DeleteMembershipKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
+// NewCreateKeyContactServiceUnavailable builds a membership-service service
+// create-key-contact endpoint ServiceUnavailable error.
+func NewCreateKeyContactServiceUnavailable(body *CreateKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1536,24 +2062,9 @@ func NewDeleteMembershipKeyContactInternalServerError(body *DeleteMembershipKeyC
 	return v
 }
 
-// NewDeleteMembershipKeyContactServiceUnavailable builds a membership-service
-// service delete-membership-key-contact endpoint ServiceUnavailable error.
-func NewDeleteMembershipKeyContactServiceUnavailable(body *DeleteMembershipKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
-	v := &goa.ServiceError{
-		Name:      *body.Name,
-		ID:        *body.ID,
-		Message:   *body.Message,
-		Temporary: *body.Temporary,
-		Timeout:   *body.Timeout,
-		Fault:     *body.Fault,
-	}
-
-	return v
-}
-
-// NewGetMembershipKeyContactResultOK builds a "membership-service" service
-// "get-membership-key-contact" endpoint result from a HTTP "OK" response.
-func NewGetMembershipKeyContactResultOK(body *GetMembershipKeyContactResponseBody) *membershipservice.GetMembershipKeyContactResult {
+// NewUpdateKeyContactResultOK builds a "membership-service" service
+// "update-key-contact" endpoint result from a HTTP "OK" response.
+func NewUpdateKeyContactResultOK(body *UpdateKeyContactResponseBody, etag *string, lastModified *string) *membershipservice.UpdateKeyContactResult {
 	v := &membershipservice.ProjectKeyContactResponse{
 		UID:            body.UID,
 		MembershipUID:  body.MembershipUID,
@@ -1574,16 +2085,18 @@ func NewGetMembershipKeyContactResultOK(body *GetMembershipKeyContactResponseBod
 		CreatedAt:      body.CreatedAt,
 		UpdatedAt:      body.UpdatedAt,
 	}
-	res := &membershipservice.GetMembershipKeyContactResult{
-		Contact: v,
+	res := &membershipservice.UpdateKeyContactResult{
+		KeyContact: v,
 	}
+	res.Etag = etag
+	res.LastModified = lastModified
 
 	return res
 }
 
-// NewGetMembershipKeyContactNotFound builds a membership-service service
-// get-membership-key-contact endpoint NotFound error.
-func NewGetMembershipKeyContactNotFound(body *GetMembershipKeyContactNotFoundResponseBody) *goa.ServiceError {
+// NewUpdateKeyContactNotImplemented builds a membership-service service
+// update-key-contact endpoint NotImplemented error.
+func NewUpdateKeyContactNotImplemented(body *UpdateKeyContactNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1596,9 +2109,9 @@ func NewGetMembershipKeyContactNotFound(body *GetMembershipKeyContactNotFoundRes
 	return v
 }
 
-// NewGetMembershipKeyContactInternalServerError builds a membership-service
-// service get-membership-key-contact endpoint InternalServerError error.
-func NewGetMembershipKeyContactInternalServerError(body *GetMembershipKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
+// NewUpdateKeyContactNotFound builds a membership-service service
+// update-key-contact endpoint NotFound error.
+func NewUpdateKeyContactNotFound(body *UpdateKeyContactNotFoundResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1611,9 +2124,9 @@ func NewGetMembershipKeyContactInternalServerError(body *GetMembershipKeyContact
 	return v
 }
 
-// NewGetMembershipKeyContactServiceUnavailable builds a membership-service
-// service get-membership-key-contact endpoint ServiceUnavailable error.
-func NewGetMembershipKeyContactServiceUnavailable(body *GetMembershipKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
+// NewUpdateKeyContactBadRequest builds a membership-service service
+// update-key-contact endpoint BadRequest error.
+func NewUpdateKeyContactBadRequest(body *UpdateKeyContactBadRequestResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1626,26 +2139,9 @@ func NewGetMembershipKeyContactServiceUnavailable(body *GetMembershipKeyContactS
 	return v
 }
 
-// NewListB2bOrgsResultOK builds a "membership-service" service "list-b2b-orgs"
-// endpoint result from a HTTP "OK" response.
-func NewListB2bOrgsResultOK(body *ListB2bOrgsResponseBody) *membershipservice.ListB2bOrgsResult {
-	v := &membershipservice.ListB2bOrgsResult{}
-	v.Orgs = make([]*membershipservice.B2bOrgResponse, len(body.Orgs))
-	for i, val := range body.Orgs {
-		if val == nil {
-			v.Orgs[i] = nil
-			continue
-		}
-		v.Orgs[i] = unmarshalB2bOrgResponseResponseBodyToMembershipserviceB2bOrgResponse(val)
-	}
-	v.Metadata = unmarshalListMetadataResponseBodyToMembershipserviceListMetadata(body.Metadata)
-
-	return v
-}
-
-// NewListB2bOrgsInternalServerError builds a membership-service service
-// list-b2b-orgs endpoint InternalServerError error.
-func NewListB2bOrgsInternalServerError(body *ListB2bOrgsInternalServerErrorResponseBody) *goa.ServiceError {
+// NewUpdateKeyContactPreconditionFailed builds a membership-service service
+// update-key-contact endpoint PreconditionFailed error.
+func NewUpdateKeyContactPreconditionFailed(body *UpdateKeyContactPreconditionFailedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1658,9 +2154,9 @@ func NewListB2bOrgsInternalServerError(body *ListB2bOrgsInternalServerErrorRespo
 	return v
 }
 
-// NewListB2bOrgsServiceUnavailable builds a membership-service service
-// list-b2b-orgs endpoint ServiceUnavailable error.
-func NewListB2bOrgsServiceUnavailable(body *ListB2bOrgsServiceUnavailableResponseBody) *goa.ServiceError {
+// NewUpdateKeyContactInternalServerError builds a membership-service service
+// update-key-contact endpoint InternalServerError error.
+func NewUpdateKeyContactInternalServerError(body *UpdateKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1673,26 +2169,9 @@ func NewListB2bOrgsServiceUnavailable(body *ListB2bOrgsServiceUnavailableRespons
 	return v
 }
 
-// NewListB2bOrgMembershipsResultOK builds a "membership-service" service
-// "list-b2b-org-memberships" endpoint result from a HTTP "OK" response.
-func NewListB2bOrgMembershipsResultOK(body *ListB2bOrgMembershipsResponseBody) *membershipservice.ListB2bOrgMembershipsResult {
-	v := &membershipservice.ListB2bOrgMembershipsResult{}
-	v.Memberships = make([]*membershipservice.ProjectMembershipResponse, len(body.Memberships))
-	for i, val := range body.Memberships {
-		if val == nil {
-			v.Memberships[i] = nil
-			continue
-		}
-		v.Memberships[i] = unmarshalProjectMembershipResponseResponseBodyToMembershipserviceProjectMembershipResponse(val)
-	}
-	v.Metadata = unmarshalListMetadataResponseBodyToMembershipserviceListMetadata(body.Metadata)
-
-	return v
-}
-
-// NewListB2bOrgMembershipsNotFound builds a membership-service service
-// list-b2b-org-memberships endpoint NotFound error.
-func NewListB2bOrgMembershipsNotFound(body *ListB2bOrgMembershipsNotFoundResponseBody) *goa.ServiceError {
+// NewUpdateKeyContactServiceUnavailable builds a membership-service service
+// update-key-contact endpoint ServiceUnavailable error.
+func NewUpdateKeyContactServiceUnavailable(body *UpdateKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1705,9 +2184,9 @@ func NewListB2bOrgMembershipsNotFound(body *ListB2bOrgMembershipsNotFoundRespons
 	return v
 }
 
-// NewListB2bOrgMembershipsInternalServerError builds a membership-service
-// service list-b2b-org-memberships endpoint InternalServerError error.
-func NewListB2bOrgMembershipsInternalServerError(body *ListB2bOrgMembershipsInternalServerErrorResponseBody) *goa.ServiceError {
+// NewDeleteKeyContactNotImplemented builds a membership-service service
+// delete-key-contact endpoint NotImplemented error.
+func NewDeleteKeyContactNotImplemented(body *DeleteKeyContactNotImplementedResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1720,9 +2199,169 @@ func NewListB2bOrgMembershipsInternalServerError(body *ListB2bOrgMembershipsInte
 	return v
 }
 
-// NewListB2bOrgMembershipsServiceUnavailable builds a membership-service
-// service list-b2b-org-memberships endpoint ServiceUnavailable error.
-func NewListB2bOrgMembershipsServiceUnavailable(body *ListB2bOrgMembershipsServiceUnavailableResponseBody) *goa.ServiceError {
+// NewDeleteKeyContactNotFound builds a membership-service service
+// delete-key-contact endpoint NotFound error.
+func NewDeleteKeyContactNotFound(body *DeleteKeyContactNotFoundResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteKeyContactBadRequest builds a membership-service service
+// delete-key-contact endpoint BadRequest error.
+func NewDeleteKeyContactBadRequest(body *DeleteKeyContactBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteKeyContactPreconditionFailed builds a membership-service service
+// delete-key-contact endpoint PreconditionFailed error.
+func NewDeleteKeyContactPreconditionFailed(body *DeleteKeyContactPreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteKeyContactInternalServerError builds a membership-service service
+// delete-key-contact endpoint InternalServerError error.
+func NewDeleteKeyContactInternalServerError(body *DeleteKeyContactInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteKeyContactServiceUnavailable builds a membership-service service
+// delete-key-contact endpoint ServiceUnavailable error.
+func NewDeleteKeyContactServiceUnavailable(body *DeleteKeyContactServiceUnavailableResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAdminReindexResultAccepted builds a "membership-service" service
+// "admin-reindex" endpoint result from a HTTP "Accepted" response.
+func NewAdminReindexResultAccepted(body *AdminReindexResponseBody) *membershipservice.AdminReindexResult {
+	v := &membershipservice.AdminReindexResult{
+		RunID: *body.RunID,
+	}
+
+	return v
+}
+
+// NewAdminReindexNotImplemented builds a membership-service service
+// admin-reindex endpoint NotImplemented error.
+func NewAdminReindexNotImplemented(body *AdminReindexNotImplementedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAdminReindexNotFound builds a membership-service service admin-reindex
+// endpoint NotFound error.
+func NewAdminReindexNotFound(body *AdminReindexNotFoundResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAdminReindexBadRequest builds a membership-service service admin-reindex
+// endpoint BadRequest error.
+func NewAdminReindexBadRequest(body *AdminReindexBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAdminReindexPreconditionFailed builds a membership-service service
+// admin-reindex endpoint PreconditionFailed error.
+func NewAdminReindexPreconditionFailed(body *AdminReindexPreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAdminReindexInternalServerError builds a membership-service service
+// admin-reindex endpoint InternalServerError error.
+func NewAdminReindexInternalServerError(body *AdminReindexInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAdminReindexServiceUnavailable builds a membership-service service
+// admin-reindex endpoint ServiceUnavailable error.
+func NewAdminReindexServiceUnavailable(body *AdminReindexServiceUnavailableResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -1750,30 +2389,14 @@ func NewReadyzServiceUnavailable(body *ReadyzServiceUnavailableResponseBody) *go
 	return v
 }
 
-// ValidateListProjectTiersResponseBody runs the validations defined on
-// List-Project-TiersResponseBody
-func ValidateListProjectTiersResponseBody(body *ListProjectTiersResponseBody) (err error) {
-	if body.Tiers == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("tiers", "body"))
-	}
-	for _, e := range body.Tiers {
-		if e != nil {
-			if err2 := ValidateMembershipTierResponseResponseBody(e); err2 != nil {
-				err = goa.MergeErrors(err, err2)
-			}
-		}
-	}
-	return
-}
-
-// ValidateGetProjectTierResponseBody runs the validations defined on
-// Get-Project-TierResponseBody
-func ValidateGetProjectTierResponseBody(body *GetProjectTierResponseBody) (err error) {
+// ValidateGetB2bOrgResponseBody runs the validations defined on
+// Get-B2b-OrgResponseBody
+func ValidateGetB2bOrgResponseBody(body *GetB2bOrgResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
-	if body.ProjectUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	if body.Website != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -1784,21 +2407,38 @@ func ValidateGetProjectTierResponseBody(body *GetProjectTierResponseBody) (err e
 	return
 }
 
-// ValidateListProjectMembershipsResponseBody runs the validations defined on
-// List-Project-MembershipsResponseBody
-func ValidateListProjectMembershipsResponseBody(body *ListProjectMembershipsResponseBody) (err error) {
-	if body.Memberships == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("memberships", "body"))
+// ValidateCreateB2bOrgResponseBody runs the validations defined on
+// Create-B2b-OrgResponseBody
+func ValidateCreateB2bOrgResponseBody(body *CreateB2bOrgResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
-	if body.Metadata == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("metadata", "body"))
+	if body.Website != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
 	}
-	for _, e := range body.Memberships {
-		if e != nil {
-			if err2 := ValidateProjectMembershipResponseResponseBody(e); err2 != nil {
-				err = goa.MergeErrors(err, err2)
-			}
-		}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgResponseBody runs the validations defined on
+// Update-B2b-OrgResponseBody
+func ValidateUpdateB2bOrgResponseBody(body *UpdateB2bOrgResponseBody) (err error) {
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	if body.Website != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
 	return
 }
@@ -1827,25 +2467,9 @@ func ValidateGetProjectMembershipResponseBody(body *GetProjectMembershipResponse
 	return
 }
 
-// ValidateListMembershipKeyContactsResponseBody runs the validations defined
-// on List-Membership-Key-ContactsResponseBody
-func ValidateListMembershipKeyContactsResponseBody(body *ListMembershipKeyContactsResponseBody) (err error) {
-	if body.Contacts == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("contacts", "body"))
-	}
-	for _, e := range body.Contacts {
-		if e != nil {
-			if err2 := ValidateProjectKeyContactResponseResponseBody(e); err2 != nil {
-				err = goa.MergeErrors(err, err2)
-			}
-		}
-	}
-	return
-}
-
-// ValidateCreateMembershipKeyContactResponseBody runs the validations defined
-// on Create-Membership-Key-ContactResponseBody
-func ValidateCreateMembershipKeyContactResponseBody(body *CreateMembershipKeyContactResponseBody) (err error) {
+// ValidateGetKeyContactResponseBody runs the validations defined on
+// Get-Key-ContactResponseBody
+func ValidateGetKeyContactResponseBody(body *GetKeyContactResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
@@ -1870,9 +2494,9 @@ func ValidateCreateMembershipKeyContactResponseBody(body *CreateMembershipKeyCon
 	return
 }
 
-// ValidateUpdateMembershipKeyContactResponseBody runs the validations defined
-// on Update-Membership-Key-ContactResponseBody
-func ValidateUpdateMembershipKeyContactResponseBody(body *UpdateMembershipKeyContactResponseBody) (err error) {
+// ValidateCreateKeyContactResponseBody runs the validations defined on
+// Create-Key-ContactResponseBody
+func ValidateCreateKeyContactResponseBody(body *CreateKeyContactResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
@@ -1897,9 +2521,9 @@ func ValidateUpdateMembershipKeyContactResponseBody(body *UpdateMembershipKeyCon
 	return
 }
 
-// ValidateGetMembershipKeyContactResponseBody runs the validations defined on
-// Get-Membership-Key-ContactResponseBody
-func ValidateGetMembershipKeyContactResponseBody(body *GetMembershipKeyContactResponseBody) (err error) {
+// ValidateUpdateKeyContactResponseBody runs the validations defined on
+// Update-Key-ContactResponseBody
+func ValidateUpdateKeyContactResponseBody(body *UpdateKeyContactResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
@@ -1924,47 +2548,21 @@ func ValidateGetMembershipKeyContactResponseBody(body *GetMembershipKeyContactRe
 	return
 }
 
-// ValidateListB2bOrgsResponseBody runs the validations defined on
-// List-B2b-OrgsResponseBody
-func ValidateListB2bOrgsResponseBody(body *ListB2bOrgsResponseBody) (err error) {
-	if body.Orgs == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("orgs", "body"))
+// ValidateAdminReindexResponseBody runs the validations defined on
+// Admin-ReindexResponseBody
+func ValidateAdminReindexResponseBody(body *AdminReindexResponseBody) (err error) {
+	if body.RunID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("run_id", "body"))
 	}
-	if body.Metadata == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("metadata", "body"))
-	}
-	for _, e := range body.Orgs {
-		if e != nil {
-			if err2 := ValidateB2bOrgResponseResponseBody(e); err2 != nil {
-				err = goa.MergeErrors(err, err2)
-			}
-		}
+	if body.RunID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.run_id", *body.RunID, goa.FormatUUID))
 	}
 	return
 }
 
-// ValidateListB2bOrgMembershipsResponseBody runs the validations defined on
-// List-B2b-Org-MembershipsResponseBody
-func ValidateListB2bOrgMembershipsResponseBody(body *ListB2bOrgMembershipsResponseBody) (err error) {
-	if body.Memberships == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("memberships", "body"))
-	}
-	if body.Metadata == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("metadata", "body"))
-	}
-	for _, e := range body.Memberships {
-		if e != nil {
-			if err2 := ValidateProjectMembershipResponseResponseBody(e); err2 != nil {
-				err = goa.MergeErrors(err, err2)
-			}
-		}
-	}
-	return
-}
-
-// ValidateListProjectTiersNotFoundResponseBody runs the validations defined on
-// list-project-tiers_NotFound_response_body
-func ValidateListProjectTiersNotFoundResponseBody(body *ListProjectTiersNotFoundResponseBody) (err error) {
+// ValidateGetB2bOrgNotImplementedResponseBody runs the validations defined on
+// get-b2b-org_NotImplemented_response_body
+func ValidateGetB2bOrgNotImplementedResponseBody(body *GetB2bOrgNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -1986,9 +2584,9 @@ func ValidateListProjectTiersNotFoundResponseBody(body *ListProjectTiersNotFound
 	return
 }
 
-// ValidateListProjectTiersInternalServerErrorResponseBody runs the validations
-// defined on list-project-tiers_InternalServerError_response_body
-func ValidateListProjectTiersInternalServerErrorResponseBody(body *ListProjectTiersInternalServerErrorResponseBody) (err error) {
+// ValidateGetB2bOrgNotFoundResponseBody runs the validations defined on
+// get-b2b-org_NotFound_response_body
+func ValidateGetB2bOrgNotFoundResponseBody(body *GetB2bOrgNotFoundResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2010,9 +2608,9 @@ func ValidateListProjectTiersInternalServerErrorResponseBody(body *ListProjectTi
 	return
 }
 
-// ValidateListProjectTiersServiceUnavailableResponseBody runs the validations
-// defined on list-project-tiers_ServiceUnavailable_response_body
-func ValidateListProjectTiersServiceUnavailableResponseBody(body *ListProjectTiersServiceUnavailableResponseBody) (err error) {
+// ValidateGetB2bOrgBadRequestResponseBody runs the validations defined on
+// get-b2b-org_BadRequest_response_body
+func ValidateGetB2bOrgBadRequestResponseBody(body *GetB2bOrgBadRequestResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2034,9 +2632,9 @@ func ValidateListProjectTiersServiceUnavailableResponseBody(body *ListProjectTie
 	return
 }
 
-// ValidateGetProjectTierNotFoundResponseBody runs the validations defined on
-// get-project-tier_NotFound_response_body
-func ValidateGetProjectTierNotFoundResponseBody(body *GetProjectTierNotFoundResponseBody) (err error) {
+// ValidateGetB2bOrgPreconditionFailedResponseBody runs the validations defined
+// on get-b2b-org_PreconditionFailed_response_body
+func ValidateGetB2bOrgPreconditionFailedResponseBody(body *GetB2bOrgPreconditionFailedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2058,9 +2656,9 @@ func ValidateGetProjectTierNotFoundResponseBody(body *GetProjectTierNotFoundResp
 	return
 }
 
-// ValidateGetProjectTierInternalServerErrorResponseBody runs the validations
-// defined on get-project-tier_InternalServerError_response_body
-func ValidateGetProjectTierInternalServerErrorResponseBody(body *GetProjectTierInternalServerErrorResponseBody) (err error) {
+// ValidateGetB2bOrgInternalServerErrorResponseBody runs the validations
+// defined on get-b2b-org_InternalServerError_response_body
+func ValidateGetB2bOrgInternalServerErrorResponseBody(body *GetB2bOrgInternalServerErrorResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2082,9 +2680,9 @@ func ValidateGetProjectTierInternalServerErrorResponseBody(body *GetProjectTierI
 	return
 }
 
-// ValidateGetProjectTierServiceUnavailableResponseBody runs the validations
-// defined on get-project-tier_ServiceUnavailable_response_body
-func ValidateGetProjectTierServiceUnavailableResponseBody(body *GetProjectTierServiceUnavailableResponseBody) (err error) {
+// ValidateGetB2bOrgServiceUnavailableResponseBody runs the validations defined
+// on get-b2b-org_ServiceUnavailable_response_body
+func ValidateGetB2bOrgServiceUnavailableResponseBody(body *GetB2bOrgServiceUnavailableResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2106,9 +2704,9 @@ func ValidateGetProjectTierServiceUnavailableResponseBody(body *GetProjectTierSe
 	return
 }
 
-// ValidateListProjectMembershipsNotFoundResponseBody runs the validations
-// defined on list-project-memberships_NotFound_response_body
-func ValidateListProjectMembershipsNotFoundResponseBody(body *ListProjectMembershipsNotFoundResponseBody) (err error) {
+// ValidateCreateB2bOrgNotImplementedResponseBody runs the validations defined
+// on create-b2b-org_NotImplemented_response_body
+func ValidateCreateB2bOrgNotImplementedResponseBody(body *CreateB2bOrgNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2130,9 +2728,9 @@ func ValidateListProjectMembershipsNotFoundResponseBody(body *ListProjectMembers
 	return
 }
 
-// ValidateListProjectMembershipsBadRequestResponseBody runs the validations
-// defined on list-project-memberships_BadRequest_response_body
-func ValidateListProjectMembershipsBadRequestResponseBody(body *ListProjectMembershipsBadRequestResponseBody) (err error) {
+// ValidateCreateB2bOrgNotFoundResponseBody runs the validations defined on
+// create-b2b-org_NotFound_response_body
+func ValidateCreateB2bOrgNotFoundResponseBody(body *CreateB2bOrgNotFoundResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2154,10 +2752,9 @@ func ValidateListProjectMembershipsBadRequestResponseBody(body *ListProjectMembe
 	return
 }
 
-// ValidateListProjectMembershipsInternalServerErrorResponseBody runs the
-// validations defined on
-// list-project-memberships_InternalServerError_response_body
-func ValidateListProjectMembershipsInternalServerErrorResponseBody(body *ListProjectMembershipsInternalServerErrorResponseBody) (err error) {
+// ValidateCreateB2bOrgBadRequestResponseBody runs the validations defined on
+// create-b2b-org_BadRequest_response_body
+func ValidateCreateB2bOrgBadRequestResponseBody(body *CreateB2bOrgBadRequestResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2179,10 +2776,225 @@ func ValidateListProjectMembershipsInternalServerErrorResponseBody(body *ListPro
 	return
 }
 
-// ValidateListProjectMembershipsServiceUnavailableResponseBody runs the
-// validations defined on
-// list-project-memberships_ServiceUnavailable_response_body
-func ValidateListProjectMembershipsServiceUnavailableResponseBody(body *ListProjectMembershipsServiceUnavailableResponseBody) (err error) {
+// ValidateCreateB2bOrgPreconditionFailedResponseBody runs the validations
+// defined on create-b2b-org_PreconditionFailed_response_body
+func ValidateCreateB2bOrgPreconditionFailedResponseBody(body *CreateB2bOrgPreconditionFailedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateCreateB2bOrgInternalServerErrorResponseBody runs the validations
+// defined on create-b2b-org_InternalServerError_response_body
+func ValidateCreateB2bOrgInternalServerErrorResponseBody(body *CreateB2bOrgInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateCreateB2bOrgServiceUnavailableResponseBody runs the validations
+// defined on create-b2b-org_ServiceUnavailable_response_body
+func ValidateCreateB2bOrgServiceUnavailableResponseBody(body *CreateB2bOrgServiceUnavailableResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgNotImplementedResponseBody runs the validations defined
+// on update-b2b-org_NotImplemented_response_body
+func ValidateUpdateB2bOrgNotImplementedResponseBody(body *UpdateB2bOrgNotImplementedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgNotFoundResponseBody runs the validations defined on
+// update-b2b-org_NotFound_response_body
+func ValidateUpdateB2bOrgNotFoundResponseBody(body *UpdateB2bOrgNotFoundResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgBadRequestResponseBody runs the validations defined on
+// update-b2b-org_BadRequest_response_body
+func ValidateUpdateB2bOrgBadRequestResponseBody(body *UpdateB2bOrgBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgPreconditionFailedResponseBody runs the validations
+// defined on update-b2b-org_PreconditionFailed_response_body
+func ValidateUpdateB2bOrgPreconditionFailedResponseBody(body *UpdateB2bOrgPreconditionFailedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgInternalServerErrorResponseBody runs the validations
+// defined on update-b2b-org_InternalServerError_response_body
+func ValidateUpdateB2bOrgInternalServerErrorResponseBody(body *UpdateB2bOrgInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgServiceUnavailableResponseBody runs the validations
+// defined on update-b2b-org_ServiceUnavailable_response_body
+func ValidateUpdateB2bOrgServiceUnavailableResponseBody(body *UpdateB2bOrgServiceUnavailableResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectMembershipNotImplementedResponseBody runs the validations
+// defined on get-project-membership_NotImplemented_response_body
+func ValidateGetProjectMembershipNotImplementedResponseBody(body *GetProjectMembershipNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2207,6 +3019,55 @@ func ValidateListProjectMembershipsServiceUnavailableResponseBody(body *ListProj
 // ValidateGetProjectMembershipNotFoundResponseBody runs the validations
 // defined on get-project-membership_NotFound_response_body
 func ValidateGetProjectMembershipNotFoundResponseBody(body *GetProjectMembershipNotFoundResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectMembershipBadRequestResponseBody runs the validations
+// defined on get-project-membership_BadRequest_response_body
+func ValidateGetProjectMembershipBadRequestResponseBody(body *GetProjectMembershipBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateGetProjectMembershipPreconditionFailedResponseBody runs the
+// validations defined on
+// get-project-membership_PreconditionFailed_response_body
+func ValidateGetProjectMembershipPreconditionFailedResponseBody(body *GetProjectMembershipPreconditionFailedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2278,9 +3139,9 @@ func ValidateGetProjectMembershipServiceUnavailableResponseBody(body *GetProject
 	return
 }
 
-// ValidateListMembershipKeyContactsNotFoundResponseBody runs the validations
-// defined on list-membership-key-contacts_NotFound_response_body
-func ValidateListMembershipKeyContactsNotFoundResponseBody(body *ListMembershipKeyContactsNotFoundResponseBody) (err error) {
+// ValidateGetKeyContactNotImplementedResponseBody runs the validations defined
+// on get-key-contact_NotImplemented_response_body
+func ValidateGetKeyContactNotImplementedResponseBody(body *GetKeyContactNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2302,10 +3163,9 @@ func ValidateListMembershipKeyContactsNotFoundResponseBody(body *ListMembershipK
 	return
 }
 
-// ValidateListMembershipKeyContactsInternalServerErrorResponseBody runs the
-// validations defined on
-// list-membership-key-contacts_InternalServerError_response_body
-func ValidateListMembershipKeyContactsInternalServerErrorResponseBody(body *ListMembershipKeyContactsInternalServerErrorResponseBody) (err error) {
+// ValidateGetKeyContactNotFoundResponseBody runs the validations defined on
+// get-key-contact_NotFound_response_body
+func ValidateGetKeyContactNotFoundResponseBody(body *GetKeyContactNotFoundResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2327,10 +3187,9 @@ func ValidateListMembershipKeyContactsInternalServerErrorResponseBody(body *List
 	return
 }
 
-// ValidateListMembershipKeyContactsServiceUnavailableResponseBody runs the
-// validations defined on
-// list-membership-key-contacts_ServiceUnavailable_response_body
-func ValidateListMembershipKeyContactsServiceUnavailableResponseBody(body *ListMembershipKeyContactsServiceUnavailableResponseBody) (err error) {
+// ValidateGetKeyContactBadRequestResponseBody runs the validations defined on
+// get-key-contact_BadRequest_response_body
+func ValidateGetKeyContactBadRequestResponseBody(body *GetKeyContactBadRequestResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2352,9 +3211,9 @@ func ValidateListMembershipKeyContactsServiceUnavailableResponseBody(body *ListM
 	return
 }
 
-// ValidateCreateMembershipKeyContactNotFoundResponseBody runs the validations
-// defined on create-membership-key-contact_NotFound_response_body
-func ValidateCreateMembershipKeyContactNotFoundResponseBody(body *CreateMembershipKeyContactNotFoundResponseBody) (err error) {
+// ValidateGetKeyContactPreconditionFailedResponseBody runs the validations
+// defined on get-key-contact_PreconditionFailed_response_body
+func ValidateGetKeyContactPreconditionFailedResponseBody(body *GetKeyContactPreconditionFailedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2376,9 +3235,9 @@ func ValidateCreateMembershipKeyContactNotFoundResponseBody(body *CreateMembersh
 	return
 }
 
-// ValidateCreateMembershipKeyContactBadRequestResponseBody runs the
-// validations defined on create-membership-key-contact_BadRequest_response_body
-func ValidateCreateMembershipKeyContactBadRequestResponseBody(body *CreateMembershipKeyContactBadRequestResponseBody) (err error) {
+// ValidateGetKeyContactInternalServerErrorResponseBody runs the validations
+// defined on get-key-contact_InternalServerError_response_body
+func ValidateGetKeyContactInternalServerErrorResponseBody(body *GetKeyContactInternalServerErrorResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2400,10 +3259,9 @@ func ValidateCreateMembershipKeyContactBadRequestResponseBody(body *CreateMember
 	return
 }
 
-// ValidateCreateMembershipKeyContactInternalServerErrorResponseBody runs the
-// validations defined on
-// create-membership-key-contact_InternalServerError_response_body
-func ValidateCreateMembershipKeyContactInternalServerErrorResponseBody(body *CreateMembershipKeyContactInternalServerErrorResponseBody) (err error) {
+// ValidateGetKeyContactServiceUnavailableResponseBody runs the validations
+// defined on get-key-contact_ServiceUnavailable_response_body
+func ValidateGetKeyContactServiceUnavailableResponseBody(body *GetKeyContactServiceUnavailableResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2425,10 +3283,9 @@ func ValidateCreateMembershipKeyContactInternalServerErrorResponseBody(body *Cre
 	return
 }
 
-// ValidateCreateMembershipKeyContactServiceUnavailableResponseBody runs the
-// validations defined on
-// create-membership-key-contact_ServiceUnavailable_response_body
-func ValidateCreateMembershipKeyContactServiceUnavailableResponseBody(body *CreateMembershipKeyContactServiceUnavailableResponseBody) (err error) {
+// ValidateCreateKeyContactNotImplementedResponseBody runs the validations
+// defined on create-key-contact_NotImplemented_response_body
+func ValidateCreateKeyContactNotImplementedResponseBody(body *CreateKeyContactNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2450,9 +3307,9 @@ func ValidateCreateMembershipKeyContactServiceUnavailableResponseBody(body *Crea
 	return
 }
 
-// ValidateUpdateMembershipKeyContactNotFoundResponseBody runs the validations
-// defined on update-membership-key-contact_NotFound_response_body
-func ValidateUpdateMembershipKeyContactNotFoundResponseBody(body *UpdateMembershipKeyContactNotFoundResponseBody) (err error) {
+// ValidateCreateKeyContactNotFoundResponseBody runs the validations defined on
+// create-key-contact_NotFound_response_body
+func ValidateCreateKeyContactNotFoundResponseBody(body *CreateKeyContactNotFoundResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2474,9 +3331,9 @@ func ValidateUpdateMembershipKeyContactNotFoundResponseBody(body *UpdateMembersh
 	return
 }
 
-// ValidateUpdateMembershipKeyContactBadRequestResponseBody runs the
-// validations defined on update-membership-key-contact_BadRequest_response_body
-func ValidateUpdateMembershipKeyContactBadRequestResponseBody(body *UpdateMembershipKeyContactBadRequestResponseBody) (err error) {
+// ValidateCreateKeyContactBadRequestResponseBody runs the validations defined
+// on create-key-contact_BadRequest_response_body
+func ValidateCreateKeyContactBadRequestResponseBody(body *CreateKeyContactBadRequestResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2498,10 +3355,9 @@ func ValidateUpdateMembershipKeyContactBadRequestResponseBody(body *UpdateMember
 	return
 }
 
-// ValidateUpdateMembershipKeyContactInternalServerErrorResponseBody runs the
-// validations defined on
-// update-membership-key-contact_InternalServerError_response_body
-func ValidateUpdateMembershipKeyContactInternalServerErrorResponseBody(body *UpdateMembershipKeyContactInternalServerErrorResponseBody) (err error) {
+// ValidateCreateKeyContactPreconditionFailedResponseBody runs the validations
+// defined on create-key-contact_PreconditionFailed_response_body
+func ValidateCreateKeyContactPreconditionFailedResponseBody(body *CreateKeyContactPreconditionFailedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2523,10 +3379,9 @@ func ValidateUpdateMembershipKeyContactInternalServerErrorResponseBody(body *Upd
 	return
 }
 
-// ValidateUpdateMembershipKeyContactServiceUnavailableResponseBody runs the
-// validations defined on
-// update-membership-key-contact_ServiceUnavailable_response_body
-func ValidateUpdateMembershipKeyContactServiceUnavailableResponseBody(body *UpdateMembershipKeyContactServiceUnavailableResponseBody) (err error) {
+// ValidateCreateKeyContactInternalServerErrorResponseBody runs the validations
+// defined on create-key-contact_InternalServerError_response_body
+func ValidateCreateKeyContactInternalServerErrorResponseBody(body *CreateKeyContactInternalServerErrorResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2548,9 +3403,9 @@ func ValidateUpdateMembershipKeyContactServiceUnavailableResponseBody(body *Upda
 	return
 }
 
-// ValidateDeleteMembershipKeyContactNotFoundResponseBody runs the validations
-// defined on delete-membership-key-contact_NotFound_response_body
-func ValidateDeleteMembershipKeyContactNotFoundResponseBody(body *DeleteMembershipKeyContactNotFoundResponseBody) (err error) {
+// ValidateCreateKeyContactServiceUnavailableResponseBody runs the validations
+// defined on create-key-contact_ServiceUnavailable_response_body
+func ValidateCreateKeyContactServiceUnavailableResponseBody(body *CreateKeyContactServiceUnavailableResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2572,10 +3427,9 @@ func ValidateDeleteMembershipKeyContactNotFoundResponseBody(body *DeleteMembersh
 	return
 }
 
-// ValidateDeleteMembershipKeyContactInternalServerErrorResponseBody runs the
-// validations defined on
-// delete-membership-key-contact_InternalServerError_response_body
-func ValidateDeleteMembershipKeyContactInternalServerErrorResponseBody(body *DeleteMembershipKeyContactInternalServerErrorResponseBody) (err error) {
+// ValidateUpdateKeyContactNotImplementedResponseBody runs the validations
+// defined on update-key-contact_NotImplemented_response_body
+func ValidateUpdateKeyContactNotImplementedResponseBody(body *UpdateKeyContactNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2597,10 +3451,9 @@ func ValidateDeleteMembershipKeyContactInternalServerErrorResponseBody(body *Del
 	return
 }
 
-// ValidateDeleteMembershipKeyContactServiceUnavailableResponseBody runs the
-// validations defined on
-// delete-membership-key-contact_ServiceUnavailable_response_body
-func ValidateDeleteMembershipKeyContactServiceUnavailableResponseBody(body *DeleteMembershipKeyContactServiceUnavailableResponseBody) (err error) {
+// ValidateUpdateKeyContactNotFoundResponseBody runs the validations defined on
+// update-key-contact_NotFound_response_body
+func ValidateUpdateKeyContactNotFoundResponseBody(body *UpdateKeyContactNotFoundResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2622,9 +3475,9 @@ func ValidateDeleteMembershipKeyContactServiceUnavailableResponseBody(body *Dele
 	return
 }
 
-// ValidateGetMembershipKeyContactNotFoundResponseBody runs the validations
-// defined on get-membership-key-contact_NotFound_response_body
-func ValidateGetMembershipKeyContactNotFoundResponseBody(body *GetMembershipKeyContactNotFoundResponseBody) (err error) {
+// ValidateUpdateKeyContactBadRequestResponseBody runs the validations defined
+// on update-key-contact_BadRequest_response_body
+func ValidateUpdateKeyContactBadRequestResponseBody(body *UpdateKeyContactBadRequestResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2646,10 +3499,9 @@ func ValidateGetMembershipKeyContactNotFoundResponseBody(body *GetMembershipKeyC
 	return
 }
 
-// ValidateGetMembershipKeyContactInternalServerErrorResponseBody runs the
-// validations defined on
-// get-membership-key-contact_InternalServerError_response_body
-func ValidateGetMembershipKeyContactInternalServerErrorResponseBody(body *GetMembershipKeyContactInternalServerErrorResponseBody) (err error) {
+// ValidateUpdateKeyContactPreconditionFailedResponseBody runs the validations
+// defined on update-key-contact_PreconditionFailed_response_body
+func ValidateUpdateKeyContactPreconditionFailedResponseBody(body *UpdateKeyContactPreconditionFailedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2671,10 +3523,9 @@ func ValidateGetMembershipKeyContactInternalServerErrorResponseBody(body *GetMem
 	return
 }
 
-// ValidateGetMembershipKeyContactServiceUnavailableResponseBody runs the
-// validations defined on
-// get-membership-key-contact_ServiceUnavailable_response_body
-func ValidateGetMembershipKeyContactServiceUnavailableResponseBody(body *GetMembershipKeyContactServiceUnavailableResponseBody) (err error) {
+// ValidateUpdateKeyContactInternalServerErrorResponseBody runs the validations
+// defined on update-key-contact_InternalServerError_response_body
+func ValidateUpdateKeyContactInternalServerErrorResponseBody(body *UpdateKeyContactInternalServerErrorResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2696,9 +3547,9 @@ func ValidateGetMembershipKeyContactServiceUnavailableResponseBody(body *GetMemb
 	return
 }
 
-// ValidateListB2bOrgsInternalServerErrorResponseBody runs the validations
-// defined on list-b2b-orgs_InternalServerError_response_body
-func ValidateListB2bOrgsInternalServerErrorResponseBody(body *ListB2bOrgsInternalServerErrorResponseBody) (err error) {
+// ValidateUpdateKeyContactServiceUnavailableResponseBody runs the validations
+// defined on update-key-contact_ServiceUnavailable_response_body
+func ValidateUpdateKeyContactServiceUnavailableResponseBody(body *UpdateKeyContactServiceUnavailableResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2720,9 +3571,9 @@ func ValidateListB2bOrgsInternalServerErrorResponseBody(body *ListB2bOrgsInterna
 	return
 }
 
-// ValidateListB2bOrgsServiceUnavailableResponseBody runs the validations
-// defined on list-b2b-orgs_ServiceUnavailable_response_body
-func ValidateListB2bOrgsServiceUnavailableResponseBody(body *ListB2bOrgsServiceUnavailableResponseBody) (err error) {
+// ValidateDeleteKeyContactNotImplementedResponseBody runs the validations
+// defined on delete-key-contact_NotImplemented_response_body
+func ValidateDeleteKeyContactNotImplementedResponseBody(body *DeleteKeyContactNotImplementedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2744,9 +3595,9 @@ func ValidateListB2bOrgsServiceUnavailableResponseBody(body *ListB2bOrgsServiceU
 	return
 }
 
-// ValidateListB2bOrgMembershipsNotFoundResponseBody runs the validations
-// defined on list-b2b-org-memberships_NotFound_response_body
-func ValidateListB2bOrgMembershipsNotFoundResponseBody(body *ListB2bOrgMembershipsNotFoundResponseBody) (err error) {
+// ValidateDeleteKeyContactNotFoundResponseBody runs the validations defined on
+// delete-key-contact_NotFound_response_body
+func ValidateDeleteKeyContactNotFoundResponseBody(body *DeleteKeyContactNotFoundResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2768,10 +3619,9 @@ func ValidateListB2bOrgMembershipsNotFoundResponseBody(body *ListB2bOrgMembershi
 	return
 }
 
-// ValidateListB2bOrgMembershipsInternalServerErrorResponseBody runs the
-// validations defined on
-// list-b2b-org-memberships_InternalServerError_response_body
-func ValidateListB2bOrgMembershipsInternalServerErrorResponseBody(body *ListB2bOrgMembershipsInternalServerErrorResponseBody) (err error) {
+// ValidateDeleteKeyContactBadRequestResponseBody runs the validations defined
+// on delete-key-contact_BadRequest_response_body
+func ValidateDeleteKeyContactBadRequestResponseBody(body *DeleteKeyContactBadRequestResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2793,10 +3643,201 @@ func ValidateListB2bOrgMembershipsInternalServerErrorResponseBody(body *ListB2bO
 	return
 }
 
-// ValidateListB2bOrgMembershipsServiceUnavailableResponseBody runs the
-// validations defined on
-// list-b2b-org-memberships_ServiceUnavailable_response_body
-func ValidateListB2bOrgMembershipsServiceUnavailableResponseBody(body *ListB2bOrgMembershipsServiceUnavailableResponseBody) (err error) {
+// ValidateDeleteKeyContactPreconditionFailedResponseBody runs the validations
+// defined on delete-key-contact_PreconditionFailed_response_body
+func ValidateDeleteKeyContactPreconditionFailedResponseBody(body *DeleteKeyContactPreconditionFailedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteKeyContactInternalServerErrorResponseBody runs the validations
+// defined on delete-key-contact_InternalServerError_response_body
+func ValidateDeleteKeyContactInternalServerErrorResponseBody(body *DeleteKeyContactInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteKeyContactServiceUnavailableResponseBody runs the validations
+// defined on delete-key-contact_ServiceUnavailable_response_body
+func ValidateDeleteKeyContactServiceUnavailableResponseBody(body *DeleteKeyContactServiceUnavailableResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAdminReindexNotImplementedResponseBody runs the validations defined
+// on admin-reindex_NotImplemented_response_body
+func ValidateAdminReindexNotImplementedResponseBody(body *AdminReindexNotImplementedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAdminReindexNotFoundResponseBody runs the validations defined on
+// admin-reindex_NotFound_response_body
+func ValidateAdminReindexNotFoundResponseBody(body *AdminReindexNotFoundResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAdminReindexBadRequestResponseBody runs the validations defined on
+// admin-reindex_BadRequest_response_body
+func ValidateAdminReindexBadRequestResponseBody(body *AdminReindexBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAdminReindexPreconditionFailedResponseBody runs the validations
+// defined on admin-reindex_PreconditionFailed_response_body
+func ValidateAdminReindexPreconditionFailedResponseBody(body *AdminReindexPreconditionFailedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAdminReindexInternalServerErrorResponseBody runs the validations
+// defined on admin-reindex_InternalServerError_response_body
+func ValidateAdminReindexInternalServerErrorResponseBody(body *AdminReindexInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAdminReindexServiceUnavailableResponseBody runs the validations
+// defined on admin-reindex_ServiceUnavailable_response_body
+func ValidateAdminReindexServiceUnavailableResponseBody(body *AdminReindexServiceUnavailableResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -2842,14 +3883,14 @@ func ValidateReadyzServiceUnavailableResponseBody(body *ReadyzServiceUnavailable
 	return
 }
 
-// ValidateMembershipTierResponseResponseBody runs the validations defined on
-// membership-tier-responseResponseBody
-func ValidateMembershipTierResponseResponseBody(body *MembershipTierResponseResponseBody) (err error) {
+// ValidateB2bOrgResponseResponseBody runs the validations defined on
+// b2b-org-responseResponseBody
+func ValidateB2bOrgResponseResponseBody(body *B2bOrgResponseResponseBody) (err error) {
 	if body.UID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
-	if body.ProjectUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
+	if body.Website != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -2901,24 +3942,6 @@ func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactRespon
 	}
 	if body.B2bOrgUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
-	}
-	if body.CreatedAt != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
-	}
-	if body.UpdatedAt != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
-	}
-	return
-}
-
-// ValidateB2bOrgResponseResponseBody runs the validations defined on
-// b2b-org-responseResponseBody
-func ValidateB2bOrgResponseResponseBody(body *B2bOrgResponseResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.Website != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
