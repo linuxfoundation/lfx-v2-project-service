@@ -250,7 +250,7 @@ var UserInfo = Type("UserInfo", func() {
 	})
 	Attribute("email", String, "The email address of the user", func() {
 		Example("john.doe@example.com")
-		Format(FormatEmail)
+		Pattern(`^$|^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	})
 	Attribute("username", String, "The username/LFID of the user", func() {
 		Example("johndoe123")

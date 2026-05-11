@@ -4165,7 +4165,7 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 // UserInfoResponseBody
 func ValidateUserInfoResponseBody(body *UserInfoResponseBody) (err error) {
 	if body.Email != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.email", *body.Email, "^$|^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$"))
 	}
 	if body.Avatar != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$"))
@@ -4177,7 +4177,7 @@ func ValidateUserInfoResponseBody(body *UserInfoResponseBody) (err error) {
 // UserInfoRequestBody
 func ValidateUserInfoRequestBody(body *UserInfoRequestBody) (err error) {
 	if body.Email != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.email", *body.Email, "^$|^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$"))
 	}
 	if body.Avatar != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$"))
