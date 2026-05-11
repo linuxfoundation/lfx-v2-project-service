@@ -16,29 +16,31 @@ import (
 // The generated Make* helpers return *goa.ServiceError, which has a correctly
 // implemented Error() method and exposes Fault/Temporary flags to callers.
 func wrapError(ctx context.Context, err error) error {
-	slog.ErrorContext(ctx, "request failed",
-		"error", err,
-	)
-
 	var notFound pkgerrors.NotFound
 	if errors.As(err, &notFound) {
+		slog.ErrorContext(ctx, "request failed", "error", err)
 		return membershipservice.MakeNotFound(err)
 	}
 
 	var validation pkgerrors.Validation
 	if errors.As(err, &validation) {
+		slog.ErrorContext(ctx, "request failed", "error", err)
 		return membershipservice.MakeBadRequest(err)
 	}
 
 	var serviceUnavailable pkgerrors.ServiceUnavailable
 	if errors.As(err, &serviceUnavailable) {
+		slog.ErrorContext(ctx, "request failed", "error", err)
 		return membershipservice.MakeServiceUnavailable(err)
 	}
 
 	var notImplemented pkgerrors.NotImplemented
 	if errors.As(err, &notImplemented) {
+		// 501 stubs are intentional — log at debug, not error.
+		slog.DebugContext(ctx, "stub endpoint called", "error", err)
 		return membershipservice.MakeNotImplemented(err)
 	}
 
+	slog.ErrorContext(ctx, "request failed", "error", err)
 	return membershipservice.MakeInternalServerError(err)
 }

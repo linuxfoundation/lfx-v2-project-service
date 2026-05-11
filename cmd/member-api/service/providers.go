@@ -155,7 +155,7 @@ func ProjectResolverImpl(ctx context.Context) port.ProjectResolver {
 // implementation selected by the REPOSITORY_SOURCE environment variable:
 //
 //   - "salesforce" (default) — Salesforce-backed writer with NATS KV cache invalidation.
-//   - "mock"                 — No-op mock, for local development without SF credentials.
+//   - "mock"                 — Stub that returns NotImplemented for all writes; for local development without SF credentials.
 func KeyContactWriterImpl(ctx context.Context) port.KeyContactWriter {
 	repoSource := os.Getenv("REPOSITORY_SOURCE")
 	if repoSource == "" {

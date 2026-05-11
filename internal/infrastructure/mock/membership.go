@@ -338,8 +338,8 @@ func (m *MockB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg
 	return nil, errors.NewNotFound("b2b org not found in mock")
 }
 
-// MockKeyContactWriter is a no-op implementation of port.KeyContactWriter for
-// local development when REPOSITORY_SOURCE=mock.
+// MockKeyContactWriter is a stub implementation of port.KeyContactWriter for
+// local development when REPOSITORY_SOURCE=mock. All methods return NotImplemented.
 type MockKeyContactWriter struct{}
 
 // NewMockKeyContactWriter creates a new MockKeyContactWriter.
