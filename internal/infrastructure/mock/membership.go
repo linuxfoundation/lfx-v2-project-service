@@ -337,3 +337,27 @@ func NewMockB2BOrgReader() *MockB2BOrgReader {
 func (m *MockB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
 	return nil, errors.NewNotFound("b2b org not found in mock")
 }
+
+// MockKeyContactWriter is a no-op implementation of port.KeyContactWriter for
+// local development when REPOSITORY_SOURCE=mock.
+type MockKeyContactWriter struct{}
+
+// NewMockKeyContactWriter creates a new MockKeyContactWriter.
+func NewMockKeyContactWriter() *MockKeyContactWriter {
+	return &MockKeyContactWriter{}
+}
+
+// CreateKeyContact always returns not-implemented.
+func (m *MockKeyContactWriter) CreateKeyContact(_ context.Context, _ model.KeyContactInput) (*model.KeyContact, error) {
+	return nil, errors.NewNotImplemented("create-key-contact not implemented in mock")
+}
+
+// UpdateKeyContact always returns not-implemented.
+func (m *MockKeyContactWriter) UpdateKeyContact(_ context.Context, _ string, _ model.KeyContactInput) (*model.KeyContact, error) {
+	return nil, errors.NewNotImplemented("update-key-contact not implemented in mock")
+}
+
+// DeleteKeyContact always returns not-implemented.
+func (m *MockKeyContactWriter) DeleteKeyContact(_ context.Context, _ string, _ string) error {
+	return errors.NewNotImplemented("delete-key-contact not implemented in mock")
+}
