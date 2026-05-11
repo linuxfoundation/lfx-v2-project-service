@@ -10,6 +10,7 @@ import (
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -550,6 +551,52 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 			Relations:  relations,
 			References: references,
 		},
+	}
+}
+
+// DomainSettingsToEvent converts an internal ProjectSettings domain model to
+// its event wire type for publishing on NATS.
+func DomainSettingsToEvent(s *models.ProjectSettings) events.ProjectSettings {
+	if s == nil {
+		return events.ProjectSettings{}
+	}
+	return events.ProjectSettings{
+		UID:                 s.UID,
+		MissionStatement:    s.MissionStatement,
+		AnnouncementDate:    s.AnnouncementDate,
+		Auditors:            domainUsersToEvent(s.Auditors),
+		Writers:             domainUsersToEvent(s.Writers),
+		MeetingCoordinators: domainUsersToEvent(s.MeetingCoordinators),
+		ExecutiveDirector:   domainUserPtrToEvent(s.ExecutiveDirector),
+		ProgramManager:      domainUserPtrToEvent(s.ProgramManager),
+		OpportunityOwner:    domainUserPtrToEvent(s.OpportunityOwner),
+		CreatedAt:           s.CreatedAt,
+		UpdatedAt:           s.UpdatedAt,
+	}
+}
+
+func domainUsersToEvent(users []models.UserInfo) []events.UserInfo {
+	result := make([]events.UserInfo, len(users))
+	for i, u := range users {
+		result[i] = events.UserInfo{
+			Name:     u.Name,
+			Email:    u.Email,
+			Username: u.Username,
+			Avatar:   u.Avatar,
+		}
+	}
+	return result
+}
+
+func domainUserPtrToEvent(u *models.UserInfo) *events.UserInfo {
+	if u == nil {
+		return nil
+	}
+	return &events.UserInfo{
+		Name:     u.Name,
+		Email:    u.Email,
+		Username: u.Username,
+		Avatar:   u.Avatar,
 	}
 }
 

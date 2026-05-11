@@ -406,6 +406,16 @@ Every data modification publishes NATS messages:
 - Index messages for search service
 - Access control updates for authorization service
 
+### 2a. NATS Event Wire Types (`pkg/events/`)
+
+NATS message payload types that other services consume belong in `pkg/events/`, **not** `internal/`. This lets downstream services (e.g., `lfx-v2-invite-service`) import the canonical struct definitions directly.
+
+- Domain types in `internal/domain/models/` may differ from wire types and can evolve independently.
+- Explicit converter functions in `internal/service/converters.go` map from domain → event type before publishing.
+- Example: `DomainSettingsToEvent(*models.ProjectSettings) events.ProjectSettings`
+
+**Rule:** if a struct appears in a NATS message payload, it belongs in `pkg/events/`, not `internal/`.
+
 ### 3. Request Context
 
 Important context values:

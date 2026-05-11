@@ -15,6 +15,7 @@ import (
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -429,20 +430,20 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 		{
 			name:    "successful send project settings updated message",
 			subject: constants.ProjectSettingsUpdatedSubject,
-			message: models.ProjectSettingsUpdatedMessage{
+			message: events.ProjectSettingsUpdatedMessage{
 				ProjectUID: "test-project-uid",
-				OldSettings: models.ProjectSettings{
+				OldSettings: events.ProjectSettings{
 					UID:              "test-project-uid",
 					MissionStatement: "old mission",
 				},
-				NewSettings: models.ProjectSettings{
+				NewSettings: events.ProjectSettings{
 					UID:              "test-project-uid",
 					MissionStatement: "new mission",
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg models.ProjectSettingsUpdatedMessage
+					var msg events.ProjectSettingsUpdatedMessage
 					err := json.Unmarshal(data, &msg)
 					if err != nil {
 						return false
@@ -457,10 +458,10 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 		{
 			name:    "nats publish error",
 			subject: constants.ProjectSettingsUpdatedSubject,
-			message: models.ProjectSettingsUpdatedMessage{
+			message: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "test-project-uid",
-				OldSettings: models.ProjectSettings{UID: "test"},
-				NewSettings: models.ProjectSettings{UID: "test"},
+				OldSettings: events.ProjectSettings{UID: "test"},
+				NewSettings: events.ProjectSettings{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
