@@ -516,24 +516,18 @@ func TestDomainSettingsToEvent(t *testing.T) {
 				MissionStatement: "no optionals",
 			},
 			expected: events.ProjectSettings{
-				UID:                 "uid-2",
-				MissionStatement:    "no optionals",
-				Auditors:            []events.UserInfo{},
-				Writers:             []events.UserInfo{},
-				MeetingCoordinators: []events.UserInfo{},
+				UID:              "uid-2",
+				MissionStatement: "no optionals",
 			},
 		},
 		{
-			name: "nil user slice produces empty slice not nil",
+			name: "nil user slice preserves nil (serializes as JSON null not [])",
 			input: &models.ProjectSettings{
 				UID:     "uid-3",
 				Writers: nil,
 			},
 			expected: events.ProjectSettings{
-				UID:                 "uid-3",
-				Auditors:            []events.UserInfo{},
-				Writers:             []events.UserInfo{},
-				MeetingCoordinators: []events.UserInfo{},
+				UID: "uid-3",
 			},
 		},
 	}

@@ -576,6 +576,9 @@ func DomainSettingsToEvent(s *models.ProjectSettings) events.ProjectSettings {
 }
 
 func domainUsersToEvent(users []models.UserInfo) []events.UserInfo {
+	if users == nil {
+		return nil
+	}
 	result := make([]events.UserInfo, len(users))
 	for i, u := range users {
 		result[i] = events.UserInfo{
