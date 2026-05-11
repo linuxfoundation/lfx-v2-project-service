@@ -406,7 +406,7 @@ Every data modification publishes NATS messages:
 - Index messages for search service
 - Access control updates for authorization service
 
-### 2a. NATS Event Wire Types (`pkg/events/`)
+### 3. NATS Event Wire Types (`pkg/events/`)
 
 NATS message payload types that other services consume belong in `pkg/events/`, **not** `internal/`. This lets downstream services (e.g., `lfx-v2-invite-service`) import the canonical struct definitions directly.
 
@@ -416,7 +416,7 @@ NATS message payload types that other services consume belong in `pkg/events/`, 
 
 **Rule:** if a struct appears in a NATS message payload, it belongs in `pkg/events/`, not `internal/`.
 
-### 3. Request Context
+### 4. Request Context
 
 Important context values:
 
@@ -424,7 +424,7 @@ Important context values:
 - `authorization`: JWT token from header
 - `etag`: ETag value for optimistic concurrency (sent as If-Match header in requests)
 
-### 4. Error Handling
+### 5. Error Handling
 
 Domain errors are mapped to HTTP status codes:
 
