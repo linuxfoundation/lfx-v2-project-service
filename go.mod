@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 module github.com/linuxfoundation/lfx-v2-project-service
 
-go 1.25
+go 1.24.0
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.3.0
@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
-	github.com/linuxfoundation/lfx-v2-email-service v0.0.0-20260512204955-693efd22ee37
+	github.com/linuxfoundation/lfx-v2-email-service v0.0.0-20260512222125-bfe795580bd6
 	github.com/linuxfoundation/lfx-v2-fga-sync v0.2.17
 	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.14-0.20260109191409-7371e293d8b5
 	github.com/nats-io/nats.go v1.47.0

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"testing"
 
+	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
@@ -414,6 +415,74 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
+			mockConn.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMessageBuilder_SendEmailRequest(t *testing.T) {
+	req := emailapi.SendEmailRequest{
+		To:      "alice@example.com",
+		Subject: "You've been added",
+		HTML:    "<p>Hi Alice</p>",
+		Text:    "Hi Alice",
+	}
+
+	tests := []struct {
+		name      string
+		mockSetup func(*MockNATSConn)
+		wantErr   bool
+	}{
+		{
+			name: "success — empty reply body",
+			mockSetup: func(m *MockNATSConn) {
+				m.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == emailapi.SendEmailSubject
+				})).Return(&nats.Msg{Data: nil}, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "success — non-error reply body",
+			mockSetup: func(m *MockNATSConn) {
+				m.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == emailapi.SendEmailSubject
+				})).Return(&nats.Msg{Data: []byte(`{}`)}, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "NATS transport error",
+			mockSetup: func(m *MockNATSConn) {
+				m.On("RequestMsgWithContext", mock.Anything, mock.Anything).
+					Return(nil, errors.New("connection closed"))
+			},
+			wantErr: true,
+		},
+		{
+			name: "email service returns error response",
+			mockSetup: func(m *MockNATSConn) {
+				errBody, _ := json.Marshal(emailapi.SendEmailErrorResponse{Error: "smtp refused"})
+				m.On("RequestMsgWithContext", mock.Anything, mock.Anything).
+					Return(&nats.Msg{Data: errBody}, nil)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+			tt.mockSetup(mockConn)
+
+			mb := &MessageBuilder{NatsConn: mockConn}
+			err := mb.SendEmailRequest(context.Background(), req)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 			mockConn.AssertExpectations(t)
 		})
 	}

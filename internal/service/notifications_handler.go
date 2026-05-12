@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
@@ -40,7 +41,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		return nil
 	}
 
-	projectURL := fmt.Sprintf("%s/projects/%s", s.Config.LFXSelfServeBaseURL, projectBase.Slug)
+	projectURL := fmt.Sprintf("%s/projects/%s", strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/"), projectBase.Slug)
 
 	inviterName := event.Actor.Name
 	if inviterName == "" {
@@ -56,6 +57,12 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	for _, add := range additions {
 		add := add
 		g.Go(func() error {
+			if add.User.Email == "" {
+				slog.WarnContext(gctx, "notifications_handler: skipping email — recipient has no email address",
+					"role", add.Role, "username", add.User.Username, "project_uid", event.ProjectUID)
+				return nil
+			}
+
 			recipientName := add.User.Name
 			if recipientName == "" {
 				recipientName = add.User.Username

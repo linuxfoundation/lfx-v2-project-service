@@ -31,12 +31,17 @@ func diffRole(old, new []events.UserInfo, role string) []roleAssignment {
 			oldSet[key] = struct{}{}
 		}
 	}
+	seenNew := make(map[string]struct{}, len(new))
 	var additions []roleAssignment
 	for _, u := range new {
 		key := memberKey(u)
 		if key == "" {
 			continue
 		}
+		if _, alreadySeen := seenNew[key]; alreadySeen {
+			continue
+		}
+		seenNew[key] = struct{}{}
 		if _, exists := oldSet[key]; !exists {
 			additions = append(additions, roleAssignment{User: u, Role: role})
 		}

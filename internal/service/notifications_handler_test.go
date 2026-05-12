@@ -89,7 +89,18 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			msgBuilderErr: assert.AnError,
 		},
 		{
-			name: "malformed message — no panic, no email",
+			name: "user without email address — skipped, no send",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{{Username: "noemail", Name: "No Email"}}},
+				Actor:       events.Actor{Username: "admin"},
+			},
+			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
+			wantSendCount: 0,
+		},
+		{
+			name: "project load failure — no email sent",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},

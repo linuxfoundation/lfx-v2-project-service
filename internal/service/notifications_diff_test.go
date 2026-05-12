@@ -81,6 +81,13 @@ func TestDiffNewMembers(t *testing.T) {
 			old:  events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
 			new:  events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
 		},
+		{
+			name:         "duplicate entries in new — only one addition returned",
+			old:          events.ProjectSettings{},
+			new:          events.ProjectSettings{Writers: []events.UserInfo{alice, alice}},
+			wantLen:      1,
+			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
+		},
 	}
 
 	for _, tt := range tests {
