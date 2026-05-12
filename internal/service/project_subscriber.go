@@ -26,7 +26,7 @@ const emailSendTimeout = 5 * time.Second
 func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg domain.Message) error {
 	var event events.ProjectSettingsUpdatedMessage
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
-		slog.WarnContext(ctx, "notifications_handler: failed to unmarshal project settings updated event", constants.ErrKey, err)
+		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal project settings updated event", constants.ErrKey, err)
 		return nil
 	}
 
@@ -37,7 +37,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 
 	projectBase, err := s.ProjectRepository.GetProjectBase(ctx, event.ProjectUID)
 	if err != nil {
-		slog.WarnContext(ctx, "notifications_handler: failed to load project", constants.ErrKey, err, "project_uid", event.ProjectUID)
+		slog.WarnContext(ctx, "project_subscriber: failed to load project", constants.ErrKey, err, "project_uid", event.ProjectUID)
 		return nil
 	}
 
@@ -58,7 +58,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		add := add
 		g.Go(func() error {
 			if add.User.Email == "" {
-				slog.WarnContext(gctx, "notifications_handler: skipping email — recipient has no email address",
+				slog.WarnContext(gctx, "project_subscriber: skipping email — recipient has no email address",
 					"role", add.Role, "username", add.User.Username, "project_uid", event.ProjectUID)
 				return nil
 			}
@@ -79,7 +79,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 				InviterName:   inviterName,
 			})
 			if err != nil {
-				slog.WarnContext(gctx, "notifications_handler: failed to render email template",
+				slog.WarnContext(gctx, "project_subscriber: failed to render email template",
 					constants.ErrKey, err, "role", add.Role, "project_uid", event.ProjectUID)
 				return nil
 			}
@@ -93,7 +93,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 				Text:    text,
 			})
 			if sendErr != nil {
-				slog.WarnContext(gctx, "notifications_handler: failed to send role notification email",
+				slog.WarnContext(gctx, "project_subscriber: failed to send role notification email",
 					constants.ErrKey, sendErr, "role", add.Role, "project_uid", event.ProjectUID)
 			}
 			return nil
@@ -102,4 +102,58 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 
 	_ = g.Wait()
 	return nil
+}
+
+// roleAssignment pairs a user with the role they were added to.
+type roleAssignment struct {
+	User events.UserInfo
+	Role string
+}
+
+// diffNewMembers returns the users that appear in newSettings but not in oldSettings,
+// across writers, auditors, and meeting_coordinators. Users are matched by Username
+// when present, otherwise by Email. Users with neither Username nor Email are skipped.
+func diffNewMembers(oldSettings, newSettings events.ProjectSettings) []roleAssignment {
+	var additions []roleAssignment
+	additions = append(additions, diffRole(oldSettings.Writers, newSettings.Writers, "Writer")...)
+	additions = append(additions, diffRole(oldSettings.Auditors, newSettings.Auditors, "Auditor")...)
+	additions = append(additions, diffRole(oldSettings.MeetingCoordinators, newSettings.MeetingCoordinators, "Meeting Coordinator")...)
+	return additions
+}
+
+func diffRole(old, new []events.UserInfo, role string) []roleAssignment {
+	oldSet := make(map[string]struct{}, len(old))
+	for _, u := range old {
+		if key := memberKey(u); key != "" {
+			oldSet[key] = struct{}{}
+		}
+	}
+	seenNew := make(map[string]struct{}, len(new))
+	var additions []roleAssignment
+	for _, u := range new {
+		key := memberKey(u)
+		if key == "" {
+			continue
+		}
+		if _, alreadySeen := seenNew[key]; alreadySeen {
+			continue
+		}
+		seenNew[key] = struct{}{}
+		if _, exists := oldSet[key]; !exists {
+			additions = append(additions, roleAssignment{User: u, Role: role})
+		}
+	}
+	return additions
+}
+
+// memberKey returns a stable identity key for a user.
+// Username takes priority; Email is the fallback. Returns "" if neither is set.
+func memberKey(u events.UserInfo) string {
+	if u.Username != "" {
+		return "username:" + u.Username
+	}
+	if u.Email != "" {
+		return "email:" + u.Email
+	}
+	return ""
 }
