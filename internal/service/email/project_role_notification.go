@@ -1,7 +1,7 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
-package service
+package email
 
 import (
 	"bytes"
@@ -24,7 +24,8 @@ var (
 	)
 )
 
-type projectRoleNotificationData struct {
+// ProjectRoleNotificationData holds the template variables for a project role notification email.
+type ProjectRoleNotificationData struct {
 	RecipientName string
 	ProjectName   string
 	Role          string
@@ -32,8 +33,9 @@ type projectRoleNotificationData struct {
 	InviterName   string
 }
 
-// renderProjectRoleNotification renders HTML and plain-text bodies for a project role notification email.
-func renderProjectRoleNotification(data projectRoleNotificationData) (subject, html, text string, err error) {
+// RenderProjectRoleNotification renders the subject, HTML body, and plain-text body
+// for a project role notification email.
+func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, html, text string, err error) {
 	subject = data.InviterName + " added you as a " + data.Role + " on " + data.ProjectName
 
 	var htmlBuf bytes.Buffer

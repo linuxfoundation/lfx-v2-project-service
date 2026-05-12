@@ -1,7 +1,7 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
-package service
+package email
 
 import (
 	"strings"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestRenderProjectRoleNotification(t *testing.T) {
-	data := projectRoleNotificationData{
+	data := ProjectRoleNotificationData{
 		RecipientName: "Alice",
 		ProjectName:   "Demo Project",
 		Role:          "Writer",
@@ -20,7 +20,7 @@ func TestRenderProjectRoleNotification(t *testing.T) {
 		InviterName:   "Bob",
 	}
 
-	subject, html, text, err := renderProjectRoleNotification(data)
+	subject, html, text, err := RenderProjectRoleNotification(data)
 	require.NoError(t, err)
 
 	assert.Contains(t, subject, "Writer")

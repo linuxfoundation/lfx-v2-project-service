@@ -8,7 +8,7 @@ The LFX V2 Project Service is a RESTful API service that manages projects within
 
 ### Key Technologies
 
-- **Language**: Go 1.23+
+- **Language**: Go 1.24+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for event-driven architecture
 - **Storage**: NATS Key-Value stores (no traditional database)
@@ -39,11 +39,13 @@ cmd/project-api/            # Presentation Layer (HTTP/NATS entry point)
 internal/                   # Core business logic
 ├── domain/                # Domain layer (interfaces, models, errors)
 │   └── models/           # Domain entities
-├── service/              # Service layer (business logic)
-├── infrastructure/       # Infrastructure layer
-│   ├── auth/            # JWT authentication
-│   └── nats/            # NATS repository implementation
-└── middleware/          # HTTP middleware
+├── service/               # Service layer (business logic)
+│   └── email/            # Email template rendering (one file per email type)
+└── infrastructure/        # Infrastructure layer
+    ├── auth/             # JWT authentication
+    ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
+    ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger)
+    └── nats/             # NATS repository and message builder
 
 pkg/                    # Shared packages across services
 └── constants/          # Shared constants
@@ -151,23 +153,32 @@ The service uses NATS for:
 
 ### API Endpoints and Message Subjects
 
-Complete API endpoint documentation and NATS message handlers are now documented in README.md. Key RPC subjects handled by this service:
+Complete API endpoint documentation and NATS message handlers are now documented in README.md.
+
+There are two distinct NATS patterns in this service — both use `QueueSubscribe` but for different purposes:
+
+**Request/reply RPC** (`internal/service/project_handlers.go`): another service sends a request and blocks waiting for a response. The handler calls `msg.Respond(data)` to return data to the caller.
+
+**Event subscriptions** (`internal/service/project_subscriber.go`): the service reacts to events that were already published (including by itself). No caller is waiting — the handler is fire-and-forget and never calls `msg.Respond`.
 
 ```go
-// Inbound RPC (handled by this service)
-"lfx.projects-api.queue"               // Queue for projects API operations
+// Inbound RPC — request/reply, caller blocks waiting for response
 "lfx.projects-api.get_name"            // Get project name by UID
 "lfx.projects-api.get_slug"            // Get project slug by UID
 "lfx.projects-api.get_logo"            // Get project logo URL by UID
 "lfx.projects-api.slug_to_uid"         // Convert slug to UID
 "lfx.projects-api.get_parent_uid"      // Get parent project UID
 
+// Inbound events — fire-and-forget, no reply expected
+"lfx.projects-api.project_settings.updated" // Sends role notification emails on member additions
+
 // Outbound events (published by this service)
 "lfx.index.project"                    // Project created/updated/deleted for indexing
 "lfx.index.project_settings"           // Settings created/updated for indexing
-"lfx.projects-api.project_settings.updated" // Settings changed (before/after)
+"lfx.projects-api.project_settings.updated" // Settings changed (before/after snapshot)
 "lfx.fga-sync.update_access"           // Generic FGA access control updates
 "lfx.fga-sync.delete_access"           // Generic FGA access control deletion
+"lfx.email-service.send_email"         // Request/reply to email service for role notifications
 ```
 
 ### FGA Sync Message Format
@@ -256,6 +267,7 @@ func TestEndpoint(t *testing.T) {
 | `JWKS_URL` | JWT verification endpoint | - | No |
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | - | No |
+| `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails | derived from `LFX_ENVIRONMENT` | No |
 
 ## Authorization (OpenFGA)
 

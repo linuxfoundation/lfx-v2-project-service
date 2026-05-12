@@ -18,7 +18,7 @@ import (
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"

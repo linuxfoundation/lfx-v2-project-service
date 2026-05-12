@@ -13,6 +13,7 @@ import (
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service/email"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"golang.org/x/sync/errgroup"
@@ -71,7 +72,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 				recipientName = add.User.Email
 			}
 
-			subject, html, text, err := renderProjectRoleNotification(projectRoleNotificationData{
+			subject, html, text, err := email.RenderProjectRoleNotification(email.ProjectRoleNotificationData{
 				RecipientName: recipientName,
 				ProjectName:   projectBase.Name,
 				Role:          add.Role,
