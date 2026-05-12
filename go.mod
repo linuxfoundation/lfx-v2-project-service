@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 module github.com/linuxfoundation/lfx-v2-project-service
 
-go 1.24.0
+go 1.25
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.3.0
@@ -11,6 +11,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
+	github.com/linuxfoundation/lfx-v2-email-service v0.0.0-00010101000000-000000000000
+	github.com/linuxfoundation/lfx-v2-fga-sync v0.2.17
 	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.14-0.20260109191409-7371e293d8b5
 	github.com/nats-io/nats.go v1.47.0
 	github.com/remychantenay/slog-otel v1.3.4
@@ -63,23 +65,18 @@ require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.7 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
-	github.com/linuxfoundation/lfx-v2-fga-sync v0.2.17 // indirect
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d // indirect
 	github.com/nats-io/nkeys v0.4.11 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
-	github.com/openfga/go-sdk v0.7.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rustyoz/Mtransform v0.0.0-20250628105438-00796a985d0a // indirect
 	github.com/rustyoz/genericlexer v0.0.0-20250522144106-d3cfee480384 // indirect
-	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.40.0 // indirect
 	go.opentelemetry.io/otel/metric v1.40.0 // indirect
 	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
-	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
 	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.49.0 // indirect
@@ -93,3 +90,5 @@ require (
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/linuxfoundation/lfx-v2-email-service => /Users/andrestobon/go/src/github.com/linuxfoundation/lfx-v2-email-service/.claude/worktrees/LFXV2-1768-email-service

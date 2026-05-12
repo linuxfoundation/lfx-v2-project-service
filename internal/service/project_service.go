@@ -36,4 +36,6 @@ func (s *ProjectsService) ServiceReady() bool {
 type ServiceConfig struct {
 	// SkipEtagValidation is a flag to skip the Etag validation - only meant for local development.
 	SkipEtagValidation bool
+	// LFXSelfServeBaseURL is the base URL for LFX Self-Serve, used to build project URLs in notification emails.
+	LFXSelfServeBaseURL string
 }

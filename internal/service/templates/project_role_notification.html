@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You've been added to {{.ProjectName}}</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Inter', Arial, sans-serif; }
+    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }
+    .header { background-color: #0068fa; padding: 24px 32px; text-align: center; }
+    .header img { height: 32px; }
+    .body { padding: 40px 32px; color: #1a1a2e; }
+    .body h1 { font-size: 22px; font-weight: 600; margin: 0 0 16px; }
+    .body p { font-size: 15px; line-height: 1.6; color: #444444; margin: 0 0 16px; }
+    .cta { display: inline-block; margin: 24px 0 0; padding: 12px 28px; background-color: #0068fa; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 600; }
+    .footer { padding: 24px 32px; text-align: center; font-size: 12px; color: #888888; border-top: 1px solid #eeeeee; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://lfx.linuxfoundation.org/img/lfx-logo.png" alt="LFX Self-Serve">
+    </div>
+    <div class="body">
+      <h1>You've been added to {{.ProjectName}}</h1>
+      <p>Hi {{.RecipientName}},</p>
+      <p>{{.InviterName}} has added you as a <strong>{{.Role}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>
+      <p>You can view the project and manage your responsibilities by visiting the link below.</p>
+      <a class="cta" href="{{.ProjectURL}}">View Project</a>
+    </div>
+    <div class="footer">
+      <p>You are receiving this email because you were added to a project on LFX Self-Serve.<br>
+      &copy; The Linux Foundation</p>
+    </div>
+  </div>
+</body>
+</html>

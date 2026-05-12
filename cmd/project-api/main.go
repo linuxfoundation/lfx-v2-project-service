@@ -24,6 +24,7 @@ import (
 
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
 	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	internalnats "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
@@ -94,7 +95,8 @@ func main() {
 
 	// Generated service initialization.
 	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
-		SkipEtagValidation: env.SkipEtagValidation,
+		SkipEtagValidation:  env.SkipEtagValidation,
+		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
 	})
 	svc := NewProjectsAPI(service)
 
@@ -156,9 +158,10 @@ func parseFlags(defaultPort string) flags {
 
 // environment are the environment variables for the project service.
 type environment struct {
-	NatsURL            string
-	Port               string
-	SkipEtagValidation bool
+	NatsURL             string
+	Port                string
+	SkipEtagValidation  bool
+	LFXSelfServeBaseURL string
 }
 
 func parseEnv() environment {
@@ -175,10 +178,22 @@ func parseEnv() environment {
 	if skipEtagValidationStr == "true" {
 		skipEtagValidation = true
 	}
+	lfxSelfServeBaseURL := os.Getenv("LFX_SELF_SERVE_BASE_URL")
+	if lfxSelfServeBaseURL == "" {
+		switch os.Getenv("LFX_ENVIRONMENT") {
+		case "prod":
+			lfxSelfServeBaseURL = "https://app.lfx.dev"
+		case "staging":
+			lfxSelfServeBaseURL = "https://staging.app.lfx.dev"
+		default:
+			lfxSelfServeBaseURL = "https://dev.app.lfx.dev"
+		}
+	}
 	return environment{
-		NatsURL:            natsURL,
-		Port:               port,
-		SkipEtagValidation: skipEtagValidation,
+		NatsURL:             natsURL,
+		Port:                port,
+		SkipEtagValidation:  skipEtagValidation,
+		LFXSelfServeBaseURL: lfxSelfServeBaseURL,
 	}
 }
 
@@ -415,6 +430,27 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 		_, err := natsConn.QueueSubscribe(subject, queueName, func(msg *nats.Msg) {
 			natsMsg := &internalnats.NatsMsg{Msg: msg}
 			svc.service.HandleMessage(ctx, natsMsg)
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
+			return err
+		}
+	}
+
+	type eventHandler struct {
+		subject string
+		handle  func(ctx context.Context, msg domain.Message) error
+	}
+	for _, eh := range []eventHandler{
+		{constants.ProjectSettingsUpdatedSubject, svc.service.HandleProjectSettingsUpdated},
+	} {
+		eh := eh
+		slog.With("subject", eh.subject, "queue", queueName).Debug("subscribing to NATS subject")
+		_, err := natsConn.QueueSubscribe(eh.subject, queueName, func(msg *nats.Msg) {
+			natsMsg := &internalnats.NatsMsg{Msg: msg}
+			if handlerErr := eh.handle(ctx, natsMsg); handlerErr != nil {
+				slog.WarnContext(ctx, "event handler failed", errKey, handlerErr, "subject", eh.subject)
+			}
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)

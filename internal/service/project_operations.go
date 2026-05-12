@@ -585,10 +585,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	})
 
 	g.Go(func() error {
+		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
 		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  *payload.UID,
 			OldSettings: DomainSettingsToEvent(existingProjectSettingsDB),
 			NewSettings: DomainSettingsToEvent(projectSettingsDB),
+			Actor:       events.Actor{Username: principal},
 		}
 		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})

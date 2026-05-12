@@ -35,6 +35,13 @@ type ProjectSettings struct {
 	UpdatedAt           *time.Time `json:"updated_at"`
 }
 
+// Actor represents the user who triggered a settings change.
+type Actor struct {
+	Username string `json:"username"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+}
+
 // ProjectSettingsUpdatedMessage is published on
 // lfx.projects-api.project_settings.updated whenever project settings change.
 // It carries both the before and after states so subscribers can diff them.
@@ -42,4 +49,5 @@ type ProjectSettingsUpdatedMessage struct {
 	ProjectUID  string          `json:"project_uid"`
 	OldSettings ProjectSettings `json:"old_settings"`
 	NewSettings ProjectSettings `json:"new_settings"`
+	Actor       Actor           `json:"actor"`
 }
