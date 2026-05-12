@@ -140,6 +140,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			assert.NoError(t, err)
 
 			mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", tt.wantSendCount)
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
 		})
 	}
 

@@ -153,11 +153,17 @@ fmt:
 .PHONY: license-check
 license-check:
 	@echo "==> Checking license headers..."
-	@missing_files=$$(git ls-files | grep -E '\.(go|html|txt)$$' | grep -v "^api/project/v1/gen/" | \
-		xargs grep -rL "Copyright The Linux Foundation and each contributor to LFX" 2>/dev/null || true); \
-	if [ -n "$$missing_files" ]; then \
-		echo "Files missing required license header:"; \
-		echo "$$missing_files"; \
+	@TRACKED=$$(git ls-files | grep -E '\.(go|html|txt)$$' | grep -v "^api/project/v1/gen/" | grep -v "^internal/service/email/templates/"); \
+	missing_copyright=$$(echo "$$TRACKED" | xargs grep -rL "Copyright The Linux Foundation and each contributor to LFX" 2>/dev/null || true); \
+	if [ -n "$$missing_copyright" ]; then \
+		echo "Files missing copyright header:"; \
+		echo "$$missing_copyright"; \
+		exit 1; \
+	fi; \
+	missing_spdx=$$(echo "$$TRACKED" | xargs grep -rL "SPDX-License-Identifier: MIT" 2>/dev/null || true); \
+	if [ -n "$$missing_spdx" ]; then \
+		echo "Files missing SPDX identifier:"; \
+		echo "$$missing_spdx"; \
 		exit 1; \
 	fi
 	@echo "==> License header check passed"

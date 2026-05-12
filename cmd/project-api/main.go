@@ -183,7 +183,7 @@ func parseEnv() environment {
 		switch os.Getenv("LFX_ENVIRONMENT") {
 		case "prod":
 			lfxSelfServeBaseURL = "https://app.lfx.dev"
-		case "staging":
+		case "staging", "stg":
 			lfxSelfServeBaseURL = "https://staging.app.lfx.dev"
 		default:
 			lfxSelfServeBaseURL = "https://dev.app.lfx.dev"
