@@ -3,39 +3,53 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="LFX Self-Serve project role notification">
-  <meta name="keywords" content="LFX, project, role, notification">
-  <title>You've been added to {{.ProjectName}}</title>
-  <style>
-    body { margin: 0; padding: 0; background-color: #f4f4f4; font-family: 'Inter', Arial, sans-serif; }
-    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; }
-    .header { background-color: #0068fa; padding: 24px 32px; text-align: center; }
-    .header img { height: 32px; }
-    .body { padding: 40px 32px; color: #1a1a2e; }
-    .body h1 { font-size: 22px; font-weight: 600; margin: 0 0 16px; }
-    .body p { font-size: 15px; line-height: 1.6; color: #444444; margin: 0 0 16px; }
-    .cta { display: inline-block; margin: 24px 0 0; padding: 12px 28px; background-color: #0068fa; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 15px; font-weight: 600; }
-    .footer { padding: 24px 32px; text-align: center; font-size: 12px; color: #888888; border-top: 1px solid #eeeeee; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="LFX Self-Serve project role notification">
+    <meta name="keywords" content="LFX, project, role, notification">
+    <title>You've been added to {{.ProjectName}}</title>
+    <style>
+        body { margin: 0; padding: 0; background-color: #ffffff; font-family: Inter, Arial, sans-serif; color: #111827; }
+        .wrapper { max-width: 600px; margin: 0 auto; padding: 32px 40px; }
+        .logo { margin-bottom: 24px; }
+        .logo img { height: 32px; width: auto; display: block; }
+        hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 32px 0; }
+        h1 { font-size: 28px; font-weight: 700; color: #111827; margin: 0 0 20px 0; line-height: 1.25; }
+        p { font-size: 16px; color: #374151; line-height: 1.6; margin: 0 0 16px 0; }
+        .btn { display: inline-block; background-color: #009AFF; color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 24px; border-radius: 8px; margin-bottom: 12px; }
+        .btn-note { font-size: 13px; color: #6b7280; margin: 0 0 28px 0; }
+        .btn-note a { color: #009AFF; text-decoration: none; }
+        .signoff { font-size: 15px; color: #374151; margin: 0 0 32px 0; line-height: 1.7; }
+        .footer-hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 24px 0; }
+        .footer { font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; }
+        @media only screen and (max-width: 620px) {
+            .wrapper { padding: 24px 20px; }
+            h1 { font-size: 22px; }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <img src="https://lfx.linuxfoundation.org/img/lfx-logo.png" alt="LFX Self-Serve" width="120" height="32">
+<div class="wrapper">
+
+    <div class="logo">
+        <img src="https://itx-project-logos-png-prod.s3.us-west-2.amazonaws.com/lfx-logo-color.png" alt="LFX" width="120" height="32">
     </div>
-    <div class="body">
-      <h1>You've been added to {{.ProjectName}}</h1>
-      <p>Hi {{.RecipientName}},</p>
-      <p>{{.InviterName}} has added you as a <strong>{{.Role}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>
-      <p>You can view the project and manage your responsibilities by visiting the link below.</p>
-      <a class="cta" href="{{.ProjectURL}}">View Project</a>
-    </div>
-    <div class="footer">
-      <p>You are receiving this email because you were added to a project on LFX Self-Serve.<br>
-      © The Linux Foundation</p>
-    </div>
-  </div>
+    <hr>
+
+    <p style="font-size:15px;color:#374151;margin:0 0 8px 0;">Hi {{.RecipientName}},</p>
+    <h1>You've been added to {{.ProjectName}}</h1>
+
+    <p>{{.InviterName}} has added you as a <strong>{{.Role}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>
+    <p>You can view the project and manage your responsibilities by visiting the link below.</p>
+
+    <a href="{{.ProjectURL}}" class="btn" style="color:#ffffff!important;">View Project</a>
+    <p class="btn-note">If the button above doesn't work, paste this into your browser: <a href="{{.ProjectURL}}">{{.ProjectURL}}</a></p>
+
+    <p class="signoff">Thank you,<br><strong>The Linux Foundation Team</strong></p>
+
+    <hr class="footer-hr">
+    <p class="footer">Copyright © 2026 The Linux Foundation ®. All rights reserved. The Linux Foundation has registered trademarks and uses trademarks. For a list of trademarks of The Linux Foundation, please see our <a href="https://www.linuxfoundation.org/trademark-usage" style="color:#9ca3af;">Trademark Usage</a> page. Linux is a registered trademark of Linus Torvalds.</p>
+
+</div>
 </body>
 </html>
