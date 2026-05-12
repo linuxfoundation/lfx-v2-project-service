@@ -48,7 +48,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				OldSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
+			// projectBase intentionally nil: handler returns before GetProjectBase when no additions found
 			wantSendCount: 0,
 		},
 		{

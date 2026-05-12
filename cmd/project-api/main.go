@@ -444,7 +444,6 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 	for _, eh := range []eventHandler{
 		{constants.ProjectSettingsUpdatedSubject, svc.service.HandleProjectSettingsUpdated},
 	} {
-		eh := eh
 		slog.With("subject", eh.subject, "queue", queueName).Debug("subscribing to NATS subject")
 		_, err := natsConn.QueueSubscribe(eh.subject, queueName, func(msg *nats.Msg) {
 			natsMsg := &internalnats.NatsMsg{Msg: msg}

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
@@ -15,6 +16,8 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"golang.org/x/sync/errgroup"
 )
+
+const emailSendTimeout = 5 * time.Second
 
 // HandleProjectSettingsUpdated handles project_settings.updated events and sends
 // notification emails to any users newly added as writers, auditors, or meeting coordinators.
@@ -74,7 +77,9 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 				return nil
 			}
 
-			sendErr := s.MessageBuilder.SendEmailRequest(gctx, emailapi.SendEmailRequest{
+			sendCtx, cancel := context.WithTimeout(gctx, emailSendTimeout)
+			defer cancel()
+			sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
 				To:      add.User.Email,
 				Subject: subject,
 				HTML:    html,
