@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.92.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
-	github.com/linuxfoundation/lfx-v2-email-service v0.0.0-00010101000000-000000000000
+	github.com/linuxfoundation/lfx-v2-email-service v0.0.0-20260512204955-693efd22ee37
 	github.com/linuxfoundation/lfx-v2-fga-sync v0.2.17
 	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.14-0.20260109191409-7371e293d8b5
 	github.com/nats-io/nats.go v1.47.0
@@ -90,5 +90,3 @@ require (
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/linuxfoundation/lfx-v2-email-service => /Users/andrestobon/go/src/github.com/linuxfoundation/lfx-v2-email-service/.claude/worktrees/LFXV2-1768-email-service
