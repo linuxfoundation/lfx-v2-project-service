@@ -230,6 +230,15 @@ func TestDiffNewMembers(t *testing.T) {
 			wantLen:      1,
 			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
 		},
+		{
+			// Same person appears email-only in old, then gains a username in new.
+			// The multi-key lookup must recognise the shared email and not treat them as
+			// a new addition.
+			name:    "identity shape change — email-only in old, username+email in new — not a new addition",
+			old:     events.ProjectSettings{Writers: []events.UserInfo{{Email: "alice@example.com"}}},
+			new:     events.ProjectSettings{Writers: []events.UserInfo{{Username: "alice", Email: "alice@example.com"}}},
+			wantLen: 0,
+		},
 	}
 
 	for _, tt := range tests {

@@ -127,38 +127,51 @@ func diffNewMembers(oldSettings, newSettings events.ProjectSettings) []roleAssig
 }
 
 func diffRole(old, new []events.UserInfo, role string) []roleAssignment {
-	oldSet := make(map[string]struct{}, len(old))
+	// Index every identity key from old so a user matched by either
+	// username or email is recognised regardless of which field was set.
+	oldSet := make(map[string]struct{}, len(old)*2)
 	for _, u := range old {
-		if key := memberKey(u); key != "" {
+		for _, key := range memberKeys(u) {
 			oldSet[key] = struct{}{}
 		}
 	}
 	seenNew := make(map[string]struct{}, len(new))
 	var additions []roleAssignment
 	for _, u := range new {
-		key := memberKey(u)
-		if key == "" {
+		keys := memberKeys(u)
+		if len(keys) == 0 {
 			continue
 		}
-		if _, alreadySeen := seenNew[key]; alreadySeen {
+		primary := keys[0] // username: if present, else email:
+		if _, alreadySeen := seenNew[primary]; alreadySeen {
 			continue
 		}
-		seenNew[key] = struct{}{}
-		if _, exists := oldSet[key]; !exists {
+		seenNew[primary] = struct{}{}
+		// The user is already present if ANY of their keys appear in oldSet.
+		present := false
+		for _, key := range keys {
+			if _, ok := oldSet[key]; ok {
+				present = true
+				break
+			}
+		}
+		if !present {
 			additions = append(additions, roleAssignment{User: u, Role: role})
 		}
 	}
 	return additions
 }
 
-// memberKey returns a stable identity key for a user.
-// Username takes priority; Email is the fallback. Returns "" if neither is set.
-func memberKey(u events.UserInfo) string {
+// memberKeys returns all stable identity keys for a user.
+// Username key comes first (preferred); Email key is appended when present.
+// Returns an empty slice if neither field is set.
+func memberKeys(u events.UserInfo) []string {
+	var keys []string
 	if u.Username != "" {
-		return "username:" + u.Username
+		keys = append(keys, "username:"+u.Username)
 	}
 	if u.Email != "" {
-		return "email:" + u.Email
+		keys = append(keys, "email:"+u.Email)
 	}
-	return ""
+	return keys
 }
