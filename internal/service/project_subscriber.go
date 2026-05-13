@@ -6,7 +6,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -32,6 +31,8 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	}
 
 	additions := diffNewMembers(event.OldSettings, event.NewSettings)
+	slog.DebugContext(ctx, "project_subscriber: received project_settings.updated event",
+		"project_uid", event.ProjectUID, "new_member_count", len(additions))
 	if len(additions) == 0 {
 		return nil
 	}
@@ -42,7 +43,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		return nil
 	}
 
-	projectURL := fmt.Sprintf("%s/projects/%s", strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/"), projectBase.Slug)
+	projectURL := strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/") + "/projects/overview"
 
 	inviterName := event.Actor.Name
 	if inviterName == "" {
@@ -96,6 +97,9 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 			if sendErr != nil {
 				slog.WarnContext(gctx, "project_subscriber: failed to send role notification email",
 					constants.ErrKey, sendErr, "role", add.Role, "project_uid", event.ProjectUID)
+			} else {
+				slog.DebugContext(gctx, "project_subscriber: sent role notification email",
+					"role", add.Role, "project_uid", event.ProjectUID, "to", add.User.Email)
 			}
 			return nil
 		})
