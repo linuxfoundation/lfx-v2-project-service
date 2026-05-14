@@ -16,7 +16,7 @@ func TestRenderProjectRoleNotification(t *testing.T) {
 		RecipientName: "Alice",
 		ProjectName:   "Demo Project",
 		Role:          "Writer",
-		ProjectURL:    "https://dev.app.lfx.dev/projects/demo-project",
+		ProjectURL:    "https://app.dev.lfx.dev/projects/demo-project",
 		InviterName:   "Bob",
 	}
 
@@ -30,14 +30,14 @@ func TestRenderProjectRoleNotification(t *testing.T) {
 	assert.Contains(t, html, "Alice")
 	assert.Contains(t, html, "Demo Project")
 	assert.Contains(t, html, "Writer")
-	assert.Contains(t, html, "https://dev.app.lfx.dev/projects/demo-project")
+	assert.Contains(t, html, "https://app.dev.lfx.dev/projects/demo-project")
 	assert.Contains(t, html, "Bob")
 	assert.True(t, strings.Contains(html, "<html"), "expected HTML output")
 
 	assert.Contains(t, text, "Alice")
 	assert.Contains(t, text, "Demo Project")
 	assert.Contains(t, text, "Writer")
-	assert.Contains(t, text, "https://dev.app.lfx.dev/projects/demo-project")
+	assert.Contains(t, text, "https://app.dev.lfx.dev/projects/demo-project")
 	assert.Contains(t, text, "Bob")
 	assert.False(t, strings.Contains(text, "<html"), "expected plain text output")
 }

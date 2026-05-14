@@ -184,9 +184,9 @@ func parseEnv() environment {
 		case "prod":
 			lfxSelfServeBaseURL = "https://app.lfx.dev"
 		case "staging", "stg":
-			lfxSelfServeBaseURL = "https://staging.app.lfx.dev"
+			lfxSelfServeBaseURL = "https://app.staging.lfx.dev"
 		default:
-			lfxSelfServeBaseURL = "https://dev.app.lfx.dev"
+			lfxSelfServeBaseURL = "https://app.dev.lfx.dev"
 		}
 	}
 	return environment{

@@ -173,7 +173,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				ProjectRepository: mockRepo,
 				MessageBuilder:    mockMsg,
 				Config: ServiceConfig{
-					LFXSelfServeBaseURL: "https://dev.app.lfx.dev",
+					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 				},
 			}
 
