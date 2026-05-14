@@ -43,7 +43,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		return nil
 	}
 
-	baseURL := strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/") + "/projects/overview"
+	baseURL := strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/") + "/project/overview"
 	projectURL := baseURL
 	if projectBase.Slug != "" {
 		projectURL = baseURL + "?project=" + projectBase.Slug
