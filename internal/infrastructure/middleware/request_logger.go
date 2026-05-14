@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 

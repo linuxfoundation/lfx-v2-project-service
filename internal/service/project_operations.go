@@ -18,8 +18,9 @@ import (
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"golang.org/x/sync/errgroup"
 )
@@ -584,10 +585,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	})
 
 	g.Go(func() error {
-		msg := models.ProjectSettingsUpdatedMessage{
+		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  *payload.UID,
-			OldSettings: *existingProjectSettingsDB,
-			NewSettings: *projectSettingsDB,
+			OldSettings: DomainSettingsToEvent(existingProjectSettingsDB),
+			NewSettings: DomainSettingsToEvent(projectSettingsDB),
+			Actor:       events.Actor{Username: principal},
 		}
 		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})

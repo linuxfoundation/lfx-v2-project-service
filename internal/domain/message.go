@@ -5,6 +5,8 @@ package domain
 
 import (
 	"context"
+
+	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 )
 
 // Message represents a domain message interface
@@ -24,4 +26,5 @@ type MessageBuilder interface {
 	SendIndexerMessage(ctx context.Context, subject string, message any, sync bool) error
 	SendAccessMessage(ctx context.Context, subject string, message any, sync bool) error
 	SendProjectEventMessage(ctx context.Context, subject string, message any) error
+	SendEmailRequest(ctx context.Context, req emailapi.SendEmailRequest) error
 }
