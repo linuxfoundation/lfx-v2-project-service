@@ -43,7 +43,11 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		return nil
 	}
 
-	projectURL := strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/") + "/projects/overview"
+	baseURL := strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/") + "/projects/overview"
+	projectURL := baseURL
+	if projectBase.Slug != "" {
+		projectURL = baseURL + "?project=" + projectBase.Slug
+	}
 
 	inviterName := s.resolveActorDisplayName(ctx, event.Actor)
 

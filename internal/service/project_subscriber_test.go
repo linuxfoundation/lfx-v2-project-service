@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
@@ -34,12 +35,14 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 	bob := events.UserInfo{Username: "bob", Email: "bob@example.com", Name: "Bob"}
 
 	tests := []struct {
-		name           string
-		event          events.ProjectSettingsUpdatedMessage
-		projectBase    *models.ProjectBase
-		projectBaseErr error
-		wantSendCount  int
-		msgBuilderErr  error
+		name              string
+		event             events.ProjectSettingsUpdatedMessage
+		projectBase       *models.ProjectBase
+		projectBaseErr    error
+		wantSendCount     int
+		msgBuilderErr     error
+		wantURLContains   string // assert HTML body contains this substring
+		wantURLNotContain string // assert HTML body does NOT contain this substring
 	}{
 		{
 			name: "no additions — no emails sent",
@@ -110,6 +113,31 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			projectBaseErr: assert.AnError,
 			wantSendCount:  0,
 		},
+		{
+			name: "project with slug — URL includes slug query param",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "my-project"),
+			wantSendCount:   1,
+			wantURLContains: "?project=my-project",
+		},
+		{
+			name: "project without slug — fallback URL has no query param",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:       makeProjectBase("proj-1", "Demo", ""),
+			wantSendCount:     1,
+			wantURLContains:   "projects/overview",
+			wantURLNotContain: "?project=",
+		},
 	}
 
 	for _, tt := range tests {
@@ -123,8 +151,22 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			}
 
 			if tt.wantSendCount > 0 {
-				mockMsg.On("SendEmailRequest", mock.Anything, mock.AnythingOfType("api.SendEmailRequest")).
-					Return(tt.msgBuilderErr).Times(tt.wantSendCount)
+				if tt.wantURLContains != "" || tt.wantURLNotContain != "" {
+					wantContains := tt.wantURLContains
+					wantNotContain := tt.wantURLNotContain
+					mockMsg.On("SendEmailRequest", mock.Anything, mock.MatchedBy(func(req emailapi.SendEmailRequest) bool {
+						if wantContains != "" && !strings.Contains(req.HTML, wantContains) {
+							return false
+						}
+						if wantNotContain != "" && strings.Contains(req.HTML, wantNotContain) {
+							return false
+						}
+						return true
+					})).Return(tt.msgBuilderErr).Times(tt.wantSendCount)
+				} else {
+					mockMsg.On("SendEmailRequest", mock.Anything, mock.AnythingOfType("api.SendEmailRequest")).
+						Return(tt.msgBuilderErr).Times(tt.wantSendCount)
+				}
 			}
 
 			svc := &ProjectsService{
