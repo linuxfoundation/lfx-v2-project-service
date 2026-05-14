@@ -41,7 +41,7 @@
     <p>{{.InviterName}} has added you as a <strong>{{.Role}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>
     <p>You can view the project dashboard by visiting the link below.</p>
 
-    <a href="{{.ProjectURL}}" class="btn" style="color:#ffffff!important;">View Project</a>
+    <!-- djlint:off H021 --><a href="{{.ProjectURL}}" class="btn" style="color:#ffffff!important;">View Project</a><!-- djlint:on H021 -->
     <p class="btn-note">If the button above doesn't work, paste this into your browser: <a href="{{.ProjectURL}}">{{.ProjectURL}}</a></p>
 
     <p class="signoff">Thank you,<br><strong>The Linux Foundation Team</strong></p>
