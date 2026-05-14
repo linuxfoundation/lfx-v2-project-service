@@ -14,6 +14,7 @@ type ProjectsService struct {
 	LinkRepository     domain.LinkRepository
 	FolderRepository   domain.FolderRepository
 	MessageBuilder     domain.MessageBuilder
+	UserReader         domain.UserReader
 	Auth               domain.Authenticator
 	Config             ServiceConfig
 }
