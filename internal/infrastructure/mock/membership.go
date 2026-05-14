@@ -338,6 +338,47 @@ func (m *MockB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg
 	return nil, errors.NewNotFound("b2b org not found in mock")
 }
 
+// MockB2BOrgWriter is a stub implementation of port.B2BOrgWriter for local
+// development when REPOSITORY_SOURCE=mock. All methods return NotImplemented.
+type MockB2BOrgWriter struct{}
+
+// NewMockB2BOrgWriter creates a new MockB2BOrgWriter.
+func NewMockB2BOrgWriter() *MockB2BOrgWriter {
+	return &MockB2BOrgWriter{}
+}
+
+// CreateB2BOrg always returns not-implemented.
+func (m *MockB2BOrgWriter) CreateB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+	return nil, errors.NewNotImplemented("create-b2b-org not implemented in mock")
+}
+
+// UpdateB2BOrg always returns not-implemented.
+func (m *MockB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
+	return nil, errors.NewNotImplemented("update-b2b-org not implemented in mock")
+}
+
+// MockMemberPublisher is a no-op implementation of port.MemberPublisher for
+// local development when MESSAGING_SOURCE=mock. All messages are logged but
+// not published to NATS.
+type MockMemberPublisher struct{}
+
+// NewMockMemberPublisher creates a new MockMemberPublisher.
+func NewMockMemberPublisher() *MockMemberPublisher {
+	return &MockMemberPublisher{}
+}
+
+// Indexer logs the message and returns nil.
+func (m *MockMemberPublisher) Indexer(ctx context.Context, subject string, _ any, _ bool) error {
+	slog.DebugContext(ctx, "mock: indexer publish (no-op)", "subject", subject)
+	return nil
+}
+
+// Access logs the message and returns nil.
+func (m *MockMemberPublisher) Access(ctx context.Context, subject string, _ any, _ bool) error {
+	slog.DebugContext(ctx, "mock: access publish (no-op)", "subject", subject)
+	return nil
+}
+
 // MockKeyContactWriter is a stub implementation of port.KeyContactWriter for
 // local development when REPOSITORY_SOURCE=mock. All methods return NotImplemented.
 type MockKeyContactWriter struct{}

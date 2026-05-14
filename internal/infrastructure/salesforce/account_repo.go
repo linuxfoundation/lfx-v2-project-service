@@ -25,6 +25,9 @@ const accountsSOQLBase = `
 SELECT
     Id, Name, Logo_URL__c, Website,
     Account_Domain__c, Domain_Alias__c,
+    Description, Phone, ParentId,
+    Industry, Sector__c, CrunchBase_URL__c,
+    NumberOfEmployees, LF_Membership_Status__c,
     CreatedDate, LastModifiedDate
 FROM Account
 WHERE IsDeleted = false
@@ -120,6 +123,25 @@ func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, e
 	}
 
 	org.LogoURL = derefString(acc.LogoURL)
+	org.Description = derefString(acc.Description)
+	org.Phone = derefString(acc.Phone)
+	org.Industry = derefString(acc.Industry)
+	org.Sector = derefString(acc.Sector)
+	org.CrunchBaseURL = acc.CrunchBaseURL
+	org.NumberOfEmployees = acc.NumberOfEmployees
+	org.Status = derefString(acc.Status)
+
+	if parentSFID := derefString(acc.ParentID); parentSFID != "" {
+		if parentUID, err := sfuuid.ToUUID(parentSFID); err == nil {
+			org.ParentUID = parentUID
+		} else {
+			slog.WarnContext(ctx, "account parent SFID could not be converted to UUID, omitting",
+				"sfid", acc.ID,
+				"parent_sfid", parentSFID,
+			)
+		}
+	}
+
 	org.CreatedAt = parseSOQLTime(acc.CreatedDate)
 	org.UpdatedAt = parseSOQLTime(acc.LastModifiedDate)
 

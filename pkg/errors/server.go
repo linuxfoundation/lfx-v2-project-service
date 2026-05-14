@@ -64,3 +64,25 @@ func NewNotImplemented(message string, err ...error) NotImplemented {
 		},
 	}
 }
+
+// PreconditionFailed represents a conditional-write failure (HTTP 412). It is
+// returned when an If-Match or If-Unmodified-Since check fails — i.e. the
+// caller's copy of the resource is stale.
+type PreconditionFailed struct {
+	base
+}
+
+// Error returns the error message for PreconditionFailed.
+func (p PreconditionFailed) Error() string {
+	return p.error()
+}
+
+// NewPreconditionFailed creates a new PreconditionFailed error with the provided message.
+func NewPreconditionFailed(message string, err ...error) PreconditionFailed {
+	return PreconditionFailed{
+		base: base{
+			message: message,
+			err:     errors.Join(err...),
+		},
+	}
+}

@@ -170,9 +170,23 @@ type soqlAccount struct {
 	// DomainAlias is a comma-separated list of additional domains
 	// (Account.Domain_Alias__c). Each item should be treated with the same
 	// normalization rules as PrimaryDomain.
-	DomainAlias      *string `salesforce:"Domain_Alias__c"  json:"Domain_Alias__c"`
-	CreatedDate      string  `salesforce:"CreatedDate"      json:"CreatedDate"`
-	LastModifiedDate string  `salesforce:"LastModifiedDate" json:"LastModifiedDate"`
+	DomainAlias *string `salesforce:"Domain_Alias__c"  json:"Domain_Alias__c"`
+	Description *string `salesforce:"Description"      json:"Description"`
+	Phone       *string `salesforce:"Phone"            json:"Phone"`
+	// ParentID is the Salesforce Id of the parent Account, if any.
+	ParentID *string `salesforce:"ParentId" json:"ParentId"`
+	// Industry is the standard SF Account.Industry field.
+	Industry *string `salesforce:"Industry" json:"Industry"`
+	// Sector is the custom SF field Account.Sector__c.
+	Sector *string `salesforce:"Sector__c" json:"Sector__c"`
+	// CrunchBaseURL is the custom SF field Account.CrunchBase_URL__c.
+	CrunchBaseURL *string `salesforce:"CrunchBase_URL__c" json:"CrunchBase_URL__c"`
+	// NumberOfEmployees is the standard SF Account.NumberOfEmployees (Integer).
+	NumberOfEmployees *int64 `salesforce:"NumberOfEmployees" json:"NumberOfEmployees"`
+	// Status is the custom SF field Account.LF_Membership_Status__c.
+	Status           *string `salesforce:"LF_Membership_Status__c" json:"LF_Membership_Status__c"`
+	CreatedDate      string  `salesforce:"CreatedDate"             json:"CreatedDate"`
+	LastModifiedDate string  `salesforce:"LastModifiedDate"        json:"LastModifiedDate"`
 }
 
 // derefString returns the string value of a *string pointer, or an empty string

@@ -7,6 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
@@ -40,13 +43,24 @@ func sobjectCacheKey(prefix, uid string) string {
 // sobjectAccount is the JSON shape of a Salesforce Account record from the
 // sObject REST API. Used for B2BOrg (member company) lookups.
 type sobjectAccount struct {
-	ID               string  `json:"Id"`
-	Name             string  `json:"Name"`
-	LogoURL          *string `json:"Logo_URL__c"`
-	Website          *string `json:"Website"`
-	CreatedDate      string  `json:"CreatedDate"`
-	LastModifiedDate string  `json:"LastModifiedDate"`
-	SystemModstamp   string  `json:"SystemModstamp"`
+	ID                string  `json:"Id"`
+	Name              string  `json:"Name"`
+	LogoURL           *string `json:"Logo_URL__c"`
+	Website           *string `json:"Website"`
+	PrimaryDomain     *string `json:"Account_Domain__c"`
+	DomainAlias       *string `json:"Domain_Alias__c"`
+	Description       *string `json:"Description"`
+	Phone             *string `json:"Phone"`
+	ParentID          *string `json:"ParentId"`
+	Industry          *string `json:"Industry"`
+	Sector            *string `json:"Sector__c"`
+	CrunchBaseURL     *string `json:"CrunchBase_URL__c"`
+	NumberOfEmployees *int64  `json:"NumberOfEmployees"`
+	Status            *string `json:"LF_Membership_Status__c"`
+	Slug              *string `json:"Slug__c"`
+	CreatedDate       string  `json:"CreatedDate"`
+	LastModifiedDate  string  `json:"LastModifiedDate"`
+	SystemModstamp    string  `json:"SystemModstamp"`
 }
 
 // sobjectAsset is the JSON shape of a Salesforce Asset record from the sObject
@@ -111,6 +125,15 @@ type sobjectProjectRole struct {
 const (
 	accountFields = "Id,Name,Logo_URL__c,Website,CreatedDate,LastModifiedDate,SystemModstamp"
 
+	// b2bOrgFields is the full field list for B2BOrg fetches via FetchB2BOrg. It
+	// includes all fields required to populate model.B2BOrg.
+	// TODO(LFXV2-1363): add Slug__c once the custom field is confirmed to exist in all
+	// target SF orgs (absent from partial sandbox, causing 400 INVALID_FIELD on fetch).
+	b2bOrgFields = "Id,Name,Logo_URL__c,Website,Account_Domain__c,Domain_Alias__c," +
+		"Description,Phone,ParentId,Industry,Sector__c,CrunchBase_URL__c," +
+		"NumberOfEmployees,LF_Membership_Status__c," +
+		"CreatedDate,LastModifiedDate,SystemModstamp"
+
 	assetFields = "Id,Name,Status,AccountId,Product2Id,Year__c,Tier__c,RecordTypeId," +
 		"Auto_Renew__c,Renewal_Type__c,Price,Annual_Full_Price__c,PaymentFrequency__c," +
 		"PaymentTerms__c,Agreement_Date__c,PurchaseDate,InstallDate,UsageEndDate," +
@@ -173,6 +196,115 @@ func sobjectAccountToRecord(raw *sobjectAccount, uid string) *AccountRecord {
 		CreatedAt: parseSOQLTime(raw.CreatedDate),
 		UpdatedAt: parseSOQLTime(raw.LastModifiedDate),
 	}
+}
+
+// FetchB2BOrg fetches a single Salesforce Account (B2BOrg) record by its UID
+// using the full b2bOrgFields field list. The returned model.B2BOrg is fully
+// populated including industry, sector, domains, and status fields.
+// The cache key is "b2b_org.{uid}"; the FetchResult carries ETag and Last-Modified
+// for use by callers that need to set response headers.
+func (c *SObjectClient) FetchB2BOrg(ctx context.Context, uid string) (*model.B2BOrg, *FetchResult, error) {
+	sfid, err := sfuuid.ToSFID(uid)
+	if err != nil {
+		return nil, nil, errs.NewValidation(fmt.Sprintf("invalid Account UID %q: %v", uid, err))
+	}
+
+	cacheKey := sobjectCacheKey(sobjectKeyPrefixB2BOrg, uid)
+	result, err := c.FetchSObject(ctx, "Account", sfid, cacheKey, b2bOrgFields)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var raw sobjectAccount
+	if unmarshalErr := json.Unmarshal(result.Body, &raw); unmarshalErr != nil {
+		return nil, nil, fmt.Errorf("unmarshal Account sObject response: %w", unmarshalErr)
+	}
+
+	org, err := sobjectAccountToB2BOrg(ctx, &raw, uid)
+	if err != nil {
+		return nil, nil, err
+	}
+	return org, result, nil
+}
+
+// sobjectAccountToB2BOrg converts a raw sobjectAccount (from the sObject REST
+// API) to a fully-populated model.B2BOrg. Domain normalization matches
+// convertSOQLToB2BOrg so that both paths produce equivalent output.
+func sobjectAccountToB2BOrg(ctx context.Context, raw *sobjectAccount, uid string) (*model.B2BOrg, error) {
+	org := &model.B2BOrg{
+		UID:     uid,
+		SFID:    raw.ID,
+		Name:    raw.Name,
+		LogoURL: derefString(raw.LogoURL),
+	}
+
+	// Normalize Website.
+	if rawSite := derefString(raw.Website); rawSite != "" {
+		if u, parseErr := url.Parse(rawSite); parseErr == nil {
+			if u.Scheme == "" {
+				u.Scheme = "http"
+			}
+			org.Website = u.String()
+		} else {
+			slog.WarnContext(ctx, "account website could not be parsed, omitting",
+				"uid", uid, "raw_value", rawSite)
+		}
+	}
+
+	// Normalize primary domain.
+	if rawDomain := derefString(raw.PrimaryDomain); rawDomain != "" {
+		if normalized, ok := normalizeDomain(rawDomain); ok {
+			org.PrimaryDomain = normalized
+		} else {
+			slog.WarnContext(ctx, "account primary domain invalid, omitting",
+				"uid", uid, "raw_value", rawDomain)
+		}
+	}
+
+	// Normalize domain aliases (comma-separated).
+	if rawAlias := derefString(raw.DomainAlias); rawAlias != "" {
+		for _, item := range strings.Split(rawAlias, ",") {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				continue
+			}
+			if normalized, ok := normalizeDomain(item); ok {
+				org.DomainAliases = append(org.DomainAliases, normalized)
+			} else {
+				slog.WarnContext(ctx, "account domain alias invalid, omitting",
+					"uid", uid, "raw_value", item)
+			}
+		}
+	}
+
+	org.Description = derefString(raw.Description)
+	org.Phone = derefString(raw.Phone)
+	org.Industry = derefString(raw.Industry)
+	org.Sector = derefString(raw.Sector)
+	org.CrunchBaseURL = raw.CrunchBaseURL
+	org.NumberOfEmployees = raw.NumberOfEmployees
+	org.Status = derefString(raw.Status)
+	org.Slug = derefString(raw.Slug)
+
+	if parentSFID := derefString(raw.ParentID); parentSFID != "" {
+		if parentUID, err := sfuuid.ToUUID(parentSFID); err == nil {
+			org.ParentUID = parentUID
+		} else {
+			slog.WarnContext(ctx, "account parent SFID could not be converted to UUID, omitting",
+				"uid", uid, "parent_sfid", parentSFID)
+		}
+	}
+
+	org.CreatedAt = parseSOQLTime(raw.CreatedDate)
+	org.UpdatedAt = parseSOQLTime(raw.LastModifiedDate)
+	if org.UpdatedAt.IsZero() {
+		org.UpdatedAt = org.CreatedAt
+	}
+	if org.CreatedAt.IsZero() {
+		org.CreatedAt = time.Now()
+	}
+
+	return org, nil
 }
 
 // ─── FetchAsset ───────────────────────────────────────────────────────────────

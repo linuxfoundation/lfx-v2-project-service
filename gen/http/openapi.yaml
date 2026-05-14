@@ -98,7 +98,7 @@ paths:
                   schema:
                     $ref: '#/definitions/MembershipServiceCreateB2bOrgRequestBody'
                     required:
-                        - name
+                        - sfid
             responses:
                 "201":
                     description: Created response.
@@ -670,6 +670,14 @@ definitions:
                 description: Creation timestamp
                 example: "2025-01-01T00:00:00Z"
                 format: date-time
+            crunch_base_url:
+                type: string
+                description: CrunchBase profile URL (Account.CrunchBase_URL__c)
+                example: https://www.crunchbase.com/organization/example-corp
+            description:
+                type: string
+                description: Organization free-text description (Account.Description)
+                example: A leading technology company
             domain_aliases:
                 type: array
                 items:
@@ -679,18 +687,48 @@ definitions:
                 example:
                     - example.org
                     - example.net
+            industry:
+                type: string
+                description: Industry classification (Account.Industry, standard Salesforce field)
+                example: Technology
             logo_url:
                 type: string
-                description: URL of the organization logo
+                description: URL of the organization logo (Account.Logo_URL__c)
                 example: https://example.com/logo.png
             name:
                 type: string
                 description: Organization name
                 example: Example Corp
+            number_of_employees:
+                type: integer
+                description: Employee count (Account.NumberOfEmployees)
+                example: 500
+                format: int64
+            parent_uid:
+                type: string
+                description: UID of the parent organization (Account.ParentId); omitted when no parent
+                example: 5c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                format: uuid
+            phone:
+                type: string
+                description: Organization contact phone number (Account.Phone)
+                example: +1-555-000-0000
             primary_domain:
                 type: string
                 description: Primary domain; bare host only, no scheme or path, e.g. 'example.com'
                 example: example.com
+            sector:
+                type: string
+                description: Sector classification (Account.Sector__c, custom Salesforce field)
+                example: Software
+            slug:
+                type: string
+                description: URL-friendly organization identifier; populated when Account.Slug__c is available
+                example: example-corp
+            status:
+                type: string
+                description: LF membership status (Account.LF_Membership_Status__c); read-only, managed by Salesforce workflows
+                example: Active
             uid:
                 type: string
                 description: B2BOrg UID (invertible UUID v8)
@@ -709,12 +747,21 @@ definitions:
         description: A B2B organization
         example:
             created_at: "2025-01-01T00:00:00Z"
+            crunch_base_url: https://www.crunchbase.com/organization/example-corp
+            description: A leading technology company
             domain_aliases:
                 - example.org
                 - example.net
+            industry: Technology
             logo_url: https://example.com/logo.png
             name: Example Corp
+            number_of_employees: 500
+            parent_uid: 5c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            phone: +1-555-000-0000
             primary_domain: example.com
+            sector: Software
+            slug: example-corp
+            status: Active
             uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
             updated_at: "2025-06-01T12:00:00Z"
             website: https://example.com
@@ -1225,14 +1272,16 @@ definitions:
         title: MembershipServiceCreateB2bOrgRequestBody
         type: object
         properties:
-            name:
+            sfid:
                 type: string
-                description: Organization name
-                example: Example Corp
+                description: Salesforce Account.Id (15- or 18-character); used to fetch and cache the org record
+                example: 001Hs00001AbCdEFAZ
+                minLength: 15
+                maxLength: 18
         example:
-            name: Example Corp
+            sfid: 001Hs00001AbCdEFAZ
         required:
-            - name
+            - sfid
     MembershipServiceCreateB2bOrgResponseBody:
         title: MembershipServiceCreateB2bOrgResponseBody
         $ref: '#/definitions/B2bOrgResponse'
@@ -2871,12 +2920,58 @@ definitions:
         title: MembershipServiceUpdateB2bOrgRequestBody
         type: object
         properties:
+            crunch_base_url:
+                type: string
+                description: CrunchBase profile URL (Account.CrunchBase_URL__c); pass empty string to explicitly clear
+                example: https://www.crunchbase.com/organization/example-corp
+            description:
+                type: string
+                description: Organization free-text description
+                example: A leading technology company
+            industry:
+                type: string
+                description: Industry classification (Account.Industry)
+                example: Technology
+            logo_url:
+                type: string
+                description: URL of the organization logo (Account.Logo_URL__c)
+                example: https://example.com/logo.png
             name:
                 type: string
                 description: Organization name
                 example: Example Corp
+            number_of_employees:
+                type: integer
+                description: Employee count (Account.NumberOfEmployees)
+                example: 500
+                format: int64
+            phone:
+                type: string
+                description: Organization contact phone number
+                example: +1-555-000-0000
+            primary_domain:
+                type: string
+                description: Primary domain (bare host)
+                example: example.com
+            sector:
+                type: string
+                description: Sector classification (Account.Sector__c)
+                example: Software
+            website:
+                type: string
+                description: Organization website URL
+                example: https://example.com
         example:
+            crunch_base_url: https://www.crunchbase.com/organization/example-corp
+            description: A leading technology company
+            industry: Technology
+            logo_url: https://example.com/logo.png
             name: Example Corp
+            number_of_employees: 500
+            phone: +1-555-000-0000
+            primary_domain: example.com
+            sector: Software
+            website: https://example.com
     MembershipServiceUpdateB2bOrgResponseBody:
         title: MembershipServiceUpdateB2bOrgResponseBody
         $ref: '#/definitions/B2bOrgResponse'

@@ -91,6 +91,10 @@ type B2bOrgResponse struct {
 	UID *string
 	// Organization name
 	Name *string
+	// Organization free-text description (Account.Description)
+	Description *string
+	// Organization contact phone number (Account.Phone)
+	Phone *string
 	// Organization website URL; always has a scheme (http or https)
 	Website *string
 	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
@@ -98,8 +102,24 @@ type B2bOrgResponse struct {
 	// Additional domains; each item is a bare host with the same normalization as
 	// primary_domain
 	DomainAliases []string
-	// URL of the organization logo
+	// URL of the organization logo (Account.Logo_URL__c)
 	LogoURL *string
+	// Industry classification (Account.Industry, standard Salesforce field)
+	Industry *string
+	// Sector classification (Account.Sector__c, custom Salesforce field)
+	Sector *string
+	// CrunchBase profile URL (Account.CrunchBase_URL__c)
+	CrunchBaseURL *string
+	// Employee count (Account.NumberOfEmployees)
+	NumberOfEmployees *int
+	// LF membership status (Account.LF_Membership_Status__c); read-only, managed
+	// by Salesforce workflows
+	Status *string
+	// URL-friendly organization identifier; populated when Account.Slug__c is
+	// available
+	Slug *string
+	// UID of the parent organization (Account.ParentId); omitted when no parent
+	ParentUID *string
 	// Creation timestamp
 	CreatedAt *string
 	// Last update timestamp
@@ -113,8 +133,9 @@ type CreateB2bOrgPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// Organization name
-	Name string
+	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
+	// record
+	Sfid string
 }
 
 // CreateB2bOrgResult is the result type of the membership-service service
@@ -376,6 +397,25 @@ type UpdateB2bOrgPayload struct {
 	IfUnmodifiedSince *string
 	// Organization name
 	Name *string
+	// Organization free-text description
+	Description *string
+	// Organization contact phone number
+	Phone *string
+	// Organization website URL
+	Website *string
+	// Primary domain (bare host)
+	PrimaryDomain *string
+	// URL of the organization logo (Account.Logo_URL__c)
+	LogoURL *string
+	// Industry classification (Account.Industry)
+	Industry *string
+	// Sector classification (Account.Sector__c)
+	Sector *string
+	// CrunchBase profile URL (Account.CrunchBase_URL__c); pass empty string to
+	// explicitly clear
+	CrunchBaseURL *string
+	// Employee count (Account.NumberOfEmployees)
+	NumberOfEmployees *int
 }
 
 // UpdateB2bOrgResult is the result type of the membership-service service

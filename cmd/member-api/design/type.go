@@ -290,6 +290,12 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 	dsl.Attribute("name", dsl.String, "Organization name", func() {
 		dsl.Example("Example Corp")
 	})
+	dsl.Attribute("description", dsl.String, "Organization free-text description (Account.Description)", func() {
+		dsl.Example("A leading technology company")
+	})
+	dsl.Attribute("phone", dsl.String, "Organization contact phone number (Account.Phone)", func() {
+		dsl.Example("+1-555-000-0000")
+	})
 	dsl.Attribute("website", dsl.String, "Organization website URL; always has a scheme (http or https)", func() {
 		dsl.Format(dsl.FormatURI)
 		dsl.Example("https://example.com")
@@ -300,8 +306,31 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 	dsl.Attribute("domain_aliases", dsl.ArrayOf(dsl.String), "Additional domains; each item is a bare host with the same normalization as primary_domain", func() {
 		dsl.Example([]string{"example.org", "example.net"})
 	})
-	dsl.Attribute("logo_url", dsl.String, "URL of the organization logo", func() {
+	dsl.Attribute("logo_url", dsl.String, "URL of the organization logo (Account.Logo_URL__c)", func() {
 		dsl.Example("https://example.com/logo.png")
+	})
+	dsl.Attribute("industry", dsl.String, "Industry classification (Account.Industry, standard Salesforce field)", func() {
+		dsl.Example("Technology")
+	})
+	dsl.Attribute("sector", dsl.String, "Sector classification (Account.Sector__c, custom Salesforce field)", func() {
+		dsl.Example("Software")
+	})
+	dsl.Attribute("crunch_base_url", dsl.String, "CrunchBase profile URL (Account.CrunchBase_URL__c)", func() {
+		dsl.Example("https://www.crunchbase.com/organization/example-corp")
+	})
+	dsl.Attribute("number_of_employees", dsl.Int, "Employee count (Account.NumberOfEmployees)", func() {
+		dsl.Example(500)
+	})
+	dsl.Attribute("status", dsl.String, "LF membership status (Account.LF_Membership_Status__c); read-only, managed by Salesforce workflows", func() {
+		dsl.Example("Active")
+	})
+	// TODO: slug is reserved for Account.Slug__c once the field is confirmed to exist in the SF org schema.
+	dsl.Attribute("slug", dsl.String, "URL-friendly organization identifier; populated when Account.Slug__c is available", func() {
+		dsl.Example("example-corp")
+	})
+	dsl.Attribute("parent_uid", dsl.String, "UID of the parent organization (Account.ParentId); omitted when no parent", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("5c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})
 	dsl.Attribute("created_at", dsl.String, "Creation timestamp", func() {
 		dsl.Format(dsl.FormatDateTime)
@@ -314,19 +343,50 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 })
 
 // B2BOrgCreateBody is the DSL type for creating a B2B organization.
+// POST /b2b_orgs registers an Account that EasyCLA / LFX Enrollment has already
+// created in Salesforce; it does not create a new Account. Idempotent on sfid.
 var B2BOrgCreateBody = dsl.Type("b2b-org-create-body", func() {
-	dsl.Description("Request body for creating a B2B organization")
-	dsl.Attribute("name", dsl.String, "Organization name", func() {
-		dsl.Example("Example Corp")
+	dsl.Description("Request body for registering a B2B organization by its Salesforce Account ID")
+	dsl.Attribute("sfid", dsl.String, "Salesforce Account.Id (15- or 18-character); used to fetch and cache the org record", func() {
+		dsl.Example("001Hs00001AbCdEFAZ")
+		dsl.MinLength(15)
+		dsl.MaxLength(18)
 	})
-	dsl.Required("name")
+	dsl.Required("sfid")
 })
 
 // B2BOrgUpdateBody is the DSL type for updating a B2B organization.
 var B2BOrgUpdateBody = dsl.Type("b2b-org-update-body", func() {
-	dsl.Description("Request body for updating a B2B organization")
+	dsl.Description("Request body for updating mutable fields on a B2B organization")
 	dsl.Attribute("name", dsl.String, "Organization name", func() {
 		dsl.Example("Example Corp")
+	})
+	dsl.Attribute("description", dsl.String, "Organization free-text description", func() {
+		dsl.Example("A leading technology company")
+	})
+	dsl.Attribute("phone", dsl.String, "Organization contact phone number", func() {
+		dsl.Example("+1-555-000-0000")
+	})
+	dsl.Attribute("website", dsl.String, "Organization website URL", func() {
+		dsl.Example("https://example.com")
+	})
+	dsl.Attribute("primary_domain", dsl.String, "Primary domain (bare host)", func() {
+		dsl.Example("example.com")
+	})
+	dsl.Attribute("logo_url", dsl.String, "URL of the organization logo (Account.Logo_URL__c)", func() {
+		dsl.Example("https://example.com/logo.png")
+	})
+	dsl.Attribute("industry", dsl.String, "Industry classification (Account.Industry)", func() {
+		dsl.Example("Technology")
+	})
+	dsl.Attribute("sector", dsl.String, "Sector classification (Account.Sector__c)", func() {
+		dsl.Example("Software")
+	})
+	dsl.Attribute("crunch_base_url", dsl.String, "CrunchBase profile URL (Account.CrunchBase_URL__c); pass empty string to explicitly clear", func() {
+		dsl.Example("https://www.crunchbase.com/organization/example-corp")
+	})
+	dsl.Attribute("number_of_employees", dsl.Int, "Employee count (Account.NumberOfEmployees)", func() {
+		dsl.Example(500)
 	})
 })
 

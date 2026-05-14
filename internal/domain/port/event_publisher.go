@@ -5,28 +5,28 @@ package port
 
 import "context"
 
-// EventPublisher publishes domain events to the LFX event bus. It is used by
-// write-path use cases to trigger downstream indexing and FGA synchronization
+// MemberPublisher publishes domain events to the LFX event bus. It is used by
+// write-path use cases to trigger downstream indexing and FGA synchronisation
 // after successful mutations.
 //
-// NOTE: The parameter types for PublishIndexerEvent (cfg) and
-// PublishFGASyncEvent (msg) are currently defined as `any` because the
-// indexertypes and fgasync packages do not yet exist in this repository. They
-// will be replaced with concrete types (indexertypes.IndexingConfig and
-// fgasync.GenericFGAMessage respectively) when those packages are added in a
-// later ticket.
-type EventPublisher interface {
-	// PublishIndexerEvent publishes an event to the LFX indexer so that the
-	// given object is re-indexed. objectType identifies the resource type (e.g.
-	// "b2b_org"), action identifies the mutation ("create", "update",
-	// "delete"), data is the serializable payload, and cfg carries indexer
-	// routing configuration (placeholder type until the indexertypes package
-	// exists).
-	PublishIndexerEvent(ctx context.Context, objectType, action string, data any, cfg any) error
+// Both methods accept a sync flag: when true the call blocks until the remote
+// acknowledges the message (used for synchronous write paths); when false the
+// message is fire-and-forget. Write handlers pass sync=false so that publish
+// failures never block or fail an HTTP response.
+//
+// Publish-failure policy:
+//   - Creates and updates: swallow the error and log at warn with
+//     publish_failed_for_backfill_repair=true so the /admin/reindex backfill
+//     can recover the record.
+//   - Deletes: propagate the error to the caller; a delete without FGA/index
+//     cleanup leaves dangling permissions.
+type MemberPublisher interface {
+	// Indexer publishes an indexer message to the given NATS subject.
+	// msg must be JSON-serialisable; the publisher wraps it in a
+	// MemberIndexerMessage envelope before sending.
+	Indexer(ctx context.Context, subject string, msg any, sync bool) error
 
-	// PublishFGASyncEvent publishes a generic FGA synchronization message so
-	// that OpenFGA permission tuples are kept consistent after a mutation. msg
-	// is the synchronization payload (placeholder type until the fgasync
-	// package exists).
-	PublishFGASyncEvent(ctx context.Context, msg any) error
+	// Access publishes an FGA synchronisation message to the given NATS subject.
+	// msg must be JSON-serialisable (typically a fgatypes.GenericFGAMessage).
+	Access(ctx context.Context, subject string, msg any, sync bool) error
 }

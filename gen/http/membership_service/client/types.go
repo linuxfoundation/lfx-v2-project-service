@@ -16,8 +16,9 @@ import (
 // CreateB2bOrgRequestBody is the type of the "membership-service" service
 // "create-b2b-org" endpoint HTTP request body.
 type CreateB2bOrgRequestBody struct {
-	// Organization name
-	Name string `form:"name" json:"name" xml:"name"`
+	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
+	// record
+	Sfid string `form:"sfid" json:"sfid" xml:"sfid"`
 }
 
 // UpdateB2bOrgRequestBody is the type of the "membership-service" service
@@ -25,6 +26,25 @@ type CreateB2bOrgRequestBody struct {
 type UpdateB2bOrgRequestBody struct {
 	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Organization free-text description
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Organization contact phone number
+	Phone *string `form:"phone,omitempty" json:"phone,omitempty" xml:"phone,omitempty"`
+	// Organization website URL
+	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
+	// Primary domain (bare host)
+	PrimaryDomain *string `form:"primary_domain,omitempty" json:"primary_domain,omitempty" xml:"primary_domain,omitempty"`
+	// URL of the organization logo (Account.Logo_URL__c)
+	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// Industry classification (Account.Industry)
+	Industry *string `form:"industry,omitempty" json:"industry,omitempty" xml:"industry,omitempty"`
+	// Sector classification (Account.Sector__c)
+	Sector *string `form:"sector,omitempty" json:"sector,omitempty" xml:"sector,omitempty"`
+	// CrunchBase profile URL (Account.CrunchBase_URL__c); pass empty string to
+	// explicitly clear
+	CrunchBaseURL *string `form:"crunch_base_url,omitempty" json:"crunch_base_url,omitempty" xml:"crunch_base_url,omitempty"`
+	// Employee count (Account.NumberOfEmployees)
+	NumberOfEmployees *int `form:"number_of_employees,omitempty" json:"number_of_employees,omitempty" xml:"number_of_employees,omitempty"`
 }
 
 // CreateKeyContactRequestBody is the type of the "membership-service" service
@@ -1160,6 +1180,10 @@ type B2bOrgResponseResponseBody struct {
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// Organization free-text description (Account.Description)
+	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
+	// Organization contact phone number (Account.Phone)
+	Phone *string `form:"phone,omitempty" json:"phone,omitempty" xml:"phone,omitempty"`
 	// Organization website URL; always has a scheme (http or https)
 	Website *string `form:"website,omitempty" json:"website,omitempty" xml:"website,omitempty"`
 	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
@@ -1167,8 +1191,24 @@ type B2bOrgResponseResponseBody struct {
 	// Additional domains; each item is a bare host with the same normalization as
 	// primary_domain
 	DomainAliases []string `form:"domain_aliases,omitempty" json:"domain_aliases,omitempty" xml:"domain_aliases,omitempty"`
-	// URL of the organization logo
+	// URL of the organization logo (Account.Logo_URL__c)
 	LogoURL *string `form:"logo_url,omitempty" json:"logo_url,omitempty" xml:"logo_url,omitempty"`
+	// Industry classification (Account.Industry, standard Salesforce field)
+	Industry *string `form:"industry,omitempty" json:"industry,omitempty" xml:"industry,omitempty"`
+	// Sector classification (Account.Sector__c, custom Salesforce field)
+	Sector *string `form:"sector,omitempty" json:"sector,omitempty" xml:"sector,omitempty"`
+	// CrunchBase profile URL (Account.CrunchBase_URL__c)
+	CrunchBaseURL *string `form:"crunch_base_url,omitempty" json:"crunch_base_url,omitempty" xml:"crunch_base_url,omitempty"`
+	// Employee count (Account.NumberOfEmployees)
+	NumberOfEmployees *int `form:"number_of_employees,omitempty" json:"number_of_employees,omitempty" xml:"number_of_employees,omitempty"`
+	// LF membership status (Account.LF_Membership_Status__c); read-only, managed
+	// by Salesforce workflows
+	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	// URL-friendly organization identifier; populated when Account.Slug__c is
+	// available
+	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
+	// UID of the parent organization (Account.ParentId); omitted when no parent
+	ParentUID *string `form:"parent_uid,omitempty" json:"parent_uid,omitempty" xml:"parent_uid,omitempty"`
 	// Creation timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// Last update timestamp
@@ -1278,7 +1318,7 @@ type ProjectKeyContactResponseResponseBody struct {
 // the "create-b2b-org" endpoint of the "membership-service" service.
 func NewCreateB2bOrgRequestBody(p *membershipservice.CreateB2bOrgPayload) *CreateB2bOrgRequestBody {
 	body := &CreateB2bOrgRequestBody{
-		Name: p.Name,
+		Sfid: p.Sfid,
 	}
 	return body
 }
@@ -1287,7 +1327,16 @@ func NewCreateB2bOrgRequestBody(p *membershipservice.CreateB2bOrgPayload) *Creat
 // the "update-b2b-org" endpoint of the "membership-service" service.
 func NewUpdateB2bOrgRequestBody(p *membershipservice.UpdateB2bOrgPayload) *UpdateB2bOrgRequestBody {
 	body := &UpdateB2bOrgRequestBody{
-		Name: p.Name,
+		Name:              p.Name,
+		Description:       p.Description,
+		Phone:             p.Phone,
+		Website:           p.Website,
+		PrimaryDomain:     p.PrimaryDomain,
+		LogoURL:           p.LogoURL,
+		Industry:          p.Industry,
+		Sector:            p.Sector,
+		CrunchBaseURL:     p.CrunchBaseURL,
+		NumberOfEmployees: p.NumberOfEmployees,
 	}
 	return body
 }
@@ -1341,13 +1390,22 @@ func NewAdminReindexRequestBody(p *membershipservice.AdminReindexPayload) *Admin
 // endpoint result from a HTTP "OK" response.
 func NewGetB2bOrgResultOK(body *GetB2bOrgResponseBody, etag *string, lastModified *string) *membershipservice.GetB2bOrgResult {
 	v := &membershipservice.B2bOrgResponse{
-		UID:           body.UID,
-		Name:          body.Name,
-		Website:       body.Website,
-		PrimaryDomain: body.PrimaryDomain,
-		LogoURL:       body.LogoURL,
-		CreatedAt:     body.CreatedAt,
-		UpdatedAt:     body.UpdatedAt,
+		UID:               body.UID,
+		Name:              body.Name,
+		Description:       body.Description,
+		Phone:             body.Phone,
+		Website:           body.Website,
+		PrimaryDomain:     body.PrimaryDomain,
+		LogoURL:           body.LogoURL,
+		Industry:          body.Industry,
+		Sector:            body.Sector,
+		CrunchBaseURL:     body.CrunchBaseURL,
+		NumberOfEmployees: body.NumberOfEmployees,
+		Status:            body.Status,
+		Slug:              body.Slug,
+		ParentUID:         body.ParentUID,
+		CreatedAt:         body.CreatedAt,
+		UpdatedAt:         body.UpdatedAt,
 	}
 	if body.DomainAliases != nil {
 		v.DomainAliases = make([]string, len(body.DomainAliases))
@@ -1458,13 +1516,22 @@ func NewGetB2bOrgServiceUnavailable(body *GetB2bOrgServiceUnavailableResponseBod
 // "create-b2b-org" endpoint result from a HTTP "Created" response.
 func NewCreateB2bOrgResultCreated(body *CreateB2bOrgResponseBody, etag *string, lastModified *string) *membershipservice.CreateB2bOrgResult {
 	v := &membershipservice.B2bOrgResponse{
-		UID:           body.UID,
-		Name:          body.Name,
-		Website:       body.Website,
-		PrimaryDomain: body.PrimaryDomain,
-		LogoURL:       body.LogoURL,
-		CreatedAt:     body.CreatedAt,
-		UpdatedAt:     body.UpdatedAt,
+		UID:               body.UID,
+		Name:              body.Name,
+		Description:       body.Description,
+		Phone:             body.Phone,
+		Website:           body.Website,
+		PrimaryDomain:     body.PrimaryDomain,
+		LogoURL:           body.LogoURL,
+		Industry:          body.Industry,
+		Sector:            body.Sector,
+		CrunchBaseURL:     body.CrunchBaseURL,
+		NumberOfEmployees: body.NumberOfEmployees,
+		Status:            body.Status,
+		Slug:              body.Slug,
+		ParentUID:         body.ParentUID,
+		CreatedAt:         body.CreatedAt,
+		UpdatedAt:         body.UpdatedAt,
 	}
 	if body.DomainAliases != nil {
 		v.DomainAliases = make([]string, len(body.DomainAliases))
@@ -1575,13 +1642,22 @@ func NewCreateB2bOrgServiceUnavailable(body *CreateB2bOrgServiceUnavailableRespo
 // "update-b2b-org" endpoint result from a HTTP "OK" response.
 func NewUpdateB2bOrgResultOK(body *UpdateB2bOrgResponseBody, etag *string, lastModified *string) *membershipservice.UpdateB2bOrgResult {
 	v := &membershipservice.B2bOrgResponse{
-		UID:           body.UID,
-		Name:          body.Name,
-		Website:       body.Website,
-		PrimaryDomain: body.PrimaryDomain,
-		LogoURL:       body.LogoURL,
-		CreatedAt:     body.CreatedAt,
-		UpdatedAt:     body.UpdatedAt,
+		UID:               body.UID,
+		Name:              body.Name,
+		Description:       body.Description,
+		Phone:             body.Phone,
+		Website:           body.Website,
+		PrimaryDomain:     body.PrimaryDomain,
+		LogoURL:           body.LogoURL,
+		Industry:          body.Industry,
+		Sector:            body.Sector,
+		CrunchBaseURL:     body.CrunchBaseURL,
+		NumberOfEmployees: body.NumberOfEmployees,
+		Status:            body.Status,
+		Slug:              body.Slug,
+		ParentUID:         body.ParentUID,
+		CreatedAt:         body.CreatedAt,
+		UpdatedAt:         body.UpdatedAt,
 	}
 	if body.DomainAliases != nil {
 		v.DomainAliases = make([]string, len(body.DomainAliases))
@@ -2398,6 +2474,9 @@ func ValidateGetB2bOrgResponseBody(body *GetB2bOrgResponseBody) (err error) {
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
 	}
+	if body.ParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -2416,6 +2495,9 @@ func ValidateCreateB2bOrgResponseBody(body *CreateB2bOrgResponseBody) (err error
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
 	}
+	if body.ParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -2433,6 +2515,9 @@ func ValidateUpdateB2bOrgResponseBody(body *UpdateB2bOrgResponseBody) (err error
 	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
+	}
+	if body.ParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3891,6 +3976,9 @@ func ValidateB2bOrgResponseResponseBody(body *B2bOrgResponseResponseBody) (err e
 	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
+	}
+	if body.ParentUID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
