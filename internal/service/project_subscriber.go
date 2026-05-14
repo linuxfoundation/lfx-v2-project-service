@@ -150,18 +150,29 @@ func diffRole(old, new []events.UserInfo, role string) []roleAssignment {
 			oldSet[key] = struct{}{}
 		}
 	}
-	seenNew := make(map[string]struct{}, len(new))
+	seenNew := make(map[string]struct{}, len(new)*2)
 	var additions []roleAssignment
 	for _, u := range new {
 		keys := memberKeys(u)
 		if len(keys) == 0 {
 			continue
 		}
-		primary := keys[0] // username: if present, else email:
-		if _, alreadySeen := seenNew[primary]; alreadySeen {
+		// Skip if this user was already seen under any of their identity keys,
+		// covering cases where the same person appears with different identity
+		// shapes (e.g. username+email in one entry, email-only in another).
+		alreadySeen := false
+		for _, key := range keys {
+			if _, ok := seenNew[key]; ok {
+				alreadySeen = true
+				break
+			}
+		}
+		if alreadySeen {
 			continue
 		}
-		seenNew[primary] = struct{}{}
+		for _, key := range keys {
+			seenNew[key] = struct{}{}
+		}
 		// The user is already present if ANY of their keys appear in oldSet.
 		present := false
 		for _, key := range keys {

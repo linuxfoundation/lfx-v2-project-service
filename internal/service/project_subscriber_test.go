@@ -239,6 +239,19 @@ func TestDiffNewMembers(t *testing.T) {
 			new:     events.ProjectSettings{Writers: []events.UserInfo{{Username: "alice", Email: "alice@example.com"}}},
 			wantLen: 0,
 		},
+		{
+			// Same person listed twice in new with different identity shapes (username+email,
+			// then email-only). seenNew must index all keys so the second entry is recognised
+			// as a duplicate and only one notification is sent.
+			name: "same person twice in new with different identity shapes — only one addition",
+			old:  events.ProjectSettings{},
+			new: events.ProjectSettings{Writers: []events.UserInfo{
+				{Username: "alice", Email: "alice@example.com"},
+				{Email: "alice@example.com"},
+			}},
+			wantLen:      1,
+			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: "Writer"}},
+		},
 	}
 
 	for _, tt := range tests {
