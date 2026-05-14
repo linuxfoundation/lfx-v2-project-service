@@ -22,8 +22,8 @@ import "context"
 //     cleanup leaves dangling permissions.
 type MemberPublisher interface {
 	// Indexer publishes an indexer message to the given NATS subject.
-	// msg must be JSON-serialisable; the publisher wraps it in a
-	// MemberIndexerMessage envelope before sending.
+	// msg must be a pre-built, JSON-serialisable value (e.g. *model.MemberIndexerMessage);
+	// the publisher marshals and forwards it as-is.
 	Indexer(ctx context.Context, subject string, msg any, sync bool) error
 
 	// Access publishes an FGA synchronisation message to the given NATS subject.

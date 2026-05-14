@@ -80,6 +80,32 @@ func TestNewServiceUnavailable(t *testing.T) {
 	}
 }
 
+func TestNewPreconditionFailed(t *testing.T) {
+	tests := []struct {
+		name    string
+		message string
+		wantMsg string
+	}{
+		{
+			name:    "message only",
+			message: "record has been modified",
+			wantMsg: "record has been modified",
+		},
+		{
+			name:    "message with context",
+			message: "b2b org abc has been modified since last read",
+			wantMsg: "b2b org abc has been modified since last read",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pf := NewPreconditionFailed(tt.message)
+			assert.Equal(t, tt.wantMsg, pf.Error())
+		})
+	}
+}
+
 func TestNewNotImplemented(t *testing.T) {
 	tests := []struct {
 		name    string
