@@ -60,8 +60,9 @@ func (s *membershipServicesrvc) normalizeAndValidateCreate(
 	return nil, nil
 }
 
-// normalizeAndValidateUpdate lowercases email (if set), then enforces capacity when
-// the new role differs from the current role (legacy guard pattern).
+// normalizeAndValidateUpdate lowercases email (if set), then enforces duplicate
+// detection whenever email or role changes, and capacity only when role changes
+// (legacy guard pattern: capacity re-applies only on a role change).
 func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 	ctx context.Context,
 	current *model.KeyContact,
@@ -78,8 +79,11 @@ func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 		newRole = *p.Role
 	}
 
-	// Skip capacity + duplicate checks when role is unchanged (legacy guard pattern).
-	if newRole == current.Role {
+	roleChanging := newRole != current.Role
+	emailChanging := p.Email != nil && !strings.EqualFold(*p.Email, current.Email)
+
+	// Nothing that affects uniqueness or capacity is changing — skip sibling scan.
+	if !roleChanging && !emailChanging {
 		return nil
 	}
 
@@ -93,7 +97,8 @@ func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 		effectiveEmail = *p.Email
 	}
 
-	// Single pass: count capacity for newRole and detect (role, email) duplicates.
+	// Single pass: detect (role, email) duplicates and, when role is changing,
+	// count active siblings for capacity enforcement.
 	// Inactive siblings and the current record are excluded from both checks.
 	activeCount := 0
 	for _, kc := range existing {
@@ -101,18 +106,21 @@ func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 			continue
 		}
 		if kc.Role == newRole {
-			activeCount++
 			if strings.EqualFold(kc.Email, effectiveEmail) {
 				return pkgerrors.NewConflict(
 					fmt.Sprintf("key contact already exists for email %s with role %s",
 						effectiveEmail, newRole))
 			}
+			activeCount++
 		}
 	}
 
-	if limit, ok := constants.KeyContactRoleLimits[newRole]; ok && activeCount >= limit {
-		return pkgerrors.NewConflict(
-			fmt.Sprintf("%s is limited to %d per membership", newRole, limit))
+	// Capacity is only re-enforced when the role changes (legacy guard pattern).
+	if roleChanging {
+		if limit, ok := constants.KeyContactRoleLimits[newRole]; ok && activeCount >= limit {
+			return pkgerrors.NewConflict(
+				fmt.Sprintf("%s is limited to %d per membership", newRole, limit))
+		}
 	}
 
 	return nil

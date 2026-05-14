@@ -144,10 +144,14 @@ func buildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingC
 		}
 	}
 
+	emails := kc.Emails
+	if len(emails) == 0 && kc.Email != "" {
+		emails = []string{kc.Email}
+	}
 	contact := indexerTypes.ContactBody{
 		LfxPrincipal: kc.UID,
 		Name:         kc.Name(),
-		Emails:       kc.Emails,
+		Emails:       emails,
 	}
 
 	return &indexerTypes.IndexingConfig{

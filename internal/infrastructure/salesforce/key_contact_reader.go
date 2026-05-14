@@ -135,6 +135,9 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 	contact.LastName = derefString(rawContact.LastName)
 	contact.Title = derefString(rawContact.Title)
 	contact.Email = derefString(rawContact.Email)
+	if contact.Email != "" {
+		contact.Emails = []string{contact.Email}
+	}
 
 	// Populate TierUID from Asset.Product2Id.
 	if rawAsset.Product2ID != "" {

@@ -203,6 +203,9 @@ func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.Key
 //
 // After a successful update the key-contacts cache entry for the parent membership
 // is deleted and the updated record is re-fetched.
+//
+// Note: Title is only applied when a new Salesforce Contact is created during
+// email resolution. If the Contact already exists, Title is not patched.
 func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID string, input model.KeyContactInput) (*model.KeyContact, error) {
 	sfid, err := sfuuid.ToSFID(contactUID)
 	if err != nil {
@@ -330,8 +333,8 @@ func (w *KeyContactWriter) DeleteKeyContact(ctx context.Context, contactUID stri
 // buildKeyContactPatch constructs the JSON-serialisable PATCH body for a
 // Salesforce Project_Role__c update. Only non-nil pointer fields from input are
 // included; nil pointer fields are omitted so the existing values are preserved.
-// Note: email updates are NOT supported via this patch function; email changes
-// require Contact resolution and are handled separately in the service layer.
+// Note: email changes are NOT patched here — they are handled in UpdateKeyContact
+// by resolving/creating a Salesforce Contact and rewiring Contact__c directly.
 func buildKeyContactPatch(input model.KeyContactInput) map[string]any {
 	patch := make(map[string]any)
 	if input.Role != nil {
