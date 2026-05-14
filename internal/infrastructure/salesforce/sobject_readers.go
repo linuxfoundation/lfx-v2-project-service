@@ -26,6 +26,7 @@ const (
 	sobjectKeyPrefixProjectMembership = "project_membership"
 	sobjectKeyPrefixKeyContact        = "key_contact"
 	sobjectKeyPrefixMembershipTier    = "membership_tier"
+	sobjectKeyPrefixContact           = "contact"
 )
 
 // sobjectCacheKey returns the "{prefix}.{uid}" cache key for the
@@ -106,15 +107,28 @@ type sobjectProduct2 struct {
 // sobjectProjectRole is the JSON shape of a Salesforce Project_Role__c record
 // from the sObject REST API. Used for KeyContact single-record reads.
 type sobjectProjectRole struct {
-	ID             string  `json:"Id"`
-	AssetID        string  `json:"Asset__c"`
-	ContactID      *string `json:"Contact__c"`
-	Role           *string `json:"Role__c"`
-	Status         *string `json:"Status__c"`
-	BoardMember    bool    `json:"BoardMember__c"`
-	PrimaryContact bool    `json:"PrimaryContact__c"`
-	CreatedDate    string  `json:"CreatedDate"`
-	SystemModstamp string  `json:"SystemModstamp"`
+	ID               string  `json:"Id"`
+	AssetID          string  `json:"Asset__c"`
+	ContactID        *string `json:"Contact__c"`
+	Role             *string `json:"Role__c"`
+	Status           *string `json:"Status__c"`
+	BoardMember      bool    `json:"BoardMember__c"`
+	PrimaryContact   bool    `json:"PrimaryContact__c"`
+	CreatedDate      string  `json:"CreatedDate"`
+	LastModifiedDate string  `json:"LastModifiedDate"`
+	SystemModstamp   string  `json:"SystemModstamp"`
+}
+
+// sobjectContact is the JSON shape of a Salesforce Contact record from the
+// sObject REST API. Used to populate FirstName, LastName, Title, and Email on
+// an assembled KeyContact.
+type sobjectContact struct {
+	ID               string  `json:"Id"`
+	FirstName        *string `json:"FirstName"`
+	LastName         *string `json:"LastName"`
+	Title            *string `json:"Title"`
+	Email            *string `json:"Email"`
+	LastModifiedDate string  `json:"LastModifiedDate"`
 }
 
 // ─── sObject field lists ──────────────────────────────────────────────────────
@@ -142,7 +156,9 @@ const (
 	product2Fields = "Id,Name,Family,Type__c,Project__c,CreatedDate,LastModifiedDate,SystemModstamp"
 
 	projectRoleFields = "Id,Asset__c,Contact__c,Role__c,Status__c,BoardMember__c," +
-		"PrimaryContact__c,CreatedDate,SystemModstamp"
+		"PrimaryContact__c,CreatedDate,LastModifiedDate,SystemModstamp"
+
+	contactFields = "Id,FirstName,LastName,Title,Email,LastModifiedDate"
 )
 
 // ─── FetchAccount ─────────────────────────────────────────────────────────────
@@ -464,6 +480,6 @@ func sobjectProjectRoleToModel(raw *sobjectProjectRole, uid string) (*model.KeyC
 		BoardMember:    raw.BoardMember,
 		PrimaryContact: raw.PrimaryContact,
 		CreatedAt:      parseSOQLTime(raw.CreatedDate),
-		UpdatedAt:      parseSOQLTime(raw.SystemModstamp),
+		UpdatedAt:      parseSOQLTime(raw.LastModifiedDate),
 	}, nil
 }

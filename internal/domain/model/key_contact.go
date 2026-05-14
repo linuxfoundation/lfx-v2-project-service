@@ -14,8 +14,9 @@ import (
 // optional on update; a nil pointer means "leave unchanged".
 type KeyContactInput struct {
 	// Email is the contact's email address. Required on create; used to
-	// resolve or create the B2B Salesforce Contact record.
-	Email string
+	// resolve or create the B2B Salesforce Contact record. On update, nil
+	// means "leave unchanged".
+	Email *string
 
 	// FirstName is the contact's first name. Required on create; used when
 	// creating a new Contact on miss.
@@ -56,6 +57,11 @@ type KeyContactInput struct {
 	// PrimaryContact indicates whether this is the primary contact for the
 	// membership.
 	PrimaryContact *bool
+
+	// IfUnmodifiedSince is the SF LastModifiedDate forwarded as If-Unmodified-Since
+	// to the Salesforce PATCH endpoint for server-side concurrency protection.
+	// Set by the service layer after ETag validation; never supplied directly by API callers.
+	IfUnmodifiedSince string
 }
 
 // KeyContact represents a key contact (Project_Role__c) for a specific
@@ -155,6 +161,12 @@ func (kc *KeyContact) Tags() []string {
 	}
 	if kc.B2BOrgUID != "" {
 		tags = append(tags, fmt.Sprintf("b2b_org_uid:%s", kc.B2BOrgUID))
+	}
+	if kc.Role != "" {
+		tags = append(tags, fmt.Sprintf("role:%s", kc.Role))
+	}
+	if kc.Status != "" {
+		tags = append(tags, fmt.Sprintf("status:%s", kc.Status))
 	}
 	return tags
 }

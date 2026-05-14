@@ -4,6 +4,7 @@
 package design
 
 import (
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	"goa.design/goa/v3/dsl"
 )
 
@@ -420,9 +421,11 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	})
 	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
 		dsl.Example("Voting Representative")
+		dsl.Enum(constants.KeyContactRoles...)
 	})
 	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
 		dsl.Example("Active")
+		dsl.Enum(constants.KeyContactStatuses...)
 	})
 	dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
 		dsl.Example(false)
@@ -430,17 +433,23 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
 		dsl.Example(false)
 	})
-	dsl.Required("b2b_org_uid", "project_uid", "membership_uid", "email", "first_name", "last_name")
+	dsl.Required("b2b_org_uid", "project_uid", "membership_uid", "email", "first_name", "last_name", "role")
 })
 
 // KeyContactUpdateBody is the DSL type for updating a key contact.
 var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 	dsl.Description("Request body for updating a key contact (Project_Role__c record)")
+	dsl.Attribute("email", dsl.String, "Contact email address; normalized to lowercase before update", func() {
+		dsl.Format(dsl.FormatEmail)
+		dsl.Example("john.doe@example.com")
+	})
 	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
 		dsl.Example("Voting Representative")
+		dsl.Enum(constants.KeyContactRoles...)
 	})
 	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
 		dsl.Example("Active")
+		dsl.Enum(constants.KeyContactStatuses...)
 	})
 	dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
 		dsl.Example(false)

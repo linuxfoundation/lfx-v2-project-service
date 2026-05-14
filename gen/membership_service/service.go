@@ -172,7 +172,7 @@ type CreateKeyContactPayload struct {
 	// Contact job title; used when creating a new Contact on miss
 	Title *string
 	// Contact role designation, e.g. 'Voting Representative'
-	Role *string
+	Role string
 	// Role record status, e.g. 'Active'
 	Status *string
 	// Whether this contact holds a board member role
@@ -442,6 +442,8 @@ type UpdateKeyContactPayload struct {
 	IfMatch *string
 	// If-Unmodified-Since header value for conditional requests (HTTP date format)
 	IfUnmodifiedSince *string
+	// Contact email address; normalized to lowercase before update
+	Email *string
 	// Contact role designation, e.g. 'Voting Representative'
 	Role *string
 	// Role record status, e.g. 'Active'
@@ -493,4 +495,9 @@ func MakeInternalServerError(err error) *goa.ServiceError {
 // MakeServiceUnavailable builds a goa.ServiceError from an error.
 func MakeServiceUnavailable(err error) *goa.ServiceError {
 	return goa.NewServiceError(err, "ServiceUnavailable", false, true, false)
+}
+
+// MakeConflict builds a goa.ServiceError from an error.
+func MakeConflict(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "Conflict", false, false, false)
 }

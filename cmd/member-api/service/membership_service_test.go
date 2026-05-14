@@ -6,6 +6,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -27,62 +29,13 @@ import (
 )
 
 // TestStubHandlers_ReturnNotImplemented checks that handlers not yet wired
-// return a Goa NotImplemented error. B2BOrg handlers are now wired (tested
-// separately); this list covers the remaining stubs.
+// return a Goa NotImplemented error. B2BOrg, ProjectMembership, and KeyContact
+// handlers are now wired (tested separately); this list covers the remaining stubs.
 func TestStubHandlers_ReturnNotImplemented(t *testing.T) {
 	tests := []struct {
 		name        string
 		callHandler func(svc membershipservice.Service, ctx context.Context) error
 	}{
-		{
-			name: "GetProjectMembership returns NotImplemented",
-			callHandler: func(svc membershipservice.Service, ctx context.Context) error {
-				_, err := svc.GetProjectMembership(ctx, &membershipservice.GetProjectMembershipPayload{
-					UID: "test-uid",
-				})
-				return err
-			},
-		},
-		{
-			name: "GetKeyContact returns NotImplemented",
-			callHandler: func(svc membershipservice.Service, ctx context.Context) error {
-				_, err := svc.GetKeyContact(ctx, &membershipservice.GetKeyContactPayload{
-					UID: "test-uid",
-				})
-				return err
-			},
-		},
-		{
-			name: "CreateKeyContact returns NotImplemented",
-			callHandler: func(svc membershipservice.Service, ctx context.Context) error {
-				_, err := svc.CreateKeyContact(ctx, &membershipservice.CreateKeyContactPayload{
-					B2bOrgUID:     "org-uid",
-					ProjectUID:    "project-uid",
-					MembershipUID: "membership-uid",
-					Email:         "test@example.com",
-					FirstName:     "Test",
-					LastName:      "User",
-				})
-				return err
-			},
-		},
-		{
-			name: "UpdateKeyContact returns NotImplemented",
-			callHandler: func(svc membershipservice.Service, ctx context.Context) error {
-				_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
-					UID: "test-uid",
-				})
-				return err
-			},
-		},
-		{
-			name: "DeleteKeyContact returns NotImplemented",
-			callHandler: func(svc membershipservice.Service, ctx context.Context) error {
-				return svc.DeleteKeyContact(ctx, &membershipservice.DeleteKeyContactPayload{
-					UID: "test-uid",
-				})
-			},
-		},
 		{
 			name: "AdminReindex returns NotImplemented",
 			callHandler: func(svc membershipservice.Service, ctx context.Context) error {
@@ -149,6 +102,7 @@ func newTestMembershipService() membershipservice.Service {
 	mockRepo := mock.NewMockMembershipRepository()
 	mockB2BOrgReader := mock.NewMockB2BOrgReader()
 	mockB2BOrgWriter := mock.NewMockB2BOrgWriter()
+	mockProjectMembershipReader := mock.NewMockProjectMembershipReader()
 	mockPublisher := mock.NewMockMemberPublisher()
 	mockKCWriter := &mockKeyContactWriter{}
 
@@ -165,6 +119,7 @@ func newTestMembershipService() membershipservice.Service {
 		mockKCWriter,
 		mockB2BOrgReader,
 		mockB2BOrgWriter,
+		mockProjectMembershipReader,
 		mockPublisher,
 		"",
 	)
@@ -502,23 +457,728 @@ func newTestMembershipServiceWith(
 		&mockKeyContactWriter{},
 		b2bOrgReader,
 		b2bOrgWriter,
+		mock.NewMockProjectMembershipReader(),
 		publisher,
 		globalOrgAdminTeamUID,
 	)
 }
 
+// TestGetProjectMembership_Happy verifies that GetProjectMembership assembles
+// and returns a fully denormalised ProjectMembership with ETag and Last-Modified.
+func TestGetProjectMembership_Happy(t *testing.T) {
+	now := time.Now()
+	sampleMembership := &model.ProjectMembership{
+		UID:             "membership-uid-001",
+		TierUID:         "tier-uid-001",
+		ProjectUID:      "project-uid-001",
+		ProjectSlug:     "linux-foundation",
+		Status:          "Active",
+		Year:            "2025",
+		Tier:            "Gold",
+		AutoRenew:       true,
+		CompanyName:     "Acme Corp",
+		CompanyLogoURL:  "https://acme.com/logo.png",
+		CompanyDomain:   "https://acme.com",
+		TierName:        "Gold Membership",
+		TierFamily:      "Membership",
+		TierProductType: "Corporate",
+		CreatedAt:       now.Add(-24 * time.Hour),
+		UpdatedAt:       now,
+	}
+
+	pmr := &mockProjectMembershipReader{
+		membership: sampleMembership,
+		lastMod:    now,
+	}
+
+	mockRepo := mock.NewMockMembershipRepository()
+	readMemberUseCase := usecaseSvc.NewMemberReaderOrchestrator(
+		usecaseSvc.WithMemberReader(mockRepo),
+	)
+
+	svc := NewMembershipService(
+		readMemberUseCase,
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		pmr,
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+
+	result, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
+		UID: "membership-uid-001",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.ProjectMembership)
+	assert.Equal(t, "membership-uid-001", *result.ProjectMembership.UID)
+	assert.Equal(t, "Acme Corp", *result.ProjectMembership.CompanyName)
+	assert.Equal(t, "Gold Membership", *result.ProjectMembership.TierName)
+	assert.Equal(t, "linux-foundation", *result.ProjectMembership.ProjectSlug)
+	assert.NotNil(t, result.Etag, "ETag must be set")
+	assert.NotNil(t, result.LastModified, "Last-Modified must be set")
+}
+
+// TestGetProjectMembership_NotFound verifies that when the reader returns
+// a not-found error, the handler propagates it as a Goa NotFound error.
+func TestGetProjectMembership_NotFound(t *testing.T) {
+	pmr := &mockProjectMembershipReader{
+		err: pkgerrors.NewNotFound("membership not found"),
+	}
+
+	mockRepo := mock.NewMockMembershipRepository()
+	readMemberUseCase := usecaseSvc.NewMemberReaderOrchestrator(
+		usecaseSvc.WithMemberReader(mockRepo),
+	)
+
+	svc := NewMembershipService(
+		readMemberUseCase,
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		pmr,
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+
+	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
+		UID: "nonexistent-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotFound", serviceErr.Name)
+}
+
+// TestGetProjectMembership_ReaderError verifies that when the reader returns
+// a generic error, the handler propagates it appropriately.
+func TestGetProjectMembership_ReaderError(t *testing.T) {
+	pmr := &mockProjectMembershipReader{
+		err: pkgerrors.NewUnexpected("reader failed", fmt.Errorf("salesforce error")),
+	}
+
+	mockRepo := mock.NewMockMembershipRepository()
+	readMemberUseCase := usecaseSvc.NewMemberReaderOrchestrator(
+		usecaseSvc.WithMemberReader(mockRepo),
+	)
+
+	svc := NewMembershipService(
+		readMemberUseCase,
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		pmr,
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+
+	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
+		UID: "test-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	// Unexpected errors map to InternalServerError.
+	assert.Equal(t, "InternalServerError", serviceErr.Name)
+}
+
+// TestGetKeyContact_Happy verifies that GetKeyContact maps the domain KeyContact
+// to the response type and includes ETag + Last-Modified headers.
+func TestGetKeyContact_Happy(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+	ctx := context.Background()
+
+	result, err := svc.GetKeyContact(ctx, &membershipservice.GetKeyContactPayload{
+		UID: "contact-role-1",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.KeyContact)
+	assert.Equal(t, "contact-role-1", *result.KeyContact.UID)
+	assert.Equal(t, "John", *result.KeyContact.FirstName)
+	assert.Equal(t, "Doe", *result.KeyContact.LastName)
+	assert.NotNil(t, result.Etag, "ETag must be set")
+	assert.NotNil(t, result.LastModified, "Last-Modified must be set")
+}
+
+// TestGetKeyContact_NotFound asserts that GetKeyContact returns a Goa NotFound
+// error when the mock repository cannot locate the UID.
+func TestGetKeyContact_NotFound(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+	ctx := context.Background()
+
+	_, err := svc.GetKeyContact(ctx, &membershipservice.GetKeyContactPayload{
+		UID: "nonexistent-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotFound", serviceErr.Name)
+}
+
+// TestCreateKeyContact_MockReturnsNotImplemented asserts that CreateKeyContact
+// propagates errors from the writer.
+func TestCreateKeyContact_MockReturnsNotImplemented(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		mock.NewMockKeyContactWriter(), // This always returns NotImplemented
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+	ctx := context.Background()
+
+	_, err := svc.CreateKeyContact(ctx, &membershipservice.CreateKeyContactPayload{
+		B2bOrgUID:     "org-uid",
+		ProjectUID:    "project-uid",
+		MembershipUID: "membership-uid",
+		Email:         "test@example.com",
+		FirstName:     "Test",
+		LastName:      "User",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotImplemented", serviceErr.Name)
+}
+
+// TestUpdateKeyContact_MockReturnsNotImplemented asserts that UpdateKeyContact
+// propagates errors from the writer.
+func TestUpdateKeyContact_MockReturnsNotImplemented(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		mock.NewMockKeyContactWriter(), // This always returns NotImplemented
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+	ctx := context.Background()
+
+	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
+		UID: "contact-role-1", // pre-seeded in mock so storage lookup succeeds
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotImplemented", serviceErr.Name)
+}
+
+// TestDeleteKeyContact_MockReturnsNotImplemented asserts that DeleteKeyContact
+// propagates errors from the writer.
+func TestDeleteKeyContact_MockReturnsNotImplemented(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		mock.NewMockKeyContactWriter(), // This always returns NotImplemented
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+	ctx := context.Background()
+
+	err := svc.DeleteKeyContact(ctx, &membershipservice.DeleteKeyContactPayload{
+		UID: "contact-role-1",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotImplemented", serviceErr.Name)
+}
+
+// TestUpdateKeyContact_StalePreconditionFailed verifies that a stale If-Match
+// returns HTTP 412. The service layer validates ETag against the current record
+// (fetched via the reader) before calling the writer.
+func TestUpdateKeyContact_StalePreconditionFailed(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+	ctx := context.Background()
+
+	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
+		UID:     "contact-role-1",
+		IfMatch: strPtr(`"stale-etag"`),
+		Role:    strPtr("Updated Role"),
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "PreconditionFailed", serviceErr.Name)
+}
+
+// ── Key contact validation tests ────────────────────────────────────────────
+
+// TestNormalizeAndValidateCreate tests the create validation helper.
+func TestNormalizeAndValidateCreate(t *testing.T) {
+	tests := []struct {
+		name           string
+		payload        *membershipservice.CreateKeyContactPayload
+		siblings       []*model.KeyContact
+		wantExisting   *model.KeyContact
+		wantErr        bool
+		wantErrType    interface{}
+		wantErrMessage string
+	}{
+		{
+			name: "create_missing_email",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "",
+				FirstName:     "John",
+				LastName:      "Doe",
+				MembershipUID: "mem-1",
+				Role:          "Billing Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings:       nil,
+			wantErr:        true,
+			wantErrType:    pkgerrors.Validation{},
+			wantErrMessage: "email is required",
+		},
+		{
+			name: "create_email_whitespace_only",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "   ",
+				FirstName:     "John",
+				LastName:      "Doe",
+				MembershipUID: "mem-1",
+				Role:          "Billing Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings:       nil,
+			wantErr:        true,
+			wantErrType:    pkgerrors.Validation{},
+			wantErrMessage: "email is required",
+		},
+		{
+			name: "create_email_lowercased",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "JANE@EX.COM",
+				FirstName:     "Jane",
+				LastName:      "Smith",
+				MembershipUID: "mem-1",
+				Role:          "Marketing Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings:     nil,
+			wantExisting: nil,
+			wantErr:      false,
+		},
+		{
+			name: "create_voting_already_taken",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "new@ex.com",
+				FirstName:     "New",
+				LastName:      "Contact",
+				MembershipUID: "mem-1",
+				Role:          "Representative/Voting Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{
+					UID:           "kc-1",
+					Email:         "existing@ex.com",
+					Role:          "Representative/Voting Contact",
+					Status:        "Active",
+					MembershipUID: "mem-1",
+				},
+			},
+			wantErr:        true,
+			wantErrType:    pkgerrors.Conflict{},
+			wantErrMessage: "Representative/Voting Contact is limited to 1 per membership",
+		},
+		{
+			name: "create_billing_at_limit",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "new@ex.com",
+				FirstName:     "New",
+				LastName:      "Contact",
+				MembershipUID: "mem-1",
+				Role:          "Billing Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-1", Email: "a@ex.com", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-2", Email: "b@ex.com", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-3", Email: "c@ex.com", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr:        true,
+			wantErrType:    pkgerrors.Conflict{},
+			wantErrMessage: "Billing Contact is limited to 3 per membership",
+		},
+		{
+			name: "create_billing_under_limit",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "new@ex.com",
+				FirstName:     "New",
+				LastName:      "Contact",
+				MembershipUID: "mem-1",
+				Role:          "Billing Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-1", Email: "a@ex.com", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-2", Email: "b@ex.com", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantExisting: nil,
+			wantErr:      false,
+		},
+		{
+			name: "create_inactive_dont_count",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "new@ex.com",
+				FirstName:     "New",
+				LastName:      "Contact",
+				MembershipUID: "mem-1",
+				Role:          "Billing Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-1", Email: "a@ex.com", Role: "Billing Contact", Status: "Inactive", MembershipUID: "mem-1"},
+				{UID: "kc-2", Email: "b@ex.com", Role: "Billing Contact", Status: "Inactive", MembershipUID: "mem-1"},
+				{UID: "kc-3", Email: "c@ex.com", Role: "Billing Contact", Status: "Inactive", MembershipUID: "mem-1"},
+			},
+			wantExisting: nil,
+			wantErr:      false,
+		},
+		{
+			name: "create_self_heal_duplicate",
+			payload: &membershipservice.CreateKeyContactPayload{
+				Email:         "EXISTING@EX.COM",
+				FirstName:     "New",
+				LastName:      "Contact",
+				MembershipUID: "mem-1",
+				Role:          "Billing Contact",
+				Status:        strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{
+					UID:           "kc-existing",
+					Email:         "existing@ex.com",
+					Role:          "Billing Contact",
+					Status:        "Active",
+					MembershipUID: "mem-1",
+					CreatedAt:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+					UpdatedAt:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+				},
+			},
+			wantExisting: &model.KeyContact{
+				UID:           "kc-existing",
+				Email:         "existing@ex.com",
+				Role:          "Billing Contact",
+				Status:        "Active",
+				MembershipUID: "mem-1",
+				CreatedAt:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+				UpdatedAt:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestMembershipServiceWithMockReader(&mockReaderWithSiblings{siblings: tt.siblings})
+			ctx := context.Background()
+
+			existing, err := svc.(*membershipServicesrvc).normalizeAndValidateCreate(ctx, tt.payload)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantErrType != nil {
+					assert.IsType(t, tt.wantErrType, err)
+				}
+				if tt.wantErrMessage != "" {
+					assert.Contains(t, err.Error(), tt.wantErrMessage)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.wantExisting != nil {
+				require.NotNil(t, existing)
+				assert.Equal(t, tt.wantExisting.UID, existing.UID)
+				assert.Equal(t, tt.wantExisting.Email, existing.Email)
+			} else if !tt.wantErr {
+				assert.Nil(t, existing)
+			}
+		})
+	}
+}
+
+// TestNormalizeAndValidateUpdate tests the update validation helper.
+func TestNormalizeAndValidateUpdate(t *testing.T) {
+	tests := []struct {
+		name        string
+		current     *model.KeyContact
+		payload     *membershipservice.UpdateKeyContactPayload
+		siblings    []*model.KeyContact
+		wantErr     bool
+		wantErrType interface{}
+	}{
+		{
+			name: "update_email_lowercased",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "john@ex.com",
+				Role:          "Billing Contact",
+				Status:        "Active",
+				MembershipUID: "mem-1",
+			},
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:   "kc-1",
+				Email: strPtr("JANE@EX.COM"),
+			},
+			siblings: nil,
+			wantErr:  false,
+		},
+		{
+			name: "update_role_unchanged_skip",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "john@ex.com",
+				Role:          "Billing Contact",
+				Status:        "Active",
+				MembershipUID: "mem-1",
+			},
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:  "kc-1",
+				Role: strPtr("Billing Contact"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-2", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-3", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-4", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "update_role_change_blocked",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "john@ex.com",
+				Role:          "Representative/Voting Contact",
+				Status:        "Active",
+				MembershipUID: "mem-1",
+			},
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:  "kc-1",
+				Role: strPtr("Billing Contact"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-2", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-3", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-4", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr:     true,
+			wantErrType: pkgerrors.Conflict{},
+		},
+		{
+			name: "update_role_change_allowed",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "john@ex.com",
+				Role:          "Representative/Voting Contact",
+				Status:        "Active",
+				MembershipUID: "mem-1",
+			},
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:  "kc-1",
+				Role: strPtr("Billing Contact"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-2", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+				{UID: "kc-3", Role: "Billing Contact", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "update_creates_duplicate_blocked",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "jane@ex.com",
+				Role:          "Legal Contact",
+				Status:        "Active",
+				MembershipUID: "mem-1",
+			},
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:  "kc-1",
+				Role: strPtr("Billing Contact"),
+			},
+			siblings: []*model.KeyContact{
+				// sibling already holds Billing Contact with same email
+				{UID: "kc-2", Role: "Billing Contact", Email: "jane@ex.com", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr:     true,
+			wantErrType: pkgerrors.Conflict{},
+		},
+		{
+			name: "update_no_self_conflict",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "jane@ex.com",
+				Role:          "Billing Contact",
+				Status:        "Active",
+				MembershipUID: "mem-1",
+			},
+			// Title-only update — role and email unchanged; must not collide with self
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID: "kc-1",
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-1", Role: "Billing Contact", Email: "jane@ex.com", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := newTestMembershipServiceWithMockReader(&mockReaderWithSiblings{siblings: tt.siblings})
+			ctx := context.Background()
+
+			err := svc.(*membershipServicesrvc).normalizeAndValidateUpdate(ctx, tt.current, tt.payload)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantErrType != nil {
+					assert.IsType(t, tt.wantErrType, err)
+				}
+			} else {
+				require.NoError(t, err)
+			}
+
+			// Verify email normalization occurred in-place
+			if tt.payload.Email != nil && *tt.payload.Email != "" {
+				assert.Equal(t, strings.ToLower(*tt.payload.Email), *tt.payload.Email)
+			}
+		})
+	}
+}
+
+// mockReaderWithSiblings embeds the existing mock and overrides ListKeyContactsForMembership
+// to return a fixed list of test siblings.
+type mockReaderWithSiblings struct {
+	*mock.MockMembershipRepository
+	siblings []*model.KeyContact
+}
+
+func (m *mockReaderWithSiblings) ListKeyContactsForMembership(_ context.Context, _ string) ([]*model.KeyContact, error) {
+	return m.siblings, nil
+}
+
+// newTestMembershipServiceWithMockReader constructs a service with a custom mock reader.
+func newTestMembershipServiceWithMockReader(mockReader port.MemberReader) membershipservice.Service {
+	mockB2BOrgReader := mock.NewMockB2BOrgReader()
+	mockB2BOrgWriter := mock.NewMockB2BOrgWriter()
+	mockProjectMembershipReader := mock.NewMockProjectMembershipReader()
+	mockPublisher := mock.NewMockMemberPublisher()
+	mockKCWriter := &mockKeyContactWriter{}
+
+	readMemberUseCase := usecaseSvc.NewMemberReaderOrchestrator(
+		usecaseSvc.WithMemberReader(mockReader),
+	)
+
+	mockAuth := &auth.MockJWTAuth{}
+
+	svc := NewMembershipService(
+		readMemberUseCase,
+		mockReader,
+		mockAuth,
+		mockKCWriter,
+		mockB2BOrgReader,
+		mockB2BOrgWriter,
+		mockProjectMembershipReader,
+		mockPublisher,
+		"",
+	)
+
+	return svc
+}
+
+// mockProjectMembershipReader is a simple test implementation of port.ProjectMembershipReader.
+type mockProjectMembershipReader struct {
+	membership *model.ProjectMembership
+	lastMod    time.Time
+	err        error
+}
+
+func (m *mockProjectMembershipReader) AssembleProjectMembership(_ context.Context, _ string) (*model.ProjectMembership, time.Time, error) {
+	return m.membership, m.lastMod, m.err
+}
+
 // Verify that the mock ports are properly implemented.
 var (
-	_ port.MemberReader     = (*mock.MockMembershipRepository)(nil)
-	_ port.KeyContactWriter = (*mockKeyContactWriter)(nil)
-	_ port.B2BOrgReader     = (*mock.MockB2BOrgReader)(nil)
-	_ port.B2BOrgWriter     = (*mock.MockB2BOrgWriter)(nil)
-	_ port.MemberPublisher  = (*mock.MockMemberPublisher)(nil)
-	_ port.B2BOrgReader     = (*seededB2BOrgReader)(nil)
-	_ port.B2BOrgWriter     = (*happyB2BOrgWriter)(nil)
-	_ port.B2BOrgWriter     = (*preconditionFailingWriter)(nil)
-	_ port.B2BOrgWriter     = (*capturingB2BOrgWriter)(nil)
-	_ port.MemberPublisher  = (*errorPublisher)(nil)
-	_ port.MemberPublisher  = (*capturingPublisher)(nil)
-	_ port.MemberPublisher  = (*indexerMessageCapture)(nil)
+	_ port.MemberReader            = (*mock.MockMembershipRepository)(nil)
+	_ port.MemberReader            = (*mockReaderWithSiblings)(nil)
+	_ port.KeyContactWriter        = (*mockKeyContactWriter)(nil)
+	_ port.B2BOrgReader            = (*mock.MockB2BOrgReader)(nil)
+	_ port.B2BOrgWriter            = (*mock.MockB2BOrgWriter)(nil)
+	_ port.ProjectMembershipReader = (*mockProjectMembershipReader)(nil)
+	_ port.MemberPublisher         = (*mock.MockMemberPublisher)(nil)
+	_ port.B2BOrgReader            = (*seededB2BOrgReader)(nil)
+	_ port.B2BOrgWriter            = (*happyB2BOrgWriter)(nil)
+	_ port.B2BOrgWriter            = (*preconditionFailingWriter)(nil)
+	_ port.B2BOrgWriter            = (*capturingB2BOrgWriter)(nil)
+	_ port.MemberPublisher         = (*errorPublisher)(nil)
+	_ port.MemberPublisher         = (*capturingPublisher)(nil)
+	_ port.MemberPublisher         = (*indexerMessageCapture)(nil)
 )

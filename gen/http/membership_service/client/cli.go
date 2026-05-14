@@ -304,6 +304,14 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", body.ProjectUID, goa.FormatUUID))
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", body.MembershipUID, goa.FormatUUID))
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", body.Email, goa.FormatEmail))
+		if !(body.Role == "Representative/Voting Contact" || body.Role == "Authorized Signatory" || body.Role == "Billing Contact" || body.Role == "Marketing Contact" || body.Role == "Technical Contact" || body.Role == "Legal Contact" || body.Role == "Event Sponsorship Contact" || body.Role == "PO Contact" || body.Role == "PR Contact") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.role", body.Role, []any{"Representative/Voting Contact", "Authorized Signatory", "Billing Contact", "Marketing Contact", "Technical Contact", "Legal Contact", "Event Sponsorship Contact", "PO Contact", "PR Contact"}))
+		}
+		if body.Status != nil {
+			if !(*body.Status == "Active" || *body.Status == "Inactive") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -353,7 +361,23 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	{
 		err = json.Unmarshal([]byte(membershipServiceUpdateKeyContactBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+		}
+		if body.Email != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+		}
+		if body.Role != nil {
+			if !(*body.Role == "Representative/Voting Contact" || *body.Role == "Authorized Signatory" || *body.Role == "Billing Contact" || *body.Role == "Marketing Contact" || *body.Role == "Technical Contact" || *body.Role == "Legal Contact" || *body.Role == "Event Sponsorship Contact" || *body.Role == "PO Contact" || *body.Role == "PR Contact") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.role", *body.Role, []any{"Representative/Voting Contact", "Authorized Signatory", "Billing Contact", "Marketing Contact", "Technical Contact", "Legal Contact", "Event Sponsorship Contact", "PO Contact", "PR Contact"}))
+			}
+		}
+		if body.Status != nil {
+			if !(*body.Status == "Active" || *body.Status == "Inactive") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	var uid string
@@ -395,6 +419,7 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 		}
 	}
 	v := &membershipservice.UpdateKeyContactPayload{
+		Email:          body.Email,
 		Role:           body.Role,
 		Status:         body.Status,
 		BoardMember:    body.BoardMember,

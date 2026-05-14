@@ -80,6 +80,8 @@ type CreateKeyContactRequestBody struct {
 // UpdateKeyContactRequestBody is the type of the "membership-service" service
 // "update-key-contact" endpoint HTTP request body.
 type UpdateKeyContactRequestBody struct {
+	// Contact email address; normalized to lowercase before update
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
 	// Contact role designation, e.g. 'Voting Representative'
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
 	// Role record status, e.g. 'Active'
@@ -759,6 +761,25 @@ type CreateKeyContactBadRequestResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
+// CreateKeyContactConflictResponseBody is the type of the "membership-service"
+// service "create-key-contact" endpoint HTTP response body for the "Conflict"
+// error.
+type CreateKeyContactConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
 // CreateKeyContactPreconditionFailedResponseBody is the type of the
 // "membership-service" service "create-key-contact" endpoint HTTP response
 // body for the "PreconditionFailed" error.
@@ -858,6 +879,25 @@ type UpdateKeyContactNotFoundResponseBody struct {
 // "membership-service" service "update-key-contact" endpoint HTTP response
 // body for the "BadRequest" error.
 type UpdateKeyContactBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateKeyContactConflictResponseBody is the type of the "membership-service"
+// service "update-key-contact" endpoint HTTP response body for the "Conflict"
+// error.
+type UpdateKeyContactConflictResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -2017,6 +2057,21 @@ func NewCreateKeyContactBadRequestResponseBody(res *goa.ServiceError) *CreateKey
 	return body
 }
 
+// NewCreateKeyContactConflictResponseBody builds the HTTP response body from
+// the result of the "create-key-contact" endpoint of the "membership-service"
+// service.
+func NewCreateKeyContactConflictResponseBody(res *goa.ServiceError) *CreateKeyContactConflictResponseBody {
+	body := &CreateKeyContactConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
 // NewCreateKeyContactPreconditionFailedResponseBody builds the HTTP response
 // body from the result of the "create-key-contact" endpoint of the
 // "membership-service" service.
@@ -2097,6 +2152,21 @@ func NewUpdateKeyContactNotFoundResponseBody(res *goa.ServiceError) *UpdateKeyCo
 // service.
 func NewUpdateKeyContactBadRequestResponseBody(res *goa.ServiceError) *UpdateKeyContactBadRequestResponseBody {
 	body := &UpdateKeyContactBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateKeyContactConflictResponseBody builds the HTTP response body from
+// the result of the "update-key-contact" endpoint of the "membership-service"
+// service.
+func NewUpdateKeyContactConflictResponseBody(res *goa.ServiceError) *UpdateKeyContactConflictResponseBody {
+	body := &UpdateKeyContactConflictResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,
@@ -2430,7 +2500,7 @@ func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, version *stri
 		FirstName:      *body.FirstName,
 		LastName:       *body.LastName,
 		Title:          body.Title,
-		Role:           body.Role,
+		Role:           *body.Role,
 		Status:         body.Status,
 		BoardMember:    body.BoardMember,
 		PrimaryContact: body.PrimaryContact,
@@ -2445,6 +2515,7 @@ func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, version *stri
 // update-key-contact endpoint payload.
 func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, uid string, version *string, bearerToken *string, ifMatch *string, ifUnmodifiedSince *string) *membershipservice.UpdateKeyContactPayload {
 	v := &membershipservice.UpdateKeyContactPayload{
+		Email:          body.Email,
 		Role:           body.Role,
 		Status:         body.Status,
 		BoardMember:    body.BoardMember,
@@ -2528,6 +2599,9 @@ func ValidateCreateKeyContactRequestBody(body *CreateKeyContactRequestBody) (err
 	if body.LastName == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("last_name", "body"))
 	}
+	if body.Role == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("role", "body"))
+	}
 	if body.B2bOrgUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
@@ -2539,6 +2613,35 @@ func ValidateCreateKeyContactRequestBody(body *CreateKeyContactRequestBody) (err
 	}
 	if body.Email != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+	}
+	if body.Role != nil {
+		if !(*body.Role == "Representative/Voting Contact" || *body.Role == "Authorized Signatory" || *body.Role == "Billing Contact" || *body.Role == "Marketing Contact" || *body.Role == "Technical Contact" || *body.Role == "Legal Contact" || *body.Role == "Event Sponsorship Contact" || *body.Role == "PO Contact" || *body.Role == "PR Contact") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.role", *body.Role, []any{"Representative/Voting Contact", "Authorized Signatory", "Billing Contact", "Marketing Contact", "Technical Contact", "Legal Contact", "Event Sponsorship Contact", "PO Contact", "PR Contact"}))
+		}
+	}
+	if body.Status != nil {
+		if !(*body.Status == "Active" || *body.Status == "Inactive") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
+		}
+	}
+	return
+}
+
+// ValidateUpdateKeyContactRequestBody runs the validations defined on
+// Update-Key-ContactRequestBody
+func ValidateUpdateKeyContactRequestBody(body *UpdateKeyContactRequestBody) (err error) {
+	if body.Email != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+	}
+	if body.Role != nil {
+		if !(*body.Role == "Representative/Voting Contact" || *body.Role == "Authorized Signatory" || *body.Role == "Billing Contact" || *body.Role == "Marketing Contact" || *body.Role == "Technical Contact" || *body.Role == "Legal Contact" || *body.Role == "Event Sponsorship Contact" || *body.Role == "PO Contact" || *body.Role == "PR Contact") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.role", *body.Role, []any{"Representative/Voting Contact", "Authorized Signatory", "Billing Contact", "Marketing Contact", "Technical Contact", "Legal Contact", "Event Sponsorship Contact", "PO Contact", "PR Contact"}))
+		}
+	}
+	if body.Status != nil {
+		if !(*body.Status == "Active" || *body.Status == "Inactive") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
+		}
 	}
 	return
 }

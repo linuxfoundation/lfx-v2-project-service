@@ -459,7 +459,7 @@ func membershipServiceUpdateKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceDeleteKeyContactUsage() {

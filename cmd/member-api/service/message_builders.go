@@ -81,10 +81,7 @@ func buildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string) fgat
 }
 
 // buildProjectMembershipIndexingConfig constructs an IndexingConfig for a
-// ProjectMembership document. Defined now so publisher golden tests can lock
-// down the shape before handler wiring lands in PR B.
-//
-//nolint:unused
+// ProjectMembership document.
 func buildProjectMembershipIndexingConfig(pm *model.ProjectMembership) *indexerTypes.IndexingConfig {
 	var parentRefs []string
 	if pm.B2BOrgUID != "" {
@@ -123,10 +120,6 @@ func buildProjectMembershipIndexingConfig(pm *model.ProjectMembership) *indexerT
 
 // buildKeyContactIndexingConfig constructs an IndexingConfig for a KeyContact
 // document. The contacts body is populated from the key contact record.
-// Defined now so publisher golden tests can lock down the shape before handler
-// wiring lands in PR C.
-//
-//nolint:unused
 func buildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingConfig {
 	var parentRefs []string
 	if kc.B2BOrgUID != "" {
@@ -175,8 +168,6 @@ func buildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingC
 
 // buildKeyContactFGAMessage constructs a GenericFGAMessage for a KeyContact
 // access-control update (references only — no direct relations on key contacts).
-//
-//nolint:unused
 func buildKeyContactFGAMessage(kc *model.KeyContact) fgatypes.GenericFGAMessage {
 	return fgatypes.GenericFGAMessage{
 		ObjectType: "key_contact",

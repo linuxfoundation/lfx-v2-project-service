@@ -549,6 +549,12 @@ paths:
                         application/vnd.goa.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Capacity limit or duplicate key contact'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
                 "412":
                     description: 'PreconditionFailed: Precondition failed'
                     content:
@@ -833,6 +839,7 @@ paths:
                             $ref: '#/components/schemas/UpdateKeyContactRequestBody'
                         example:
                             board_member: false
+                            email: john.doe@example.com
                             primary_contact: false
                             role: Voting Representative
                             status: Active
@@ -886,6 +893,12 @@ paths:
                                 $ref: '#/components/schemas/Error'
                 "404":
                     description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Capacity limit or duplicate key contact'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -1059,7 +1072,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Quis expedita doloribus animi dolorum.
+                        example: Harum aspernatur qui sed ratione.
                     description: List of entity types to reindex (optional; if empty, reindex all types)
                     example:
                         - membership
@@ -1116,7 +1129,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Natus voluptates aut ab natus eveniet repellat.
+                        example: Vero modi aliquid ducimus error.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -1277,19 +1290,19 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: false
+                    example: true
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
                     example: false
             description: Endpoint not implemented
             example:
-                fault: true
+                fault: false
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
                 temporary: false
-                timeout: true
+                timeout: false
             required:
                 - name
                 - id
@@ -1340,10 +1353,23 @@ components:
                     type: string
                     description: Contact role designation, e.g. 'Voting Representative'
                     example: Voting Representative
+                    enum:
+                        - Representative/Voting Contact
+                        - Authorized Signatory
+                        - Billing Contact
+                        - Marketing Contact
+                        - Technical Contact
+                        - Legal Contact
+                        - Event Sponsorship Contact
+                        - PO Contact
+                        - PR Contact
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
                     example: Active
+                    enum:
+                        - Active
+                        - Inactive
                 title:
                     type: string
                     description: Contact job title; used when creating a new Contact on miss
@@ -1368,6 +1394,7 @@ components:
                 - email
                 - first_name
                 - last_name
+                - role
         KeyContactUpdateBody:
             type: object
             properties:
@@ -1375,6 +1402,11 @@ components:
                     type: boolean
                     description: Whether this contact holds a board member role
                     example: false
+                email:
+                    type: string
+                    description: Contact email address; normalized to lowercase before update
+                    example: john.doe@example.com
+                    format: email
                 primary_contact:
                     type: boolean
                     description: Whether this is the primary contact for the membership
@@ -1383,10 +1415,23 @@ components:
                     type: string
                     description: Contact role designation, e.g. 'Voting Representative'
                     example: Voting Representative
+                    enum:
+                        - Representative/Voting Contact
+                        - Authorized Signatory
+                        - Billing Contact
+                        - Marketing Contact
+                        - Technical Contact
+                        - Legal Contact
+                        - Event Sponsorship Contact
+                        - PO Contact
+                        - PR Contact
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
                     example: Active
+                    enum:
+                        - Active
+                        - Inactive
                 title:
                     type: string
                     description: Contact job title
@@ -1394,6 +1439,7 @@ components:
             description: Request body for updating a key contact (Project_Role__c record)
             example:
                 board_member: false
+                email: john.doe@example.com
                 primary_contact: false
                 role: Voting Representative
                 status: Active
@@ -1765,6 +1811,11 @@ components:
                     type: boolean
                     description: Whether this contact holds a board member role
                     example: false
+                email:
+                    type: string
+                    description: Contact email address; normalized to lowercase before update
+                    example: john.doe@example.com
+                    format: email
                 primary_contact:
                     type: boolean
                     description: Whether this is the primary contact for the membership
@@ -1773,16 +1824,30 @@ components:
                     type: string
                     description: Contact role designation, e.g. 'Voting Representative'
                     example: Voting Representative
+                    enum:
+                        - Representative/Voting Contact
+                        - Authorized Signatory
+                        - Billing Contact
+                        - Marketing Contact
+                        - Technical Contact
+                        - Legal Contact
+                        - Event Sponsorship Contact
+                        - PO Contact
+                        - PR Contact
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
                     example: Active
+                    enum:
+                        - Active
+                        - Inactive
                 title:
                     type: string
                     description: Contact job title
                     example: CTO
             example:
                 board_member: false
+                email: john.doe@example.com
                 primary_contact: false
                 role: Voting Representative
                 status: Active

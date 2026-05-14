@@ -32,11 +32,12 @@ const soqlMembershipsTemplateRef = "memberships-by-project"
 // background refresh is triggered. The KV bucket TTL (24 hours) governs hard
 // eviction.
 type MemberReader struct {
-	tiers       *MemberRepo
-	memberships *MembershipRepo
-	contacts    *KeyContactRepo
-	resolver    port.ProjectResolver
-	cache       *nats.Storage
+	tiers            *MemberRepo
+	memberships      *MembershipRepo
+	contacts         *KeyContactRepo
+	keyContactReader *KeyContactReader
+	resolver         port.ProjectResolver
+	cache            *nats.Storage
 }
 
 // NewMemberReader creates a MemberReader backed by the given Salesforce repos,
@@ -45,15 +46,17 @@ func NewMemberReader(
 	tiers *MemberRepo,
 	memberships *MembershipRepo,
 	contacts *KeyContactRepo,
+	keyContactReader *KeyContactReader,
 	resolver port.ProjectResolver,
 	cache *nats.Storage,
 ) *MemberReader {
 	return &MemberReader{
-		tiers:       tiers,
-		memberships: memberships,
-		contacts:    contacts,
-		resolver:    resolver,
-		cache:       cache,
+		tiers:            tiers,
+		memberships:      memberships,
+		contacts:         contacts,
+		keyContactReader: keyContactReader,
+		resolver:         resolver,
+		cache:            cache,
 	}
 }
 
@@ -697,18 +700,9 @@ func (r *MemberReader) fetchKeyContactsFromSalesforce(ctx context.Context, membe
 // from Salesforce by SFID. ProjectUID is resolved from the contact's ProjectSlug
 // via the resolver.
 func (r *MemberReader) GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error) {
-	sfid, err := sfuuid.ToSFID(keyContactUID)
+	contact, _, err := r.keyContactReader.AssembleKeyContact(ctx, keyContactUID)
 	if err != nil {
-		// The UID is not an LFX_ UUID v8 — treat as a raw SFID passed directly.
-		sfid = keyContactUID
-	}
-
-	contact, err := r.contacts.FetchKeyContactBySFID(ctx, sfid)
-	if err != nil {
-		return nil, fmt.Errorf("fetching key contact %s from Salesforce: %w", keyContactUID, err)
-	}
-	if contact == nil {
-		return nil, errs.NewNotFound("key contact not found", fmt.Errorf("uid: %s", keyContactUID))
+		return nil, err
 	}
 
 	// Resolve the v2 project UID from the slug so ProjectUID is always populated.

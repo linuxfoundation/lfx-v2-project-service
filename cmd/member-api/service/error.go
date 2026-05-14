@@ -28,6 +28,12 @@ func wrapError(ctx context.Context, err error) error {
 		return membershipservice.MakeBadRequest(err)
 	}
 
+	var conflict pkgerrors.Conflict
+	if errors.As(err, &conflict) {
+		slog.WarnContext(ctx, "request rejected due to conflict", "error", err)
+		return membershipservice.MakeConflict(err)
+	}
+
 	var serviceUnavailable pkgerrors.ServiceUnavailable
 	if errors.As(err, &serviceUnavailable) {
 		slog.ErrorContext(ctx, "request failed", "error", err)
