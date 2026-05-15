@@ -431,7 +431,7 @@ func membershipServiceCreateKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-key-contact --body '{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-key-contact --body '{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateKeyContactUsage() {
@@ -459,7 +459,7 @@ func membershipServiceUpdateKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceDeleteKeyContactUsage() {

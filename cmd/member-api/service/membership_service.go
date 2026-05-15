@@ -451,11 +451,14 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 		return nil, wrapError(ctx, err)
 	}
 
-	s.publishKeyContactEvents(ctx, kc, indexerConstants.ActionUpdated, constants.FGASyncUpdateAccessSubject, true)
-
+	// Skip publish on no-op updates to avoid spurious indexer/FGA events.
+	currentETag, _ := etag.LFXEtag(current)
 	etagVal, etagErr := etag.LFXEtag(kc)
 	if etagErr != nil {
 		slog.WarnContext(ctx, "failed to compute etag for key contact", "uid", p.UID, "error", etagErr)
+	}
+	if currentETag != etagVal {
+		s.publishKeyContactEvents(ctx, kc, indexerConstants.ActionUpdated, constants.FGASyncUpdateAccessSubject, true)
 	}
 
 	lastMod := kc.UpdatedAt.UTC().Format(constants.HTTPDateFormat)

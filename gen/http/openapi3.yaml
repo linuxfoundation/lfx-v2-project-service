@@ -496,7 +496,7 @@ paths:
                             membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                             primary_contact: false
                             project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                            role: Voting Representative
+                            role: Technical Contact
                             status: Active
                             title: CTO
             responses:
@@ -534,7 +534,7 @@ paths:
                                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 primary_contact: true
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
+                                role: Technical Contact
                                 status: Active
                                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 title: CTO
@@ -744,7 +744,7 @@ paths:
                                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 primary_contact: true
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
+                                role: Technical Contact
                                 status: Active
                                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 title: CTO
@@ -844,7 +844,7 @@ paths:
                             board_member: false
                             email: john.doe@example.com
                             primary_contact: false
-                            role: Voting Representative
+                            role: Technical Contact
                             status: Active
                             title: CTO
             responses:
@@ -882,7 +882,7 @@ paths:
                                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 primary_contact: true
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
+                                role: Technical Contact
                                 status: Active
                                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 title: CTO
@@ -1359,8 +1359,8 @@ components:
                     format: uuid
                 role:
                     type: string
-                    description: Contact role designation, e.g. 'Voting Representative'
-                    example: Voting Representative
+                    description: Contact role designation
+                    example: Technical Contact
                     enum:
                         - Representative/Voting Contact
                         - Authorized Signatory
@@ -1392,7 +1392,7 @@ components:
                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 primary_contact: false
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 title: CTO
             required:
@@ -1421,8 +1421,8 @@ components:
                     example: false
                 role:
                     type: string
-                    description: Contact role designation, e.g. 'Voting Representative'
-                    example: Voting Representative
+                    description: Contact role designation
+                    example: Technical Contact
                     enum:
                         - Representative/Voting Contact
                         - Authorized Signatory
@@ -1449,7 +1449,7 @@ components:
                 board_member: false
                 email: john.doe@example.com
                 primary_contact: false
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 title: CTO
         ListMetadata:
@@ -1570,7 +1570,7 @@ components:
                 role:
                     type: string
                     description: Contact role designation
-                    example: Voting Representative
+                    example: Technical Contact
                 status:
                     type: string
                     description: Role record status
@@ -1608,7 +1608,7 @@ components:
                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 primary_contact: true
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 title: CTO
@@ -1830,8 +1830,8 @@ components:
                     example: false
                 role:
                     type: string
-                    description: Contact role designation, e.g. 'Voting Representative'
-                    example: Voting Representative
+                    description: Contact role designation
+                    example: Technical Contact
                     enum:
                         - Representative/Voting Contact
                         - Authorized Signatory
@@ -1857,7 +1857,7 @@ components:
                 board_member: false
                 email: john.doe@example.com
                 primary_contact: false
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 title: CTO
     securitySchemes:

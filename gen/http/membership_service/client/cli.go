@@ -298,7 +298,7 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 	{
 		err = json.Unmarshal([]byte(membershipServiceCreateKeyContactBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", body.B2bOrgUID, goa.FormatUUID))
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", body.ProjectUID, goa.FormatUUID))
@@ -361,7 +361,7 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	{
 		err = json.Unmarshal([]byte(membershipServiceUpdateKeyContactBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
 		}
 		if body.Email != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))

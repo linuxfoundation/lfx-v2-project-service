@@ -174,7 +174,7 @@ type CreateKeyContactPayload struct {
 	LastName string
 	// Contact job title; used when creating a new Contact on miss
 	Title *string
-	// Contact role designation, e.g. 'Voting Representative'
+	// Contact role designation
 	Role string
 	// Role record status, e.g. 'Active'
 	Status *string
@@ -447,7 +447,7 @@ type UpdateKeyContactPayload struct {
 	IfUnmodifiedSince *string
 	// Contact email address; normalized to lowercase before update
 	Email *string
-	// Contact role designation, e.g. 'Voting Representative'
+	// Contact role designation
 	Role *string
 	// Role record status, e.g. 'Active'
 	Status *string

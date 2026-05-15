@@ -65,7 +65,7 @@ type CreateKeyContactRequestBody struct {
 	LastName string `form:"last_name" json:"last_name" xml:"last_name"`
 	// Contact job title; used when creating a new Contact on miss
 	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
-	// Contact role designation, e.g. 'Voting Representative'
+	// Contact role designation
 	Role string `form:"role" json:"role" xml:"role"`
 	// Role record status, e.g. 'Active'
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
@@ -80,7 +80,7 @@ type CreateKeyContactRequestBody struct {
 type UpdateKeyContactRequestBody struct {
 	// Contact email address; normalized to lowercase before update
 	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
-	// Contact role designation, e.g. 'Voting Representative'
+	// Contact role designation
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
 	// Role record status, e.g. 'Active'
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`

@@ -158,7 +158,7 @@ var ProjectKeyContactResponse = dsl.Type("project-key-contact-response", func() 
 		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})
 	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
-		dsl.Example("Voting Representative")
+		dsl.Example("Technical Contact")
 	})
 	dsl.Attribute("status", dsl.String, "Role record status", func() {
 		dsl.Example("Active")
@@ -422,8 +422,8 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Attribute("title", dsl.String, "Contact job title; used when creating a new Contact on miss", func() {
 		dsl.Example("CTO")
 	})
-	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
-		dsl.Example("Voting Representative")
+	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
+		dsl.Example("Technical Contact")
 		dsl.Enum(constants.KeyContactRoles...)
 	})
 	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
@@ -446,8 +446,8 @@ var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 		dsl.Format(dsl.FormatEmail)
 		dsl.Example("john.doe@example.com")
 	})
-	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
-		dsl.Example("Voting Representative")
+	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
+		dsl.Example("Technical Contact")
 		dsl.Enum(constants.KeyContactRoles...)
 	})
 	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
