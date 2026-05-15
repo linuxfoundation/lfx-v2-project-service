@@ -356,11 +356,6 @@ var B2BOrgCreateBody = dsl.Type("b2b-org-create-body", func() {
 		dsl.MinLength(15)
 		dsl.MaxLength(18)
 	})
-	dsl.Attribute("parent_sfid", dsl.String, "Salesforce Account.Id of the parent organization; sets Account.ParentId in Salesforce", func() {
-		dsl.Example("001Hs00001AbCdEFAZ")
-		dsl.MinLength(15)
-		dsl.MaxLength(18)
-	})
 	dsl.Required("sfid")
 })
 

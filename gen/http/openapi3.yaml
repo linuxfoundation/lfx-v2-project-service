@@ -108,7 +108,6 @@ paths:
                         schema:
                             $ref: '#/components/schemas/B2bOrgCreateBody'
                         example:
-                            parent_sfid: 001Hs00001AbCdEFAZ
                             sfid: 001Hs00001AbCdEFAZ
             responses:
                 "201":
@@ -1102,12 +1101,6 @@ components:
         B2bOrgCreateBody:
             type: object
             properties:
-                parent_sfid:
-                    type: string
-                    description: Salesforce Account.Id of the parent organization; sets Account.ParentId in Salesforce
-                    example: 001Hs00001AbCdEFAZ
-                    minLength: 15
-                    maxLength: 18
                 sfid:
                     type: string
                     description: Salesforce Account.Id (15- or 18-character); used to fetch and cache the org record
@@ -1116,7 +1109,6 @@ components:
                     maxLength: 18
             description: Request body for registering a B2B organization by its Salesforce Account ID
             example:
-                parent_sfid: 001Hs00001AbCdEFAZ
                 sfid: 001Hs00001AbCdEFAZ
             required:
                 - sfid

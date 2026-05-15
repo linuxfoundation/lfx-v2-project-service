@@ -158,19 +158,14 @@ type B2BOrgInput struct {
 	// Nil = don't change.
 	NumberOfEmployees *int64
 
-	// ParentUID is the v2 UUID of the parent organization to assign.
-	// Populated by the create handler from parent_sfid (SFID→UUID conversion).
-	// Nil = no parent change. The writer converts this to a Salesforce Account.Id.
-	ParentUID *string
-
 	// IfUnmodifiedSince is the SF LastModifiedDate forwarded as If-Unmodified-Since
 	// to the Salesforce PATCH endpoint for server-side concurrency protection.
 	// ETag (If-Match) validation is performed in the service layer before this is set.
 	IfUnmodifiedSince string
 }
 
-// HasChanges reports whether any mutable field is set. IfUnmodifiedSince and
-// ParentUID are infrastructure/create-only concerns and do not count as changes.
+// HasChanges reports whether any mutable field is set. IfUnmodifiedSince is an
+// infrastructure concern and does not count as a change.
 func (i B2BOrgInput) HasChanges() bool {
 	return i.Name != "" || i.Description != "" || i.Phone != "" ||
 		i.Website != "" || i.PrimaryDomain != "" || i.LogoURL != "" ||

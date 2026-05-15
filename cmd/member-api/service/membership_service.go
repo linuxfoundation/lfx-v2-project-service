@@ -23,8 +23,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
-	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
-
 	"goa.design/goa/v3/security"
 )
 
@@ -111,14 +109,6 @@ func (s *membershipServicesrvc) GetB2bOrg(ctx context.Context, p *membershipserv
 // CreateB2bOrg creates a new B2B organization record from an existing Salesforce Account.
 func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *membershipservice.CreateB2bOrgPayload) (*membershipservice.CreateB2bOrgResult, error) {
 	var createInput model.B2BOrgInput
-	if p.ParentSfid != nil {
-		parentUID, convErr := sfuuid.ToUUID(*p.ParentSfid)
-		if convErr != nil {
-			return nil, wrapError(ctx, pkgerrors.NewValidation(
-				fmt.Sprintf("invalid parent_sfid %q: %v", *p.ParentSfid, convErr)))
-		}
-		createInput.ParentUID = &parentUID
-	}
 	org, err := s.b2bOrgWriter.CreateB2BOrg(ctx, p.Sfid, createInput)
 	if err != nil {
 		return nil, wrapError(ctx, err)
@@ -175,7 +165,10 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 		if err != nil {
 			return nil, wrapError(ctx, err)
 		}
-		etagVal, _ := etag.LFXEtag(org)
+		etagVal, etagErr := etag.LFXEtag(org)
+		if etagErr != nil {
+			slog.WarnContext(ctx, "failed to compute etag for b2b org", "uid", p.UID, "error", etagErr)
+		}
 		lastMod := org.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 		result := &membershipservice.UpdateB2bOrgResult{
 			B2bOrg:       b2bOrgToResponse(org),

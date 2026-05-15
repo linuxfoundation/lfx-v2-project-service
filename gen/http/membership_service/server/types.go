@@ -21,9 +21,6 @@ type CreateB2bOrgRequestBody struct {
 	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
 	// record
 	Sfid *string `form:"sfid,omitempty" json:"sfid,omitempty" xml:"sfid,omitempty"`
-	// Salesforce Account.Id of the parent organization; sets Account.ParentId in
-	// Salesforce
-	ParentSfid *string `form:"parent_sfid,omitempty" json:"parent_sfid,omitempty" xml:"parent_sfid,omitempty"`
 }
 
 // UpdateB2bOrgRequestBody is the type of the "membership-service" service
@@ -2440,8 +2437,7 @@ func NewGetB2bOrgPayload(uid string, version *string, bearerToken *string, ifNon
 // endpoint payload.
 func NewCreateB2bOrgPayload(body *CreateB2bOrgRequestBody, version *string, bearerToken *string) *membershipservice.CreateB2bOrgPayload {
 	v := &membershipservice.CreateB2bOrgPayload{
-		Sfid:       *body.Sfid,
-		ParentSfid: body.ParentSfid,
+		Sfid: *body.Sfid,
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -2583,16 +2579,6 @@ func ValidateCreateB2bOrgRequestBody(body *CreateB2bOrgRequestBody) (err error) 
 	if body.Sfid != nil {
 		if utf8.RuneCountInString(*body.Sfid) > 18 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", *body.Sfid, utf8.RuneCountInString(*body.Sfid), 18, false))
-		}
-	}
-	if body.ParentSfid != nil {
-		if utf8.RuneCountInString(*body.ParentSfid) < 15 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 15, true))
-		}
-	}
-	if body.ParentSfid != nil {
-		if utf8.RuneCountInString(*body.ParentSfid) > 18 {
-			err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 18, false))
 		}
 	}
 	return

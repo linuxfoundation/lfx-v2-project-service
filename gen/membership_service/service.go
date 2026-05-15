@@ -139,9 +139,6 @@ type CreateB2bOrgPayload struct {
 	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
 	// record
 	Sfid string
-	// Salesforce Account.Id of the parent organization; sets Account.ParentId in
-	// Salesforce
-	ParentSfid *string
 }
 
 // CreateB2bOrgResult is the result type of the membership-service service

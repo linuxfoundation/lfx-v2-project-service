@@ -22,8 +22,6 @@ import (
 	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
-	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	goa "goa.design/goa/v3/pkg"
@@ -329,55 +327,6 @@ func TestUpdateB2bOrg_PublishesActionUpdated(t *testing.T) {
 	msgs := pub.captured()
 	require.Len(t, msgs, 1)
 	assert.Equal(t, indexerConstants.ActionUpdated, msgs[0].Action)
-}
-
-// TestCreateB2bOrg_WithParent verifies that when parent_sfid is provided the
-// service converts it to a v2 UUID and passes it as ParentUID in the writer input.
-func TestCreateB2bOrg_WithParent(t *testing.T) {
-	w := &capturingB2BOrgWriter{org: sampleB2BOrg}
-	svc := newTestMembershipServiceWith(
-		&seededB2BOrgReader{org: sampleB2BOrg},
-		w,
-		mock.NewMockMemberPublisher(),
-		"",
-	)
-
-	parentSfid := "001B0000001ckSl"
-	_, err := svc.CreateB2bOrg(context.Background(), &membershipservice.CreateB2bOrgPayload{
-		Sfid:       "001000000000001AAA",
-		ParentSfid: &parentSfid,
-	})
-
-	require.NoError(t, err)
-	assert.Equal(t, "001000000000001AAA", w.lastCreateSFID, "sfid must be forwarded unchanged")
-	require.NotNil(t, w.lastCreateInput.ParentUID,
-		"ParentUID must be set when parent_sfid is provided")
-	// Verify round-trip: ToSFID of the stored UID must equal the original SFID.
-	reconstructed, convErr := sfuuid.ToSFID(*w.lastCreateInput.ParentUID)
-	require.NoError(t, convErr)
-	assert.Equal(t, parentSfid, reconstructed,
-		"ParentUID must be the v2 UUID derived from parent_sfid")
-}
-
-// TestCreateB2bOrg_WithInvalidParent verifies that an invalid parent_sfid
-// returns a validation error without calling the writer.
-func TestCreateB2bOrg_WithInvalidParent(t *testing.T) {
-	w := &capturingB2BOrgWriter{org: sampleB2BOrg}
-	svc := newTestMembershipServiceWith(
-		&seededB2BOrgReader{org: sampleB2BOrg},
-		w,
-		mock.NewMockMemberPublisher(),
-		"",
-	)
-
-	badSfid := "not-a-valid-sfid"
-	_, err := svc.CreateB2bOrg(context.Background(), &membershipservice.CreateB2bOrgPayload{
-		Sfid:       "001000000000001AAA",
-		ParentSfid: &badSfid,
-	})
-
-	require.Error(t, err)
-	assert.Empty(t, w.lastCreateSFID, "writer must not be called on invalid parent_sfid")
 }
 
 // ── local test mocks ──────────────────────────────────────────────────────────

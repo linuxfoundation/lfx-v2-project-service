@@ -19,9 +19,6 @@ type CreateB2bOrgRequestBody struct {
 	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
 	// record
 	Sfid string `form:"sfid" json:"sfid" xml:"sfid"`
-	// Salesforce Account.Id of the parent organization; sets Account.ParentId in
-	// Salesforce
-	ParentSfid *string `form:"parent_sfid,omitempty" json:"parent_sfid,omitempty" xml:"parent_sfid,omitempty"`
 }
 
 // UpdateB2bOrgRequestBody is the type of the "membership-service" service
@@ -1364,8 +1361,7 @@ type ProjectKeyContactResponseResponseBody struct {
 // the "create-b2b-org" endpoint of the "membership-service" service.
 func NewCreateB2bOrgRequestBody(p *membershipservice.CreateB2bOrgPayload) *CreateB2bOrgRequestBody {
 	body := &CreateB2bOrgRequestBody{
-		Sfid:       p.Sfid,
-		ParentSfid: p.ParentSfid,
+		Sfid: p.Sfid,
 	}
 	return body
 }
