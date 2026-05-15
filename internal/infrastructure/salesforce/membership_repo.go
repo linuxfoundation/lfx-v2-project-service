@@ -61,9 +61,8 @@ WHERE Id = %s
 `
 
 // membershipsByAccountSOQLBase is the SELECT and fixed WHERE base for
-// FetchMembershipsByAccountSFID and FetchFirstMembershipBatchByAccount. The
-// caller appends additional AND clauses for any active MembershipFilters, then
-// an ORDER BY clause, before executing the query.
+// FetchMembershipsByAccountSFID. The caller appends additional AND clauses for
+// any active MembershipFilters, then an ORDER BY clause, before executing the query.
 const membershipsByAccountSOQLBase = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
@@ -314,68 +313,6 @@ func (r *MembershipRepo) FetchFirstMembershipBatch(ctx context.Context, projectS
 	sfResult, err := QueryPage[soqlAsset](ctx, r.client, query, "")
 	if err != nil {
 		return FirstBatchResult{}, fmt.Errorf("fetching first membership batch for project %s: %w", projectSFID, err)
-	}
-
-	records := make([]*model.ProjectMembership, 0, len(sfResult.Records))
-	for _, asset := range sfResult.Records {
-		m, convErr := convertSOQLToProjectMembership(asset)
-		if convErr != nil {
-			slog.WarnContext(ctx, "skipping membership with invalid SFID",
-				"sfid", asset.ID,
-				"error", convErr,
-			)
-			continue
-		}
-		records = append(records, m)
-	}
-
-	return FirstBatchResult{
-		Records:   records,
-		SFLocator: sfResult.NextPageToken,
-		TotalSize: sfResult.TotalSize,
-	}, nil
-}
-
-// buildMembershipsByAccountSOQL assembles the full SOQL query string for
-// FetchMembershipsByAccountSFID and FetchFirstMembershipBatchByAccount,
-// appending optional filter predicates and an ORDER BY clause. All interpolated
-// values are passed through quoteSOQL to prevent injection.
-func buildMembershipsByAccountSOQL(ctx context.Context, accountSFID string, filters model.MembershipFilters) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, membershipsByAccountSOQLBase, quoteSOQL(accountSFID))
-	if filters.TierUID != "" {
-		tierSFID, err := sfuuid.ToSFID(filters.TierUID)
-		if err != nil {
-			slog.WarnContext(ctx, "failed to decode tier UID to SFID; using raw value",
-				"tier_uid", filters.TierUID,
-				"error", err,
-			)
-			tierSFID = filters.TierUID
-		}
-		fmt.Fprintf(&b, "\n    AND Product2Id = %s", quoteSOQL(tierSFID))
-	}
-	if filters.CompanyNameSearch != "" {
-		fmt.Fprintf(&b, "\n    AND Account.Name LIKE %s", quoteLikeSOQL(filters.CompanyNameSearch))
-	}
-	b.WriteString(soqlOrderByClause(filters.EffectiveSortOrder()))
-	return b.String()
-}
-
-// FetchFirstMembershipBatchByAccount issues a single SOQL query for the first
-// sfQueryBatchSize membership records for the given Salesforce Account ID,
-// returning the full batch and the Salesforce locator for any remaining records.
-// The caller is responsible for following the locator in a background goroutine
-// via QueryAllPages if SFLocator is non-empty.
-func (r *MembershipRepo) FetchFirstMembershipBatchByAccount(ctx context.Context, accountSFID string, filters model.MembershipFilters) (FirstBatchResult, error) {
-	slog.DebugContext(ctx, "fetching first membership batch by account from Salesforce",
-		"account_sfid", accountSFID,
-		"sort_order", filters.EffectiveSortOrder(),
-	)
-
-	query := buildMembershipsByAccountSOQL(ctx, accountSFID, filters)
-	sfResult, err := QueryPage[soqlAsset](ctx, r.client, query, "")
-	if err != nil {
-		return FirstBatchResult{}, fmt.Errorf("fetching first membership batch for account %s: %w", accountSFID, err)
 	}
 
 	records := make([]*model.ProjectMembership, 0, len(sfResult.Records))

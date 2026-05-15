@@ -13,7 +13,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
@@ -21,33 +20,41 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
-// EncodeListProjectTiersResponse returns an encoder for responses returned by
-// the membership-service list-project-tiers endpoint.
-func EncodeListProjectTiersResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+// EncodeGetB2bOrgResponse returns an encoder for responses returned by the
+// membership-service get-b2b-org endpoint.
+func EncodeGetB2bOrgResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.ListProjectTiersResult)
+		res, _ := v.(*membershipservice.GetB2bOrgResult)
 		enc := encoder(ctx, w)
-		body := NewListProjectTiersResponseBody(res)
+		body := NewGetB2bOrgResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
 }
 
-// DecodeListProjectTiersRequest returns a decoder for requests sent to the
-// membership-service list-project-tiers endpoint.
-func DecodeListProjectTiersRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.ListProjectTiersPayload, error) {
-	return func(r *http.Request) (*membershipservice.ListProjectTiersPayload, error) {
-		var payload *membershipservice.ListProjectTiersPayload
+// DecodeGetB2bOrgRequest returns a decoder for requests sent to the
+// membership-service get-b2b-org endpoint.
+func DecodeGetB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.GetB2bOrgPayload, error) {
+	return func(r *http.Request) (*membershipservice.GetB2bOrgPayload, error) {
+		var payload *membershipservice.GetB2bOrgPayload
 		var (
-			projectUID  string
-			version     *string
-			bearerToken *string
-			err         error
+			uid             string
+			version         *string
+			bearerToken     *string
+			ifNoneMatch     *string
+			ifModifiedSince *string
+			err             error
 
 			params = mux.Vars(r)
 		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -61,10 +68,18 @@ func DecodeListProjectTiersRequest(mux goahttp.Muxer, decoder func(*http.Request
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		ifNoneMatchRaw := r.Header.Get("If-None-Match")
+		if ifNoneMatchRaw != "" {
+			ifNoneMatch = &ifNoneMatchRaw
+		}
+		ifModifiedSinceRaw := r.Header.Get("If-Modified-Since")
+		if ifModifiedSinceRaw != "" {
+			ifModifiedSince = &ifModifiedSinceRaw
+		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewListProjectTiersPayload(projectUID, version, bearerToken)
+		payload = NewGetB2bOrgPayload(uid, version, bearerToken, ifNoneMatch, ifModifiedSince)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -77,9 +92,9 @@ func DecodeListProjectTiersRequest(mux goahttp.Muxer, decoder func(*http.Request
 	}
 }
 
-// EncodeListProjectTiersError returns an encoder for errors returned by the
-// list-project-tiers membership-service endpoint.
-func EncodeListProjectTiersError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+// EncodeGetB2bOrgError returns an encoder for errors returned by the
+// get-b2b-org membership-service endpoint.
+func EncodeGetB2bOrgError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en goa.GoaErrorNamer
@@ -87,6 +102,19 @@ func EncodeListProjectTiersError(encoder func(context.Context, http.ResponseWrit
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetB2bOrgNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
 		case "NotFound":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -95,277 +123,7 @@ func EncodeListProjectTiersError(encoder func(context.Context, http.ResponseWrit
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewListProjectTiersNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
-		case "InternalServerError":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListProjectTiersInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "ServiceUnavailable":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListProjectTiersServiceUnavailableResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeGetProjectTierResponse returns an encoder for responses returned by
-// the membership-service get-project-tier endpoint.
-func EncodeGetProjectTierResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.GetProjectTierResult)
-		enc := encoder(ctx, w)
-		body := NewGetProjectTierResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
-}
-
-// DecodeGetProjectTierRequest returns a decoder for requests sent to the
-// membership-service get-project-tier endpoint.
-func DecodeGetProjectTierRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.GetProjectTierPayload, error) {
-	return func(r *http.Request) (*membershipservice.GetProjectTierPayload, error) {
-		var payload *membershipservice.GetProjectTierPayload
-		var (
-			projectUID  string
-			tierUID     string
-			version     *string
-			bearerToken *string
-			err         error
-
-			params = mux.Vars(r)
-		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		tierUID = params["tier_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("tier_uid", tierUID, goa.FormatUUID))
-		versionRaw := r.URL.Query().Get("v")
-		if versionRaw != "" {
-			version = &versionRaw
-		}
-		if version != nil {
-			if !(*version == "1") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
-			}
-		}
-		bearerTokenRaw := r.Header.Get("Authorization")
-		if bearerTokenRaw != "" {
-			bearerToken = &bearerTokenRaw
-		}
-		if err != nil {
-			return payload, err
-		}
-		payload = NewGetProjectTierPayload(projectUID, tierUID, version, bearerToken)
-		if payload.BearerToken != nil {
-			if strings.Contains(*payload.BearerToken, " ") {
-				// Remove authorization scheme prefix (e.g. "Bearer")
-				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
-				payload.BearerToken = &cred
-			}
-		}
-
-		return payload, nil
-	}
-}
-
-// EncodeGetProjectTierError returns an encoder for errors returned by the
-// get-project-tier membership-service endpoint.
-func EncodeGetProjectTierError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "NotFound":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetProjectTierNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
-		case "InternalServerError":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetProjectTierInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "ServiceUnavailable":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetProjectTierServiceUnavailableResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeListProjectMembershipsResponse returns an encoder for responses
-// returned by the membership-service list-project-memberships endpoint.
-func EncodeListProjectMembershipsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.ListProjectMembershipsResult)
-		enc := encoder(ctx, w)
-		body := NewListProjectMembershipsResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
-}
-
-// DecodeListProjectMembershipsRequest returns a decoder for requests sent to
-// the membership-service list-project-memberships endpoint.
-func DecodeListProjectMembershipsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.ListProjectMembershipsPayload, error) {
-	return func(r *http.Request) (*membershipservice.ListProjectMembershipsPayload, error) {
-		var payload *membershipservice.ListProjectMembershipsPayload
-		var (
-			projectUID  string
-			version     *string
-			pageSize    int
-			pageToken   *string
-			sort        string
-			filter      *string
-			searchName  *string
-			bearerToken *string
-			err         error
-
-			params = mux.Vars(r)
-		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		qp := r.URL.Query()
-		versionRaw := qp.Get("v")
-		if versionRaw != "" {
-			version = &versionRaw
-		}
-		if version != nil {
-			if !(*version == "1") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
-			}
-		}
-		{
-			pageSizeRaw := qp.Get("pageSize")
-			if pageSizeRaw == "" {
-				pageSize = 200
-			} else {
-				v, err2 := strconv.ParseInt(pageSizeRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("pageSize", pageSizeRaw, "integer"))
-				}
-				pageSize = int(v)
-			}
-		}
-		if pageSize < 1 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1, true))
-		}
-		if pageSize > 1000 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1000, false))
-		}
-		pageTokenRaw := qp.Get("pageToken")
-		if pageTokenRaw != "" {
-			pageToken = &pageTokenRaw
-		}
-		sortRaw := qp.Get("sort")
-		if sortRaw != "" {
-			sort = sortRaw
-		} else {
-			sort = "newest"
-		}
-		if !(sort == "name" || sort == "newest" || sort == "last_modified") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("sort", sort, []any{"name", "newest", "last_modified"}))
-		}
-		filterRaw := qp.Get("filter")
-		if filterRaw != "" {
-			filter = &filterRaw
-		}
-		searchNameRaw := qp.Get("search_name")
-		if searchNameRaw != "" {
-			searchName = &searchNameRaw
-		}
-		bearerTokenRaw := r.Header.Get("Authorization")
-		if bearerTokenRaw != "" {
-			bearerToken = &bearerTokenRaw
-		}
-		if err != nil {
-			return payload, err
-		}
-		payload = NewListProjectMembershipsPayload(projectUID, version, pageSize, pageToken, sort, filter, searchName, bearerToken)
-		if payload.BearerToken != nil {
-			if strings.Contains(*payload.BearerToken, " ") {
-				// Remove authorization scheme prefix (e.g. "Bearer")
-				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
-				payload.BearerToken = &cred
-			}
-		}
-
-		return payload, nil
-	}
-}
-
-// EncodeListProjectMembershipsError returns an encoder for errors returned by
-// the list-project-memberships membership-service endpoint.
-func EncodeListProjectMembershipsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "NotFound":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListProjectMembershipsNotFoundResponseBody(res)
+				body = NewGetB2bOrgNotFoundResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
@@ -378,10 +136,23 @@ func EncodeListProjectMembershipsError(encoder func(context.Context, http.Respon
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewListProjectMembershipsBadRequestResponseBody(res)
+				body = NewGetB2bOrgBadRequestResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetB2bOrgPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
@@ -391,7 +162,7 @@ func EncodeListProjectMembershipsError(encoder func(context.Context, http.Respon
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewListProjectMembershipsInternalServerErrorResponseBody(res)
+				body = NewGetB2bOrgInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -404,7 +175,358 @@ func EncodeListProjectMembershipsError(encoder func(context.Context, http.Respon
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewListProjectMembershipsServiceUnavailableResponseBody(res)
+				body = NewGetB2bOrgServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeCreateB2bOrgResponse returns an encoder for responses returned by the
+// membership-service create-b2b-org endpoint.
+func EncodeCreateB2bOrgResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*membershipservice.CreateB2bOrgResult)
+		enc := encoder(ctx, w)
+		body := NewCreateB2bOrgResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
+		w.WriteHeader(http.StatusCreated)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeCreateB2bOrgRequest returns a decoder for requests sent to the
+// membership-service create-b2b-org endpoint.
+func DecodeCreateB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.CreateB2bOrgPayload, error) {
+	return func(r *http.Request) (*membershipservice.CreateB2bOrgPayload, error) {
+		var payload *membershipservice.CreateB2bOrgPayload
+		var (
+			body CreateB2bOrgRequestBody
+			err  error
+		)
+		err = decoder(r).Decode(&body)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return payload, goa.MissingPayloadError()
+			}
+			var gerr *goa.ServiceError
+			if errors.As(err, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+		err = ValidateCreateB2bOrgRequestBody(&body)
+		if err != nil {
+			return payload, err
+		}
+
+		var (
+			version     *string
+			bearerToken *string
+		)
+		versionRaw := r.URL.Query().Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewCreateB2bOrgPayload(&body, version, bearerToken)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeCreateB2bOrgError returns an encoder for errors returned by the
+// create-b2b-org membership-service endpoint.
+func EncodeCreateB2bOrgError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateB2bOrgNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateB2bOrgNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateB2bOrgBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateB2bOrgPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateB2bOrgInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateB2bOrgServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeUpdateB2bOrgResponse returns an encoder for responses returned by the
+// membership-service update-b2b-org endpoint.
+func EncodeUpdateB2bOrgResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*membershipservice.UpdateB2bOrgResult)
+		enc := encoder(ctx, w)
+		body := NewUpdateB2bOrgResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeUpdateB2bOrgRequest returns a decoder for requests sent to the
+// membership-service update-b2b-org endpoint.
+func DecodeUpdateB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.UpdateB2bOrgPayload, error) {
+	return func(r *http.Request) (*membershipservice.UpdateB2bOrgPayload, error) {
+		var payload *membershipservice.UpdateB2bOrgPayload
+		var (
+			body UpdateB2bOrgRequestBody
+			err  error
+		)
+		err = decoder(r).Decode(&body)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return payload, goa.MissingPayloadError()
+			}
+			var gerr *goa.ServiceError
+			if errors.As(err, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+
+		var (
+			uid               string
+			version           *string
+			bearerToken       *string
+			ifMatch           *string
+			ifUnmodifiedSince *string
+
+			params = mux.Vars(r)
+		)
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		versionRaw := r.URL.Query().Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
+		}
+		ifUnmodifiedSinceRaw := r.Header.Get("If-Unmodified-Since")
+		if ifUnmodifiedSinceRaw != "" {
+			ifUnmodifiedSince = &ifUnmodifiedSinceRaw
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewUpdateB2bOrgPayload(&body, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeUpdateB2bOrgError returns an encoder for errors returned by the
+// update-b2b-org membership-service endpoint.
+func EncodeUpdateB2bOrgError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -425,6 +547,9 @@ func EncodeGetProjectMembershipResponse(encoder func(context.Context, http.Respo
 		if res.Etag != nil {
 			w.Header().Set("Etag", *res.Etag)
 		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -436,18 +561,17 @@ func DecodeGetProjectMembershipRequest(mux goahttp.Muxer, decoder func(*http.Req
 	return func(r *http.Request) (*membershipservice.GetProjectMembershipPayload, error) {
 		var payload *membershipservice.GetProjectMembershipPayload
 		var (
-			projectUID    string
-			membershipUID string
-			version       *string
-			bearerToken   *string
-			err           error
+			uid             string
+			version         *string
+			bearerToken     *string
+			ifNoneMatch     *string
+			ifModifiedSince *string
+			err             error
 
 			params = mux.Vars(r)
 		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -461,10 +585,18 @@ func DecodeGetProjectMembershipRequest(mux goahttp.Muxer, decoder func(*http.Req
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		ifNoneMatchRaw := r.Header.Get("If-None-Match")
+		if ifNoneMatchRaw != "" {
+			ifNoneMatch = &ifNoneMatchRaw
+		}
+		ifModifiedSinceRaw := r.Header.Get("If-Modified-Since")
+		if ifModifiedSinceRaw != "" {
+			ifModifiedSince = &ifModifiedSinceRaw
+		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewGetProjectMembershipPayload(projectUID, membershipUID, version, bearerToken)
+		payload = NewGetProjectMembershipPayload(uid, version, bearerToken, ifNoneMatch, ifModifiedSince)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -487,6 +619,19 @@ func EncodeGetProjectMembershipError(encoder func(context.Context, http.Response
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetProjectMembershipNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
 		case "NotFound":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -499,6 +644,32 @@ func EncodeGetProjectMembershipError(encoder func(context.Context, http.Response
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetProjectMembershipBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetProjectMembershipPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
@@ -532,36 +703,41 @@ func EncodeGetProjectMembershipError(encoder func(context.Context, http.Response
 	}
 }
 
-// EncodeListMembershipKeyContactsResponse returns an encoder for responses
-// returned by the membership-service list-membership-key-contacts endpoint.
-func EncodeListMembershipKeyContactsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+// EncodeGetKeyContactResponse returns an encoder for responses returned by the
+// membership-service get-key-contact endpoint.
+func EncodeGetKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.ListMembershipKeyContactsResult)
+		res, _ := v.(*membershipservice.GetKeyContactResult)
 		enc := encoder(ctx, w)
-		body := NewListMembershipKeyContactsResponseBody(res)
+		body := NewGetKeyContactResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
 }
 
-// DecodeListMembershipKeyContactsRequest returns a decoder for requests sent
-// to the membership-service list-membership-key-contacts endpoint.
-func DecodeListMembershipKeyContactsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.ListMembershipKeyContactsPayload, error) {
-	return func(r *http.Request) (*membershipservice.ListMembershipKeyContactsPayload, error) {
-		var payload *membershipservice.ListMembershipKeyContactsPayload
+// DecodeGetKeyContactRequest returns a decoder for requests sent to the
+// membership-service get-key-contact endpoint.
+func DecodeGetKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.GetKeyContactPayload, error) {
+	return func(r *http.Request) (*membershipservice.GetKeyContactPayload, error) {
+		var payload *membershipservice.GetKeyContactPayload
 		var (
-			projectUID    string
-			membershipUID string
-			version       *string
-			bearerToken   *string
-			err           error
+			uid             string
+			version         *string
+			bearerToken     *string
+			ifNoneMatch     *string
+			ifModifiedSince *string
+			err             error
 
 			params = mux.Vars(r)
 		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -575,10 +751,18 @@ func DecodeListMembershipKeyContactsRequest(mux goahttp.Muxer, decoder func(*htt
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		ifNoneMatchRaw := r.Header.Get("If-None-Match")
+		if ifNoneMatchRaw != "" {
+			ifNoneMatch = &ifNoneMatchRaw
+		}
+		ifModifiedSinceRaw := r.Header.Get("If-Modified-Since")
+		if ifModifiedSinceRaw != "" {
+			ifModifiedSince = &ifModifiedSinceRaw
+		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewListMembershipKeyContactsPayload(projectUID, membershipUID, version, bearerToken)
+		payload = NewGetKeyContactPayload(uid, version, bearerToken, ifNoneMatch, ifModifiedSince)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -591,9 +775,9 @@ func DecodeListMembershipKeyContactsRequest(mux goahttp.Muxer, decoder func(*htt
 	}
 }
 
-// EncodeListMembershipKeyContactsError returns an encoder for errors returned
-// by the list-membership-key-contacts membership-service endpoint.
-func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+// EncodeGetKeyContactError returns an encoder for errors returned by the
+// get-key-contact membership-service endpoint.
+func EncodeGetKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en goa.GoaErrorNamer
@@ -601,6 +785,19 @@ func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.Res
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetKeyContactNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
 		case "NotFound":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -609,10 +806,36 @@ func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.Res
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewListMembershipKeyContactsNotFoundResponseBody(res)
+				body = NewGetKeyContactNotFoundResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetKeyContactBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetKeyContactPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
@@ -622,7 +845,7 @@ func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.Res
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewListMembershipKeyContactsInternalServerErrorResponseBody(res)
+				body = NewGetKeyContactInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -635,7 +858,7 @@ func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.Res
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewListMembershipKeyContactsServiceUnavailableResponseBody(res)
+				body = NewGetKeyContactServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -646,25 +869,31 @@ func EncodeListMembershipKeyContactsError(encoder func(context.Context, http.Res
 	}
 }
 
-// EncodeCreateMembershipKeyContactResponse returns an encoder for responses
-// returned by the membership-service create-membership-key-contact endpoint.
-func EncodeCreateMembershipKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+// EncodeCreateKeyContactResponse returns an encoder for responses returned by
+// the membership-service create-key-contact endpoint.
+func EncodeCreateKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.CreateMembershipKeyContactResult)
+		res, _ := v.(*membershipservice.CreateKeyContactResult)
 		enc := encoder(ctx, w)
-		body := NewCreateMembershipKeyContactResponseBody(res)
+		body := NewCreateKeyContactResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusCreated)
 		return enc.Encode(body)
 	}
 }
 
-// DecodeCreateMembershipKeyContactRequest returns a decoder for requests sent
-// to the membership-service create-membership-key-contact endpoint.
-func DecodeCreateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.CreateMembershipKeyContactPayload, error) {
-	return func(r *http.Request) (*membershipservice.CreateMembershipKeyContactPayload, error) {
-		var payload *membershipservice.CreateMembershipKeyContactPayload
+// DecodeCreateKeyContactRequest returns a decoder for requests sent to the
+// membership-service create-key-contact endpoint.
+func DecodeCreateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.CreateKeyContactPayload, error) {
+	return func(r *http.Request) (*membershipservice.CreateKeyContactPayload, error) {
+		var payload *membershipservice.CreateKeyContactPayload
 		var (
-			body CreateMembershipKeyContactRequestBody
+			body CreateKeyContactRequestBody
 			err  error
 		)
 		err = decoder(r).Decode(&body)
@@ -678,23 +907,15 @@ func DecodeCreateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 			}
 			return payload, goa.DecodePayloadError(err.Error())
 		}
-		err = ValidateCreateMembershipKeyContactRequestBody(&body)
+		err = ValidateCreateKeyContactRequestBody(&body)
 		if err != nil {
 			return payload, err
 		}
 
 		var (
-			projectUID    string
-			membershipUID string
-			version       *string
-			bearerToken   *string
-
-			params = mux.Vars(r)
+			version     *string
+			bearerToken *string
 		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -711,7 +932,7 @@ func DecodeCreateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		if err != nil {
 			return payload, err
 		}
-		payload = NewCreateMembershipKeyContactPayload(&body, projectUID, membershipUID, version, bearerToken)
+		payload = NewCreateKeyContactPayload(&body, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -724,9 +945,9 @@ func DecodeCreateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 	}
 }
 
-// EncodeCreateMembershipKeyContactError returns an encoder for errors returned
-// by the create-membership-key-contact membership-service endpoint.
-func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+// EncodeCreateKeyContactError returns an encoder for errors returned by the
+// create-key-contact membership-service endpoint.
+func EncodeCreateKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en goa.GoaErrorNamer
@@ -734,6 +955,19 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateKeyContactNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
 		case "NotFound":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -742,7 +976,7 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewCreateMembershipKeyContactNotFoundResponseBody(res)
+				body = NewCreateKeyContactNotFoundResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
@@ -755,10 +989,23 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewCreateMembershipKeyContactBadRequestResponseBody(res)
+				body = NewCreateKeyContactBadRequestResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateKeyContactPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
@@ -768,7 +1015,7 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewCreateMembershipKeyContactInternalServerErrorResponseBody(res)
+				body = NewCreateKeyContactInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -781,7 +1028,7 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewCreateMembershipKeyContactServiceUnavailableResponseBody(res)
+				body = NewCreateKeyContactServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -792,25 +1039,31 @@ func EncodeCreateMembershipKeyContactError(encoder func(context.Context, http.Re
 	}
 }
 
-// EncodeUpdateMembershipKeyContactResponse returns an encoder for responses
-// returned by the membership-service update-membership-key-contact endpoint.
-func EncodeUpdateMembershipKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+// EncodeUpdateKeyContactResponse returns an encoder for responses returned by
+// the membership-service update-key-contact endpoint.
+func EncodeUpdateKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.UpdateMembershipKeyContactResult)
+		res, _ := v.(*membershipservice.UpdateKeyContactResult)
 		enc := encoder(ctx, w)
-		body := NewUpdateMembershipKeyContactResponseBody(res)
+		body := NewUpdateKeyContactResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
 }
 
-// DecodeUpdateMembershipKeyContactRequest returns a decoder for requests sent
-// to the membership-service update-membership-key-contact endpoint.
-func DecodeUpdateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.UpdateMembershipKeyContactPayload, error) {
-	return func(r *http.Request) (*membershipservice.UpdateMembershipKeyContactPayload, error) {
-		var payload *membershipservice.UpdateMembershipKeyContactPayload
+// DecodeUpdateKeyContactRequest returns a decoder for requests sent to the
+// membership-service update-key-contact endpoint.
+func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.UpdateKeyContactPayload, error) {
+	return func(r *http.Request) (*membershipservice.UpdateKeyContactPayload, error) {
+		var payload *membershipservice.UpdateKeyContactPayload
 		var (
-			body UpdateMembershipKeyContactRequestBody
+			body UpdateKeyContactRequestBody
 			err  error
 		)
 		err = decoder(r).Decode(&body)
@@ -826,20 +1079,16 @@ func DecodeUpdateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		}
 
 		var (
-			projectUID    string
-			membershipUID string
-			contactUID    string
-			version       *string
-			bearerToken   *string
+			uid               string
+			version           *string
+			bearerToken       *string
+			ifMatch           *string
+			ifUnmodifiedSince *string
 
 			params = mux.Vars(r)
 		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		contactUID = params["contact_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -853,10 +1102,18 @@ func DecodeUpdateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
+		}
+		ifUnmodifiedSinceRaw := r.Header.Get("If-Unmodified-Since")
+		if ifUnmodifiedSinceRaw != "" {
+			ifUnmodifiedSince = &ifUnmodifiedSinceRaw
+		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateMembershipKeyContactPayload(&body, projectUID, membershipUID, contactUID, version, bearerToken)
+		payload = NewUpdateKeyContactPayload(&body, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -869,9 +1126,9 @@ func DecodeUpdateMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 	}
 }
 
-// EncodeUpdateMembershipKeyContactError returns an encoder for errors returned
-// by the update-membership-key-contact membership-service endpoint.
-func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+// EncodeUpdateKeyContactError returns an encoder for errors returned by the
+// update-key-contact membership-service endpoint.
+func EncodeUpdateKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en goa.GoaErrorNamer
@@ -879,6 +1136,19 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateKeyContactNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
 		case "NotFound":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -887,7 +1157,7 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateMembershipKeyContactNotFoundResponseBody(res)
+				body = NewUpdateKeyContactNotFoundResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
@@ -900,10 +1170,23 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateMembershipKeyContactBadRequestResponseBody(res)
+				body = NewUpdateKeyContactBadRequestResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateKeyContactPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
@@ -913,7 +1196,7 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateMembershipKeyContactInternalServerErrorResponseBody(res)
+				body = NewUpdateKeyContactInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -926,7 +1209,7 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewUpdateMembershipKeyContactServiceUnavailableResponseBody(res)
+				body = NewUpdateKeyContactServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -937,36 +1220,195 @@ func EncodeUpdateMembershipKeyContactError(encoder func(context.Context, http.Re
 	}
 }
 
-// EncodeDeleteMembershipKeyContactResponse returns an encoder for responses
-// returned by the membership-service delete-membership-key-contact endpoint.
-func EncodeDeleteMembershipKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+// EncodeDeleteKeyContactResponse returns an encoder for responses returned by
+// the membership-service delete-key-contact endpoint.
+func EncodeDeleteKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
 	return func(ctx context.Context, w http.ResponseWriter, v any) error {
 		w.WriteHeader(http.StatusNoContent)
 		return nil
 	}
 }
 
-// DecodeDeleteMembershipKeyContactRequest returns a decoder for requests sent
-// to the membership-service delete-membership-key-contact endpoint.
-func DecodeDeleteMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.DeleteMembershipKeyContactPayload, error) {
-	return func(r *http.Request) (*membershipservice.DeleteMembershipKeyContactPayload, error) {
-		var payload *membershipservice.DeleteMembershipKeyContactPayload
+// DecodeDeleteKeyContactRequest returns a decoder for requests sent to the
+// membership-service delete-key-contact endpoint.
+func DecodeDeleteKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.DeleteKeyContactPayload, error) {
+	return func(r *http.Request) (*membershipservice.DeleteKeyContactPayload, error) {
+		var payload *membershipservice.DeleteKeyContactPayload
 		var (
-			projectUID    string
-			membershipUID string
-			contactUID    string
-			version       *string
-			bearerToken   *string
-			err           error
+			uid         string
+			version     *string
+			bearerToken *string
+			ifMatch     *string
+			err         error
 
 			params = mux.Vars(r)
 		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		contactUID = params["contact_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		versionRaw := r.URL.Query().Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewDeleteKeyContactPayload(uid, version, bearerToken, ifMatch)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeDeleteKeyContactError returns an encoder for errors returned by the
+// delete-key-contact membership-service endpoint.
+func EncodeDeleteKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewDeleteKeyContactNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewDeleteKeyContactNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewDeleteKeyContactBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewDeleteKeyContactPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewDeleteKeyContactInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewDeleteKeyContactServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeAdminReindexResponse returns an encoder for responses returned by the
+// membership-service admin-reindex endpoint.
+func EncodeAdminReindexResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*membershipservice.AdminReindexResult)
+		enc := encoder(ctx, w)
+		body := NewAdminReindexResponseBody(res)
+		w.WriteHeader(http.StatusAccepted)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeAdminReindexRequest returns a decoder for requests sent to the
+// membership-service admin-reindex endpoint.
+func DecodeAdminReindexRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.AdminReindexPayload, error) {
+	return func(r *http.Request) (*membershipservice.AdminReindexPayload, error) {
+		var payload *membershipservice.AdminReindexPayload
+		var (
+			body AdminReindexRequestBody
+			err  error
+		)
+		err = decoder(r).Decode(&body)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return payload, goa.MissingPayloadError()
+			}
+			var gerr *goa.ServiceError
+			if errors.As(err, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+
+		var (
+			version     *string
+			bearerToken *string
+		)
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -983,7 +1425,7 @@ func DecodeDeleteMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 		if err != nil {
 			return payload, err
 		}
-		payload = NewDeleteMembershipKeyContactPayload(projectUID, membershipUID, contactUID, version, bearerToken)
+		payload = NewAdminReindexPayload(&body, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -996,9 +1438,9 @@ func DecodeDeleteMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*ht
 	}
 }
 
-// EncodeDeleteMembershipKeyContactError returns an encoder for errors returned
-// by the delete-membership-key-contact membership-service endpoint.
-func EncodeDeleteMembershipKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+// EncodeAdminReindexError returns an encoder for errors returned by the
+// admin-reindex membership-service endpoint.
+func EncodeAdminReindexError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
 	encodeError := goahttp.ErrorEncoder(encoder, formatter)
 	return func(ctx context.Context, w http.ResponseWriter, v error) error {
 		var en goa.GoaErrorNamer
@@ -1006,6 +1448,19 @@ func EncodeDeleteMembershipKeyContactError(encoder func(context.Context, http.Re
 			return encodeError(ctx, w, v)
 		}
 		switch en.GoaErrorName() {
+		case "NotImplemented":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewAdminReindexNotImplementedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotImplemented)
+			return enc.Encode(body)
 		case "NotFound":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -1014,11 +1469,37 @@ func EncodeDeleteMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewDeleteMembershipKeyContactNotFoundResponseBody(res)
+				body = NewAdminReindexNotFoundResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusNotFound)
 			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewAdminReindexBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewAdminReindexPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -1027,7 +1508,7 @@ func EncodeDeleteMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewDeleteMembershipKeyContactInternalServerErrorResponseBody(res)
+				body = NewAdminReindexInternalServerErrorResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusInternalServerError)
@@ -1040,413 +1521,7 @@ func EncodeDeleteMembershipKeyContactError(encoder func(context.Context, http.Re
 			if formatter != nil {
 				body = formatter(ctx, res)
 			} else {
-				body = NewDeleteMembershipKeyContactServiceUnavailableResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeGetMembershipKeyContactResponse returns an encoder for responses
-// returned by the membership-service get-membership-key-contact endpoint.
-func EncodeGetMembershipKeyContactResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.GetMembershipKeyContactResult)
-		enc := encoder(ctx, w)
-		body := NewGetMembershipKeyContactResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
-}
-
-// DecodeGetMembershipKeyContactRequest returns a decoder for requests sent to
-// the membership-service get-membership-key-contact endpoint.
-func DecodeGetMembershipKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.GetMembershipKeyContactPayload, error) {
-	return func(r *http.Request) (*membershipservice.GetMembershipKeyContactPayload, error) {
-		var payload *membershipservice.GetMembershipKeyContactPayload
-		var (
-			projectUID    string
-			membershipUID string
-			contactUID    string
-			version       *string
-			bearerToken   *string
-			err           error
-
-			params = mux.Vars(r)
-		)
-		projectUID = params["project_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
-		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		contactUID = params["contact_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("contact_uid", contactUID, goa.FormatUUID))
-		versionRaw := r.URL.Query().Get("v")
-		if versionRaw != "" {
-			version = &versionRaw
-		}
-		if version != nil {
-			if !(*version == "1") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
-			}
-		}
-		bearerTokenRaw := r.Header.Get("Authorization")
-		if bearerTokenRaw != "" {
-			bearerToken = &bearerTokenRaw
-		}
-		if err != nil {
-			return payload, err
-		}
-		payload = NewGetMembershipKeyContactPayload(projectUID, membershipUID, contactUID, version, bearerToken)
-		if payload.BearerToken != nil {
-			if strings.Contains(*payload.BearerToken, " ") {
-				// Remove authorization scheme prefix (e.g. "Bearer")
-				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
-				payload.BearerToken = &cred
-			}
-		}
-
-		return payload, nil
-	}
-}
-
-// EncodeGetMembershipKeyContactError returns an encoder for errors returned by
-// the get-membership-key-contact membership-service endpoint.
-func EncodeGetMembershipKeyContactError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "NotFound":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetMembershipKeyContactNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
-		case "InternalServerError":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetMembershipKeyContactInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "ServiceUnavailable":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewGetMembershipKeyContactServiceUnavailableResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeListB2bOrgsResponse returns an encoder for responses returned by the
-// membership-service list-b2b-orgs endpoint.
-func EncodeListB2bOrgsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.ListB2bOrgsResult)
-		enc := encoder(ctx, w)
-		body := NewListB2bOrgsResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
-}
-
-// DecodeListB2bOrgsRequest returns a decoder for requests sent to the
-// membership-service list-b2b-orgs endpoint.
-func DecodeListB2bOrgsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.ListB2bOrgsPayload, error) {
-	return func(r *http.Request) (*membershipservice.ListB2bOrgsPayload, error) {
-		var payload *membershipservice.ListB2bOrgsPayload
-		var (
-			version     *string
-			pageSize    int
-			pageToken   *string
-			sort        string
-			searchName  *string
-			bearerToken *string
-			err         error
-		)
-		qp := r.URL.Query()
-		versionRaw := qp.Get("v")
-		if versionRaw != "" {
-			version = &versionRaw
-		}
-		if version != nil {
-			if !(*version == "1") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
-			}
-		}
-		{
-			pageSizeRaw := qp.Get("pageSize")
-			if pageSizeRaw == "" {
-				pageSize = 200
-			} else {
-				v, err2 := strconv.ParseInt(pageSizeRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("pageSize", pageSizeRaw, "integer"))
-				}
-				pageSize = int(v)
-			}
-		}
-		if pageSize < 1 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1, true))
-		}
-		if pageSize > 1000 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1000, false))
-		}
-		pageTokenRaw := qp.Get("pageToken")
-		if pageTokenRaw != "" {
-			pageToken = &pageTokenRaw
-		}
-		sortRaw := qp.Get("sort")
-		if sortRaw != "" {
-			sort = sortRaw
-		} else {
-			sort = "newest"
-		}
-		if !(sort == "name" || sort == "newest" || sort == "last_modified") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("sort", sort, []any{"name", "newest", "last_modified"}))
-		}
-		searchNameRaw := qp.Get("search_name")
-		if searchNameRaw != "" {
-			searchName = &searchNameRaw
-		}
-		bearerTokenRaw := r.Header.Get("Authorization")
-		if bearerTokenRaw != "" {
-			bearerToken = &bearerTokenRaw
-		}
-		if err != nil {
-			return payload, err
-		}
-		payload = NewListB2bOrgsPayload(version, pageSize, pageToken, sort, searchName, bearerToken)
-		if payload.BearerToken != nil {
-			if strings.Contains(*payload.BearerToken, " ") {
-				// Remove authorization scheme prefix (e.g. "Bearer")
-				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
-				payload.BearerToken = &cred
-			}
-		}
-
-		return payload, nil
-	}
-}
-
-// EncodeListB2bOrgsError returns an encoder for errors returned by the
-// list-b2b-orgs membership-service endpoint.
-func EncodeListB2bOrgsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "InternalServerError":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListB2bOrgsInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "ServiceUnavailable":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListB2bOrgsServiceUnavailableResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusServiceUnavailable)
-			return enc.Encode(body)
-		default:
-			return encodeError(ctx, w, v)
-		}
-	}
-}
-
-// EncodeListB2bOrgMembershipsResponse returns an encoder for responses
-// returned by the membership-service list-b2b-org-memberships endpoint.
-func EncodeListB2bOrgMembershipsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
-	return func(ctx context.Context, w http.ResponseWriter, v any) error {
-		res, _ := v.(*membershipservice.ListB2bOrgMembershipsResult)
-		enc := encoder(ctx, w)
-		body := NewListB2bOrgMembershipsResponseBody(res)
-		w.WriteHeader(http.StatusOK)
-		return enc.Encode(body)
-	}
-}
-
-// DecodeListB2bOrgMembershipsRequest returns a decoder for requests sent to
-// the membership-service list-b2b-org-memberships endpoint.
-func DecodeListB2bOrgMembershipsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.ListB2bOrgMembershipsPayload, error) {
-	return func(r *http.Request) (*membershipservice.ListB2bOrgMembershipsPayload, error) {
-		var payload *membershipservice.ListB2bOrgMembershipsPayload
-		var (
-			b2bOrgUID   string
-			version     *string
-			pageSize    int
-			pageToken   *string
-			sort        string
-			filter      *string
-			searchName  *string
-			bearerToken *string
-			err         error
-
-			params = mux.Vars(r)
-		)
-		b2bOrgUID = params["b2b_org_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("b2b_org_uid", b2bOrgUID, goa.FormatUUID))
-		qp := r.URL.Query()
-		versionRaw := qp.Get("v")
-		if versionRaw != "" {
-			version = &versionRaw
-		}
-		if version != nil {
-			if !(*version == "1") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
-			}
-		}
-		{
-			pageSizeRaw := qp.Get("pageSize")
-			if pageSizeRaw == "" {
-				pageSize = 200
-			} else {
-				v, err2 := strconv.ParseInt(pageSizeRaw, 10, strconv.IntSize)
-				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("pageSize", pageSizeRaw, "integer"))
-				}
-				pageSize = int(v)
-			}
-		}
-		if pageSize < 1 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1, true))
-		}
-		if pageSize > 1000 {
-			err = goa.MergeErrors(err, goa.InvalidRangeError("pageSize", pageSize, 1000, false))
-		}
-		pageTokenRaw := qp.Get("pageToken")
-		if pageTokenRaw != "" {
-			pageToken = &pageTokenRaw
-		}
-		sortRaw := qp.Get("sort")
-		if sortRaw != "" {
-			sort = sortRaw
-		} else {
-			sort = "newest"
-		}
-		if !(sort == "name" || sort == "newest" || sort == "last_modified") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("sort", sort, []any{"name", "newest", "last_modified"}))
-		}
-		filterRaw := qp.Get("filter")
-		if filterRaw != "" {
-			filter = &filterRaw
-		}
-		searchNameRaw := qp.Get("search_name")
-		if searchNameRaw != "" {
-			searchName = &searchNameRaw
-		}
-		bearerTokenRaw := r.Header.Get("Authorization")
-		if bearerTokenRaw != "" {
-			bearerToken = &bearerTokenRaw
-		}
-		if err != nil {
-			return payload, err
-		}
-		payload = NewListB2bOrgMembershipsPayload(b2bOrgUID, version, pageSize, pageToken, sort, filter, searchName, bearerToken)
-		if payload.BearerToken != nil {
-			if strings.Contains(*payload.BearerToken, " ") {
-				// Remove authorization scheme prefix (e.g. "Bearer")
-				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
-				payload.BearerToken = &cred
-			}
-		}
-
-		return payload, nil
-	}
-}
-
-// EncodeListB2bOrgMembershipsError returns an encoder for errors returned by
-// the list-b2b-org-memberships membership-service endpoint.
-func EncodeListB2bOrgMembershipsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
-	encodeError := goahttp.ErrorEncoder(encoder, formatter)
-	return func(ctx context.Context, w http.ResponseWriter, v error) error {
-		var en goa.GoaErrorNamer
-		if !errors.As(v, &en) {
-			return encodeError(ctx, w, v)
-		}
-		switch en.GoaErrorName() {
-		case "NotFound":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListB2bOrgMembershipsNotFoundResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusNotFound)
-			return enc.Encode(body)
-		case "InternalServerError":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListB2bOrgMembershipsInternalServerErrorResponseBody(res)
-			}
-			w.Header().Set("goa-error", res.GoaErrorName())
-			w.WriteHeader(http.StatusInternalServerError)
-			return enc.Encode(body)
-		case "ServiceUnavailable":
-			var res *goa.ServiceError
-			errors.As(v, &res)
-			enc := encoder(ctx, w)
-			var body any
-			if formatter != nil {
-				body = formatter(ctx, res)
-			} else {
-				body = NewListB2bOrgMembershipsServiceUnavailableResponseBody(res)
+				body = NewAdminReindexServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -1523,120 +1598,4 @@ func EncodeDebugVarsResponse(encoder func(context.Context, http.ResponseWriter) 
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
-}
-
-// marshalMembershipserviceMembershipTierResponseToMembershipTierResponseResponseBody
-// builds a value of type *MembershipTierResponseResponseBody from a value of
-// type *membershipservice.MembershipTierResponse.
-func marshalMembershipserviceMembershipTierResponseToMembershipTierResponseResponseBody(v *membershipservice.MembershipTierResponse) *MembershipTierResponseResponseBody {
-	res := &MembershipTierResponseResponseBody{
-		UID:         v.UID,
-		ProjectUID:  v.ProjectUID,
-		Name:        v.Name,
-		Family:      v.Family,
-		ProductType: v.ProductType,
-		CreatedAt:   v.CreatedAt,
-		UpdatedAt:   v.UpdatedAt,
-	}
-
-	return res
-}
-
-// marshalMembershipserviceProjectMembershipResponseToProjectMembershipResponseResponseBody
-// builds a value of type *ProjectMembershipResponseResponseBody from a value
-// of type *membershipservice.ProjectMembershipResponse.
-func marshalMembershipserviceProjectMembershipResponseToProjectMembershipResponseResponseBody(v *membershipservice.ProjectMembershipResponse) *ProjectMembershipResponseResponseBody {
-	res := &ProjectMembershipResponseResponseBody{
-		UID:              v.UID,
-		TierUID:          v.TierUID,
-		ProjectUID:       v.ProjectUID,
-		ProjectSlug:      v.ProjectSlug,
-		B2bOrgUID:        v.B2bOrgUID,
-		Status:           v.Status,
-		Year:             v.Year,
-		Tier:             v.Tier,
-		AutoRenew:        v.AutoRenew,
-		RenewalType:      v.RenewalType,
-		Price:            v.Price,
-		AnnualFullPrice:  v.AnnualFullPrice,
-		PaymentFrequency: v.PaymentFrequency,
-		PaymentTerms:     v.PaymentTerms,
-		AgreementDate:    v.AgreementDate,
-		PurchaseDate:     v.PurchaseDate,
-		StartDate:        v.StartDate,
-		EndDate:          v.EndDate,
-		CompanyName:      v.CompanyName,
-		CompanyLogoURL:   v.CompanyLogoURL,
-		CompanyDomain:    v.CompanyDomain,
-		TierName:         v.TierName,
-		TierFamily:       v.TierFamily,
-		TierProductType:  v.TierProductType,
-		CreatedAt:        v.CreatedAt,
-		UpdatedAt:        v.UpdatedAt,
-	}
-
-	return res
-}
-
-// marshalMembershipserviceListMetadataToListMetadataResponseBody builds a
-// value of type *ListMetadataResponseBody from a value of type
-// *membershipservice.ListMetadata.
-func marshalMembershipserviceListMetadataToListMetadataResponseBody(v *membershipservice.ListMetadata) *ListMetadataResponseBody {
-	res := &ListMetadataResponseBody{
-		TotalSize:     v.TotalSize,
-		NextPageToken: v.NextPageToken,
-	}
-
-	return res
-}
-
-// marshalMembershipserviceProjectKeyContactResponseToProjectKeyContactResponseResponseBody
-// builds a value of type *ProjectKeyContactResponseResponseBody from a value
-// of type *membershipservice.ProjectKeyContactResponse.
-func marshalMembershipserviceProjectKeyContactResponseToProjectKeyContactResponseResponseBody(v *membershipservice.ProjectKeyContactResponse) *ProjectKeyContactResponseResponseBody {
-	res := &ProjectKeyContactResponseResponseBody{
-		UID:            v.UID,
-		MembershipUID:  v.MembershipUID,
-		TierUID:        v.TierUID,
-		ProjectUID:     v.ProjectUID,
-		B2bOrgUID:      v.B2bOrgUID,
-		Role:           v.Role,
-		Status:         v.Status,
-		BoardMember:    v.BoardMember,
-		PrimaryContact: v.PrimaryContact,
-		FirstName:      v.FirstName,
-		LastName:       v.LastName,
-		Title:          v.Title,
-		Email:          v.Email,
-		CompanyName:    v.CompanyName,
-		CompanyLogoURL: v.CompanyLogoURL,
-		CompanyDomain:  v.CompanyDomain,
-		CreatedAt:      v.CreatedAt,
-		UpdatedAt:      v.UpdatedAt,
-	}
-
-	return res
-}
-
-// marshalMembershipserviceB2bOrgResponseToB2bOrgResponseResponseBody builds a
-// value of type *B2bOrgResponseResponseBody from a value of type
-// *membershipservice.B2bOrgResponse.
-func marshalMembershipserviceB2bOrgResponseToB2bOrgResponseResponseBody(v *membershipservice.B2bOrgResponse) *B2bOrgResponseResponseBody {
-	res := &B2bOrgResponseResponseBody{
-		UID:           v.UID,
-		Name:          v.Name,
-		Website:       v.Website,
-		PrimaryDomain: v.PrimaryDomain,
-		LogoURL:       v.LogoURL,
-		CreatedAt:     v.CreatedAt,
-		UpdatedAt:     v.UpdatedAt,
-	}
-	if v.DomainAliases != nil {
-		res.DomainAliases = make([]string, len(v.DomainAliases))
-		for i, val := range v.DomainAliases {
-			res.DomainAliases[i] = val
-		}
-	}
-
-	return res
 }

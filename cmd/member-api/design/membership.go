@@ -18,464 +18,436 @@ var JWTAuth = dsl.JWTSecurity("jwt", func() {
 
 // Service describes the membership service
 var _ = dsl.Service("membership-service", func() {
-	dsl.Description("Membership management service — project-scoped drill-down API for tiers, memberships, and key contacts")
+	dsl.Description("Membership management service — direct resource endpoints for B2B orgs, memberships, and key contacts")
 
-	// ── Tiers (Product2 per project) ────────────────────────────────────────
+	// ── B2B Organizations (Account) ──────────────────────────────────────────
 
-	dsl.Method("list-project-tiers", func() {
-		dsl.Description("List membership tiers (Product2 records) for a specific project")
-
-		dsl.Security(JWTAuth)
-
-		dsl.Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			ProjectUIDAttribute()
-		})
-
-		dsl.Result(func() {
-			dsl.Attribute("tiers", dsl.ArrayOf(MembershipTierResponse), "List of membership tiers")
-			dsl.Required("tiers")
-		})
-
-		dsl.Error("NotFound", dsl.ErrorResult, "Project not found")
-		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
-		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
-
-		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/tiers")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusOK)
-			dsl.Response("NotFound", dsl.StatusNotFound)
-			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
-			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
-		})
-	})
-
-	dsl.Method("get-project-tier", func() {
-		dsl.Description("Get a specific membership tier by UID")
+	dsl.Method("get-b2b-org", func() {
+		dsl.Description("Get a specific B2B organization by UID")
 
 		dsl.Security(JWTAuth)
 
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			ProjectUIDAttribute()
-			TierUIDAttribute()
-		})
-
-		dsl.Result(func() {
-			dsl.Attribute("tier", MembershipTierResponse, "Membership tier details")
-			dsl.Required("tier")
-		})
-
-		dsl.Error("NotFound", dsl.ErrorResult, "Tier not found")
-		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
-		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
-
-		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/tiers/{tier_uid}")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("tier_uid")
-			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusOK, func() {
-				dsl.Body("tier")
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 			})
-			dsl.Response("NotFound", dsl.StatusNotFound)
-			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
-			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
-		})
-	})
-
-	// ── Memberships (Asset per project) ─────────────────────────────────────
-
-	dsl.Method("list-project-memberships", func() {
-		dsl.Description("List memberships (Asset records) for a specific project, with denormalized company attributes")
-
-		dsl.Security(JWTAuth)
-
-		dsl.Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			ProjectUIDAttribute()
-			PageSizeAttribute()
-			PageTokenAttribute()
-			SortAttribute()
-			FilterAttribute()
-			SearchNameAttribute()
+			IfNoneMatchAttribute()
+			IfModifiedSinceAttribute()
+			dsl.Required("uid")
 		})
 
 		dsl.Result(func() {
-			dsl.Attribute("memberships", dsl.ArrayOf(ProjectMembershipResponse), "List of project memberships")
-			dsl.Attribute("metadata", ListMetadata, "Pagination metadata")
-			dsl.Required("memberships", "metadata")
+			dsl.Attribute("b2b_org", B2BOrgResponse, "B2B organization details")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("b2b_org")
 		})
 
-		dsl.Error("NotFound", dsl.ErrorResult, "Project not found")
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
 		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
 		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/memberships")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("pageSize")
-			dsl.Param("pageToken")
-			dsl.Param("sort")
-			dsl.Param("filter")
-			dsl.Param("search_name")
+			dsl.GET("/b2b_orgs/{uid}")
 			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusOK)
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_none_match:If-None-Match")
+			dsl.Header("if_modified_since:If-Modified-Since")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+				dsl.Body("b2b_org")
+			})
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
 			dsl.Response("NotFound", dsl.StatusNotFound)
 			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
 			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
 			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
 		})
 	})
+
+	dsl.Method("create-b2b-org", func() {
+		dsl.Description("Create a new B2B organization")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Extend(B2BOrgCreateBody)
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("b2b_org", B2BOrgResponse, "Newly created B2B organization")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("b2b_org")
+		})
+
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.POST("/b2b_orgs")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Response(dsl.StatusCreated, func() {
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+				dsl.Body("b2b_org")
+			})
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("update-b2b-org", func() {
+		dsl.Description("Update a B2B organization")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfMatchAttribute()
+			IfUnmodifiedSinceAttribute()
+			dsl.Extend(B2BOrgUpdateBody)
+			dsl.Required("uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("b2b_org", B2BOrgResponse, "Updated B2B organization")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("b2b_org")
+		})
+
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.PUT("/b2b_orgs/{uid}")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Header("if_unmodified_since:If-Unmodified-Since")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+				dsl.Body("b2b_org")
+			})
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	// ── Project Memberships (Asset) ──────────────────────────────────────────
 
 	dsl.Method("get-project-membership", func() {
-		dsl.Description("Get a specific membership by UID within a project")
+		dsl.Description("Get a specific project membership by UID")
 
 		dsl.Security(JWTAuth)
 
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			ProjectUIDAttribute()
-			MembershipUIDAttribute()
+			dsl.Attribute("uid", dsl.String, "Project membership UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfNoneMatchAttribute()
+			IfModifiedSinceAttribute()
+			dsl.Required("uid")
 		})
 
 		dsl.Result(func() {
-			dsl.Attribute("membership", ProjectMembershipResponse, "Membership details")
+			dsl.Attribute("project_membership", ProjectMembershipResponse, "Project membership details")
 			ETagAttribute()
-			dsl.Required("membership")
+			LastModifiedAttribute()
+			dsl.Required("project_membership")
 		})
 
-		dsl.Error("NotFound", dsl.ErrorResult, "Membership not found")
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
 		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/memberships/{membership_uid}")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("membership_uid")
+			dsl.GET("/project_memberships/{uid}")
 			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_none_match:If-None-Match")
+			dsl.Header("if_modified_since:If-Modified-Since")
 			dsl.Response(dsl.StatusOK, func() {
-				dsl.Body("membership")
 				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+				dsl.Body("project_membership")
 			})
-			dsl.Response("NotFound", dsl.StatusNotFound)
-			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
-			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
-		})
-	})
-
-	// ── Key contacts (Project_Role__c per membership) ────────────────────────
-
-	dsl.Method("list-membership-key-contacts", func() {
-		dsl.Description("List key contacts (Project_Role__c records) for a specific membership, with denormalized contact and company attributes")
-
-		dsl.Security(JWTAuth)
-
-		dsl.Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			ProjectUIDAttribute()
-			MembershipUIDAttribute()
-		})
-
-		dsl.Result(func() {
-			dsl.Attribute("contacts", dsl.ArrayOf(ProjectKeyContactResponse), "List of key contacts")
-			dsl.Required("contacts")
-		})
-
-		dsl.Error("NotFound", dsl.ErrorResult, "Membership not found")
-		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
-		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
-
-		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/memberships/{membership_uid}/key_contacts")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("membership_uid")
-			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusOK)
-			dsl.Response("NotFound", dsl.StatusNotFound)
-			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
-			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
-		})
-	})
-
-	dsl.Method("create-membership-key-contact", func() {
-		dsl.Description("Create a new key contact (Project_Role__c record) for a specific membership")
-
-		dsl.Security(JWTAuth)
-
-		dsl.Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			ProjectUIDAttribute()
-			MembershipUIDAttribute()
-			dsl.Attribute("email", dsl.String, "Contact email address; used to resolve or create the B2B Salesforce Contact record", func() {
-				dsl.Format(dsl.FormatEmail)
-				dsl.Example("john.doe@example.com")
-			})
-			dsl.Attribute("first_name", dsl.String, "Contact first name; used when creating a new Contact on miss", func() {
-				dsl.Example("John")
-			})
-			dsl.Attribute("last_name", dsl.String, "Contact last name; used when creating a new Contact on miss", func() {
-				dsl.Example("Doe")
-			})
-			dsl.Attribute("title", dsl.String, "Contact job title; used when creating a new Contact on miss", func() {
-				dsl.Example("CTO")
-			})
-			dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
-				dsl.Example("Voting Representative")
-			})
-			dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
-				dsl.Example("Active")
-			})
-			dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
-				dsl.Example(false)
-			})
-			dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
-				dsl.Example(false)
-			})
-			dsl.Required("email", "first_name", "last_name")
-		})
-
-		dsl.Result(func() {
-			dsl.Attribute("contact", ProjectKeyContactResponse, "Newly created key contact")
-			dsl.Required("contact")
-		})
-
-		dsl.Error("NotFound", dsl.ErrorResult, "Membership not found")
-		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
-		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
-		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
-
-		dsl.HTTP(func() {
-			dsl.POST("/projects/{project_uid}/memberships/{membership_uid}/key_contacts")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("membership_uid")
-			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusCreated, func() {
-				dsl.Body("contact")
-			})
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
 			dsl.Response("NotFound", dsl.StatusNotFound)
 			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
 			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
 			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
 		})
 	})
 
-	dsl.Method("update-membership-key-contact", func() {
-		dsl.Description("Update a key contact (Project_Role__c record) within a membership")
+	// ── Key Contacts (Project_Role__c) ───────────────────────────────────────
+
+	dsl.Method("get-key-contact", func() {
+		dsl.Description("Get a specific key contact by UID")
 
 		dsl.Security(JWTAuth)
 
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			ProjectUIDAttribute()
-			MembershipUIDAttribute()
-			ContactUIDAttribute()
-			dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
-				dsl.Example("Voting Representative")
+			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 			})
-			dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
-				dsl.Example("Active")
-			})
-			dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
-				dsl.Example(false)
-			})
-			dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
-				dsl.Example(false)
-			})
+			IfNoneMatchAttribute()
+			IfModifiedSinceAttribute()
+			dsl.Required("uid")
 		})
 
 		dsl.Result(func() {
-			dsl.Attribute("contact", ProjectKeyContactResponse, "Updated key contact")
-			dsl.Required("contact")
+			dsl.Attribute("key_contact", ProjectKeyContactResponse, "Key contact details")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("key_contact")
 		})
 
-		dsl.Error("NotFound", dsl.ErrorResult, "Key contact not found")
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
 		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
 		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.PUT("/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("membership_uid")
-			dsl.Param("contact_uid")
+			dsl.GET("/key_contacts/{uid}")
 			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_none_match:If-None-Match")
+			dsl.Header("if_modified_since:If-Modified-Since")
 			dsl.Response(dsl.StatusOK, func() {
-				dsl.Body("contact")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+				dsl.Body("key_contact")
 			})
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
 			dsl.Response("NotFound", dsl.StatusNotFound)
 			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
 			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
 			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
 		})
 	})
 
-	dsl.Method("delete-membership-key-contact", func() {
-		dsl.Description("Delete a key contact (Project_Role__c record) from a membership")
+	dsl.Method("create-key-contact", func() {
+		dsl.Description("Create a new key contact")
 
 		dsl.Security(JWTAuth)
 
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			ProjectUIDAttribute()
-			MembershipUIDAttribute()
-			ContactUIDAttribute()
+			dsl.Extend(KeyContactCreateBody)
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("key_contact", ProjectKeyContactResponse, "Newly created key contact")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("key_contact")
+		})
+
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.POST("/key_contacts")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Response(dsl.StatusCreated, func() {
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+				dsl.Body("key_contact")
+			})
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("update-key-contact", func() {
+		dsl.Description("Update a key contact")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfMatchAttribute()
+			IfUnmodifiedSinceAttribute()
+			dsl.Extend(KeyContactUpdateBody)
+			dsl.Required("uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("key_contact", ProjectKeyContactResponse, "Updated key contact")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("key_contact")
+		})
+
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.PUT("/key_contacts/{uid}")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Header("if_unmodified_since:If-Unmodified-Since")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+				dsl.Body("key_contact")
+			})
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("delete-key-contact", func() {
+		dsl.Description("Delete a key contact")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfMatchAttribute()
+			dsl.Required("uid")
 		})
 
 		dsl.Result(dsl.Empty)
 
-		dsl.Error("NotFound", dsl.ErrorResult, "Key contact not found")
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
 		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.DELETE("/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("membership_uid")
-			dsl.Param("contact_uid")
+			dsl.DELETE("/key_contacts/{uid}")
 			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_match:If-Match")
 			dsl.Response(dsl.StatusNoContent)
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
 			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
 			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
 			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
 		})
 	})
 
-	dsl.Method("get-membership-key-contact", func() {
-		dsl.Description("Get a specific key contact by UID within a membership")
+	// ── Admin Actions ────────────────────────────────────────────────────────
+
+	dsl.Method("admin-reindex", func() {
+		dsl.Description("Trigger a reindex of cached entities")
 
 		dsl.Security(JWTAuth)
 
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			ProjectUIDAttribute()
-			MembershipUIDAttribute()
-			ContactUIDAttribute()
+			dsl.Extend(AdminReindexPayload)
 		})
 
 		dsl.Result(func() {
-			dsl.Attribute("contact", ProjectKeyContactResponse, "Key contact details")
-			dsl.Required("contact")
+			dsl.Extend(AdminReindexResult)
 		})
 
-		dsl.Error("NotFound", dsl.ErrorResult, "Key contact not found")
+		dsl.Error("NotImplemented", dsl.ErrorResult, "Endpoint not implemented")
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
 		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}")
-			dsl.Param("version:v")
-			dsl.Param("project_uid")
-			dsl.Param("membership_uid")
-			dsl.Param("contact_uid")
+			dsl.POST("/admin/reindex")
 			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusOK, func() {
-				dsl.Body("contact")
-			})
+			dsl.Param("version:v")
+			dsl.Response(dsl.StatusAccepted)
+			dsl.Response("NotImplemented", dsl.StatusNotImplemented)
 			dsl.Response("NotFound", dsl.StatusNotFound)
-			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
-			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
-		})
-	})
-
-	// ── B2B Organizations (Account) ──────────────────────────────────────────
-
-	dsl.Method("list-b2b-orgs", func() {
-		dsl.Description("Search and list B2B organizations (Salesforce Accounts) by name with pagination")
-
-		dsl.Security(JWTAuth)
-
-		dsl.Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			PageSizeAttribute()
-			PageTokenAttribute()
-			SortAttribute()
-			B2BOrgSearchNameAttribute()
-		})
-
-		dsl.Result(func() {
-			dsl.Attribute("orgs", dsl.ArrayOf(B2BOrgResponse), "List of B2B organizations")
-			dsl.Attribute("metadata", ListMetadata, "Pagination metadata")
-			dsl.Required("orgs", "metadata")
-		})
-
-		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
-		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
-
-		dsl.HTTP(func() {
-			dsl.GET("/b2b_orgs")
-			dsl.Param("version:v")
-			dsl.Param("pageSize")
-			dsl.Param("pageToken")
-			dsl.Param("sort")
-			dsl.Param("search_name")
-			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusOK)
-			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
-			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
-		})
-	})
-
-	dsl.Method("list-b2b-org-memberships", func() {
-		dsl.Description("List all memberships (Assets) across all projects for a given B2B organization UID, with pagination and filters")
-
-		dsl.Security(JWTAuth)
-
-		dsl.Payload(func() {
-			BearerTokenAttribute()
-			VersionAttribute()
-			B2BOrgUIDAttribute()
-			PageSizeAttribute()
-			PageTokenAttribute()
-			SortAttribute()
-			FilterAttribute()
-			SearchNameAttribute()
-			dsl.Required("b2b_org_uid")
-		})
-
-		dsl.Result(func() {
-			dsl.Attribute("memberships", dsl.ArrayOf(ProjectMembershipResponse), "List of memberships for the B2B organization")
-			dsl.Attribute("metadata", ListMetadata, "Pagination metadata")
-			dsl.Required("memberships", "metadata")
-		})
-
-		dsl.Error("NotFound", dsl.ErrorResult, "B2B organization not found")
-		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
-		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
-
-		dsl.HTTP(func() {
-			dsl.GET("/b2b_orgs/{b2b_org_uid}/memberships")
-			dsl.Param("version:v")
-			dsl.Param("b2b_org_uid")
-			dsl.Param("pageSize")
-			dsl.Param("pageToken")
-			dsl.Param("sort")
-			dsl.Param("filter")
-			dsl.Param("search_name")
-			dsl.Header("bearer_token:Authorization")
-			dsl.Response(dsl.StatusOK)
-			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
 			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
 			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
 		})

@@ -121,33 +121,65 @@ func NATSClientImpl(ctx context.Context) *nats.NATSClient {
 }
 
 // ProjectResolverImpl returns the shared ProjectResolver singleton, initialising
-// all dependencies (NATS, Salesforce) as needed. This is intended for use by
-// main.go to wire NATS RPC subscriptions that depend on the resolver, and is
-// also used internally by MemberReaderImpl for the Salesforce source.
+// all dependencies (NATS, Salesforce) as needed. Returns nil when
+// REPOSITORY_SOURCE=mock — callers must guard on nil before use.
 func ProjectResolverImpl(ctx context.Context) port.ProjectResolver {
-	resolverDoOnce.Do(func() {
-		natsInit(ctx)
-		sfInit(ctx)
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
 
-		cache := nats.NewStorage(natsClient)
-		projectRepo := salesforce.NewProjectRepo(sfClient)
-		projectRPC := nats.NewProjectRPC(natsClient.Conn(), natsTimeoutFromEnv())
-		projectResolver = infraproject.NewProjectResolver(projectRPC, projectRepo, cache)
-	})
-	return projectResolver
+	switch repoSource {
+	case "mock":
+		return nil
+
+	case "salesforce":
+		resolverDoOnce.Do(func() {
+			natsInit(ctx)
+			sfInit(ctx)
+
+			cache := nats.NewStorage(natsClient)
+			projectRepo := salesforce.NewProjectRepo(sfClient)
+			projectRPC := nats.NewProjectRPC(natsClient.Conn(), natsTimeoutFromEnv())
+			projectResolver = infraproject.NewProjectResolver(projectRPC, projectRepo, cache)
+		})
+		return projectResolver
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
+		return nil
+	}
 }
 
-// KeyContactWriterImpl creates and returns a new port.KeyContactWriter backed by
-// Salesforce with NATS KV cache invalidation. A new instance is constructed on
-// each call (no singleton) since KeyContactWriter holds no expensive shared state
-// beyond the already-singleton sfClient and natsClient.
+// KeyContactWriterImpl initialises and returns the port.KeyContactWriter
+// implementation selected by the REPOSITORY_SOURCE environment variable:
+//
+//   - "salesforce" (default) — Salesforce-backed writer with NATS KV cache invalidation.
+//   - "mock"                 — Stub that returns NotImplemented for all writes; for local development without SF credentials.
 func KeyContactWriterImpl(ctx context.Context) port.KeyContactWriter {
-	natsInit(ctx)
-	sfInit(ctx)
-	cache := nats.NewStorage(natsClient)
-	contactRepo := salesforce.NewContactRepo(sfClient)
-	contactsRepo := salesforce.NewKeyContactRepo(sfClient)
-	return salesforce.NewKeyContactWriter(sfClient, contactsRepo, contactRepo, cache)
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
+
+	switch repoSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock key contact writer")
+		return mock.NewMockKeyContactWriter()
+
+	case "salesforce":
+		slog.InfoContext(ctx, "initialising Salesforce key contact writer with NATS KV cache")
+		natsInit(ctx)
+		sfInit(ctx)
+		cache := nats.NewStorage(natsClient)
+		contactRepo := salesforce.NewContactRepo(sfClient)
+		contactsRepo := salesforce.NewKeyContactRepo(sfClient)
+		return salesforce.NewKeyContactWriter(sfClient, contactsRepo, contactRepo, cache)
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
+		return nil
+	}
 }
 
 // MemberReaderImpl initialises and returns the port.MemberReader implementation

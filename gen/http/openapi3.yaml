@@ -6,13 +6,13 @@ servers:
     - url: http://localhost:80
       description: Default server for membership
 paths:
-    /b2b_orgs:
-        get:
+    /admin/reindex:
+        post:
             tags:
                 - membership-service
-            summary: list-b2b-orgs membership-service
-            description: Search and list B2B organizations (Salesforce Accounts) by name with pagination
-            operationId: membership-service#list-b2b-orgs
+            summary: admin-reindex membership-service
+            description: Trigger a reindex of cached entities
+            operationId: membership-service#admin-reindex
             parameters:
                 - name: v
                   in: query
@@ -25,473 +25,25 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: pageSize
-                  in: query
-                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
-                  allowEmptyValue: true
-                  schema:
-                    type: integer
-                    description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
-                    default: 200
-                    example: 200
-                    format: int64
-                    minimum: 1
-                    maximum: 1000
-                  example: 200
-                - name: pageToken
-                  in: query
-                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
-                    example: ""
-                  example: ""
-                - name: sort
-                  in: query
-                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
-                    default: newest
-                    example: newest
-                    enum:
-                        - name
-                        - newest
-                        - last_modified
-                  example: newest
-                - name: search_name
-                  in: query
-                  description: Search organizations by name (case-insensitive substring match)
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Search organizations by name (case-insensitive substring match)
-                    example: Linux
-                  example: Linux
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AdminReindexPayload'
+                        example:
+                            types:
+                                - membership
+                                - key_contact
             responses:
-                "200":
-                    description: OK response.
+                "202":
+                    description: Accepted response.
                     content:
                         application/json:
                             schema:
-                                $ref: '#/components/schemas/ListB2bOrgsResponseBody'
+                                $ref: '#/components/schemas/AdminReindexResult'
                             example:
-                                metadata:
-                                    next_page_token: ""
-                                    total_size: 100
-                                orgs:
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      domain_aliases:
-                                        - example.org
-                                        - example.net
-                                      logo_url: https://example.com/logo.png
-                                      name: Example Corp
-                                      primary_domain: example.com
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      website: https://example.com
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      domain_aliases:
-                                        - example.org
-                                        - example.net
-                                      logo_url: https://example.com/logo.png
-                                      name: Example Corp
-                                      primary_domain: example.com
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      website: https://example.com
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      domain_aliases:
-                                        - example.org
-                                        - example.net
-                                      logo_url: https://example.com/logo.png
-                                      name: Example Corp
-                                      primary_domain: example.com
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      website: https://example.com
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-    /b2b_orgs/{b2b_org_uid}/memberships:
-        get:
-            tags:
-                - membership-service
-            summary: list-b2b-org-memberships membership-service
-            description: List all memberships (Assets) across all projects for a given B2B organization UID, with pagination and filters
-            operationId: membership-service#list-b2b-org-memberships
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: b2b_org_uid
-                  in: path
-                  description: B2BOrg UID
-                  required: true
-                  schema:
-                    type: string
-                    description: B2BOrg UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                - name: pageSize
-                  in: query
-                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
-                  allowEmptyValue: true
-                  schema:
-                    type: integer
-                    description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
-                    default: 200
-                    example: 200
-                    format: int64
-                    minimum: 1
-                    maximum: 1000
-                  example: 200
-                - name: pageToken
-                  in: query
-                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
-                    example: ""
-                  example: ""
-                - name: sort
-                  in: query
-                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
-                    default: newest
-                    example: newest
-                    enum:
-                        - name
-                        - newest
-                        - last_modified
-                  example: newest
-                - name: filter
-                  in: query
-                  description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
-                    example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                - name: search_name
-                  in: query
-                  description: Search memberships by member company name (case-insensitive substring match)
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Search memberships by member company name (case-insensitive substring match)
-                    example: Linux
-                  example: Linux
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ListProjectMembershipsResponseBody'
-                            example:
-                                memberships:
-                                    - agreement_date: "2025-01-01T00:00:00Z"
-                                      annual_full_price: 50000
-                                      auto_renew: true
-                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      end_date: "2025-12-31T23:59:59Z"
-                                      payment_frequency: Annual
-                                      payment_terms: Net 30
-                                      price: 50000
-                                      project_slug: kubernetes
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      purchase_date: "2025-01-15T00:00:00Z"
-                                      renewal_type: Annual
-                                      start_date: "2025-02-01T00:00:00Z"
-                                      status: Active
-                                      tier: Gold
-                                      tier_family: Membership
-                                      tier_name: Gold Corporate Membership
-                                      tier_product_type: Corporate
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      year: "2025"
-                                    - agreement_date: "2025-01-01T00:00:00Z"
-                                      annual_full_price: 50000
-                                      auto_renew: true
-                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      end_date: "2025-12-31T23:59:59Z"
-                                      payment_frequency: Annual
-                                      payment_terms: Net 30
-                                      price: 50000
-                                      project_slug: kubernetes
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      purchase_date: "2025-01-15T00:00:00Z"
-                                      renewal_type: Annual
-                                      start_date: "2025-02-01T00:00:00Z"
-                                      status: Active
-                                      tier: Gold
-                                      tier_family: Membership
-                                      tier_name: Gold Corporate Membership
-                                      tier_product_type: Corporate
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      year: "2025"
-                                    - agreement_date: "2025-01-01T00:00:00Z"
-                                      annual_full_price: 50000
-                                      auto_renew: true
-                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      end_date: "2025-12-31T23:59:59Z"
-                                      payment_frequency: Annual
-                                      payment_terms: Net 30
-                                      price: 50000
-                                      project_slug: kubernetes
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      purchase_date: "2025-01-15T00:00:00Z"
-                                      renewal_type: Annual
-                                      start_date: "2025-02-01T00:00:00Z"
-                                      status: Active
-                                      tier: Gold
-                                      tier_family: Membership
-                                      tier_name: Gold Corporate Membership
-                                      tier_product_type: Corporate
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      year: "2025"
-                                metadata:
-                                    next_page_token: ""
-                                    total_size: 100
-                "404":
-                    description: 'NotFound: B2B organization not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-    /projects/{project_uid}/memberships:
-        get:
-            tags:
-                - membership-service
-            summary: list-project-memberships membership-service
-            description: List memberships (Asset records) for a specific project, with denormalized company attributes
-            operationId: membership-service#list-project-memberships
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: pageSize
-                  in: query
-                  description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
-                  allowEmptyValue: true
-                  schema:
-                    type: integer
-                    description: 'Logical page size (1–1000). The server rounds up to the nearest supported size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a 200-record Salesforce batch and slice client-side.'
-                    default: 200
-                    example: 200
-                    format: int64
-                    minimum: 1
-                    maximum: 1000
-                  example: 200
-                - name: pageToken
-                  in: query
-                  description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Opaque continuation cursor returned in a previous list response metadata.next_page_token. Omit (or pass empty) to start from the first page. Valid for 15 minutes.
-                    example: ""
-                  example: ""
-                - name: sort
-                  in: query
-                  description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: 'Sort order for results. One of: name (A→Z by company name), newest (default, CreatedDate DESC), last_modified (LastModifiedDate DESC).'
-                    default: newest
-                    example: newest
-                    enum:
-                        - name
-                        - newest
-                        - last_modified
-                  example: newest
-                - name: filter
-                  in: query
-                  description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: 'Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from ListProjectTiers). All results are restricted to active members.'
-                    example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                  example: tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                - name: search_name
-                  in: query
-                  description: Search memberships by member company name (case-insensitive substring match)
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Search memberships by member company name (case-insensitive substring match)
-                    example: Linux
-                  example: Linux
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ListProjectMembershipsResponseBody'
-                            example:
-                                memberships:
-                                    - agreement_date: "2025-01-01T00:00:00Z"
-                                      annual_full_price: 50000
-                                      auto_renew: true
-                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      end_date: "2025-12-31T23:59:59Z"
-                                      payment_frequency: Annual
-                                      payment_terms: Net 30
-                                      price: 50000
-                                      project_slug: kubernetes
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      purchase_date: "2025-01-15T00:00:00Z"
-                                      renewal_type: Annual
-                                      start_date: "2025-02-01T00:00:00Z"
-                                      status: Active
-                                      tier: Gold
-                                      tier_family: Membership
-                                      tier_name: Gold Corporate Membership
-                                      tier_product_type: Corporate
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      year: "2025"
-                                    - agreement_date: "2025-01-01T00:00:00Z"
-                                      annual_full_price: 50000
-                                      auto_renew: true
-                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      end_date: "2025-12-31T23:59:59Z"
-                                      payment_frequency: Annual
-                                      payment_terms: Net 30
-                                      price: 50000
-                                      project_slug: kubernetes
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      purchase_date: "2025-01-15T00:00:00Z"
-                                      renewal_type: Annual
-                                      start_date: "2025-02-01T00:00:00Z"
-                                      status: Active
-                                      tier: Gold
-                                      tier_family: Membership
-                                      tier_name: Gold Corporate Membership
-                                      tier_product_type: Corporate
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      year: "2025"
-                                    - agreement_date: "2025-01-01T00:00:00Z"
-                                      annual_full_price: 50000
-                                      auto_renew: true
-                                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      end_date: "2025-12-31T23:59:59Z"
-                                      payment_frequency: Annual
-                                      payment_terms: Net 30
-                                      price: 50000
-                                      project_slug: kubernetes
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      purchase_date: "2025-01-15T00:00:00Z"
-                                      renewal_type: Annual
-                                      start_date: "2025-02-01T00:00:00Z"
-                                      status: Active
-                                      tier: Gold
-                                      tier_family: Membership
-                                      tier_name: Gold Corporate Membership
-                                      tier_product_type: Corporate
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                      year: "2025"
-                                metadata:
-                                    next_page_token: ""
-                                    total_size: 100
+                                run_id: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -499,13 +51,25 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                 "404":
-                    description: 'NotFound: Project not found'
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
                     content:
                         application/vnd.goa.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
                 "500":
                     description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -518,12 +82,810 @@ paths:
                                 $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
-    /projects/{project_uid}/memberships/{membership_uid}:
+    /b2b_orgs:
+        post:
+            tags:
+                - membership-service
+            summary: create-b2b-org membership-service
+            description: Create a new B2B organization
+            operationId: membership-service#create-b2b-org
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/B2bOrgCreateBody'
+                        example:
+                            name: Example Corp
+            responses:
+                "201":
+                    description: Created response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgResponse'
+                            example:
+                                created_at: "2025-01-01T00:00:00Z"
+                                domain_aliases:
+                                    - example.org
+                                    - example.net
+                                logo_url: https://example.com/logo.png
+                                name: Example Corp
+                                primary_domain: example.com
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                                website: https://example.com
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{uid}:
+        get:
+            tags:
+                - membership-service
+            summary: get-b2b-org membership-service
+            description: Get a specific B2B organization by UID
+            operationId: membership-service#get-b2b-org
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-None-Match
+                  in: header
+                  description: If-None-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-None-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+                - name: If-Modified-Since
+                  in: header
+                  description: If-Modified-Since header value for conditional requests (HTTP date format)
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Modified-Since header value for conditional requests (HTTP date format)
+                    example: Wed, 21 Oct 2025 07:28:00 GMT
+                  example: Wed, 21 Oct 2025 07:28:00 GMT
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgResponse'
+                            example:
+                                created_at: "2025-01-01T00:00:00Z"
+                                domain_aliases:
+                                    - example.org
+                                    - example.net
+                                logo_url: https://example.com/logo.png
+                                name: Example Corp
+                                primary_domain: example.com
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                                website: https://example.com
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        put:
+            tags:
+                - membership-service
+            summary: update-b2b-org membership-service
+            description: Update a B2B organization
+            operationId: membership-service#update-b2b-org
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+                - name: If-Unmodified-Since
+                  in: header
+                  description: If-Unmodified-Since header value for conditional requests (HTTP date format)
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Unmodified-Since header value for conditional requests (HTTP date format)
+                    example: Wed, 21 Oct 2025 07:28:00 GMT
+                  example: Wed, 21 Oct 2025 07:28:00 GMT
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateB2bOrgRequestBody'
+                        example:
+                            name: Example Corp
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgResponse'
+                            example:
+                                created_at: "2025-01-01T00:00:00Z"
+                                domain_aliases:
+                                    - example.org
+                                    - example.net
+                                logo_url: https://example.com/logo.png
+                                name: Example Corp
+                                primary_domain: example.com
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                                website: https://example.com
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /key_contacts:
+        post:
+            tags:
+                - membership-service
+            summary: create-key-contact membership-service
+            description: Create a new key contact
+            operationId: membership-service#create-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/KeyContactCreateBody'
+                        example:
+                            b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                            board_member: false
+                            email: john.doe@example.com
+                            first_name: John
+                            last_name: Doe
+                            membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                            primary_contact: false
+                            project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                            role: Voting Representative
+                            status: Active
+                            title: CTO
+            responses:
+                "201":
+                    description: Created response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectKeyContactResponse'
+                            example:
+                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                board_member: false
+                                company_domain: https://example.com
+                                company_logo_url: https://example.com/logo.png
+                                company_name: Example Corp
+                                created_at: "2025-01-01T00:00:00Z"
+                                email: john.doe@example.com
+                                first_name: John
+                                last_name: Doe
+                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                primary_contact: true
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                role: Voting Representative
+                                status: Active
+                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                title: CTO
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /key_contacts/{uid}:
+        delete:
+            tags:
+                - membership-service
+            summary: delete-key-contact membership-service
+            description: Delete a key contact
+            operationId: membership-service#delete-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Key contact UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Key contact UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        get:
+            tags:
+                - membership-service
+            summary: get-key-contact membership-service
+            description: Get a specific key contact by UID
+            operationId: membership-service#get-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Key contact UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Key contact UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-None-Match
+                  in: header
+                  description: If-None-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-None-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+                - name: If-Modified-Since
+                  in: header
+                  description: If-Modified-Since header value for conditional requests (HTTP date format)
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Modified-Since header value for conditional requests (HTTP date format)
+                    example: Wed, 21 Oct 2025 07:28:00 GMT
+                  example: Wed, 21 Oct 2025 07:28:00 GMT
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectKeyContactResponse'
+                            example:
+                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                board_member: false
+                                company_domain: https://example.com
+                                company_logo_url: https://example.com/logo.png
+                                company_name: Example Corp
+                                created_at: "2025-01-01T00:00:00Z"
+                                email: john.doe@example.com
+                                first_name: John
+                                last_name: Doe
+                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                primary_contact: true
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                role: Voting Representative
+                                status: Active
+                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                title: CTO
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        put:
+            tags:
+                - membership-service
+            summary: update-key-contact membership-service
+            description: Update a key contact
+            operationId: membership-service#update-key-contact
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: Key contact UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Key contact UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+                - name: If-Unmodified-Since
+                  in: header
+                  description: If-Unmodified-Since header value for conditional requests (HTTP date format)
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Unmodified-Since header value for conditional requests (HTTP date format)
+                    example: Wed, 21 Oct 2025 07:28:00 GMT
+                  example: Wed, 21 Oct 2025 07:28:00 GMT
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateKeyContactRequestBody'
+                        example:
+                            board_member: false
+                            primary_contact: false
+                            role: Voting Representative
+                            status: Active
+                            title: CTO
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProjectKeyContactResponse'
+                            example:
+                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                board_member: false
+                                company_domain: https://example.com
+                                company_logo_url: https://example.com/logo.png
+                                company_name: Example Corp
+                                created_at: "2025-01-01T00:00:00Z"
+                                email: john.doe@example.com
+                                first_name: John
+                                last_name: Doe
+                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                primary_contact: true
+                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                                role: Voting Representative
+                                status: Active
+                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                title: CTO
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2025-06-01T12:00:00Z"
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /project_memberships/{uid}:
         get:
             tags:
                 - membership-service
             summary: get-project-membership membership-service
-            description: Get a specific membership by UID within a project
+            description: Get a specific project membership by UID
             operationId: membership-service#get-project-membership
             parameters:
                 - name: v
@@ -537,26 +899,34 @@ paths:
                     enum:
                         - "1"
                   example: "1"
-                - name: project_uid
+                - name: uid
                   in: path
-                  description: V2 project UUID
+                  description: Project membership UID
                   required: true
                   schema:
                     type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: membership_uid
-                  in: path
-                  description: Membership UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Membership UID
+                    description: Project membership UID
                     example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
                   example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-None-Match
+                  in: header
+                  description: If-None-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-None-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+                - name: If-Modified-Since
+                  in: header
+                  description: If-Modified-Since header value for conditional requests (HTTP date format)
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Modified-Since header value for conditional requests (HTTP date format)
+                    example: Wed, 21 Oct 2025 07:28:00 GMT
+                  example: Wed, 21 Oct 2025 07:28:00 GMT
             responses:
                 "200":
                     description: OK response.
@@ -568,6 +938,13 @@ paths:
                                 description: ETag header value
                                 example: "123"
                             example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
                     content:
                         application/json:
                             schema:
@@ -599,245 +976,6 @@ paths:
                                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 updated_at: "2025-06-01T12:00:00Z"
                                 year: "2025"
-                "404":
-                    description: 'NotFound: Membership not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-    /projects/{project_uid}/memberships/{membership_uid}/key_contacts:
-        get:
-            tags:
-                - membership-service
-            summary: list-membership-key-contacts membership-service
-            description: List key contacts (Project_Role__c records) for a specific membership, with denormalized contact and company attributes
-            operationId: membership-service#list-membership-key-contacts
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: membership_uid
-                  in: path
-                  description: Membership UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ListMembershipKeyContactsResponseBody'
-                            example:
-                                contacts:
-                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      board_member: false
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      email: john.doe@example.com
-                                      first_name: John
-                                      last_name: Doe
-                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      primary_contact: true
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      role: Voting Representative
-                                      status: Active
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      title: CTO
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      board_member: false
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      email: john.doe@example.com
-                                      first_name: John
-                                      last_name: Doe
-                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      primary_contact: true
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      role: Voting Representative
-                                      status: Active
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      title: CTO
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      board_member: false
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      email: john.doe@example.com
-                                      first_name: John
-                                      last_name: Doe
-                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      primary_contact: true
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      role: Voting Representative
-                                      status: Active
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      title: CTO
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      board_member: false
-                                      company_domain: https://example.com
-                                      company_logo_url: https://example.com/logo.png
-                                      company_name: Example Corp
-                                      created_at: "2025-01-01T00:00:00Z"
-                                      email: john.doe@example.com
-                                      first_name: John
-                                      last_name: Doe
-                                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      primary_contact: true
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      role: Voting Representative
-                                      status: Active
-                                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      title: CTO
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                "404":
-                    description: 'NotFound: Membership not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-        post:
-            tags:
-                - membership-service
-            summary: create-membership-key-contact membership-service
-            description: Create a new key contact (Project_Role__c record) for a specific membership
-            operationId: membership-service#create-membership-key-contact
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: membership_uid
-                  in: path
-                  description: Membership UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/CreateMembershipKeyContactRequestBody'
-                        example:
-                            board_member: false
-                            email: john.doe@example.com
-                            first_name: John
-                            last_name: Doe
-                            primary_contact: false
-                            role: Voting Representative
-                            status: Active
-                            title: CTO
-            responses:
-                "201":
-                    description: Created response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ProjectKeyContactResponse'
-                            example:
-                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                board_member: false
-                                company_domain: https://example.com
-                                company_logo_url: https://example.com/logo.png
-                                company_name: Example Corp
-                                created_at: "2025-01-01T00:00:00Z"
-                                email: john.doe@example.com
-                                first_name: John
-                                last_name: Doe
-                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                primary_contact: true
-                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
-                                status: Active
-                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                title: CTO
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                updated_at: "2025-06-01T12:00:00Z"
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -845,7 +983,13 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/Error'
                 "404":
-                    description: 'NotFound: Membership not found'
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -856,425 +1000,8 @@ paths:
                         application/vnd.goa.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-    /projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}:
-        delete:
-            tags:
-                - membership-service
-            summary: delete-membership-key-contact membership-service
-            description: Delete a key contact (Project_Role__c record) from a membership
-            operationId: membership-service#delete-membership-key-contact
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: membership_uid
-                  in: path
-                  description: Membership UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                - name: contact_uid
-                  in: path
-                  description: Key contact UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Key contact UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-            responses:
-                "204":
-                    description: No Content response.
-                "404":
-                    description: 'NotFound: Key contact not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-        get:
-            tags:
-                - membership-service
-            summary: get-membership-key-contact membership-service
-            description: Get a specific key contact by UID within a membership
-            operationId: membership-service#get-membership-key-contact
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: membership_uid
-                  in: path
-                  description: Membership UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                - name: contact_uid
-                  in: path
-                  description: Key contact UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Key contact UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ProjectKeyContactResponse'
-                            example:
-                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                board_member: false
-                                company_domain: https://example.com
-                                company_logo_url: https://example.com/logo.png
-                                company_name: Example Corp
-                                created_at: "2025-01-01T00:00:00Z"
-                                email: john.doe@example.com
-                                first_name: John
-                                last_name: Doe
-                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                primary_contact: true
-                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
-                                status: Active
-                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                title: CTO
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                updated_at: "2025-06-01T12:00:00Z"
-                "404":
-                    description: 'NotFound: Key contact not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-        put:
-            tags:
-                - membership-service
-            summary: update-membership-key-contact membership-service
-            description: Update a key contact (Project_Role__c record) within a membership
-            operationId: membership-service#update-membership-key-contact
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: membership_uid
-                  in: path
-                  description: Membership UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                - name: contact_uid
-                  in: path
-                  description: Key contact UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Key contact UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-            requestBody:
-                required: true
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/UpdateMembershipKeyContactRequestBody'
-                        example:
-                            board_member: false
-                            primary_contact: false
-                            role: Voting Representative
-                            status: Active
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ProjectKeyContactResponse'
-                            example:
-                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                board_member: false
-                                company_domain: https://example.com
-                                company_logo_url: https://example.com/logo.png
-                                company_name: Example Corp
-                                created_at: "2025-01-01T00:00:00Z"
-                                email: john.doe@example.com
-                                first_name: John
-                                last_name: Doe
-                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                primary_contact: true
-                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
-                                status: Active
-                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                title: CTO
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                updated_at: "2025-06-01T12:00:00Z"
-                "400":
-                    description: 'BadRequest: Bad request'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "404":
-                    description: 'NotFound: Key contact not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-    /projects/{project_uid}/tiers:
-        get:
-            tags:
-                - membership-service
-            summary: list-project-tiers membership-service
-            description: List membership tiers (Product2 records) for a specific project
-            operationId: membership-service#list-project-tiers
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/ListProjectTiersResponseBody'
-                            example:
-                                tiers:
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      family: Membership
-                                      name: Gold Corporate Membership
-                                      product_type: Corporate
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                                    - created_at: "2025-01-01T00:00:00Z"
-                                      family: Membership
-                                      name: Gold Corporate Membership
-                                      product_type: Corporate
-                                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                      updated_at: "2025-06-01T12:00:00Z"
-                "404":
-                    description: 'NotFound: Project not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "503":
-                    description: 'ServiceUnavailable: Service unavailable'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-            security:
-                - jwt_header_Authorization: []
-    /projects/{project_uid}/tiers/{tier_uid}:
-        get:
-            tags:
-                - membership-service
-            summary: get-project-tier membership-service
-            description: Get a specific membership tier by UID
-            operationId: membership-service#get-project-tier
-            parameters:
-                - name: v
-                  in: query
-                  description: Version of the API
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: Version of the API
-                    example: "1"
-                    enum:
-                        - "1"
-                  example: "1"
-                - name: project_uid
-                  in: path
-                  description: V2 project UUID
-                  required: true
-                  schema:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
-                  example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                - name: tier_uid
-                  in: path
-                  description: Membership tier UID
-                  required: true
-                  schema:
-                    type: string
-                    description: Membership tier UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        application/json:
-                            schema:
-                                $ref: '#/components/schemas/MembershipTierResponse'
-                            example:
-                                created_at: "2025-01-01T00:00:00Z"
-                                family: Membership
-                                name: Gold Corporate Membership
-                                product_type: Corporate
-                                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                updated_at: "2025-06-01T12:00:00Z"
-                "404":
-                    description: 'NotFound: Tier not found'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
-                "500":
-                    description: 'InternalServerError: Internal server error'
+                "501":
+                    description: 'NotImplemented: Endpoint not implemented'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -1289,6 +1016,48 @@ paths:
                 - jwt_header_Authorization: []
 components:
     schemas:
+        AdminReindexPayload:
+            type: object
+            properties:
+                types:
+                    type: array
+                    items:
+                        type: string
+                        example: Quis expedita doloribus animi dolorum.
+                    description: List of entity types to reindex (optional; if empty, reindex all types)
+                    example:
+                        - membership
+                        - key_contact
+            description: Request payload for triggering a reindex operation
+            example:
+                types:
+                    - membership
+                    - key_contact
+        AdminReindexResult:
+            type: object
+            properties:
+                run_id:
+                    type: string
+                    description: Correlation ID for the reindex run (for log lookups)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+            description: Result of a reindex operation
+            example:
+                run_id: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            required:
+                - run_id
+        B2bOrgCreateBody:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Organization name
+                    example: Example Corp
+            description: Request body for creating a B2B organization
+            example:
+                name: Example Corp
+            required:
+                - name
         B2bOrgResponse:
             type: object
             properties:
@@ -1301,7 +1070,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Eius voluptas et aspernatur.
+                        example: Natus voluptates aut ab natus eveniet repellat.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -1345,55 +1114,16 @@ components:
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
                 website: https://example.com
-        CreateMembershipKeyContactRequestBody:
+        B2bOrgUpdateBody:
             type: object
             properties:
-                board_member:
-                    type: boolean
-                    description: Whether this contact holds a board member role
-                    example: false
-                email:
+                name:
                     type: string
-                    description: Contact email address; used to resolve or create the B2B Salesforce Contact record
-                    example: john.doe@example.com
-                    format: email
-                first_name:
-                    type: string
-                    description: Contact first name; used when creating a new Contact on miss
-                    example: John
-                last_name:
-                    type: string
-                    description: Contact last name; used when creating a new Contact on miss
-                    example: Doe
-                primary_contact:
-                    type: boolean
-                    description: Whether this is the primary contact for the membership
-                    example: false
-                role:
-                    type: string
-                    description: Contact role designation, e.g. 'Voting Representative'
-                    example: Voting Representative
-                status:
-                    type: string
-                    description: Role record status, e.g. 'Active'
-                    example: Active
-                title:
-                    type: string
-                    description: Contact job title; used when creating a new Contact on miss
-                    example: CTO
+                    description: Organization name
+                    example: Example Corp
+            description: Request body for updating a B2B organization
             example:
-                board_member: false
-                email: john.doe@example.com
-                first_name: John
-                last_name: Doe
-                primary_contact: false
-                role: Voting Representative
-                status: Active
-                title: CTO
-            required:
-                - email
-                - first_name
-                - last_name
+                name: Example Corp
         Error:
             type: object
             properties:
@@ -1416,18 +1146,18 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: true
+                    example: false
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
                     example: false
-            description: Project not found
+            description: Endpoint not implemented
             example:
-                fault: false
+                fault: true
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: true
+                temporary: false
                 timeout: true
             required:
                 - name
@@ -1436,224 +1166,107 @@ components:
                 - temporary
                 - timeout
                 - fault
-        ListB2bOrgsResponseBody:
+        KeyContactCreateBody:
             type: object
             properties:
-                metadata:
-                    $ref: '#/components/schemas/ListMetadata'
-                orgs:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/B2bOrgResponse'
-                    description: List of B2B organizations
-                    example:
-                        - created_at: "2025-01-01T00:00:00Z"
-                          domain_aliases:
-                            - example.org
-                            - example.net
-                          logo_url: https://example.com/logo.png
-                          name: Example Corp
-                          primary_domain: example.com
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                          website: https://example.com
-                        - created_at: "2025-01-01T00:00:00Z"
-                          domain_aliases:
-                            - example.org
-                            - example.net
-                          logo_url: https://example.com/logo.png
-                          name: Example Corp
-                          primary_domain: example.com
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                          website: https://example.com
+                b2b_org_uid:
+                    type: string
+                    description: UID of the B2B organization (Account)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                board_member:
+                    type: boolean
+                    description: Whether this contact holds a board member role
+                    example: false
+                email:
+                    type: string
+                    description: Contact email address; used to resolve or create the Salesforce Contact record
+                    example: john.doe@example.com
+                    format: email
+                first_name:
+                    type: string
+                    description: Contact first name; used when creating a new Contact on miss
+                    example: John
+                last_name:
+                    type: string
+                    description: Contact last name; used when creating a new Contact on miss
+                    example: Doe
+                membership_uid:
+                    type: string
+                    description: Membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                primary_contact:
+                    type: boolean
+                    description: Whether this is the primary contact for the membership
+                    example: false
+                project_uid:
+                    type: string
+                    description: V2 project UUID
+                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                    format: uuid
+                role:
+                    type: string
+                    description: Contact role designation, e.g. 'Voting Representative'
+                    example: Voting Representative
+                status:
+                    type: string
+                    description: Role record status, e.g. 'Active'
+                    example: Active
+                title:
+                    type: string
+                    description: Contact job title; used when creating a new Contact on miss
+                    example: CTO
+            description: Request body for creating a key contact (Project_Role__c record)
             example:
-                metadata:
-                    next_page_token: ""
-                    total_size: 100
-                orgs:
-                    - created_at: "2025-01-01T00:00:00Z"
-                      domain_aliases:
-                        - example.org
-                        - example.net
-                      logo_url: https://example.com/logo.png
-                      name: Example Corp
-                      primary_domain: example.com
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      website: https://example.com
-                    - created_at: "2025-01-01T00:00:00Z"
-                      domain_aliases:
-                        - example.org
-                        - example.net
-                      logo_url: https://example.com/logo.png
-                      name: Example Corp
-                      primary_domain: example.com
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      website: https://example.com
-                    - created_at: "2025-01-01T00:00:00Z"
-                      domain_aliases:
-                        - example.org
-                        - example.net
-                      logo_url: https://example.com/logo.png
-                      name: Example Corp
-                      primary_domain: example.com
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      website: https://example.com
-                    - created_at: "2025-01-01T00:00:00Z"
-                      domain_aliases:
-                        - example.org
-                        - example.net
-                      logo_url: https://example.com/logo.png
-                      name: Example Corp
-                      primary_domain: example.com
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      website: https://example.com
+                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                board_member: false
+                email: john.doe@example.com
+                first_name: John
+                last_name: Doe
+                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                primary_contact: false
+                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
+                role: Voting Representative
+                status: Active
+                title: CTO
             required:
-                - orgs
-                - metadata
-        ListMembershipKeyContactsResponseBody:
+                - b2b_org_uid
+                - project_uid
+                - membership_uid
+                - email
+                - first_name
+                - last_name
+        KeyContactUpdateBody:
             type: object
             properties:
-                contacts:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/ProjectKeyContactResponse'
-                    description: List of key contacts
-                    example:
-                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          board_member: false
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          email: john.doe@example.com
-                          first_name: John
-                          last_name: Doe
-                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          primary_contact: true
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          role: Voting Representative
-                          status: Active
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          title: CTO
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          board_member: false
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          email: john.doe@example.com
-                          first_name: John
-                          last_name: Doe
-                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          primary_contact: true
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          role: Voting Representative
-                          status: Active
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          title: CTO
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          board_member: false
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          email: john.doe@example.com
-                          first_name: John
-                          last_name: Doe
-                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          primary_contact: true
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          role: Voting Representative
-                          status: Active
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          title: CTO
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                        - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          board_member: false
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          email: john.doe@example.com
-                          first_name: John
-                          last_name: Doe
-                          membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          primary_contact: true
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          role: Voting Representative
-                          status: Active
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          title: CTO
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
+                board_member:
+                    type: boolean
+                    description: Whether this contact holds a board member role
+                    example: false
+                primary_contact:
+                    type: boolean
+                    description: Whether this is the primary contact for the membership
+                    example: false
+                role:
+                    type: string
+                    description: Contact role designation, e.g. 'Voting Representative'
+                    example: Voting Representative
+                status:
+                    type: string
+                    description: Role record status, e.g. 'Active'
+                    example: Active
+                title:
+                    type: string
+                    description: Contact job title
+                    example: CTO
+            description: Request body for updating a key contact (Project_Role__c record)
             example:
-                contacts:
-                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      board_member: false
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      email: john.doe@example.com
-                      first_name: John
-                      last_name: Doe
-                      membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      primary_contact: true
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      role: Voting Representative
-                      status: Active
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      title: CTO
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-            required:
-                - contacts
+                board_member: false
+                primary_contact: false
+                role: Voting Representative
+                status: Active
+                title: CTO
         ListMetadata:
             type: object
             properties:
@@ -1670,281 +1283,6 @@ components:
             example:
                 next_page_token: ""
                 total_size: 100
-        ListProjectMembershipsResponseBody:
-            type: object
-            properties:
-                memberships:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/ProjectMembershipResponse'
-                    description: List of project memberships
-                    example:
-                        - agreement_date: "2025-01-01T00:00:00Z"
-                          annual_full_price: 50000
-                          auto_renew: true
-                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          end_date: "2025-12-31T23:59:59Z"
-                          payment_frequency: Annual
-                          payment_terms: Net 30
-                          price: 50000
-                          project_slug: kubernetes
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          purchase_date: "2025-01-15T00:00:00Z"
-                          renewal_type: Annual
-                          start_date: "2025-02-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          tier_family: Membership
-                          tier_name: Gold Corporate Membership
-                          tier_product_type: Corporate
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                          year: "2025"
-                        - agreement_date: "2025-01-01T00:00:00Z"
-                          annual_full_price: 50000
-                          auto_renew: true
-                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          end_date: "2025-12-31T23:59:59Z"
-                          payment_frequency: Annual
-                          payment_terms: Net 30
-                          price: 50000
-                          project_slug: kubernetes
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          purchase_date: "2025-01-15T00:00:00Z"
-                          renewal_type: Annual
-                          start_date: "2025-02-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          tier_family: Membership
-                          tier_name: Gold Corporate Membership
-                          tier_product_type: Corporate
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                          year: "2025"
-                        - agreement_date: "2025-01-01T00:00:00Z"
-                          annual_full_price: 50000
-                          auto_renew: true
-                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          end_date: "2025-12-31T23:59:59Z"
-                          payment_frequency: Annual
-                          payment_terms: Net 30
-                          price: 50000
-                          project_slug: kubernetes
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          purchase_date: "2025-01-15T00:00:00Z"
-                          renewal_type: Annual
-                          start_date: "2025-02-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          tier_family: Membership
-                          tier_name: Gold Corporate Membership
-                          tier_product_type: Corporate
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                          year: "2025"
-                        - agreement_date: "2025-01-01T00:00:00Z"
-                          annual_full_price: 50000
-                          auto_renew: true
-                          b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          company_domain: https://example.com
-                          company_logo_url: https://example.com/logo.png
-                          company_name: Example Corp
-                          created_at: "2025-01-01T00:00:00Z"
-                          end_date: "2025-12-31T23:59:59Z"
-                          payment_frequency: Annual
-                          payment_terms: Net 30
-                          price: 50000
-                          project_slug: kubernetes
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          purchase_date: "2025-01-15T00:00:00Z"
-                          renewal_type: Annual
-                          start_date: "2025-02-01T00:00:00Z"
-                          status: Active
-                          tier: Gold
-                          tier_family: Membership
-                          tier_name: Gold Corporate Membership
-                          tier_product_type: Corporate
-                          tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                          year: "2025"
-                metadata:
-                    $ref: '#/components/schemas/ListMetadata'
-            example:
-                memberships:
-                    - agreement_date: "2025-01-01T00:00:00Z"
-                      annual_full_price: 50000
-                      auto_renew: true
-                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      end_date: "2025-12-31T23:59:59Z"
-                      payment_frequency: Annual
-                      payment_terms: Net 30
-                      price: 50000
-                      project_slug: kubernetes
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      purchase_date: "2025-01-15T00:00:00Z"
-                      renewal_type: Annual
-                      start_date: "2025-02-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      tier_family: Membership
-                      tier_name: Gold Corporate Membership
-                      tier_product_type: Corporate
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      year: "2025"
-                    - agreement_date: "2025-01-01T00:00:00Z"
-                      annual_full_price: 50000
-                      auto_renew: true
-                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      end_date: "2025-12-31T23:59:59Z"
-                      payment_frequency: Annual
-                      payment_terms: Net 30
-                      price: 50000
-                      project_slug: kubernetes
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      purchase_date: "2025-01-15T00:00:00Z"
-                      renewal_type: Annual
-                      start_date: "2025-02-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      tier_family: Membership
-                      tier_name: Gold Corporate Membership
-                      tier_product_type: Corporate
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      year: "2025"
-                    - agreement_date: "2025-01-01T00:00:00Z"
-                      annual_full_price: 50000
-                      auto_renew: true
-                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      end_date: "2025-12-31T23:59:59Z"
-                      payment_frequency: Annual
-                      payment_terms: Net 30
-                      price: 50000
-                      project_slug: kubernetes
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      purchase_date: "2025-01-15T00:00:00Z"
-                      renewal_type: Annual
-                      start_date: "2025-02-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      tier_family: Membership
-                      tier_name: Gold Corporate Membership
-                      tier_product_type: Corporate
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      year: "2025"
-                    - agreement_date: "2025-01-01T00:00:00Z"
-                      annual_full_price: 50000
-                      auto_renew: true
-                      b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      company_domain: https://example.com
-                      company_logo_url: https://example.com/logo.png
-                      company_name: Example Corp
-                      created_at: "2025-01-01T00:00:00Z"
-                      end_date: "2025-12-31T23:59:59Z"
-                      payment_frequency: Annual
-                      payment_terms: Net 30
-                      price: 50000
-                      project_slug: kubernetes
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      purchase_date: "2025-01-15T00:00:00Z"
-                      renewal_type: Annual
-                      start_date: "2025-02-01T00:00:00Z"
-                      status: Active
-                      tier: Gold
-                      tier_family: Membership
-                      tier_name: Gold Corporate Membership
-                      tier_product_type: Corporate
-                      tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                      year: "2025"
-                metadata:
-                    next_page_token: ""
-                    total_size: 100
-            required:
-                - memberships
-                - metadata
-        ListProjectTiersResponseBody:
-            type: object
-            properties:
-                tiers:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/MembershipTierResponse'
-                    description: List of membership tiers
-                    example:
-                        - created_at: "2025-01-01T00:00:00Z"
-                          family: Membership
-                          name: Gold Corporate Membership
-                          product_type: Corporate
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                        - created_at: "2025-01-01T00:00:00Z"
-                          family: Membership
-                          name: Gold Corporate Membership
-                          product_type: Corporate
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-                        - created_at: "2025-01-01T00:00:00Z"
-                          family: Membership
-                          name: Gold Corporate Membership
-                          product_type: Corporate
-                          project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                          updated_at: "2025-06-01T12:00:00Z"
-            example:
-                tiers:
-                    - created_at: "2025-01-01T00:00:00Z"
-                      family: Membership
-                      name: Gold Corporate Membership
-                      product_type: Corporate
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-                    - created_at: "2025-01-01T00:00:00Z"
-                      family: Membership
-                      name: Gold Corporate Membership
-                      product_type: Corporate
-                      project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                      updated_at: "2025-06-01T12:00:00Z"
-            required:
-                - tiers
         MembershipTierResponse:
             type: object
             properties:
@@ -2234,7 +1572,16 @@ components:
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
                 year: "2025"
-        UpdateMembershipKeyContactRequestBody:
+        UpdateB2bOrgRequestBody:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Organization name
+                    example: Example Corp
+            example:
+                name: Example Corp
+        UpdateKeyContactRequestBody:
             type: object
             properties:
                 board_member:
@@ -2253,11 +1600,16 @@ components:
                     type: string
                     description: Role record status, e.g. 'Active'
                     example: Active
+                title:
+                    type: string
+                    description: Contact job title
+                    example: CTO
             example:
                 board_member: false
                 primary_contact: false
                 role: Voting Representative
                 status: Active
+                title: CTO
     securitySchemes:
         jwt_header_Authorization:
             type: http
@@ -2265,4 +1617,4 @@ components:
             scheme: bearer
 tags:
     - name: membership-service
-      description: Membership management service — project-scoped drill-down API for tiers, memberships, and key contacts
+      description: Membership management service — direct resource endpoints for B2B orgs, memberships, and key contacts
