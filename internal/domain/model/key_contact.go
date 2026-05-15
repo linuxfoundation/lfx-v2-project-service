@@ -3,7 +3,11 @@
 
 package model
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // KeyContactInput carries the mutable fields for creating or updating a
 // Project_Role__c key contact record in Salesforce. All pointer fields are
@@ -108,6 +112,10 @@ type KeyContact struct {
 	// lookups (e.g. MCP). No User Service reference is made.
 	Email string `json:"email,omitempty"`
 
+	// Emails is the full list of email addresses for this contact (primary +
+	// alternates). Used by the indexer ContactBody for search.
+	Emails []string `json:"emails,omitempty"`
+
 	// CompanyName is the member company name, denormalized from the Account
 	// associated with the membership Asset. No Org Service reference is made.
 	CompanyName string `json:"company_name"`
@@ -121,4 +129,32 @@ type KeyContact struct {
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Name returns the contact's full name for use in indexer ContactBody.
+func (kc *KeyContact) Name() string {
+	return strings.TrimSpace(kc.FirstName + " " + kc.LastName)
+}
+
+// Tags returns search tags for this key contact. The indexer uses these to make
+// the record discoverable by UID and by parent relationships.
+func (kc *KeyContact) Tags() []string {
+	if kc == nil {
+		return nil
+	}
+	var tags []string
+	if kc.UID != "" {
+		tags = append(tags, kc.UID)
+		tags = append(tags, fmt.Sprintf("key_contact_uid:%s", kc.UID))
+	}
+	if kc.MembershipUID != "" {
+		tags = append(tags, fmt.Sprintf("project_membership_uid:%s", kc.MembershipUID))
+	}
+	if kc.ProjectUID != "" {
+		tags = append(tags, fmt.Sprintf("project_uid:%s", kc.ProjectUID))
+	}
+	if kc.B2BOrgUID != "" {
+		tags = append(tags, fmt.Sprintf("b2b_org_uid:%s", kc.B2BOrgUID))
+	}
+	return tags
 }

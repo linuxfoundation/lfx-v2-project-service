@@ -329,7 +329,7 @@ func membershipServiceCreateB2bOrgUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org --body '{\n      \"name\": \"Example Corp\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org --body '{\n      \"parent_sfid\": \"001Hs00001AbCdEFAZ\",\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateB2bOrgUsage() {
@@ -357,7 +357,7 @@ func membershipServiceUpdateB2bOrgUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"name\": \"Example Corp\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceGetProjectMembershipUsage() {

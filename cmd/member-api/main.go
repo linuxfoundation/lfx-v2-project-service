@@ -126,7 +126,16 @@ func main() {
 		usecaseSvc.WithMemberReader(memberReader),
 	)
 
-	membershipServiceSvc := service.NewMembershipService(readMemberUseCase, memberReader, jwtAuth, service.KeyContactWriterImpl(ctx), service.B2BOrgReaderImpl(ctx))
+	membershipServiceSvc := service.NewMembershipService(
+		readMemberUseCase,
+		memberReader,
+		jwtAuth,
+		service.KeyContactWriterImpl(ctx),
+		service.B2BOrgReaderImpl(ctx),
+		service.B2BOrgWriterImpl(ctx),
+		service.MemberPublisherImpl(ctx),
+		service.GlobalOrgAdminTeamUID(),
+	)
 
 	// Wrap the services in endpoints.
 	membershipServiceEndpoints := membershipservice.NewEndpoints(membershipServiceSvc)
