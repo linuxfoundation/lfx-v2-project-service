@@ -10,7 +10,6 @@ import (
 	"expvar"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -112,10 +111,6 @@ func (s *membershipServicesrvc) GetB2bOrg(ctx context.Context, p *membershipserv
 func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *membershipservice.CreateB2bOrgPayload) (*membershipservice.CreateB2bOrgResult, error) {
 	var createInput model.B2BOrgInput
 	if p.ParentSfid != nil {
-		if !strings.HasPrefix(*p.ParentSfid, "001") {
-			return nil, wrapError(ctx, pkgerrors.NewValidation(
-				fmt.Sprintf("parent_sfid %q is not a Salesforce Account ID (must start with 001)", *p.ParentSfid)))
-		}
 		parentUID, convErr := sfuuid.ToUUID(*p.ParentSfid)
 		if convErr != nil {
 			return nil, wrapError(ctx, pkgerrors.NewValidation(
@@ -156,9 +151,8 @@ func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *memberships
 func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *membershipservice.UpdateB2bOrgPayload) (*membershipservice.UpdateB2bOrgResult, error) {
 	input := payloadToB2BOrgInput(p)
 
-	// Validate If-Match against the current cached ETag before touching SF.
-	// Salesforce PATCH rejects If-Match (BAD_HEADER), so ETag validation is done
-	// here; the caller's If-Match never reaches the infrastructure layer.
+	// SF PATCH rejects If-Match (returns BAD_HEADER), so ETag validation is done
+	// here; we translate to If-Unmodified-Since for SF-side concurrency protection.
 	if p.IfMatch != nil && *p.IfMatch != "" {
 		current, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
 		if err != nil {
@@ -172,8 +166,24 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 			return nil, wrapError(ctx, pkgerrors.NewPreconditionFailed(
 				fmt.Sprintf("b2b org %s has been modified since last read (stale If-Match)", p.UID)))
 		}
-		// Translate to If-Unmodified-Since (SF LastModifiedDate) for the SF PATCH.
 		input.IfUnmodifiedSince = current.UpdatedAt.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+	}
+
+	if !input.HasChanges() {
+		org, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
+		if err != nil {
+			return nil, wrapError(ctx, err)
+		}
+		etagVal, _ := etag.LFXEtag(org)
+		lastMod := org.UpdatedAt.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+		result := &membershipservice.UpdateB2bOrgResult{
+			B2bOrg:       b2bOrgToResponse(org),
+			LastModified: &lastMod,
+		}
+		if etagVal != "" {
+			result.Etag = &etagVal
+		}
+		return result, nil
 	}
 
 	org, err := s.b2bOrgWriter.UpdateB2BOrg(ctx, p.UID, input)
@@ -218,7 +228,11 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, org *mo
 		return
 	}
 
-	fgaMsg := buildB2BOrgFGAMessage(org, s.globalOrgAdminTeamUID)
+	orgAdminTeamUID := ""
+	if action == indexerConstants.ActionCreated {
+		orgAdminTeamUID = s.globalOrgAdminTeamUID
+	}
+	fgaMsg := buildB2BOrgFGAMessage(org, orgAdminTeamUID)
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {

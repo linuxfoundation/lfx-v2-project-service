@@ -168,3 +168,12 @@ type B2BOrgInput struct {
 	// ETag (If-Match) validation is performed in the service layer before this is set.
 	IfUnmodifiedSince string
 }
+
+// HasChanges reports whether any mutable field is set. IfUnmodifiedSince and
+// ParentUID are infrastructure/create-only concerns and do not count as changes.
+func (i B2BOrgInput) HasChanges() bool {
+	return i.Name != "" || i.Description != "" || i.Phone != "" ||
+		i.Website != "" || i.PrimaryDomain != "" || i.LogoURL != "" ||
+		i.Industry != "" || i.Sector != "" || i.CrunchBaseURL != nil ||
+		i.NumberOfEmployees != nil
+}
