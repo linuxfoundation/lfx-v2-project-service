@@ -38,6 +38,8 @@ spec:
               value: {{ .Values.app.audience }}
             - name: JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL
               value: {{ .Values.app.jwtAuthDisabledMockLocalPrincipal }}
+            - name: GLOBAL_ORG_ADMIN_TEAM_UID
+              value: {{ .Values.app.globalOrgAdminTeamUID }}
             - name: SF_INSTANCE_URL
               valueFrom:
                 secretKeyRef:
