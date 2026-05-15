@@ -47,6 +47,11 @@ func buildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
 		}
 	}
 
+	var parentRefs []string
+	if org.ParentUID != "" {
+		parentRefs = append(parentRefs, "b2b_org:"+org.ParentUID)
+	}
+
 	return &indexerTypes.IndexingConfig{
 		Public:               boolPtr(false),
 		ObjectID:             org.UID,
@@ -56,6 +61,7 @@ func buildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
 		HistoryCheckRelation: fgaconstants.RelationAuditor,
 		SortName:             strings.ToLower(org.Name),
 		NameAndAliases:       nameAndAliases,
+		ParentRefs:           parentRefs,
 		Fulltext:             strings.Join(fulltext, " "),
 		Tags:                 org.Tags(),
 	}

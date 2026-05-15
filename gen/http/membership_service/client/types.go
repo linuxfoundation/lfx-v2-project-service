@@ -19,6 +19,9 @@ type CreateB2bOrgRequestBody struct {
 	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
 	// record
 	Sfid string `form:"sfid" json:"sfid" xml:"sfid"`
+	// Salesforce Account.Id of the parent organization; sets Account.ParentId in
+	// Salesforce
+	ParentSfid *string `form:"parent_sfid,omitempty" json:"parent_sfid,omitempty" xml:"parent_sfid,omitempty"`
 }
 
 // UpdateB2bOrgRequestBody is the type of the "membership-service" service
@@ -1244,6 +1247,9 @@ type B2bOrgResponseResponseBody struct {
 	// LF membership status (Account.LF_Membership_Status__c); read-only, managed
 	// by Salesforce workflows
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	// Whether the organization is currently an LF member (Account.IsMember__c);
+	// read-only, managed by Salesforce workflows
+	IsMember *bool `form:"is_member,omitempty" json:"is_member,omitempty" xml:"is_member,omitempty"`
 	// URL-friendly organization identifier; populated when Account.Slug__c is
 	// available
 	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
@@ -1358,7 +1364,8 @@ type ProjectKeyContactResponseResponseBody struct {
 // the "create-b2b-org" endpoint of the "membership-service" service.
 func NewCreateB2bOrgRequestBody(p *membershipservice.CreateB2bOrgPayload) *CreateB2bOrgRequestBody {
 	body := &CreateB2bOrgRequestBody{
-		Sfid: p.Sfid,
+		Sfid:       p.Sfid,
+		ParentSfid: p.ParentSfid,
 	}
 	return body
 }
@@ -1443,6 +1450,7 @@ func NewGetB2bOrgResultOK(body *GetB2bOrgResponseBody, etag *string, lastModifie
 		CrunchBaseURL:     body.CrunchBaseURL,
 		NumberOfEmployees: body.NumberOfEmployees,
 		Status:            body.Status,
+		IsMember:          body.IsMember,
 		Slug:              body.Slug,
 		ParentUID:         body.ParentUID,
 		CreatedAt:         body.CreatedAt,
@@ -1569,6 +1577,7 @@ func NewCreateB2bOrgResultCreated(body *CreateB2bOrgResponseBody, etag *string, 
 		CrunchBaseURL:     body.CrunchBaseURL,
 		NumberOfEmployees: body.NumberOfEmployees,
 		Status:            body.Status,
+		IsMember:          body.IsMember,
 		Slug:              body.Slug,
 		ParentUID:         body.ParentUID,
 		CreatedAt:         body.CreatedAt,
@@ -1695,6 +1704,7 @@ func NewUpdateB2bOrgResultOK(body *UpdateB2bOrgResponseBody, etag *string, lastM
 		CrunchBaseURL:     body.CrunchBaseURL,
 		NumberOfEmployees: body.NumberOfEmployees,
 		Status:            body.Status,
+		IsMember:          body.IsMember,
 		Slug:              body.Slug,
 		ParentUID:         body.ParentUID,
 		CreatedAt:         body.CreatedAt,

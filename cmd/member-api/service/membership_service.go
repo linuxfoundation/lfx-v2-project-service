@@ -23,6 +23,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 
 	"goa.design/goa/v3/security"
 )
@@ -109,7 +110,16 @@ func (s *membershipServicesrvc) GetB2bOrg(ctx context.Context, p *membershipserv
 
 // CreateB2bOrg creates a new B2B organization record from an existing Salesforce Account.
 func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *membershipservice.CreateB2bOrgPayload) (*membershipservice.CreateB2bOrgResult, error) {
-	org, err := s.b2bOrgWriter.CreateB2BOrg(ctx, p.Sfid)
+	var createInput model.B2BOrgInput
+	if p.ParentSfid != nil {
+		parentUID, convErr := sfuuid.ToUUID(*p.ParentSfid)
+		if convErr != nil {
+			return nil, wrapError(ctx, pkgerrors.NewValidation(
+				fmt.Sprintf("invalid parent_sfid %q: %v", *p.ParentSfid, convErr)))
+		}
+		createInput.ParentUID = &parentUID
+	}
+	org, err := s.b2bOrgWriter.CreateB2BOrg(ctx, p.Sfid, createInput)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
@@ -142,9 +152,8 @@ func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *memberships
 func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *membershipservice.UpdateB2bOrgPayload) (*membershipservice.UpdateB2bOrgResult, error) {
 	input := payloadToB2BOrgInput(p)
 
-	// Validate If-Match against the current cached ETag before touching SF.
-	// Salesforce PATCH rejects If-Match (BAD_HEADER), so ETag validation is done
-	// here; the caller's If-Match never reaches the infrastructure layer.
+	// SF PATCH rejects If-Match (returns BAD_HEADER), so ETag validation is done
+	// here; we translate to If-Unmodified-Since for SF-side concurrency protection.
 	if p.IfMatch != nil && *p.IfMatch != "" {
 		current, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
 		if err != nil {
@@ -158,8 +167,24 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 			return nil, wrapError(ctx, pkgerrors.NewPreconditionFailed(
 				fmt.Sprintf("b2b org %s has been modified since last read (stale If-Match)", p.UID)))
 		}
-		// Translate to If-Unmodified-Since (SF LastModifiedDate) for the SF PATCH.
 		input.IfUnmodifiedSince = current.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+	}
+
+	if !input.HasChanges() {
+		org, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
+		if err != nil {
+			return nil, wrapError(ctx, err)
+		}
+		etagVal, _ := etag.LFXEtag(org)
+		lastMod := org.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+		result := &membershipservice.UpdateB2bOrgResult{
+			B2bOrg:       b2bOrgToResponse(org),
+			LastModified: &lastMod,
+		}
+		if etagVal != "" {
+			result.Etag = &etagVal
+		}
+		return result, nil
 	}
 
 	org, err := s.b2bOrgWriter.UpdateB2BOrg(ctx, p.UID, input)
@@ -241,7 +266,11 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, org *mo
 		return
 	}
 
-	fgaMsg := buildB2BOrgFGAMessage(org, s.globalOrgAdminTeamUID)
+	orgAdminTeamUID := ""
+	if action == indexerConstants.ActionCreated {
+		orgAdminTeamUID = s.globalOrgAdminTeamUID
+	}
+	fgaMsg := buildB2BOrgFGAMessage(org, orgAdminTeamUID)
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
@@ -519,6 +548,7 @@ func b2bOrgToResponse(org *model.B2BOrg) *membershipservice.B2bOrgResponse {
 	if org.Status != "" {
 		resp.Status = &org.Status
 	}
+	resp.IsMember = &org.IsMember
 	if org.Slug != "" {
 		resp.Slug = &org.Slug
 	}

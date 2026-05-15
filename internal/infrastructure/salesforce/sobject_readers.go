@@ -41,27 +41,38 @@ func sobjectCacheKey(prefix, uid string) string {
 // distinct from the soql* types (which use `salesforce:""` struct tags for the
 // SOQL library) because the sObject REST endpoint returns standard JSON keys.
 
+// sobjectAccountParent is the JSON shape of the parent Account sub-object.
+// Populated by a secondary sObject REST fetch when Account.ParentId is set;
+// sObject REST ?fields= cannot return relationship sub-fields directly.
+type sobjectAccountParent struct {
+	ID      string  `json:"Id"`
+	Name    string  `json:"Name"`
+	LogoURL *string `json:"Logo_URL__c"`
+}
+
 // sobjectAccount is the JSON shape of a Salesforce Account record from the
 // sObject REST API. Used for B2BOrg (member company) lookups.
 type sobjectAccount struct {
-	ID                string  `json:"Id"`
-	Name              string  `json:"Name"`
-	LogoURL           *string `json:"Logo_URL__c"`
-	Website           *string `json:"Website"`
-	PrimaryDomain     *string `json:"Account_Domain__c"`
-	DomainAlias       *string `json:"Domain_Alias__c"`
-	Description       *string `json:"Description"`
-	Phone             *string `json:"Phone"`
-	ParentID          *string `json:"ParentId"`
-	Industry          *string `json:"Industry"`
-	Sector            *string `json:"Sector__c"`
-	CrunchBaseURL     *string `json:"CrunchBase_URL__c"`
-	NumberOfEmployees *int64  `json:"NumberOfEmployees"`
-	Status            *string `json:"LF_Membership_Status__c"`
-	Slug              *string `json:"Slug__c"`
-	CreatedDate       string  `json:"CreatedDate"`
-	LastModifiedDate  string  `json:"LastModifiedDate"`
-	SystemModstamp    string  `json:"SystemModstamp"`
+	ID                string                `json:"Id"`
+	Name              string                `json:"Name"`
+	LogoURL           *string               `json:"Logo_URL__c"`
+	Website           *string               `json:"Website"`
+	PrimaryDomain     *string               `json:"Account_Domain__c"`
+	DomainAlias       *string               `json:"Domain_Alias__c"`
+	Description       *string               `json:"Description"`
+	Phone             *string               `json:"Phone"`
+	ParentID          *string               `json:"ParentId"`
+	Parent            *sobjectAccountParent `json:"-"` // populated by secondary fetch in FetchB2BOrg
+	Industry          *string               `json:"Industry"`
+	Sector            *string               `json:"Sector__c"`
+	CrunchBaseURL     *string               `json:"CrunchBase_URL__c"`
+	NumberOfEmployees *int64                `json:"NumberOfEmployees"`
+	Status            *string               `json:"LF_Membership_Status__c"`
+	IsMember          *bool                 `json:"IsMember__c"`
+	Slug              *string               `json:"Slug__c"`
+	CreatedDate       string                `json:"CreatedDate"`
+	LastModifiedDate  string                `json:"LastModifiedDate"`
+	SystemModstamp    string                `json:"SystemModstamp"`
 }
 
 // sobjectAsset is the JSON shape of a Salesforce Asset record from the sObject
@@ -145,7 +156,7 @@ const (
 	// target SF orgs (absent from partial sandbox, causing 400 INVALID_FIELD on fetch).
 	b2bOrgFields = "Id,Name,Logo_URL__c,Website,Account_Domain__c,Domain_Alias__c," +
 		"Description,Phone,ParentId,Industry,Sector__c,CrunchBase_URL__c," +
-		"NumberOfEmployees,LF_Membership_Status__c," +
+		"NumberOfEmployees,LF_Membership_Status__c,IsMember__c," +
 		"CreatedDate,LastModifiedDate,SystemModstamp"
 
 	assetFields = "Id,Name,Status,AccountId,Product2Id,Year__c,Tier__c,RecordTypeId," +
@@ -236,11 +247,47 @@ func (c *SObjectClient) FetchB2BOrg(ctx context.Context, uid string) (*model.B2B
 		return nil, nil, fmt.Errorf("unmarshal Account sObject response: %w", unmarshalErr)
 	}
 
+	// Fetch parent Account details when ParentId is set. sObject REST ?fields=
+	// cannot return relationship sub-fields, so a secondary fetch is required.
+	if parentSFID := derefString(raw.ParentID); parentSFID != "" {
+		parentDetail, fetchErr := c.fetchParentAccountDetail(ctx, parentSFID)
+		if fetchErr != nil {
+			slog.WarnContext(ctx, "failed to fetch parent account detail, proceeding without it",
+				"uid", uid, "parent_sfid", parentSFID, "error", fetchErr)
+		} else {
+			raw.Parent = parentDetail
+		}
+	}
+
 	org, err := sobjectAccountToB2BOrg(ctx, &raw, uid)
 	if err != nil {
 		return nil, nil, err
 	}
 	return org, result, nil
+}
+
+// fetchParentAccountDetail fetches a minimal set of fields (Id, Name, Logo_URL__c)
+// for the parent Account identified by parentSFID. Failures are non-fatal to the
+// caller; the parent detail is best-effort.
+func (c *SObjectClient) fetchParentAccountDetail(ctx context.Context, parentSFID string) (*sobjectAccountParent, error) {
+	parentUID, err := sfuuid.ToUUID(parentSFID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid parent Account SFID %q: %w", parentSFID, err)
+	}
+	cacheKey := sobjectCacheKey(sobjectKeyPrefixB2BOrg, parentUID)
+	result, err := c.FetchSObject(ctx, "Account", parentSFID, cacheKey, "Id,Name,Logo_URL__c")
+	if err != nil {
+		return nil, err
+	}
+	var raw sobjectAccount
+	if unmarshalErr := json.Unmarshal(result.Body, &raw); unmarshalErr != nil {
+		return nil, fmt.Errorf("unmarshal parent Account: %w", unmarshalErr)
+	}
+	return &sobjectAccountParent{
+		ID:      raw.ID,
+		Name:    raw.Name,
+		LogoURL: raw.LogoURL,
+	}, nil
 }
 
 // sobjectAccountToB2BOrg converts a raw sobjectAccount (from the sObject REST
@@ -300,14 +347,25 @@ func sobjectAccountToB2BOrg(ctx context.Context, raw *sobjectAccount, uid string
 	org.CrunchBaseURL = raw.CrunchBaseURL
 	org.NumberOfEmployees = raw.NumberOfEmployees
 	org.Status = derefString(raw.Status)
+	if raw.IsMember != nil {
+		org.IsMember = *raw.IsMember
+	}
 	org.Slug = derefString(raw.Slug)
 
 	if parentSFID := derefString(raw.ParentID); parentSFID != "" {
-		if parentUID, err := sfuuid.ToUUID(parentSFID); err == nil {
-			org.ParentUID = parentUID
-		} else {
+		parentUID, convErr := sfuuid.ToUUID(parentSFID)
+		if convErr != nil {
 			slog.WarnContext(ctx, "account parent SFID could not be converted to UUID, omitting",
 				"uid", uid, "parent_sfid", parentSFID)
+		} else {
+			org.ParentUID = parentUID
+			if raw.Parent != nil {
+				org.ParentDetail = &model.B2BOrgParentDetail{
+					UID:     parentUID,
+					Name:    raw.Parent.Name,
+					LogoURL: raw.Parent.LogoURL,
+				}
+			}
 		}
 	}
 

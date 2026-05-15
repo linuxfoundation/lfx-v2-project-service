@@ -108,6 +108,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/B2bOrgCreateBody'
                         example:
+                            parent_sfid: 001Hs00001AbCdEFAZ
                             sfid: 001Hs00001AbCdEFAZ
             responses:
                 "201":
@@ -139,6 +140,7 @@ paths:
                                     - example.org
                                     - example.net
                                 industry: Technology
+                                is_member: true
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
@@ -266,6 +268,7 @@ paths:
                                     - example.org
                                     - example.net
                                 industry: Technology
+                                is_member: true
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
@@ -409,6 +412,7 @@ paths:
                                     - example.org
                                     - example.net
                                 industry: Technology
+                                is_member: true
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
@@ -1098,6 +1102,12 @@ components:
         B2bOrgCreateBody:
             type: object
             properties:
+                parent_sfid:
+                    type: string
+                    description: Salesforce Account.Id of the parent organization; sets Account.ParentId in Salesforce
+                    example: 001Hs00001AbCdEFAZ
+                    minLength: 15
+                    maxLength: 18
                 sfid:
                     type: string
                     description: Salesforce Account.Id (15- or 18-character); used to fetch and cache the org record
@@ -1106,6 +1116,7 @@ components:
                     maxLength: 18
             description: Request body for registering a B2B organization by its Salesforce Account ID
             example:
+                parent_sfid: 001Hs00001AbCdEFAZ
                 sfid: 001Hs00001AbCdEFAZ
             required:
                 - sfid
@@ -1138,6 +1149,10 @@ components:
                     type: string
                     description: Industry classification (Account.Industry, standard Salesforce field)
                     example: Technology
+                is_member:
+                    type: boolean
+                    description: Whether the organization is currently an LF member (Account.IsMember__c); read-only, managed by Salesforce workflows
+                    example: true
                 logo_url:
                     type: string
                     description: URL of the organization logo (Account.Logo_URL__c)
@@ -1200,6 +1215,7 @@ components:
                     - example.org
                     - example.net
                 industry: Technology
+                is_member: true
                 logo_url: https://example.com/logo.png
                 name: Example Corp
                 number_of_employees: 500

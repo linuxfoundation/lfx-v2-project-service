@@ -348,7 +348,7 @@ func NewMockB2BOrgWriter() *MockB2BOrgWriter {
 }
 
 // CreateB2BOrg always returns not-implemented.
-func (m *MockB2BOrgWriter) CreateB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+func (m *MockB2BOrgWriter) CreateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
 	return nil, errors.NewNotImplemented("create-b2b-org not implemented in mock")
 }
 

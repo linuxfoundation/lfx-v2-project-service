@@ -21,6 +21,9 @@ type CreateB2bOrgRequestBody struct {
 	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
 	// record
 	Sfid *string `form:"sfid,omitempty" json:"sfid,omitempty" xml:"sfid,omitempty"`
+	// Salesforce Account.Id of the parent organization; sets Account.ParentId in
+	// Salesforce
+	ParentSfid *string `form:"parent_sfid,omitempty" json:"parent_sfid,omitempty" xml:"parent_sfid,omitempty"`
 }
 
 // UpdateB2bOrgRequestBody is the type of the "membership-service" service
@@ -1246,6 +1249,9 @@ type B2bOrgResponseResponseBody struct {
 	// LF membership status (Account.LF_Membership_Status__c); read-only, managed
 	// by Salesforce workflows
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
+	// Whether the organization is currently an LF member (Account.IsMember__c);
+	// read-only, managed by Salesforce workflows
+	IsMember *bool `form:"is_member,omitempty" json:"is_member,omitempty" xml:"is_member,omitempty"`
 	// URL-friendly organization identifier; populated when Account.Slug__c is
 	// available
 	Slug *string `form:"slug,omitempty" json:"slug,omitempty" xml:"slug,omitempty"`
@@ -1372,6 +1378,7 @@ func NewGetB2bOrgResponseBody(res *membershipservice.GetB2bOrgResult) *GetB2bOrg
 		CrunchBaseURL:     res.B2bOrg.CrunchBaseURL,
 		NumberOfEmployees: res.B2bOrg.NumberOfEmployees,
 		Status:            res.B2bOrg.Status,
+		IsMember:          res.B2bOrg.IsMember,
 		Slug:              res.B2bOrg.Slug,
 		ParentUID:         res.B2bOrg.ParentUID,
 		CreatedAt:         res.B2bOrg.CreatedAt,
@@ -1402,6 +1409,7 @@ func NewCreateB2bOrgResponseBody(res *membershipservice.CreateB2bOrgResult) *Cre
 		CrunchBaseURL:     res.B2bOrg.CrunchBaseURL,
 		NumberOfEmployees: res.B2bOrg.NumberOfEmployees,
 		Status:            res.B2bOrg.Status,
+		IsMember:          res.B2bOrg.IsMember,
 		Slug:              res.B2bOrg.Slug,
 		ParentUID:         res.B2bOrg.ParentUID,
 		CreatedAt:         res.B2bOrg.CreatedAt,
@@ -1432,6 +1440,7 @@ func NewUpdateB2bOrgResponseBody(res *membershipservice.UpdateB2bOrgResult) *Upd
 		CrunchBaseURL:     res.B2bOrg.CrunchBaseURL,
 		NumberOfEmployees: res.B2bOrg.NumberOfEmployees,
 		Status:            res.B2bOrg.Status,
+		IsMember:          res.B2bOrg.IsMember,
 		Slug:              res.B2bOrg.Slug,
 		ParentUID:         res.B2bOrg.ParentUID,
 		CreatedAt:         res.B2bOrg.CreatedAt,
@@ -2431,7 +2440,8 @@ func NewGetB2bOrgPayload(uid string, version *string, bearerToken *string, ifNon
 // endpoint payload.
 func NewCreateB2bOrgPayload(body *CreateB2bOrgRequestBody, version *string, bearerToken *string) *membershipservice.CreateB2bOrgPayload {
 	v := &membershipservice.CreateB2bOrgPayload{
-		Sfid: *body.Sfid,
+		Sfid:       *body.Sfid,
+		ParentSfid: body.ParentSfid,
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -2573,6 +2583,16 @@ func ValidateCreateB2bOrgRequestBody(body *CreateB2bOrgRequestBody) (err error) 
 	if body.Sfid != nil {
 		if utf8.RuneCountInString(*body.Sfid) > 18 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", *body.Sfid, utf8.RuneCountInString(*body.Sfid), 18, false))
+		}
+	}
+	if body.ParentSfid != nil {
+		if utf8.RuneCountInString(*body.ParentSfid) < 15 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 15, true))
+		}
+	}
+	if body.ParentSfid != nil {
+		if utf8.RuneCountInString(*body.ParentSfid) > 18 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 18, false))
 		}
 	}
 	return

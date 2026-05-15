@@ -77,13 +77,23 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceCreateB2bOrgBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"parent_sfid\": \"001Hs00001AbCdEFAZ\",\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }'")
 		}
 		if utf8.RuneCountInString(body.Sfid) < 15 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", body.Sfid, utf8.RuneCountInString(body.Sfid), 15, true))
 		}
 		if utf8.RuneCountInString(body.Sfid) > 18 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", body.Sfid, utf8.RuneCountInString(body.Sfid), 18, false))
+		}
+		if body.ParentSfid != nil {
+			if utf8.RuneCountInString(*body.ParentSfid) < 15 {
+				err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 15, true))
+			}
+		}
+		if body.ParentSfid != nil {
+			if utf8.RuneCountInString(*body.ParentSfid) > 18 {
+				err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 18, false))
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -108,7 +118,8 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 		}
 	}
 	v := &membershipservice.CreateB2bOrgPayload{
-		Sfid: body.Sfid,
+		Sfid:       body.Sfid,
+		ParentSfid: body.ParentSfid,
 	}
 	v.Version = version
 	v.BearerToken = bearerToken

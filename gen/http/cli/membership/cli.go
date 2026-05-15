@@ -329,7 +329,7 @@ func membershipServiceCreateB2bOrgUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org --body '{\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org --body '{\n      \"parent_sfid\": \"001Hs00001AbCdEFAZ\",\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateB2bOrgUsage() {

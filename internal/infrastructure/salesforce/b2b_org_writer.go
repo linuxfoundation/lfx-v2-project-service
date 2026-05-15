@@ -34,10 +34,17 @@ var _ port.B2BOrgWriter = (*B2BOrgWriter)(nil)
 // the corresponding B2BOrg. The Account is expected to already exist in
 // Salesforce (created by EasyCLA or Enrollment); this method is idempotent —
 // calling it twice with the same SFID returns the same record.
-func (w *B2BOrgWriter) CreateB2BOrg(ctx context.Context, sfid string) (*model.B2BOrg, error) {
+// If input.ParentUID is set, Account.ParentId is patched in Salesforce before
+// the re-fetch so the returned org reflects the requested parent.
+func (w *B2BOrgWriter) CreateB2BOrg(ctx context.Context, sfid string, input model.B2BOrgInput) (*model.B2BOrg, error) {
 	uid, err := sfuuid.ToUUID(sfid)
 	if err != nil {
 		return nil, errs.NewValidation(fmt.Sprintf("invalid Account SFID %q: %v", sfid, err))
+	}
+
+	// If a parent is requested, delegate to UpdateB2BOrg which handles the patch.
+	if input.ParentUID != nil {
+		return w.UpdateB2BOrg(ctx, uid, input)
 	}
 
 	org, _, err := w.client.FetchB2BOrg(ctx, uid)
@@ -67,7 +74,10 @@ func (w *B2BOrgWriter) UpdateB2BOrg(ctx context.Context, uid string, input model
 		return nil, errs.NewValidation(fmt.Sprintf("invalid Account UID %q: %v", uid, err))
 	}
 
-	patch := buildAccountPatch(input)
+	patch, err := buildAccountPatch(input)
+	if err != nil {
+		return nil, errs.NewValidation(fmt.Sprintf("invalid b2b org input for %s: %v", uid, err))
+	}
 	if len(patch) == 0 {
 		// Nothing to update — return the current record unchanged.
 		org, _, fetchErr := w.client.FetchB2BOrg(ctx, uid)
@@ -131,7 +141,8 @@ func (w *B2BOrgWriter) UpdateB2BOrg(ctx context.Context, uid string, input model
 // buildAccountPatch constructs the JSON-serialisable PATCH body for a Salesforce
 // Account update. Only non-zero fields from input are included; nil pointer fields
 // skip unless explicitly set (CrunchBaseURL nil = no-op, "" = explicit null).
-func buildAccountPatch(input model.B2BOrgInput) map[string]any {
+// Returns an error if ParentUID is set but is not a valid LFX UUID.
+func buildAccountPatch(input model.B2BOrgInput) (map[string]any, error) {
 	patch := make(map[string]any)
 	if input.Name != "" {
 		patch["Name"] = input.Name
@@ -167,5 +178,12 @@ func buildAccountPatch(input model.B2BOrgInput) map[string]any {
 	if input.NumberOfEmployees != nil {
 		patch["NumberOfEmployees"] = *input.NumberOfEmployees
 	}
-	return patch
+	if input.ParentUID != nil {
+		parentSFID, err := sfuuid.ToSFID(*input.ParentUID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid parent_uid %q: %w", *input.ParentUID, err)
+		}
+		patch["ParentId"] = parentSFID
+	}
+	return patch, nil
 }
