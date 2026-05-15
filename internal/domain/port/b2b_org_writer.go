@@ -15,8 +15,9 @@ import (
 type B2BOrgWriter interface {
 	// CreateB2BOrg creates a new B2BOrg record derived from the given
 	// Salesforce Account.Id. The SFID is used to fetch the Account fields and
-	// derive the v2 UUID. Returns the resulting domain object.
-	CreateB2BOrg(ctx context.Context, sfid string) (*model.B2BOrg, error)
+	// derive the v2 UUID. If input.ParentUID is set, Account.ParentId is
+	// updated in Salesforce before returning. Returns the resulting domain object.
+	CreateB2BOrg(ctx context.Context, sfid string, input model.B2BOrgInput) (*model.B2BOrg, error)
 
 	// UpdateB2BOrg updates the mutable fields of an existing B2BOrg record
 	// identified by its v2 UUID. Only non-zero fields in input are applied;

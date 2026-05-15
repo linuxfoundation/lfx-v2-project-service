@@ -30,6 +30,9 @@ var (
 	sfClient *sf.Salesforce
 	sfDoOnce sync.Once
 
+	sObjectClient *salesforce.SObjectClient
+	sObjectDoOnce sync.Once
+
 	projectResolver port.ProjectResolver
 	resolverDoOnce  sync.Once
 )
@@ -102,6 +105,16 @@ func sfInit(ctx context.Context) {
 		}
 		sfClient = client
 		slog.InfoContext(ctx, "Salesforce client initialised")
+	})
+}
+
+func sObjectClientInit(ctx context.Context) {
+	sObjectDoOnce.Do(func() {
+		natsInit(ctx)
+		sfInit(ctx)
+		sObjectCache := nats.NewSObjectCache(natsClient)
+		sObjectClient = salesforce.NewSObjectClient(sfClient, sObjectCache)
+		slog.InfoContext(ctx, "Salesforce sObject client initialised")
 	})
 }
 
@@ -241,19 +254,73 @@ func B2BOrgReaderImpl(ctx context.Context) port.B2BOrgReader {
 		return mock.NewMockB2BOrgReader()
 
 	case "salesforce":
-		slog.InfoContext(ctx, "initialising Salesforce B2B org reader with NATS KV cache")
-
-		natsInit(ctx)
-		sfInit(ctx)
-
-		cache := nats.NewStorage(natsClient)
-		return salesforce.NewB2BOrgReader(
-			salesforce.NewAccountRepo(sfClient),
-			cache,
-		)
+		slog.InfoContext(ctx, "initialising Salesforce B2B org reader with sObject cache")
+		sObjectClientInit(ctx)
+		return salesforce.NewB2BOrgReader(sObjectClient)
 
 	default:
 		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
 		return nil
 	}
+}
+
+// B2BOrgWriterImpl initialises and returns the port.B2BOrgWriter implementation
+// selected by the REPOSITORY_SOURCE environment variable.
+func B2BOrgWriterImpl(ctx context.Context) port.B2BOrgWriter {
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
+
+	switch repoSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock B2B org writer")
+		return mock.NewMockB2BOrgWriter()
+
+	case "salesforce":
+		slog.InfoContext(ctx, "initialising Salesforce B2B org writer with sObject cache")
+		sObjectClientInit(ctx)
+		return salesforce.NewB2BOrgWriter(sObjectClient)
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
+		return nil
+	}
+}
+
+// MemberPublisherImpl initialises and returns the port.MemberPublisher
+// implementation selected by the MESSAGING_SOURCE environment variable:
+//
+//   - "nats" (default) — NATS JetStream publisher.
+//   - "mock"           — No-op publisher that logs published messages.
+//
+// When MESSAGING_SOURCE=mock and GLOBAL_ORG_ADMIN_TEAM_UID is empty, the
+// service still starts successfully — useful for local development.
+func MemberPublisherImpl(ctx context.Context) port.MemberPublisher {
+	msgSource := os.Getenv("MESSAGING_SOURCE")
+	if msgSource == "" {
+		msgSource = "nats"
+	}
+
+	switch msgSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock member publisher")
+		return mock.NewMockMemberPublisher()
+
+	case "nats":
+		slog.InfoContext(ctx, "initialising NATS member publisher")
+		natsInit(ctx)
+		return nats.NewMessagePublisher(natsClient)
+
+	default:
+		log.Fatalf("unsupported MESSAGING_SOURCE value: %q", msgSource)
+		return nil
+	}
+}
+
+// GlobalOrgAdminTeamUID reads the GLOBAL_ORG_ADMIN_TEAM_UID environment variable.
+// Returns empty string when not set (allowed in mock/messaging=mock mode; the
+// FGA message simply omits the global_org_admin reference).
+func GlobalOrgAdminTeamUID() string {
+	return os.Getenv("GLOBAL_ORG_ADMIN_TEAM_UID")
 }

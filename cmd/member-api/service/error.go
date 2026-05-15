@@ -34,6 +34,12 @@ func wrapError(ctx context.Context, err error) error {
 		return membershipservice.MakeServiceUnavailable(err)
 	}
 
+	var preconditionFailed pkgerrors.PreconditionFailed
+	if errors.As(err, &preconditionFailed) {
+		slog.WarnContext(ctx, "precondition failed (stale If-Match)", "error", err)
+		return membershipservice.MakePreconditionFailed(err)
+	}
+
 	var notImplemented pkgerrors.NotImplemented
 	if errors.As(err, &notImplemented) {
 		// 501 stubs are intentional — log at debug, not error.

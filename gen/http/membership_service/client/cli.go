@@ -11,6 +11,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"unicode/utf8"
 
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	goa "goa.design/goa/v3/pkg"
@@ -76,7 +77,26 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceCreateB2bOrgBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"name\": \"Example Corp\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"parent_sfid\": \"001Hs00001AbCdEFAZ\",\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.Sfid) < 15 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", body.Sfid, utf8.RuneCountInString(body.Sfid), 15, true))
+		}
+		if utf8.RuneCountInString(body.Sfid) > 18 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", body.Sfid, utf8.RuneCountInString(body.Sfid), 18, false))
+		}
+		if body.ParentSfid != nil {
+			if utf8.RuneCountInString(*body.ParentSfid) < 15 {
+				err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 15, true))
+			}
+		}
+		if body.ParentSfid != nil {
+			if utf8.RuneCountInString(*body.ParentSfid) > 18 {
+				err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 18, false))
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	var version *string
@@ -98,7 +118,8 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 		}
 	}
 	v := &membershipservice.CreateB2bOrgPayload{
-		Name: body.Name,
+		Sfid:       body.Sfid,
+		ParentSfid: body.ParentSfid,
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -114,7 +135,7 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceUpdateB2bOrgBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"name\": \"Example Corp\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }'")
 		}
 	}
 	var uid string
@@ -156,7 +177,16 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 		}
 	}
 	v := &membershipservice.UpdateB2bOrgPayload{
-		Name: body.Name,
+		Name:              body.Name,
+		Description:       body.Description,
+		Phone:             body.Phone,
+		Website:           body.Website,
+		PrimaryDomain:     body.PrimaryDomain,
+		LogoURL:           body.LogoURL,
+		Industry:          body.Industry,
+		Sector:            body.Sector,
+		CrunchBaseURL:     body.CrunchBaseURL,
+		NumberOfEmployees: body.NumberOfEmployees,
 	}
 	v.UID = uid
 	v.Version = version
