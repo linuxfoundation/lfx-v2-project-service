@@ -324,6 +324,9 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 	dsl.Attribute("status", dsl.String, "LF membership status (Account.LF_Membership_Status__c); read-only, managed by Salesforce workflows", func() {
 		dsl.Example("Active")
 	})
+	dsl.Attribute("is_member", dsl.Boolean, "Whether the organization is currently an LF member (Account.IsMember__c); read-only, managed by Salesforce workflows", func() {
+		dsl.Example(true)
+	})
 	// TODO: slug is reserved for Account.Slug__c once the field is confirmed to exist in the SF org schema.
 	dsl.Attribute("slug", dsl.String, "URL-friendly organization identifier; populated when Account.Slug__c is available", func() {
 		dsl.Example("example-corp")
@@ -348,6 +351,11 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 var B2BOrgCreateBody = dsl.Type("b2b-org-create-body", func() {
 	dsl.Description("Request body for registering a B2B organization by its Salesforce Account ID")
 	dsl.Attribute("sfid", dsl.String, "Salesforce Account.Id (15- or 18-character); used to fetch and cache the org record", func() {
+		dsl.Example("001Hs00001AbCdEFAZ")
+		dsl.MinLength(15)
+		dsl.MaxLength(18)
+	})
+	dsl.Attribute("parent_sfid", dsl.String, "Salesforce Account.Id of the parent organization; sets Account.ParentId in Salesforce", func() {
 		dsl.Example("001Hs00001AbCdEFAZ")
 		dsl.MinLength(15)
 		dsl.MaxLength(18)

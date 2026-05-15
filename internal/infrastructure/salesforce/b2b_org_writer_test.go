@@ -88,9 +88,10 @@ func TestBuildAccountPatch(t *testing.T) {
 	var empCount int64 = 500
 
 	tests := []struct {
-		name  string
-		input model.B2BOrgInput
-		want  map[string]any
+		name    string
+		input   model.B2BOrgInput
+		want    map[string]any
+		wantErr bool
 	}{
 		{
 			name:  "empty input produces empty patch",
@@ -151,15 +152,48 @@ func TestBuildAccountPatch(t *testing.T) {
 				Name:              "ACME Corp",
 				IfUnmodifiedSince: "Mon, 01 Jan 2024 00:00:00 GMT",
 			},
-			want: map[string]any{"Name": "ACME Corp"},
+			want:    map[string]any{"Name": "ACME Corp"},
+			wantErr: false,
+		},
+		{
+			name: "ParentUID set translates to ParentId SFID",
+			input: func() model.B2BOrgInput {
+				parentUID, err := sfuuid.ToUUID(canonicalAccountSFID)
+				if err != nil {
+					panic(err)
+				}
+				return model.B2BOrgInput{ParentUID: &parentUID}
+			}(),
+			want:    map[string]any{"ParentId": canonicalAccountSFID},
+			wantErr: false,
+		},
+		{
+			name:    "ParentUID nil is no-op",
+			input:   model.B2BOrgInput{ParentUID: nil},
+			want:    map[string]any{},
+			wantErr: false,
+		},
+		{
+			name: "ParentUID invalid UUID returns error",
+			input: model.B2BOrgInput{
+				ParentUID: func() *string { s := "not-a-valid-uid"; return &s }(),
+			},
+			want:    nil,
+			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := buildAccountPatch(tt.input)
-			assert.Equal(t, tt.want, got)
+			got, err := buildAccountPatch(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, got)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
 		})
 	}
 }
@@ -181,7 +215,7 @@ func TestB2BOrgWriter_CreateB2BOrg(t *testing.T) {
 		client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
 		writer := NewB2BOrgWriter(client)
 
-		org, err := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID)
+		org, err := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID, model.B2BOrgInput{})
 
 		require.NoError(t, err)
 		require.NotNil(t, org)
@@ -199,8 +233,8 @@ func TestB2BOrgWriter_CreateB2BOrg(t *testing.T) {
 		client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
 		writer := NewB2BOrgWriter(client)
 
-		org1, err1 := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID)
-		org2, err2 := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID)
+		org1, err1 := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID, model.B2BOrgInput{})
+		org2, err2 := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID, model.B2BOrgInput{})
 
 		require.NoError(t, err1)
 		require.NoError(t, err2)
@@ -214,7 +248,7 @@ func TestB2BOrgWriter_CreateB2BOrg(t *testing.T) {
 		client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
 		writer := NewB2BOrgWriter(client)
 
-		org, err := writer.CreateB2BOrg(context.Background(), "not-a-valid-sfid")
+		org, err := writer.CreateB2BOrg(context.Background(), "not-a-valid-sfid", model.B2BOrgInput{})
 
 		require.Error(t, err)
 		assert.Nil(t, org)
@@ -234,7 +268,7 @@ func TestB2BOrgWriter_CreateB2BOrg(t *testing.T) {
 		client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
 		writer := NewB2BOrgWriter(client)
 
-		org, err := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID)
+		org, err := writer.CreateB2BOrg(context.Background(), canonicalAccountSFID, model.B2BOrgInput{})
 
 		require.Error(t, err)
 		assert.Nil(t, org)

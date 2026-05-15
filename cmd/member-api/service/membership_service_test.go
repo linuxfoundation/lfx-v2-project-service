@@ -20,6 +20,7 @@ import (
 	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -375,6 +376,55 @@ func TestUpdateB2bOrg_PublishesActionUpdated(t *testing.T) {
 	assert.Equal(t, indexerConstants.ActionUpdated, msgs[0].Action)
 }
 
+// TestCreateB2bOrg_WithParent verifies that when parent_sfid is provided the
+// service converts it to a v2 UUID and passes it as ParentUID in the writer input.
+func TestCreateB2bOrg_WithParent(t *testing.T) {
+	w := &capturingB2BOrgWriter{org: sampleB2BOrg}
+	svc := newTestMembershipServiceWith(
+		&seededB2BOrgReader{org: sampleB2BOrg},
+		w,
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+
+	parentSfid := "001B0000001ckSl"
+	_, err := svc.CreateB2bOrg(context.Background(), &membershipservice.CreateB2bOrgPayload{
+		Sfid:       "001000000000001AAA",
+		ParentSfid: &parentSfid,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "001000000000001AAA", w.lastCreateSFID, "sfid must be forwarded unchanged")
+	require.NotNil(t, w.lastCreateInput.ParentUID,
+		"ParentUID must be set when parent_sfid is provided")
+	// Verify round-trip: ToSFID of the stored UID must equal the original SFID.
+	reconstructed, convErr := sfuuid.ToSFID(*w.lastCreateInput.ParentUID)
+	require.NoError(t, convErr)
+	assert.Equal(t, parentSfid, reconstructed,
+		"ParentUID must be the v2 UUID derived from parent_sfid")
+}
+
+// TestCreateB2bOrg_WithInvalidParent verifies that an invalid parent_sfid
+// returns a validation error without calling the writer.
+func TestCreateB2bOrg_WithInvalidParent(t *testing.T) {
+	w := &capturingB2BOrgWriter{org: sampleB2BOrg}
+	svc := newTestMembershipServiceWith(
+		&seededB2BOrgReader{org: sampleB2BOrg},
+		w,
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+
+	badSfid := "not-a-valid-sfid"
+	_, err := svc.CreateB2bOrg(context.Background(), &membershipservice.CreateB2bOrgPayload{
+		Sfid:       "001000000000001AAA",
+		ParentSfid: &badSfid,
+	})
+
+	require.Error(t, err)
+	assert.Empty(t, w.lastCreateSFID, "writer must not be called on invalid parent_sfid")
+}
+
 // ── local test mocks ──────────────────────────────────────────────────────────
 
 // seededB2BOrgReader returns a fixed org for any UID.
@@ -390,7 +440,7 @@ func (r *seededB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BO
 // happyB2BOrgWriter returns a fixed org for any SFID/UID.
 type happyB2BOrgWriter struct{ org *model.B2BOrg }
 
-func (w *happyB2BOrgWriter) CreateB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+func (w *happyB2BOrgWriter) CreateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
 	return w.org, nil
 }
 func (w *happyB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
@@ -400,7 +450,7 @@ func (w *happyB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2
 // preconditionFailingWriter always returns a PreconditionFailed error.
 type preconditionFailingWriter struct{}
 
-func (w *preconditionFailingWriter) CreateB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+func (w *preconditionFailingWriter) CreateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
 	return nil, pkgerrors.NewPreconditionFailed("stale etag")
 }
 func (w *preconditionFailingWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
@@ -433,13 +483,17 @@ func (p *capturingPublisher) Access(_ context.Context, _ string, _ any, _ bool) 
 }
 func (p *capturingPublisher) count() int { return int(p.calls.Load()) }
 
-// capturingB2BOrgWriter records the B2BOrgInput passed to UpdateB2BOrg.
+// capturingB2BOrgWriter records args passed to CreateB2BOrg and UpdateB2BOrg.
 type capturingB2BOrgWriter struct {
-	org       *model.B2BOrg
-	lastInput model.B2BOrgInput
+	org             *model.B2BOrg
+	lastInput       model.B2BOrgInput
+	lastCreateSFID  string
+	lastCreateInput model.B2BOrgInput
 }
 
-func (w *capturingB2BOrgWriter) CreateB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+func (w *capturingB2BOrgWriter) CreateB2BOrg(_ context.Context, sfid string, input model.B2BOrgInput) (*model.B2BOrg, error) {
+	w.lastCreateSFID = sfid
+	w.lastCreateInput = input
 	return w.org, nil
 }
 func (w *capturingB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, input model.B2BOrgInput) (*model.B2BOrg, error) {

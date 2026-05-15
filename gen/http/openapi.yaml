@@ -691,6 +691,10 @@ definitions:
                 type: string
                 description: Industry classification (Account.Industry, standard Salesforce field)
                 example: Technology
+            is_member:
+                type: boolean
+                description: Whether the organization is currently an LF member (Account.IsMember__c); read-only, managed by Salesforce workflows
+                example: true
             logo_url:
                 type: string
                 description: URL of the organization logo (Account.Logo_URL__c)
@@ -753,6 +757,7 @@ definitions:
                 - example.org
                 - example.net
             industry: Technology
+            is_member: true
             logo_url: https://example.com/logo.png
             name: Example Corp
             number_of_employees: 500
@@ -1272,6 +1277,12 @@ definitions:
         title: MembershipServiceCreateB2bOrgRequestBody
         type: object
         properties:
+            parent_sfid:
+                type: string
+                description: Salesforce Account.Id of the parent organization; sets Account.ParentId in Salesforce
+                example: 001Hs00001AbCdEFAZ
+                minLength: 15
+                maxLength: 18
             sfid:
                 type: string
                 description: Salesforce Account.Id (15- or 18-character); used to fetch and cache the org record
@@ -1279,6 +1290,7 @@ definitions:
                 minLength: 15
                 maxLength: 18
         example:
+            parent_sfid: 001Hs00001AbCdEFAZ
             sfid: 001Hs00001AbCdEFAZ
         required:
             - sfid

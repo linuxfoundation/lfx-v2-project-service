@@ -147,6 +147,15 @@ type soqlProject struct {
 	Slug *string `salesforce:"Slug__c"`
 }
 
+// soqlAccountParent is the parent Account sub-object returned by the SOQL
+// relationship sub-select (e.g. SELECT ..., Parent.Name, Parent.Logo_URL__c
+// FROM Account). Both salesforce and json tags match the SOQL field aliases.
+type soqlAccountParent struct {
+	ID      string  `salesforce:"Id"          json:"Id"`
+	Name    string  `salesforce:"Name"        json:"Name"`
+	LogoURL *string `salesforce:"Logo_URL__c" json:"Logo_URL__c"`
+}
+
 // soqlAccount represents a Salesforce Account record returned by a SOQL query.
 // Used for B2BOrg search and list operations. Only non-deleted Accounts that
 // have at least one membership Asset are returned — the WHERE clause filters
@@ -184,9 +193,14 @@ type soqlAccount struct {
 	// NumberOfEmployees is the standard SF Account.NumberOfEmployees (Integer).
 	NumberOfEmployees *int64 `salesforce:"NumberOfEmployees" json:"NumberOfEmployees"`
 	// Status is the custom SF field Account.LF_Membership_Status__c.
-	Status           *string `salesforce:"LF_Membership_Status__c" json:"LF_Membership_Status__c"`
-	CreatedDate      string  `salesforce:"CreatedDate"             json:"CreatedDate"`
-	LastModifiedDate string  `salesforce:"LastModifiedDate"        json:"LastModifiedDate"`
+	Status *string `salesforce:"LF_Membership_Status__c" json:"LF_Membership_Status__c"`
+	// IsMember is the custom SF field Account.IsMember__c.
+	IsMember         *bool  `salesforce:"IsMember__c"             json:"IsMember__c"`
+	CreatedDate      string `salesforce:"CreatedDate"             json:"CreatedDate"`
+	LastModifiedDate string `salesforce:"LastModifiedDate"        json:"LastModifiedDate"`
+	// Parent is the parent Account sub-object from the SOQL relationship sub-select.
+	// Present when the query includes `Parent.Name, Parent.Logo_URL__c` in the SELECT clause.
+	Parent *soqlAccountParent `salesforce:"Parent"                  json:"Parent"`
 }
 
 // derefString returns the string value of a *string pointer, or an empty string

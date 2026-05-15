@@ -62,6 +62,27 @@ func TestBuildB2BOrgIndexingConfig_EmptyOptionals(t *testing.T) {
 		"no primary_domain or aliases means only org name in NameAndAliases")
 	assert.Equal(t, "Sparse Org", cfg.Fulltext,
 		"fulltext must contain at least the name even with no domain/description")
+	assert.Empty(t, cfg.ParentRefs, "no parent means no parent_refs")
+}
+
+// TestBuildB2BOrgIndexingConfig_WithParent verifies that when B2BOrg.ParentUID
+// is set, buildB2BOrgIndexingConfig emits a parent_refs entry so the query
+// service can fetch all child orgs by filtering on parent_refs.
+func TestBuildB2BOrgIndexingConfig_WithParent(t *testing.T) {
+	org := &model.B2BOrg{
+		UID:       "child-org-uid",
+		Name:      "Child Org",
+		ParentUID: "parent-org-uid",
+	}
+
+	cfg := buildB2BOrgIndexingConfig(org)
+
+	require.NotNil(t, cfg)
+	assert.Equal(t,
+		[]string{"b2b_org:parent-org-uid"},
+		cfg.ParentRefs,
+		"parent_refs must carry b2b_org:<parent_uid> so query service can filter children",
+	)
 }
 
 // TestBuildB2BOrgFGAMessage_WithGlobalAdmin locks down the FGA message shape

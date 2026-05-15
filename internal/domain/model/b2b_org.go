@@ -67,6 +67,11 @@ type B2BOrg struct {
 	// custom Salesforce field). Read-only; managed by Salesforce workflows.
 	Status string `json:"status,omitempty"`
 
+	// IsMember indicates whether the organization is currently an LF member
+	// (Account.IsMember__c, custom Salesforce field). Read-only; managed by
+	// Salesforce workflows.
+	IsMember bool `json:"is_member"`
+
 	// Slug is the URL-friendly identifier for the organization.
 	// The Heroku Connect replica column is "slug" (SF API name Slug__c).
 	// TODO: confirm field exists in the Salesforce org schema before exposing.
@@ -76,8 +81,25 @@ type B2BOrg struct {
 	// from Account.ParentId. Omitted when the organization has no parent.
 	ParentUID string `json:"parent_uid,omitempty"`
 
+	// ParentDetail carries the parent organization's name and logo for
+	// denormalized display. Populated when the fetch path includes the
+	// Salesforce Account.Parent relationship sub-object. Omitted when the
+	// organization has no parent or the parent could not be resolved.
+	ParentDetail *B2BOrgParentDetail `json:"parent_detail,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// B2BOrgParentDetail carries denormalized parent organization details embedded
+// in the indexed document so callers can render parent info without a second lookup.
+type B2BOrgParentDetail struct {
+	// UID is the v2 UUID of the parent organization (invertible from SFID).
+	UID string `json:"uid"`
+	// Name is the parent organization's display name.
+	Name string `json:"name"`
+	// LogoURL is the parent organization's logo URL (Account.Logo_URL__c).
+	LogoURL *string `json:"logo_url,omitempty"`
 }
 
 // Tags returns the search tags for this organization. The indexer uses these
@@ -95,6 +117,7 @@ func (o *B2BOrg) Tags() []string {
 	if o.ParentUID != "" {
 		tags = append(tags, fmt.Sprintf("parent_b2b_org_uid:%s", o.ParentUID))
 	}
+	tags = append(tags, fmt.Sprintf("is_member:%v", o.IsMember))
 	return tags
 }
 
@@ -134,6 +157,11 @@ type B2BOrgInput struct {
 	// NumberOfEmployees is the employee count (Account.NumberOfEmployees).
 	// Nil = don't change.
 	NumberOfEmployees *int64
+
+	// ParentUID is the v2 UUID of the parent organization to assign.
+	// Populated by the create handler from parent_sfid (SFID→UUID conversion).
+	// Nil = no parent change. The writer converts this to a Salesforce Account.Id.
+	ParentUID *string
 
 	// IfUnmodifiedSince is the SF LastModifiedDate forwarded as If-Unmodified-Since
 	// to the Salesforce PATCH endpoint for server-side concurrency protection.

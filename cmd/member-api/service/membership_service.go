@@ -10,6 +10,7 @@ import (
 	"expvar"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -23,6 +24,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 
 	"goa.design/goa/v3/security"
 )
@@ -108,7 +110,20 @@ func (s *membershipServicesrvc) GetB2bOrg(ctx context.Context, p *membershipserv
 
 // CreateB2bOrg creates a new B2B organization record from an existing Salesforce Account.
 func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *membershipservice.CreateB2bOrgPayload) (*membershipservice.CreateB2bOrgResult, error) {
-	org, err := s.b2bOrgWriter.CreateB2BOrg(ctx, p.Sfid)
+	var createInput model.B2BOrgInput
+	if p.ParentSfid != nil {
+		if !strings.HasPrefix(*p.ParentSfid, "001") {
+			return nil, wrapError(ctx, pkgerrors.NewValidation(
+				fmt.Sprintf("parent_sfid %q is not a Salesforce Account ID (must start with 001)", *p.ParentSfid)))
+		}
+		parentUID, convErr := sfuuid.ToUUID(*p.ParentSfid)
+		if convErr != nil {
+			return nil, wrapError(ctx, pkgerrors.NewValidation(
+				fmt.Sprintf("invalid parent_sfid %q: %v", *p.ParentSfid, convErr)))
+		}
+		createInput.ParentUID = &parentUID
+	}
+	org, err := s.b2bOrgWriter.CreateB2BOrg(ctx, p.Sfid, createInput)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
@@ -299,6 +314,7 @@ func b2bOrgToResponse(org *model.B2BOrg) *membershipservice.B2bOrgResponse {
 	if org.Status != "" {
 		resp.Status = &org.Status
 	}
+	resp.IsMember = &org.IsMember
 	if org.Slug != "" {
 		resp.Slug = &org.Slug
 	}
