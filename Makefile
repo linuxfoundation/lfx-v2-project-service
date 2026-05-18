@@ -42,7 +42,7 @@ all: clean deps apigen fmt lint test build
 help:
 	@echo "Available targets:"
 	@echo "  all            - Run clean, deps, apigen, fmt, lint, test, and build"
-	@echo "  deps           - Install dependencies including goa CLI"
+	@echo "  deps           - Install dependencies including goa CLI and git hooks"
 	@echo "  apigen         - Generate API code from design files"
 	@echo "  build          - Build the binary"
 	@echo "  run            - Run the service"
@@ -74,6 +74,8 @@ deps:
 		echo "==> Installing golangci-lint..."; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	}
+	@git config core.hooksPath .githooks
+	@echo "==> Git hooks installed from .githooks/"
 
 # Generate API code from design files
 .PHONY: apigen
