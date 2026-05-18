@@ -11,6 +11,7 @@ import (
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service/email"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -22,6 +23,9 @@ const emailSendTimeout = 5 * time.Second
 
 // HandleProjectSettingsUpdated handles project_settings.updated events and sends
 // notification emails to any users newly added as writers, auditors, or meeting coordinators.
+// Users with an LFID (Username present) receive a direct notification email via the email
+// service. Users without an LFID (email-only) receive an invite via the invite service so
+// they can create an LFID and gain access.
 // Errors from individual sends are logged but never returned — the handler is best-effort.
 func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg domain.Message) error {
 	var event events.ProjectSettingsUpdatedMessage
@@ -58,7 +62,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		add := add
 		g.Go(func() error {
 			if add.User.Email == "" {
-				slog.WarnContext(gctx, "project_subscriber: skipping email — recipient has no email address",
+				slog.WarnContext(gctx, "project_subscriber: skipping notification — recipient has no email address",
 					"role", add.Role, "username", add.User.Username, "project_uid", event.ProjectUID)
 				return nil
 			}
@@ -71,39 +75,84 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 				recipientName = add.User.Email
 			}
 
-			subject, html, text, err := email.RenderProjectRoleNotification(email.ProjectRoleNotificationData{
-				RecipientName: recipientName,
-				ProjectName:   projectBase.Name,
-				Role:          add.Role,
-				ProjectURL:    projectURL,
-				InviterName:   inviterName,
-			})
-			if err != nil {
-				slog.WarnContext(gctx, "project_subscriber: failed to render email template",
-					constants.ErrKey, err, "role", add.Role, "project_uid", event.ProjectUID)
-				return nil
+			if add.User.Username == "" {
+				// No LFID — send an invite so the user can create one.
+				return s.sendInvite(gctx, event.ProjectUID, projectBase.Name, add.Role, add.User.Email, recipientName, inviterName, projectURL)
 			}
 
-			sendCtx, cancel := context.WithTimeout(gctx, emailSendTimeout)
-			defer cancel()
-			sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
-				To:      add.User.Email,
-				Subject: subject,
-				HTML:    html,
-				Text:    text,
-			})
-			if sendErr != nil {
-				slog.WarnContext(gctx, "project_subscriber: failed to send role notification email",
-					constants.ErrKey, sendErr, "role", add.Role, "project_uid", event.ProjectUID)
-			} else {
-				slog.DebugContext(gctx, "project_subscriber: sent role notification email",
-					"role", add.Role, "project_uid", event.ProjectUID, "to", add.User.Email)
-			}
-			return nil
+			// LFID present — send a direct notification email.
+			return s.sendRoleNotificationEmail(gctx, event.ProjectUID, projectBase.Name, add.Role, add.User.Email, recipientName, inviterName, projectURL)
 		})
 	}
 
 	_ = g.Wait()
+	return nil
+}
+
+// sendInvite publishes a send-invite request to the invite service for a user
+// who does not yet have an LFID. The invite service renders and delivers the email.
+func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, deepLinkURL string) error {
+	inviteRole := mapRoleToInviteRole(role)
+	if inviteRole == "" {
+		slog.WarnContext(ctx, "project_subscriber: skipping invite — unrecognised role",
+			"role", role, "project_uid", projectUID)
+		return nil
+	}
+
+	sendCtx, cancel := context.WithTimeout(ctx, emailSendTimeout)
+	defer cancel()
+
+	err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
+		RecipientEmail: recipientEmail,
+		RecipientName:  recipientName,
+		InviterName:    inviterName,
+		ProjectUID:     projectUID,
+		ProjectName:    projectName,
+		Role:           inviteRole,
+		DeepLinkURL:    deepLinkURL,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to publish invite request",
+			constants.ErrKey, err, "role", role, "project_uid", projectUID)
+	} else {
+		slog.DebugContext(ctx, "project_subscriber: published invite request",
+			"role", role, "project_uid", projectUID, "to", recipientEmail)
+	}
+	return nil
+}
+
+// sendRoleNotificationEmail sends a direct "you were added" notification email via
+// the email service for a user who already has an LFID.
+func (s *ProjectsService) sendRoleNotificationEmail(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, projectURL string) error {
+	subject, html, text, err := email.RenderProjectRoleNotification(email.ProjectRoleNotificationData{
+		RecipientName: recipientName,
+		ProjectName:   projectName,
+		Role:          role,
+		ProjectURL:    projectURL,
+		InviterName:   inviterName,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to render email template",
+			constants.ErrKey, err, "role", role, "project_uid", projectUID)
+		return nil
+	}
+
+	sendCtx, cancel := context.WithTimeout(ctx, emailSendTimeout)
+	defer cancel()
+
+	sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
+		To:      recipientEmail,
+		Subject: subject,
+		HTML:    html,
+		Text:    text,
+	})
+	if sendErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to send role notification email",
+			constants.ErrKey, sendErr, "role", role, "project_uid", projectUID)
+	} else {
+		slog.DebugContext(ctx, "project_subscriber: sent role notification email",
+			"role", role, "project_uid", projectUID, "to", recipientEmail)
+	}
 	return nil
 }
 
@@ -126,6 +175,24 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 		}
 	}
 	return "A project administrator"
+}
+
+// mapRoleToInviteRole converts a project-service role string to the invite service's
+// role vocabulary. Returns an empty string for unrecognised roles (caller skips invite).
+//
+// Mapping:
+//   - Writer           → Manage
+//   - Auditor          → View
+//   - Meeting Coordinator → Manage (coordinators have write-level project access)
+func mapRoleToInviteRole(role string) string {
+	switch role {
+	case "Writer", "Meeting Coordinator":
+		return string(inviteapi.InviteRoleManage)
+	case "Auditor":
+		return string(inviteapi.InviteRoleView)
+	default:
+		return ""
+	}
 }
 
 // roleAssignment pairs a user with the role they were added to.

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -31,42 +32,50 @@ func makeProjectBase(uid, name, slug string) *models.ProjectBase {
 }
 
 func TestHandleProjectSettingsUpdated(t *testing.T) {
+	// Users WITH LFID (Username set) → direct notification email via email-service.
 	alice := events.UserInfo{Username: "alice", Email: "alice@example.com", Name: "Alice"}
 	bob := events.UserInfo{Username: "bob", Email: "bob@example.com", Name: "Bob"}
+
+	// Users WITHOUT LFID (Username empty) → invite request via invite-service.
+	noLFIDWriter := events.UserInfo{Email: "writer@example.com", Name: "No LFID Writer"}
+	noLFIDAuditor := events.UserInfo{Email: "auditor@example.com", Name: "No LFID Auditor"}
+	noLFIDMC := events.UserInfo{Email: "mc@example.com", Name: "No LFID MC"}
 
 	tests := []struct {
 		name              string
 		event             events.ProjectSettingsUpdatedMessage
 		projectBase       *models.ProjectBase
 		projectBaseErr    error
-		wantSendCount     int
+		wantEmailCount    int
+		wantInviteCount   int
 		msgBuilderErr     error
-		wantURLContains   string // assert HTML body contains this substring
-		wantURLNotContain string // assert HTML body does NOT contain this substring
+		wantURLContains   string
+		wantURLNotContain string
 	}{
 		{
-			name: "no additions — no emails sent",
+			name: "no additions — no sends",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 			},
-			// projectBase intentionally nil: handler returns before GetProjectBase when no additions found
-			wantSendCount: 0,
+			wantEmailCount:  0,
+			wantInviteCount: 0,
 		},
 		{
-			name: "one writer added — one email sent",
+			name: "LFID writer added — direct email sent",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 				Actor:       events.Actor{Username: "admin", Name: "Admin User"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 1,
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
 		},
 		{
-			name: "two users added across roles — two emails sent",
+			name: "two LFID users added across roles — two emails sent",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
@@ -76,42 +85,96 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				},
 				Actor: events.Actor{Username: "admin"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 2,
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  2,
+			wantInviteCount: 0,
 		},
 		{
-			name: "send error on one — other still attempted",
+			name: "non-LFID writer added — invite request published",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{noLFIDWriter}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+		},
+		{
+			name: "non-LFID auditor added — invite request published",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Auditors: []events.UserInfo{noLFIDAuditor}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+		},
+		{
+			name: "non-LFID meeting coordinator added — invite request published with Manage role",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{MeetingCoordinators: []events.UserInfo{noLFIDMC}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+		},
+		{
+			name: "mixed LFID and non-LFID added — email for LFID, invite for non-LFID",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice, noLFIDWriter},
+					Auditors: []events.UserInfo{noLFIDAuditor},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 2,
+		},
+		{
+			name: "send error on email — handler still returns nil",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 				Actor:       events.Actor{Username: "admin"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 1,
-			msgBuilderErr: assert.AnError,
+			projectBase:    makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount: 1,
+			msgBuilderErr:  assert.AnError,
 		},
 		{
-			name: "user without email address — skipped, no send",
+			name: "user without email address — skipped entirely",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{{Username: "noemail", Name: "No Email"}}},
 				Actor:       events.Actor{Username: "admin"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 0,
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
 		},
 		{
-			name: "project load failure — no email sent",
+			name: "project load failure — no sends",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 			},
-			projectBase:    nil,
-			projectBaseErr: assert.AnError,
-			wantSendCount:  0,
+			projectBase:     nil,
+			projectBaseErr:  assert.AnError,
+			wantEmailCount:  0,
+			wantInviteCount: 0,
 		},
 		{
 			name: "project with slug — URL includes slug query param",
@@ -122,7 +185,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				Actor:       events.Actor{Name: "Admin"},
 			},
 			projectBase:     makeProjectBase("proj-1", "Demo", "my-project"),
-			wantSendCount:   1,
+			wantEmailCount:  1,
 			wantURLContains: "?project=my-project",
 		},
 		{
@@ -134,7 +197,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				Actor:       events.Actor{Name: "Admin"},
 			},
 			projectBase:       makeProjectBase("proj-1", "Demo", ""),
-			wantSendCount:     1,
+			wantEmailCount:    1,
 			wantURLContains:   "projects/overview",
 			wantURLNotContain: "?project=",
 		},
@@ -150,7 +213,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					Return(tt.projectBase, tt.projectBaseErr)
 			}
 
-			if tt.wantSendCount > 0 {
+			if tt.wantEmailCount > 0 {
 				if tt.wantURLContains != "" || tt.wantURLNotContain != "" {
 					wantContains := tt.wantURLContains
 					wantNotContain := tt.wantURLNotContain
@@ -162,11 +225,16 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 							return false
 						}
 						return true
-					})).Return(tt.msgBuilderErr).Times(tt.wantSendCount)
+					})).Return(tt.msgBuilderErr).Times(tt.wantEmailCount)
 				} else {
 					mockMsg.On("SendEmailRequest", mock.Anything, mock.AnythingOfType("api.SendEmailRequest")).
-						Return(tt.msgBuilderErr).Times(tt.wantSendCount)
+						Return(tt.msgBuilderErr).Times(tt.wantEmailCount)
 				}
+			}
+
+			if tt.wantInviteCount > 0 {
+				mockMsg.On("SendInviteRequest", mock.Anything, mock.AnythingOfType("api.SendInviteRequest")).
+					Return(tt.msgBuilderErr).Times(tt.wantInviteCount)
 			}
 
 			svc := &ProjectsService{
@@ -181,7 +249,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 			assert.NoError(t, err)
 
-			mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", tt.wantSendCount)
+			mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", tt.wantEmailCount)
+			mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", tt.wantInviteCount)
 			mockRepo.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
 		})
@@ -193,6 +262,25 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
 	})
+}
+
+func TestMapRoleToInviteRole(t *testing.T) {
+	tests := []struct {
+		role string
+		want string
+	}{
+		{"Writer", string(inviteapi.InviteRoleManage)},
+		{"Auditor", string(inviteapi.InviteRoleView)},
+		{"Meeting Coordinator", string(inviteapi.InviteRoleManage)},
+		{"Unknown", ""},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.role, func(t *testing.T) {
+			assert.Equal(t, tt.want, mapRoleToInviteRole(tt.role))
+		})
+	}
 }
 
 func TestDiffNewMembers(t *testing.T) {
@@ -307,5 +395,8 @@ func TestDiffNewMembers(t *testing.T) {
 	}
 }
 
-// Compile-time check: emailapi.SendEmailRequest is used to ensure the type alias is correct.
-var _ emailapi.SendEmailRequest
+// Compile-time checks for imported API types.
+var (
+	_ emailapi.SendEmailRequest
+	_ inviteapi.SendInviteRequest
+)

@@ -14,6 +14,7 @@ import (
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -550,6 +551,71 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 
 			ctx := context.Background()
 			err := mb.SendProjectEventMessage(ctx, tt.subject, tt.message)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockConn.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMessageBuilder_SendInviteRequest(t *testing.T) {
+	tests := []struct {
+		name       string
+		req        inviteapi.SendInviteRequest
+		setupMocks func(*MockNATSConn)
+		wantErr    bool
+	}{
+		{
+			name: "successful publish — correct subject and payload",
+			req: inviteapi.SendInviteRequest{
+				RecipientEmail: "user@example.com",
+				RecipientName:  "Jane Doe",
+				InviterName:    "Admin",
+				ProjectUID:     "proj-123",
+				ProjectName:    "Demo Project",
+				Role:           string(inviteapi.InviteRoleManage),
+				DeepLinkURL:    "https://app.lfx.dev/project/overview?project=demo",
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", inviteapi.SendInviteSubject, mock.MatchedBy(func(data []byte) bool {
+					var req inviteapi.SendInviteRequest
+					if err := json.Unmarshal(data, &req); err != nil {
+						return false
+					}
+					return req.RecipientEmail == "user@example.com" &&
+						req.ProjectUID == "proj-123" &&
+						req.Role == string(inviteapi.InviteRoleManage)
+				})).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "NATS publish error — error returned",
+			req: inviteapi.SendInviteRequest{
+				RecipientEmail: "user@example.com",
+				ProjectUID:     "proj-123",
+				Role:           string(inviteapi.InviteRoleView),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("Publish", inviteapi.SendInviteSubject, mock.AnythingOfType("[]uint8")).
+					Return(errors.New("nats error"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+			tt.setupMocks(mockConn)
+
+			mb := &MessageBuilder{NatsConn: mockConn}
+			err := mb.SendInviteRequest(context.Background(), tt.req)
 
 			if tt.wantErr {
 				assert.Error(t, err)

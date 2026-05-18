@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
@@ -252,6 +253,11 @@ func (m *MockMessageBuilder) SendProjectEventMessage(ctx context.Context, subjec
 }
 
 func (m *MockMessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.SendEmailRequest) error {
+	args := m.Called(ctx, req)
+	return args.Error(0)
+}
+
+func (m *MockMessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) error {
 	args := m.Called(ctx, req)
 	return args.Error(0)
 }

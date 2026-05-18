@@ -15,6 +15,7 @@ import (
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
 )
@@ -196,6 +197,26 @@ func (m *MessageBuilder) SendProjectEventMessage(ctx context.Context, subject st
 	}
 
 	slog.DebugContext(ctx, "published project event message to NATS", "subject", subject)
+	return nil
+}
+
+// SendInviteRequest publishes a send-invite request to the invite service for
+// a user who does not yet have an LFID. The message is captured by the
+// invite-requests JetStream stream owned by lfx-v2-invite-service.
+func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) error {
+	data, err := json.Marshal(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling invite request into JSON", constants.ErrKey, err)
+		return err
+	}
+
+	err = m.publishMessage(inviteapi.SendInviteSubject, data)
+	if err != nil {
+		slog.ErrorContext(ctx, "error publishing invite request to NATS", constants.ErrKey, err, "subject", inviteapi.SendInviteSubject)
+		return err
+	}
+
+	slog.DebugContext(ctx, "published invite request to NATS", "subject", inviteapi.SendInviteSubject)
 	return nil
 }
 
