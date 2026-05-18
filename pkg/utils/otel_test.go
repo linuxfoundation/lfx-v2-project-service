@@ -561,6 +561,7 @@ func TestNewSampler(t *testing.T) {
 		{"parentbased_always_on", "parentbased_always_on", ""},
 		{"parentbased_always_off", "parentbased_always_off", ""},
 		{"parentbased_traceidratio", "parentbased_traceidratio", "0.5"},
+		{"parentbased_traceidratio with invalid arg", "parentbased_traceidratio", "invalid"},
 		{"unknown", "unknown", ""},
 	}
 	for _, tt := range tests {
@@ -576,20 +577,6 @@ func TestNewSampler(t *testing.T) {
 				t.Errorf("newSampler(%q).Description() is empty", tt.sampler)
 			}
 		})
-	}
-}
-
-// TestNewSampler_InvalidArg verifies that an invalid OTEL_TRACES_SAMPLER_ARG
-// falls back to cfg.TracesSampleRatio without panicking.
-func TestNewSampler_InvalidArg(t *testing.T) {
-	cfg := OTelConfig{
-		TracesSampleRatio: 0.5,
-		TracesSampler:     "parentbased_traceidratio",
-		TracesSamplerArg:  "invalid",
-	}
-	s := newSampler(cfg)
-	if s == nil {
-		t.Fatal("newSampler returned nil for invalid OTEL_TRACES_SAMPLER_ARG")
 	}
 }
 
