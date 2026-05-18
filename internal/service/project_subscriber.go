@@ -19,7 +19,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const emailSendTimeout = 5 * time.Second
+// notificationTimeout caps individual email and invite sends to avoid blocking the event handler.
+const notificationTimeout = 5 * time.Second
 
 // HandleProjectSettingsUpdated handles project_settings.updated events and sends
 // notification emails to any users newly added as writers, auditors, or meeting coordinators.
@@ -99,7 +100,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		return nil
 	}
 
-	sendCtx, cancel := context.WithTimeout(ctx, emailSendTimeout)
+	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
 	defer cancel()
 
 	err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
@@ -137,7 +138,7 @@ func (s *ProjectsService) sendRoleNotificationEmail(ctx context.Context, project
 		return nil
 	}
 
-	sendCtx, cancel := context.WithTimeout(ctx, emailSendTimeout)
+	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
 	defer cancel()
 
 	sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
@@ -163,7 +164,7 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 		return actor.Name
 	}
 	if actor.Username != "" && s.UserReader != nil {
-		lookupCtx, cancel := context.WithTimeout(ctx, emailSendTimeout)
+		lookupCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
 		defer cancel()
 		if meta, err := s.UserReader.UserMetadataByPrincipal(lookupCtx, actor.Username); err == nil && meta != nil {
 			if meta.Name != "" {

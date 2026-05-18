@@ -201,8 +201,8 @@ func (m *MessageBuilder) SendProjectEventMessage(ctx context.Context, subject st
 }
 
 // SendInviteRequest publishes a send-invite request to the invite service for
-// a user who does not yet have an LFID. The message is captured by the
-// invite-requests JetStream stream owned by lfx-v2-invite-service.
+// a user who does not yet have an LFID. The invite service consumes this
+// subject via a JetStream stream.
 func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) error {
 	data, err := json.Marshal(req)
 	if err != nil {
