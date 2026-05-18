@@ -19,7 +19,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// notificationTimeout caps individual email and invite sends to avoid blocking the event handler.
+// notificationTimeout caps email sends (request/reply) to avoid blocking the event handler.
+// Fire-and-forget NATS publishes (invite path) do not use this timeout.
 const notificationTimeout = 5 * time.Second
 
 // HandleProjectSettingsUpdated handles project_settings.updated events and sends
@@ -60,7 +61,6 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	g.SetLimit(5)
 
 	for _, add := range additions {
-		add := add
 		g.Go(func() error {
 			if add.User.Email == "" {
 				slog.WarnContext(gctx, "project_subscriber: skipping notification — recipient has no email address",
@@ -77,7 +77,8 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 			}
 
 			if add.User.Username == "" {
-				// No LFID — send an invite so the user can create one.
+				// Username == "" means no LFID yet; route through the invite service
+				// so the user must create an account before gaining project access.
 				return s.sendInvite(gctx, event.ProjectUID, projectBase.Name, add.Role, add.User.Email, recipientName, inviterName, projectURL)
 			}
 
@@ -100,10 +101,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		return nil
 	}
 
-	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
-	defer cancel()
-
-	err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
+	err := s.MessageBuilder.SendInviteRequest(ctx, inviteapi.SendInviteRequest{
 		RecipientEmail: recipientEmail,
 		RecipientName:  recipientName,
 		InviterName:    inviterName,
@@ -187,9 +185,9 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 //   - Meeting Coordinator → Manage (coordinators have write-level project access)
 func mapRoleToInviteRole(role string) string {
 	switch role {
-	case "Writer", "Meeting Coordinator":
+	case constants.RoleWriter, constants.RoleMeetingCoordinator:
 		return string(inviteapi.InviteRoleManage)
-	case "Auditor":
+	case constants.RoleAuditor:
 		return string(inviteapi.InviteRoleView)
 	default:
 		return ""
@@ -207,9 +205,9 @@ type roleAssignment struct {
 // when present, otherwise by Email. Users with neither Username nor Email are skipped.
 func diffNewMembers(oldSettings, newSettings events.ProjectSettings) []roleAssignment {
 	var additions []roleAssignment
-	additions = append(additions, diffRole(oldSettings.Writers, newSettings.Writers, "Writer")...)
-	additions = append(additions, diffRole(oldSettings.Auditors, newSettings.Auditors, "Auditor")...)
-	additions = append(additions, diffRole(oldSettings.MeetingCoordinators, newSettings.MeetingCoordinators, "Meeting Coordinator")...)
+	additions = append(additions, diffRole(oldSettings.Writers, newSettings.Writers, constants.RoleWriter)...)
+	additions = append(additions, diffRole(oldSettings.Auditors, newSettings.Auditors, constants.RoleAuditor)...)
+	additions = append(additions, diffRole(oldSettings.MeetingCoordinators, newSettings.MeetingCoordinators, constants.RoleMeetingCoordinator)...)
 	return additions
 }
 

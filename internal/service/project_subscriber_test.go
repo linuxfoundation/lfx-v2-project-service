@@ -17,6 +17,7 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
 
@@ -48,6 +49,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		projectBaseErr    error
 		wantEmailCount    int
 		wantInviteCount   int
+		wantInviteRole    string // expected Role field in the SendInviteRequest payload
 		msgBuilderErr     error
 		wantURLContains   string
 		wantURLNotContain string
@@ -100,6 +102,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
 			wantEmailCount:  0,
 			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
 		},
 		{
 			name: "non-LFID auditor added — invite request published",
@@ -112,6 +115,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
 			wantEmailCount:  0,
 			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleView),
 		},
 		{
 			name: "non-LFID meeting coordinator added — invite request published with Manage role",
@@ -124,6 +128,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
 			wantEmailCount:  0,
 			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
 		},
 		{
 			name: "mixed LFID and non-LFID added — email for LFID, invite for non-LFID",
@@ -162,6 +167,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			},
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
 			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
 			msgBuilderErr:   assert.AnError,
 		},
 		{
@@ -245,8 +251,14 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			}
 
 			if tt.wantInviteCount > 0 {
-				mockMsg.On("SendInviteRequest", mock.Anything, mock.AnythingOfType("api.SendInviteRequest")).
-					Return(tt.msgBuilderErr).Times(tt.wantInviteCount)
+				wantRole := tt.wantInviteRole
+				wantProjectUID := tt.event.ProjectUID
+				mockMsg.On("SendInviteRequest", mock.Anything, mock.MatchedBy(func(req inviteapi.SendInviteRequest) bool {
+					return req.ProjectUID == wantProjectUID &&
+						(wantRole == "" || req.Role == wantRole) &&
+						req.RecipientEmail != "" &&
+						req.DeepLinkURL != ""
+				})).Return(tt.msgBuilderErr).Times(tt.wantInviteCount)
 			}
 
 			svc := &ProjectsService{
@@ -281,9 +293,9 @@ func TestMapRoleToInviteRole(t *testing.T) {
 		role string
 		want string
 	}{
-		{"Writer", string(inviteapi.InviteRoleManage)},
-		{"Auditor", string(inviteapi.InviteRoleView)},
-		{"Meeting Coordinator", string(inviteapi.InviteRoleManage)},
+		{constants.RoleWriter, string(inviteapi.InviteRoleManage)},
+		{constants.RoleAuditor, string(inviteapi.InviteRoleView)},
+		{constants.RoleMeetingCoordinator, string(inviteapi.InviteRoleManage)},
 		{"Unknown", ""},
 		{"", ""},
 	}
@@ -318,21 +330,21 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Writers: []events.UserInfo{alice}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
+			wantContains: []roleAssignment{{User: alice, Role: constants.RoleWriter}},
 		},
 		{
 			name:         "auditor added",
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Auditors: []events.UserInfo{bob}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: bob, Role: "Auditor"}},
+			wantContains: []roleAssignment{{User: bob, Role: constants.RoleAuditor}},
 		},
 		{
 			name:         "meeting coordinator added",
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{MeetingCoordinators: []events.UserInfo{alice}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: "Meeting Coordinator"}},
+			wantContains: []roleAssignment{{User: alice, Role: constants.RoleMeetingCoordinator}},
 		},
 		{
 			name: "multiple roles added",
@@ -353,7 +365,7 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: noUsername, Role: "Writer"}},
+			wantContains: []roleAssignment{{User: noUsername, Role: constants.RoleWriter}},
 		},
 		{
 			name: "user with neither username nor email is skipped",
@@ -370,7 +382,7 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Writers: []events.UserInfo{alice, alice}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
+			wantContains: []roleAssignment{{User: alice, Role: constants.RoleWriter}},
 		},
 		{
 			// Same person appears email-only in old, then gains a username in new.
@@ -392,7 +404,7 @@ func TestDiffNewMembers(t *testing.T) {
 				{Email: "alice@example.com"},
 			}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: "Writer"}},
+			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: constants.RoleWriter}},
 		},
 	}
 

@@ -583,13 +583,17 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", inviteapi.SendInviteSubject, mock.MatchedBy(func(data []byte) bool {
-					var req inviteapi.SendInviteRequest
-					if err := json.Unmarshal(data, &req); err != nil {
+					var got inviteapi.SendInviteRequest
+					if err := json.Unmarshal(data, &got); err != nil {
 						return false
 					}
-					return req.RecipientEmail == "user@example.com" &&
-						req.ProjectUID == "proj-123" &&
-						req.Role == string(inviteapi.InviteRoleManage)
+					return got.RecipientEmail == "user@example.com" &&
+						got.RecipientName == "Jane Doe" &&
+						got.InviterName == "Admin" &&
+						got.ProjectUID == "proj-123" &&
+						got.ProjectName == "Demo Project" &&
+						got.Role == string(inviteapi.InviteRoleManage) &&
+						got.DeepLinkURL == "https://app.lfx.dev/project/overview?project=demo"
 				})).Return(nil)
 			},
 			wantErr: false,

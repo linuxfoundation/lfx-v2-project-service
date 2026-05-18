@@ -74,8 +74,12 @@ deps:
 		echo "==> Installing golangci-lint..."; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	}
-	@git config core.hooksPath .githooks
-	@echo "==> Git hooks installed from .githooks/"
+	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		git config --local core.hooksPath .githooks; \
+		echo "==> Git hooks installed from .githooks/"; \
+	else \
+		echo "==> Skipping git hooks install (not a git worktree)"; \
+	fi
 
 # Generate API code from design files
 .PHONY: apigen
