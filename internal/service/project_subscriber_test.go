@@ -198,7 +198,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			},
 			projectBase:       makeProjectBase("proj-1", "Demo", ""),
 			wantEmailCount:    1,
-			wantURLContains:   "projects/overview",
+			wantURLContains:   "project/overview",
 			wantURLNotContain: "?project=",
 		},
 	}
