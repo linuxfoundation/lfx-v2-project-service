@@ -485,6 +485,18 @@ func (s *membershipServicesrvc) DeleteKeyContact(ctx context.Context, p *members
 		return wrapError(ctx, err)
 	}
 
+	// If-Match supplied: reject if the ETag no longer matches the stored record.
+	if p.IfMatch != nil && *p.IfMatch != "" {
+		currentETag, etagErr := etag.LFXEtag(kc)
+		if etagErr != nil {
+			return wrapError(ctx, pkgerrors.NewUnexpected("failed to compute etag", etagErr))
+		}
+		if currentETag != *p.IfMatch {
+			return wrapError(ctx, pkgerrors.NewPreconditionFailed(
+				fmt.Sprintf("key contact %s has been modified since last read (stale If-Match)", p.UID)))
+		}
+	}
+
 	// Delete the contact.
 	if err := s.keyContactWriter.DeleteKeyContact(ctx, p.UID, kc.MembershipUID); err != nil {
 		return wrapError(ctx, err)

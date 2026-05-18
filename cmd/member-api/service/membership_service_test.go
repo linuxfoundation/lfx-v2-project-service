@@ -1091,6 +1091,64 @@ func TestNormalizeAndValidateUpdate(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "reactivate_at_capacity_blocked",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "jane@ex.com",
+				Role:          "Authorized Signatory",
+				Status:        "Inactive",
+				MembershipUID: "mem-1",
+			},
+			// Re-activating; role/email unchanged but capacity limit (1) is already filled.
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:    "kc-1",
+				Status: strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-2", Role: "Authorized Signatory", Email: "other@ex.com", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr:     true,
+			wantErrType: pkgerrors.Conflict{},
+		},
+		{
+			name: "reactivate_creates_duplicate_blocked",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "jane@ex.com",
+				Role:          "Billing Contact",
+				Status:        "Inactive",
+				MembershipUID: "mem-1",
+			},
+			// Re-activating; a different active sibling already holds same (role, email).
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:    "kc-1",
+				Status: strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-2", Role: "Billing Contact", Email: "jane@ex.com", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr:     true,
+			wantErrType: pkgerrors.Conflict{},
+		},
+		{
+			name: "reactivate_within_capacity_allowed",
+			current: &model.KeyContact{
+				UID:           "kc-1",
+				Email:         "jane@ex.com",
+				Role:          "Billing Contact",
+				Status:        "Inactive",
+				MembershipUID: "mem-1",
+			},
+			payload: &membershipservice.UpdateKeyContactPayload{
+				UID:    "kc-1",
+				Status: strPtr("Active"),
+			},
+			siblings: []*model.KeyContact{
+				{UID: "kc-2", Role: "Billing Contact", Email: "other@ex.com", Status: "Active", MembershipUID: "mem-1"},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

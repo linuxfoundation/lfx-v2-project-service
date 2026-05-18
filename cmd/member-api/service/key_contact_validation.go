@@ -43,7 +43,7 @@ func (s *membershipServicesrvc) normalizeAndValidateCreate(
 
 	activePerRole := make(map[string]int)
 	for _, kc := range existing {
-		if kc.Status != constants.RoleStatusInactive {
+		if !strings.EqualFold(kc.Status, constants.RoleStatusInactive) {
 			activePerRole[kc.Role]++
 			// Self-heal: same role + same email already active → return as-is.
 			if kc.Role == p.Role && strings.EqualFold(kc.Email, p.Email) {
@@ -81,9 +81,13 @@ func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 
 	roleChanging := newRole != current.Role
 	emailChanging := p.Email != nil && !strings.EqualFold(*p.Email, current.Email)
+	// Re-activating an inactive contact can exceed capacity or create a (role,email) collision.
+	statusActivating := p.Status != nil &&
+		strings.EqualFold(*p.Status, constants.RoleStatusActive) &&
+		!strings.EqualFold(current.Status, constants.RoleStatusActive)
 
 	// Nothing that affects uniqueness or capacity is changing — skip sibling scan.
-	if !roleChanging && !emailChanging {
+	if !roleChanging && !emailChanging && !statusActivating {
 		return nil
 	}
 
@@ -102,7 +106,7 @@ func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 	// Inactive siblings and the current record are excluded from both checks.
 	activeCount := 0
 	for _, kc := range existing {
-		if kc.UID == current.UID || kc.Status == constants.RoleStatusInactive {
+		if kc.UID == current.UID || strings.EqualFold(kc.Status, constants.RoleStatusInactive) {
 			continue
 		}
 		if kc.Role == newRole {
@@ -115,8 +119,8 @@ func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 		}
 	}
 
-	// Capacity is only re-enforced when the role changes (legacy guard pattern).
-	if roleChanging {
+	// Capacity is re-enforced when the role changes or an inactive contact is being re-activated.
+	if roleChanging || statusActivating {
 		if limit, ok := constants.KeyContactRoleLimits[newRole]; ok && activeCount >= limit {
 			return pkgerrors.NewConflict(
 				fmt.Sprintf("%s is limited to %d per membership", newRole, limit))

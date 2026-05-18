@@ -28,6 +28,29 @@ import (
 // locked by another transaction (e.g. an approval process or trigger).
 const entityIsLockedCode = "ENTITY_IS_LOCKED"
 
+// isDuplicateSFError reports whether err is a Salesforce duplicate-record error.
+// go-salesforce v3 surfaces the raw SF JSON response body as the error string via
+// errors.New(responseData). We parse the JSON for the errorCode rather than using
+// substring matching so that a future library change that wraps the error breaks
+// the unit test, not silently the self-heal path at runtime.
+func isDuplicateSFError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var sfErrors []struct {
+		ErrorCode string `json:"errorCode"`
+	}
+	if json.Unmarshal([]byte(err.Error()), &sfErrors) != nil {
+		return false
+	}
+	for _, e := range sfErrors {
+		if e.ErrorCode == "DUPLICATE_VALUE" || e.ErrorCode == "DUPLICATES_DETECTED" {
+			return true
+		}
+	}
+	return false
+}
+
 // writerMaxRetries is the maximum number of attempts made when a Salesforce
 // mutation fails due to ENTITY_IS_LOCKED.
 const writerMaxRetries = 3
@@ -140,12 +163,12 @@ func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.Key
 		return insertErr
 	}); err != nil {
 		// Check for DUPLICATE_VALUE or DUPLICATES_DETECTED errors and attempt self-heal.
-		if strings.Contains(err.Error(), "DUPLICATE_VALUE") || strings.Contains(err.Error(), "DUPLICATES_DETECTED") {
+		if isDuplicateSFError(err) {
 			siblings, lookupErr := w.contacts.FetchKeyContactsByAssetSFID(ctx, assetSFID)
 			if lookupErr == nil {
 				// Find matching duplicate by email, role, and active status.
 				for _, kc := range siblings {
-					if kc.Status != constants.RoleStatusInactive && strings.EqualFold(kc.Email, *input.Email) &&
+					if !strings.EqualFold(kc.Status, constants.RoleStatusInactive) && strings.EqualFold(kc.Email, *input.Email) &&
 						input.Role != nil && kc.Role == *input.Role {
 						// Self-heal: return the existing record.
 						slog.InfoContext(ctx, "self-healed duplicate key contact",
