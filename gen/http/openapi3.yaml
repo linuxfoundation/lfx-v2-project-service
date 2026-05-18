@@ -108,7 +108,6 @@ paths:
                         schema:
                             $ref: '#/components/schemas/B2bOrgCreateBody'
                         example:
-                            parent_sfid: 001Hs00001AbCdEFAZ
                             sfid: 001Hs00001AbCdEFAZ
             responses:
                 "201":
@@ -497,7 +496,7 @@ paths:
                             membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                             primary_contact: false
                             project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                            role: Voting Representative
+                            role: Technical Contact
                             status: Active
                             title: CTO
             responses:
@@ -535,7 +534,7 @@ paths:
                                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 primary_contact: true
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
+                                role: Technical Contact
                                 status: Active
                                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 title: CTO
@@ -549,6 +548,12 @@ paths:
                                 $ref: '#/components/schemas/Error'
                 "404":
                     description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Capacity limit or duplicate key contact'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -739,7 +744,7 @@ paths:
                                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 primary_contact: true
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
+                                role: Technical Contact
                                 status: Active
                                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 title: CTO
@@ -837,8 +842,9 @@ paths:
                             $ref: '#/components/schemas/UpdateKeyContactRequestBody'
                         example:
                             board_member: false
+                            email: john.doe@example.com
                             primary_contact: false
-                            role: Voting Representative
+                            role: Technical Contact
                             status: Active
                             title: CTO
             responses:
@@ -876,7 +882,7 @@ paths:
                                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 primary_contact: true
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                                role: Voting Representative
+                                role: Technical Contact
                                 status: Active
                                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                                 title: CTO
@@ -890,6 +896,12 @@ paths:
                                 $ref: '#/components/schemas/Error'
                 "404":
                     description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Capacity limit or duplicate key contact'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -1063,7 +1075,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Quis expedita doloribus animi dolorum.
+                        example: Harum aspernatur qui sed ratione.
                     description: List of entity types to reindex (optional; if empty, reindex all types)
                     example:
                         - membership
@@ -1089,12 +1101,6 @@ components:
         B2bOrgCreateBody:
             type: object
             properties:
-                parent_sfid:
-                    type: string
-                    description: Salesforce Account.Id of the parent organization; sets Account.ParentId in Salesforce
-                    example: 001Hs00001AbCdEFAZ
-                    minLength: 15
-                    maxLength: 18
                 sfid:
                     type: string
                     description: Salesforce Account.Id (15- or 18-character); used to fetch and cache the org record
@@ -1103,7 +1109,6 @@ components:
                     maxLength: 18
             description: Request body for registering a B2B organization by its Salesforce Account ID
             example:
-                parent_sfid: 001Hs00001AbCdEFAZ
                 sfid: 001Hs00001AbCdEFAZ
             required:
                 - sfid
@@ -1127,7 +1132,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Natus voluptates aut ab natus eveniet repellat.
+                        example: Vero modi aliquid ducimus error.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -1293,19 +1298,19 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: false
+                    example: true
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
                     example: false
             description: Endpoint not implemented
             example:
-                fault: true
+                fault: false
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
                 temporary: false
-                timeout: true
+                timeout: false
             required:
                 - name
                 - id
@@ -1354,15 +1359,28 @@ components:
                     format: uuid
                 role:
                     type: string
-                    description: Contact role designation, e.g. 'Voting Representative'
-                    example: Voting Representative
+                    description: Contact role designation
+                    example: Technical Contact
+                    enum:
+                        - Representative/Voting Contact
+                        - Authorized Signatory
+                        - Billing Contact
+                        - Marketing Contact
+                        - Technical Contact
+                        - Legal Contact
+                        - Event Sponsorship Contact
+                        - PO Contact
+                        - PR Contact
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
                     example: Active
+                    enum:
+                        - Active
+                        - Inactive
                 title:
                     type: string
-                    description: Contact job title; used when creating a new Contact on miss
+                    description: Contact job title. Only persisted when a new Salesforce Contact is created (email resolves to an unknown address); ignored if the Contact already exists.
                     example: CTO
             description: Request body for creating a key contact (Project_Role__c record)
             example:
@@ -1374,7 +1392,7 @@ components:
                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 primary_contact: false
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 title: CTO
             required:
@@ -1384,6 +1402,7 @@ components:
                 - email
                 - first_name
                 - last_name
+                - role
         KeyContactUpdateBody:
             type: object
             properties:
@@ -1391,27 +1410,46 @@ components:
                     type: boolean
                     description: Whether this contact holds a board member role
                     example: false
+                email:
+                    type: string
+                    description: Contact email address; normalized to lowercase before update
+                    example: john.doe@example.com
+                    format: email
                 primary_contact:
                     type: boolean
                     description: Whether this is the primary contact for the membership
                     example: false
                 role:
                     type: string
-                    description: Contact role designation, e.g. 'Voting Representative'
-                    example: Voting Representative
+                    description: Contact role designation
+                    example: Technical Contact
+                    enum:
+                        - Representative/Voting Contact
+                        - Authorized Signatory
+                        - Billing Contact
+                        - Marketing Contact
+                        - Technical Contact
+                        - Legal Contact
+                        - Event Sponsorship Contact
+                        - PO Contact
+                        - PR Contact
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
                     example: Active
+                    enum:
+                        - Active
+                        - Inactive
                 title:
                     type: string
-                    description: Contact job title
+                    description: Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.
                     example: CTO
             description: Request body for updating a key contact (Project_Role__c record)
             example:
                 board_member: false
+                email: john.doe@example.com
                 primary_contact: false
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 title: CTO
         ListMetadata:
@@ -1532,7 +1570,7 @@ components:
                 role:
                     type: string
                     description: Contact role designation
-                    example: Voting Representative
+                    example: Technical Contact
                 status:
                     type: string
                     description: Role record status
@@ -1570,7 +1608,7 @@ components:
                 membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 primary_contact: true
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 title: CTO
@@ -1781,26 +1819,45 @@ components:
                     type: boolean
                     description: Whether this contact holds a board member role
                     example: false
+                email:
+                    type: string
+                    description: Contact email address; normalized to lowercase before update
+                    example: john.doe@example.com
+                    format: email
                 primary_contact:
                     type: boolean
                     description: Whether this is the primary contact for the membership
                     example: false
                 role:
                     type: string
-                    description: Contact role designation, e.g. 'Voting Representative'
-                    example: Voting Representative
+                    description: Contact role designation
+                    example: Technical Contact
+                    enum:
+                        - Representative/Voting Contact
+                        - Authorized Signatory
+                        - Billing Contact
+                        - Marketing Contact
+                        - Technical Contact
+                        - Legal Contact
+                        - Event Sponsorship Contact
+                        - PO Contact
+                        - PR Contact
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
                     example: Active
+                    enum:
+                        - Active
+                        - Inactive
                 title:
                     type: string
-                    description: Contact job title
+                    description: Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.
                     example: CTO
             example:
                 board_member: false
+                email: john.doe@example.com
                 primary_contact: false
-                role: Voting Representative
+                role: Technical Contact
                 status: Active
                 title: CTO
     securitySchemes:

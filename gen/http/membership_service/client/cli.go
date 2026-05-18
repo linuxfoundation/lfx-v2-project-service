@@ -77,23 +77,13 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceCreateB2bOrgBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"parent_sfid\": \"001Hs00001AbCdEFAZ\",\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }'")
 		}
 		if utf8.RuneCountInString(body.Sfid) < 15 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", body.Sfid, utf8.RuneCountInString(body.Sfid), 15, true))
 		}
 		if utf8.RuneCountInString(body.Sfid) > 18 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.sfid", body.Sfid, utf8.RuneCountInString(body.Sfid), 18, false))
-		}
-		if body.ParentSfid != nil {
-			if utf8.RuneCountInString(*body.ParentSfid) < 15 {
-				err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 15, true))
-			}
-		}
-		if body.ParentSfid != nil {
-			if utf8.RuneCountInString(*body.ParentSfid) > 18 {
-				err = goa.MergeErrors(err, goa.InvalidLengthError("body.parent_sfid", *body.ParentSfid, utf8.RuneCountInString(*body.ParentSfid), 18, false))
-			}
 		}
 		if err != nil {
 			return nil, err
@@ -118,8 +108,7 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 		}
 	}
 	v := &membershipservice.CreateB2bOrgPayload{
-		Sfid:       body.Sfid,
-		ParentSfid: body.ParentSfid,
+		Sfid: body.Sfid,
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -309,12 +298,20 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 	{
 		err = json.Unmarshal([]byte(membershipServiceCreateKeyContactBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", body.B2bOrgUID, goa.FormatUUID))
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", body.ProjectUID, goa.FormatUUID))
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", body.MembershipUID, goa.FormatUUID))
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", body.Email, goa.FormatEmail))
+		if !(body.Role == "Representative/Voting Contact" || body.Role == "Authorized Signatory" || body.Role == "Billing Contact" || body.Role == "Marketing Contact" || body.Role == "Technical Contact" || body.Role == "Legal Contact" || body.Role == "Event Sponsorship Contact" || body.Role == "PO Contact" || body.Role == "PR Contact") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.role", body.Role, []any{"Representative/Voting Contact", "Authorized Signatory", "Billing Contact", "Marketing Contact", "Technical Contact", "Legal Contact", "Event Sponsorship Contact", "PO Contact", "PR Contact"}))
+		}
+		if body.Status != nil {
+			if !(*body.Status == "Active" || *body.Status == "Inactive") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -364,7 +361,23 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	{
 		err = json.Unmarshal([]byte(membershipServiceUpdateKeyContactBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+		}
+		if body.Email != nil {
+			err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+		}
+		if body.Role != nil {
+			if !(*body.Role == "Representative/Voting Contact" || *body.Role == "Authorized Signatory" || *body.Role == "Billing Contact" || *body.Role == "Marketing Contact" || *body.Role == "Technical Contact" || *body.Role == "Legal Contact" || *body.Role == "Event Sponsorship Contact" || *body.Role == "PO Contact" || *body.Role == "PR Contact") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.role", *body.Role, []any{"Representative/Voting Contact", "Authorized Signatory", "Billing Contact", "Marketing Contact", "Technical Contact", "Legal Contact", "Event Sponsorship Contact", "PO Contact", "PR Contact"}))
+			}
+		}
+		if body.Status != nil {
+			if !(*body.Status == "Active" || *body.Status == "Inactive") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	var uid string
@@ -406,6 +419,7 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 		}
 	}
 	v := &membershipservice.UpdateKeyContactPayload{
+		Email:          body.Email,
 		Role:           body.Role,
 		Status:         body.Status,
 		BoardMember:    body.BoardMember,

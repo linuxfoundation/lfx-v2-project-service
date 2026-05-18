@@ -181,13 +181,12 @@ func KeyContactWriterImpl(ctx context.Context) port.KeyContactWriter {
 		return mock.NewMockKeyContactWriter()
 
 	case "salesforce":
-		slog.InfoContext(ctx, "initialising Salesforce key contact writer with NATS KV cache")
-		natsInit(ctx)
-		sfInit(ctx)
+		slog.InfoContext(ctx, "initialising Salesforce key contact writer with conditional writes")
+		sObjectClientInit(ctx)
 		cache := nats.NewStorage(natsClient)
 		contactRepo := salesforce.NewContactRepo(sfClient)
 		contactsRepo := salesforce.NewKeyContactRepo(sfClient)
-		return salesforce.NewKeyContactWriter(sfClient, contactsRepo, contactRepo, cache)
+		return salesforce.NewKeyContactWriter(sfClient, sObjectClient, contactsRepo, contactRepo, cache)
 
 	default:
 		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
@@ -223,10 +222,12 @@ func MemberReaderImpl(ctx context.Context) port.MemberReader {
 		resolver := ProjectResolverImpl(ctx)
 		cache := nats.NewStorage(natsClient)
 
+		sObjectClientInit(ctx)
 		return salesforce.NewMemberReader(
 			salesforce.NewMemberRepo(sfClient),
 			salesforce.NewMembershipRepo(sfClient),
 			salesforce.NewKeyContactRepo(sfClient),
+			salesforce.NewKeyContactReader(sObjectClient),
 			resolver,
 			cache,
 		)
@@ -281,6 +282,33 @@ func B2BOrgWriterImpl(ctx context.Context) port.B2BOrgWriter {
 		slog.InfoContext(ctx, "initialising Salesforce B2B org writer with sObject cache")
 		sObjectClientInit(ctx)
 		return salesforce.NewB2BOrgWriter(sObjectClient)
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
+		return nil
+	}
+}
+
+// ProjectMembershipReaderImpl initialises and returns the port.ProjectMembershipReader
+// implementation selected by the REPOSITORY_SOURCE environment variable:
+//
+//   - "salesforce" (default) — Salesforce sObject REST API reader.
+//   - "mock"                 — Stub that always returns not-found; for local development without SF credentials.
+func ProjectMembershipReaderImpl(ctx context.Context) port.ProjectMembershipReader {
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
+
+	switch repoSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock project membership reader")
+		return mock.NewMockProjectMembershipReader()
+
+	case "salesforce":
+		slog.InfoContext(ctx, "initialising Salesforce project membership reader with sObject cache")
+		sObjectClientInit(ctx)
+		return salesforce.NewProjectMembershipReader(sObjectClient)
 
 	default:
 		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)

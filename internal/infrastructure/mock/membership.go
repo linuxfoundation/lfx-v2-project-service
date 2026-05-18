@@ -402,3 +402,17 @@ func (m *MockKeyContactWriter) UpdateKeyContact(_ context.Context, _ string, _ m
 func (m *MockKeyContactWriter) DeleteKeyContact(_ context.Context, _ string, _ string) error {
 	return errors.NewNotImplemented("delete-key-contact not implemented in mock")
 }
+
+// MockProjectMembershipReader is a stub implementation of port.ProjectMembershipReader
+// for local development when REPOSITORY_SOURCE=mock.
+type MockProjectMembershipReader struct{}
+
+// NewMockProjectMembershipReader creates a new MockProjectMembershipReader.
+func NewMockProjectMembershipReader() *MockProjectMembershipReader {
+	return &MockProjectMembershipReader{}
+}
+
+// AssembleProjectMembership always returns not-found.
+func (m *MockProjectMembershipReader) AssembleProjectMembership(_ context.Context, _ string) (*model.ProjectMembership, time.Time, error) {
+	return nil, time.Time{}, errors.NewNotFound("project membership not found in mock")
+}

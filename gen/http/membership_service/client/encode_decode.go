@@ -1073,6 +1073,7 @@ func EncodeCreateKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) 
 //   - "NotImplemented" (type *goa.ServiceError): http.StatusNotImplemented
 //   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
 //   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
 //   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
 //   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
@@ -1161,6 +1162,20 @@ func DecodeCreateKeyContactResponse(decoder func(*http.Response) goahttp.Decoder
 				return nil, goahttp.ErrValidationError("membership-service", "create-key-contact", err)
 			}
 			return nil, NewCreateKeyContactBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body CreateKeyContactConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-key-contact", err)
+			}
+			err = ValidateCreateKeyContactConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-key-contact", err)
+			}
+			return nil, NewCreateKeyContactConflict(&body)
 		case http.StatusPreconditionFailed:
 			var (
 				body CreateKeyContactPreconditionFailedResponseBody
@@ -1280,6 +1295,7 @@ func EncodeUpdateKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) 
 //   - "NotImplemented" (type *goa.ServiceError): http.StatusNotImplemented
 //   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
 //   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
 //   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
 //   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
@@ -1368,6 +1384,20 @@ func DecodeUpdateKeyContactResponse(decoder func(*http.Response) goahttp.Decoder
 				return nil, goahttp.ErrValidationError("membership-service", "update-key-contact", err)
 			}
 			return nil, NewUpdateKeyContactBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateKeyContactConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-key-contact", err)
+			}
+			err = ValidateUpdateKeyContactConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-key-contact", err)
+			}
+			return nil, NewUpdateKeyContactConflict(&body)
 		case http.StatusPreconditionFailed:
 			var (
 				body UpdateKeyContactPreconditionFailedResponseBody

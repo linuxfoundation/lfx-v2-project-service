@@ -4,6 +4,7 @@
 package design
 
 import (
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	"goa.design/goa/v3/dsl"
 )
 
@@ -157,7 +158,7 @@ var ProjectKeyContactResponse = dsl.Type("project-key-contact-response", func() 
 		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})
 	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
-		dsl.Example("Voting Representative")
+		dsl.Example("Technical Contact")
 	})
 	dsl.Attribute("status", dsl.String, "Role record status", func() {
 		dsl.Example("Active")
@@ -355,11 +356,6 @@ var B2BOrgCreateBody = dsl.Type("b2b-org-create-body", func() {
 		dsl.MinLength(15)
 		dsl.MaxLength(18)
 	})
-	dsl.Attribute("parent_sfid", dsl.String, "Salesforce Account.Id of the parent organization; sets Account.ParentId in Salesforce", func() {
-		dsl.Example("001Hs00001AbCdEFAZ")
-		dsl.MinLength(15)
-		dsl.MaxLength(18)
-	})
 	dsl.Required("sfid")
 })
 
@@ -423,14 +419,16 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Attribute("last_name", dsl.String, "Contact last name; used when creating a new Contact on miss", func() {
 		dsl.Example("Doe")
 	})
-	dsl.Attribute("title", dsl.String, "Contact job title; used when creating a new Contact on miss", func() {
+	dsl.Attribute("title", dsl.String, "Contact job title. Only persisted when a new Salesforce Contact is created (email resolves to an unknown address); ignored if the Contact already exists.", func() {
 		dsl.Example("CTO")
 	})
-	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
-		dsl.Example("Voting Representative")
+	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
+		dsl.Example("Technical Contact")
+		dsl.Enum(constants.KeyContactRoles...)
 	})
 	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
 		dsl.Example("Active")
+		dsl.Enum(constants.KeyContactStatuses...)
 	})
 	dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
 		dsl.Example(false)
@@ -438,17 +436,23 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
 		dsl.Example(false)
 	})
-	dsl.Required("b2b_org_uid", "project_uid", "membership_uid", "email", "first_name", "last_name")
+	dsl.Required("b2b_org_uid", "project_uid", "membership_uid", "email", "first_name", "last_name", "role")
 })
 
 // KeyContactUpdateBody is the DSL type for updating a key contact.
 var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 	dsl.Description("Request body for updating a key contact (Project_Role__c record)")
-	dsl.Attribute("role", dsl.String, "Contact role designation, e.g. 'Voting Representative'", func() {
-		dsl.Example("Voting Representative")
+	dsl.Attribute("email", dsl.String, "Contact email address; normalized to lowercase before update", func() {
+		dsl.Format(dsl.FormatEmail)
+		dsl.Example("john.doe@example.com")
+	})
+	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
+		dsl.Example("Technical Contact")
+		dsl.Enum(constants.KeyContactRoles...)
 	})
 	dsl.Attribute("status", dsl.String, "Role record status, e.g. 'Active'", func() {
 		dsl.Example("Active")
+		dsl.Enum(constants.KeyContactStatuses...)
 	})
 	dsl.Attribute("board_member", dsl.Boolean, "Whether this contact holds a board member role", func() {
 		dsl.Example(false)
@@ -456,7 +460,7 @@ var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
 		dsl.Example(false)
 	})
-	dsl.Attribute("title", dsl.String, "Contact job title", func() {
+	dsl.Attribute("title", dsl.String, "Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.", func() {
 		dsl.Example("CTO")
 	})
 })

@@ -994,6 +994,19 @@ func EncodeCreateKeyContactError(encoder func(context.Context, http.ResponseWrit
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
+		case "Conflict":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateKeyContactConflictResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusConflict)
+			return enc.Encode(body)
 		case "PreconditionFailed":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -1076,6 +1089,10 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 				return payload, gerr
 			}
 			return payload, goa.DecodePayloadError(err.Error())
+		}
+		err = ValidateUpdateKeyContactRequestBody(&body)
+		if err != nil {
+			return payload, err
 		}
 
 		var (
@@ -1174,6 +1191,19 @@ func EncodeUpdateKeyContactError(encoder func(context.Context, http.ResponseWrit
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "Conflict":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateKeyContactConflictResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusConflict)
 			return enc.Encode(body)
 		case "PreconditionFailed":
 			var res *goa.ServiceError

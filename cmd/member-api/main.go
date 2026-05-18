@@ -133,6 +133,7 @@ func main() {
 		service.KeyContactWriterImpl(ctx),
 		service.B2BOrgReaderImpl(ctx),
 		service.B2BOrgWriterImpl(ctx),
+		service.ProjectMembershipReaderImpl(ctx),
 		service.MemberPublisherImpl(ctx),
 		service.GlobalOrgAdminTeamUID(),
 	)

@@ -150,6 +150,7 @@ func (c *Client) GetKeyContact(ctx context.Context, p *GetKeyContactPayload) (re
 //   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
 //   - "NotFound" (type *goa.ServiceError): Resource not found
 //   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Capacity limit or duplicate key contact
 //   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
@@ -169,6 +170,7 @@ func (c *Client) CreateKeyContact(ctx context.Context, p *CreateKeyContactPayloa
 //   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
 //   - "NotFound" (type *goa.ServiceError): Resource not found
 //   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Capacity limit or duplicate key contact
 //   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
