@@ -64,7 +64,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		g.Go(func() error {
 			if add.User.Email == "" {
 				slog.WarnContext(gctx, "project_subscriber: skipping notification — recipient has no email address",
-					"role", add.Role, "username", add.User.Username, "project_uid", event.ProjectUID)
+					"role", add.Role, "project_uid", event.ProjectUID)
 				return nil
 			}
 
@@ -117,7 +117,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 			constants.ErrKey, err, "role", role, "project_uid", projectUID)
 	} else {
 		slog.DebugContext(ctx, "project_subscriber: published invite request",
-			"role", role, "project_uid", projectUID, "to", recipientEmail)
+			"role", role, "project_uid", projectUID)
 	}
 	return nil
 }
@@ -152,7 +152,7 @@ func (s *ProjectsService) sendRoleNotificationEmail(ctx context.Context, project
 			constants.ErrKey, sendErr, "role", role, "project_uid", projectUID)
 	} else {
 		slog.DebugContext(ctx, "project_subscriber: sent role notification email",
-			"role", role, "project_uid", projectUID, "to", recipientEmail)
+			"role", role, "project_uid", projectUID)
 	}
 	return nil
 }

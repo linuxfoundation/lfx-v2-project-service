@@ -153,6 +153,18 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			msgBuilderErr:  assert.AnError,
 		},
 		{
+			name: "send error on invite — handler still returns nil",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{noLFIDWriter}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantInviteCount: 1,
+			msgBuilderErr:   assert.AnError,
+		},
+		{
 			name: "user without email address — skipped entirely",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
