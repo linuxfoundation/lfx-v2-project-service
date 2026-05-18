@@ -419,7 +419,7 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Attribute("last_name", dsl.String, "Contact last name; used when creating a new Contact on miss", func() {
 		dsl.Example("Doe")
 	})
-	dsl.Attribute("title", dsl.String, "Contact job title; used when creating a new Contact on miss", func() {
+	dsl.Attribute("title", dsl.String, "Contact job title. Only persisted when a new Salesforce Contact is created (email resolves to an unknown address); ignored if the Contact already exists.", func() {
 		dsl.Example("CTO")
 	})
 	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
@@ -460,7 +460,7 @@ var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
 		dsl.Example(false)
 	})
-	dsl.Attribute("title", dsl.String, "Contact job title", func() {
+	dsl.Attribute("title", dsl.String, "Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.", func() {
 		dsl.Example("CTO")
 	})
 })

@@ -1380,7 +1380,7 @@ components:
                         - Inactive
                 title:
                     type: string
-                    description: Contact job title; used when creating a new Contact on miss
+                    description: Contact job title. Only persisted when a new Salesforce Contact is created (email resolves to an unknown address); ignored if the Contact already exists.
                     example: CTO
             description: Request body for creating a key contact (Project_Role__c record)
             example:
@@ -1442,7 +1442,7 @@ components:
                         - Inactive
                 title:
                     type: string
-                    description: Contact job title
+                    description: Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.
                     example: CTO
             description: Request body for updating a key contact (Project_Role__c record)
             example:
@@ -1851,7 +1851,7 @@ components:
                         - Inactive
                 title:
                     type: string
-                    description: Contact job title
+                    description: Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.
                     example: CTO
             example:
                 board_member: false

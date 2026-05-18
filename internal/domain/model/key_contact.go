@@ -40,9 +40,10 @@ type KeyContactInput struct {
 	// resolver round-trip.
 	ProjectUID string
 
-	// AccountSFID is the Salesforce Account.Id of the membership's company.
-	// Optional on create; when non-empty it is set as the Contact's AccountId
-	// so the new Contact is associated with the correct company in Salesforce.
+	// AccountSFID holds the v2 UUID of the membership's company (B2BOrgUID from the
+	// service layer). The writer converts it to a Salesforce Account.Id via sfuuid.ToSFID
+	// before passing it to ResolveOrCreateContact. Optional; only needed when a new
+	// Salesforce Contact may be created (i.e. the email resolves to an unknown address).
 	AccountSFID string
 
 	// Role is the contact's role designation, e.g. "Voting Representative".

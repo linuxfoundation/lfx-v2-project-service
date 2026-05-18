@@ -63,7 +63,9 @@ type CreateKeyContactRequestBody struct {
 	FirstName string `form:"first_name" json:"first_name" xml:"first_name"`
 	// Contact last name; used when creating a new Contact on miss
 	LastName string `form:"last_name" json:"last_name" xml:"last_name"`
-	// Contact job title; used when creating a new Contact on miss
+	// Contact job title. Only persisted when a new Salesforce Contact is created
+	// (email resolves to an unknown address); ignored if the Contact already
+	// exists.
 	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
 	// Contact role designation
 	Role string `form:"role" json:"role" xml:"role"`
@@ -88,7 +90,9 @@ type UpdateKeyContactRequestBody struct {
 	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
-	// Contact job title
+	// Contact job title. Only persisted when the email change resolves to an
+	// unknown address and a new Salesforce Contact is created; ignored if the
+	// Contact already exists.
 	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
 }
 

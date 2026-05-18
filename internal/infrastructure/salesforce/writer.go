@@ -126,8 +126,11 @@ func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.Key
 	}
 
 	// Convert B2BOrgUID (v2 UUID) to Salesforce Account.Id for new-Contact creation.
-	// Empty string is fine for existing-contact resolution (accountSFID is only used on insert).
-	accountSFID, _ := sfuuid.ToSFID(input.AccountSFID)
+	// On conversion failure treat the value as an already-valid SFID (same fallback as MembershipUID above).
+	accountSFID, err := sfuuid.ToSFID(input.AccountSFID)
+	if err != nil {
+		accountSFID = input.AccountSFID
+	}
 
 	contactSFID, created, err := w.contactResolver.ResolveOrCreateContact(
 		ctx,
@@ -239,9 +242,12 @@ func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID stri
 
 	// If email is changing, resolve (or create) the new Contact and rewire Contact__c.
 	if input.Email != nil {
-		// Convert v2 B2BOrgUID back to SF Account ID for new-Contact creation; empty string
-		// is fine for existing-contact resolution (accountSFID is only used on insert).
-		accountSFID, _ := sfuuid.ToSFID(input.AccountSFID)
+		// Convert v2 B2BOrgUID to SF Account.Id for new-Contact creation.
+		// On conversion failure treat as already-valid SFID (same fallback as MembershipUID).
+		accountSFID, aErr := sfuuid.ToSFID(input.AccountSFID)
+		if aErr != nil {
+			accountSFID = input.AccountSFID
+		}
 		contactSFID, created, resolveErr := w.contactResolver.ResolveOrCreateContact(
 			ctx, *input.Email, input.FirstName, input.LastName, input.Title, accountSFID)
 		if resolveErr != nil {
@@ -329,7 +335,7 @@ func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID stri
 // skip cache invalidation (the cache will expire naturally via bucket TTL).
 //
 // TODO: extend port signature to accept IfUnmodifiedSince for SF-side conditional
-// delete (LFXV2-1362 follow-up). For now the DELETE is unconditional.
+// delete (follow-up ticket — service-layer ETag check is in place; SF-side guard is the remaining gap).
 func (w *KeyContactWriter) DeleteKeyContact(ctx context.Context, contactUID string, membershipUID string) error {
 	sfid, err := sfuuid.ToSFID(contactUID)
 	if err != nil {

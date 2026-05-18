@@ -1663,7 +1663,7 @@ definitions:
                     - Inactive
             title:
                 type: string
-                description: Contact job title; used when creating a new Contact on miss
+                description: Contact job title. Only persisted when a new Salesforce Contact is created (email resolves to an unknown address); ignored if the Contact already exists.
                 example: CTO
         example:
             b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
@@ -3387,7 +3387,7 @@ definitions:
                     - Inactive
             title:
                 type: string
-                description: Contact job title
+                description: Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.
                 example: CTO
         example:
             board_member: false

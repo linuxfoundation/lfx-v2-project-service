@@ -172,7 +172,9 @@ type CreateKeyContactPayload struct {
 	FirstName string
 	// Contact last name; used when creating a new Contact on miss
 	LastName string
-	// Contact job title; used when creating a new Contact on miss
+	// Contact job title. Only persisted when a new Salesforce Contact is created
+	// (email resolves to an unknown address); ignored if the Contact already
+	// exists.
 	Title *string
 	// Contact role designation
 	Role string
@@ -455,7 +457,9 @@ type UpdateKeyContactPayload struct {
 	BoardMember *bool
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool
-	// Contact job title
+	// Contact job title. Only persisted when the email change resolves to an
+	// unknown address and a new Salesforce Contact is created; ignored if the
+	// Contact already exists.
 	Title *string
 }
 

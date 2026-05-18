@@ -341,6 +341,8 @@ func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *members
 	}
 
 	// Self-heal: if duplicate found, return it as-is without writer call or event publish.
+	// Publish is intentionally skipped — the record already exists in the indexer/FGA.
+	// If a prior publish silently failed, recovery is via /admin/reindex (see message_builders.go).
 	if existing != nil {
 		etagVal, etagErr := etag.LFXEtag(existing)
 		if etagErr != nil {

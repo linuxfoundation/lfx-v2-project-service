@@ -46,12 +46,19 @@ func (s *membershipServicesrvc) normalizeAndValidateCreate(
 		if !strings.EqualFold(kc.Status, constants.RoleStatusInactive) {
 			activePerRole[kc.Role]++
 			// Self-heal: same role + same email already active → return as-is.
+			// Short-circuit: writer will not be called so the capacity check below is moot.
 			if kc.Role == p.Role && strings.EqualFold(kc.Email, p.Email) {
 				return kc, nil
 			}
 		}
 	}
 
+	// Note: this count-based check has a TOCTOU window — two concurrent requests for the
+	// same membership+role can both see count N-1 and both insert. The DUPLICATE_VALUE
+	// self-heal in writer.go catches exact (Asset, Contact) duplicates but not a role
+	// over-capacity race using different Contacts. Strict enforcement would require an
+	// SF-side unique rule on (Asset__c, Role__c, Status__c='Active'); until then, rare
+	// over-capacity records can be corrected via /admin/reindex or manual SF cleanup.
 	if limit, ok := constants.KeyContactRoleLimits[p.Role]; ok && activePerRole[p.Role] >= limit {
 		return nil, pkgerrors.NewConflict(
 			fmt.Sprintf("%s is limited to %d per membership", p.Role, limit))
