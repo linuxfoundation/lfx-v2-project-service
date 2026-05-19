@@ -23,6 +23,12 @@ import (
 // Fire-and-forget NATS publishes (invite path) do not use this timeout.
 const notificationTimeout = 5 * time.Second
 
+const (
+	roleWriter             = "Writer"
+	roleAuditor            = "Auditor"
+	roleMeetingCoordinator = "Meeting Coordinator"
+)
+
 // HandleProjectSettingsUpdated handles project_settings.updated events and sends
 // notification emails to any users newly added as writers, auditors, or meeting coordinators.
 // Users with an LFID (Username present) receive a direct notification email via the email
@@ -185,9 +191,9 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 //   - Meeting Coordinator → Manage (coordinators have write-level project access)
 func mapRoleToInviteRole(role string) string {
 	switch role {
-	case constants.RoleWriter, constants.RoleMeetingCoordinator:
+	case roleWriter, roleMeetingCoordinator:
 		return string(inviteapi.InviteRoleManage)
-	case constants.RoleAuditor:
+	case roleAuditor:
 		return string(inviteapi.InviteRoleView)
 	default:
 		return ""
@@ -205,9 +211,9 @@ type roleAssignment struct {
 // when present, otherwise by Email. Users with neither Username nor Email are skipped.
 func diffNewMembers(oldSettings, newSettings events.ProjectSettings) []roleAssignment {
 	var additions []roleAssignment
-	additions = append(additions, diffRole(oldSettings.Writers, newSettings.Writers, constants.RoleWriter)...)
-	additions = append(additions, diffRole(oldSettings.Auditors, newSettings.Auditors, constants.RoleAuditor)...)
-	additions = append(additions, diffRole(oldSettings.MeetingCoordinators, newSettings.MeetingCoordinators, constants.RoleMeetingCoordinator)...)
+	additions = append(additions, diffRole(oldSettings.Writers, newSettings.Writers, roleWriter)...)
+	additions = append(additions, diffRole(oldSettings.Auditors, newSettings.Auditors, roleAuditor)...)
+	additions = append(additions, diffRole(oldSettings.MeetingCoordinators, newSettings.MeetingCoordinators, roleMeetingCoordinator)...)
 	return additions
 }
 

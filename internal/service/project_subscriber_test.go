@@ -17,7 +17,6 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
 
@@ -293,9 +292,9 @@ func TestMapRoleToInviteRole(t *testing.T) {
 		role string
 		want string
 	}{
-		{constants.RoleWriter, string(inviteapi.InviteRoleManage)},
-		{constants.RoleAuditor, string(inviteapi.InviteRoleView)},
-		{constants.RoleMeetingCoordinator, string(inviteapi.InviteRoleManage)},
+		{roleWriter, string(inviteapi.InviteRoleManage)},
+		{roleAuditor, string(inviteapi.InviteRoleView)},
+		{roleMeetingCoordinator, string(inviteapi.InviteRoleManage)},
 		{"Unknown", ""},
 		{"", ""},
 	}
@@ -330,21 +329,21 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Writers: []events.UserInfo{alice}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: constants.RoleWriter}},
+			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
 		},
 		{
 			name:         "auditor added",
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Auditors: []events.UserInfo{bob}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: bob, Role: constants.RoleAuditor}},
+			wantContains: []roleAssignment{{User: bob, Role: roleAuditor}},
 		},
 		{
 			name:         "meeting coordinator added",
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{MeetingCoordinators: []events.UserInfo{alice}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: constants.RoleMeetingCoordinator}},
+			wantContains: []roleAssignment{{User: alice, Role: roleMeetingCoordinator}},
 		},
 		{
 			name: "multiple roles added",
@@ -365,7 +364,7 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: noUsername, Role: constants.RoleWriter}},
+			wantContains: []roleAssignment{{User: noUsername, Role: roleWriter}},
 		},
 		{
 			name: "user with neither username nor email is skipped",
@@ -382,7 +381,7 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Writers: []events.UserInfo{alice, alice}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: constants.RoleWriter}},
+			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
 		},
 		{
 			// Same person appears email-only in old, then gains a username in new.
@@ -404,7 +403,7 @@ func TestDiffNewMembers(t *testing.T) {
 				{Email: "alice@example.com"},
 			}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: constants.RoleWriter}},
+			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: roleWriter}},
 		},
 	}
 
