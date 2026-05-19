@@ -180,7 +180,7 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 			}
 		}
 	}
-	return ""
+	return "A project administrator"
 }
 
 // mapRoleToInviteRole converts a project-service role string to the invite service's
