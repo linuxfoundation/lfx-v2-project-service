@@ -412,7 +412,14 @@ func NewMockProjectMembershipReader() *MockProjectMembershipReader {
 	return &MockProjectMembershipReader{}
 }
 
-// AssembleProjectMembership always returns not-found.
-func (m *MockProjectMembershipReader) AssembleProjectMembership(_ context.Context, _ string) (*model.ProjectMembership, time.Time, error) {
+// AssembleProjectMembership returns the seeded membership for "membership-1" and not-found otherwise.
+func (m *MockProjectMembershipReader) AssembleProjectMembership(_ context.Context, uid string) (*model.ProjectMembership, time.Time, error) {
+	if uid == "membership-1" {
+		return &model.ProjectMembership{
+			UID:        "membership-1",
+			ProjectUID: "project-1",
+			B2BOrgUID:  "org-1",
+		}, time.Now(), nil
+	}
 	return nil, time.Time{}, errors.NewNotFound("project membership not found in mock")
 }

@@ -50,12 +50,6 @@ type UpdateB2bOrgRequestBody struct {
 // CreateKeyContactRequestBody is the type of the "membership-service" service
 // "create-key-contact" endpoint HTTP request body.
 type CreateKeyContactRequestBody struct {
-	// UID of the B2B organization (Account)
-	B2bOrgUID string `form:"b2b_org_uid" json:"b2b_org_uid" xml:"b2b_org_uid"`
-	// V2 project UUID
-	ProjectUID string `form:"project_uid" json:"project_uid" xml:"project_uid"`
-	// Membership UID
-	MembershipUID string `form:"membership_uid" json:"membership_uid" xml:"membership_uid"`
 	// Contact email address; used to resolve or create the Salesforce Contact
 	// record
 	Email string `form:"email" json:"email" xml:"email"`
@@ -1392,9 +1386,6 @@ func NewUpdateB2bOrgRequestBody(p *membershipservice.UpdateB2bOrgPayload) *Updat
 // of the "create-key-contact" endpoint of the "membership-service" service.
 func NewCreateKeyContactRequestBody(p *membershipservice.CreateKeyContactPayload) *CreateKeyContactRequestBody {
 	body := &CreateKeyContactRequestBody{
-		B2bOrgUID:      p.B2bOrgUID,
-		ProjectUID:     p.ProjectUID,
-		MembershipUID:  p.MembershipUID,
 		Email:          p.Email,
 		FirstName:      p.FirstName,
 		LastName:       p.LastName,

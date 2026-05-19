@@ -52,12 +52,6 @@ type UpdateB2bOrgRequestBody struct {
 // CreateKeyContactRequestBody is the type of the "membership-service" service
 // "create-key-contact" endpoint HTTP request body.
 type CreateKeyContactRequestBody struct {
-	// UID of the B2B organization (Account)
-	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
-	// V2 project UUID
-	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
-	// Membership UID
-	MembershipUID *string `form:"membership_uid,omitempty" json:"membership_uid,omitempty" xml:"membership_uid,omitempty"`
 	// Contact email address; used to resolve or create the Salesforce Contact
 	// record
 	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
@@ -2488,8 +2482,9 @@ func NewGetProjectMembershipPayload(uid string, version *string, bearerToken *st
 
 // NewGetKeyContactPayload builds a membership-service service get-key-contact
 // endpoint payload.
-func NewGetKeyContactPayload(uid string, version *string, bearerToken *string, ifNoneMatch *string, ifModifiedSince *string) *membershipservice.GetKeyContactPayload {
+func NewGetKeyContactPayload(membershipUID string, uid string, version *string, bearerToken *string, ifNoneMatch *string, ifModifiedSince *string) *membershipservice.GetKeyContactPayload {
 	v := &membershipservice.GetKeyContactPayload{}
+	v.MembershipUID = membershipUID
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -2501,11 +2496,8 @@ func NewGetKeyContactPayload(uid string, version *string, bearerToken *string, i
 
 // NewCreateKeyContactPayload builds a membership-service service
 // create-key-contact endpoint payload.
-func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, version *string, bearerToken *string) *membershipservice.CreateKeyContactPayload {
+func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, membershipUID string, version *string, bearerToken *string) *membershipservice.CreateKeyContactPayload {
 	v := &membershipservice.CreateKeyContactPayload{
-		B2bOrgUID:      *body.B2bOrgUID,
-		ProjectUID:     *body.ProjectUID,
-		MembershipUID:  *body.MembershipUID,
 		Email:          *body.Email,
 		FirstName:      *body.FirstName,
 		LastName:       *body.LastName,
@@ -2515,6 +2507,7 @@ func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, version *stri
 		BoardMember:    body.BoardMember,
 		PrimaryContact: body.PrimaryContact,
 	}
+	v.MembershipUID = membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -2523,7 +2516,7 @@ func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, version *stri
 
 // NewUpdateKeyContactPayload builds a membership-service service
 // update-key-contact endpoint payload.
-func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, uid string, version *string, bearerToken *string, ifMatch *string, ifUnmodifiedSince *string) *membershipservice.UpdateKeyContactPayload {
+func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, membershipUID string, uid string, version *string, bearerToken *string, ifMatch *string, ifUnmodifiedSince *string) *membershipservice.UpdateKeyContactPayload {
 	v := &membershipservice.UpdateKeyContactPayload{
 		Email:          body.Email,
 		Role:           body.Role,
@@ -2532,6 +2525,7 @@ func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, uid string, v
 		PrimaryContact: body.PrimaryContact,
 		Title:          body.Title,
 	}
+	v.MembershipUID = membershipUID
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -2543,8 +2537,9 @@ func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, uid string, v
 
 // NewDeleteKeyContactPayload builds a membership-service service
 // delete-key-contact endpoint payload.
-func NewDeleteKeyContactPayload(uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.DeleteKeyContactPayload {
+func NewDeleteKeyContactPayload(membershipUID string, uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.DeleteKeyContactPayload {
 	v := &membershipservice.DeleteKeyContactPayload{}
+	v.MembershipUID = membershipUID
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -2591,15 +2586,6 @@ func ValidateCreateB2bOrgRequestBody(body *CreateB2bOrgRequestBody) (err error) 
 // ValidateCreateKeyContactRequestBody runs the validations defined on
 // Create-Key-ContactRequestBody
 func ValidateCreateKeyContactRequestBody(body *CreateKeyContactRequestBody) (err error) {
-	if body.B2bOrgUID == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("b2b_org_uid", "body"))
-	}
-	if body.ProjectUID == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("project_uid", "body"))
-	}
-	if body.MembershipUID == nil {
-		err = goa.MergeErrors(err, goa.MissingFieldError("membership_uid", "body"))
-	}
 	if body.Email == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("email", "body"))
 	}
@@ -2611,15 +2597,6 @@ func ValidateCreateKeyContactRequestBody(body *CreateKeyContactRequestBody) (err
 	}
 	if body.Role == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("role", "body"))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
-	}
-	if body.ProjectUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
 	}
 	if body.Email != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))

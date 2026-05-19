@@ -240,8 +240,16 @@ func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipUID s
 
 // BuildGetKeyContactPayload builds the payload for the membership-service
 // get-key-contact endpoint from CLI flags.
-func BuildGetKeyContactPayload(membershipServiceGetKeyContactUID string, membershipServiceGetKeyContactVersion string, membershipServiceGetKeyContactBearerToken string, membershipServiceGetKeyContactIfNoneMatch string, membershipServiceGetKeyContactIfModifiedSince string) (*membershipservice.GetKeyContactPayload, error) {
+func BuildGetKeyContactPayload(membershipServiceGetKeyContactMembershipUID string, membershipServiceGetKeyContactUID string, membershipServiceGetKeyContactVersion string, membershipServiceGetKeyContactBearerToken string, membershipServiceGetKeyContactIfNoneMatch string, membershipServiceGetKeyContactIfModifiedSince string) (*membershipservice.GetKeyContactPayload, error) {
 	var err error
+	var membershipUID string
+	{
+		membershipUID = membershipServiceGetKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
 	var uid string
 	{
 		uid = membershipServiceGetKeyContactUID
@@ -281,6 +289,7 @@ func BuildGetKeyContactPayload(membershipServiceGetKeyContactUID string, members
 		}
 	}
 	v := &membershipservice.GetKeyContactPayload{}
+	v.MembershipUID = membershipUID
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -292,17 +301,14 @@ func BuildGetKeyContactPayload(membershipServiceGetKeyContactUID string, members
 
 // BuildCreateKeyContactPayload builds the payload for the membership-service
 // create-key-contact endpoint from CLI flags.
-func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, membershipServiceCreateKeyContactVersion string, membershipServiceCreateKeyContactBearerToken string) (*membershipservice.CreateKeyContactPayload, error) {
+func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, membershipServiceCreateKeyContactMembershipUID string, membershipServiceCreateKeyContactVersion string, membershipServiceCreateKeyContactBearerToken string) (*membershipservice.CreateKeyContactPayload, error) {
 	var err error
 	var body CreateKeyContactRequestBody
 	{
 		err = json.Unmarshal([]byte(membershipServiceCreateKeyContactBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
 		}
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", body.B2bOrgUID, goa.FormatUUID))
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", body.ProjectUID, goa.FormatUUID))
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", body.MembershipUID, goa.FormatUUID))
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", body.Email, goa.FormatEmail))
 		if !(body.Role == "Representative/Voting Contact" || body.Role == "Authorized Signatory" || body.Role == "Billing Contact" || body.Role == "Marketing Contact" || body.Role == "Technical Contact" || body.Role == "Legal Contact" || body.Role == "Event Sponsorship Contact" || body.Role == "PO Contact" || body.Role == "PR Contact") {
 			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.role", body.Role, []any{"Representative/Voting Contact", "Authorized Signatory", "Billing Contact", "Marketing Contact", "Technical Contact", "Legal Contact", "Event Sponsorship Contact", "PO Contact", "PR Contact"}))
@@ -312,6 +318,14 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
 			}
 		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var membershipUID string
+	{
+		membershipUID = membershipServiceCreateKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -335,9 +349,6 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 		}
 	}
 	v := &membershipservice.CreateKeyContactPayload{
-		B2bOrgUID:      body.B2bOrgUID,
-		ProjectUID:     body.ProjectUID,
-		MembershipUID:  body.MembershipUID,
 		Email:          body.Email,
 		FirstName:      body.FirstName,
 		LastName:       body.LastName,
@@ -347,6 +358,7 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 		BoardMember:    body.BoardMember,
 		PrimaryContact: body.PrimaryContact,
 	}
+	v.MembershipUID = membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 
@@ -355,7 +367,7 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 
 // BuildUpdateKeyContactPayload builds the payload for the membership-service
 // update-key-contact endpoint from CLI flags.
-func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, membershipServiceUpdateKeyContactUID string, membershipServiceUpdateKeyContactVersion string, membershipServiceUpdateKeyContactBearerToken string, membershipServiceUpdateKeyContactIfMatch string, membershipServiceUpdateKeyContactIfUnmodifiedSince string) (*membershipservice.UpdateKeyContactPayload, error) {
+func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, membershipServiceUpdateKeyContactMembershipUID string, membershipServiceUpdateKeyContactUID string, membershipServiceUpdateKeyContactVersion string, membershipServiceUpdateKeyContactBearerToken string, membershipServiceUpdateKeyContactIfMatch string, membershipServiceUpdateKeyContactIfUnmodifiedSince string) (*membershipservice.UpdateKeyContactPayload, error) {
 	var err error
 	var body UpdateKeyContactRequestBody
 	{
@@ -376,6 +388,14 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
 			}
 		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var membershipUID string
+	{
+		membershipUID = membershipServiceUpdateKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		if err != nil {
 			return nil, err
 		}
@@ -426,6 +446,7 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 		PrimaryContact: body.PrimaryContact,
 		Title:          body.Title,
 	}
+	v.MembershipUID = membershipUID
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -437,8 +458,16 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 
 // BuildDeleteKeyContactPayload builds the payload for the membership-service
 // delete-key-contact endpoint from CLI flags.
-func BuildDeleteKeyContactPayload(membershipServiceDeleteKeyContactUID string, membershipServiceDeleteKeyContactVersion string, membershipServiceDeleteKeyContactBearerToken string, membershipServiceDeleteKeyContactIfMatch string) (*membershipservice.DeleteKeyContactPayload, error) {
+func BuildDeleteKeyContactPayload(membershipServiceDeleteKeyContactMembershipUID string, membershipServiceDeleteKeyContactUID string, membershipServiceDeleteKeyContactVersion string, membershipServiceDeleteKeyContactBearerToken string, membershipServiceDeleteKeyContactIfMatch string) (*membershipservice.DeleteKeyContactPayload, error) {
 	var err error
+	var membershipUID string
+	{
+		membershipUID = membershipServiceDeleteKeyContactMembershipUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
 	var uid string
 	{
 		uid = membershipServiceDeleteKeyContactUID
@@ -472,6 +501,7 @@ func BuildDeleteKeyContactPayload(membershipServiceDeleteKeyContactUID string, m
 		}
 	}
 	v := &membershipservice.DeleteKeyContactPayload{}
+	v.MembershipUID = membershipUID
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken

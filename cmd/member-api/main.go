@@ -135,6 +135,7 @@ func main() {
 		service.B2BOrgWriterImpl(ctx),
 		service.ProjectMembershipReaderImpl(ctx),
 		service.MemberPublisherImpl(ctx),
+		service.UserReaderImpl(ctx),
 		service.GlobalOrgAdminTeamUID(),
 	)
 

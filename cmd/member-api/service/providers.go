@@ -346,6 +346,33 @@ func MemberPublisherImpl(ctx context.Context) port.MemberPublisher {
 	}
 }
 
+// UserReaderImpl returns the port.UserReader implementation selected by the
+// REPOSITORY_SOURCE environment variable:
+//
+//   - "salesforce" (default) — NATS RPC to auth-service.
+//   - "mock"                 — No-op that always returns empty sub.
+func UserReaderImpl(ctx context.Context) port.UserReader {
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
+
+	switch repoSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock user reader")
+		return &mock.MockUserReader{}
+
+	case "salesforce":
+		slog.InfoContext(ctx, "initialising NATS user reader (auth-service)")
+		natsInit(ctx)
+		return nats.NewUserReader(natsClient)
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
+		return nil
+	}
+}
+
 // GlobalOrgAdminTeamUID reads the GLOBAL_ORG_ADMIN_TEAM_UID environment variable.
 // Returns empty string when not set (allowed in mock/messaging=mock mode; the
 // FGA message simply omits the global_org_admin reference).

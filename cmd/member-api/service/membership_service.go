@@ -10,10 +10,12 @@ import (
 	"expvar"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	fgaConstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain"
@@ -36,6 +38,7 @@ type membershipServicesrvc struct {
 	b2bOrgWriter             port.B2BOrgWriter
 	memberPublisher          port.MemberPublisher
 	projectMembershipReader  port.ProjectMembershipReader
+	userReader               port.UserReader
 	globalOrgAdminTeamUID    string
 }
 
@@ -114,7 +117,7 @@ func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *memberships
 		return nil, wrapError(ctx, err)
 	}
 
-	s.publishB2BOrgEvents(ctx, org, indexerConstants.ActionCreated)
+	s.publishB2BOrgEvents(ctx, nil, org, indexerConstants.ActionCreated)
 
 	etagVal, etagErr := etag.LFXEtag(org)
 	if etagErr != nil {
@@ -142,13 +145,15 @@ func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *memberships
 func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *membershipservice.UpdateB2bOrgPayload) (*membershipservice.UpdateB2bOrgResult, error) {
 	input := payloadToB2BOrgInput(p)
 
+	// Always fetch current to compute reparenting diff and populate If-Unmodified-Since.
+	current, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
 	// SF PATCH rejects If-Match (returns BAD_HEADER), so ETag validation is done
 	// here; we translate to If-Unmodified-Since for SF-side concurrency protection.
 	if p.IfMatch != nil && *p.IfMatch != "" {
-		current, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
-		if err != nil {
-			return nil, wrapError(ctx, err)
-		}
 		currentETag, err := etag.LFXEtag(current)
 		if err != nil {
 			return nil, wrapError(ctx, pkgerrors.NewUnexpected("failed to compute etag", err))
@@ -161,17 +166,13 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 	}
 
 	if !input.HasChanges() {
-		org, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
-		if err != nil {
-			return nil, wrapError(ctx, err)
-		}
-		etagVal, etagErr := etag.LFXEtag(org)
+		etagVal, etagErr := etag.LFXEtag(current)
 		if etagErr != nil {
 			slog.WarnContext(ctx, "failed to compute etag for b2b org", "uid", p.UID, "error", etagErr)
 		}
-		lastMod := org.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+		lastMod := current.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 		result := &membershipservice.UpdateB2bOrgResult{
-			B2bOrg:       b2bOrgToResponse(org),
+			B2bOrg:       b2bOrgToResponse(current),
 			LastModified: &lastMod,
 		}
 		if etagVal != "" {
@@ -185,7 +186,7 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 		return nil, wrapError(ctx, err)
 	}
 
-	s.publishB2BOrgEvents(ctx, org, indexerConstants.ActionUpdated)
+	s.publishB2BOrgEvents(ctx, current, org, indexerConstants.ActionUpdated)
 
 	etagVal, etagErr := etag.LFXEtag(org)
 	if etagErr != nil {
@@ -203,11 +204,9 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 	return result, nil
 }
 
-// publishKeyContactEvents fans out an indexer message and an FGA access message
-// for the given key contact. fgaSubject selects update-access vs delete-access;
-// backfillRepair controls the publish_failed_for_backfill_repair log field
-// (false for deletes — dangling FGA permissions are not auto-repairable).
-func (s *membershipServicesrvc) publishKeyContactEvents(ctx context.Context, kc *model.KeyContact, action indexerConstants.MessageAction, fgaSubject string, backfillRepair bool) {
+// publishKeyContactIndexer publishes the indexer message for a key contact.
+// Errors are swallowed and logged — /admin/reindex can recover missed records.
+func (s *membershipServicesrvc) publishKeyContactIndexer(ctx context.Context, kc *model.KeyContact, action indexerConstants.MessageAction) {
 	indexMsg := &model.MemberIndexerMessage{
 		Action:         action,
 		Tags:           kc.Tags(),
@@ -218,33 +217,68 @@ func (s *membershipServicesrvc) publishKeyContactEvents(ctx context.Context, kc 
 		slog.WarnContext(ctx, "failed to build key contact indexer message",
 			"uid", kc.UID,
 			"error", err,
-			"publish_failed_for_backfill_repair", backfillRepair)
+			"publish_failed_for_backfill_repair", true)
 		return
 	}
-
-	fgaMsg := buildKeyContactFGAMessage(kc)
-
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		return s.memberPublisher.Indexer(gCtx, constants.IndexKeyContactSubject, builtMsg, false)
-	})
-	g.Go(func() error {
-		return s.memberPublisher.Access(gCtx, fgaSubject, fgaMsg, false)
-	})
-
-	if pubErr := g.Wait(); pubErr != nil {
-		slog.WarnContext(ctx, "key contact event publish failed",
+	if pubErr := s.memberPublisher.Indexer(ctx, constants.IndexKeyContactSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "key contact indexer publish failed",
 			"uid", kc.UID,
 			"error", pubErr,
-			"publish_failed_for_backfill_repair", backfillRepair)
+			"publish_failed_for_backfill_repair", true)
 	}
 }
 
-// publishB2BOrgEvents fans out an indexer message and an FGA update-access
-// message for the given org. Publish failures on the write path are swallowed
-// and logged with publish_failed_for_backfill_repair=true — the
-// /admin/reindex endpoint recovers missed records.
-func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, org *model.B2BOrg, action indexerConstants.MessageAction) {
+// publishKeyContactFGAPut grants the key_contact relation on the parent
+// project_membership to the given sub. No-op when sub is empty.
+func (s *membershipServicesrvc) publishKeyContactFGAPut(ctx context.Context, membershipUID, sub string) {
+	if sub == "" {
+		return
+	}
+	msg := buildKeyContactFGAPutMessage(membershipUID, sub)
+	if pubErr := s.memberPublisher.Access(ctx, fgaConstants.GenericMemberPutSubject, msg, false); pubErr != nil {
+		slog.WarnContext(ctx, "key contact FGA put publish failed",
+			"membership_uid", membershipUID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// publishKeyContactFGARemove revokes the key_contact relation on the parent
+// project_membership from the given sub. Propagates errors (delete failures
+// leave dangling permissions). No-op when sub is empty.
+func (s *membershipServicesrvc) publishKeyContactFGARemove(ctx context.Context, membershipUID, sub string) error {
+	if sub == "" {
+		return nil
+	}
+	msg := buildKeyContactFGARemoveMessage(membershipUID, sub)
+	return s.memberPublisher.Access(ctx, fgaConstants.GenericMemberRemoveSubject, msg, false)
+}
+
+// resolveSubForContact resolves the OIDC subject for the given email, using the
+// persisted Username when already populated. Returns empty string on failure
+// (fail-open: record creation/update proceeds without FGA grant).
+func (s *membershipServicesrvc) resolveSubForContact(ctx context.Context, currentSub, email string) string {
+	if currentSub != "" {
+		return currentSub
+	}
+	if email == "" {
+		return ""
+	}
+	sub, err := s.userReader.SubByEmail(ctx, email)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to resolve user sub by email — FGA keycontact put will be skipped",
+			"email", email,
+			"error", err)
+		return ""
+	}
+	return sub
+}
+
+// publishB2BOrgEvents fans out an indexer message, an FGA update-access message,
+// and any b2b_org#parent reparenting messages for the given org. current is nil
+// on create. Publish failures are swallowed and logged with
+// publish_failed_for_backfill_repair=true — /admin/reindex recovers missed records.
+func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current, org *model.B2BOrg, action indexerConstants.MessageAction) {
 	indexMsg := &model.MemberIndexerMessage{
 		Action:         action,
 		Tags:           org.Tags(),
@@ -272,6 +306,14 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, org *mo
 	g.Go(func() error {
 		return s.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, fgaMsg, false)
 	})
+
+	// Emit b2b_org#parent FGA tuple(s) when ParentUID changes.
+	for _, parentMsg := range buildB2BOrgReparentingMessages(current, org) {
+		msg := parentMsg // capture loop var
+		g.Go(func() error {
+			return s.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, msg, false)
+		})
+	}
 
 	if pubErr := g.Wait(); pubErr != nil {
 		slog.WarnContext(ctx, "b2b org event publish failed",
@@ -316,6 +358,12 @@ func (s *membershipServicesrvc) GetKeyContact(ctx context.Context, p *membership
 		return nil, wrapError(ctx, err)
 	}
 
+	// 404 (not 403) to avoid leaking existence of contacts in other memberships.
+	if kc.MembershipUID != p.MembershipUID {
+		return nil, wrapError(ctx, pkgerrors.NewNotFound(
+			fmt.Sprintf("key contact %s not found in membership %s", p.UID, p.MembershipUID)))
+	}
+
 	etagVal, etagErr := etag.LFXEtag(kc)
 	if etagErr != nil {
 		slog.WarnContext(ctx, "failed to compute etag for key contact", "uid", p.UID, "error", etagErr)
@@ -335,6 +383,8 @@ func (s *membershipServicesrvc) GetKeyContact(ctx context.Context, p *membership
 // CreateKeyContact creates a new key contact.
 func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *membershipservice.CreateKeyContactPayload) (*membershipservice.CreateKeyContactResult, error) {
 	// Normalize and validate: lowercase email, trim names, check capacity, detect self-heal.
+	// Self-heal lookup is scoped to p.MembershipUID so a match on membership A never
+	// short-circuits a create on membership B (cross-membership leak prevention).
 	existing, err := s.normalizeAndValidateCreate(ctx, p)
 	if err != nil {
 		return nil, wrapError(ctx, err)
@@ -360,14 +410,20 @@ func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *members
 		return result, nil
 	}
 
+	// Derive b2b_org_uid and project_uid from the membership — callers no longer supply them.
+	pm, _, err := s.projectMembershipReader.AssembleProjectMembership(ctx, p.MembershipUID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
 	input := model.KeyContactInput{
 		Email:          &p.Email,
 		FirstName:      p.FirstName,
 		LastName:       p.LastName,
 		Title:          derefStr(p.Title),
 		MembershipUID:  p.MembershipUID,
-		ProjectUID:     p.ProjectUID,
-		AccountSFID:    p.B2bOrgUID, // B2bOrgUID in payload maps to AccountSFID in model
+		ProjectUID:     pm.ProjectUID,
+		AccountSFID:    pm.B2BOrgUID,
 		Role:           &p.Role,
 		Status:         p.Status,
 		BoardMember:    p.BoardMember,
@@ -379,7 +435,11 @@ func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *members
 		return nil, wrapError(ctx, err)
 	}
 
-	s.publishKeyContactEvents(ctx, kc, indexerConstants.ActionCreated, constants.FGASyncUpdateAccessSubject, true)
+	// Resolve the OIDC sub and publish the keycontact FGA put. Indexer is always published.
+	sub := s.resolveSubForContact(ctx, "", kc.Email)
+	kc.Username = sub
+	s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionCreated)
+	s.publishKeyContactFGAPut(ctx, kc.MembershipUID, sub)
 
 	etagVal, etagErr := etag.LFXEtag(kc)
 	if etagErr != nil {
@@ -411,6 +471,12 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 		return nil, wrapError(ctx, err)
 	}
 
+	// 404 (not 403) to avoid leaking existence of contacts in other memberships.
+	if current.MembershipUID != p.MembershipUID {
+		return nil, wrapError(ctx, pkgerrors.NewNotFound(
+			fmt.Sprintf("key contact %s not found in membership %s", p.UID, p.MembershipUID)))
+	}
+
 	// Validate If-Match against the current cached ETag before touching SF.
 	// Salesforce PATCH rejects If-Match (BAD_HEADER), so ETag validation is done
 	// here; the caller's If-Match never reaches the infrastructure layer.
@@ -430,11 +496,12 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 		LastName:       current.LastName,
 	}
 
+	currentETag, err := etag.LFXEtag(current)
+	if err != nil {
+		return nil, wrapError(ctx, pkgerrors.NewUnexpected("failed to compute etag", err))
+	}
+
 	if p.IfMatch != nil && *p.IfMatch != "" {
-		currentETag, err := etag.LFXEtag(current)
-		if err != nil {
-			return nil, wrapError(ctx, pkgerrors.NewUnexpected("failed to compute etag", err))
-		}
 		if currentETag != *p.IfMatch {
 			return nil, wrapError(ctx, pkgerrors.NewPreconditionFailed(
 				fmt.Sprintf("key contact %s has been modified since last read (stale If-Match)", p.UID)))
@@ -454,13 +521,38 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 	}
 
 	// Skip publish on no-op updates to avoid spurious indexer/FGA events.
-	currentETag, _ := etag.LFXEtag(current)
 	etagVal, etagErr := etag.LFXEtag(kc)
 	if etagErr != nil {
 		slog.WarnContext(ctx, "failed to compute etag for key contact", "uid", p.UID, "error", etagErr)
 	}
 	if currentETag != etagVal {
-		s.publishKeyContactEvents(ctx, kc, indexerConstants.ActionUpdated, constants.FGASyncUpdateAccessSubject, true)
+		s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionUpdated)
+
+		emailChanging := p.Email != nil && !strings.EqualFold(*p.Email, current.Email)
+		if emailChanging {
+			// Paired FGA publish: put new sub first (no-access window avoided), then remove old.
+			// Old sub: use persisted Username; fall back to resolving current.Email (may be empty if
+			// the contact never had an Authelia account, in which case remove is skipped).
+			newSub := s.resolveSubForContact(ctx, "", kc.Email)
+			kc.Username = newSub
+			s.publishKeyContactFGAPut(ctx, kc.MembershipUID, newSub)
+			oldSub := s.resolveSubForContact(ctx, current.Username, current.Email)
+			if oldSub != newSub {
+				if pubErr := s.publishKeyContactFGARemove(ctx, kc.MembershipUID, oldSub); pubErr != nil {
+					// Log at error severity (dangling permission), but do not propagate — the
+					// Salesforce update already succeeded and returning an error here would
+					// mislead callers into retrying a completed operation.
+					slog.ErrorContext(ctx, "key contact FGA remove failed on email change — dangling permission",
+						"uid", p.UID,
+						"error", pubErr)
+				}
+			}
+		} else {
+			// Role/status/other-only update: re-resolve sub in case it was empty on create.
+			sub := s.resolveSubForContact(ctx, current.Username, kc.Email)
+			kc.Username = sub
+			s.publishKeyContactFGAPut(ctx, kc.MembershipUID, sub)
+		}
 	}
 
 	lastMod := kc.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
@@ -476,15 +568,21 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 
 // DeleteKeyContact deletes a key contact.
 //
-// The DeleteKeyContactPayload does not carry MembershipUID, but the
-// KeyContactWriter.DeleteKeyContact method requires it for cache invalidation.
-// We fetch the contact first to extract the MembershipUID, then call the writer.
-// After deletion, we publish delete events for both the indexer and FGA cleanup.
+// We fetch the contact first to validate membership alignment and extract the
+// persisted Username for the FGA remove. After deletion, the indexer record is
+// removed and the FGA key_contact relation is revoked (error propagated — a
+// delete without FGA cleanup leaves dangling permissions).
 func (s *membershipServicesrvc) DeleteKeyContact(ctx context.Context, p *membershipservice.DeleteKeyContactPayload) error {
-	// Fetch the current contact to extract MembershipUID for cache invalidation.
+	// Fetch the current contact to validate membership alignment and get MembershipUID/Username.
 	kc, err := s.storage.GetKeyContact(ctx, p.UID)
 	if err != nil {
 		return wrapError(ctx, err)
+	}
+
+	// 404 (not 403) to avoid leaking existence of contacts in other memberships.
+	if kc.MembershipUID != p.MembershipUID {
+		return wrapError(ctx, pkgerrors.NewNotFound(
+			fmt.Sprintf("key contact %s not found in membership %s", p.UID, p.MembershipUID)))
 	}
 
 	// If-Match supplied: reject if the ETag no longer matches the stored record.
@@ -504,7 +602,17 @@ func (s *membershipServicesrvc) DeleteKeyContact(ctx context.Context, p *members
 		return wrapError(ctx, err)
 	}
 
-	s.publishKeyContactEvents(ctx, kc, indexerConstants.ActionDeleted, constants.FGASyncDeleteAccessSubject, false)
+	// Indexer delete: swallow errors (reindexable).
+	s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionDeleted)
+
+	// FGA remove: propagate errors — dangling permissions are not auto-repairable.
+	sub := s.resolveSubForContact(ctx, kc.Username, kc.Email)
+	if pubErr := s.publishKeyContactFGARemove(ctx, kc.MembershipUID, sub); pubErr != nil {
+		slog.ErrorContext(ctx, "key contact FGA remove failed on delete — dangling permission",
+			"uid", p.UID,
+			"error", pubErr)
+		return wrapError(ctx, pkgerrors.NewUnexpected("failed to revoke FGA access for deleted key contact", pubErr))
+	}
 
 	return nil
 }
@@ -783,6 +891,7 @@ func NewMembershipService(
 	b2bOrgWriter port.B2BOrgWriter,
 	projectMembershipReader port.ProjectMembershipReader,
 	memberPublisher port.MemberPublisher,
+	userReader port.UserReader,
 	globalOrgAdminTeamUID string,
 ) membershipservice.Service {
 	return &membershipServicesrvc{
@@ -794,6 +903,7 @@ func NewMembershipService(
 		b2bOrgWriter:             b2bOrgWriter,
 		projectMembershipReader:  projectMembershipReader,
 		memberPublisher:          memberPublisher,
+		userReader:               userReader,
 		globalOrgAdminTeamUID:    globalOrgAdminTeamUID,
 	}
 }

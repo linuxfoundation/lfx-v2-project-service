@@ -395,20 +395,10 @@ var B2BOrgUpdateBody = dsl.Type("b2b-org-update-body", func() {
 })
 
 // KeyContactCreateBody is the DSL type for creating a key contact.
+// b2b_org_uid and project_uid are intentionally omitted — they are derived
+// from the membership_uid path parameter so callers cannot supply inconsistent values.
 var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Description("Request body for creating a key contact (Project_Role__c record)")
-	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account)", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
-	})
-	dsl.Attribute("project_uid", dsl.String, "V2 project UUID", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
-	})
-	dsl.Attribute("membership_uid", dsl.String, "Membership UID", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
-	})
 	dsl.Attribute("email", dsl.String, "Contact email address; used to resolve or create the Salesforce Contact record", func() {
 		dsl.Format(dsl.FormatEmail)
 		dsl.Example("john.doe@example.com")
@@ -436,7 +426,7 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
 		dsl.Example(false)
 	})
-	dsl.Required("b2b_org_uid", "project_uid", "membership_uid", "email", "first_name", "last_name", "role")
+	dsl.Required("email", "first_name", "last_name", "role")
 })
 
 // KeyContactUpdateBody is the DSL type for updating a key contact.

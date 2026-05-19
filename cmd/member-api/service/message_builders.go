@@ -125,7 +125,8 @@ func buildProjectMembershipIndexingConfig(pm *model.ProjectMembership) *indexerT
 }
 
 // buildKeyContactIndexingConfig constructs an IndexingConfig for a KeyContact
-// document. The contacts body is populated from the key contact record.
+// document. Access is checked against the parent project_membership with the
+// key_contact relation (v13 model: project_membership.key_contact: [user]).
 func buildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingConfig {
 	var parentRefs []string
 	if kc.B2BOrgUID != "" {
@@ -163,9 +164,9 @@ func buildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingC
 	return &indexerTypes.IndexingConfig{
 		Public:               boolPtr(false),
 		ObjectID:             kc.UID,
-		AccessCheckObject:    "key_contact:" + kc.UID,
-		AccessCheckRelation:  fgaconstants.RelationAuditor,
-		HistoryCheckObject:   "key_contact:" + kc.UID,
+		AccessCheckObject:    "project_membership:" + kc.MembershipUID,
+		AccessCheckRelation:  "key_contact",
+		HistoryCheckObject:   "project_membership:" + kc.MembershipUID,
 		HistoryCheckRelation: fgaconstants.RelationAuditor,
 		SortName:             strings.ToLower(kc.LastName + " " + kc.FirstName),
 		NameAndAliases:       nameAndAliases,
@@ -176,14 +177,74 @@ func buildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingC
 	}
 }
 
-// buildKeyContactFGAMessage constructs a GenericFGAMessage for a KeyContact
-// access-control update (references only — no direct relations on key contacts).
-func buildKeyContactFGAMessage(kc *model.KeyContact) fgatypes.GenericFGAMessage {
+// buildKeyContactFGAPutMessage constructs a GenericFGAMessage that grants the
+// given user (sub) the key_contact relation on the parent project_membership.
+// Published to GenericMemberPutSubject (lfx.fga-sync.member_put).
+func buildKeyContactFGAPutMessage(membershipUID, sub string) fgatypes.GenericFGAMessage {
 	return fgatypes.GenericFGAMessage{
-		ObjectType: "key_contact",
-		Operation:  "update_access",
-		Data: fgatypes.GenericAccessData{
-			UID: kc.UID,
+		ObjectType: "project_membership",
+		Operation:  "member_put",
+		Data: fgatypes.GenericMemberData{
+			UID:       membershipUID,
+			Username:  sub,
+			Relations: []string{"key_contact"},
+		},
+	}
+}
+
+// buildKeyContactFGARemoveMessage constructs a GenericFGAMessage that revokes
+// the key_contact relation for the given user (sub) on the parent membership.
+// Published to GenericMemberRemoveSubject (lfx.fga-sync.member_remove).
+func buildKeyContactFGARemoveMessage(membershipUID, sub string) fgatypes.GenericFGAMessage {
+	return fgatypes.GenericFGAMessage{
+		ObjectType: "project_membership",
+		Operation:  "member_remove",
+		Data: fgatypes.GenericMemberData{
+			UID:       membershipUID,
+			Username:  sub,
+			Relations: []string{"key_contact"},
+		},
+	}
+}
+
+// b2bOrgNonParentRelations lists all b2b_org relations we exclude from deletion
+// when managing only the parent reference via update_access. This prevents the
+// full-sync from wiping global_org_admin, auditor, writer, owner, or membership
+// tuples that were set by other code paths.
+var b2bOrgNonParentRelations = []string{
+	"global_org_admin", "auditor", "writer", "owner", "membership",
+}
+
+// buildB2BOrgReparentingMessages returns FGA update_access messages when a
+// b2b_org's ParentUID changes. Pass nil for current on create.
+// On set: References["parent"] carries the new parent UID.
+// On clear: References["parent"] is empty (deletes the existing tuple).
+// All non-parent relations are excluded so they are never accidentally wiped.
+func buildB2BOrgReparentingMessages(current, updated *model.B2BOrg) []fgatypes.GenericFGAMessage {
+	oldParent := ""
+	if current != nil {
+		oldParent = current.ParentUID
+	}
+	newParent := updated.ParentUID
+
+	if oldParent == newParent {
+		return nil
+	}
+
+	refs := map[string][]string{}
+	if newParent != "" {
+		refs["parent"] = []string{"b2b_org:" + newParent}
+	}
+
+	return []fgatypes.GenericFGAMessage{
+		{
+			ObjectType: "b2b_org",
+			Operation:  "update_access",
+			Data: fgatypes.GenericAccessData{
+				UID:              updated.UID,
+				References:       refs,
+				ExcludeRelations: b2bOrgNonParentRelations,
+			},
 		},
 	}
 }

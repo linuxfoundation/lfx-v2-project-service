@@ -173,8 +173,10 @@ func TestBuildKeyContactIndexingConfig(t *testing.T) {
 	require.NotNil(t, cfg.Public)
 	assert.False(t, *cfg.Public)
 	assert.Equal(t, "kc-uid-001", cfg.ObjectID)
-	assert.Equal(t, "key_contact:kc-uid-001", cfg.AccessCheckObject)
-	assert.Equal(t, fgaconstants.RelationAuditor, cfg.AccessCheckRelation)
+	assert.Equal(t, "project_membership:pm-uid-001", cfg.AccessCheckObject)
+	assert.Equal(t, "key_contact", cfg.AccessCheckRelation)
+	assert.Equal(t, "project_membership:pm-uid-001", cfg.HistoryCheckObject)
+	assert.Equal(t, fgaconstants.RelationAuditor, cfg.HistoryCheckRelation)
 	assert.Equal(t, "lovelace ada", cfg.SortName, "sort_name must be last_name+first_name")
 	assert.Equal(t, []string{"Ada Lovelace", "ada@example.com"}, cfg.NameAndAliases)
 	assert.Equal(t,
@@ -198,16 +200,69 @@ func TestBuildKeyContactIndexingConfig(t *testing.T) {
 	assert.Equal(t, []string{"ada@example.com", "alovelace@example.com"}, cfg.Contacts[0].Emails)
 }
 
-// TestBuildKeyContactFGAMessage locks down the FGA message shape for KeyContact.
-func TestBuildKeyContactFGAMessage(t *testing.T) {
-	kc := &model.KeyContact{UID: "kc-uid-001"}
-	msg := buildKeyContactFGAMessage(kc)
+// TestBuildKeyContactFGAPutMessage locks down the FGA member_put shape for KeyContact.
+// The generic fga-sync handler uses project_membership + key_contact relation (v13 model).
+func TestBuildKeyContactFGAPutMessage(t *testing.T) {
+	msg := buildKeyContactFGAPutMessage("pm-uid-001", "user-sub-abc")
 
-	assert.Equal(t, "key_contact", msg.ObjectType)
-	assert.Equal(t, "update_access", msg.Operation)
-	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	assert.Equal(t, "project_membership", msg.ObjectType)
+	assert.Equal(t, "member_put", msg.Operation)
+	data, ok := msg.Data.(fgatypes.GenericMemberData)
+	require.True(t, ok, "Data must be GenericMemberData")
+	assert.Equal(t, "pm-uid-001", data.UID)
+	assert.Equal(t, "user-sub-abc", data.Username)
+	assert.Equal(t, []string{"key_contact"}, data.Relations)
+}
+
+// TestBuildKeyContactFGARemoveMessage locks down the FGA member_remove shape for KeyContact.
+func TestBuildKeyContactFGARemoveMessage(t *testing.T) {
+	msg := buildKeyContactFGARemoveMessage("pm-uid-001", "user-sub-abc")
+
+	assert.Equal(t, "project_membership", msg.ObjectType)
+	assert.Equal(t, "member_remove", msg.Operation)
+	data, ok := msg.Data.(fgatypes.GenericMemberData)
+	require.True(t, ok, "Data must be GenericMemberData")
+	assert.Equal(t, "pm-uid-001", data.UID)
+	assert.Equal(t, "user-sub-abc", data.Username)
+	assert.Equal(t, []string{"key_contact"}, data.Relations)
+}
+
+// TestBuildB2BOrgReparentingMessages_SetParent verifies that setting a new parent
+// emits a single update_access message with parent ref and excludes non-parent relations.
+func TestBuildB2BOrgReparentingMessages_SetParent(t *testing.T) {
+	updated := &model.B2BOrg{UID: "child-uid", ParentUID: "parent-uid"}
+	msgs := buildB2BOrgReparentingMessages(nil, updated)
+
+	require.Len(t, msgs, 1)
+	assert.Equal(t, "b2b_org", msgs[0].ObjectType)
+	assert.Equal(t, "update_access", msgs[0].Operation)
+	data, ok := msgs[0].Data.(fgatypes.GenericAccessData)
 	require.True(t, ok)
-	assert.Equal(t, "kc-uid-001", data.UID)
-	assert.Empty(t, data.References,
-		"key_contact FGA message must not set direct relations")
+	assert.Equal(t, "child-uid", data.UID)
+	assert.Equal(t, []string{"b2b_org:parent-uid"}, data.References["parent"])
+	assert.Equal(t, b2bOrgNonParentRelations, data.ExcludeRelations,
+		"non-parent relations must be excluded to avoid wiping global_org_admin etc.")
+}
+
+// TestBuildB2BOrgReparentingMessages_ClearParent verifies that clearing the parent
+// emits an update_access with an empty parent ref (which removes the existing tuple).
+func TestBuildB2BOrgReparentingMessages_ClearParent(t *testing.T) {
+	current := &model.B2BOrg{UID: "child-uid", ParentUID: "old-parent-uid"}
+	updated := &model.B2BOrg{UID: "child-uid", ParentUID: ""}
+	msgs := buildB2BOrgReparentingMessages(current, updated)
+
+	require.Len(t, msgs, 1)
+	data, ok := msgs[0].Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Empty(t, data.References, "clearing parent sends empty refs to delete the tuple")
+}
+
+// TestBuildB2BOrgReparentingMessages_NoChange verifies that when the parent is
+// unchanged (or both nil), no messages are emitted.
+func TestBuildB2BOrgReparentingMessages_NoChange(t *testing.T) {
+	current := &model.B2BOrg{UID: "child-uid", ParentUID: "same-parent"}
+	updated := &model.B2BOrg{UID: "child-uid", ParentUID: "same-parent"}
+	msgs := buildB2BOrgReparentingMessages(current, updated)
+
+	assert.Nil(t, msgs, "no change in parent must produce no messages")
 }
