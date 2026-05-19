@@ -306,10 +306,8 @@ func endpointURL(raw string, insecure bool) string {
 // newSampler creates a trace.Sampler from cfg.TracesSampler and cfg.TracesSamplerArg,
 // falling back to parentbased_traceidratio with 1.0 ratio when unset.
 // This ensures parent span sampling decisions are always honored.
-// Supports legacy OTEL_TRACES_SAMPLE_RATIO env var for backward compatibility.
 func newSampler(cfg OTelConfig) trace.Sampler {
 	parseRatio := func() float64 {
-		// Try TracesSamplerArg first (OTEL_TRACES_SAMPLER_ARG)
 		if cfg.TracesSamplerArg != "" {
 			r, err := strconv.ParseFloat(cfg.TracesSamplerArg, 64)
 			if err != nil {
@@ -319,21 +317,6 @@ func newSampler(cfg OTelConfig) trace.Sampler {
 				slog.Warn("OTEL_TRACES_SAMPLER_ARG out of range [0.0, 1.0], defaulting to 1.0",
 					"provided-value", cfg.TracesSamplerArg)
 			} else {
-				return r
-			}
-		}
-		// Fall back to legacy OTEL_TRACES_SAMPLE_RATIO for backward compatibility
-		if legacyRatio := os.Getenv("OTEL_TRACES_SAMPLE_RATIO"); legacyRatio != "" {
-			r, err := strconv.ParseFloat(legacyRatio, 64)
-			if err != nil {
-				slog.Warn("invalid OTEL_TRACES_SAMPLE_RATIO (deprecated), defaulting to 1.0",
-					"provided-value", legacyRatio, "error", err)
-			} else if r < 0.0 || r > 1.0 {
-				slog.Warn("OTEL_TRACES_SAMPLE_RATIO (deprecated) out of range [0.0, 1.0], defaulting to 1.0",
-					"provided-value", legacyRatio)
-			} else {
-				slog.Info("using deprecated OTEL_TRACES_SAMPLE_RATIO; please migrate to OTEL_TRACES_SAMPLER_ARG",
-					"value", legacyRatio)
 				return r
 			}
 		}
