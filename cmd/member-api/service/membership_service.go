@@ -436,6 +436,8 @@ func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *members
 	}
 
 	// Resolve the OIDC sub and publish the keycontact FGA put. Indexer is always published.
+	// Username is not persisted to Salesforce or NATS cache — it is always re-resolved
+	// from the auth-service on subsequent reads (delete re-resolves via email by design).
 	sub := s.resolveSubForContact(ctx, "", kc.Email)
 	kc.Username = sub
 	s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionCreated)
@@ -494,6 +496,7 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 		AccountSFID:    current.B2BOrgUID, // needed for Contact resolution if email changes
 		FirstName:      current.FirstName,
 		LastName:       current.LastName,
+		MembershipUID:  p.MembershipUID, // required so the writer invalidates the key-contacts cache
 	}
 
 	currentETag, err := etag.LFXEtag(current)
@@ -526,8 +529,7 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 		slog.WarnContext(ctx, "failed to compute etag for key contact", "uid", p.UID, "error", etagErr)
 	}
 	if currentETag != etagVal {
-		s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionUpdated)
-
+		// Resolve Username before indexing so the indexed document carries the sub.
 		emailChanging := p.Email != nil && !strings.EqualFold(*p.Email, current.Email)
 		if emailChanging {
 			// Paired FGA publish: put new sub first (no-access window avoided), then remove old.
@@ -553,6 +555,7 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 			kc.Username = sub
 			s.publishKeyContactFGAPut(ctx, kc.MembershipUID, sub)
 		}
+		s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionUpdated)
 	}
 
 	lastMod := kc.UpdatedAt.UTC().Format(constants.HTTPDateFormat)

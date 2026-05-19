@@ -620,7 +620,7 @@ func TestGetKeyContact_Happy(t *testing.T) {
 
 	result, err := svc.GetKeyContact(ctx, &membershipservice.GetKeyContactPayload{
 		UID:           "contact-role-1",
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 	})
 
 	require.NoError(t, err)
@@ -680,7 +680,7 @@ func TestCreateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := svc.CreateKeyContact(ctx, &membershipservice.CreateKeyContactPayload{
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 		Email:         "test@example.com",
 		FirstName:     "Test",
 		LastName:      "User",
@@ -712,7 +712,7 @@ func TestUpdateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 
 	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
 		UID:           "contact-role-1", // pre-seeded in mock so storage lookup succeeds
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 	})
 
 	require.Error(t, err)
@@ -741,7 +741,7 @@ func TestDeleteKeyContact_MockReturnsNotImplemented(t *testing.T) {
 
 	err := svc.DeleteKeyContact(ctx, &membershipservice.DeleteKeyContactPayload{
 		UID:           "contact-role-1",
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 	})
 
 	require.Error(t, err)
@@ -771,7 +771,7 @@ func TestUpdateKeyContact_StalePreconditionFailed(t *testing.T) {
 
 	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
 		UID:           "contact-role-1",
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 		IfMatch:       strPtr(`"stale-etag"`),
 		Role:          strPtr("Updated Role"),
 	})
@@ -1332,7 +1332,7 @@ func (m *mockProjectMembershipReader) AssembleProjectMembership(_ context.Contex
 // when AssembleProjectMembership cannot find the supplied membership_uid. This covers
 // the validation introduced to derive b2b_org_uid / project_uid from the path.
 func TestCreateKeyContact_MembershipNotFound(t *testing.T) {
-	// MockProjectMembershipReader returns not-found for any UID other than "membership-1".
+	// MockProjectMembershipReader returns not-found for any UID other than "11111111-1111-1111-1111-111111111111".
 	mockRepo := mock.NewMockMembershipRepository()
 	svc := NewMembershipService(
 		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
@@ -1369,7 +1369,7 @@ func TestCreateKeyContact_EmptySubSkipsFGAPublish(t *testing.T) {
 	pub := &accessSubjectCapture{}
 	kc := &model.KeyContact{
 		UID:           "new-kc-uid",
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 		Email:         "noresolve@example.com",
 		Role:          "Billing Contact",
 		Status:        "Active",
@@ -1389,7 +1389,7 @@ func TestCreateKeyContact_EmptySubSkipsFGAPublish(t *testing.T) {
 	)
 
 	result, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 		Email:         "noresolve@example.com",
 		FirstName:     "No",
 		LastName:      "Resolve",
@@ -1415,7 +1415,7 @@ func TestUpdateKeyContact_EmailChange_PutBeforeRemove(t *testing.T) {
 	// Writer returns a contact with the updated email so the service detects a change.
 	updatedKC := &model.KeyContact{
 		UID:           "contact-role-1",
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 		Email:         "new@example.com",
 		Role:          "Primary Contact",
 		Status:        "Active",
@@ -1443,7 +1443,7 @@ func TestUpdateKeyContact_EmailChange_PutBeforeRemove(t *testing.T) {
 
 	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
 		UID:           "contact-role-1",
-		MembershipUID: "membership-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 		Email:         strPtr("new@example.com"),
 	})
 

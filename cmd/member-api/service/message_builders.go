@@ -80,8 +80,9 @@ func buildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string) fgat
 		ObjectType: "b2b_org",
 		Operation:  "update_access",
 		Data: fgatypes.GenericAccessData{
-			UID:        org.UID,
-			References: refs,
+			UID:              org.UID,
+			References:       refs,
+			ExcludeRelations: []string{"parent"}, // parent is managed by buildB2BOrgReparentingMessages
 		},
 	}
 }
