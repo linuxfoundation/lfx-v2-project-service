@@ -253,10 +253,10 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				wantRole := tt.wantInviteRole
 				wantProjectUID := tt.event.ProjectUID
 				mockMsg.On("SendInviteRequest", mock.Anything, mock.MatchedBy(func(req inviteapi.SendInviteRequest) bool {
-					return req.ProjectUID == wantProjectUID &&
+					return req.ResourceUID == wantProjectUID &&
 						(wantRole == "" || req.Role == wantRole) &&
 						req.RecipientEmail != "" &&
-						req.DeepLinkURL != ""
+						req.ReturnURL != ""
 				})).Return(tt.msgBuilderErr).Times(tt.wantInviteCount)
 			}
 

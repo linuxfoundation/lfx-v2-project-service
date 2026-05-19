@@ -111,10 +111,11 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		RecipientEmail: recipientEmail,
 		RecipientName:  recipientName,
 		InviterName:    inviterName,
-		ProjectUID:     projectUID,
-		ProjectName:    projectName,
+		ResourceUID:    projectUID,
+		ResourceName:   projectName,
+		ResourceType:   "project",
 		Role:           inviteRole,
-		DeepLinkURL:    deepLinkURL,
+		ReturnURL:      deepLinkURL,
 	})
 	if err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to publish invite request",

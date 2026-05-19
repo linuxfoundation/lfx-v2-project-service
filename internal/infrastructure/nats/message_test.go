@@ -576,10 +576,11 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 				RecipientEmail: "user@example.com",
 				RecipientName:  "Jane Doe",
 				InviterName:    "Admin",
-				ProjectUID:     "proj-123",
-				ProjectName:    "Demo Project",
+				ResourceUID:    "proj-123",
+				ResourceName:   "Demo Project",
+				ResourceType:   "project",
 				Role:           string(inviteapi.InviteRoleManage),
-				DeepLinkURL:    "https://app.lfx.dev/project/overview?project=demo",
+				ReturnURL:      "https://app.lfx.dev/project/overview?project=demo",
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("Publish", inviteapi.SendInviteSubject, mock.MatchedBy(func(data []byte) bool {
@@ -590,10 +591,11 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 					return got.RecipientEmail == "user@example.com" &&
 						got.RecipientName == "Jane Doe" &&
 						got.InviterName == "Admin" &&
-						got.ProjectUID == "proj-123" &&
-						got.ProjectName == "Demo Project" &&
+						got.ResourceUID == "proj-123" &&
+						got.ResourceName == "Demo Project" &&
+						got.ResourceType == "project" &&
 						got.Role == string(inviteapi.InviteRoleManage) &&
-						got.DeepLinkURL == "https://app.lfx.dev/project/overview?project=demo"
+						got.ReturnURL == "https://app.lfx.dev/project/overview?project=demo"
 				})).Return(nil)
 			},
 			wantErr: false,
@@ -602,7 +604,7 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			name: "NATS publish error — error returned",
 			req: inviteapi.SendInviteRequest{
 				RecipientEmail: "user@example.com",
-				ProjectUID:     "proj-123",
+				ResourceUID:    "proj-123",
 				Role:           string(inviteapi.InviteRoleView),
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
