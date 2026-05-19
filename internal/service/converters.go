@@ -477,6 +477,10 @@ func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
 	if user.InviteUID != "" {
 		apiUser.InviteUID = &user.InviteUID
 	}
+	if user.InviteExpiresAt != nil {
+		s := user.InviteExpiresAt.UTC().Format(time.RFC3339)
+		apiUser.InviteExpiresAt = &s
+	}
 	return apiUser
 }
 

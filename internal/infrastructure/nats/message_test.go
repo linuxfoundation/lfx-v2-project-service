@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
@@ -15,6 +16,7 @@ import (
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -564,15 +566,16 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 }
 
 func TestMessageBuilder_SendInviteRequest(t *testing.T) {
+	now := time.Now()
 	tests := []struct {
-		name          string
-		req           inviteapi.SendInviteRequest
-		setupMocks    func(*MockNATSConn)
-		wantErr       bool
-		wantInviteUID string
+		name       string
+		req        inviteapi.SendInviteRequest
+		setupMocks func(*MockNATSConn)
+		wantErr    bool
+		wantResult domain.InviteResult
 	}{
 		{
-			name: "successful request — correct subject, payload, and invite UID returned",
+			name: "successful request — correct subject, payload, and invite result returned",
 			req: inviteapi.SendInviteRequest{
 				RecipientEmail: "user@example.com",
 				RecipientName:  "Jane Doe",
@@ -584,7 +587,12 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 				ReturnURL:      "https://app.lfx.dev/project/overview?project=demo",
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{InviteUID: "invite-abc-123"})
+				expiresAt := now.Add(7 * 24 * time.Hour)
+				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{
+					InviteUID:      "invite-abc-123",
+					RecipientEmail: "user@example.com",
+					ExpiresAt:      expiresAt,
+				})
 				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
 					if msg.Subject != inviteapi.SendInviteSubject {
 						return false
@@ -603,8 +611,12 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 						got.ReturnURL == "https://app.lfx.dev/project/overview?project=demo"
 				})).Return(&nats.Msg{Data: replyData}, nil)
 			},
-			wantErr:       false,
-			wantInviteUID: "invite-abc-123",
+			wantErr: false,
+			wantResult: domain.InviteResult{
+				InviteUID:      "invite-abc-123",
+				RecipientEmail: "user@example.com",
+				ExpiresAt:      now.Add(7 * 24 * time.Hour),
+			},
 		},
 		{
 			name: "invite service returns error in response body — error returned",
@@ -641,13 +653,16 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			tt.setupMocks(mockConn)
 
 			mb := &MessageBuilder{NatsConn: mockConn}
-			inviteUID, err := mb.SendInviteRequest(context.Background(), tt.req)
+			result, err := mb.SendInviteRequest(context.Background(), tt.req)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tt.wantInviteUID, inviteUID)
+				assert.Equal(t, tt.wantResult.InviteUID, result.InviteUID)
+				assert.Equal(t, tt.wantResult.RecipientEmail, result.RecipientEmail)
+				// Allow a small time difference for test timing
+				assert.WithinDuration(t, tt.wantResult.ExpiresAt, result.ExpiresAt, time.Second)
 			}
 
 			mockConn.AssertExpectations(t)

@@ -14,11 +14,12 @@ import "time"
 
 // UserInfo is the user representation used in project event payloads.
 type UserInfo struct {
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	Username  string `json:"username"`
-	Avatar    string `json:"avatar"`
-	InviteUID string `json:"invite_uid,omitempty"`
+	Name            string     `json:"name"`
+	Email           string     `json:"email"`
+	Username        string     `json:"username"`
+	Avatar          string     `json:"avatar"`
+	InviteUID       string     `json:"invite_uid,omitempty"`
+	InviteExpiresAt *time.Time `json:"invite_expires_at,omitempty"`
 }
 
 // ProjectSettings is the project-settings representation used in event payloads.

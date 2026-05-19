@@ -257,9 +257,9 @@ func (m *MockMessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (string, error) {
+func (m *MockMessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (InviteResult, error) {
 	args := m.Called(ctx, req)
-	return args.String(0), args.Error(1)
+	return args.Get(0).(InviteResult), args.Error(1)
 }
 
 // MockMessage implements Message for testing

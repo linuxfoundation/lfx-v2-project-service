@@ -1207,6 +1207,8 @@ type UserInfoResponseBody struct {
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 	// The UID of the pending invite for users who do not yet have an LFID
 	InviteUID *string `form:"invite_uid,omitempty" json:"invite_uid,omitempty" xml:"invite_uid,omitempty"`
+	// RFC3339 expiry timestamp of the pending invite
+	InviteExpiresAt *string `form:"invite_expires_at,omitempty" json:"invite_expires_at,omitempty" xml:"invite_expires_at,omitempty"`
 }
 
 // ProjectBaseResponseBody is used to define fields on response body types.
@@ -1363,6 +1365,8 @@ type UserInfoRequestBody struct {
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 	// The UID of the pending invite for users who do not yet have an LFID
 	InviteUID *string `form:"invite_uid,omitempty" json:"invite_uid,omitempty" xml:"invite_uid,omitempty"`
+	// RFC3339 expiry timestamp of the pending invite
+	InviteExpiresAt *string `form:"invite_expires_at,omitempty" json:"invite_expires_at,omitempty" xml:"invite_expires_at,omitempty"`
 }
 
 // NewGetProjectsResponseBody builds the HTTP response body from the result of
@@ -3106,6 +3110,9 @@ func ValidateUserInfoRequestBody(body *UserInfoRequestBody) (err error) {
 	}
 	if body.Avatar != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$"))
+	}
+	if body.InviteExpiresAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.invite_expires_at", *body.InviteExpiresAt, goa.FormatDateTime))
 	}
 	return
 }

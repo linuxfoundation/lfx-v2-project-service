@@ -116,7 +116,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
 	defer cancel()
 
-	inviteUID, err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
+	result, err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
 		RecipientEmail: recipientEmail,
 		RecipientName:  recipientName,
 		InviterName:    inviterName,
@@ -125,6 +125,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		ResourceType:   "project",
 		Role:           inviteRole,
 		ReturnURL:      deepLinkURL,
+		ExpirationDays: 0,
 	})
 	if err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to send invite request",
@@ -132,31 +133,31 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		return nil
 	}
 
-	if inviteUID == "" {
+	if result.InviteUID == "" {
 		slog.WarnContext(ctx, "project_subscriber: invite service responded without an invite UID — skipping write-back",
 			"role", role, "project_uid", projectUID, "recipient_email", recipientEmail)
 		return nil
 	}
 
 	slog.InfoContext(ctx, "project_subscriber: invite service responded with invite UID — storing on member record",
-		"role", role, "project_uid", projectUID, "invite_uid", inviteUID)
+		"role", role, "project_uid", projectUID, "invite_uid", result.InviteUID, "expires_at", result.ExpiresAt)
 
-	if storeErr := s.storeInviteUID(ctx, projectUID, role, recipientEmail, inviteUID); storeErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to store invite UID on user",
-			constants.ErrKey, storeErr, "role", role, "project_uid", projectUID, "invite_uid", inviteUID)
+	if storeErr := s.storeInviteInfo(ctx, projectUID, role, recipientEmail, result.InviteUID, result.ExpiresAt); storeErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to store invite info on user",
+			constants.ErrKey, storeErr, "role", role, "project_uid", projectUID, "invite_uid", result.InviteUID)
 	}
 	return nil
 }
 
-// storeInviteUID reads project settings, locates the user by email in the given role's
-// slice, stamps their InviteUID, and writes the settings back using optimistic concurrency.
-func (s *ProjectsService) storeInviteUID(ctx context.Context, projectUID, role, recipientEmail, inviteUID string) error {
-	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite UID",
+// storeInviteInfo reads project settings, locates the user by email in the given role's
+// slice, stamps their InviteUID and InviteExpiresAt, and writes the settings back using optimistic concurrency.
+func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID string, expiresAt time.Time) error {
+	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite info",
 		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail)
 
 	settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to read project settings for invite UID write-back",
+		slog.WarnContext(ctx, "project_subscriber: failed to read project settings for invite info write-back",
 			constants.ErrKey, err, "project_uid", projectUID)
 		return err
 	}
@@ -177,12 +178,15 @@ func (s *ProjectsService) storeInviteUID(ctx context.Context, projectUID, role, 
 	for i := range slice {
 		if slice[i].Email == recipientEmail {
 			slice[i].InviteUID = inviteUID
+			if !expiresAt.IsZero() {
+				slice[i].InviteExpiresAt = &expiresAt
+			}
 			updated = true
 			break
 		}
 	}
 	if !updated {
-		slog.WarnContext(ctx, "project_subscriber: user not found in role slice — invite UID not stored (user may have been removed)",
+		slog.WarnContext(ctx, "project_subscriber: user not found in role slice — invite info not stored (user may have been removed)",
 			"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID)
 		return nil
 	}
@@ -197,13 +201,13 @@ func (s *ProjectsService) storeInviteUID(ctx context.Context, projectUID, role, 
 	}
 
 	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to write invite UID back to project settings",
+		slog.WarnContext(ctx, "project_subscriber: failed to write invite info back to project settings",
 			constants.ErrKey, err, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
 		return err
 	}
 
-	slog.InfoContext(ctx, "project_subscriber: stored invite UID on member record",
-		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID)
+	slog.InfoContext(ctx, "project_subscriber: stored invite info on member record",
+		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID, "expires_at", expiresAt)
 	return nil
 }
 

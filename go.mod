@@ -14,7 +14,7 @@ require (
 	github.com/linuxfoundation/lfx-v2-email-service v0.1.0
 	github.com/linuxfoundation/lfx-v2-fga-sync v0.2.17
 	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.14-0.20260109191409-7371e293d8b5
-	github.com/linuxfoundation/lfx-v2-invite-service v0.0.0-20260519192824-ed7b3ed6a4e2
+	github.com/linuxfoundation/lfx-v2-invite-service v0.0.0-20260519211352-0451da07c865
 	github.com/nats-io/nats.go v1.47.0
 	github.com/remychantenay/slog-otel v1.3.4
 	github.com/rustyoz/svg v0.0.0-20250705135709-8b1786137cb3

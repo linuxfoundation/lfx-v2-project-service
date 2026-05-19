@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
@@ -348,7 +349,10 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 						(wantRole == "" || req.Role == wantRole) &&
 						req.RecipientEmail != "" &&
 						req.ReturnURL != ""
-				})).Return(inviteReturnUID, inviteReturnErr).Times(tt.wantInviteCount)
+				})).Return(domain.InviteResult{
+					InviteUID: inviteReturnUID,
+					ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+				}, inviteReturnErr).Times(tt.wantInviteCount)
 			}
 
 			if tt.setupRepoExtra != nil {

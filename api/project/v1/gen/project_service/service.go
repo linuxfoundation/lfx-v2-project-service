@@ -763,6 +763,8 @@ type UserInfo struct {
 	Avatar *string
 	// The UID of the pending invite for users who do not yet have an LFID
 	InviteUID *string
+	// RFC3339 expiry timestamp of the pending invite
+	InviteExpiresAt *string
 }
 
 // Error returns an error description.
