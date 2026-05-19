@@ -583,11 +583,17 @@ func TestNewSampler(t *testing.T) {
 // TestNewSampler_ParentHonored verifies that the default sampler respects
 // parent sampling decisions.
 func TestNewSampler_ParentHonored(t *testing.T) {
-	cfg := OTelConfig{TracesSampleRatio: 1.0}
+	// Use 0.0 ratio so root sampler would NOT sample, proving parent decision is honored
+	cfg := OTelConfig{TracesSampleRatio: 0.0}
 	s := newSampler(cfg) // default = parentbased_traceidratio
 
-	// With a sampled parent, child should also be sampled
-	sampledParent := oteltrace.SpanContext{}.WithTraceFlags(oteltrace.FlagsSampled)
+	// Create a VALID sampled parent (non-zero TraceID and SpanID required)
+	sampledParent := oteltrace.NewSpanContext(oteltrace.SpanContextConfig{
+		TraceID:    oteltrace.TraceID{1}, // non-zero
+		SpanID:     oteltrace.SpanID{1},  // non-zero
+		TraceFlags: oteltrace.FlagsSampled,
+		Remote:     true,
+	})
 	parentCtx := oteltrace.ContextWithRemoteSpanContext(context.Background(), sampledParent)
 	result := s.ShouldSample(trace.SamplingParameters{ParentContext: parentCtx})
 	if result.Decision != trace.RecordAndSample {

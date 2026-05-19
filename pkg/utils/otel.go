@@ -331,11 +331,16 @@ func newSampler(cfg OTelConfig) trace.Sampler {
 	parseRatio := func() float64 {
 		if cfg.TracesSamplerArg != "" {
 			r, err := strconv.ParseFloat(cfg.TracesSamplerArg, 64)
-			if err == nil && r >= 0.0 && r <= 1.0 {
+			if err != nil {
+				slog.Warn("invalid OTEL_TRACES_SAMPLER_ARG, using TracesSampleRatio",
+					"provided-value", cfg.TracesSamplerArg, "error", err)
+				return cfg.TracesSampleRatio
+			}
+			if r >= 0.0 && r <= 1.0 {
 				return r
 			}
-			slog.Warn("invalid OTEL_TRACES_SAMPLER_ARG, using TracesSampleRatio",
-				"provided-value", cfg.TracesSamplerArg, "error", err)
+			slog.Warn("OTEL_TRACES_SAMPLER_ARG out of range [0.0, 1.0], using TracesSampleRatio",
+				"provided-value", cfg.TracesSamplerArg)
 		}
 		return cfg.TracesSampleRatio
 	}
@@ -354,11 +359,12 @@ func newSampler(cfg OTelConfig) trace.Sampler {
 	case "parentbased_traceidratio":
 		return trace.ParentBased(trace.TraceIDRatioBased(parseRatio()))
 	default:
+		effectiveRatio := parseRatio()
 		if cfg.TracesSampler != "" {
 			slog.Warn("unknown OTEL_TRACES_SAMPLER, falling back to parentbased_traceidratio",
-				"provided-value", cfg.TracesSampler, "fallback-ratio", cfg.TracesSampleRatio)
+				"provided-value", cfg.TracesSampler, "effective-ratio", effectiveRatio)
 		}
-		return trace.ParentBased(trace.TraceIDRatioBased(parseRatio()))
+		return trace.ParentBased(trace.TraceIDRatioBased(effectiveRatio))
 	}
 }
 
