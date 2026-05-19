@@ -262,6 +262,9 @@ var UserInfo = Type("UserInfo", func() {
 	Attribute("invite_uid", String, "The UID of the pending invite for users who do not yet have an LFID", func() {
 		Example("550e8400-e29b-41d4-a716-446655440000")
 	})
+	Attribute("invite_email", String, "The email address the pending invite was sent to", func() {
+		Example("john.doe@example.com")
+	})
 	Attribute("invite_expires_at", String, "RFC3339 expiry timestamp of the pending invite", func() {
 		Example("2026-06-18T00:00:00Z")
 		Format(FormatDateTime)

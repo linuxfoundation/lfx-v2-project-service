@@ -18,6 +18,7 @@ type UserInfo struct {
 	Username        string     `json:"username"`
 	Avatar          string     `json:"avatar"`
 	InviteUID       string     `json:"invite_uid,omitempty"`
+	InviteEmail     string     `json:"invite_email,omitempty"`
 	InviteExpiresAt *time.Time `json:"invite_expires_at,omitempty"`
 }
 

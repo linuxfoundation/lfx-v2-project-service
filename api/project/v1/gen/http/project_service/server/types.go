@@ -1207,6 +1207,8 @@ type UserInfoResponseBody struct {
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 	// The UID of the pending invite for users who do not yet have an LFID
 	InviteUID *string `form:"invite_uid,omitempty" json:"invite_uid,omitempty" xml:"invite_uid,omitempty"`
+	// The email address the pending invite was sent to
+	InviteEmail *string `form:"invite_email,omitempty" json:"invite_email,omitempty" xml:"invite_email,omitempty"`
 	// RFC3339 expiry timestamp of the pending invite
 	InviteExpiresAt *string `form:"invite_expires_at,omitempty" json:"invite_expires_at,omitempty" xml:"invite_expires_at,omitempty"`
 }
@@ -1365,6 +1367,8 @@ type UserInfoRequestBody struct {
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
 	// The UID of the pending invite for users who do not yet have an LFID
 	InviteUID *string `form:"invite_uid,omitempty" json:"invite_uid,omitempty" xml:"invite_uid,omitempty"`
+	// The email address the pending invite was sent to
+	InviteEmail *string `form:"invite_email,omitempty" json:"invite_email,omitempty" xml:"invite_email,omitempty"`
 	// RFC3339 expiry timestamp of the pending invite
 	InviteExpiresAt *string `form:"invite_expires_at,omitempty" json:"invite_expires_at,omitempty" xml:"invite_expires_at,omitempty"`
 }

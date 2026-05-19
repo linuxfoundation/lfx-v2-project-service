@@ -142,7 +142,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 	slog.InfoContext(ctx, "project_subscriber: invite service responded with invite UID — storing on member record",
 		"role", role, "project_uid", projectUID, "invite_uid", result.InviteUID, "expires_at", result.ExpiresAt)
 
-	if storeErr := s.storeInviteInfo(ctx, projectUID, role, recipientEmail, result.InviteUID, result.ExpiresAt); storeErr != nil {
+	if storeErr := s.storeInviteInfo(ctx, projectUID, role, recipientEmail, result.InviteUID, result.RecipientEmail, result.ExpiresAt); storeErr != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to store invite info on user",
 			constants.ErrKey, storeErr, "role", role, "project_uid", projectUID, "invite_uid", result.InviteUID)
 	}
@@ -150,8 +150,8 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 }
 
 // storeInviteInfo reads project settings, locates the user by email in the given role's
-// slice, stamps their InviteUID and InviteExpiresAt, and writes the settings back using optimistic concurrency.
-func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID string, expiresAt time.Time) error {
+// slice, stamps their InviteUID, InviteEmail, and InviteExpiresAt, and writes the settings back using optimistic concurrency.
+func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
 	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite info",
 		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail)
 
@@ -178,6 +178,7 @@ func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role,
 	for i := range slice {
 		if slice[i].Email == recipientEmail {
 			slice[i].InviteUID = inviteUID
+			slice[i].InviteEmail = inviteEmail
 			if !expiresAt.IsZero() {
 				slice[i].InviteExpiresAt = &expiresAt
 			}

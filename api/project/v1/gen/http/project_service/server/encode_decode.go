@@ -2540,6 +2540,7 @@ func marshalProjectserviceUserInfoToUserInfoResponseBody(v *projectservice.UserI
 		Username:        v.Username,
 		Avatar:          v.Avatar,
 		InviteUID:       v.InviteUID,
+		InviteEmail:     v.InviteEmail,
 		InviteExpiresAt: v.InviteExpiresAt,
 	}
 
@@ -2558,6 +2559,7 @@ func unmarshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody
 		Username:        v.Username,
 		Avatar:          v.Avatar,
 		InviteUID:       v.InviteUID,
+		InviteEmail:     v.InviteEmail,
 		InviteExpiresAt: v.InviteExpiresAt,
 	}
 
