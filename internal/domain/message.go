@@ -28,5 +28,5 @@ type MessageBuilder interface {
 	SendAccessMessage(ctx context.Context, subject string, message any, sync bool) error
 	SendProjectEventMessage(ctx context.Context, subject string, message any) error
 	SendEmailRequest(ctx context.Context, req emailapi.SendEmailRequest) error
-	SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) error
+	SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (string, error)
 }

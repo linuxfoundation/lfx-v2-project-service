@@ -1205,6 +1205,8 @@ type UserInfoResponseBody struct {
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// The avatar URL of the user
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
+	// The UID of the pending invite for users who do not yet have an LFID
+	InviteUID *string `form:"invite_uid,omitempty" json:"invite_uid,omitempty" xml:"invite_uid,omitempty"`
 }
 
 // ProjectBaseResponseBody is used to define fields on response body types.
@@ -1359,6 +1361,8 @@ type UserInfoRequestBody struct {
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// The avatar URL of the user
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
+	// The UID of the pending invite for users who do not yet have an LFID
+	InviteUID *string `form:"invite_uid,omitempty" json:"invite_uid,omitempty" xml:"invite_uid,omitempty"`
 }
 
 // NewGetProjectsResponseBody builds the HTTP response body from the result of

@@ -13,6 +13,7 @@ import (
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service/email"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -98,8 +99,9 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	return nil
 }
 
-// sendInvite publishes a send-invite request to the invite service for a user
+// sendInvite sends a send-invite request to the invite service for a user
 // who does not yet have an LFID. The invite service renders and delivers the email.
+// On success, the returned invite UID is written back to the project settings.
 func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, deepLinkURL string) error {
 	inviteRole := mapRoleToInviteRole(role)
 	if inviteRole == "" {
@@ -108,7 +110,13 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		return nil
 	}
 
-	err := s.MessageBuilder.SendInviteRequest(ctx, inviteapi.SendInviteRequest{
+	slog.InfoContext(ctx, "project_subscriber: sending invite request to invite service",
+		"role", role, "invite_role", inviteRole, "project_uid", projectUID, "recipient_email", recipientEmail)
+
+	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
+	defer cancel()
+
+	inviteUID, err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
 		RecipientEmail: recipientEmail,
 		RecipientName:  recipientName,
 		InviterName:    inviterName,
@@ -119,12 +127,83 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		ReturnURL:      deepLinkURL,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to publish invite request",
+		slog.WarnContext(ctx, "project_subscriber: failed to send invite request",
 			constants.ErrKey, err, "role", role, "project_uid", projectUID)
-	} else {
-		slog.DebugContext(ctx, "project_subscriber: published invite request",
-			"role", role, "project_uid", projectUID)
+		return nil
 	}
+
+	if inviteUID == "" {
+		slog.WarnContext(ctx, "project_subscriber: invite service responded without an invite UID — skipping write-back",
+			"role", role, "project_uid", projectUID, "recipient_email", recipientEmail)
+		return nil
+	}
+
+	slog.InfoContext(ctx, "project_subscriber: invite service responded with invite UID — storing on member record",
+		"role", role, "project_uid", projectUID, "invite_uid", inviteUID)
+
+	if storeErr := s.storeInviteUID(ctx, projectUID, role, recipientEmail, inviteUID); storeErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to store invite UID on user",
+			constants.ErrKey, storeErr, "role", role, "project_uid", projectUID, "invite_uid", inviteUID)
+	}
+	return nil
+}
+
+// storeInviteUID reads project settings, locates the user by email in the given role's
+// slice, stamps their InviteUID, and writes the settings back using optimistic concurrency.
+func (s *ProjectsService) storeInviteUID(ctx context.Context, projectUID, role, recipientEmail, inviteUID string) error {
+	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite UID",
+		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail)
+
+	settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+	if err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to read project settings for invite UID write-back",
+			constants.ErrKey, err, "project_uid", projectUID)
+		return err
+	}
+
+	var slice []models.UserInfo
+	switch role {
+	case roleWriter:
+		slice = settings.Writers
+	case roleAuditor:
+		slice = settings.Auditors
+	case roleMeetingCoordinator:
+		slice = settings.MeetingCoordinators
+	default:
+		return nil
+	}
+
+	updated := false
+	for i := range slice {
+		if slice[i].Email == recipientEmail {
+			slice[i].InviteUID = inviteUID
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		slog.WarnContext(ctx, "project_subscriber: user not found in role slice — invite UID not stored (user may have been removed)",
+			"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID)
+		return nil
+	}
+
+	switch role {
+	case roleWriter:
+		settings.Writers = slice
+	case roleAuditor:
+		settings.Auditors = slice
+	case roleMeetingCoordinator:
+		settings.MeetingCoordinators = slice
+	}
+
+	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to write invite UID back to project settings",
+			constants.ErrKey, err, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
+		return err
+	}
+
+	slog.InfoContext(ctx, "project_subscriber: stored invite UID on member record",
+		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID)
 	return nil
 }
 

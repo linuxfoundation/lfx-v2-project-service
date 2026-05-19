@@ -200,24 +200,37 @@ func (m *MessageBuilder) SendProjectEventMessage(ctx context.Context, subject st
 	return nil
 }
 
-// SendInviteRequest publishes a send-invite request to the invite service for
-// a user who does not yet have an LFID. The invite service consumes this
-// subject via a JetStream stream.
-func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) error {
+// SendInviteRequest sends a request to the invite service for a user who does
+// not yet have an LFID and returns the invite UID from the reply.
+func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (string, error) {
 	data, err := json.Marshal(req)
 	if err != nil {
 		slog.ErrorContext(ctx, "error marshalling invite request into JSON", constants.ErrKey, err)
-		return err
+		return "", err
 	}
 
-	err = m.publishMessage(inviteapi.SendInviteSubject, data)
+	reply, err := m.NatsConn.RequestMsgWithContext(ctx, &nats.Msg{
+		Subject: inviteapi.SendInviteSubject,
+		Data:    data,
+	})
 	if err != nil {
-		slog.ErrorContext(ctx, "error publishing invite request to NATS", constants.ErrKey, err, "subject", inviteapi.SendInviteSubject)
-		return err
+		slog.ErrorContext(ctx, "invite service request failed", constants.ErrKey, err)
+		return "", fmt.Errorf("invite service request: %w", err)
 	}
 
-	slog.DebugContext(ctx, "published invite request to NATS", "subject", inviteapi.SendInviteSubject)
-	return nil
+	var resp inviteapi.SendInviteResponse
+	if len(reply.Data) > 0 {
+		if jsonErr := json.Unmarshal(reply.Data, &resp); jsonErr != nil {
+			slog.ErrorContext(ctx, "error unmarshalling invite response", constants.ErrKey, jsonErr)
+			return "", fmt.Errorf("invite service response: %w", jsonErr)
+		}
+		if resp.Error != "" {
+			return "", fmt.Errorf("invite service error: %s", resp.Error)
+		}
+	}
+
+	slog.DebugContext(ctx, "invite service replied", "invite_uid", resp.InviteUID)
+	return resp.InviteUID, nil
 }
 
 // SendEmailRequest sends a request to the email service and waits for a reply.

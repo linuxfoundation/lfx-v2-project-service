@@ -259,6 +259,9 @@ var UserInfo = Type("UserInfo", func() {
 		Example("https://example.com/avatar.jpg")
 		Pattern(`^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+$`)
 	})
+	Attribute("invite_uid", String, "The UID of the pending invite for users who do not yet have an LFID", func() {
+		Example("550e8400-e29b-41d4-a716-446655440000")
+	})
 })
 
 // ProjectAuditorsAttribute is the DSL attribute for a project auditors.

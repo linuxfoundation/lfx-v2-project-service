@@ -2924,10 +2924,11 @@ func unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v *UserInfoResponseBo
 		return nil
 	}
 	res := &projectservice.UserInfo{
-		Name:     v.Name,
-		Email:    v.Email,
-		Username: v.Username,
-		Avatar:   v.Avatar,
+		Name:      v.Name,
+		Email:     v.Email,
+		Username:  v.Username,
+		Avatar:    v.Avatar,
+		InviteUID: v.InviteUID,
 	}
 
 	return res
@@ -2940,10 +2941,11 @@ func marshalProjectserviceUserInfoToUserInfoRequestBody(v *projectservice.UserIn
 		return nil
 	}
 	res := &UserInfoRequestBody{
-		Name:     v.Name,
-		Email:    v.Email,
-		Username: v.Username,
-		Avatar:   v.Avatar,
+		Name:      v.Name,
+		Email:     v.Email,
+		Username:  v.Username,
+		Avatar:    v.Avatar,
+		InviteUID: v.InviteUID,
 	}
 
 	return res
@@ -2956,10 +2958,11 @@ func marshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody) 
 		return nil
 	}
 	res := &projectservice.UserInfo{
-		Name:     v.Name,
-		Email:    v.Email,
-		Username: v.Username,
-		Avatar:   v.Avatar,
+		Name:      v.Name,
+		Email:     v.Email,
+		Username:  v.Username,
+		Avatar:    v.Avatar,
+		InviteUID: v.InviteUID,
 	}
 
 	return res

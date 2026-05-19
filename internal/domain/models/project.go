@@ -13,10 +13,11 @@ import (
 
 // UserInfo represents user information including profile details.
 type UserInfo struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Avatar   string `json:"avatar"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Username  string `json:"username"`
+	Avatar    string `json:"avatar"`
+	InviteUID string `json:"invite_uid,omitempty"`
 }
 
 // ProjectBase is the key-value store representation of a project base.

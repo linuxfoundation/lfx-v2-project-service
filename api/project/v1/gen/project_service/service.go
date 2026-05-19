@@ -761,6 +761,8 @@ type UserInfo struct {
 	Username *string
 	// The avatar URL of the user
 	Avatar *string
+	// The UID of the pending invite for users who do not yet have an LFID
+	InviteUID *string
 }
 
 // Error returns an error description.

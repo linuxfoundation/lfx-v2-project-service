@@ -468,12 +468,16 @@ func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
 	if user == nil {
 		return nil
 	}
-	return &projsvc.UserInfo{
+	apiUser := &projsvc.UserInfo{
 		Name:     misc.StringPtr(user.Name),
 		Email:    misc.StringPtr(user.Email),
 		Username: misc.StringPtr(user.Username),
 		Avatar:   misc.StringPtr(user.Avatar),
 	}
+	if user.InviteUID != "" {
+		apiUser.InviteUID = &user.InviteUID
+	}
+	return apiUser
 }
 
 // convertUserFromAPI converts a single API UserInfo pointer to a domain UserInfo pointer.
@@ -493,6 +497,9 @@ func convertUserFromAPI(apiUser *projsvc.UserInfo) *models.UserInfo {
 	}
 	if apiUser.Avatar != nil {
 		user.Avatar = *apiUser.Avatar
+	}
+	if apiUser.InviteUID != nil {
+		user.InviteUID = *apiUser.InviteUID
 	}
 	return user
 }
