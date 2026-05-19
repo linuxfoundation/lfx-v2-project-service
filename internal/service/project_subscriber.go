@@ -125,7 +125,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 		ResourceType:   "project",
 		Role:           inviteRole,
 		ReturnURL:      deepLinkURL,
-		ExpirationDays: 0,
+		ExpirationDays: 30,
 	})
 	if err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to send invite request",
