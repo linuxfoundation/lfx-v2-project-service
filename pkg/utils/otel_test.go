@@ -572,13 +572,14 @@ func TestNewSampler(t *testing.T) {
 }
 
 // TestNewSampler_ParentHonored verifies that the default sampler respects
-// parent sampling decisions.
+// parent sampling decisions in both sampled and unsampled cases.
 func TestNewSampler_ParentHonored(t *testing.T) {
-	// Use default config with 1.0 ratio (sample all)
-	cfg := OTelConfig{}
-	s := newSampler(cfg) // default = parentbased_traceidratio
+	// Use default config with 0.0 ratio so root sampler would NOT sample,
+	// proving that parent decision is actually honored (not root sampler)
+	cfg := OTelConfig{TracesSamplerArg: "0.0"}
+	s := newSampler(cfg) // default = parentbased_traceidratio with 0.0 ratio
 
-	// Create a VALID sampled parent (non-zero TraceID and SpanID required)
+	// Test 1: sampled parent => child should be sampled even though root ratio is 0.0
 	sampledParent := oteltrace.NewSpanContext(oteltrace.SpanContextConfig{
 		TraceID:    oteltrace.TraceID{1}, // non-zero
 		SpanID:     oteltrace.SpanID{1},  // non-zero
@@ -589,5 +590,18 @@ func TestNewSampler_ParentHonored(t *testing.T) {
 	result := s.ShouldSample(trace.SamplingParameters{ParentContext: parentCtx})
 	if result.Decision != trace.RecordAndSample {
 		t.Errorf("expected RecordAndSample with sampled parent, got %v", result.Decision)
+	}
+
+	// Test 2: unsampled parent => child should NOT be sampled (even with 0.0 ratio)
+	unsampledParent := oteltrace.NewSpanContext(oteltrace.SpanContextConfig{
+		TraceID:    oteltrace.TraceID{2}, // non-zero
+		SpanID:     oteltrace.SpanID{2},  // non-zero
+		TraceFlags: 0x00,                 // NOT sampled
+		Remote:     true,
+	})
+	unparentCtx := oteltrace.ContextWithRemoteSpanContext(context.Background(), unsampledParent)
+	resultUns := s.ShouldSample(trace.SamplingParameters{ParentContext: unparentCtx})
+	if resultUns.Decision != trace.Drop {
+		t.Errorf("expected Drop with unsampled parent, got %v", resultUns.Decision)
 	}
 }
