@@ -86,10 +86,7 @@ spec:
               value: {{ $otelTracesSampler | quote }}
             {{- end }}
             {{- $otelTracesSamplerArg := .Values.app.otel.tracesSamplerArg | toString | trim }}
-            {{- /* Only render OTEL_TRACES_SAMPLER_ARG for ratio-based samplers or when explicitly set */}}
-            {{- $ratioBasedSamplers := list "traceidratio" "parentbased_traceidratio" "" }}
-            {{- $isRatioBased := or (has $otelTracesSampler $ratioBasedSamplers) (eq $otelTracesSampler "") }}
-            {{- if and (ne $otelTracesSamplerArg "") (or $isRatioBased (ne $otelTracesSampler "")) }}
+            {{- if ne $otelTracesSamplerArg "" }}
             - name: OTEL_TRACES_SAMPLER_ARG
               value: {{ $otelTracesSamplerArg | quote }}
             {{- end }}
