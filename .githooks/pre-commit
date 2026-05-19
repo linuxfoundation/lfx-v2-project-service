@@ -8,10 +8,11 @@
 set -e
 
 # Format any staged .go files and re-stage them.
-STAGED=$(git diff --cached --name-only -z --diff-filter=ACM -- '*.go')
-if [ -n "$STAGED" ]; then
-  printf '%s' "$STAGED" | xargs -0 gofmt -w
-  printf '%s' "$STAGED" | xargs -0 git add -f
+# Use non-NUL listing to check for staged files (shell vars can't hold NUL bytes),
+# then pipe the NUL-delimited listing directly into xargs -0 for safe processing.
+if git diff --cached --name-only --diff-filter=ACM -- '*.go' | grep -q .; then
+  git diff --cached --name-only -z --diff-filter=ACM -- '*.go' | xargs -0 gofmt -w
+  git diff --cached --name-only -z --diff-filter=ACM -- '*.go' | xargs -0 git add -f
 fi
 
 # Run go vet over the whole module (catches syntax errors and obvious bugs).
