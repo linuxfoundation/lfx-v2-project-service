@@ -589,9 +589,11 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 			setupMocks: func(mockConn *MockNATSConn) {
 				expiresAt := now.Add(7 * 24 * time.Hour)
 				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{
-					InviteUID:      "invite-abc-123",
-					RecipientEmail: "user@example.com",
-					ExpiresAt:      expiresAt,
+					Invite: &inviteapi.InviteData{
+						UID:       "invite-abc-123",
+						Email:     "user@example.com",
+						ExpiresAt: expiresAt,
+					},
 				})
 				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
 					if msg.Subject != inviteapi.SendInviteSubject {

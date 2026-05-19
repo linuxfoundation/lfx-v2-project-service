@@ -408,6 +408,16 @@ type InternalServerError struct {
 	Message string
 }
 
+// Pending invite details for a user who does not yet have an LFID.
+type InviteInfo struct {
+	// The UID of the invite
+	UID *string
+	// The email address the invite was sent to
+	Email *string
+	// RFC3339 expiry timestamp of the invite
+	ExpiresAt *string
+}
+
 type NotFoundError struct {
 	// HTTP status code
 	Code string
@@ -761,12 +771,8 @@ type UserInfo struct {
 	Username *string
 	// The avatar URL of the user
 	Avatar *string
-	// The UID of the pending invite for users who do not yet have an LFID
-	InviteUID *string
-	// The email address the pending invite was sent to
-	InviteEmail *string
-	// RFC3339 expiry timestamp of the pending invite
-	InviteExpiresAt *string
+	// Pending invite details; present only for users without an LFID
+	Invite *InviteInfo
 }
 
 // Error returns an error description.

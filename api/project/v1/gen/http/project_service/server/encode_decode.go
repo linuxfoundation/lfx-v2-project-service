@@ -2535,13 +2535,28 @@ func marshalProjectserviceUserInfoToUserInfoResponseBody(v *projectservice.UserI
 		return nil
 	}
 	res := &UserInfoResponseBody{
-		Name:            v.Name,
-		Email:           v.Email,
-		Username:        v.Username,
-		Avatar:          v.Avatar,
-		InviteUID:       v.InviteUID,
-		InviteEmail:     v.InviteEmail,
-		InviteExpiresAt: v.InviteExpiresAt,
+		Name:     v.Name,
+		Email:    v.Email,
+		Username: v.Username,
+		Avatar:   v.Avatar,
+	}
+	if v.Invite != nil {
+		res.Invite = marshalProjectserviceInviteInfoToInviteInfoResponseBody(v.Invite)
+	}
+
+	return res
+}
+
+// marshalProjectserviceInviteInfoToInviteInfoResponseBody builds a value of
+// type *InviteInfoResponseBody from a value of type *projectservice.InviteInfo.
+func marshalProjectserviceInviteInfoToInviteInfoResponseBody(v *projectservice.InviteInfo) *InviteInfoResponseBody {
+	if v == nil {
+		return nil
+	}
+	res := &InviteInfoResponseBody{
+		UID:       v.UID,
+		Email:     v.Email,
+		ExpiresAt: v.ExpiresAt,
 	}
 
 	return res
@@ -2554,13 +2569,28 @@ func unmarshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody
 		return nil
 	}
 	res := &projectservice.UserInfo{
-		Name:            v.Name,
-		Email:           v.Email,
-		Username:        v.Username,
-		Avatar:          v.Avatar,
-		InviteUID:       v.InviteUID,
-		InviteEmail:     v.InviteEmail,
-		InviteExpiresAt: v.InviteExpiresAt,
+		Name:     v.Name,
+		Email:    v.Email,
+		Username: v.Username,
+		Avatar:   v.Avatar,
+	}
+	if v.Invite != nil {
+		res.Invite = unmarshalInviteInfoRequestBodyToProjectserviceInviteInfo(v.Invite)
+	}
+
+	return res
+}
+
+// unmarshalInviteInfoRequestBodyToProjectserviceInviteInfo builds a value of
+// type *projectservice.InviteInfo from a value of type *InviteInfoRequestBody.
+func unmarshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoRequestBody) *projectservice.InviteInfo {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.InviteInfo{
+		UID:       v.UID,
+		Email:     v.Email,
+		ExpiresAt: v.ExpiresAt,
 	}
 
 	return res

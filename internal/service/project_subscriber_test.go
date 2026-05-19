@@ -131,7 +131,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
 					Return(settingsWithWriter(), uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Writers) > 0 && s.Writers[0].InviteUID == "invite-writer-uid"
+					return len(s.Writers) > 0 && s.Writers[0].Invite.UID == "invite-writer-uid"
 				}), uint64(1)).Return(nil)
 			},
 		},
@@ -152,7 +152,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
 					Return(settingsWithAuditor(), uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Auditors) > 0 && s.Auditors[0].InviteUID == "invite-auditor-uid"
+					return len(s.Auditors) > 0 && s.Auditors[0].Invite.UID == "invite-auditor-uid"
 				}), uint64(1)).Return(nil)
 			},
 		},
@@ -173,7 +173,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
 					Return(settingsWithMC(), uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].InviteUID == "invite-mc-uid"
+					return len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Invite.UID == "invite-mc-uid"
 				}), uint64(1)).Return(nil)
 			},
 		},
@@ -272,11 +272,11 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 						Auditors: []models.UserInfo{{Email: noLFIDWriter.Email}},
 					}, uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					if len(s.Writers) == 0 || s.Writers[0].InviteUID != "invite-writer-uid" {
+					if len(s.Writers) == 0 || s.Writers[0].Invite.UID != "invite-writer-uid" {
 						return false
 					}
-					// Auditors entry must NOT have the invite UID set.
-					if len(s.Auditors) == 0 || s.Auditors[0].InviteUID != "" {
+					// Auditors entry must NOT have an invite set.
+					if len(s.Auditors) == 0 || s.Auditors[0].Invite != nil {
 						return false
 					}
 					return true
@@ -350,8 +350,9 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 						req.RecipientEmail != "" &&
 						req.ReturnURL != ""
 				})).Return(domain.InviteResult{
-					InviteUID: inviteReturnUID,
-					ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+					InviteUID:      inviteReturnUID,
+					RecipientEmail: "nonlfid@example.com",
+					ExpiresAt:      time.Now().Add(30 * 24 * time.Hour),
 				}, inviteReturnErr).Times(tt.wantInviteCount)
 			}
 

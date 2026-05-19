@@ -177,11 +177,11 @@ func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role,
 	updated := false
 	for i := range slice {
 		if slice[i].Email == recipientEmail {
-			slice[i].InviteUID = inviteUID
-			slice[i].InviteEmail = inviteEmail
+			inv := &models.InviteInfo{UID: inviteUID, Email: inviteEmail}
 			if !expiresAt.IsZero() {
-				slice[i].InviteExpiresAt = &expiresAt
+				inv.ExpiresAt = &expiresAt
 			}
+			slice[i].Invite = inv
 			updated = true
 			break
 		}

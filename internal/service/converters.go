@@ -474,15 +474,16 @@ func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
 		Username: misc.StringPtr(user.Username),
 		Avatar:   misc.StringPtr(user.Avatar),
 	}
-	if user.InviteUID != "" {
-		apiUser.InviteUID = &user.InviteUID
-	}
-	if user.InviteEmail != "" {
-		apiUser.InviteEmail = &user.InviteEmail
-	}
-	if user.InviteExpiresAt != nil {
-		s := user.InviteExpiresAt.UTC().Format(time.RFC3339)
-		apiUser.InviteExpiresAt = &s
+	if user.Invite != nil {
+		inv := &projsvc.InviteInfo{
+			UID:   &user.Invite.UID,
+			Email: &user.Invite.Email,
+		}
+		if user.Invite.ExpiresAt != nil {
+			s := user.Invite.ExpiresAt.UTC().Format(time.RFC3339)
+			inv.ExpiresAt = &s
+		}
+		apiUser.Invite = inv
 	}
 	return apiUser
 }
@@ -505,11 +506,15 @@ func convertUserFromAPI(apiUser *projsvc.UserInfo) *models.UserInfo {
 	if apiUser.Avatar != nil {
 		user.Avatar = *apiUser.Avatar
 	}
-	if apiUser.InviteUID != nil {
-		user.InviteUID = *apiUser.InviteUID
-	}
-	if apiUser.InviteEmail != nil {
-		user.InviteEmail = *apiUser.InviteEmail
+	if apiUser.Invite != nil {
+		inv := &models.InviteInfo{}
+		if apiUser.Invite.UID != nil {
+			inv.UID = *apiUser.Invite.UID
+		}
+		if apiUser.Invite.Email != nil {
+			inv.Email = *apiUser.Invite.Email
+		}
+		user.Invite = inv
 	}
 	return user
 }

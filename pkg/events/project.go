@@ -12,15 +12,20 @@ package events
 
 import "time"
 
+// InviteInfo holds the pending invite metadata for a user without an LFID.
+type InviteInfo struct {
+	UID       string     `json:"uid"`
+	Email     string     `json:"email"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
 // UserInfo is the user representation used in project event payloads.
 type UserInfo struct {
-	Name            string     `json:"name"`
-	Email           string     `json:"email"`
-	Username        string     `json:"username"`
-	Avatar          string     `json:"avatar"`
-	InviteUID       string     `json:"invite_uid,omitempty"`
-	InviteEmail     string     `json:"invite_email,omitempty"`
-	InviteExpiresAt *time.Time `json:"invite_expires_at,omitempty"`
+	Name     string      `json:"name"`
+	Email    string      `json:"email"`
+	Username string      `json:"username"`
+	Avatar   string      `json:"avatar"`
+	Invite   *InviteInfo `json:"invite,omitempty"`
 }
 
 // ProjectSettings is the project-settings representation used in event payloads.

@@ -1320,6 +1320,28 @@ definitions:
         required:
             - code
             - message
+    InviteInfo:
+        title: InviteInfo
+        type: object
+        properties:
+            email:
+                type: string
+                description: The email address the invite was sent to
+                example: john.doe@example.com
+            expires_at:
+                type: string
+                description: RFC3339 expiry timestamp of the invite
+                example: "2026-06-18T00:00:00Z"
+                format: date-time
+            uid:
+                type: string
+                description: The UID of the invite
+                example: 550e8400-e29b-41d4-a716-446655440000
+        description: Pending invite details for a user who does not yet have an LFID.
+        example:
+            email: john.doe@example.com
+            expires_at: "2026-06-18T00:00:00Z"
+            uid: 550e8400-e29b-41d4-a716-446655440000
     NotFoundError:
         title: NotFoundError
         type: object
@@ -3237,19 +3259,8 @@ definitions:
                 description: The email address of the user
                 example: john.doe@example.com
                 pattern: ^$|^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$
-            invite_email:
-                type: string
-                description: The email address the pending invite was sent to
-                example: john.doe@example.com
-            invite_expires_at:
-                type: string
-                description: RFC3339 expiry timestamp of the pending invite
-                example: "2026-06-18T00:00:00Z"
-                format: date-time
-            invite_uid:
-                type: string
-                description: The UID of the pending invite for users who do not yet have an LFID
-                example: 550e8400-e29b-41d4-a716-446655440000
+            invite:
+                $ref: '#/definitions/InviteInfo'
             name:
                 type: string
                 description: The full name of the user
@@ -3262,9 +3273,10 @@ definitions:
         example:
             avatar: https://example.com/avatar.jpg
             email: john.doe@example.com
-            invite_email: john.doe@example.com
-            invite_expires_at: "2026-06-18T00:00:00Z"
-            invite_uid: 550e8400-e29b-41d4-a716-446655440000
+            invite:
+                email: john.doe@example.com
+                expires_at: "2026-06-18T00:00:00Z"
+                uid: 550e8400-e29b-41d4-a716-446655440000
             name: John Doe
             username: johndoe123
 securityDefinitions:
