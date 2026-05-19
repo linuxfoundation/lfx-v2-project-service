@@ -424,13 +424,7 @@ func convertUsersToAPI(users []models.UserInfo) []*projsvc.UserInfo {
 
 	apiUsers := make([]*projsvc.UserInfo, len(users))
 	for i := range users {
-		user := users[i]
-		apiUsers[i] = &projsvc.UserInfo{
-			Name:     misc.StringPtr(user.Name),
-			Email:    misc.StringPtr(user.Email),
-			Username: misc.StringPtr(user.Username),
-			Avatar:   misc.StringPtr(user.Avatar),
-		}
+		apiUsers[i] = convertUserToAPI(&users[i])
 	}
 	return apiUsers
 }

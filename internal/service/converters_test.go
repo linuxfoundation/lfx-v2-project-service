@@ -442,6 +442,37 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				OpportunityOwner: createTestAPIUserInfo("oo1", "OO One", "oo1@example.com", ""),
 			},
 		},
+		{
+			name: "writer with pending invite is included in response",
+			input: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{
+						Email: "nolfid@example.com",
+						Name:  "No LFID User",
+						Invite: &models.InviteInfo{
+							UID:   "invite-uid-123",
+							Email: "nolfid@example.com",
+						},
+					},
+				},
+			},
+			expected: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{
+					{
+						Name:     misc.StringPtr("No LFID User"),
+						Email:    misc.StringPtr("nolfid@example.com"),
+						Username: misc.StringPtr(""),
+						Avatar:   misc.StringPtr(""),
+						Invite: &projsvc.InviteInfo{
+							UID:   misc.StringPtr("invite-uid-123"),
+							Email: misc.StringPtr("nolfid@example.com"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
