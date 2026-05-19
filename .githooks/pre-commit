@@ -2,7 +2,8 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 #
-# Pre-commit hook: format, lint, and license-check staged Go files.
+# Pre-commit hook: format staged Go files, vet and lint the whole module,
+# and check license headers across all tracked source files.
 # Installed automatically by `make deps` via `git config core.hooksPath .githooks`.
 
 set -e
@@ -23,5 +24,5 @@ if command -v golangci-lint >/dev/null 2>&1; then
   golangci-lint run ./...
 fi
 
-# Check license headers on all staged source files.
+# Check license headers across all tracked source files (not just staged).
 make license-check

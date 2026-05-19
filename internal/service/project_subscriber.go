@@ -19,7 +19,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// notificationTimeout caps email sends (request/reply) to avoid blocking the event handler.
+// notificationTimeout caps blocking outbound calls (email-service request/reply and
+// auth-service actor name lookup) to avoid blocking the event handler.
 // Fire-and-forget NATS publishes (invite path) do not use this timeout.
 const notificationTimeout = 5 * time.Second
 

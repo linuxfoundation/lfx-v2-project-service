@@ -289,18 +289,19 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 func TestMapRoleToInviteRole(t *testing.T) {
 	tests := []struct {
+		name string
 		role string
 		want string
 	}{
-		{roleWriter, string(inviteapi.InviteRoleManage)},
-		{roleAuditor, string(inviteapi.InviteRoleView)},
-		{roleMeetingCoordinator, string(inviteapi.InviteRoleManage)},
-		{"Unknown", ""},
-		{"", ""},
+		{"writer", roleWriter, string(inviteapi.InviteRoleManage)},
+		{"auditor", roleAuditor, string(inviteapi.InviteRoleView)},
+		{"meeting coordinator", roleMeetingCoordinator, string(inviteapi.InviteRoleManage)},
+		{"unknown role", "Unknown", ""},
+		{"empty role", "", ""},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.role, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, mapRoleToInviteRole(tt.role))
 		})
 	}
