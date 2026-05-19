@@ -38,7 +38,7 @@
 
     <p class="greeting">Hi {{.RecipientName}},</p>
 
-    <p>{{.InviterName}} has added you as a <strong>{{.Role}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>
+    {{if .InviterName}}<p>{{.InviterName}} has added you as a <strong>{{.Role}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>You have been added as a <strong>{{.Role}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{end}}
     <p>You can view the project dashboard by visiting the link below.</p>
 
     <!-- djlint:off H021 --><a href="{{.ProjectURL}}" class="btn" style="color:#ffffff!important;">View Project</a><!-- djlint:on H021 -->
