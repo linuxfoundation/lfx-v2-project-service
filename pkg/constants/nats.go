@@ -84,3 +84,10 @@ const (
 	// The subject is of the form: lfx.projects-api.get_parent_uid
 	ProjectGetParentUIDSubject = "lfx.projects-api.get_parent_uid"
 )
+
+// NATS subjects for external service lookups.
+const (
+	// AuthUserMetadataReadSubject is the subject for looking up a user's profile metadata by principal.
+	// The subject is of the form: lfx.auth-service.user_metadata.read
+	AuthUserMetadataReadSubject = "lfx.auth-service.user_metadata.read"
+)

@@ -17,7 +17,7 @@ import (
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 

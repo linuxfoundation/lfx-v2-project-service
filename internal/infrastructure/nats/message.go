@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-viper/mapstructure/v2"
+	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
@@ -195,5 +196,32 @@ func (m *MessageBuilder) SendProjectEventMessage(ctx context.Context, subject st
 	}
 
 	slog.DebugContext(ctx, "published project event message to NATS", "subject", subject)
+	return nil
+}
+
+// SendEmailRequest sends a request to the email service and waits for a reply.
+func (m *MessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.SendEmailRequest) error {
+	data, err := json.Marshal(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling email request into JSON", constants.ErrKey, err)
+		return err
+	}
+
+	reply, err := m.NatsConn.RequestMsgWithContext(ctx, &nats.Msg{
+		Subject: emailapi.SendEmailSubject,
+		Data:    data,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "email service request failed", constants.ErrKey, err)
+		return fmt.Errorf("email service request: %w", err)
+	}
+
+	if len(reply.Data) > 0 {
+		var errResp emailapi.SendEmailErrorResponse
+		if jsonErr := json.Unmarshal(reply.Data, &errResp); jsonErr == nil && errResp.Error != "" {
+			return fmt.Errorf("email service error: %s", errResp.Error)
+		}
+	}
+
 	return nil
 }

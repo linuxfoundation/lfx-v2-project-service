@@ -152,21 +152,13 @@ fmt:
 # Check license headers (basic validation - full check runs in CI)
 .PHONY: license-check
 license-check:
-	@echo "==> Checking license headers (basic validation)..."
-	@missing_files=$$(find . -name "*.go" \
-		-not -path "./api/project/v1/gen/*" \
-		-not -path "./vendor/*" \
-		-exec sh -c 'head -10 "$$1" | grep -q "Copyright The Linux Foundation and each contributor to LFX" && head -10 "$$1" | grep -q "SPDX-License-Identifier: MIT" || echo "$$1"' _ {} \;); \
-	if [ -n "$$missing_files" ]; then \
-		echo "Files missing required license headers:"; \
-		echo "$$missing_files"; \
-		echo "Required headers:"; \
-		echo "  # Copyright The Linux Foundation and each contributor to LFX."; \
-		echo "  # SPDX-License-Identifier: MIT"; \
-		echo "Note: Full license validation runs in CI"; \
-		exit 1; \
-	fi
-	@echo "==> Basic license header check passed"
+	@echo "==> Checking license headers..."
+	@missing=$$(git ls-files | grep -E '\.(go|html|txt)$$' | grep -v "^api/project/v1/gen/" | grep -v "^internal/service/email/templates/" | while IFS= read -r f; do \
+		head -4 "$$f" | grep -q "Copyright The Linux Foundation and each contributor to LFX" || echo "Missing copyright: $$f"; \
+		head -4 "$$f" | grep -q "SPDX-License-Identifier: MIT" || echo "Missing SPDX: $$f"; \
+	done); \
+	if [ -n "$$missing" ]; then echo "$$missing"; exit 1; fi
+	@echo "==> License header check passed"
 
 # Check formatting and linting without modifying files
 .PHONY: check

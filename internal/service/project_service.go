@@ -14,6 +14,7 @@ type ProjectsService struct {
 	LinkRepository     domain.LinkRepository
 	FolderRepository   domain.FolderRepository
 	MessageBuilder     domain.MessageBuilder
+	UserReader         domain.UserReader
 	Auth               domain.Authenticator
 	Config             ServiceConfig
 }
@@ -36,4 +37,6 @@ func (s *ProjectsService) ServiceReady() bool {
 type ServiceConfig struct {
 	// SkipEtagValidation is a flag to skip the Etag validation - only meant for local development.
 	SkipEtagValidation bool
+	// LFXSelfServeBaseURL is the base URL for LFX Self-Serve, used to build project URLs in notification emails.
+	LFXSelfServeBaseURL string
 }
