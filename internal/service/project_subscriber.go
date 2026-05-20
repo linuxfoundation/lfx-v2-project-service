@@ -344,43 +344,63 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	// Look up the project UID from the mapping.
 	projectUID, err := s.ProjectRepository.GetProjectUIDByInviteUID(ctx, event.InviteUID)
 	if err != nil {
-		// Not found means this invite belongs to another service — silently ignore.
-		slog.DebugContext(ctx, "project_subscriber: invite not tracked by this service — ignoring",
-			"invite_uid", event.InviteUID)
+		if errors.Is(err, domain.ErrInviteMappingNotFound) {
+			// No mapping means this invite belongs to another service — silently ignore.
+			slog.DebugContext(ctx, "project_subscriber: invite not tracked by this service — ignoring",
+				"invite_uid", event.InviteUID)
+			return nil
+		}
+		slog.WarnContext(ctx, "project_subscriber: KV error looking up invite mapping",
+			constants.ErrKey, err, "invite_uid", event.InviteUID)
 		return nil
 	}
 
-	settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
-	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite acceptance",
-			constants.ErrKey, err, "project_uid", projectUID, "invite_uid", event.InviteUID)
-		return nil
-	}
+	const maxPromoteRetries = 3
+	var (
+		settings *models.ProjectSettings
+		promoted bool
+	)
+	for attempt := range maxPromoteRetries {
+		var revision uint64
+		var settingsErr error
+		settings, revision, settingsErr = s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if settingsErr != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite acceptance",
+				constants.ErrKey, settingsErr, "project_uid", projectUID, "invite_uid", event.InviteUID)
+			return nil
+		}
 
-	promoted := false
-	for _, slice := range []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators} {
-		for i := range *slice {
-			if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
-				(*slice)[i].Username = event.Username
-				(*slice)[i].Invite = nil
-				promoted = true
+		promoted = false
+		for _, slice := range []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators} {
+			for i := range *slice {
+				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
+					(*slice)[i].Username = event.Username
+					(*slice)[i].Invite = nil
+					promoted = true
+				}
 			}
 		}
-	}
 
-	if !promoted {
-		slog.WarnContext(ctx, "project_subscriber: invite UID not found in any role slice — stale mapping, cleaning up",
-			"invite_uid", event.InviteUID, "project_uid", projectUID)
-		if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
-			slog.WarnContext(ctx, "project_subscriber: failed to delete stale invite mapping", constants.ErrKey, delErr, "invite_uid", event.InviteUID)
+		if !promoted {
+			slog.WarnContext(ctx, "project_subscriber: invite UID not found in any role slice — stale mapping, cleaning up",
+				"invite_uid", event.InviteUID, "project_uid", projectUID)
+			if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to delete stale invite mapping", constants.ErrKey, delErr, "invite_uid", event.InviteUID)
+			}
+			return nil
 		}
-		return nil
-	}
 
-	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to update settings after invite acceptance",
-			constants.ErrKey, err, "project_uid", projectUID, "invite_uid", event.InviteUID)
-		return nil
+		updateErr := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision)
+		if updateErr == nil {
+			break
+		}
+		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxPromoteRetries-1 {
+			slog.WarnContext(ctx, "project_subscriber: failed to update settings after invite acceptance",
+				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", event.InviteUID)
+			return nil
+		}
+		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting invite — retrying",
+			"attempt", attempt+1, "invite_uid", event.InviteUID)
 	}
 
 	if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {

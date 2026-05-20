@@ -431,7 +431,7 @@ func (s *NatsRepository) GetProjectUIDByInviteUID(ctx context.Context, inviteUID
 	entry, err := s.ProjectSettings.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return "", domain.ErrProjectNotFound
+			return "", domain.ErrInviteMappingNotFound
 		}
 		slog.ErrorContext(ctx, "error reading invite mapping from NATS KV store", constants.ErrKey, err, "invite_uid", inviteUID)
 		return "", domain.ErrInternal
