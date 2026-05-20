@@ -74,30 +74,34 @@ func ParseEndpoint(
 		membershipServiceGetProjectMembershipIfModifiedSinceFlag = membershipServiceGetProjectMembershipFlags.String("if-modified-since", "", "")
 
 		membershipServiceGetKeyContactFlags               = flag.NewFlagSet("get-key-contact", flag.ExitOnError)
+		membershipServiceGetKeyContactMembershipUIDFlag   = membershipServiceGetKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
 		membershipServiceGetKeyContactUIDFlag             = membershipServiceGetKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
 		membershipServiceGetKeyContactVersionFlag         = membershipServiceGetKeyContactFlags.String("version", "", "")
 		membershipServiceGetKeyContactBearerTokenFlag     = membershipServiceGetKeyContactFlags.String("bearer-token", "", "")
 		membershipServiceGetKeyContactIfNoneMatchFlag     = membershipServiceGetKeyContactFlags.String("if-none-match", "", "")
 		membershipServiceGetKeyContactIfModifiedSinceFlag = membershipServiceGetKeyContactFlags.String("if-modified-since", "", "")
 
-		membershipServiceCreateKeyContactFlags           = flag.NewFlagSet("create-key-contact", flag.ExitOnError)
-		membershipServiceCreateKeyContactBodyFlag        = membershipServiceCreateKeyContactFlags.String("body", "REQUIRED", "")
-		membershipServiceCreateKeyContactVersionFlag     = membershipServiceCreateKeyContactFlags.String("version", "", "")
-		membershipServiceCreateKeyContactBearerTokenFlag = membershipServiceCreateKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceCreateKeyContactFlags             = flag.NewFlagSet("create-key-contact", flag.ExitOnError)
+		membershipServiceCreateKeyContactBodyFlag          = membershipServiceCreateKeyContactFlags.String("body", "REQUIRED", "")
+		membershipServiceCreateKeyContactMembershipUIDFlag = membershipServiceCreateKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
+		membershipServiceCreateKeyContactVersionFlag       = membershipServiceCreateKeyContactFlags.String("version", "", "")
+		membershipServiceCreateKeyContactBearerTokenFlag   = membershipServiceCreateKeyContactFlags.String("bearer-token", "", "")
 
 		membershipServiceUpdateKeyContactFlags                 = flag.NewFlagSet("update-key-contact", flag.ExitOnError)
 		membershipServiceUpdateKeyContactBodyFlag              = membershipServiceUpdateKeyContactFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateKeyContactMembershipUIDFlag     = membershipServiceUpdateKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
 		membershipServiceUpdateKeyContactUIDFlag               = membershipServiceUpdateKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
 		membershipServiceUpdateKeyContactVersionFlag           = membershipServiceUpdateKeyContactFlags.String("version", "", "")
 		membershipServiceUpdateKeyContactBearerTokenFlag       = membershipServiceUpdateKeyContactFlags.String("bearer-token", "", "")
 		membershipServiceUpdateKeyContactIfMatchFlag           = membershipServiceUpdateKeyContactFlags.String("if-match", "", "")
 		membershipServiceUpdateKeyContactIfUnmodifiedSinceFlag = membershipServiceUpdateKeyContactFlags.String("if-unmodified-since", "", "")
 
-		membershipServiceDeleteKeyContactFlags           = flag.NewFlagSet("delete-key-contact", flag.ExitOnError)
-		membershipServiceDeleteKeyContactUIDFlag         = membershipServiceDeleteKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
-		membershipServiceDeleteKeyContactVersionFlag     = membershipServiceDeleteKeyContactFlags.String("version", "", "")
-		membershipServiceDeleteKeyContactBearerTokenFlag = membershipServiceDeleteKeyContactFlags.String("bearer-token", "", "")
-		membershipServiceDeleteKeyContactIfMatchFlag     = membershipServiceDeleteKeyContactFlags.String("if-match", "", "")
+		membershipServiceDeleteKeyContactFlags             = flag.NewFlagSet("delete-key-contact", flag.ExitOnError)
+		membershipServiceDeleteKeyContactMembershipUIDFlag = membershipServiceDeleteKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
+		membershipServiceDeleteKeyContactUIDFlag           = membershipServiceDeleteKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
+		membershipServiceDeleteKeyContactVersionFlag       = membershipServiceDeleteKeyContactFlags.String("version", "", "")
+		membershipServiceDeleteKeyContactBearerTokenFlag   = membershipServiceDeleteKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceDeleteKeyContactIfMatchFlag       = membershipServiceDeleteKeyContactFlags.String("if-match", "", "")
 
 		membershipServiceAdminReindexFlags           = flag.NewFlagSet("admin-reindex", flag.ExitOnError)
 		membershipServiceAdminReindexBodyFlag        = membershipServiceAdminReindexFlags.String("body", "REQUIRED", "")
@@ -233,16 +237,16 @@ func ParseEndpoint(
 				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag, *membershipServiceGetProjectMembershipIfNoneMatchFlag, *membershipServiceGetProjectMembershipIfModifiedSinceFlag)
 			case "get-key-contact":
 				endpoint = c.GetKeyContact()
-				data, err = membershipservicec.BuildGetKeyContactPayload(*membershipServiceGetKeyContactUIDFlag, *membershipServiceGetKeyContactVersionFlag, *membershipServiceGetKeyContactBearerTokenFlag, *membershipServiceGetKeyContactIfNoneMatchFlag, *membershipServiceGetKeyContactIfModifiedSinceFlag)
+				data, err = membershipservicec.BuildGetKeyContactPayload(*membershipServiceGetKeyContactMembershipUIDFlag, *membershipServiceGetKeyContactUIDFlag, *membershipServiceGetKeyContactVersionFlag, *membershipServiceGetKeyContactBearerTokenFlag, *membershipServiceGetKeyContactIfNoneMatchFlag, *membershipServiceGetKeyContactIfModifiedSinceFlag)
 			case "create-key-contact":
 				endpoint = c.CreateKeyContact()
-				data, err = membershipservicec.BuildCreateKeyContactPayload(*membershipServiceCreateKeyContactBodyFlag, *membershipServiceCreateKeyContactVersionFlag, *membershipServiceCreateKeyContactBearerTokenFlag)
+				data, err = membershipservicec.BuildCreateKeyContactPayload(*membershipServiceCreateKeyContactBodyFlag, *membershipServiceCreateKeyContactMembershipUIDFlag, *membershipServiceCreateKeyContactVersionFlag, *membershipServiceCreateKeyContactBearerTokenFlag)
 			case "update-key-contact":
 				endpoint = c.UpdateKeyContact()
-				data, err = membershipservicec.BuildUpdateKeyContactPayload(*membershipServiceUpdateKeyContactBodyFlag, *membershipServiceUpdateKeyContactUIDFlag, *membershipServiceUpdateKeyContactVersionFlag, *membershipServiceUpdateKeyContactBearerTokenFlag, *membershipServiceUpdateKeyContactIfMatchFlag, *membershipServiceUpdateKeyContactIfUnmodifiedSinceFlag)
+				data, err = membershipservicec.BuildUpdateKeyContactPayload(*membershipServiceUpdateKeyContactBodyFlag, *membershipServiceUpdateKeyContactMembershipUIDFlag, *membershipServiceUpdateKeyContactUIDFlag, *membershipServiceUpdateKeyContactVersionFlag, *membershipServiceUpdateKeyContactBearerTokenFlag, *membershipServiceUpdateKeyContactIfMatchFlag, *membershipServiceUpdateKeyContactIfUnmodifiedSinceFlag)
 			case "delete-key-contact":
 				endpoint = c.DeleteKeyContact()
-				data, err = membershipservicec.BuildDeleteKeyContactPayload(*membershipServiceDeleteKeyContactUIDFlag, *membershipServiceDeleteKeyContactVersionFlag, *membershipServiceDeleteKeyContactBearerTokenFlag, *membershipServiceDeleteKeyContactIfMatchFlag)
+				data, err = membershipservicec.BuildDeleteKeyContactPayload(*membershipServiceDeleteKeyContactMembershipUIDFlag, *membershipServiceDeleteKeyContactUIDFlag, *membershipServiceDeleteKeyContactVersionFlag, *membershipServiceDeleteKeyContactBearerTokenFlag, *membershipServiceDeleteKeyContactIfMatchFlag)
 			case "admin-reindex":
 				endpoint = c.AdminReindex()
 				data, err = membershipservicec.BuildAdminReindexPayload(*membershipServiceAdminReindexBodyFlag, *membershipServiceAdminReindexVersionFlag, *membershipServiceAdminReindexBearerTokenFlag)
@@ -329,7 +333,7 @@ func membershipServiceCreateB2bOrgUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org --body '{\n      \"parent_sfid\": \"001Hs00001AbCdEFAZ\",\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org --body '{\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateB2bOrgUsage() {
@@ -389,6 +393,7 @@ func membershipServiceGetProjectMembershipUsage() {
 func membershipServiceGetKeyContactUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-key-contact", os.Args[0])
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
@@ -401,6 +406,7 @@ func membershipServiceGetKeyContactUsage() {
 	fmt.Fprintln(os.Stderr, `Get a specific key contact by UID`)
 
 	// Flags list
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
 	fmt.Fprintln(os.Stderr, `    -uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
@@ -409,13 +415,14 @@ func membershipServiceGetKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-key-contact --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-key-contact --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceCreateKeyContactUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service create-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
@@ -426,18 +433,20 @@ func membershipServiceCreateKeyContactUsage() {
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-key-contact --body '{\n      \"b2b_org_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"membership_uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\",\n      \"primary_contact\": false,\n      \"project_uid\": \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\",\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateKeyContactUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
@@ -451,6 +460,7 @@ func membershipServiceUpdateKeyContactUsage() {
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
 	fmt.Fprintln(os.Stderr, `    -uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
@@ -459,12 +469,13 @@ func membershipServiceUpdateKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceDeleteKeyContactUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service delete-key-contact", os.Args[0])
+	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
@@ -476,6 +487,7 @@ func membershipServiceDeleteKeyContactUsage() {
 	fmt.Fprintln(os.Stderr, `Delete a key contact`)
 
 	// Flags list
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
 	fmt.Fprintln(os.Stderr, `    -uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
@@ -483,7 +495,7 @@ func membershipServiceDeleteKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-key-contact --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-key-contact --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceAdminReindexUsage() {

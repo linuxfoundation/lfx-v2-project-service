@@ -823,16 +823,18 @@ func DecodeGetProjectMembershipResponse(decoder func(*http.Response) goahttp.Dec
 // path set to call the "membership-service" service "get-key-contact" endpoint
 func (c *Client) BuildGetKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		uid string
+		membershipUID string
+		uid           string
 	)
 	{
 		p, ok := v.(*membershipservice.GetKeyContactPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("membership-service", "get-key-contact", "*membershipservice.GetKeyContactPayload", v)
 		}
+		membershipUID = p.MembershipUID
 		uid = p.UID
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetKeyContactMembershipServicePath(uid)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetKeyContactMembershipServicePath(membershipUID, uid)}
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "get-key-contact", u.String(), err)
@@ -1025,7 +1027,17 @@ func DecodeGetKeyContactResponse(decoder func(*http.Response) goahttp.Decoder, r
 // and path set to call the "membership-service" service "create-key-contact"
 // endpoint
 func (c *Client) BuildCreateKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateKeyContactMembershipServicePath()}
+	var (
+		membershipUID string
+	)
+	{
+		p, ok := v.(*membershipservice.CreateKeyContactPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "create-key-contact", "*membershipservice.CreateKeyContactPayload", v)
+		}
+		membershipUID = p.MembershipUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateKeyContactMembershipServicePath(membershipUID)}
 	req, err := http.NewRequest("POST", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "create-key-contact", u.String(), err)
@@ -1073,6 +1085,7 @@ func EncodeCreateKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) 
 //   - "NotImplemented" (type *goa.ServiceError): http.StatusNotImplemented
 //   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
 //   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
 //   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
 //   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
@@ -1161,6 +1174,20 @@ func DecodeCreateKeyContactResponse(decoder func(*http.Response) goahttp.Decoder
 				return nil, goahttp.ErrValidationError("membership-service", "create-key-contact", err)
 			}
 			return nil, NewCreateKeyContactBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body CreateKeyContactConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-key-contact", err)
+			}
+			err = ValidateCreateKeyContactConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-key-contact", err)
+			}
+			return nil, NewCreateKeyContactConflict(&body)
 		case http.StatusPreconditionFailed:
 			var (
 				body CreateKeyContactPreconditionFailedResponseBody
@@ -1215,16 +1242,18 @@ func DecodeCreateKeyContactResponse(decoder func(*http.Response) goahttp.Decoder
 // endpoint
 func (c *Client) BuildUpdateKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		uid string
+		membershipUID string
+		uid           string
 	)
 	{
 		p, ok := v.(*membershipservice.UpdateKeyContactPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("membership-service", "update-key-contact", "*membershipservice.UpdateKeyContactPayload", v)
 		}
+		membershipUID = p.MembershipUID
 		uid = p.UID
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateKeyContactMembershipServicePath(uid)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateKeyContactMembershipServicePath(membershipUID, uid)}
 	req, err := http.NewRequest("PUT", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "update-key-contact", u.String(), err)
@@ -1280,6 +1309,7 @@ func EncodeUpdateKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) 
 //   - "NotImplemented" (type *goa.ServiceError): http.StatusNotImplemented
 //   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
 //   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
 //   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
 //   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
@@ -1368,6 +1398,20 @@ func DecodeUpdateKeyContactResponse(decoder func(*http.Response) goahttp.Decoder
 				return nil, goahttp.ErrValidationError("membership-service", "update-key-contact", err)
 			}
 			return nil, NewUpdateKeyContactBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateKeyContactConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-key-contact", err)
+			}
+			err = ValidateUpdateKeyContactConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-key-contact", err)
+			}
+			return nil, NewUpdateKeyContactConflict(&body)
 		case http.StatusPreconditionFailed:
 			var (
 				body UpdateKeyContactPreconditionFailedResponseBody
@@ -1422,16 +1466,18 @@ func DecodeUpdateKeyContactResponse(decoder func(*http.Response) goahttp.Decoder
 // endpoint
 func (c *Client) BuildDeleteKeyContactRequest(ctx context.Context, v any) (*http.Request, error) {
 	var (
-		uid string
+		membershipUID string
+		uid           string
 	)
 	{
 		p, ok := v.(*membershipservice.DeleteKeyContactPayload)
 		if !ok {
 			return nil, goahttp.ErrInvalidType("membership-service", "delete-key-contact", "*membershipservice.DeleteKeyContactPayload", v)
 		}
+		membershipUID = p.MembershipUID
 		uid = p.UID
 	}
-	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteKeyContactMembershipServicePath(uid)}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteKeyContactMembershipServicePath(membershipUID, uid)}
 	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
 		return nil, goahttp.ErrInvalidURL("membership-service", "delete-key-contact", u.String(), err)

@@ -33,23 +33,23 @@ func GetProjectMembershipMembershipServicePath(uid string) string {
 }
 
 // GetKeyContactMembershipServicePath returns the URL path to the membership-service service get-key-contact HTTP endpoint.
-func GetKeyContactMembershipServicePath(uid string) string {
-	return fmt.Sprintf("/key_contacts/%v", uid)
+func GetKeyContactMembershipServicePath(membershipUID string, uid string) string {
+	return fmt.Sprintf("/project_memberships/%v/key_contacts/%v", membershipUID, uid)
 }
 
 // CreateKeyContactMembershipServicePath returns the URL path to the membership-service service create-key-contact HTTP endpoint.
-func CreateKeyContactMembershipServicePath() string {
-	return "/key_contacts"
+func CreateKeyContactMembershipServicePath(membershipUID string) string {
+	return fmt.Sprintf("/project_memberships/%v/key_contacts", membershipUID)
 }
 
 // UpdateKeyContactMembershipServicePath returns the URL path to the membership-service service update-key-contact HTTP endpoint.
-func UpdateKeyContactMembershipServicePath(uid string) string {
-	return fmt.Sprintf("/key_contacts/%v", uid)
+func UpdateKeyContactMembershipServicePath(membershipUID string, uid string) string {
+	return fmt.Sprintf("/project_memberships/%v/key_contacts/%v", membershipUID, uid)
 }
 
 // DeleteKeyContactMembershipServicePath returns the URL path to the membership-service service delete-key-contact HTTP endpoint.
-func DeleteKeyContactMembershipServicePath(uid string) string {
-	return fmt.Sprintf("/key_contacts/%v", uid)
+func DeleteKeyContactMembershipServicePath(membershipUID string, uid string) string {
+	return fmt.Sprintf("/project_memberships/%v/key_contacts/%v", membershipUID, uid)
 }
 
 // AdminReindexMembershipServicePath returns the URL path to the membership-service service admin-reindex HTTP endpoint.

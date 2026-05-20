@@ -19,4 +19,7 @@ const (
 
 	// FGASyncDeleteAccessSubject is the NATS subject for FGA delete-access messages.
 	FGASyncDeleteAccessSubject = "lfx.fga-sync.delete_access"
+
+	// AuthEmailToSubLookupSubject is the NATS RPC subject for resolving email to OIDC sub.
+	AuthEmailToSubLookupSubject = "lfx.auth-service.email_to_sub"
 )

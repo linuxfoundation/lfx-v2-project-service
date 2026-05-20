@@ -155,32 +155,6 @@ func TestBuildAccountPatch(t *testing.T) {
 			want:    map[string]any{"Name": "ACME Corp"},
 			wantErr: false,
 		},
-		{
-			name: "ParentUID set translates to ParentId SFID",
-			input: func() model.B2BOrgInput {
-				parentUID, err := sfuuid.ToUUID(canonicalAccountSFID)
-				if err != nil {
-					panic(err)
-				}
-				return model.B2BOrgInput{ParentUID: &parentUID}
-			}(),
-			want:    map[string]any{"ParentId": canonicalAccountSFID},
-			wantErr: false,
-		},
-		{
-			name:    "ParentUID nil is no-op",
-			input:   model.B2BOrgInput{ParentUID: nil},
-			want:    map[string]any{},
-			wantErr: false,
-		},
-		{
-			name: "ParentUID invalid UUID returns error",
-			input: model.B2BOrgInput{
-				ParentUID: func() *string { s := "not-a-valid-uid"; return &s }(),
-			},
-			want:    nil,
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {

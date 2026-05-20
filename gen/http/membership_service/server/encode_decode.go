@@ -727,6 +727,7 @@ func DecodeGetKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 	return func(r *http.Request) (*membershipservice.GetKeyContactPayload, error) {
 		var payload *membershipservice.GetKeyContactPayload
 		var (
+			membershipUID   string
 			uid             string
 			version         *string
 			bearerToken     *string
@@ -736,6 +737,8 @@ func DecodeGetKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 
 			params = mux.Vars(r)
 		)
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		uid = params["uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
@@ -762,7 +765,7 @@ func DecodeGetKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 		if err != nil {
 			return payload, err
 		}
-		payload = NewGetKeyContactPayload(uid, version, bearerToken, ifNoneMatch, ifModifiedSince)
+		payload = NewGetKeyContactPayload(membershipUID, uid, version, bearerToken, ifNoneMatch, ifModifiedSince)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -913,9 +916,14 @@ func DecodeCreateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		}
 
 		var (
-			version     *string
-			bearerToken *string
+			membershipUID string
+			version       *string
+			bearerToken   *string
+
+			params = mux.Vars(r)
 		)
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -932,7 +940,7 @@ func DecodeCreateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		if err != nil {
 			return payload, err
 		}
-		payload = NewCreateKeyContactPayload(&body, version, bearerToken)
+		payload = NewCreateKeyContactPayload(&body, membershipUID, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -993,6 +1001,19 @@ func EncodeCreateKeyContactError(encoder func(context.Context, http.ResponseWrit
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "Conflict":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewCreateKeyContactConflictResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusConflict)
 			return enc.Encode(body)
 		case "PreconditionFailed":
 			var res *goa.ServiceError
@@ -1077,8 +1098,13 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 			}
 			return payload, goa.DecodePayloadError(err.Error())
 		}
+		err = ValidateUpdateKeyContactRequestBody(&body)
+		if err != nil {
+			return payload, err
+		}
 
 		var (
+			membershipUID     string
 			uid               string
 			version           *string
 			bearerToken       *string
@@ -1087,6 +1113,8 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 
 			params = mux.Vars(r)
 		)
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		uid = params["uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
@@ -1113,7 +1141,7 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateKeyContactPayload(&body, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
+		payload = NewUpdateKeyContactPayload(&body, membershipUID, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -1175,6 +1203,19 @@ func EncodeUpdateKeyContactError(encoder func(context.Context, http.ResponseWrit
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusBadRequest)
 			return enc.Encode(body)
+		case "Conflict":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateKeyContactConflictResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusConflict)
+			return enc.Encode(body)
 		case "PreconditionFailed":
 			var res *goa.ServiceError
 			errors.As(v, &res)
@@ -1235,14 +1276,17 @@ func DecodeDeleteKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 	return func(r *http.Request) (*membershipservice.DeleteKeyContactPayload, error) {
 		var payload *membershipservice.DeleteKeyContactPayload
 		var (
-			uid         string
-			version     *string
-			bearerToken *string
-			ifMatch     *string
-			err         error
+			membershipUID string
+			uid           string
+			version       *string
+			bearerToken   *string
+			ifMatch       *string
+			err           error
 
 			params = mux.Vars(r)
 		)
+		membershipUID = params["membership_uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		uid = params["uid"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
@@ -1265,7 +1309,7 @@ func DecodeDeleteKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		if err != nil {
 			return payload, err
 		}
-		payload = NewDeleteKeyContactPayload(uid, version, bearerToken, ifMatch)
+		payload = NewDeleteKeyContactPayload(membershipUID, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")

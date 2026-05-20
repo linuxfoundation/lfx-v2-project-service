@@ -139,9 +139,6 @@ type CreateB2bOrgPayload struct {
 	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
 	// record
 	Sfid string
-	// Salesforce Account.Id of the parent organization; sets Account.ParentId in
-	// Salesforce
-	ParentSfid *string
 }
 
 // CreateB2bOrgResult is the result type of the membership-service service
@@ -162,11 +159,7 @@ type CreateKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// UID of the B2B organization (Account)
-	B2bOrgUID string
-	// V2 project UUID
-	ProjectUID string
-	// Membership UID
+	// Parent membership UID
 	MembershipUID string
 	// Contact email address; used to resolve or create the Salesforce Contact
 	// record
@@ -175,10 +168,12 @@ type CreateKeyContactPayload struct {
 	FirstName string
 	// Contact last name; used when creating a new Contact on miss
 	LastName string
-	// Contact job title; used when creating a new Contact on miss
+	// Contact job title. Only persisted when a new Salesforce Contact is created
+	// (email resolves to an unknown address); ignored if the Contact already
+	// exists.
 	Title *string
-	// Contact role designation, e.g. 'Voting Representative'
-	Role *string
+	// Contact role designation
+	Role string
 	// Role record status, e.g. 'Active'
 	Status *string
 	// Whether this contact holds a board member role
@@ -205,6 +200,8 @@ type DeleteKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
 	UID string
 	// If-Match header value for conditional requests
@@ -244,6 +241,8 @@ type GetKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
 	UID string
 	// If-None-Match header value for conditional requests
@@ -442,13 +441,17 @@ type UpdateKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
 	UID string
 	// If-Match header value for conditional requests
 	IfMatch *string
 	// If-Unmodified-Since header value for conditional requests (HTTP date format)
 	IfUnmodifiedSince *string
-	// Contact role designation, e.g. 'Voting Representative'
+	// Contact email address; normalized to lowercase before update
+	Email *string
+	// Contact role designation
 	Role *string
 	// Role record status, e.g. 'Active'
 	Status *string
@@ -456,7 +459,9 @@ type UpdateKeyContactPayload struct {
 	BoardMember *bool
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool
-	// Contact job title
+	// Contact job title. Only persisted when the email change resolves to an
+	// unknown address and a new Salesforce Contact is created; ignored if the
+	// Contact already exists.
 	Title *string
 }
 
@@ -499,4 +504,9 @@ func MakeInternalServerError(err error) *goa.ServiceError {
 // MakeServiceUnavailable builds a goa.ServiceError from an error.
 func MakeServiceUnavailable(err error) *goa.ServiceError {
 	return goa.NewServiceError(err, "ServiceUnavailable", false, true, false)
+}
+
+// MakeConflict builds a goa.ServiceError from an error.
+func MakeConflict(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "Conflict", false, false, false)
 }

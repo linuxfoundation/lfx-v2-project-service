@@ -19,9 +19,6 @@ type CreateB2bOrgRequestBody struct {
 	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
 	// record
 	Sfid string `form:"sfid" json:"sfid" xml:"sfid"`
-	// Salesforce Account.Id of the parent organization; sets Account.ParentId in
-	// Salesforce
-	ParentSfid *string `form:"parent_sfid,omitempty" json:"parent_sfid,omitempty" xml:"parent_sfid,omitempty"`
 }
 
 // UpdateB2bOrgRequestBody is the type of the "membership-service" service
@@ -53,12 +50,6 @@ type UpdateB2bOrgRequestBody struct {
 // CreateKeyContactRequestBody is the type of the "membership-service" service
 // "create-key-contact" endpoint HTTP request body.
 type CreateKeyContactRequestBody struct {
-	// UID of the B2B organization (Account)
-	B2bOrgUID string `form:"b2b_org_uid" json:"b2b_org_uid" xml:"b2b_org_uid"`
-	// V2 project UUID
-	ProjectUID string `form:"project_uid" json:"project_uid" xml:"project_uid"`
-	// Membership UID
-	MembershipUID string `form:"membership_uid" json:"membership_uid" xml:"membership_uid"`
 	// Contact email address; used to resolve or create the Salesforce Contact
 	// record
 	Email string `form:"email" json:"email" xml:"email"`
@@ -66,10 +57,12 @@ type CreateKeyContactRequestBody struct {
 	FirstName string `form:"first_name" json:"first_name" xml:"first_name"`
 	// Contact last name; used when creating a new Contact on miss
 	LastName string `form:"last_name" json:"last_name" xml:"last_name"`
-	// Contact job title; used when creating a new Contact on miss
+	// Contact job title. Only persisted when a new Salesforce Contact is created
+	// (email resolves to an unknown address); ignored if the Contact already
+	// exists.
 	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
-	// Contact role designation, e.g. 'Voting Representative'
-	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
+	// Contact role designation
+	Role string `form:"role" json:"role" xml:"role"`
 	// Role record status, e.g. 'Active'
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
 	// Whether this contact holds a board member role
@@ -81,7 +74,9 @@ type CreateKeyContactRequestBody struct {
 // UpdateKeyContactRequestBody is the type of the "membership-service" service
 // "update-key-contact" endpoint HTTP request body.
 type UpdateKeyContactRequestBody struct {
-	// Contact role designation, e.g. 'Voting Representative'
+	// Contact email address; normalized to lowercase before update
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// Contact role designation
 	Role *string `form:"role,omitempty" json:"role,omitempty" xml:"role,omitempty"`
 	// Role record status, e.g. 'Active'
 	Status *string `form:"status,omitempty" json:"status,omitempty" xml:"status,omitempty"`
@@ -89,7 +84,9 @@ type UpdateKeyContactRequestBody struct {
 	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
-	// Contact job title
+	// Contact job title. Only persisted when the email change resolves to an
+	// unknown address and a new Salesforce Contact is created; ignored if the
+	// Contact already exists.
 	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
 }
 
@@ -760,6 +757,25 @@ type CreateKeyContactBadRequestResponseBody struct {
 	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
 }
 
+// CreateKeyContactConflictResponseBody is the type of the "membership-service"
+// service "create-key-contact" endpoint HTTP response body for the "Conflict"
+// error.
+type CreateKeyContactConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
 // CreateKeyContactPreconditionFailedResponseBody is the type of the
 // "membership-service" service "create-key-contact" endpoint HTTP response
 // body for the "PreconditionFailed" error.
@@ -859,6 +875,25 @@ type UpdateKeyContactNotFoundResponseBody struct {
 // "membership-service" service "update-key-contact" endpoint HTTP response
 // body for the "BadRequest" error.
 type UpdateKeyContactBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateKeyContactConflictResponseBody is the type of the "membership-service"
+// service "update-key-contact" endpoint HTTP response body for the "Conflict"
+// error.
+type UpdateKeyContactConflictResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -1324,8 +1359,7 @@ type ProjectKeyContactResponseResponseBody struct {
 // the "create-b2b-org" endpoint of the "membership-service" service.
 func NewCreateB2bOrgRequestBody(p *membershipservice.CreateB2bOrgPayload) *CreateB2bOrgRequestBody {
 	body := &CreateB2bOrgRequestBody{
-		Sfid:       p.Sfid,
-		ParentSfid: p.ParentSfid,
+		Sfid: p.Sfid,
 	}
 	return body
 }
@@ -1352,9 +1386,6 @@ func NewUpdateB2bOrgRequestBody(p *membershipservice.UpdateB2bOrgPayload) *Updat
 // of the "create-key-contact" endpoint of the "membership-service" service.
 func NewCreateKeyContactRequestBody(p *membershipservice.CreateKeyContactPayload) *CreateKeyContactRequestBody {
 	body := &CreateKeyContactRequestBody{
-		B2bOrgUID:      p.B2bOrgUID,
-		ProjectUID:     p.ProjectUID,
-		MembershipUID:  p.MembershipUID,
 		Email:          p.Email,
 		FirstName:      p.FirstName,
 		LastName:       p.LastName,
@@ -1371,6 +1402,7 @@ func NewCreateKeyContactRequestBody(p *membershipservice.CreateKeyContactPayload
 // of the "update-key-contact" endpoint of the "membership-service" service.
 func NewUpdateKeyContactRequestBody(p *membershipservice.UpdateKeyContactPayload) *UpdateKeyContactRequestBody {
 	body := &UpdateKeyContactRequestBody{
+		Email:          p.Email,
 		Role:           p.Role,
 		Status:         p.Status,
 		BoardMember:    p.BoardMember,
@@ -2103,6 +2135,21 @@ func NewCreateKeyContactBadRequest(body *CreateKeyContactBadRequestResponseBody)
 	return v
 }
 
+// NewCreateKeyContactConflict builds a membership-service service
+// create-key-contact endpoint Conflict error.
+func NewCreateKeyContactConflict(body *CreateKeyContactConflictResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
 // NewCreateKeyContactPreconditionFailed builds a membership-service service
 // create-key-contact endpoint PreconditionFailed error.
 func NewCreateKeyContactPreconditionFailed(body *CreateKeyContactPreconditionFailedResponseBody) *goa.ServiceError {
@@ -2213,6 +2260,21 @@ func NewUpdateKeyContactNotFound(body *UpdateKeyContactNotFoundResponseBody) *go
 // NewUpdateKeyContactBadRequest builds a membership-service service
 // update-key-contact endpoint BadRequest error.
 func NewUpdateKeyContactBadRequest(body *UpdateKeyContactBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateKeyContactConflict builds a membership-service service
+// update-key-contact endpoint Conflict error.
+func NewUpdateKeyContactConflict(body *UpdateKeyContactConflictResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
 		Name:      *body.Name,
 		ID:        *body.ID,
@@ -3450,6 +3512,30 @@ func ValidateCreateKeyContactBadRequestResponseBody(body *CreateKeyContactBadReq
 	return
 }
 
+// ValidateCreateKeyContactConflictResponseBody runs the validations defined on
+// create-key-contact_Conflict_response_body
+func ValidateCreateKeyContactConflictResponseBody(body *CreateKeyContactConflictResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
 // ValidateCreateKeyContactPreconditionFailedResponseBody runs the validations
 // defined on create-key-contact_PreconditionFailed_response_body
 func ValidateCreateKeyContactPreconditionFailedResponseBody(body *CreateKeyContactPreconditionFailedResponseBody) (err error) {
@@ -3573,6 +3659,30 @@ func ValidateUpdateKeyContactNotFoundResponseBody(body *UpdateKeyContactNotFound
 // ValidateUpdateKeyContactBadRequestResponseBody runs the validations defined
 // on update-key-contact_BadRequest_response_body
 func ValidateUpdateKeyContactBadRequestResponseBody(body *UpdateKeyContactBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateKeyContactConflictResponseBody runs the validations defined on
+// update-key-contact_Conflict_response_body
+func ValidateUpdateKeyContactConflictResponseBody(body *UpdateKeyContactConflictResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}

@@ -10,10 +10,12 @@ import (
 	"expvar"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	fgaConstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain"
@@ -23,8 +25,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
-	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
-
 	"goa.design/goa/v3/security"
 )
 
@@ -37,6 +37,8 @@ type membershipServicesrvc struct {
 	b2bOrgReader             port.B2BOrgReader
 	b2bOrgWriter             port.B2BOrgWriter
 	memberPublisher          port.MemberPublisher
+	projectMembershipReader  port.ProjectMembershipReader
+	userReader               port.UserReader
 	globalOrgAdminTeamUID    string
 }
 
@@ -96,7 +98,7 @@ func (s *membershipServicesrvc) GetB2bOrg(ctx context.Context, p *membershipserv
 		slog.WarnContext(ctx, "failed to compute etag for b2b org", "uid", p.UID, "error", etagErr)
 	}
 
-	lastMod := org.UpdatedAt.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+	lastMod := org.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 	result := &membershipservice.GetB2bOrgResult{
 		B2bOrg:       b2bOrgToResponse(org),
 		LastModified: &lastMod,
@@ -110,27 +112,19 @@ func (s *membershipServicesrvc) GetB2bOrg(ctx context.Context, p *membershipserv
 // CreateB2bOrg creates a new B2B organization record from an existing Salesforce Account.
 func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *membershipservice.CreateB2bOrgPayload) (*membershipservice.CreateB2bOrgResult, error) {
 	var createInput model.B2BOrgInput
-	if p.ParentSfid != nil {
-		parentUID, convErr := sfuuid.ToUUID(*p.ParentSfid)
-		if convErr != nil {
-			return nil, wrapError(ctx, pkgerrors.NewValidation(
-				fmt.Sprintf("invalid parent_sfid %q: %v", *p.ParentSfid, convErr)))
-		}
-		createInput.ParentUID = &parentUID
-	}
 	org, err := s.b2bOrgWriter.CreateB2BOrg(ctx, p.Sfid, createInput)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
 
-	s.publishB2BOrgEvents(ctx, org, indexerConstants.ActionCreated)
+	s.publishB2BOrgEvents(ctx, nil, org, indexerConstants.ActionCreated)
 
 	etagVal, etagErr := etag.LFXEtag(org)
 	if etagErr != nil {
 		slog.WarnContext(ctx, "failed to compute etag for b2b org", "uid", org.UID, "error", etagErr)
 	}
 
-	lastMod := org.UpdatedAt.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+	lastMod := org.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 	result := &membershipservice.CreateB2bOrgResult{
 		B2bOrg:       b2bOrgToResponse(org),
 		LastModified: &lastMod,
@@ -151,13 +145,15 @@ func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *memberships
 func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *membershipservice.UpdateB2bOrgPayload) (*membershipservice.UpdateB2bOrgResult, error) {
 	input := payloadToB2BOrgInput(p)
 
+	// Always fetch current to compute reparenting diff and populate If-Unmodified-Since.
+	current, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
 	// SF PATCH rejects If-Match (returns BAD_HEADER), so ETag validation is done
 	// here; we translate to If-Unmodified-Since for SF-side concurrency protection.
 	if p.IfMatch != nil && *p.IfMatch != "" {
-		current, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
-		if err != nil {
-			return nil, wrapError(ctx, err)
-		}
 		currentETag, err := etag.LFXEtag(current)
 		if err != nil {
 			return nil, wrapError(ctx, pkgerrors.NewUnexpected("failed to compute etag", err))
@@ -166,18 +162,17 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 			return nil, wrapError(ctx, pkgerrors.NewPreconditionFailed(
 				fmt.Sprintf("b2b org %s has been modified since last read (stale If-Match)", p.UID)))
 		}
-		input.IfUnmodifiedSince = current.UpdatedAt.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+		input.IfUnmodifiedSince = current.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 	}
 
 	if !input.HasChanges() {
-		org, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
-		if err != nil {
-			return nil, wrapError(ctx, err)
+		etagVal, etagErr := etag.LFXEtag(current)
+		if etagErr != nil {
+			slog.WarnContext(ctx, "failed to compute etag for b2b org", "uid", p.UID, "error", etagErr)
 		}
-		etagVal, _ := etag.LFXEtag(org)
-		lastMod := org.UpdatedAt.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+		lastMod := current.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 		result := &membershipservice.UpdateB2bOrgResult{
-			B2bOrg:       b2bOrgToResponse(org),
+			B2bOrg:       b2bOrgToResponse(current),
 			LastModified: &lastMod,
 		}
 		if etagVal != "" {
@@ -191,14 +186,14 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 		return nil, wrapError(ctx, err)
 	}
 
-	s.publishB2BOrgEvents(ctx, org, indexerConstants.ActionUpdated)
+	s.publishB2BOrgEvents(ctx, current, org, indexerConstants.ActionUpdated)
 
 	etagVal, etagErr := etag.LFXEtag(org)
 	if etagErr != nil {
 		slog.WarnContext(ctx, "failed to compute etag for b2b org", "uid", p.UID, "error", etagErr)
 	}
 
-	lastMod := org.UpdatedAt.UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+	lastMod := org.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 	result := &membershipservice.UpdateB2bOrgResult{
 		B2bOrg:       b2bOrgToResponse(org),
 		LastModified: &lastMod,
@@ -209,11 +204,81 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 	return result, nil
 }
 
-// publishB2BOrgEvents fans out an indexer message and an FGA update-access
-// message for the given org. Publish failures on the write path are swallowed
-// and logged with publish_failed_for_backfill_repair=true — the
-// /admin/reindex endpoint recovers missed records.
-func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, org *model.B2BOrg, action indexerConstants.MessageAction) {
+// publishKeyContactIndexer publishes the indexer message for a key contact.
+// Errors are swallowed and logged — /admin/reindex can recover missed records.
+func (s *membershipServicesrvc) publishKeyContactIndexer(ctx context.Context, kc *model.KeyContact, action indexerConstants.MessageAction) {
+	indexMsg := &model.MemberIndexerMessage{
+		Action:         action,
+		Tags:           kc.Tags(),
+		IndexingConfig: buildKeyContactIndexingConfig(kc),
+	}
+	builtMsg, err := indexMsg.Build(ctx, kc)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build key contact indexer message",
+			"uid", kc.UID,
+			"error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	if pubErr := s.memberPublisher.Indexer(ctx, constants.IndexKeyContactSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "key contact indexer publish failed",
+			"uid", kc.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// publishKeyContactFGAPut grants the key_contact relation on the parent
+// project_membership to the given sub. No-op when sub is empty.
+func (s *membershipServicesrvc) publishKeyContactFGAPut(ctx context.Context, membershipUID, sub string) {
+	if sub == "" {
+		return
+	}
+	msg := buildKeyContactFGAPutMessage(membershipUID, sub)
+	if pubErr := s.memberPublisher.Access(ctx, fgaConstants.GenericMemberPutSubject, msg, false); pubErr != nil {
+		slog.WarnContext(ctx, "key contact FGA put publish failed",
+			"membership_uid", membershipUID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// publishKeyContactFGARemove revokes the key_contact relation on the parent
+// project_membership from the given sub. Propagates errors (delete failures
+// leave dangling permissions). No-op when sub is empty.
+func (s *membershipServicesrvc) publishKeyContactFGARemove(ctx context.Context, membershipUID, sub string) error {
+	if sub == "" {
+		return nil
+	}
+	msg := buildKeyContactFGARemoveMessage(membershipUID, sub)
+	return s.memberPublisher.Access(ctx, fgaConstants.GenericMemberRemoveSubject, msg, false)
+}
+
+// resolveSubForContact resolves the OIDC subject for the given email, using the
+// persisted Username when already populated. Returns empty string on failure
+// (fail-open: record creation/update proceeds without FGA grant).
+func (s *membershipServicesrvc) resolveSubForContact(ctx context.Context, currentSub, email string) string {
+	if currentSub != "" {
+		return currentSub
+	}
+	if email == "" {
+		return ""
+	}
+	sub, err := s.userReader.SubByEmail(ctx, email)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to resolve user sub by email — FGA keycontact put will be skipped",
+			"email", email,
+			"error", err)
+		return ""
+	}
+	return sub
+}
+
+// publishB2BOrgEvents fans out an indexer message, an FGA update-access message,
+// and any b2b_org#parent reparenting messages for the given org. current is nil
+// on create. Publish failures are swallowed and logged with
+// publish_failed_for_backfill_repair=true — /admin/reindex recovers missed records.
+func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current, org *model.B2BOrg, action indexerConstants.MessageAction) {
 	indexMsg := &model.MemberIndexerMessage{
 		Action:         action,
 		Tags:           org.Tags(),
@@ -242,6 +307,14 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, org *mo
 		return s.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, fgaMsg, false)
 	})
 
+	// Emit b2b_org#parent FGA tuple(s) when ParentUID changes.
+	for _, parentMsg := range buildB2BOrgReparentingMessages(current, org) {
+		msg := parentMsg // capture loop var
+		g.Go(func() error {
+			return s.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, msg, false)
+		})
+	}
+
 	if pubErr := g.Wait(); pubErr != nil {
 		slog.WarnContext(ctx, "b2b org event publish failed",
 			"uid", org.UID,
@@ -250,33 +323,301 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, org *mo
 	}
 }
 
-// ── Project Memberships (Stubs) ───────────────────────────────────────────────
+// ── Project Memberships ──────────────────────────────────────────────────────
 
-// GetProjectMembership retrieves a single membership by UID.
+// GetProjectMembership retrieves a single membership by UID and assembles the
+// fully denormalised record from its constituent Salesforce objects.
 func (s *membershipServicesrvc) GetProjectMembership(ctx context.Context, p *membershipservice.GetProjectMembershipPayload) (*membershipservice.GetProjectMembershipResult, error) {
-	return nil, wrapError(ctx, pkgerrors.NewNotImplemented("get-project-membership not implemented"))
+	membership, lastMod, err := s.projectMembershipReader.AssembleProjectMembership(ctx, p.UID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	etagVal, etagErr := etag.LFXEtag(membership)
+	if etagErr != nil {
+		slog.WarnContext(ctx, "failed to compute etag for project membership", "uid", p.UID, "error", etagErr)
+	}
+
+	lastModStr := lastMod.UTC().Format(constants.HTTPDateFormat)
+	result := &membershipservice.GetProjectMembershipResult{
+		ProjectMembership: projectMembershipToResponse(membership),
+		LastModified:      &lastModStr,
+	}
+	if etagVal != "" {
+		result.Etag = &etagVal
+	}
+	return result, nil
 }
 
-// ── Key Contacts (Stubs) ──────────────────────────────────────────────────────
+// ── Key Contacts ─────────────────────────────────────────────────────────────
 
 // GetKeyContact retrieves a single key contact by UID.
 func (s *membershipServicesrvc) GetKeyContact(ctx context.Context, p *membershipservice.GetKeyContactPayload) (*membershipservice.GetKeyContactResult, error) {
-	return nil, wrapError(ctx, pkgerrors.NewNotImplemented("get-key-contact not implemented"))
+	kc, err := s.storage.GetKeyContact(ctx, p.UID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	// 404 (not 403) to avoid leaking existence of contacts in other memberships.
+	if kc.MembershipUID != p.MembershipUID {
+		return nil, wrapError(ctx, pkgerrors.NewNotFound(
+			fmt.Sprintf("key contact %s not found in membership %s", p.UID, p.MembershipUID)))
+	}
+
+	etagVal, etagErr := etag.LFXEtag(kc)
+	if etagErr != nil {
+		slog.WarnContext(ctx, "failed to compute etag for key contact", "uid", p.UID, "error", etagErr)
+	}
+
+	lastMod := kc.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+	result := &membershipservice.GetKeyContactResult{
+		KeyContact:   keyContactToResponse(kc),
+		LastModified: &lastMod,
+	}
+	if etagVal != "" {
+		result.Etag = &etagVal
+	}
+	return result, nil
 }
 
 // CreateKeyContact creates a new key contact.
 func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *membershipservice.CreateKeyContactPayload) (*membershipservice.CreateKeyContactResult, error) {
-	return nil, wrapError(ctx, pkgerrors.NewNotImplemented("create-key-contact not implemented"))
+	// Normalize and validate: lowercase email, trim names, check capacity, detect self-heal.
+	// Self-heal lookup is scoped to p.MembershipUID so a match on membership A never
+	// short-circuits a create on membership B (cross-membership leak prevention).
+	existing, err := s.normalizeAndValidateCreate(ctx, p)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	// Self-heal: if duplicate found, return it as-is without writer call or event publish.
+	// Publish is intentionally skipped — the record already exists in the indexer/FGA.
+	// If a prior publish silently failed, recovery is via /admin/reindex (see message_builders.go).
+	if existing != nil {
+		etagVal, etagErr := etag.LFXEtag(existing)
+		if etagErr != nil {
+			slog.WarnContext(ctx, "failed to compute etag for self-healed key contact", "uid", existing.UID, "error", etagErr)
+		}
+
+		lastMod := existing.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+		result := &membershipservice.CreateKeyContactResult{
+			KeyContact:   keyContactToResponse(existing),
+			LastModified: &lastMod,
+		}
+		if etagVal != "" {
+			result.Etag = &etagVal
+		}
+		return result, nil
+	}
+
+	// Derive b2b_org_uid and project_uid from the membership — callers no longer supply them.
+	pm, _, err := s.projectMembershipReader.AssembleProjectMembership(ctx, p.MembershipUID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	input := model.KeyContactInput{
+		Email:          &p.Email,
+		FirstName:      p.FirstName,
+		LastName:       p.LastName,
+		Title:          derefStr(p.Title),
+		MembershipUID:  p.MembershipUID,
+		ProjectUID:     pm.ProjectUID,
+		AccountSFID:    pm.B2BOrgUID,
+		Role:           &p.Role,
+		Status:         p.Status,
+		BoardMember:    p.BoardMember,
+		PrimaryContact: p.PrimaryContact,
+	}
+
+	kc, err := s.keyContactWriter.CreateKeyContact(ctx, input)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	// Resolve the OIDC sub and publish the keycontact FGA put. Indexer is always published.
+	// Username is not persisted to Salesforce or NATS cache — it is always re-resolved
+	// from the auth-service on subsequent reads (delete re-resolves via email by design).
+	sub := s.resolveSubForContact(ctx, "", kc.Email)
+	kc.Username = sub
+	s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionCreated)
+	s.publishKeyContactFGAPut(ctx, kc.MembershipUID, sub)
+
+	etagVal, etagErr := etag.LFXEtag(kc)
+	if etagErr != nil {
+		slog.WarnContext(ctx, "failed to compute etag for key contact", "uid", kc.UID, "error", etagErr)
+	}
+
+	lastMod := kc.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+	result := &membershipservice.CreateKeyContactResult{
+		KeyContact:   keyContactToResponse(kc),
+		LastModified: &lastMod,
+	}
+	if etagVal != "" {
+		result.Etag = &etagVal
+	}
+	return result, nil
 }
 
 // UpdateKeyContact updates a key contact.
+//
+// ETag validation is performed here rather than forwarded to Salesforce because
+// the SF sObject PATCH endpoint does not support the If-Match header (returns
+// BAD_HEADER 400). We fetch the current record, validate the caller's If-Match
+// against our computed ETag, then pass If-Unmodified-Since (SF LastModifiedDate)
+// to the writer for SF-side concurrency protection.
 func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *membershipservice.UpdateKeyContactPayload) (*membershipservice.UpdateKeyContactResult, error) {
-	return nil, wrapError(ctx, pkgerrors.NewNotImplemented("update-key-contact not implemented"))
+	// Fetch current record for ETag validation and capacity checking.
+	current, err := s.storage.GetKeyContact(ctx, p.UID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	// 404 (not 403) to avoid leaking existence of contacts in other memberships.
+	if current.MembershipUID != p.MembershipUID {
+		return nil, wrapError(ctx, pkgerrors.NewNotFound(
+			fmt.Sprintf("key contact %s not found in membership %s", p.UID, p.MembershipUID)))
+	}
+
+	// Validate If-Match against the current cached ETag before touching SF.
+	// Salesforce PATCH rejects If-Match (BAD_HEADER), so ETag validation is done
+	// here; the caller's If-Match never reaches the infrastructure layer.
+	// Seed first/last name from the current record so ResolveOrCreateContact has
+	// them available if a new Contact must be created for the incoming email address.
+	// The update payload has no name fields — callers use a separate PATCH to the
+	// contact-service for name-only changes.
+	input := model.KeyContactInput{
+		Role:           p.Role,
+		Status:         p.Status,
+		BoardMember:    p.BoardMember,
+		PrimaryContact: p.PrimaryContact,
+		Title:          derefStr(p.Title),
+		Email:          p.Email,
+		AccountSFID:    current.B2BOrgUID, // needed for Contact resolution if email changes
+		FirstName:      current.FirstName,
+		LastName:       current.LastName,
+		MembershipUID:  p.MembershipUID, // required so the writer invalidates the key-contacts cache
+	}
+
+	currentETag, err := etag.LFXEtag(current)
+	if err != nil {
+		return nil, wrapError(ctx, pkgerrors.NewUnexpected("failed to compute etag", err))
+	}
+
+	if p.IfMatch != nil && *p.IfMatch != "" {
+		if currentETag != *p.IfMatch {
+			return nil, wrapError(ctx, pkgerrors.NewPreconditionFailed(
+				fmt.Sprintf("key contact %s has been modified since last read (stale If-Match)", p.UID)))
+		}
+		// Translate to If-Unmodified-Since (SF LastModifiedDate) for the writer.
+		input.IfUnmodifiedSince = current.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+	}
+
+	// Normalize and validate update (email normalization, capacity check on role change).
+	if err := s.normalizeAndValidateUpdate(ctx, current, p); err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	kc, err := s.keyContactWriter.UpdateKeyContact(ctx, p.UID, input)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	// Skip publish on no-op updates to avoid spurious indexer/FGA events.
+	etagVal, etagErr := etag.LFXEtag(kc)
+	if etagErr != nil {
+		slog.WarnContext(ctx, "failed to compute etag for key contact", "uid", p.UID, "error", etagErr)
+	}
+	if currentETag != etagVal {
+		// Resolve Username before indexing so the indexed document carries the sub.
+		emailChanging := p.Email != nil && !strings.EqualFold(*p.Email, current.Email)
+		if emailChanging {
+			// Paired FGA publish: put new sub first (no-access window avoided), then remove old.
+			// Old sub: use persisted Username; fall back to resolving current.Email (may be empty if
+			// the contact never had an Authelia account, in which case remove is skipped).
+			newSub := s.resolveSubForContact(ctx, "", kc.Email)
+			kc.Username = newSub
+			s.publishKeyContactFGAPut(ctx, kc.MembershipUID, newSub)
+			oldSub := s.resolveSubForContact(ctx, current.Username, current.Email)
+			if oldSub != newSub {
+				if pubErr := s.publishKeyContactFGARemove(ctx, kc.MembershipUID, oldSub); pubErr != nil {
+					// Log at error severity (dangling permission), but do not propagate — the
+					// Salesforce update already succeeded and returning an error here would
+					// mislead callers into retrying a completed operation.
+					slog.ErrorContext(ctx, "key contact FGA remove failed on email change — dangling permission",
+						"uid", p.UID,
+						"error", pubErr)
+				}
+			}
+		} else {
+			// Role/status/other-only update: re-resolve sub in case it was empty on create.
+			sub := s.resolveSubForContact(ctx, current.Username, kc.Email)
+			kc.Username = sub
+			s.publishKeyContactFGAPut(ctx, kc.MembershipUID, sub)
+		}
+		s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionUpdated)
+	}
+
+	lastMod := kc.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+	result := &membershipservice.UpdateKeyContactResult{
+		KeyContact:   keyContactToResponse(kc),
+		LastModified: &lastMod,
+	}
+	if etagVal != "" {
+		result.Etag = &etagVal
+	}
+	return result, nil
 }
 
 // DeleteKeyContact deletes a key contact.
+//
+// We fetch the contact first to validate membership alignment and extract the
+// persisted Username for the FGA remove. After deletion, the indexer record is
+// removed and the FGA key_contact relation is revoked (error propagated — a
+// delete without FGA cleanup leaves dangling permissions).
 func (s *membershipServicesrvc) DeleteKeyContact(ctx context.Context, p *membershipservice.DeleteKeyContactPayload) error {
-	return wrapError(ctx, pkgerrors.NewNotImplemented("delete-key-contact not implemented"))
+	// Fetch the current contact to validate membership alignment and get MembershipUID/Username.
+	kc, err := s.storage.GetKeyContact(ctx, p.UID)
+	if err != nil {
+		return wrapError(ctx, err)
+	}
+
+	// 404 (not 403) to avoid leaking existence of contacts in other memberships.
+	if kc.MembershipUID != p.MembershipUID {
+		return wrapError(ctx, pkgerrors.NewNotFound(
+			fmt.Sprintf("key contact %s not found in membership %s", p.UID, p.MembershipUID)))
+	}
+
+	// If-Match supplied: reject if the ETag no longer matches the stored record.
+	if p.IfMatch != nil && *p.IfMatch != "" {
+		currentETag, etagErr := etag.LFXEtag(kc)
+		if etagErr != nil {
+			return wrapError(ctx, pkgerrors.NewUnexpected("failed to compute etag", etagErr))
+		}
+		if currentETag != *p.IfMatch {
+			return wrapError(ctx, pkgerrors.NewPreconditionFailed(
+				fmt.Sprintf("key contact %s has been modified since last read (stale If-Match)", p.UID)))
+		}
+	}
+
+	// Delete the contact.
+	if err := s.keyContactWriter.DeleteKeyContact(ctx, p.UID, kc.MembershipUID); err != nil {
+		return wrapError(ctx, err)
+	}
+
+	// Indexer delete: swallow errors (reindexable).
+	s.publishKeyContactIndexer(ctx, kc, indexerConstants.ActionDeleted)
+
+	// FGA remove: propagate errors — dangling permissions are not auto-repairable.
+	sub := s.resolveSubForContact(ctx, kc.Username, kc.Email)
+	if pubErr := s.publishKeyContactFGARemove(ctx, kc.MembershipUID, sub); pubErr != nil {
+		slog.ErrorContext(ctx, "key contact FGA remove failed on delete — dangling permission",
+			"uid", p.UID,
+			"error", pubErr)
+		return wrapError(ctx, pkgerrors.NewUnexpected("failed to revoke FGA access for deleted key contact", pubErr))
+	}
+
+	return nil
 }
 
 // ── Admin (Stubs) ─────────────────────────────────────────────────────────────
@@ -342,6 +683,164 @@ func b2bOrgToResponse(org *model.B2BOrg) *membershipservice.B2bOrgResponse {
 	return resp
 }
 
+// projectMembershipToResponse converts a domain ProjectMembership to the
+// generated response type.
+func projectMembershipToResponse(m *model.ProjectMembership) *membershipservice.ProjectMembershipResponse {
+	resp := &membershipservice.ProjectMembershipResponse{
+		UID: &m.UID,
+	}
+
+	// UID is always set (line above). All other fields are optional and populated
+	// only when non-zero using the omit-zero pattern.
+	if m.TierUID != "" {
+		resp.TierUID = &m.TierUID
+	}
+	if m.ProjectUID != "" {
+		resp.ProjectUID = &m.ProjectUID
+	}
+	if m.ProjectSlug != "" {
+		resp.ProjectSlug = &m.ProjectSlug
+	}
+	if m.B2BOrgUID != "" {
+		resp.B2bOrgUID = &m.B2BOrgUID
+	}
+	if m.Status != "" {
+		resp.Status = &m.Status
+	}
+	if m.Year != "" {
+		resp.Year = &m.Year
+	}
+	if m.Tier != "" {
+		resp.Tier = &m.Tier
+	}
+	if m.AutoRenew {
+		resp.AutoRenew = &m.AutoRenew
+	}
+	if m.RenewalType != "" {
+		resp.RenewalType = &m.RenewalType
+	}
+	if m.Price != 0 {
+		resp.Price = &m.Price
+	}
+	if m.AnnualFullPrice != 0 {
+		resp.AnnualFullPrice = &m.AnnualFullPrice
+	}
+	if m.PaymentFrequency != "" {
+		resp.PaymentFrequency = &m.PaymentFrequency
+	}
+	if m.PaymentTerms != "" {
+		resp.PaymentTerms = &m.PaymentTerms
+	}
+	if m.AgreementDate != "" {
+		resp.AgreementDate = &m.AgreementDate
+	}
+	if m.PurchaseDate != "" {
+		resp.PurchaseDate = &m.PurchaseDate
+	}
+	if m.StartDate != "" {
+		resp.StartDate = &m.StartDate
+	}
+	if m.EndDate != "" {
+		resp.EndDate = &m.EndDate
+	}
+	if m.CompanyName != "" {
+		resp.CompanyName = &m.CompanyName
+	}
+	if m.CompanyLogoURL != "" {
+		resp.CompanyLogoURL = &m.CompanyLogoURL
+	}
+	if m.CompanyDomain != "" {
+		resp.CompanyDomain = &m.CompanyDomain
+	}
+	if m.TierName != "" {
+		resp.TierName = &m.TierName
+	}
+	if m.TierFamily != "" {
+		resp.TierFamily = &m.TierFamily
+	}
+	if m.TierProductType != "" {
+		resp.TierProductType = &m.TierProductType
+	}
+
+	createdAt := m.CreatedAt.UTC().Format(time.RFC3339)
+	resp.CreatedAt = &createdAt
+	updatedAt := m.UpdatedAt.UTC().Format(time.RFC3339)
+	resp.UpdatedAt = &updatedAt
+
+	return resp
+}
+
+// keyContactToResponse converts a domain KeyContact to the generated response type.
+// Uses the omit-zero pattern: only non-zero fields are included.
+func keyContactToResponse(kc *model.KeyContact) *membershipservice.ProjectKeyContactResponse {
+	resp := &membershipservice.ProjectKeyContactResponse{
+		UID: &kc.UID,
+	}
+
+	// All other fields are optional and populated only when non-zero.
+	if kc.MembershipUID != "" {
+		resp.MembershipUID = &kc.MembershipUID
+	}
+	if kc.TierUID != "" {
+		resp.TierUID = &kc.TierUID
+	}
+	if kc.ProjectUID != "" {
+		resp.ProjectUID = &kc.ProjectUID
+	}
+	if kc.B2BOrgUID != "" {
+		resp.B2bOrgUID = &kc.B2BOrgUID
+	}
+	if kc.Role != "" {
+		resp.Role = &kc.Role
+	}
+	if kc.Status != "" {
+		resp.Status = &kc.Status
+	}
+	if kc.BoardMember {
+		resp.BoardMember = &kc.BoardMember
+	}
+	if kc.PrimaryContact {
+		resp.PrimaryContact = &kc.PrimaryContact
+	}
+	if kc.FirstName != "" {
+		resp.FirstName = &kc.FirstName
+	}
+	if kc.LastName != "" {
+		resp.LastName = &kc.LastName
+	}
+	if kc.Title != "" {
+		resp.Title = &kc.Title
+	}
+	if kc.Email != "" {
+		resp.Email = &kc.Email
+	}
+	if kc.CompanyName != "" {
+		resp.CompanyName = &kc.CompanyName
+	}
+	if kc.CompanyLogoURL != "" {
+		resp.CompanyLogoURL = &kc.CompanyLogoURL
+	}
+	if kc.CompanyDomain != "" {
+		resp.CompanyDomain = &kc.CompanyDomain
+	}
+
+	createdAt := kc.CreatedAt.UTC().Format(time.RFC3339)
+	resp.CreatedAt = &createdAt
+	updatedAt := kc.UpdatedAt.UTC().Format(time.RFC3339)
+	resp.UpdatedAt = &updatedAt
+
+	return resp
+}
+
+// derefStr is a helper that dereferences a *string pointer, returning the empty
+// string if the pointer is nil.
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 // payloadToB2BOrgInput maps an UpdateB2bOrgPayload to a model.B2BOrgInput.
 func payloadToB2BOrgInput(p *membershipservice.UpdateB2bOrgPayload) model.B2BOrgInput {
 	input := model.B2BOrgInput{}
@@ -393,7 +892,9 @@ func NewMembershipService(
 	keyContactWriter port.KeyContactWriter,
 	b2bOrgReader port.B2BOrgReader,
 	b2bOrgWriter port.B2BOrgWriter,
+	projectMembershipReader port.ProjectMembershipReader,
 	memberPublisher port.MemberPublisher,
+	userReader port.UserReader,
 	globalOrgAdminTeamUID string,
 ) membershipservice.Service {
 	return &membershipServicesrvc{
@@ -403,7 +904,9 @@ func NewMembershipService(
 		keyContactWriter:         keyContactWriter,
 		b2bOrgReader:             b2bOrgReader,
 		b2bOrgWriter:             b2bOrgWriter,
+		projectMembershipReader:  projectMembershipReader,
 		memberPublisher:          memberPublisher,
+		userReader:               userReader,
 		globalOrgAdminTeamUID:    globalOrgAdminTeamUID,
 	}
 }
