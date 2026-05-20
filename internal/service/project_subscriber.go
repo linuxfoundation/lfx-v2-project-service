@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -22,9 +23,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// notificationTimeout caps blocking outbound calls (email-service request/reply and
-// auth-service actor name lookup) to avoid blocking the event handler.
-// Fire-and-forget NATS publishes (invite path) do not use this timeout.
+// notificationTimeout caps blocking outbound calls to avoid stalling the event handler:
+// email-service request/reply, invite-service request/reply (SendInviteRequest), and
+// auth-service actor name lookup all run under this deadline.
 const notificationTimeout = 5 * time.Second
 
 const (
@@ -161,8 +162,29 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 }
 
 // storeInviteInfo reads project settings, locates the user by email in the given role's
-// slice, stamps their InviteUID, InviteEmail, and InviteExpiresAt, and writes the settings back using optimistic concurrency.
+// slice, stamps their InviteUID, InviteEmail, and InviteExpiresAt, and writes the settings
+// back using optimistic concurrency. It retries up to 3 times on ErrRevisionMismatch,
+// which can occur when multiple non-LFID users are added in the same event and concurrent
+// write-backs race on the same KV revision.
 func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
+	const maxRetries = 3
+	for attempt := range maxRetries {
+		storeCtx, storeCancel := context.WithTimeout(ctx, notificationTimeout)
+		err := s.tryStoreInviteInfo(storeCtx, projectUID, role, recipientEmail, inviteUID, inviteEmail, expiresAt)
+		storeCancel()
+		if err == nil {
+			return nil
+		}
+		if !errors.Is(err, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
+			return err
+		}
+		slog.DebugContext(ctx, "project_subscriber: revision mismatch storing invite info — retrying",
+			"attempt", attempt+1, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
+	}
+	return nil
+}
+
+func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
 	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite info",
 		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail)
 

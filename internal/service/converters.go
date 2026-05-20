@@ -524,16 +524,7 @@ func convertUserFromAPI(apiUser *projsvc.UserInfo) *models.UserInfo {
 	if apiUser.Avatar != nil {
 		user.Avatar = *apiUser.Avatar
 	}
-	if apiUser.Invite != nil {
-		inv := &models.InviteInfo{}
-		if apiUser.Invite.UID != nil {
-			inv.UID = *apiUser.Invite.UID
-		}
-		if apiUser.Invite.Email != nil {
-			inv.Email = *apiUser.Invite.Email
-		}
-		user.Invite = inv
-	}
+	// invite is server-managed — never accepted from API requests.
 	return user
 }
 
