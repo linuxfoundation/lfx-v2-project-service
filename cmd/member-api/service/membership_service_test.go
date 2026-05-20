@@ -342,6 +342,10 @@ func (r *seededB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BO
 	return r.org, nil
 }
 
+func (r *seededB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 // happyB2BOrgWriter returns a fixed org for any SFID/UID.
 type happyB2BOrgWriter struct{ org *model.B2BOrg }
 

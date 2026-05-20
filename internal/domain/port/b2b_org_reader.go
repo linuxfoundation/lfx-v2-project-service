@@ -16,4 +16,10 @@ type B2BOrgReader interface {
 	// GetB2BOrg returns the B2BOrg identified by its v2 UUID. Returns an error
 	// wrapping ErrNotFound if no record exists for the given uid.
 	GetB2BOrg(ctx context.Context, uid string) (*model.B2BOrg, error)
+
+	// FetchChildUIDsByParentUID returns the v2 UUIDs of all direct child orgs
+	// whose Salesforce Account.ParentId matches the given parent UID. Returns an
+	// empty slice when the parent has no children. Used to build the FGA child-list
+	// tuples that enable the b2b_org hierarchy view cascade.
+	FetchChildUIDsByParentUID(ctx context.Context, parentUID string) ([]string, error)
 }

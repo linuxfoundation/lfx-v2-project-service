@@ -82,7 +82,7 @@ func buildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string) fgat
 		Data: fgatypes.GenericAccessData{
 			UID:              org.UID,
 			References:       refs,
-			ExcludeRelations: []string{"parent"}, // parent is managed by buildB2BOrgReparentingMessages
+			ExcludeRelations: []string{"parent", "child"}, // parent and child tuples are managed by buildB2BOrgReparentingMessages
 		},
 	}
 }
@@ -208,20 +208,37 @@ func buildKeyContactFGARemoveMessage(membershipUID, sub string) fgatypes.Generic
 	}
 }
 
-// b2bOrgNonParentRelations lists all b2b_org relations we exclude from deletion
-// when managing only the parent reference via update_access. This prevents the
-// full-sync from wiping global_org_admin, auditor, writer, owner, or membership
-// tuples that were set by other code paths.
+// b2bOrgNonParentRelations lists relations excluded when updating only an org's
+// own parent reference. Prevents the update from wiping global_org_admin,
+// auditor, writer, owner, membership, or child tuples set by other code paths.
 var b2bOrgNonParentRelations = []string{
-	"global_org_admin", "auditor", "writer", "owner", "membership",
+	"global_org_admin", "auditor", "writer", "owner", "membership", "child",
+}
+
+// b2bOrgNonChildRelations lists relations excluded when updating only a parent
+// org's child list. Mirrors b2bOrgNonParentRelations but protects the parent
+// relation instead of child.
+var b2bOrgNonChildRelations = []string{
+	"global_org_admin", "auditor", "writer", "owner", "membership", "parent",
 }
 
 // buildB2BOrgReparentingMessages returns FGA update_access messages when a
 // b2b_org's ParentUID changes. Pass nil for current on create.
-// On set: References["parent"] carries the new parent UID.
-// On clear: References["parent"] is empty (deletes the existing tuple).
-// All non-parent relations are excluded so they are never accidentally wiped.
-func buildB2BOrgReparentingMessages(current, updated *model.B2BOrg) []fgatypes.GenericFGAMessage {
+//
+// Message 1 — org's own parent ref:
+//
+//	References["parent"] carries the new parent UID (empty = delete tuple).
+//
+// Messages 2–3 — child-list updates on affected parents:
+//
+//	If oldParentChildren is non-nil, OldP receives an update_access with its new
+//	child list (A removed). If newParentChildren is non-nil, NewP receives an
+//	update_access with its new child list (A included). Callers must ensure A
+//	has been added to / removed from the slices before calling.
+//
+// All messages use ExcludeRelations so unrelated tuples on the target org are
+// never accidentally wiped.
+func buildB2BOrgReparentingMessages(current, updated *model.B2BOrg, oldParentChildren, newParentChildren []string) []fgatypes.GenericFGAMessage {
 	oldParent := ""
 	if current != nil {
 		oldParent = current.ParentUID
@@ -232,20 +249,55 @@ func buildB2BOrgReparentingMessages(current, updated *model.B2BOrg) []fgatypes.G
 		return nil
 	}
 
-	refs := map[string][]string{}
+	msgs := make([]fgatypes.GenericFGAMessage, 0, 3)
+
+	// Message 1: update the org's own parent reference.
+	parentRefs := map[string][]string{}
 	if newParent != "" {
-		refs["parent"] = []string{"b2b_org:" + newParent}
+		parentRefs["parent"] = []string{"b2b_org:" + newParent}
+	}
+	msgs = append(msgs, fgatypes.GenericFGAMessage{
+		ObjectType: "b2b_org",
+		Operation:  "update_access",
+		Data: fgatypes.GenericAccessData{
+			UID:              updated.UID,
+			References:       parentRefs,
+			ExcludeRelations: b2bOrgNonParentRelations,
+		},
+	})
+
+	// Message 2: update OldP's child list (A has left).
+	if oldParent != "" && oldParentChildren != nil {
+		msgs = append(msgs, buildChildListMessage(oldParent, oldParentChildren))
 	}
 
-	return []fgatypes.GenericFGAMessage{
-		{
-			ObjectType: "b2b_org",
-			Operation:  "update_access",
-			Data: fgatypes.GenericAccessData{
-				UID:              updated.UID,
-				References:       refs,
-				ExcludeRelations: b2bOrgNonParentRelations,
-			},
+	// Message 3: update NewP's child list (A has joined).
+	if newParent != "" && newParentChildren != nil {
+		msgs = append(msgs, buildChildListMessage(newParent, newParentChildren))
+	}
+
+	return msgs
+}
+
+// buildChildListMessage constructs an update_access FGA message that replaces
+// a parent org's entire child list. An empty (non-nil) children slice emits
+// an update with no child refs, effectively clearing the relation.
+func buildChildListMessage(parentUID string, children []string) fgatypes.GenericFGAMessage {
+	childRefs := map[string][]string{}
+	if len(children) > 0 {
+		refs := make([]string, len(children))
+		for i, uid := range children {
+			refs[i] = "b2b_org:" + uid
+		}
+		childRefs["child"] = refs
+	}
+	return fgatypes.GenericFGAMessage{
+		ObjectType: "b2b_org",
+		Operation:  "update_access",
+		Data: fgatypes.GenericAccessData{
+			UID:              parentUID,
+			References:       childRefs,
+			ExcludeRelations: b2bOrgNonChildRelations,
 		},
 	}
 }

@@ -16,6 +16,11 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
+// soqlAccountID is a minimal projection used when only the Salesforce Id is needed.
+type soqlAccountID struct {
+	ID string `salesforce:"Id" json:"Id"`
+}
+
 // accountsSOQLBase is the SELECT and fixed WHERE base for Account search/list
 // queries. The caller appends optional LIKE predicates and an ORDER BY clause
 // before executing. Only Accounts that are not deleted and have at least one
@@ -46,6 +51,36 @@ type AccountRepo struct {
 // NewAccountRepo creates a new AccountRepo backed by the given Salesforce client.
 func NewAccountRepo(client *sf.Salesforce) *AccountRepo {
 	return &AccountRepo{client: client}
+}
+
+// FetchChildUIDsByParentUID returns the v2 UUIDs of all Salesforce Accounts
+// whose ParentId matches the SFID derived from parentUID. The result is used
+// to build the FGA child-list tuples required for the b2b_org hierarchy cascade.
+// Returns an empty slice (no error) when the parent has no children.
+func (r *AccountRepo) FetchChildUIDsByParentUID(ctx context.Context, parentUID string) ([]string, error) {
+	parentSFID, err := sfuuid.ToSFID(parentUID)
+	if err != nil {
+		return nil, fmt.Errorf("converting parent uid %q to sfid: %w", parentUID, err)
+	}
+	slog.DebugContext(ctx, "fetching child account SFIDs from Salesforce", "parent_sfid", parentSFID)
+
+	query := "SELECT Id FROM Account WHERE ParentId = " + quoteSOQL(parentSFID) + " AND IsDeleted = false"
+	records, _, err := QueryAllPages[soqlAccountID](ctx, r.client, query, "")
+	if err != nil {
+		return nil, fmt.Errorf("fetching children of parent %s: %w", parentSFID, err)
+	}
+
+	uids := make([]string, 0, len(records))
+	for _, rec := range records {
+		uid, convErr := sfuuid.ToUUID(rec.ID)
+		if convErr != nil {
+			slog.WarnContext(ctx, "child account SFID could not be converted to UUID, skipping",
+				"parent_sfid", parentSFID, "child_sfid", rec.ID)
+			continue
+		}
+		uids = append(uids, uid)
+	}
+	return uids, nil
 }
 
 // FetchAccountBySFID fetches a single Account record from Salesforce by its

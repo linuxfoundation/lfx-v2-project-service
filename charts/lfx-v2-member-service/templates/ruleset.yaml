@@ -160,7 +160,7 @@ spec:
         methods:
           - GET
         routes:
-          - path: /key_contacts/:uid
+          - path: /project_memberships/:membership_uid/key_contacts/:uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -172,7 +172,7 @@ spec:
           config:
             values:
               relation: auditor
-              object: "key_contact:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
         {{- else }}
         {{/*
           When OpenFGA is disabled, allow all requests.
@@ -191,7 +191,7 @@ spec:
         methods:
           - POST
         routes:
-          - path: /key_contacts
+          - path: /project_memberships/:membership_uid/key_contacts
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -204,7 +204,7 @@ spec:
           config:
             values:
               relation: writer
-              object: "b2b_org:{{ "{{- .Request.Body.b2b_org_uid -}}" }}"
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
         {{- else }}
         {{/*
           When OpenFGA is disabled, allow all requests.
@@ -223,7 +223,7 @@ spec:
         methods:
           - PUT
         routes:
-          - path: /key_contacts/:uid
+          - path: /project_memberships/:membership_uid/key_contacts/:uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -235,7 +235,7 @@ spec:
           config:
             values:
               relation: writer
-              object: "key_contact:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
         {{- else }}
         {{/*
           When OpenFGA is disabled, allow all requests.
@@ -254,7 +254,7 @@ spec:
         methods:
           - DELETE
         routes:
-          - path: /key_contacts/:uid
+          - path: /project_memberships/:membership_uid/key_contacts/:uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -266,7 +266,7 @@ spec:
           config:
             values:
               relation: writer
-              object: "key_contact:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
         {{- else }}
         {{/*
           When OpenFGA is disabled, allow all requests.

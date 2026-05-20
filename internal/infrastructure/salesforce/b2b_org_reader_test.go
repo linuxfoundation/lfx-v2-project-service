@@ -132,7 +132,7 @@ func TestB2BOrgReader_GetB2BOrg_Happy(t *testing.T) {
 
 	transport := newRoutingTransport(fakeResponse(http.StatusOK, canonicalAccountJSON, nil))
 	client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
-	reader := NewB2BOrgReader(client)
+	reader := NewB2BOrgReader(client, nil)
 
 	org, err := reader.GetB2BOrg(context.Background(), uid)
 
@@ -161,7 +161,7 @@ func TestB2BOrgReader_GetB2BOrg_NotFound(t *testing.T) {
 		`[{"errorCode":"NOT_FOUND","message":"The requested resource does not exist"}]`,
 		nil))
 	client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
-	reader := NewB2BOrgReader(client)
+	reader := NewB2BOrgReader(client, nil)
 
 	org, err := reader.GetB2BOrg(context.Background(), uid)
 
@@ -379,7 +379,7 @@ func TestB2BOrgReader_GetB2BOrg_WithParent(t *testing.T) {
 	transport.route("/sobjects/Account/", fakeResponse(http.StatusOK, canonicalAccountWithParentJSON, nil))
 
 	client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
-	reader := NewB2BOrgReader(client)
+	reader := NewB2BOrgReader(client, nil)
 
 	org, err := reader.GetB2BOrg(context.Background(), uid)
 
@@ -402,7 +402,7 @@ func TestB2BOrgReader_GetB2BOrg_InvalidUID(t *testing.T) {
 	transport := &routingTransport{}
 	transport.route("/limits", fakeResponse(http.StatusOK, `{}`, nil))
 	client := &SObjectClient{sf: fakeSalesforce(t, transport), cache: newMemCache()}
-	reader := NewB2BOrgReader(client)
+	reader := NewB2BOrgReader(client, nil)
 
 	org, err := reader.GetB2BOrg(context.Background(), "not-a-valid-uid")
 
