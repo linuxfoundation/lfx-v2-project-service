@@ -8,8 +8,7 @@ BINARY_NAME=project-api
 BINARY_PATH=bin/$(BINARY_NAME)
 
 # API/Code generation variables
-API_PATH=$(GO_MODULE)/api/project/v1
-DESIGN_MODULE=$(API_PATH)/design
+DESIGN_MODULE=$(shell go list -m)/api/project/v1/design
 GOA_VERSION=v3.22.6
 GO_FILES=$(shell find . -name '*.go' -not -path './api/project/v1/gen/*' -not -path './vendor/*')
 

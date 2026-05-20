@@ -151,7 +151,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, domain.ErrInternal
 	}
 
-	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings)
+	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "error converting project settings to DB project settings", constants.ErrKey, err)
 		return nil, domain.ErrInternal
@@ -543,7 +543,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		projectSettings.CreatedAt = misc.StringPtr(existingProjectSettingsDB.CreatedAt.Format(time.RFC3339))
 	}
 
-	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings)
+	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings, existingProjectSettingsDB)
 	if err != nil {
 		slog.ErrorContext(ctx, "error converting project settings to DB project settings", constants.ErrKey, err)
 		return nil, domain.ErrInternal

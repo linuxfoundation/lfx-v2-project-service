@@ -94,6 +94,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    *projsvc.ProjectSettings
+		existing *models.ProjectSettings // simulates the stored record on a PUT
 		expected *models.ProjectSettings
 		wantErr  bool
 	}{
@@ -168,11 +169,49 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "invite preserved when user still in list (PUT does not wipe invite)",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Email: "w@example.com", Name: "Old Name", Invite: &models.InviteInfo{UID: "inv-1", Email: "w@example.com"}},
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("New Name"), Email: misc.StringPtr("w@example.com"), Username: misc.StringPtr(""), Avatar: misc.StringPtr("")},
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Name: "New Name", Email: "w@example.com", Invite: &models.InviteInfo{UID: "inv-1", Email: "w@example.com"}},
+				},
+			},
+		},
+		{
+			name: "invite gone when user removed from list",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Email: "gone@example.com", Invite: &models.InviteInfo{UID: "inv-2", Email: "gone@example.com"}},
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID:     misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{}, // user removed
+			},
+			expected: &models.ProjectSettings{
+				UID:     "test-uid",
+				Writers: nil,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ConvertToDBProjectSettings(tt.input)
+			result, err := ConvertToDBProjectSettings(tt.input, tt.existing)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return

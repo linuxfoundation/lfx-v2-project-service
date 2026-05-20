@@ -11,6 +11,8 @@ import (
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -72,6 +74,15 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		g.Go(func() error {
 			if add.User.Email == "" {
 				slog.WarnContext(gctx, "project_subscriber: skipping notification — recipient has no email address",
+					"role", add.Role, "project_uid", event.ProjectUID)
+				return nil
+			}
+
+			// Skip notification if this user was previously present as an email-only (invited)
+			// entry — they're being promoted from non-LFID to LFID via invite acceptance, not
+			// freshly added. They already received the invite email.
+			if add.User.Username != "" && wasInvitedInOldSettings(add.User.Email, event.OldSettings) {
+				slog.DebugContext(gctx, "project_subscriber: skipping notification — user promoted from invite to LFID",
 					"role", add.Role, "project_uid", event.ProjectUID)
 				return nil
 			}
@@ -209,6 +220,23 @@ func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role,
 
 	slog.InfoContext(ctx, "project_subscriber: stored invite info on member record",
 		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID, "expires_at", expiresAt)
+
+	// Write the invite UID → project UID mapping so HandleInviteAccepted can route the
+	// acceptance event without scanning all project settings.
+	if mappingErr := s.ProjectRepository.CreateInviteMapping(ctx, inviteUID, projectUID); mappingErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to create invite mapping — acceptance routing will not work",
+			constants.ErrKey, mappingErr, "project_uid", projectUID, "invite_uid", inviteUID)
+	}
+
+	indexMsg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *settings,
+		IndexingConfig: settings.IndexingConfig(projectUID),
+	}
+	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after storing invite info",
+			constants.ErrKey, indexErr, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
+	}
 	return nil
 }
 
@@ -266,6 +294,105 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 		}
 	}
 	return "A project administrator"
+}
+
+// inviteAcceptedMessage is the payload published by the invite service on InviteAcceptedSubject.
+type inviteAcceptedMessage struct {
+	InviteUID string `json:"invite_uid"`
+	Username  string `json:"username"`
+}
+
+// HandleInviteAccepted processes an invite acceptance event from the invite service.
+// It locates the project settings that own the invite via the mapping written at invite-send time,
+// promotes the user from non-LFID (email-only) to LFID (username set, invite cleared), persists
+// the update, deletes the consumed mapping, and re-indexes.
+func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.Message) error {
+	var event inviteAcceptedMessage
+	if err := json.Unmarshal(msg.Data(), &event); err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal invite_accepted event", constants.ErrKey, err)
+		return nil
+	}
+
+	if event.InviteUID == "" || event.Username == "" {
+		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing invite_uid or username — discarding",
+			"invite_uid", event.InviteUID, "username", event.Username)
+		return nil
+	}
+
+	// Look up the project UID from the mapping.
+	projectUID, err := s.ProjectRepository.GetProjectUIDByInviteUID(ctx, event.InviteUID)
+	if err != nil {
+		// Not found means this invite belongs to another service — silently ignore.
+		slog.DebugContext(ctx, "project_subscriber: invite not tracked by this service — ignoring",
+			"invite_uid", event.InviteUID)
+		return nil
+	}
+
+	settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+	if err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite acceptance",
+			constants.ErrKey, err, "project_uid", projectUID, "invite_uid", event.InviteUID)
+		return nil
+	}
+
+	promoted := false
+	for _, slice := range []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators} {
+		for i := range *slice {
+			if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
+				(*slice)[i].Username = event.Username
+				(*slice)[i].Invite = nil
+				promoted = true
+			}
+		}
+	}
+
+	if !promoted {
+		slog.WarnContext(ctx, "project_subscriber: invite UID not found in any role slice — stale mapping, cleaning up",
+			"invite_uid", event.InviteUID, "project_uid", projectUID)
+		if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to delete stale invite mapping", constants.ErrKey, delErr, "invite_uid", event.InviteUID)
+		}
+		return nil
+	}
+
+	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to update settings after invite acceptance",
+			constants.ErrKey, err, "project_uid", projectUID, "invite_uid", event.InviteUID)
+		return nil
+	}
+
+	if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to delete invite mapping after acceptance",
+			constants.ErrKey, delErr, "invite_uid", event.InviteUID)
+	}
+
+	slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
+		"project_uid", projectUID, "invite_uid", event.InviteUID, "username", event.Username)
+
+	indexMsg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *settings,
+		IndexingConfig: settings.IndexingConfig(projectUID),
+	}
+	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
+			constants.ErrKey, indexErr, "project_uid", projectUID)
+	}
+
+	return nil
+}
+
+// wasInvitedInOldSettings returns true if the given email was already present in old settings
+// as an email-only (Username == "") entry — meaning the user was previously invited and is now
+// being promoted to LFID. Used to suppress redundant notification emails on promotion.
+func wasInvitedInOldSettings(email string, old events.ProjectSettings) bool {
+	normalized := strings.ToLower(strings.TrimSpace(email))
+	for _, u := range append(append(old.Writers, old.Auditors...), old.MeetingCoordinators...) {
+		if u.Username == "" && strings.ToLower(strings.TrimSpace(u.Email)) == normalized {
+			return true
+		}
+	}
+	return false
 }
 
 // mapRoleToInviteRole converts a project-service role string to the invite service's

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -133,6 +134,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) > 0 && s.Writers[0].Invite.UID == "invite-writer-uid"
 				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
 			},
 		},
 		{
@@ -154,6 +156,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) > 0 && s.Auditors[0].Invite.UID == "invite-auditor-uid"
 				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-auditor-uid", "proj-1").Return(nil)
 			},
 		},
 		{
@@ -175,6 +178,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Invite.UID == "invite-mc-uid"
 				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-mc-uid", "proj-1").Return(nil)
 			},
 		},
 		{
@@ -281,6 +285,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					}
 					return true
 				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
 			},
 		},
 		{
@@ -354,6 +359,35 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					RecipientEmail: "nonlfid@example.com",
 					ExpiresAt:      time.Now().Add(30 * 24 * time.Hour),
 				}, inviteReturnErr).Times(tt.wantInviteCount)
+			}
+
+			// Each successful invite write-back triggers a settings reindex.
+			// The matcher verifies the envelope's Data is a ProjectSettings that has
+			// the invite UID set on at least one user in the relevant role slice.
+			wantIndexCount := 0
+			if tt.inviteUID != "" && tt.msgBuilderErr == nil {
+				wantIndexCount = tt.wantInviteCount
+			}
+			if wantIndexCount > 0 {
+				wantInviteUID := tt.inviteUID
+				mockMsg.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings",
+					mock.MatchedBy(func(msg any) bool {
+						env, ok := msg.(indexerTypes.IndexerMessageEnvelope)
+						if !ok {
+							return false
+						}
+						s, ok := env.Data.(models.ProjectSettings)
+						if !ok {
+							return false
+						}
+						for _, u := range append(append(s.Writers, s.Auditors...), s.MeetingCoordinators...) {
+							if u.Invite != nil && u.Invite.UID == wantInviteUID {
+								return true
+							}
+						}
+						return false
+					}), false).
+					Return(nil).Times(wantIndexCount)
 			}
 
 			if tt.setupRepoExtra != nil {
