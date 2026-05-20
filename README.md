@@ -63,20 +63,16 @@ minimise round-trips.
 
 ## API Endpoints
 
-### Project-scoped reads
+### Project membership
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/projects/{project_id}/tiers` | List membership tiers for a project |
-| GET | `/projects/{project_id}/tiers/{tier_id}` | Get a specific membership tier |
-| GET | `/projects/{project_id}/memberships` | List memberships for a project |
-| GET | `/projects/{project_id}/memberships/{id}` | Get a specific membership |
+| GET | `/project_memberships/{uid}` | Get a project membership |
 
 ### Key contacts (nested under project_membership)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/project_memberships/{membership_uid}/key_contacts` | List key contacts |
 | GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact |
 | POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact |
 | PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact |

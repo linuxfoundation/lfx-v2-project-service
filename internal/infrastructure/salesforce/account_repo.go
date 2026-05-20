@@ -75,7 +75,7 @@ func (r *AccountRepo) FetchChildUIDsByParentUID(ctx context.Context, parentUID s
 		uid, convErr := sfuuid.ToUUID(rec.ID)
 		if convErr != nil {
 			slog.WarnContext(ctx, "child account SFID could not be converted to UUID, skipping",
-				"parent_sfid", parentSFID, "child_sfid", rec.ID)
+				"parent_sfid", parentSFID, "child_sfid", rec.ID, "error", convErr)
 			continue
 		}
 		uids = append(uids, uid)

@@ -123,14 +123,11 @@ salesforce.MemberReader (implements port.MemberReader)
 
 ## API Endpoints
 
-### Project-scoped read endpoints (tiers and memberships)
+### Project membership
 
 | Method | Path | Description | OpenFGA Check |
 |--------|------|-------------|---------------|
-| GET | `/projects/{project_id}/tiers` | List membership tiers for a project | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/tiers/{tier_id}` | Get a specific tier | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships` | List memberships for a project | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships/{id}` | Get a specific membership | `auditor` on `project:{project_id}` |
+| GET | `/project_memberships/{uid}` | Get a project membership | `auditor` on `project_membership:{uid}` |
 
 ### Key contact endpoints (nested under project_membership)
 
@@ -138,7 +135,6 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 
 | Method | Path | Description | OpenFGA Check |
 |--------|------|-------------|---------------|
-| GET | `/project_memberships/{membership_uid}/key_contacts` | List key contacts | `auditor` on `project_membership:{membership_uid}` |
 | GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact | `auditor` on `project_membership:{membership_uid}` |
 | POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact | `writer` on `project_membership:{membership_uid}` |
 | PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{membership_uid}` |
@@ -148,7 +144,7 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 
 | Method | Path | Description | OpenFGA Check |
 |--------|------|-------------|---------------|
-| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID | `writer` on `b2b_org:{uid}` |
+| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID | `member` on `team:{globalOrgAdminTeamUID}` |
 | PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org | `writer` on `b2b_org:{uid}` |
 | GET | `/b2b_orgs/{uid}` | Get a B2B org | `auditor` on `b2b_org:{uid}` |
 
