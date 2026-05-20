@@ -49,7 +49,7 @@ All steps are best-effort: a failure at any step is logged with `slog.WarnContex
 
 ## Invite Acceptance
 
-**Triggered by:** a `lfx.invite-service.invite.accepted` event published by the invite service when a user completes LFID account creation and accepts their invite.
+**Triggered by:** a `lfx.invite.accepted` event published by the LFX self-serve web app when a user completes LFID account creation and accepts their invite.
 
 **NATS subscription:** queue-subscribed in `cmd/project-api/main.go` under the `ProjectsAPIQueue` consumer group.
 

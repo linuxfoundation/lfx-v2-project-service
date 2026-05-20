@@ -319,13 +319,13 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 	return "A project administrator"
 }
 
-// inviteAcceptedMessage is the payload published by the invite service on InviteAcceptedSubject.
+// inviteAcceptedMessage is the payload published by the LFX self-serve web app on InviteAcceptedSubject.
 type inviteAcceptedMessage struct {
 	InviteUID string `json:"invite_uid"`
 	Username  string `json:"username"`
 }
 
-// HandleInviteAccepted processes an invite acceptance event from the invite service.
+// HandleInviteAccepted processes an invite acceptance event from the LFX self-serve web app.
 // It locates the project settings that own the invite via the mapping written at invite-send time,
 // promotes the user from non-LFID (email-only) to LFID (username set, invite cleared), persists
 // the update, deletes the consumed mapping, and re-indexes.
