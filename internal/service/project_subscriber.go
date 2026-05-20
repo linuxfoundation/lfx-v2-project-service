@@ -207,9 +207,10 @@ func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, ro
 		return nil
 	}
 
+	normalizedRecipient := strings.ToLower(strings.TrimSpace(recipientEmail))
 	updated := false
 	for i := range slice {
-		if slice[i].Email == recipientEmail {
+		if strings.ToLower(strings.TrimSpace(slice[i].Email)) == normalizedRecipient {
 			inv := &models.InviteInfo{UID: inviteUID, Email: inviteEmail}
 			if !expiresAt.IsZero() {
 				inv.ExpiresAt = &expiresAt

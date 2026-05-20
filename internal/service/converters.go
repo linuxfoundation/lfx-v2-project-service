@@ -4,6 +4,7 @@
 package service
 
 import (
+	"strings"
 	"time"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
@@ -450,7 +451,7 @@ func convertUsersFromAPI(apiUsers []*projsvc.UserInfo, existing []models.UserInf
 	existingByEmail := make(map[string]models.UserInfo, len(existing))
 	for _, u := range existing {
 		if u.Email != "" {
-			existingByEmail[u.Email] = u
+			existingByEmail[strings.ToLower(strings.TrimSpace(u.Email))] = u
 		}
 	}
 
@@ -460,7 +461,7 @@ func convertUsersFromAPI(apiUsers []*projsvc.UserInfo, existing []models.UserInf
 			// Seed from the existing stored record so read-only fields are preserved.
 			var user models.UserInfo
 			if apiUser.Email != nil {
-				user = existingByEmail[*apiUser.Email]
+				user = existingByEmail[strings.ToLower(strings.TrimSpace(*apiUser.Email))]
 			}
 			// Overlay fields the API is allowed to set.
 			if apiUser.Name != nil {
