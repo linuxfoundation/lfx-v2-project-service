@@ -145,7 +145,7 @@ func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.Key
 	}
 	if created {
 		slog.InfoContext(ctx, "new Salesforce Contact created during key contact creation",
-			"email", input.Email,
+			"email", *input.Email,
 			"contact_sfid", contactSFID,
 		)
 	}

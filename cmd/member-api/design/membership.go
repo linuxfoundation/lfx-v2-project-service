@@ -234,13 +234,17 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
+			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
 				dsl.Format(dsl.FormatUUID)
 				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 			})
 			IfNoneMatchAttribute()
 			IfModifiedSinceAttribute()
-			dsl.Required("uid")
+			dsl.Required("membership_uid", "uid")
 		})
 
 		dsl.Result(func() {
@@ -258,9 +262,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.GET("/key_contacts/{uid}")
+			dsl.GET("/project_memberships/{membership_uid}/key_contacts/{uid}")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Param("version:v")
+			dsl.Param("membership_uid")
 			dsl.Param("uid")
 			dsl.Header("if_none_match:If-None-Match")
 			dsl.Header("if_modified_since:If-Modified-Since")
@@ -286,7 +291,12 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
+			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
 			dsl.Extend(KeyContactCreateBody)
+			dsl.Required("membership_uid")
 		})
 
 		dsl.Result(func() {
@@ -305,9 +315,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.POST("/key_contacts")
+			dsl.POST("/project_memberships/{membership_uid}/key_contacts")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Param("version:v")
+			dsl.Param("membership_uid")
 			dsl.Response(dsl.StatusCreated, func() {
 				dsl.Header("etag:ETag")
 				dsl.Header("last_modified:Last-Modified")
@@ -331,6 +342,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
+			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
 				dsl.Format(dsl.FormatUUID)
 				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
@@ -338,7 +353,7 @@ var _ = dsl.Service("membership-service", func() {
 			IfMatchAttribute()
 			IfUnmodifiedSinceAttribute()
 			dsl.Extend(KeyContactUpdateBody)
-			dsl.Required("uid")
+			dsl.Required("membership_uid", "uid")
 		})
 
 		dsl.Result(func() {
@@ -357,9 +372,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.PUT("/key_contacts/{uid}")
+			dsl.PUT("/project_memberships/{membership_uid}/key_contacts/{uid}")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Param("version:v")
+			dsl.Param("membership_uid")
 			dsl.Param("uid")
 			dsl.Header("if_match:If-Match")
 			dsl.Header("if_unmodified_since:If-Unmodified-Since")
@@ -386,12 +402,16 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
+			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
 				dsl.Format(dsl.FormatUUID)
 				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 			})
 			IfMatchAttribute()
-			dsl.Required("uid")
+			dsl.Required("membership_uid", "uid")
 		})
 
 		dsl.Result(dsl.Empty)
@@ -404,9 +424,10 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
 		dsl.HTTP(func() {
-			dsl.DELETE("/key_contacts/{uid}")
+			dsl.DELETE("/project_memberships/{membership_uid}/key_contacts/{uid}")
 			dsl.Header("bearer_token:Authorization")
 			dsl.Param("version:v")
+			dsl.Param("membership_uid")
 			dsl.Param("uid")
 			dsl.Header("if_match:If-Match")
 			dsl.Response(dsl.StatusNoContent)

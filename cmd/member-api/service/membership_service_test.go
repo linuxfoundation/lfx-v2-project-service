@@ -120,6 +120,7 @@ func newTestMembershipService() membershipservice.Service {
 		mockB2BOrgWriter,
 		mockProjectMembershipReader,
 		mockPublisher,
+		&mock.MockUserReader{},
 		"",
 	)
 }
@@ -462,6 +463,7 @@ func newTestMembershipServiceWith(
 		b2bOrgWriter,
 		mock.NewMockProjectMembershipReader(),
 		publisher,
+		&mock.MockUserReader{},
 		globalOrgAdminTeamUID,
 	)
 }
@@ -508,6 +510,7 @@ func TestGetProjectMembership_Happy(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		pmr,
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 
@@ -547,6 +550,7 @@ func TestGetProjectMembership_NotFound(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		pmr,
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 
@@ -581,6 +585,7 @@ func TestGetProjectMembership_ReaderError(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		pmr,
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 
@@ -608,12 +613,14 @@ func TestGetKeyContact_Happy(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		mock.NewMockProjectMembershipReader(),
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 	ctx := context.Background()
 
 	result, err := svc.GetKeyContact(ctx, &membershipservice.GetKeyContactPayload{
-		UID: "contact-role-1",
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 	})
 
 	require.NoError(t, err)
@@ -639,6 +646,7 @@ func TestGetKeyContact_NotFound(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		mock.NewMockProjectMembershipReader(),
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 	ctx := context.Background()
@@ -666,14 +674,13 @@ func TestCreateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		mock.NewMockProjectMembershipReader(),
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 	ctx := context.Background()
 
 	_, err := svc.CreateKeyContact(ctx, &membershipservice.CreateKeyContactPayload{
-		B2bOrgUID:     "org-uid",
-		ProjectUID:    "project-uid",
-		MembershipUID: "membership-uid",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 		Email:         "test@example.com",
 		FirstName:     "Test",
 		LastName:      "User",
@@ -698,12 +705,14 @@ func TestUpdateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		mock.NewMockProjectMembershipReader(),
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 	ctx := context.Background()
 
 	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
-		UID: "contact-role-1", // pre-seeded in mock so storage lookup succeeds
+		UID:           "contact-role-1", // pre-seeded in mock so storage lookup succeeds
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 	})
 
 	require.Error(t, err)
@@ -725,12 +734,14 @@ func TestDeleteKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		mock.NewMockProjectMembershipReader(),
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 	ctx := context.Background()
 
 	err := svc.DeleteKeyContact(ctx, &membershipservice.DeleteKeyContactPayload{
-		UID: "contact-role-1",
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
 	})
 
 	require.Error(t, err)
@@ -753,20 +764,108 @@ func TestUpdateKeyContact_StalePreconditionFailed(t *testing.T) {
 		mock.NewMockB2BOrgWriter(),
 		mock.NewMockProjectMembershipReader(),
 		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
 		"",
 	)
 	ctx := context.Background()
 
 	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
-		UID:     "contact-role-1",
-		IfMatch: strPtr(`"stale-etag"`),
-		Role:    strPtr("Updated Role"),
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		IfMatch:       strPtr(`"stale-etag"`),
+		Role:          strPtr("Updated Role"),
 	})
 
 	require.Error(t, err)
 	var serviceErr *goa.ServiceError
 	require.True(t, errors.As(err, &serviceErr))
 	assert.Equal(t, "PreconditionFailed", serviceErr.Name)
+}
+
+// ── Alignment 404 tests ───────────────────────────────────────────────────────
+
+// TestGetKeyContact_MembershipMismatch verifies that GetKeyContact returns 404 (not 403)
+// when the contact UID exists but belongs to a different membership than the path supplies.
+func TestGetKeyContact_MembershipMismatch(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
+		"",
+	)
+
+	_, err := svc.GetKeyContact(context.Background(), &membershipservice.GetKeyContactPayload{
+		UID:           "contact-role-1",       // exists in membership-1
+		MembershipUID: "wrong-membership-uid", // mismatch → 404
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotFound", serviceErr.Name, "must return 404 (not 403) to avoid leaking existence")
+}
+
+// TestUpdateKeyContact_MembershipMismatch verifies that UpdateKeyContact returns 404
+// when the contact UID does not belong to the supplied membership_uid.
+func TestUpdateKeyContact_MembershipMismatch(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
+		"",
+	)
+
+	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "wrong-membership-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "NotFound", serviceErr.Name, "must return 404 to avoid leaking existence")
+}
+
+// TestDeleteKeyContact_MembershipMismatch verifies that DeleteKeyContact returns 404
+// when the contact UID does not belong to the supplied membership_uid.
+func TestDeleteKeyContact_MembershipMismatch(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
+		"",
+	)
+
+	err := svc.DeleteKeyContact(context.Background(), &membershipservice.DeleteKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "wrong-membership-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "NotFound", serviceErr.Name, "must return 404 to avoid leaking existence")
 }
 
 // ── Key contact validation tests ────────────────────────────────────────────
@@ -1209,6 +1308,7 @@ func newTestMembershipServiceWithMockReader(mockReader port.MemberReader) member
 		mockB2BOrgWriter,
 		mockProjectMembershipReader,
 		mockPublisher,
+		&mock.MockUserReader{},
 		"",
 	)
 
@@ -1226,15 +1326,193 @@ func (m *mockProjectMembershipReader) AssembleProjectMembership(_ context.Contex
 	return m.membership, m.lastMod, m.err
 }
 
+// ── FGA publish gap tests ─────────────────────────────────────────────────────
+
+// TestCreateKeyContact_MembershipNotFound verifies that CreateKeyContact returns 404
+// when AssembleProjectMembership cannot find the supplied membership_uid. This covers
+// the validation introduced to derive b2b_org_uid / project_uid from the path.
+func TestCreateKeyContact_MembershipNotFound(t *testing.T) {
+	// MockProjectMembershipReader returns not-found for any UID other than "11111111-1111-1111-1111-111111111111".
+	mockRepo := mock.NewMockMembershipRepository()
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		mock.NewMockMemberPublisher(),
+		&mock.MockUserReader{},
+		"",
+	)
+
+	_, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
+		MembershipUID: "nonexistent-membership",
+		Email:         "test@example.com",
+		FirstName:     "Test",
+		LastName:      "User",
+		Role:          "Billing Contact",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "NotFound", serviceErr.Name)
+}
+
+// TestCreateKeyContact_EmptySubSkipsFGAPublish verifies the fail-open pattern:
+// when email→sub resolution returns an empty sub (e.g. user not yet in Authelia),
+// the FGA keycontact put is skipped but the create still succeeds.
+func TestCreateKeyContact_EmptySubSkipsFGAPublish(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	pub := &accessSubjectCapture{}
+	kc := &model.KeyContact{
+		UID:           "new-kc-uid",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		Email:         "noresolve@example.com",
+		Role:          "Billing Contact",
+		Status:        "Active",
+		UpdatedAt:     time.Now(),
+	}
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&returningKCWriter{contact: kc},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		pub,
+		&mock.MockUserReader{}, // always returns "" → sub empty
+		"",
+	)
+
+	result, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		Email:         "noresolve@example.com",
+		FirstName:     "No",
+		LastName:      "Resolve",
+		Role:          "Billing Contact",
+	})
+
+	require.NoError(t, err, "fail-open: empty sub must not fail the create")
+	require.NotNil(t, result)
+
+	for _, s := range pub.accessSubjects() {
+		assert.NotEqual(t, "lfx.fga-sync.member_put", s,
+			"Access(member_put) must not be called when sub is empty")
+	}
+}
+
+// TestUpdateKeyContact_EmailChange_PutBeforeRemove verifies that when an email
+// changes, the FGA put for the new sub is published BEFORE the remove for the old
+// sub. Reversing the order would create a window where the contact has no access.
+func TestUpdateKeyContact_EmailChange_PutBeforeRemove(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	pub := &accessSubjectCapture{}
+
+	// Writer returns a contact with the updated email so the service detects a change.
+	updatedKC := &model.KeyContact{
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		Email:         "new@example.com",
+		Role:          "Primary Contact",
+		Status:        "Active",
+		UpdatedAt:     time.Now().Add(time.Second), // different updatedAt forces ETag mismatch → publish
+	}
+	userReader := &configuredUserReader{
+		subs: map[string]string{
+			"john.doe@example.com": "sub-old", // contact-role-1's current email in mock
+			"new@example.com":      "sub-new",
+		},
+	}
+
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&returningKCWriter{contact: updatedKC},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		pub,
+		userReader,
+		"",
+	)
+
+	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		Email:         strPtr("new@example.com"),
+	})
+
+	require.NoError(t, err)
+	subjects := pub.accessSubjects()
+	require.Len(t, subjects, 2, "email change must emit exactly 2 Access messages (put + remove)")
+	assert.Equal(t, "lfx.fga-sync.member_put", subjects[0],
+		"keycontact put must come first to avoid an access gap")
+	assert.Equal(t, "lfx.fga-sync.member_remove", subjects[1],
+		"keycontact remove must come second")
+}
+
+// accessSubjectCapture records the NATS subjects of each Access() call in order.
+// Indexer calls are silently dropped since only FGA Access messages are under test.
+type accessSubjectCapture struct {
+	mu       sync.Mutex
+	subjects []string
+}
+
+func (p *accessSubjectCapture) Indexer(_ context.Context, _ string, _ any, _ bool) error { return nil }
+func (p *accessSubjectCapture) Access(_ context.Context, subject string, _ any, _ bool) error {
+	p.mu.Lock()
+	p.subjects = append(p.subjects, subject)
+	p.mu.Unlock()
+	return nil
+}
+func (p *accessSubjectCapture) accessSubjects() []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.subjects...)
+}
+
+// configuredUserReader maps email → OIDC sub for test scenarios.
+type configuredUserReader struct {
+	subs map[string]string
+}
+
+func (r *configuredUserReader) SubByEmail(_ context.Context, email string) (string, error) {
+	return r.subs[email], nil
+}
+
+// returningKCWriter always returns the pre-configured contact, allowing tests to
+// control the contact the service layer receives back from the writer.
+type returningKCWriter struct {
+	contact *model.KeyContact
+}
+
+func (w *returningKCWriter) CreateKeyContact(_ context.Context, _ model.KeyContactInput) (*model.KeyContact, error) {
+	return w.contact, nil
+}
+func (w *returningKCWriter) UpdateKeyContact(_ context.Context, _ string, _ model.KeyContactInput) (*model.KeyContact, error) {
+	return w.contact, nil
+}
+func (w *returningKCWriter) DeleteKeyContact(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
 // Verify that the mock ports are properly implemented.
 var (
 	_ port.MemberReader            = (*mock.MockMembershipRepository)(nil)
 	_ port.MemberReader            = (*mockReaderWithSiblings)(nil)
 	_ port.KeyContactWriter        = (*mockKeyContactWriter)(nil)
+	_ port.KeyContactWriter        = (*returningKCWriter)(nil)
 	_ port.B2BOrgReader            = (*mock.MockB2BOrgReader)(nil)
 	_ port.B2BOrgWriter            = (*mock.MockB2BOrgWriter)(nil)
 	_ port.ProjectMembershipReader = (*mockProjectMembershipReader)(nil)
 	_ port.MemberPublisher         = (*mock.MockMemberPublisher)(nil)
+	_ port.UserReader              = (*mock.MockUserReader)(nil)
+	_ port.UserReader              = (*configuredUserReader)(nil)
 	_ port.B2BOrgReader            = (*seededB2BOrgReader)(nil)
 	_ port.B2BOrgWriter            = (*happyB2BOrgWriter)(nil)
 	_ port.B2BOrgWriter            = (*preconditionFailingWriter)(nil)
@@ -1242,4 +1520,5 @@ var (
 	_ port.MemberPublisher         = (*errorPublisher)(nil)
 	_ port.MemberPublisher         = (*capturingPublisher)(nil)
 	_ port.MemberPublisher         = (*indexerMessageCapture)(nil)
+	_ port.MemberPublisher         = (*accessSubjectCapture)(nil)
 )

@@ -52,7 +52,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 
 	// Sample membership (Asset).
 	sampleMembership := &model.ProjectMembership{
-		UID:              "membership-1",
+		UID:              "11111111-1111-1111-1111-111111111111",
 		TierUID:          "tier-1",
 		ProjectUID:       "project-uid-1",
 		ProjectSlug:      "linux-foundation",
@@ -80,7 +80,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 	// Sample key contact (Project_Role__c).
 	sampleContact := &model.KeyContact{
 		UID:            "contact-role-1",
-		MembershipUID:  "membership-1",
+		MembershipUID:  "11111111-1111-1111-1111-111111111111",
 		TierUID:        "tier-1",
 		ProjectUID:     "project-uid-1",
 		ProjectSlug:    "linux-foundation",
@@ -412,7 +412,14 @@ func NewMockProjectMembershipReader() *MockProjectMembershipReader {
 	return &MockProjectMembershipReader{}
 }
 
-// AssembleProjectMembership always returns not-found.
-func (m *MockProjectMembershipReader) AssembleProjectMembership(_ context.Context, _ string) (*model.ProjectMembership, time.Time, error) {
+// AssembleProjectMembership returns the seeded membership for "11111111-1111-1111-1111-111111111111" and not-found otherwise.
+func (m *MockProjectMembershipReader) AssembleProjectMembership(_ context.Context, uid string) (*model.ProjectMembership, time.Time, error) {
+	if uid == "11111111-1111-1111-1111-111111111111" {
+		return &model.ProjectMembership{
+			UID:        "11111111-1111-1111-1111-111111111111",
+			ProjectUID: "project-1",
+			B2BOrgUID:  "org-1",
+		}, time.Now(), nil
+	}
 	return nil, time.Time{}, errors.NewNotFound("project membership not found in mock")
 }

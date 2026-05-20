@@ -159,11 +159,7 @@ type CreateKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// UID of the B2B organization (Account)
-	B2bOrgUID string
-	// V2 project UUID
-	ProjectUID string
-	// Membership UID
+	// Parent membership UID
 	MembershipUID string
 	// Contact email address; used to resolve or create the Salesforce Contact
 	// record
@@ -204,6 +200,8 @@ type DeleteKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
 	UID string
 	// If-Match header value for conditional requests
@@ -243,6 +241,8 @@ type GetKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
 	UID string
 	// If-None-Match header value for conditional requests
@@ -441,6 +441,8 @@ type UpdateKeyContactPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
 	UID string
 	// If-Match header value for conditional requests

@@ -462,7 +462,7 @@ paths:
                                 $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
-    /key_contacts:
+    /project_memberships/{membership_uid}/key_contacts:
         post:
             tags:
                 - membership-service
@@ -481,6 +481,16 @@ paths:
                     enum:
                         - "1"
                   example: "1"
+                - name: membership_uid
+                  in: path
+                  description: Parent membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Parent membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
             requestBody:
                 required: true
                 content:
@@ -488,14 +498,11 @@ paths:
                         schema:
                             $ref: '#/components/schemas/KeyContactCreateBody'
                         example:
-                            b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                             board_member: false
                             email: john.doe@example.com
                             first_name: John
                             last_name: Doe
-                            membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                             primary_contact: false
-                            project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                             role: Technical Contact
                             status: Active
                             title: CTO
@@ -584,7 +591,7 @@ paths:
                                 $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
-    /key_contacts/{uid}:
+    /project_memberships/{membership_uid}/key_contacts/{uid}:
         delete:
             tags:
                 - membership-service
@@ -603,6 +610,16 @@ paths:
                     enum:
                         - "1"
                   example: "1"
+                - name: membership_uid
+                  in: path
+                  description: Parent membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Parent membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 - name: uid
                   in: path
                   description: Key contact UID
@@ -681,6 +698,16 @@ paths:
                     enum:
                         - "1"
                   example: "1"
+                - name: membership_uid
+                  in: path
+                  description: Parent membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Parent membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 - name: uid
                   in: path
                   description: Key contact UID
@@ -806,6 +833,16 @@ paths:
                     enum:
                         - "1"
                   example: "1"
+                - name: membership_uid
+                  in: path
+                  description: Parent membership UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Parent membership UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 - name: uid
                   in: path
                   description: Key contact UID
@@ -1321,11 +1358,6 @@ components:
         KeyContactCreateBody:
             type: object
             properties:
-                b2b_org_uid:
-                    type: string
-                    description: UID of the B2B organization (Account)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
                 board_member:
                     type: boolean
                     description: Whether this contact holds a board member role
@@ -1343,20 +1375,10 @@ components:
                     type: string
                     description: Contact last name; used when creating a new Contact on miss
                     example: Doe
-                membership_uid:
-                    type: string
-                    description: Membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
                 primary_contact:
                     type: boolean
                     description: Whether this is the primary contact for the membership
                     example: false
-                project_uid:
-                    type: string
-                    description: V2 project UUID
-                    example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                    format: uuid
                 role:
                     type: string
                     description: Contact role designation
@@ -1384,21 +1406,15 @@ components:
                     example: CTO
             description: Request body for creating a key contact (Project_Role__c record)
             example:
-                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 board_member: false
                 email: john.doe@example.com
                 first_name: John
                 last_name: Doe
-                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 primary_contact: false
-                project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                 role: Technical Contact
                 status: Active
                 title: CTO
             required:
-                - b2b_org_uid
-                - project_uid
-                - membership_uid
                 - email
                 - first_name
                 - last_name

@@ -90,10 +90,10 @@ func New(
 			{"CreateB2bOrg", "POST", "/b2b_orgs"},
 			{"UpdateB2bOrg", "PUT", "/b2b_orgs/{uid}"},
 			{"GetProjectMembership", "GET", "/project_memberships/{uid}"},
-			{"GetKeyContact", "GET", "/key_contacts/{uid}"},
-			{"CreateKeyContact", "POST", "/key_contacts"},
-			{"UpdateKeyContact", "PUT", "/key_contacts/{uid}"},
-			{"DeleteKeyContact", "DELETE", "/key_contacts/{uid}"},
+			{"GetKeyContact", "GET", "/project_memberships/{membership_uid}/key_contacts/{uid}"},
+			{"CreateKeyContact", "POST", "/project_memberships/{membership_uid}/key_contacts"},
+			{"UpdateKeyContact", "PUT", "/project_memberships/{membership_uid}/key_contacts/{uid}"},
+			{"DeleteKeyContact", "DELETE", "/project_memberships/{membership_uid}/key_contacts/{uid}"},
 			{"AdminReindex", "POST", "/admin/reindex"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
@@ -391,7 +391,7 @@ func MountGetKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/key_contacts/{uid}", f)
+	mux.Handle("GET", "/project_memberships/{membership_uid}/key_contacts/{uid}", f)
 }
 
 // NewGetKeyContactHandler creates a HTTP handler which loads the HTTP request
@@ -444,7 +444,7 @@ func MountCreateKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("POST", "/key_contacts", f)
+	mux.Handle("POST", "/project_memberships/{membership_uid}/key_contacts", f)
 }
 
 // NewCreateKeyContactHandler creates a HTTP handler which loads the HTTP
@@ -498,7 +498,7 @@ func MountUpdateKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("PUT", "/key_contacts/{uid}", f)
+	mux.Handle("PUT", "/project_memberships/{membership_uid}/key_contacts/{uid}", f)
 }
 
 // NewUpdateKeyContactHandler creates a HTTP handler which loads the HTTP
@@ -552,7 +552,7 @@ func MountDeleteKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("DELETE", "/key_contacts/{uid}", f)
+	mux.Handle("DELETE", "/project_memberships/{membership_uid}/key_contacts/{uid}", f)
 }
 
 // NewDeleteKeyContactHandler creates a HTTP handler which loads the HTTP
