@@ -15,92 +15,36 @@ spec:
   hostnames:
   - "lfx-api.{{ .Values.lfx.domain }}"
   rules:
-  # Project-scoped tier endpoints (with authentication)
-  # Matches: /projects/{uid}/tiers, /projects/{uid}/tiers/{tier_uid}
-  - matches:
-    - path:
-        type: RegularExpression
-        value: /projects/[^/]+/tiers(/.*)?
-    {{- if .Values.heimdall.enabled }}
-    filters:
-    - type: ExtensionRef
-      extensionRef:
-        group: traefik.io
-        kind: Middleware
-        name: heimdall-forward-body
-    {{- end }}
-    backendRefs:
-    - group: ""
-      kind: Service
-      name: lfx-v2-member-service
-      port: {{ .Values.service.port }}
-      weight: 1
-  # Project-scoped membership endpoints (with authentication)
-  # Matches: /projects/{uid}/memberships, /projects/{uid}/memberships/{membership_uid},
-  #          /projects/{uid}/memberships/{membership_uid}/key_contacts, etc.
-  - matches:
-    - path:
-        type: RegularExpression
-        value: /projects/[^/]+/memberships(/.*)?
-    {{- if .Values.heimdall.enabled }}
-    filters:
-    - type: ExtensionRef
-      extensionRef:
-        group: traefik.io
-        kind: Middleware
-        name: heimdall-forward-body
-    {{- end }}
-    backendRefs:
-    - group: ""
-      kind: Service
-      name: lfx-v2-member-service
-      port: {{ .Values.service.port }}
-      weight: 1
-  # B2B org search endpoint (with authentication)
-  # Matches: /b2b_orgs, /b2b_orgs?search_name=...
   - matches:
     - path:
         type: Exact
         value: /b2b_orgs
-    {{- if .Values.heimdall.enabled }}
-    filters:
-    - type: ExtensionRef
-      extensionRef:
-        group: traefik.io
-        kind: Middleware
-        name: heimdall-forward-body
-    {{- end }}
-    backendRefs:
-    - group: ""
-      kind: Service
-      name: lfx-v2-member-service
-      port: {{ .Values.service.port }}
-      weight: 1
-  # B2B org memberships endpoint (with authentication)
-  # Matches: /b2b_orgs/{b2b_org_uid}/memberships
-  - matches:
     - path:
-        type: RegularExpression
-        value: /b2b_orgs/[^/]+/memberships(/.*)?
-    {{- if .Values.heimdall.enabled }}
-    filters:
-    - type: ExtensionRef
-      extensionRef:
-        group: traefik.io
-        kind: Middleware
-        name: heimdall-forward-body
-    {{- end }}
-    backendRefs:
-    - group: ""
-      kind: Service
-      name: lfx-v2-member-service
-      port: {{ .Values.service.port }}
-      weight: 1
-  # OpenAPI spec endpoints (no authentication required)
-  - matches:
+        type: PathPrefix
+        value: /b2b_orgs/
+    - path:
+        type: PathPrefix
+        value: /project_memberships/
+    - path:
+        type: Exact
+        value: /key_contacts
+    - path:
+        type: PathPrefix
+        value: /key_contacts/
+    - path:
+        type: PathPrefix
+        value: /admin/
     - path:
         type: PathPrefix
         value: /_memberships/
+    {{- if .Values.heimdall.enabled }}
+    filters:
+    - type: ExtensionRef
+      extensionRef:
+        group: traefik.io
+        kind: Middleware
+        name: heimdall-forward-body
+    {{- end }}
     backendRefs:
     - group: ""
       kind: Service

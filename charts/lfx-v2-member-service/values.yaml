@@ -37,6 +37,11 @@ app:
   jwtAuthDisabledMockLocalPrincipal: ""
   # use_oidc_contextualizer is a boolean to determine if the OIDC contextualizer should be used
   use_oidc_contextualizer: true
+  # globalOrgAdminTeamUID is the v2 UID of the platform org-admin team
+  # whose members (EasyCLA / LFX Enrollment client-IDs) are authorized to
+  # call POST /b2b_orgs and POST /admin/reindex. The placeholder _null
+  # never matches a real team UID; override per-environment.
+  globalOrgAdminTeamUID: "_null"
   # extraEnv is a list of additional environment variables to set in the container.
   # Supports both simple key-value pairs and Kubernetes field references.
   extraEnv: []
@@ -167,9 +172,6 @@ openfga:
   # Note: If it is disabled, then the member service will allow all requests.
   # (Disabling OpenFGA should only be used for local development.)
   enabled: true
-  # lfProjectUID is the static LF project UID used for OpenFGA auditor checks
-  # on the /b2b_orgs endpoints.
-  lfProjectUID: "_null"
 
 # heimdall is the configuration for the heimdall middleware
 heimdall:
