@@ -236,8 +236,13 @@ func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, ro
 	}
 
 	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to write invite info back to project settings",
-			constants.ErrKey, err, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
+		if errors.Is(err, domain.ErrRevisionMismatch) {
+			slog.DebugContext(ctx, "project_subscriber: revision mismatch writing invite info — will retry",
+				"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
+		} else {
+			slog.WarnContext(ctx, "project_subscriber: failed to write invite info back to project settings",
+				constants.ErrKey, err, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
+		}
 		return err
 	}
 
@@ -341,6 +346,10 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			"invite_uid", event.InviteUID, "username", event.Username)
 		return nil
 	}
+
+	acceptCtx, acceptCancel := context.WithTimeout(ctx, notificationTimeout)
+	defer acceptCancel()
+	ctx = acceptCtx
 
 	// Look up the project UID from the mapping.
 	projectUID, err := s.ProjectRepository.GetProjectUIDByInviteUID(ctx, event.InviteUID)

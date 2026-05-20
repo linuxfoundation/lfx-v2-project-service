@@ -274,6 +274,9 @@ func (m *MockMessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.
 
 func (m *MockMessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (InviteResult, error) {
 	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return InviteResult{}, args.Error(1)
+	}
 	return args.Get(0).(InviteResult), args.Error(1)
 }
 

@@ -39,7 +39,7 @@ The invite service handles rendering and delivering the invite email to the reci
 
 **On success**, the invite service returns an invite UID, the delivery email, and an expiry timestamp. The project service:
 
-1. Writes the invite metadata (`uid`, `email`, `expires_at`) onto the matching user entry in the settings record (stored in the NATS KV store under key `project-settings/{project_uid}`).
+1. Writes the invite metadata (`uid`, `email`, `expires_at`) onto the matching user entry in the settings record (stored in the `project-settings` NATS KV bucket under key `{project_uid}`).
 2. Writes a secondary mapping entry: KV key `lookup/project-settings-invite/{invite_uid}` → value `{project_uid}`. This is used by `HandleInviteAccepted` to route the acceptance event without scanning all project settings.
 3. Re-indexes the project settings so the `invite` object is queryable.
 
