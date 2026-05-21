@@ -27,6 +27,12 @@ type ProjectRepository interface {
 	GetProjectSettingsWithRevision(ctx context.Context, projectUID string) (*models.ProjectSettings, uint64, error)
 	UpdateProjectSettings(ctx context.Context, projectSettings *models.ProjectSettings, revision uint64) error
 
+	// Invite mappings — secondary mappings from invite UID → project UID for fast
+	// invite-acceptance routing without scanning all project settings.
+	CreateInviteMapping(ctx context.Context, inviteUID, projectUID string) error
+	GetProjectUIDByInviteUID(ctx context.Context, inviteUID string) (string, error)
+	DeleteInviteMapping(ctx context.Context, inviteUID string) error
+
 	// Slug operations
 	GetProjectUIDFromSlug(ctx context.Context, projectSlug string) (string, error)
 	ProjectSlugExists(ctx context.Context, projectSlug string) (bool, error)

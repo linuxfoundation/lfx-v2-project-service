@@ -4,6 +4,7 @@
 package service
 
 import (
+	"strings"
 	"time"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
@@ -310,12 +311,21 @@ func ConvertToServiceProjectBase(p *models.ProjectBase) *projsvc.ProjectBase {
 }
 
 // ConvertToDBProjectSettings converts a project settings service representation to a database representation.
-func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*models.ProjectSettings, error) {
+// existing, when non-nil, is used to seed read-only fields (e.g. Invite) that the HTTP layer cannot set.
+// Pass nil on create; pass the current stored record on update.
+func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings, existing *models.ProjectSettings) (*models.ProjectSettings, error) {
 	if settings == nil {
 		return new(models.ProjectSettings), nil
 	}
 
 	currentTime := time.Now().UTC()
+
+	var existingWriters, existingAuditors, existingMCs []models.UserInfo
+	if existing != nil {
+		existingWriters = existing.Writers
+		existingAuditors = existing.Auditors
+		existingMCs = existing.MeetingCoordinators
+	}
 
 	s := new(models.ProjectSettings)
 	if settings.UID != nil {
@@ -332,13 +342,13 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings) (*models.Proj
 		s.AnnouncementDate = &announcementDate
 	}
 	if settings.Writers != nil {
-		s.Writers = convertUsersFromAPI(settings.Writers)
+		s.Writers = convertUsersFromAPI(settings.Writers, existingWriters)
 	}
 	if settings.Auditors != nil {
-		s.Auditors = convertUsersFromAPI(settings.Auditors)
+		s.Auditors = convertUsersFromAPI(settings.Auditors, existingAuditors)
 	}
 	if settings.MeetingCoordinators != nil {
-		s.MeetingCoordinators = convertUsersFromAPI(settings.MeetingCoordinators)
+		s.MeetingCoordinators = convertUsersFromAPI(settings.MeetingCoordinators, existingMCs)
 	}
 	if settings.ExecutiveDirector != nil {
 		s.ExecutiveDirector = convertUserFromAPI(settings.ExecutiveDirector)
@@ -424,27 +434,36 @@ func convertUsersToAPI(users []models.UserInfo) []*projsvc.UserInfo {
 
 	apiUsers := make([]*projsvc.UserInfo, len(users))
 	for i := range users {
-		user := users[i]
-		apiUsers[i] = &projsvc.UserInfo{
-			Name:     misc.StringPtr(user.Name),
-			Email:    misc.StringPtr(user.Email),
-			Username: misc.StringPtr(user.Username),
-			Avatar:   misc.StringPtr(user.Avatar),
-		}
+		apiUsers[i] = convertUserToAPI(&users[i])
 	}
 	return apiUsers
 }
 
-// convertUsersFromAPI converts API UserInfo slice to domain UserInfo slice
-func convertUsersFromAPI(apiUsers []*projsvc.UserInfo) []models.UserInfo {
+// convertUsersFromAPI converts API UserInfo slice to domain UserInfo slice.
+// existing, when provided, seeds each user with the stored record matched by email so
+// that read-only fields (e.g. Invite) survive a PUT request without special-casing.
+// Incoming API fields are overlaid on top of the existing values.
+func convertUsersFromAPI(apiUsers []*projsvc.UserInfo, existing []models.UserInfo) []models.UserInfo {
 	if len(apiUsers) == 0 {
 		return nil
+	}
+
+	existingByEmail := make(map[string]models.UserInfo, len(existing))
+	for _, u := range existing {
+		if u.Email != "" {
+			existingByEmail[strings.ToLower(strings.TrimSpace(u.Email))] = u
+		}
 	}
 
 	users := make([]models.UserInfo, len(apiUsers))
 	for i, apiUser := range apiUsers {
 		if apiUser != nil {
-			user := models.UserInfo{}
+			// Seed from the existing stored record so read-only fields are preserved.
+			var user models.UserInfo
+			if apiUser.Email != nil {
+				user = existingByEmail[strings.ToLower(strings.TrimSpace(*apiUser.Email))]
+			}
+			// Overlay fields the API is allowed to set.
 			if apiUser.Name != nil {
 				user.Name = *apiUser.Name
 			}
@@ -468,12 +487,24 @@ func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
 	if user == nil {
 		return nil
 	}
-	return &projsvc.UserInfo{
+	apiUser := &projsvc.UserInfo{
 		Name:     misc.StringPtr(user.Name),
 		Email:    misc.StringPtr(user.Email),
 		Username: misc.StringPtr(user.Username),
 		Avatar:   misc.StringPtr(user.Avatar),
 	}
+	if user.Invite != nil {
+		inv := &projsvc.InviteInfo{
+			UID:   misc.StringPtr(user.Invite.UID),
+			Email: misc.StringPtr(user.Invite.Email),
+		}
+		if user.Invite.ExpiresAt != nil {
+			s := user.Invite.ExpiresAt.UTC().Format(time.RFC3339)
+			inv.ExpiresAt = &s
+		}
+		apiUser.Invite = inv
+	}
+	return apiUser
 }
 
 // convertUserFromAPI converts a single API UserInfo pointer to a domain UserInfo pointer.
@@ -494,6 +525,7 @@ func convertUserFromAPI(apiUser *projsvc.UserInfo) *models.UserInfo {
 	if apiUser.Avatar != nil {
 		user.Avatar = *apiUser.Avatar
 	}
+	// invite is server-managed — never accepted from API requests.
 	return user
 }
 
@@ -581,26 +613,34 @@ func domainUsersToEvent(users []models.UserInfo) []events.UserInfo {
 	}
 	result := make([]events.UserInfo, len(users))
 	for i, u := range users {
-		result[i] = events.UserInfo{
-			Name:     u.Name,
-			Email:    u.Email,
-			Username: u.Username,
-			Avatar:   u.Avatar,
-		}
+		result[i] = domainUserToEvent(u)
 	}
 	return result
+}
+
+func domainUserToEvent(u models.UserInfo) events.UserInfo {
+	ev := events.UserInfo{
+		Name:     u.Name,
+		Email:    u.Email,
+		Username: u.Username,
+		Avatar:   u.Avatar,
+	}
+	if u.Invite != nil {
+		ev.Invite = &events.InviteInfo{
+			UID:       u.Invite.UID,
+			Email:     u.Invite.Email,
+			ExpiresAt: u.Invite.ExpiresAt,
+		}
+	}
+	return ev
 }
 
 func domainUserPtrToEvent(u *models.UserInfo) *events.UserInfo {
 	if u == nil {
 		return nil
 	}
-	return &events.UserInfo{
-		Name:     u.Name,
-		Email:    u.Email,
-		Username: u.Username,
-		Avatar:   u.Avatar,
-	}
+	ev := domainUserToEvent(*u)
+	return &ev
 }
 
 // createTestUserInfo creates a UserInfo for testing purposes

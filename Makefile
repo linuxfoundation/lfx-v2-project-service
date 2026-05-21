@@ -8,8 +8,7 @@ BINARY_NAME=project-api
 BINARY_PATH=bin/$(BINARY_NAME)
 
 # API/Code generation variables
-API_PATH=$(GO_MODULE)/api/project/v1
-DESIGN_MODULE=$(API_PATH)/design
+DESIGN_MODULE=$(shell go list -m)/api/project/v1/design
 GOA_VERSION=v3.22.6
 GO_FILES=$(shell find . -name '*.go' -not -path './api/project/v1/gen/*' -not -path './vendor/*')
 
@@ -42,7 +41,7 @@ all: clean deps apigen fmt lint test build
 help:
 	@echo "Available targets:"
 	@echo "  all            - Run clean, deps, apigen, fmt, lint, test, and build"
-	@echo "  deps           - Install dependencies including goa CLI"
+	@echo "  deps           - Install dependencies including goa CLI and git hooks"
 	@echo "  apigen         - Generate API code from design files"
 	@echo "  build          - Build the binary"
 	@echo "  run            - Run the service"
@@ -74,6 +73,12 @@ deps:
 		echo "==> Installing golangci-lint..."; \
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	}
+	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		git config --local core.hooksPath .githooks; \
+		echo "==> Git hooks installed from .githooks/"; \
+	else \
+		echo "==> Skipping git hooks install (not a git worktree)"; \
+	fi
 
 # Generate API code from design files
 .PHONY: apigen

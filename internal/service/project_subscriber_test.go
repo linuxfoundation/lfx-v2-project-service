@@ -8,8 +8,11 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -31,42 +34,74 @@ func makeProjectBase(uid, name, slug string) *models.ProjectBase {
 }
 
 func TestHandleProjectSettingsUpdated(t *testing.T) {
+	// Users WITH LFID (Username set) → direct notification email via email-service.
 	alice := events.UserInfo{Username: "alice", Email: "alice@example.com", Name: "Alice"}
 	bob := events.UserInfo{Username: "bob", Email: "bob@example.com", Name: "Bob"}
+
+	// Users WITHOUT LFID (Username empty) → invite request via invite-service.
+	noLFIDWriter := events.UserInfo{Email: "writer@example.com", Name: "No LFID Writer"}
+	noLFIDAuditor := events.UserInfo{Email: "auditor@example.com", Name: "No LFID Auditor"}
+	noLFIDMC := events.UserInfo{Email: "mc@example.com", Name: "No LFID MC"}
+
+	// settingsWithWriter returns a minimal ProjectSettings containing a writer matching the
+	// noLFIDWriter fixture — used to back the GetProjectSettingsWithRevision mock.
+	settingsWithWriter := func() *models.ProjectSettings {
+		return &models.ProjectSettings{
+			UID:     "proj-1",
+			Writers: []models.UserInfo{{Email: noLFIDWriter.Email}},
+		}
+	}
+	settingsWithAuditor := func() *models.ProjectSettings {
+		return &models.ProjectSettings{
+			UID:      "proj-1",
+			Auditors: []models.UserInfo{{Email: noLFIDAuditor.Email}},
+		}
+	}
+	settingsWithMC := func() *models.ProjectSettings {
+		return &models.ProjectSettings{
+			UID:                 "proj-1",
+			MeetingCoordinators: []models.UserInfo{{Email: noLFIDMC.Email}},
+		}
+	}
 
 	tests := []struct {
 		name              string
 		event             events.ProjectSettingsUpdatedMessage
 		projectBase       *models.ProjectBase
 		projectBaseErr    error
-		wantSendCount     int
+		wantEmailCount    int
+		wantInviteCount   int
+		wantInviteRole    string // expected Role field in the SendInviteRequest payload
+		inviteUID         string // invite UID returned by the mock (empty → no write-back)
 		msgBuilderErr     error
-		wantURLContains   string // assert HTML body contains this substring
-		wantURLNotContain string // assert HTML body does NOT contain this substring
+		wantURLContains   string
+		wantURLNotContain string
+		setupRepoExtra    func(*domain.MockProjectRepository) // optional extra repo mock setup
 	}{
 		{
-			name: "no additions — no emails sent",
+			name: "no additions — no sends",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 			},
-			// projectBase intentionally nil: handler returns before GetProjectBase when no additions found
-			wantSendCount: 0,
+			wantEmailCount:  0,
+			wantInviteCount: 0,
 		},
 		{
-			name: "one writer added — one email sent",
+			name: "LFID writer added — direct email sent",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 				Actor:       events.Actor{Username: "admin", Name: "Admin User"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 1,
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
 		},
 		{
-			name: "two users added across roles — two emails sent",
+			name: "two LFID users added across roles — two emails sent",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
@@ -76,42 +111,182 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				},
 				Actor: events.Actor{Username: "admin"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 2,
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  2,
+			wantInviteCount: 0,
 		},
 		{
-			name: "send error on one — other still attempted",
+			name: "non-LFID writer added — invite request published and invite UID stored",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{noLFIDWriter}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-writer-uid",
+			setupRepoExtra: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
+					Return(settingsWithWriter(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Invite.UID == "invite-writer-uid"
+				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
+			},
+		},
+		{
+			name: "non-LFID auditor added — invite request published and invite UID stored",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Auditors: []events.UserInfo{noLFIDAuditor}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleView),
+			inviteUID:       "invite-auditor-uid",
+			setupRepoExtra: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
+					Return(settingsWithAuditor(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Auditors) > 0 && s.Auditors[0].Invite.UID == "invite-auditor-uid"
+				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-auditor-uid", "proj-1").Return(nil)
+			},
+		},
+		{
+			name: "non-LFID meeting coordinator added — invite request published with Manage role and UID stored",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{MeetingCoordinators: []events.UserInfo{noLFIDMC}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-mc-uid",
+			setupRepoExtra: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
+					Return(settingsWithMC(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Invite.UID == "invite-mc-uid"
+				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-mc-uid", "proj-1").Return(nil)
+			},
+		},
+		{
+			name: "mixed LFID and non-LFID added — email for LFID, invite for non-LFID",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice, noLFIDWriter},
+					Auditors: []events.UserInfo{noLFIDAuditor},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 2,
+			// inviteUID is empty — no write-back expected (returned empty UID path)
+		},
+		{
+			name: "send error on email — handler still returns nil",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 				Actor:       events.Actor{Username: "admin"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 1,
-			msgBuilderErr: assert.AnError,
+			projectBase:    makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount: 1,
+			msgBuilderErr:  assert.AnError,
 		},
 		{
-			name: "user without email address — skipped, no send",
+			name: "send error on invite — handler still returns nil, no write-back",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{noLFIDWriter}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			msgBuilderErr:   assert.AnError,
+			// No setupRepoExtra — write-back must not happen when invite returns error.
+		},
+		{
+			name: "user without email address — skipped entirely",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{{Username: "noemail", Name: "No Email"}}},
 				Actor:       events.Actor{Username: "admin"},
 			},
-			projectBase:   makeProjectBase("proj-1", "Demo", "demo"),
-			wantSendCount: 0,
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
 		},
 		{
-			name: "project load failure — no email sent",
+			name: "project load failure — no sends",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
 				NewSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
 			},
-			projectBase:    nil,
-			projectBaseErr: assert.AnError,
-			wantSendCount:  0,
+			projectBase:     nil,
+			projectBaseErr:  assert.AnError,
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// User is already an auditor but gets added as a writer.  Only the Writers
+			// slice entry should receive the invite UID — the Auditors entry is untouched.
+			name: "non-LFID user already auditor added as writer — invite UID stored only on writer entry",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{noLFIDWriter},
+					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-writer-uid",
+			setupRepoExtra: func(r *domain.MockProjectRepository) {
+				// Settings contains the user in both slices; only Writers entry should be stamped.
+				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
+					Return(&models.ProjectSettings{
+						UID:      "proj-1",
+						Writers:  []models.UserInfo{{Email: noLFIDWriter.Email}},
+						Auditors: []models.UserInfo{{Email: noLFIDWriter.Email}},
+					}, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					if len(s.Writers) == 0 || s.Writers[0].Invite.UID != "invite-writer-uid" {
+						return false
+					}
+					// Auditors entry must NOT have an invite set.
+					if len(s.Auditors) == 0 || s.Auditors[0].Invite != nil {
+						return false
+					}
+					return true
+				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
+			},
 		},
 		{
 			name: "project with slug — URL includes slug query param",
@@ -122,7 +297,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				Actor:       events.Actor{Name: "Admin"},
 			},
 			projectBase:     makeProjectBase("proj-1", "Demo", "my-project"),
-			wantSendCount:   1,
+			wantEmailCount:  1,
 			wantURLContains: "?project=my-project",
 		},
 		{
@@ -134,7 +309,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				Actor:       events.Actor{Name: "Admin"},
 			},
 			projectBase:       makeProjectBase("proj-1", "Demo", ""),
-			wantSendCount:     1,
+			wantEmailCount:    1,
 			wantURLContains:   "project/overview",
 			wantURLNotContain: "?project=",
 		},
@@ -150,7 +325,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					Return(tt.projectBase, tt.projectBaseErr)
 			}
 
-			if tt.wantSendCount > 0 {
+			if tt.wantEmailCount > 0 {
 				if tt.wantURLContains != "" || tt.wantURLNotContain != "" {
 					wantContains := tt.wantURLContains
 					wantNotContain := tt.wantURLNotContain
@@ -162,11 +337,61 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 							return false
 						}
 						return true
-					})).Return(tt.msgBuilderErr).Times(tt.wantSendCount)
+					})).Return(tt.msgBuilderErr).Times(tt.wantEmailCount)
 				} else {
 					mockMsg.On("SendEmailRequest", mock.Anything, mock.AnythingOfType("api.SendEmailRequest")).
-						Return(tt.msgBuilderErr).Times(tt.wantSendCount)
+						Return(tt.msgBuilderErr).Times(tt.wantEmailCount)
 				}
+			}
+
+			if tt.wantInviteCount > 0 {
+				wantRole := tt.wantInviteRole
+				wantProjectUID := tt.event.ProjectUID
+				inviteReturnUID := tt.inviteUID
+				inviteReturnErr := tt.msgBuilderErr
+				mockMsg.On("SendInviteRequest", mock.Anything, mock.MatchedBy(func(req inviteapi.SendInviteRequest) bool {
+					return req.ResourceUID == wantProjectUID &&
+						(wantRole == "" || req.Role == wantRole) &&
+						req.RecipientEmail != "" &&
+						req.ReturnURL != ""
+				})).Return(domain.InviteResult{
+					InviteUID:      inviteReturnUID,
+					RecipientEmail: "nonlfid@example.com",
+					ExpiresAt:      time.Now().Add(30 * 24 * time.Hour),
+				}, inviteReturnErr).Times(tt.wantInviteCount)
+			}
+
+			// Each successful invite write-back triggers a settings reindex.
+			// The matcher verifies the envelope's Data is a ProjectSettings that has
+			// the invite UID set on at least one user in the relevant role slice.
+			wantIndexCount := 0
+			if tt.inviteUID != "" && tt.msgBuilderErr == nil {
+				wantIndexCount = tt.wantInviteCount
+			}
+			if wantIndexCount > 0 {
+				wantInviteUID := tt.inviteUID
+				mockMsg.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings",
+					mock.MatchedBy(func(msg any) bool {
+						env, ok := msg.(indexerTypes.IndexerMessageEnvelope)
+						if !ok {
+							return false
+						}
+						s, ok := env.Data.(models.ProjectSettings)
+						if !ok {
+							return false
+						}
+						for _, u := range append(append(s.Writers, s.Auditors...), s.MeetingCoordinators...) {
+							if u.Invite != nil && u.Invite.UID == wantInviteUID {
+								return true
+							}
+						}
+						return false
+					}), false).
+					Return(nil).Times(wantIndexCount)
+			}
+
+			if tt.setupRepoExtra != nil {
+				tt.setupRepoExtra(mockRepo)
 			}
 
 			svc := &ProjectsService{
@@ -181,7 +406,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 			assert.NoError(t, err)
 
-			mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", tt.wantSendCount)
+			mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", tt.wantEmailCount)
+			mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", tt.wantInviteCount)
 			mockRepo.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
 		})
@@ -193,6 +419,26 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
 	})
+}
+
+func TestMapRoleToInviteRole(t *testing.T) {
+	tests := []struct {
+		name string
+		role string
+		want string
+	}{
+		{"writer", roleWriter, string(inviteapi.InviteRoleManage)},
+		{"auditor", roleAuditor, string(inviteapi.InviteRoleView)},
+		{"meeting coordinator", roleMeetingCoordinator, string(inviteapi.InviteRoleManage)},
+		{"unknown role", "Unknown", ""},
+		{"empty role", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, mapRoleToInviteRole(tt.role))
+		})
+	}
 }
 
 func TestDiffNewMembers(t *testing.T) {
@@ -225,14 +471,14 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Auditors: []events.UserInfo{bob}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: bob, Role: "Auditor"}},
+			wantContains: []roleAssignment{{User: bob, Role: roleAuditor}},
 		},
 		{
 			name:         "meeting coordinator added",
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{MeetingCoordinators: []events.UserInfo{alice}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: "Meeting Coordinator"}},
+			wantContains: []roleAssignment{{User: alice, Role: roleMeetingCoordinator}},
 		},
 		{
 			name: "multiple roles added",
@@ -253,7 +499,7 @@ func TestDiffNewMembers(t *testing.T) {
 			old:          events.ProjectSettings{},
 			new:          events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: noUsername, Role: "Writer"}},
+			wantContains: []roleAssignment{{User: noUsername, Role: roleWriter}},
 		},
 		{
 			name: "user with neither username nor email is skipped",
@@ -292,7 +538,7 @@ func TestDiffNewMembers(t *testing.T) {
 				{Email: "alice@example.com"},
 			}},
 			wantLen:      1,
-			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: "Writer"}},
+			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: roleWriter}},
 		},
 	}
 
@@ -307,5 +553,268 @@ func TestDiffNewMembers(t *testing.T) {
 	}
 }
 
-// Compile-time check: emailapi.SendEmailRequest is used to ensure the type alias is correct.
-var _ emailapi.SendEmailRequest
+func TestHandleInviteAccepted(t *testing.T) {
+	const inviteUID = "inv-abc"
+	const username = "newuser"
+	const projectUID = "proj-1"
+
+	makeSettings := func() *models.ProjectSettings {
+		return &models.ProjectSettings{
+			UID:     projectUID,
+			Writers: []models.UserInfo{{Email: "writer@example.com", Invite: &models.InviteInfo{UID: inviteUID}}},
+		}
+	}
+
+	indexMatcher := mock.MatchedBy(func(msg any) bool {
+		env, ok := msg.(indexerTypes.IndexerMessageEnvelope)
+		if !ok {
+			return false
+		}
+		s, ok := env.Data.(models.ProjectSettings)
+		if !ok {
+			return false
+		}
+		for _, u := range s.Writers {
+			if u.Username == username && u.Invite == nil {
+				return true
+			}
+		}
+		return false
+	})
+
+	tests := []struct {
+		name      string
+		payload   any
+		setupRepo func(*domain.MockProjectRepository)
+		setupMsg  func(*domain.MockMessageBuilder)
+		wantErr   bool
+	}{
+		{
+			name:    "malformed payload — returns nil without crashing",
+			payload: []byte("not json"),
+		},
+		{
+			name:    "missing invite_uid — discarded",
+			payload: events.InviteAccepted{InviteUID: "", Username: username},
+		},
+		{
+			name:    "missing username — discarded",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: ""},
+		},
+		{
+			name:    "ErrInviteMappingNotFound — silently ignored (debug log, no warn)",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).
+					Return("", domain.ErrInviteMappingNotFound)
+			},
+		},
+		{
+			name:    "KV error on GetProjectUIDByInviteUID — warn logged, nil returned",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).
+					Return("", assert.AnError)
+			},
+		},
+		{
+			name:    "happy path — user promoted, mapping deleted, indexer called",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
+				}), uint64(1)).Return(nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+			},
+		},
+		{
+			name:    "ErrRevisionMismatch on UPDATE — succeeds on attempt 2",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				// First GET + UPDATE fails with revision mismatch; second GET + UPDATE succeeds.
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(makeSettings(), uint64(1), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).
+					Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(makeSettings(), uint64(2), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
+				}), uint64(2)).Return(nil).Once()
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+			},
+		},
+		{
+			name:    "promoted == false (stale mapping) — mapping deleted, nil returned",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				// Settings contain no entry with the invite UID.
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(&models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}}, uint64(1), nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+		},
+		{
+			name:    "mapping-delete failure after acceptance — warn logged, not fatal",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(assert.AnError)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &domain.MockProjectRepository{}
+			mockMsg := &domain.MockMessageBuilder{}
+			if tt.setupRepo != nil {
+				tt.setupRepo(mockRepo)
+			}
+			if tt.setupMsg != nil {
+				tt.setupMsg(mockMsg)
+			}
+
+			svc := &ProjectsService{
+				ProjectRepository: mockRepo,
+				MessageBuilder:    mockMsg,
+			}
+
+			var data []byte
+			if raw, ok := tt.payload.([]byte); ok {
+				data = raw
+			} else {
+				data = marshalEvent(t, tt.payload)
+			}
+			msg := domain.NewMockMessage(data, "")
+			err := svc.HandleInviteAccepted(context.Background(), msg)
+			assert.NoError(t, err)
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+func TestStoreInviteInfo(t *testing.T) {
+	const projectUID = "proj-1"
+	const inviteUID = "inv-xyz"
+	const inviteEmail = "invite@example.com"
+	const recipientEmail = "writer@example.com"
+
+	expiresAt := time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Second)
+
+	makeSettings := func(rev uint64) (*models.ProjectSettings, uint64) {
+		return &models.ProjectSettings{
+			UID:     projectUID,
+			Writers: []models.UserInfo{{Email: recipientEmail}},
+		}, rev
+	}
+
+	inviteMatcher := mock.MatchedBy(func(s *models.ProjectSettings) bool {
+		return len(s.Writers) > 0 && s.Writers[0].Invite != nil && s.Writers[0].Invite.UID == inviteUID
+	})
+
+	tests := []struct {
+		name      string
+		setupRepo func(*domain.MockProjectRepository)
+		setupMsg  func(*domain.MockMessageBuilder)
+		wantErr   bool
+	}{
+		{
+			name: "happy path — invite info stamped and mapping created",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				s, rev := makeSettings(1)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s, rev, nil)
+				r.On("UpdateProjectSettings", mock.Anything, inviteMatcher, rev).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, inviteUID, projectUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name: "ErrRevisionMismatch twice then success on attempt 3",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				s1, _ := makeSettings(1)
+				s2, _ := makeSettings(2)
+				s3, _ := makeSettings(3)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s1, uint64(1), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s2, uint64(2), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(2)).Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s3, uint64(3), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, inviteMatcher, uint64(3)).Return(nil).Once()
+				r.On("CreateInviteMapping", mock.Anything, inviteUID, projectUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name: "user not found in role slice — no update, no error",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(&models.ProjectSettings{
+					UID:     projectUID,
+					Writers: []models.UserInfo{{Email: "other@example.com"}},
+				}, uint64(1), nil)
+			},
+		},
+		{
+			name: "KV read error — returned to caller",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(nil, uint64(0), assert.AnError)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &domain.MockProjectRepository{}
+			mockMsg := &domain.MockMessageBuilder{}
+			if tt.setupRepo != nil {
+				tt.setupRepo(mockRepo)
+			}
+			if tt.setupMsg != nil {
+				tt.setupMsg(mockMsg)
+			}
+
+			svc := &ProjectsService{
+				ProjectRepository: mockRepo,
+				MessageBuilder:    mockMsg,
+			}
+
+			err := svc.storeInviteInfo(context.Background(), projectUID, roleWriter, recipientEmail, inviteUID, inviteEmail, expiresAt)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+// Compile-time checks for imported API types.
+var (
+	_ emailapi.SendEmailRequest
+	_ inviteapi.SendInviteRequest
+)

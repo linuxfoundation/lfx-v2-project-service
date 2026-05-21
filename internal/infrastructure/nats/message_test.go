@@ -8,12 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -555,6 +558,113 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
+			}
+
+			mockConn.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMessageBuilder_SendInviteRequest(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name       string
+		req        inviteapi.SendInviteRequest
+		setupMocks func(*MockNATSConn)
+		wantErr    bool
+		wantResult domain.InviteResult
+	}{
+		{
+			name: "successful request — correct subject, payload, and invite result returned",
+			req: inviteapi.SendInviteRequest{
+				RecipientEmail: "user@example.com",
+				RecipientName:  "Jane Doe",
+				InviterName:    "Admin",
+				ResourceUID:    "proj-123",
+				ResourceName:   "Demo Project",
+				ResourceType:   "project",
+				Role:           string(inviteapi.InviteRoleManage),
+				ReturnURL:      "https://app.lfx.dev/project/overview?project=demo",
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				expiresAt := now.Add(7 * 24 * time.Hour)
+				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{
+					Invite: &inviteapi.InviteData{
+						UID:       "invite-abc-123",
+						Email:     "user@example.com",
+						ExpiresAt: expiresAt,
+					},
+				})
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					if msg.Subject != inviteapi.SendInviteSubject {
+						return false
+					}
+					var got inviteapi.SendInviteRequest
+					if err := json.Unmarshal(msg.Data, &got); err != nil {
+						return false
+					}
+					return got.RecipientEmail == "user@example.com" &&
+						got.RecipientName == "Jane Doe" &&
+						got.InviterName == "Admin" &&
+						got.ResourceUID == "proj-123" &&
+						got.ResourceName == "Demo Project" &&
+						got.ResourceType == "project" &&
+						got.Role == string(inviteapi.InviteRoleManage) &&
+						got.ReturnURL == "https://app.lfx.dev/project/overview?project=demo"
+				})).Return(&nats.Msg{Data: replyData}, nil)
+			},
+			wantErr: false,
+			wantResult: domain.InviteResult{
+				InviteUID:      "invite-abc-123",
+				RecipientEmail: "user@example.com",
+				ExpiresAt:      now.Add(7 * 24 * time.Hour),
+			},
+		},
+		{
+			name: "invite service returns error in response body — error returned",
+			req: inviteapi.SendInviteRequest{
+				RecipientEmail: "user@example.com",
+				ResourceUID:    "proj-123",
+				Role:           string(inviteapi.InviteRoleView),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{Error: "recipient not found"})
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
+					Return(&nats.Msg{Data: replyData}, nil)
+			},
+			wantErr: true,
+		},
+		{
+			name: "NATS request error — error returned",
+			req: inviteapi.SendInviteRequest{
+				RecipientEmail: "user@example.com",
+				ResourceUID:    "proj-123",
+				Role:           string(inviteapi.InviteRoleView),
+			},
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
+					Return(nil, errors.New("nats timeout"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+			tt.setupMocks(mockConn)
+
+			mb := &MessageBuilder{NatsConn: mockConn}
+			result, err := mb.SendInviteRequest(context.Background(), tt.req)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantResult.InviteUID, result.InviteUID)
+				assert.Equal(t, tt.wantResult.RecipientEmail, result.RecipientEmail)
+				// Allow a small time difference for test timing
+				assert.WithinDuration(t, tt.wantResult.ExpiresAt, result.ExpiresAt, time.Second)
 			}
 
 			mockConn.AssertExpectations(t)
