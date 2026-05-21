@@ -495,8 +495,8 @@ func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
 	}
 	if user.Invite != nil {
 		inv := &projsvc.InviteInfo{
-			UID:   &user.Invite.UID,
-			Email: &user.Invite.Email,
+			UID:   misc.StringPtr(user.Invite.UID),
+			Email: misc.StringPtr(user.Invite.Email),
 		}
 		if user.Invite.ExpiresAt != nil {
 			s := user.Invite.ExpiresAt.UTC().Format(time.RFC3339)
