@@ -30,6 +30,7 @@ func setupAPI() (*ProjectsAPI, *domain.MockProjectRepository, *domain.MockMessag
 	mockRepo := &domain.MockProjectRepository{}
 	mockMessageBuilder := &domain.MockMessageBuilder{}
 	mockJwtAuth := &auth.MockJWTAuth{}
+	mockUserReader := &domain.MockUserReader{}
 
 	projectService := &service.ProjectsService{
 		ProjectRepository:  mockRepo,
@@ -38,6 +39,7 @@ func setupAPI() (*ProjectsAPI, *domain.MockProjectRepository, *domain.MockMessag
 		FolderRepository:   &domain.MockFolderRepository{},
 		MessageBuilder:     mockMessageBuilder,
 		Auth:               mockJwtAuth,
+		UserReader:         mockUserReader,
 	}
 
 	api := &ProjectsAPI{
@@ -126,10 +128,11 @@ func TestGetProjects(t *testing.T) {
 
 func TestCreateProject(t *testing.T) {
 	tests := []struct {
-		name          string
-		payload       *projsvc.CreateProjectPayload
-		setupMocks    func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
-		expectedError bool
+		name            string
+		payload         *projsvc.CreateProjectPayload
+		setupMocks      func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		setupUserReader func(*domain.MockUserReader)
+		expectedError   bool
 	}{
 		{
 			name: "success",
@@ -147,6 +150,12 @@ func TestCreateProject(t *testing.T) {
 					{Username: misc.StringPtr("user3"), Name: misc.StringPtr("User Three"), Email: misc.StringPtr("user3@example.com"), Avatar: misc.StringPtr("")},
 					{Username: misc.StringPtr("user4"), Name: misc.StringPtr("User Four"), Email: misc.StringPtr("user4@example.com"), Avatar: misc.StringPtr("")},
 				},
+			},
+			setupUserReader: func(mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user1@example.com").Return("user1", nil)
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user2@example.com").Return("user2", nil)
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user3@example.com").Return("user3", nil)
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user4@example.com").Return("user4", nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
 				// Mock parent project exists (for ParentUID validation)
@@ -187,6 +196,9 @@ func TestCreateProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api, mockRepo, mockMsg := setupAPI()
+			if tt.setupUserReader != nil {
+				tt.setupUserReader(api.service.UserReader.(*domain.MockUserReader))
+			}
 			tt.setupMocks(mockRepo, mockMsg)
 
 			result, err := api.CreateProject(context.Background(), tt.payload)
