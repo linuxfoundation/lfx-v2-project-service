@@ -760,12 +760,21 @@ func isCrowdfundingOnly(fundingModels []string) bool {
 // If the email is missing or does not match a registered user the username is cleared to nil.
 // Any transport error from the auth service is returned and the calling request fails.
 func (s *ProjectsService) enrichUserSlice(ctx context.Context, users []*projsvc.UserInfo) error {
-	for _, u := range users {
-		if err := s.enrichSingleUser(ctx, u); err != nil {
-			return err
-		}
+	if len(users) == 0 {
+		return nil
 	}
-	return nil
+	const maxConcurrent = 8
+	g, gCtx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, maxConcurrent)
+	for _, u := range users {
+		u := u
+		g.Go(func() error {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			return s.enrichSingleUser(gCtx, u)
+		})
+	}
+	return g.Wait()
 }
 
 // enrichSingleUser enriches one UserInfo entry in place; see enrichUserSlice for full semantics.

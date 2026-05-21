@@ -83,10 +83,14 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 		return "", fmt.Errorf("email_to_username request failed: %w", err)
 	}
 
-	// Try to decode as a JSON error envelope first — the auth service sends this on miss.
-	var errResp emailToUsernameErrorResponse
-	if json.Unmarshal(reply.Data, &errResp) == nil && !errResp.Success {
-		return "", domain.ErrUserNotFound
+	// The auth service sends a plain-text username on success and a JSON error envelope on miss.
+	// Only attempt JSON decode when the body starts with '{' to avoid misinterpreting a valid
+	// plain-text username that happens to be valid JSON (e.g. a numeric string).
+	if len(reply.Data) > 0 && reply.Data[0] == '{' {
+		var errResp emailToUsernameErrorResponse
+		if json.Unmarshal(reply.Data, &errResp) == nil && !errResp.Success {
+			return "", domain.ErrUserNotFound
+		}
 	}
 
 	username := string(reply.Data)

@@ -50,5 +50,6 @@ var (
 	ErrInviteMappingNotFound = errors.New("invite mapping not found")
 
 	// ErrUserNotFound is returned by UserReader when no registered user matches the given lookup criteria.
+	// It is handled internally (treated as a lookup miss) and is never surfaced to the HTTP layer.
 	ErrUserNotFound = errors.New("user not found")
 )

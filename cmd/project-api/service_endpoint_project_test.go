@@ -178,12 +178,6 @@ func TestCreateProject(t *testing.T) {
 				Description: "Test description",
 				Public:      misc.BoolPtr(true),
 				ParentUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
-				Auditors: []*projsvc.UserInfo{
-					{Username: misc.StringPtr("user1"), Name: misc.StringPtr("User One"), Email: misc.StringPtr("user1@example.com"), Avatar: misc.StringPtr("")},
-				},
-				Writers: []*projsvc.UserInfo{
-					{Username: misc.StringPtr("user2"), Name: misc.StringPtr("User Two"), Email: misc.StringPtr("user2@example.com"), Avatar: misc.StringPtr("")},
-				},
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
 				// Mock slug exists

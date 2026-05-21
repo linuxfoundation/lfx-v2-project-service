@@ -54,6 +54,7 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 					FolderRepository:   &domain.MockFolderRepository{},
 					MessageBuilder:     &domain.MockMessageBuilder{},
 					Auth:               &auth.MockJWTAuth{},
+					UserReader:         &domain.MockUserReader{},
 				}
 			},
 			expectedReady: true,
@@ -100,10 +101,26 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 					LinkRepository:     &domain.MockLinkRepository{},
 					FolderRepository:   &domain.MockFolderRepository{},
 					MessageBuilder:     &domain.MockMessageBuilder{},
+					UserReader:         &domain.MockUserReader{},
 					Auth:               nil,
 				}
 			},
 			expectedReady: true,
+		},
+		{
+			name: "service not ready - missing user reader",
+			setupService: func() *ProjectsService {
+				return &ProjectsService{
+					ProjectRepository:  &domain.MockProjectRepository{},
+					DocumentRepository: &domain.MockDocumentRepository{},
+					LinkRepository:     &domain.MockLinkRepository{},
+					FolderRepository:   &domain.MockFolderRepository{},
+					MessageBuilder:     &domain.MockMessageBuilder{},
+					UserReader:         nil,
+					Auth:               &auth.MockJWTAuth{},
+				}
+			},
+			expectedReady: false,
 		},
 	}
 

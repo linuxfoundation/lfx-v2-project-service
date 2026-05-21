@@ -636,6 +636,7 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 					LinkRepository:     &domain.MockLinkRepository{},
 					FolderRepository:   &domain.MockFolderRepository{},
 					MessageBuilder:     &domain.MockMessageBuilder{},
+					UserReader:         &domain.MockUserReader{},
 					Auth:               &auth.MockJWTAuth{},
 				}
 			},
