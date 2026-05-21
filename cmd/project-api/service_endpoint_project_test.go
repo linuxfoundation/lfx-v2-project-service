@@ -162,8 +162,12 @@ func TestCreateProject(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "787620d0-d7de-449a-b0bf-9d28b13da818").Return(true, nil)
 				// Mock slug doesn't exist
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
-				// Mock successful project creation
-				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
+				// Mock successful project creation — MatchedBy validates enriched LFIDs were persisted.
+				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"),
+					mock.MatchedBy(func(s *models.ProjectSettings) bool {
+						return len(s.Writers) == 2 && s.Writers[0].Username == "user1" && s.Writers[1].Username == "user2" &&
+							len(s.Auditors) == 2 && s.Auditors[0].Username == "user3" && s.Auditors[1].Username == "user4"
+					})).Return(nil)
 				// Mock message sending
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil).Times(2)
 				mockMsg.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)

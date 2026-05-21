@@ -537,15 +537,21 @@ func extractUsername(user *models.UserInfo) string {
 	return user.Username
 }
 
-// extractUsernames extracts usernames from UserInfo slice for access control
+// extractUsernames extracts non-empty usernames from UserInfo slice for access control.
+// Empty usernames (lookup miss / unregistered email) are excluded to prevent invalid FGA tuples.
 func extractUsernames(users []models.UserInfo) []string {
 	if len(users) == 0 {
 		return nil
 	}
 
-	usernames := make([]string, len(users))
-	for i, user := range users {
-		usernames[i] = user.Username
+	usernames := make([]string, 0, len(users))
+	for _, user := range users {
+		if user.Username != "" {
+			usernames = append(usernames, user.Username)
+		}
+	}
+	if len(usernames) == 0 {
+		return nil
 	}
 	return usernames
 }

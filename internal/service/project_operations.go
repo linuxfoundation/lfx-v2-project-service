@@ -8,6 +8,8 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,8 +24,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
-	"sync"
-
 	"golang.org/x/sync/errgroup"
 )
 
@@ -771,10 +771,12 @@ func (s *ProjectsService) enrichAllRoleFields(
 			u.Username = misc.StringPtr("")
 			return
 		}
-		eg := byEmail[*u.Email]
+		// Normalize email so Bob@Example.com and bob@example.com share the same lookup.
+		normEmail := strings.ToLower(strings.TrimSpace(*u.Email))
+		eg := byEmail[normEmail]
 		if eg == nil {
 			eg = &group{}
-			byEmail[*u.Email] = eg
+			byEmail[normEmail] = eg
 		}
 		eg.users = append(eg.users, u)
 	}

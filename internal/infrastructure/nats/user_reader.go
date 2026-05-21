@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	natsgo "github.com/nats-io/nats.go"
 
@@ -84,19 +85,21 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 	}
 
 	// The auth service sends a plain-text username on success and a JSON error envelope on miss.
-	// Only attempt JSON decode when the body starts with '{' to avoid misinterpreting a valid
-	// plain-text username that happens to be valid JSON (e.g. a numeric string).
-	if len(reply.Data) > 0 && reply.Data[0] == '{' {
+	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing
+	// newline or leading space don't corrupt the username or bypass JSON detection.
+	body := strings.TrimSpace(string(reply.Data))
+	if body == "" {
+		return "", domain.ErrUserNotFound
+	}
+
+	// Only attempt JSON decode when the trimmed body starts with '{' to avoid misinterpreting a
+	// valid plain-text username that happens to be valid JSON (e.g. a numeric string).
+	if body[0] == '{' {
 		var errResp emailToUsernameErrorResponse
-		if json.Unmarshal(reply.Data, &errResp) == nil && !errResp.Success {
+		if json.Unmarshal([]byte(body), &errResp) == nil && !errResp.Success {
 			return "", domain.ErrUserNotFound
 		}
 	}
 
-	username := string(reply.Data)
-	if username == "" {
-		return "", domain.ErrUserNotFound
-	}
-
-	return username, nil
+	return body, nil
 }
