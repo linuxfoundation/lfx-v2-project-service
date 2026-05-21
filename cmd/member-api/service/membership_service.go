@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/google/uuid"
 	fgaConstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
@@ -41,6 +42,7 @@ type membershipServicesrvc struct {
 	projectMembershipReader  port.ProjectMembershipReader
 	userReader               port.UserReader
 	globalOrgAdminTeamUID    string
+	backfillRunner           *BackfillRunner
 }
 
 // JWTAuth implements the authorization logic for service "membership-service".
@@ -205,28 +207,8 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 	return result, nil
 }
 
-// publishKeyContactIndexer publishes the indexer message for a key contact.
-// Errors are swallowed and logged — /admin/reindex can recover missed records.
 func (s *membershipServicesrvc) publishKeyContactIndexer(ctx context.Context, kc *model.KeyContact, action indexerConstants.MessageAction) {
-	indexMsg := &model.MemberIndexerMessage{
-		Action:         action,
-		Tags:           kc.Tags(),
-		IndexingConfig: buildKeyContactIndexingConfig(kc),
-	}
-	builtMsg, err := indexMsg.Build(ctx, kc)
-	if err != nil {
-		slog.WarnContext(ctx, "failed to build key contact indexer message",
-			"uid", kc.UID,
-			"error", err,
-			"publish_failed_for_backfill_repair", true)
-		return
-	}
-	if pubErr := s.memberPublisher.Indexer(ctx, constants.IndexKeyContactSubject, builtMsg, false); pubErr != nil {
-		slog.WarnContext(ctx, "key contact indexer publish failed",
-			"uid", kc.UID,
-			"error", pubErr,
-			"publish_failed_for_backfill_repair", true)
-	}
+	publishKeyContactIndexer(ctx, s.memberPublisher, kc, action)
 }
 
 // publishKeyContactFGAPut grants the key_contact relation on the parent
@@ -280,19 +262,7 @@ func (s *membershipServicesrvc) resolveSubForContact(ctx context.Context, curren
 // current is nil on create. Publish failures are swallowed and logged with
 // publish_failed_for_backfill_repair=true — /admin/reindex recovers missed records.
 func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current, org *model.B2BOrg, action indexerConstants.MessageAction) {
-	indexMsg := &model.MemberIndexerMessage{
-		Action:         action,
-		Tags:           org.Tags(),
-		IndexingConfig: buildB2BOrgIndexingConfig(org),
-	}
-	builtMsg, err := indexMsg.Build(ctx, org)
-	if err != nil {
-		slog.WarnContext(ctx, "failed to build b2b org indexer message",
-			"uid", org.UID,
-			"error", err,
-			"publish_failed_for_backfill_repair", true)
-		return
-	}
+	publishB2BOrgIndexer(ctx, s.memberPublisher, org, action)
 
 	orgAdminTeamUID := ""
 	if action == indexerConstants.ActionCreated {
@@ -308,9 +278,6 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return s.memberPublisher.Indexer(gCtx, constants.IndexB2BOrgSubject, builtMsg, false)
-	})
-	g.Go(func() error {
 		return s.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, fgaMsg, false)
 	})
 
@@ -323,7 +290,7 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current
 	}
 
 	if pubErr := g.Wait(); pubErr != nil {
-		slog.WarnContext(ctx, "b2b org event publish failed",
+		slog.WarnContext(ctx, "b2b org fga publish failed",
 			"uid", org.UID,
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
@@ -687,11 +654,101 @@ func (s *membershipServicesrvc) DeleteKeyContact(ctx context.Context, p *members
 	return nil
 }
 
-// ── Admin (Stubs) ─────────────────────────────────────────────────────────────
+// ── Admin ─────────────────────────────────────────────────────────────────────
 
-// AdminReindex triggers a reindex of cached entities.
+// AdminReindex validates the request, spawns an async backfill goroutine, and
+// returns 202 Accepted with a run_id for log correlation.
 func (s *membershipServicesrvc) AdminReindex(ctx context.Context, p *membershipservice.AdminReindexPayload) (*membershipservice.AdminReindexResult, error) {
-	return nil, wrapError(ctx, pkgerrors.NewNotImplemented("admin-reindex not implemented"))
+	req, err := validateAndBuildBackfillRequest(p)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	runID := uuid.New().String()
+	req.RunID = runID
+
+	slog.InfoContext(ctx, "admin reindex accepted",
+		"run_id", runID,
+		"mode", string(classifyMode(req)),
+		"dry_run", req.DryRun,
+		"correlate via run_id in service logs", runID)
+
+	if s.backfillRunner == nil {
+		slog.WarnContext(ctx, "backfill runner not initialised — reindex skipped", "run_id", runID)
+		return &membershipservice.AdminReindexResult{RunID: runID}, nil
+	}
+	go s.backfillRunner.Run(context.WithoutCancel(ctx), req)
+
+	return &membershipservice.AdminReindexResult{RunID: runID}, nil
+}
+
+// validateAndBuildBackfillRequest validates the payload and returns a BackfillRequest.
+func validateAndBuildBackfillRequest(p *membershipservice.AdminReindexPayload) (BackfillRequest, error) {
+	validTypes := map[string]bool{
+		entityTypeB2BOrg:            true,
+		entityTypeProjectMembership: true,
+		entityTypeKeyContact:        true,
+	}
+
+	// Validate types
+	for _, t := range p.Types {
+		if t == "membership_tier" {
+			return BackfillRequest{}, pkgerrors.NewValidation(
+				"membership_tier is not currently supported; remove it from types or omit types to reindex all supported types")
+		}
+		if !validTypes[t] {
+			return BackfillRequest{}, pkgerrors.NewValidation(
+				fmt.Sprintf("unknown type %q; supported types: b2b_org, project_membership, key_contact", t))
+		}
+	}
+
+	// Mutual exclusivity: items vs types/since
+	if len(p.Items) > 0 && (len(p.Types) > 0 || p.Since != nil) {
+		return BackfillRequest{}, pkgerrors.NewValidation("items mode is mutually exclusive with types and since")
+	}
+
+	// Validate items
+	for _, item := range p.Items {
+		if item.Type == "membership_tier" {
+			return BackfillRequest{}, pkgerrors.NewValidation(
+				"membership_tier is not currently supported in items mode")
+		}
+		if !validTypes[item.Type] {
+			return BackfillRequest{}, pkgerrors.NewValidation(
+				fmt.Sprintf("unknown item type %q; supported types: b2b_org, project_membership, key_contact", item.Type))
+		}
+		if _, uuidErr := uuid.Parse(item.UID); uuidErr != nil {
+			return BackfillRequest{}, pkgerrors.NewValidation(
+				fmt.Sprintf("invalid UUID %q for item type %q", item.UID, item.Type))
+		}
+	}
+
+	// Validate and normalise since
+	var since *time.Time
+	if p.Since != nil {
+		t, parseErr := time.Parse(time.RFC3339, *p.Since)
+		if parseErr != nil {
+			return BackfillRequest{}, pkgerrors.NewValidation(
+				fmt.Sprintf("since must be a valid RFC 3339 timestamp with an explicit zone offset (e.g. 2026-05-20T00:00:00Z): %v", parseErr))
+		}
+		// Reject naive timestamps (no zone) — time.Parse(RFC3339) already requires a zone,
+		// but guard against edge cases by checking the zero offset is explicit.
+		utc := t.UTC()
+		since = &utc
+	}
+
+	// Convert items
+	items := make([]ReindexItem, len(p.Items))
+	for i, item := range p.Items {
+		items[i] = ReindexItem{Type: item.Type, UID: item.UID}
+	}
+
+	return BackfillRequest{
+		Types:  p.Types,
+		Since:  since,
+		Items:  items,
+		DryRun: p.DryRun,
+	}, nil
 }
 
 // ── Response converters ───────────────────────────────────────────────────────
@@ -963,6 +1020,7 @@ func NewMembershipService(
 	memberPublisher port.MemberPublisher,
 	userReader port.UserReader,
 	globalOrgAdminTeamUID string,
+	backfillRunner *BackfillRunner,
 ) membershipservice.Service {
 	return &membershipServicesrvc{
 		memberReaderOrchestrator: readMemberUseCase,
@@ -975,5 +1033,6 @@ func NewMembershipService(
 		memberPublisher:          memberPublisher,
 		userReader:               userReader,
 		globalOrgAdminTeamUID:    globalOrgAdminTeamUID,
+		backfillRunner:           backfillRunner,
 	}
 }

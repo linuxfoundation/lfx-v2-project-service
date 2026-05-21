@@ -148,6 +148,14 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 | PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org | `writer` on `b2b_org:{uid}` |
 | GET | `/b2b_orgs/{uid}` | Get a B2B org | `auditor` on `b2b_org:{uid}` |
 
+### Admin
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
+| POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
+
+Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (comma-separated SFIDs), and `dry_run` (count only, no publish).
+
 ### Utility
 
 | Method | Path | Description | OpenFGA Check |

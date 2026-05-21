@@ -69,18 +69,18 @@ type soqlAssetProject struct {
 // SOQL query. This is the key contact object linking a Contact, Account, Asset,
 // and Project with a role designation.
 type soqlProjectRole struct {
-	ID             string                  `salesforce:"Id"`
-	AssetID        string                  `salesforce:"Asset__c"`
-	ContactID      *string                 `salesforce:"Contact__c"`
-	Role           *string                 `salesforce:"Role__c"`
-	Status         *string                 `salesforce:"Status__c"`
-	BoardMember    bool                    `salesforce:"BoardMember__c"`
-	PrimaryContact bool                    `salesforce:"PrimaryContact__c"`
-	IsDeleted      bool                    `salesforce:"IsDeleted"`
-	CreatedDate    string                  `salesforce:"CreatedDate"`
-	SystemModstamp string                  `salesforce:"SystemModstamp"`
-	Contact        *soqlProjectRoleContact `salesforce:"Contact__r"`
-	Asset          *soqlProjectRoleAsset   `salesforce:"Asset__r"`
+	ID             string                  `salesforce:"Id"              json:"Id"`
+	AssetID        string                  `salesforce:"Asset__c"        json:"Asset__c"`
+	ContactID      *string                 `salesforce:"Contact__c"      json:"Contact__c"`
+	Role           *string                 `salesforce:"Role__c"         json:"Role__c"`
+	Status         *string                 `salesforce:"Status__c"       json:"Status__c"`
+	BoardMember    bool                    `salesforce:"BoardMember__c"  json:"BoardMember__c"`
+	PrimaryContact bool                    `salesforce:"PrimaryContact__c" json:"PrimaryContact__c"`
+	IsDeleted      bool                    `salesforce:"IsDeleted"       json:"IsDeleted"`
+	CreatedDate    string                  `salesforce:"CreatedDate"     json:"CreatedDate"`
+	SystemModstamp string                  `salesforce:"SystemModstamp"  json:"SystemModstamp"`
+	Contact        *soqlProjectRoleContact `salesforce:"Contact__r"      json:"Contact__r"`
+	Asset          *soqlProjectRoleAsset   `salesforce:"Asset__r"        json:"Asset__r"`
 }
 
 // soqlProjectRoleContact is the inline Contact relationship on a Project_Role__c
@@ -88,33 +88,33 @@ type soqlProjectRole struct {
 // (Account) data is sourced from the Asset relationship instead, so it is
 // consistent with the associated ProjectMembership record.
 type soqlProjectRoleContact struct {
-	ID        string  `salesforce:"Id"`
-	FirstName *string `salesforce:"FirstName"`
-	LastName  *string `salesforce:"LastName"`
-	Title     *string `salesforce:"Title"`
-	Email     *string `salesforce:"Email"`
+	ID        string  `salesforce:"Id"        json:"Id"`
+	FirstName *string `salesforce:"FirstName" json:"FirstName"`
+	LastName  *string `salesforce:"LastName"  json:"LastName"`
+	Title     *string `salesforce:"Title"     json:"Title"`
+	Email     *string `salesforce:"Email"     json:"Email"`
 }
 
 // soqlProjectRoleAssetAccount is the inline Account on the Asset relationship in
 // a Project_Role__c query (Asset__r.Account). Company data for key contacts is
 // sourced here rather than from Contact__r.Account so it matches the membership.
 type soqlProjectRoleAssetAccount struct {
-	ID      string  `salesforce:"Id"`
-	Name    string  `salesforce:"Name"`
-	LogoURL *string `salesforce:"Logo_URL__c"`
-	Website *string `salesforce:"Website"`
+	ID      string  `salesforce:"Id"          json:"Id"`
+	Name    string  `salesforce:"Name"        json:"Name"`
+	LogoURL *string `salesforce:"Logo_URL__c" json:"Logo_URL__c"`
+	Website *string `salesforce:"Website"     json:"Website"`
 }
 
 // soqlProjectRoleAsset is the inline Asset relationship on a Project_Role__c
 // query. Includes the Asset's Account and Project relationships so that company
 // and project data can be denormalized onto the key contact record.
 type soqlProjectRoleAsset struct {
-	ID         string                       `salesforce:"Id"`
-	AccountID  string                       `salesforce:"AccountId"`
-	Product2ID string                       `salesforce:"Product2Id"`
-	ProjectsID *string                      `salesforce:"Projects__c"`
-	Account    *soqlProjectRoleAssetAccount `salesforce:"Account"`
-	Project    *soqlAssetProject            `salesforce:"Projects__r"`
+	ID         string                       `salesforce:"Id"          json:"Id"`
+	AccountID  string                       `salesforce:"AccountId"   json:"AccountId"`
+	Product2ID string                       `salesforce:"Product2Id"  json:"Product2Id"`
+	ProjectsID *string                      `salesforce:"Projects__c" json:"Projects__c"`
+	Account    *soqlProjectRoleAssetAccount `salesforce:"Account"     json:"Account"`
+	Project    *soqlAssetProject            `salesforce:"Projects__r" json:"Projects__r"`
 }
 
 // soqlAlternateEmail represents a Salesforce Alternate_Email__c record.

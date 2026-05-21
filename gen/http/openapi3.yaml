@@ -32,9 +32,18 @@ paths:
                         schema:
                             $ref: '#/components/schemas/AdminReindexPayload'
                         example:
+                            dry_run: false
+                            items:
+                                - type: b2b_org
+                                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                - type: b2b_org
+                                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                - type: b2b_org
+                                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                            since: "2026-05-20T00:00:00Z"
                             types:
-                                - membership
-                                - key_contact
+                                - b2b_org
+                                - project_membership
             responses:
                 "202":
                     description: Accepted response.
@@ -1105,23 +1114,74 @@ paths:
                 - jwt_header_Authorization: []
 components:
     schemas:
+        AdminReindexItem:
+            type: object
+            properties:
+                type:
+                    type: string
+                    description: 'Entity type: b2b_org, project_membership, or key_contact'
+                    example: b2b_org
+                uid:
+                    type: string
+                    description: Entity UID (UUID v4)
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+            description: A single entity to reindex (targeted mode)
+            example:
+                type: b2b_org
+                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            required:
+                - type
+                - uid
         AdminReindexPayload:
             type: object
             properties:
+                dry_run:
+                    type: boolean
+                    description: When true, walk SOQL/live-path but skip publishing. Final log includes would_publish_count.
+                    default: false
+                    example: false
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/AdminReindexItem'
+                    description: Targeted list of entities to reindex (surgical mode). Mutually exclusive with types and since. Max 100 items.
+                    example:
+                        - type: b2b_org
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                        - type: b2b_org
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                        - type: b2b_org
+                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    maxItems: 100
+                since:
+                    type: string
+                    description: ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC.
+                    example: "2026-05-20T00:00:00Z"
+                    format: date-time
                 types:
                     type: array
                     items:
                         type: string
-                        example: Harum aspernatur qui sed ratione.
-                    description: List of entity types to reindex (optional; if empty, reindex all types)
+                        example: Aspernatur qui sed ratione sint consequatur.
+                    description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact). Mutually exclusive with items.'
                     example:
-                        - membership
-                        - key_contact
+                        - b2b_org
+                        - project_membership
             description: Request payload for triggering a reindex operation
             example:
+                dry_run: false
+                items:
+                    - type: b2b_org
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    - type: b2b_org
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    - type: b2b_org
+                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                since: "2026-05-20T00:00:00Z"
                 types:
-                    - membership
-                    - key_contact
+                    - b2b_org
+                    - project_membership
         AdminReindexResult:
             type: object
             properties:
@@ -1169,7 +1229,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Vero modi aliquid ducimus error.
+                        example: Error occaecati.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -1347,7 +1407,7 @@ components:
                 message: parameter 'p' must be an integer
                 name: bad_request
                 temporary: false
-                timeout: false
+                timeout: true
             required:
                 - name
                 - id

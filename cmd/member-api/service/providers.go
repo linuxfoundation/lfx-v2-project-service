@@ -379,3 +379,49 @@ func UserReaderImpl(ctx context.Context) port.UserReader {
 func GlobalOrgAdminTeamUID() string {
 	return os.Getenv("GLOBAL_ORG_ADMIN_TEAM_UID")
 }
+
+// BackfillIteratorImpl returns the BackfillIterator implementation selected by
+// the REPOSITORY_SOURCE environment variable:
+//
+//   - "salesforce" (default) — Salesforce SOQL paged iterators.
+//   - "mock"                 — In-memory mock with no pre-loaded pages.
+func BackfillIteratorImpl(ctx context.Context) BackfillIterator {
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
+
+	switch repoSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock backfill iterator")
+		return &mockBackfillIterator{}
+
+	case "salesforce":
+		slog.InfoContext(ctx, "initialising Salesforce backfill iterator")
+		sfInit(ctx)
+		return newSalesforceBackfillIterator(
+			salesforce.NewAccountRepo(sfClient),
+			salesforce.NewMembershipRepo(sfClient),
+			salesforce.NewKeyContactRepo(sfClient),
+		)
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
+		return nil
+	}
+}
+
+// BackfillRunnerImpl constructs a BackfillRunner wired with all production
+// (or mock) dependencies based on REPOSITORY_SOURCE / MESSAGING_SOURCE.
+func BackfillRunnerImpl(ctx context.Context) *BackfillRunner {
+	natsInit(ctx)
+	sObjectClientInit(ctx) // ensures sObjectClient is ready for KeyContactReader
+	return NewBackfillRunner(
+		BackfillIteratorImpl(ctx),
+		B2BOrgReaderImpl(ctx),
+		ProjectMembershipReaderImpl(ctx),
+		salesforce.NewKeyContactReader(sObjectClient),
+		MemberPublisherImpl(ctx),
+		natsClient,
+	)
+}

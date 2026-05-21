@@ -200,6 +200,20 @@ func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, e
 	return org, nil
 }
 
+// IterB2BOrgs iterates over B2B orgs (Accounts) from Salesforce, applying an
+// optional LastModifiedDate filter when since is provided. Calls fn for each
+// page of converted records. Conversion errors are logged and skipped.
+func (r *AccountRepo) IterB2BOrgs(ctx context.Context, since *time.Time, fn func([]*model.B2BOrg) error) error {
+	query := accountsSOQLBase
+	if since != nil {
+		iso := since.UTC().Format(time.RFC3339)
+		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+	}
+	return IterPages[soqlAccount, *model.B2BOrg](ctx, r.client, query, func(acc soqlAccount) (*model.B2BOrg, error) {
+		return convertSOQLToB2BOrg(ctx, acc)
+	}, fn)
+}
+
 // normalizeDomain validates and returns the host portion of a bare domain
 // string. Values containing "/" or " " are rejected immediately. Bare domains
 // (no scheme) are handled by reading u.Path, which is where url.Parse places

@@ -1448,6 +1448,10 @@ func DecodeAdminReindexRequest(mux goahttp.Muxer, decoder func(*http.Request) go
 			}
 			return payload, goa.DecodePayloadError(err.Error())
 		}
+		err = ValidateAdminReindexRequestBody(&body)
+		if err != nil {
+			return payload, err
+		}
 
 		var (
 			version     *string
@@ -1642,4 +1646,19 @@ func EncodeDebugVarsResponse(encoder func(context.Context, http.ResponseWriter) 
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
+}
+
+// unmarshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem
+// builds a value of type *membershipservice.AdminReindexItem from a value of
+// type *AdminReindexItemRequestBody.
+func unmarshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem(v *AdminReindexItemRequestBody) *membershipservice.AdminReindexItem {
+	if v == nil {
+		return nil
+	}
+	res := &membershipservice.AdminReindexItem{
+		Type: *v.Type,
+		UID:  *v.UID,
+	}
+
+	return res
 }

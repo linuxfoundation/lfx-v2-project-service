@@ -149,6 +149,10 @@ func (r *KeyContactRepo) FetchKeyContactBySFID(ctx context.Context, sfid string)
 // fetchPrimaryEmails fetches the primary alternate email address for each of the
 // given contact IDs. Returns a map of contactID → email address. Requests are
 // automatically batched to stay within SOQL IN-clause limits.
+//
+// ctx is checked for cancellation before each batch so a timed-out or cancelled
+// caller aborts promptly even though the underlying go-salesforce Query call is
+// not context-aware.
 func (r *KeyContactRepo) fetchPrimaryEmails(ctx context.Context, contactIDs []string) (map[string]string, error) {
 	if len(contactIDs) == 0 {
 		return make(map[string]string), nil
@@ -158,10 +162,13 @@ func (r *KeyContactRepo) fetchPrimaryEmails(ctx context.Context, contactIDs []st
 	emailMap := make(map[string]string, len(contactIDs))
 
 	for i := 0; i < len(contactIDs); i += batchSize {
-		end := i + batchSize
-		if end > len(contactIDs) {
-			end = len(contactIDs)
+		if err := ctx.Err(); err != nil {
+			slog.WarnContext(ctx, "fetchPrimaryEmails aborted by context",
+				"batch_start", i, "total", len(contactIDs), "reason", err)
+			return nil, fmt.Errorf("fetchPrimaryEmails: context cancelled at batch %d: %w", i, err)
 		}
+
+		end := min(i+batchSize, len(contactIDs))
 		batch := contactIDs[i:end]
 
 		inClause := buildSOQLInClause(batch)
@@ -171,6 +178,9 @@ func (r *KeyContactRepo) fetchPrimaryEmails(ctx context.Context, contactIDs []st
 		if err := r.client.Query(soql, &emails); err != nil {
 			return nil, fmt.Errorf("fetching primary emails (batch %d-%d): %w", i, end, err)
 		}
+
+		slog.DebugContext(ctx, "fetched primary email batch",
+			"batch_start", i, "batch_end", end, "results", len(emails))
 
 		for _, e := range emails {
 			emailMap[e.ContactID] = e.Email
@@ -279,6 +289,73 @@ func convertSOQLToKeyContact(role soqlProjectRole, emailMap map[string]string) (
 	}
 
 	return c, nil
+}
+
+// IterKeyContacts iterates over all key contacts from Salesforce, applying an
+// optional LastModifiedDate filter when since is provided. Calls fn for each
+// page of converted records, performing per-page email batch lookups.
+// Conversion errors are logged and skipped.
+func (r *KeyContactRepo) IterKeyContacts(ctx context.Context, since *time.Time, fn func([]*model.KeyContact) error) error {
+	const baseSOQL = `
+SELECT
+    Id, Asset__c, Contact__c, Role__c, Status__c,
+    BoardMember__c, PrimaryContact__c,
+    CreatedDate, SystemModstamp,
+    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title, Contact__r.Email,
+    Asset__r.Id, Asset__r.AccountId, Asset__r.Product2Id, Asset__r.Projects__c,
+    Asset__r.Account.Id, Asset__r.Account.Name,
+    Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
+    Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
+    Asset__r.Projects__r.Slug__c
+FROM Project_Role__c
+WHERE IsDeleted = false`
+
+	query := baseSOQL
+	if since != nil {
+		iso := since.UTC().Format(time.RFC3339)
+		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+	}
+
+	// Drive the paging loop directly so each page's email batch lookup and
+	// conversion happen before fn is called — no intermediate copy needed.
+	token := ""
+	for {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("IterKeyContacts aborted by context: %w", err)
+		}
+		result, err := QueryPage[soqlProjectRole](ctx, r.client, query, token)
+		if err != nil {
+			return fmt.Errorf("fetching key contacts page (token=%q): %w", token, err)
+		}
+
+		contactIDs := collectProjectRoleContactIDs(result.Records)
+		emailMap := make(map[string]string)
+		if len(contactIDs) > 0 {
+			if em, emailErr := r.fetchPrimaryEmails(ctx, contactIDs); emailErr == nil {
+				emailMap = em
+			}
+		}
+
+		contacts := make([]*model.KeyContact, 0, len(result.Records))
+		for _, role := range result.Records {
+			kc, convErr := convertSOQLToKeyContact(role, emailMap)
+			if convErr != nil {
+				slog.WarnContext(ctx, "skipping key contact due to conversion error", "error", convErr)
+				continue
+			}
+			contacts = append(contacts, kc)
+		}
+
+		if err := fn(contacts); err != nil {
+			return err
+		}
+
+		if result.NextPageToken == "" {
+			break
+		}
+		token = result.NextPageToken
+	}
+	return nil
 }
 
 // collectProjectRoleContactIDs extracts unique non-empty contact IDs from a

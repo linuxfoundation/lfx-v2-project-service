@@ -27,41 +27,6 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
-// TestStubHandlers_ReturnNotImplemented checks that handlers not yet wired
-// return a Goa NotImplemented error. B2BOrg, ProjectMembership, and KeyContact
-// handlers are now wired (tested separately); this list covers the remaining stubs.
-func TestStubHandlers_ReturnNotImplemented(t *testing.T) {
-	tests := []struct {
-		name        string
-		callHandler func(svc membershipservice.Service, ctx context.Context) error
-	}{
-		{
-			name: "AdminReindex returns NotImplemented",
-			callHandler: func(svc membershipservice.Service, ctx context.Context) error {
-				_, err := svc.AdminReindex(ctx, &membershipservice.AdminReindexPayload{})
-				return err
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestMembershipService()
-			ctx := context.Background()
-
-			err := tt.callHandler(svc, ctx)
-
-			require.Error(t, err)
-
-			var serviceErr *goa.ServiceError
-			ok := errors.As(err, &serviceErr)
-			require.True(t, ok, "error should be a *goa.ServiceError, got %T: %v", err, err)
-
-			assert.Equal(t, "NotImplemented", serviceErr.Name)
-		})
-	}
-}
-
 // TestGetB2bOrg_NotFound asserts that GetB2bOrg returns a Goa NotFound error
 // when the mock reader cannot locate the UID.
 func TestGetB2bOrg_NotFound(t *testing.T) {
@@ -122,6 +87,7 @@ func newTestMembershipService() membershipservice.Service {
 		mockPublisher,
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 }
 
@@ -539,6 +505,7 @@ func newTestMembershipServiceWith(
 		publisher,
 		&mock.MockUserReader{},
 		globalOrgAdminTeamUID,
+		nil,
 	)
 }
 
@@ -586,6 +553,7 @@ func TestGetProjectMembership_Happy(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	result, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
@@ -626,6 +594,7 @@ func TestGetProjectMembership_NotFound(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
@@ -661,6 +630,7 @@ func TestGetProjectMembership_ReaderError(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
@@ -689,6 +659,7 @@ func TestGetKeyContact_Happy(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 	ctx := context.Background()
 
@@ -722,6 +693,7 @@ func TestGetKeyContact_NotFound(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 	ctx := context.Background()
 
@@ -750,6 +722,7 @@ func TestCreateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 	ctx := context.Background()
 
@@ -781,6 +754,7 @@ func TestUpdateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 	ctx := context.Background()
 
@@ -810,6 +784,7 @@ func TestDeleteKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 	ctx := context.Background()
 
@@ -840,6 +815,7 @@ func TestUpdateKeyContact_StalePreconditionFailed(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 	ctx := context.Background()
 
@@ -873,6 +849,7 @@ func TestGetKeyContact_MembershipMismatch(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	_, err := svc.GetKeyContact(context.Background(), &membershipservice.GetKeyContactPayload{
@@ -901,6 +878,7 @@ func TestUpdateKeyContact_MembershipMismatch(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
@@ -929,6 +907,7 @@ func TestDeleteKeyContact_MembershipMismatch(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	err := svc.DeleteKeyContact(context.Background(), &membershipservice.DeleteKeyContactPayload{
@@ -1384,6 +1363,7 @@ func newTestMembershipServiceWithMockReader(mockReader port.MemberReader) member
 		mockPublisher,
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	return svc
@@ -1419,6 +1399,7 @@ func TestCreateKeyContact_MembershipNotFound(t *testing.T) {
 		mock.NewMockMemberPublisher(),
 		&mock.MockUserReader{},
 		"",
+		nil,
 	)
 
 	_, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
@@ -1460,6 +1441,7 @@ func TestCreateKeyContact_EmptySubSkipsFGAPublish(t *testing.T) {
 		pub,
 		&mock.MockUserReader{}, // always returns "" → sub empty
 		"",
+		nil,
 	)
 
 	result, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
@@ -1513,6 +1495,7 @@ func TestUpdateKeyContact_EmailChange_PutBeforeRemove(t *testing.T) {
 		pub,
 		userReader,
 		"",
+		nil,
 	)
 
 	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{

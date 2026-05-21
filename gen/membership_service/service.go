@@ -67,6 +67,14 @@ const ServiceName = "membership-service"
 // MethodKey key.
 var MethodNames = [12]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars"}
 
+// A single entity to reindex (targeted mode)
+type AdminReindexItem struct {
+	// Entity type: b2b_org, project_membership, or key_contact
+	Type string
+	// Entity UID (UUID v4)
+	UID string
+}
+
 // AdminReindexPayload is the payload type of the membership-service service
 // admin-reindex method.
 type AdminReindexPayload struct {
@@ -74,8 +82,19 @@ type AdminReindexPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// List of entity types to reindex (optional; if empty, reindex all types)
+	// Entity types to reindex (optional; default = all in-scope: b2b_org,
+	// project_membership, key_contact). Mutually exclusive with items.
 	Types []string
+	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
+	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
+	// Handler normalises to UTC.
+	Since *string
+	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
+	// with types and since. Max 100 items.
+	Items []*AdminReindexItem
+	// When true, walk SOQL/live-path but skip publishing. Final log includes
+	// would_publish_count.
+	DryRun bool
 }
 
 // AdminReindexResult is the result type of the membership-service service

@@ -518,7 +518,7 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceAdminReindexBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"types\": [\n         \"membership\",\n         \"key_contact\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
 		}
 	}
 	var version *string
@@ -539,11 +539,30 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 			bearerToken = &membershipServiceAdminReindexBearerToken
 		}
 	}
-	v := &membershipservice.AdminReindexPayload{}
+	v := &membershipservice.AdminReindexPayload{
+		Since:  body.Since,
+		DryRun: body.DryRun,
+	}
 	if body.Types != nil {
 		v.Types = make([]string, len(body.Types))
 		for i, val := range body.Types {
 			v.Types[i] = val
+		}
+	}
+	if body.Items != nil {
+		v.Items = make([]*membershipservice.AdminReindexItem, len(body.Items))
+		for i, val := range body.Items {
+			if val == nil {
+				v.Items[i] = nil
+				continue
+			}
+			v.Items[i] = marshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem(val)
+		}
+	}
+	{
+		var zero bool
+		if v.DryRun == zero {
+			v.DryRun = false
 		}
 	}
 	v.Version = version
