@@ -592,7 +592,11 @@ func TestNewSampler_ParentHonored(t *testing.T) {
 		t.Errorf("expected RecordAndSample with sampled parent, got %v", result.Decision)
 	}
 
-	// Test 2: unsampled parent => child should NOT be sampled (even with 0.0 ratio)
+	// Test 2: unsampled parent => child should NOT be sampled.
+	// Use ratio 1.0 to prove the parent's Drop is honored, not caused by
+	// the root sampler: with ratio 1.0, a root span would be sampled, but
+	// a child of an unsampled parent must still be dropped.
+	sHighRatio := newSampler(OTelConfig{TracesSamplerArg: "1.0"})
 	unsampledParent := oteltrace.NewSpanContext(oteltrace.SpanContextConfig{
 		TraceID:    oteltrace.TraceID{2}, // non-zero
 		SpanID:     oteltrace.SpanID{2},  // non-zero
@@ -600,7 +604,7 @@ func TestNewSampler_ParentHonored(t *testing.T) {
 		Remote:     true,
 	})
 	unparentCtx := oteltrace.ContextWithRemoteSpanContext(context.Background(), unsampledParent)
-	resultUns := s.ShouldSample(trace.SamplingParameters{ParentContext: unparentCtx})
+	resultUns := sHighRatio.ShouldSample(trace.SamplingParameters{ParentContext: unparentCtx})
 	if resultUns.Decision != trace.Drop {
 		t.Errorf("expected Drop with unsampled parent, got %v", resultUns.Decision)
 	}
