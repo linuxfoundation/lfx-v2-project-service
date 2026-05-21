@@ -342,6 +342,10 @@ func (r *seededB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BO
 	return r.org, nil
 }
 
+func (r *seededB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 // happyB2BOrgWriter returns a fixed org for any SFID/UID.
 type happyB2BOrgWriter struct{ org *model.B2BOrg }
 
@@ -429,6 +433,76 @@ func (p *indexerMessageCapture) captured() []*model.MemberIndexerMessage {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return append([]*model.MemberIndexerMessage(nil), p.msgs...)
+}
+
+// trackingB2BOrgReader wraps seededB2BOrgReader and records calls to FetchChildUIDsByParentUID.
+type trackingB2BOrgReader struct {
+	seededB2BOrgReader
+	childCallUIDs []string
+	childResults  []string // returned for every call
+	mu            sync.Mutex
+}
+
+func (r *trackingB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, uid string) ([]string, error) {
+	r.mu.Lock()
+	r.childCallUIDs = append(r.childCallUIDs, uid)
+	r.mu.Unlock()
+	return r.childResults, nil
+}
+
+func (r *trackingB2BOrgReader) calledWith() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.childCallUIDs...)
+}
+
+// TestCreateB2bOrg_WithParent_EmitsReparentingMessages verifies that when the
+// created org has a ParentUID set, publishB2BOrgEvents emits the indexer message
+// plus three FGA update_access messages: base access, parent ref, and NewP child list.
+func TestCreateB2bOrg_WithParent_EmitsReparentingMessages(t *testing.T) {
+	orgWithParent := *sampleB2BOrg
+	orgWithParent.ParentUID = "parent-uid-001"
+
+	capturer := &capturingPublisher{}
+	svc := newTestMembershipServiceWith(
+		&trackingB2BOrgReader{seededB2BOrgReader: seededB2BOrgReader{org: &orgWithParent}},
+		&happyB2BOrgWriter{org: &orgWithParent},
+		capturer,
+		"",
+	)
+
+	_, err := svc.CreateB2bOrg(context.Background(), &membershipservice.CreateB2bOrgPayload{
+		Sfid: "001000000000001AAA",
+	})
+
+	require.NoError(t, err)
+	// 1 Indexer + 3 Access (base + parent ref + NewP child list) = 4 total.
+	assert.Equal(t, 4, capturer.count(), "create with parent must publish 4 events (indexer + 3 FGA)")
+}
+
+// TestCreateB2bOrg_WithParent_FetchChildrenCalledForNewParent verifies that
+// FetchChildUIDsByParentUID is called exactly once (for the new parent) when an
+// org is created with a ParentUID, and is not called when there is no parent.
+func TestCreateB2bOrg_WithParent_FetchChildrenCalledForNewParent(t *testing.T) {
+	orgWithParent := *sampleB2BOrg
+	orgWithParent.ParentUID = "parent-uid-001"
+
+	tracker := &trackingB2BOrgReader{seededB2BOrgReader: seededB2BOrgReader{org: &orgWithParent}}
+	svc := newTestMembershipServiceWith(
+		tracker,
+		&happyB2BOrgWriter{org: &orgWithParent},
+		mock.NewMockMemberPublisher(),
+		"",
+	)
+
+	_, err := svc.CreateB2bOrg(context.Background(), &membershipservice.CreateB2bOrgPayload{
+		Sfid: "001000000000001AAA",
+	})
+
+	require.NoError(t, err)
+	calls := tracker.calledWith()
+	require.Len(t, calls, 1, "FetchChildUIDsByParentUID must be called once (for NewP)")
+	assert.Equal(t, "parent-uid-001", calls[0])
 }
 
 // strPtr is a test helper returning a pointer to the given string value.

@@ -338,6 +338,12 @@ func (m *MockB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg
 	return nil, errors.NewNotFound("b2b org not found in mock")
 }
 
+// FetchChildUIDsByParentUID returns nil (no children) in mock mode — no
+// Salesforce to query, so child-list FGA messages are skipped.
+func (m *MockB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 // MockB2BOrgWriter is a stub implementation of port.B2BOrgWriter for local
 // development when REPOSITORY_SOURCE=mock. All methods return NotImplemented.
 type MockB2BOrgWriter struct{}

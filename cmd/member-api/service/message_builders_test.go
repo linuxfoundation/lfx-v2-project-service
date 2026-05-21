@@ -228,33 +228,97 @@ func TestBuildKeyContactFGARemoveMessage(t *testing.T) {
 }
 
 // TestBuildB2BOrgReparentingMessages_SetParent verifies that setting a new parent
-// emits a single update_access message with parent ref and excludes non-parent relations.
+// with child lists emits 2 messages: one for the org's parent ref and one for
+// NewP's updated child list. OldP message is skipped when oldParentChildren is nil
+// (create path — no OldP).
 func TestBuildB2BOrgReparentingMessages_SetParent(t *testing.T) {
 	updated := &model.B2BOrg{UID: "child-uid", ParentUID: "parent-uid"}
-	msgs := buildB2BOrgReparentingMessages(nil, updated)
+	newChildren := []string{"sibling-uid", "child-uid"}
+	msgs := buildB2BOrgReparentingMessages(nil, updated, nil, newChildren)
 
-	require.Len(t, msgs, 1)
+	require.Len(t, msgs, 2, "create-with-parent: org parent msg + NewP child-list msg")
+
+	// msg[0]: org's own parent reference.
 	assert.Equal(t, "b2b_org", msgs[0].ObjectType)
 	assert.Equal(t, "update_access", msgs[0].Operation)
-	data, ok := msgs[0].Data.(fgatypes.GenericAccessData)
+	data0, ok := msgs[0].Data.(fgatypes.GenericAccessData)
 	require.True(t, ok)
-	assert.Equal(t, "child-uid", data.UID)
-	assert.Equal(t, []string{"b2b_org:parent-uid"}, data.References["parent"])
-	assert.Equal(t, b2bOrgNonParentRelations, data.ExcludeRelations,
+	assert.Equal(t, "child-uid", data0.UID)
+	assert.Equal(t, []string{"b2b_org:parent-uid"}, data0.References["parent"])
+	assert.Equal(t, b2bOrgNonParentRelations, data0.ExcludeRelations,
 		"non-parent relations must be excluded to avoid wiping global_org_admin etc.")
+
+	// msg[1]: NewP's child list.
+	data1, ok := msgs[1].Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Equal(t, "parent-uid", data1.UID)
+	assert.Equal(t, []string{"b2b_org:sibling-uid", "b2b_org:child-uid"}, data1.References["child"])
+	assert.Equal(t, b2bOrgNonChildRelations, data1.ExcludeRelations)
+}
+
+// TestBuildB2BOrgReparentingMessages_Reparent verifies that moving an org from
+// OldP to NewP emits 3 messages: the org's parent ref, OldP's pruned child list,
+// and NewP's extended child list.
+func TestBuildB2BOrgReparentingMessages_Reparent(t *testing.T) {
+	current := &model.B2BOrg{UID: "child-uid", ParentUID: "old-parent-uid"}
+	updated := &model.B2BOrg{UID: "child-uid", ParentUID: "new-parent-uid"}
+	oldChildren := []string{"sibling-uid"} // child-uid already removed by caller
+	newChildren := []string{"other-uid", "child-uid"}
+
+	msgs := buildB2BOrgReparentingMessages(current, updated, oldChildren, newChildren)
+
+	require.Len(t, msgs, 3, "reparent: org msg + OldP child-list msg + NewP child-list msg")
+
+	// msg[0]: org's new parent ref.
+	data0, ok := msgs[0].Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Equal(t, "child-uid", data0.UID)
+	assert.Equal(t, []string{"b2b_org:new-parent-uid"}, data0.References["parent"])
+
+	// msg[1]: OldP's remaining children.
+	data1, ok := msgs[1].Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Equal(t, "old-parent-uid", data1.UID)
+	assert.Equal(t, []string{"b2b_org:sibling-uid"}, data1.References["child"])
+	assert.Equal(t, b2bOrgNonChildRelations, data1.ExcludeRelations)
+
+	// msg[2]: NewP's full child list including the moved org.
+	data2, ok := msgs[2].Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Equal(t, "new-parent-uid", data2.UID)
+	assert.Equal(t, []string{"b2b_org:other-uid", "b2b_org:child-uid"}, data2.References["child"])
+	assert.Equal(t, b2bOrgNonChildRelations, data2.ExcludeRelations)
 }
 
 // TestBuildB2BOrgReparentingMessages_ClearParent verifies that clearing the parent
 // emits an update_access with an empty parent ref (which removes the existing tuple).
+// Child-list messages are skipped when child-slice args are nil.
 func TestBuildB2BOrgReparentingMessages_ClearParent(t *testing.T) {
 	current := &model.B2BOrg{UID: "child-uid", ParentUID: "old-parent-uid"}
 	updated := &model.B2BOrg{UID: "child-uid", ParentUID: ""}
-	msgs := buildB2BOrgReparentingMessages(current, updated)
+	msgs := buildB2BOrgReparentingMessages(current, updated, nil, nil)
 
-	require.Len(t, msgs, 1)
+	require.Len(t, msgs, 1, "clear-parent with nil child lists: only the org's parent-ref message")
 	data, ok := msgs[0].Data.(fgatypes.GenericAccessData)
 	require.True(t, ok)
 	assert.Empty(t, data.References, "clearing parent sends empty refs to delete the tuple")
+}
+
+// TestBuildB2BOrgReparentingMessages_ClearParent_WithOldChildren verifies that
+// when oldParentChildren is provided on a parent clear, OldP also gets a child-list
+// update (A removed from OldP's list).
+func TestBuildB2BOrgReparentingMessages_ClearParent_WithOldChildren(t *testing.T) {
+	current := &model.B2BOrg{UID: "child-uid", ParentUID: "old-parent-uid"}
+	updated := &model.B2BOrg{UID: "child-uid", ParentUID: ""}
+	oldChildren := []string{"sibling-uid"} // child-uid already removed by caller
+
+	msgs := buildB2BOrgReparentingMessages(current, updated, oldChildren, nil)
+
+	require.Len(t, msgs, 2, "clear-parent with oldChildren: org msg + OldP child-list msg")
+	data1, ok := msgs[1].Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Equal(t, "old-parent-uid", data1.UID)
+	assert.Equal(t, []string{"b2b_org:sibling-uid"}, data1.References["child"])
 }
 
 // TestBuildB2BOrgReparentingMessages_NoChange verifies that when the parent is
@@ -262,7 +326,21 @@ func TestBuildB2BOrgReparentingMessages_ClearParent(t *testing.T) {
 func TestBuildB2BOrgReparentingMessages_NoChange(t *testing.T) {
 	current := &model.B2BOrg{UID: "child-uid", ParentUID: "same-parent"}
 	updated := &model.B2BOrg{UID: "child-uid", ParentUID: "same-parent"}
-	msgs := buildB2BOrgReparentingMessages(current, updated)
+	msgs := buildB2BOrgReparentingMessages(current, updated, nil, nil)
 
 	assert.Nil(t, msgs, "no change in parent must produce no messages")
+}
+
+// TestBuildB2BOrgFGAMessage_ExcludesParentAndChild verifies that the main b2b_org
+// FGA message excludes both parent and child relations so reparenting messages
+// from buildB2BOrgReparentingMessages are never overwritten.
+func TestBuildB2BOrgFGAMessage_ExcludesParentAndChild(t *testing.T) {
+	msg := buildB2BOrgFGAMessage(testB2BOrg, "")
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Contains(t, data.ExcludeRelations, "parent",
+		"parent must be excluded so the main message does not wipe parent tuples")
+	assert.Contains(t, data.ExcludeRelations, "child",
+		"child must be excluded so the main message does not wipe child-list tuples")
 }

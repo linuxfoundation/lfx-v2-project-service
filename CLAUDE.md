@@ -123,24 +123,40 @@ salesforce.MemberReader (implements port.MemberReader)
 
 ## API Endpoints
 
-The API is project-scoped. All data endpoints are nested under `/projects/{project_id}` where `project_id` is the v2 project UUID.
+### Project membership
 
 | Method | Path | Description | OpenFGA Check |
 |--------|------|-------------|---------------|
-| GET | `/projects/{project_id}/tiers` | List membership tiers for a project | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/tiers/{tier_id}` | Get a specific tier | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships` | List memberships for a project | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships/{id}` | Get a specific membership | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts` | List key contacts for a membership | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Get a specific key contact | `auditor` on `project:{project_id}` |
-| POST | `/projects/{project_id}/memberships/{id}/key_contacts` | Add a key contact | `writer` on `project:{project_id}` |
-| PUT | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Update a key contact | `writer` on `project:{project_id}` |
-| DELETE | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Remove a key contact | `writer` on `project:{project_id}` |
+| GET | `/project_memberships/{uid}` | Get a project membership | `auditor` on `project_membership:{uid}` |
+
+### Key contact endpoints (nested under project_membership)
+
+Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 403) when the fetched contact's `membership_uid` doesn't match the path — avoids leaking record existence.
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
+| GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact | `auditor` on `project_membership:{membership_uid}` |
+| POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact | `writer` on `project_membership:{membership_uid}` |
+| PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{membership_uid}` |
+| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact | `writer` on `project_membership:{membership_uid}` |
+
+### B2B org write endpoints
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
+| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID | `member` on `team:{globalOrgAdminTeamUID}` |
+| PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org | `writer` on `b2b_org:{uid}` |
+| GET | `/b2b_orgs/{uid}` | Get a B2B org | `auditor` on `b2b_org:{uid}` |
+
+### Utility
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
 | GET | `/readyz` | Readiness probe | None |
 | GET | `/livez` | Liveness probe | None |
 | GET | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None |
 
-> **Note:** The legacy `/members/*` and `/memberships/*` endpoints return `410 Gone` with a hint pointing to the replacement paths above.
+> **Note:** The legacy `/members/*` and `/memberships/*` endpoints return `410 Gone`.
 
 ### Member Search & Filtering
 
@@ -372,18 +388,39 @@ When `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` is set, the service skips JWT vali
 
 ## Authorization (OpenFGA)
 
-The service uses the `project` type in the OpenFGA model (defined in lfx-v2-helm):
+The service enforces fine-grained authorization via the v13 OpenFGA model (defined in `lfx-v2-helm`). Relevant types:
 
 ```dsl
-type project
+type b2b_org
   relations
+    define global_org_admin: [team#member]
+    define owner: [user]
+    define writer: [user] or owner or global_org_admin
+    define parent: [b2b_org]
+    define child: [b2b_org]
+    define membership: [project_membership]
+    define key_contact: key_contact from membership
     define auditor: [user, team#member]
-    define writer: [user, team#member]
+                    or writer
+                    or auditor from parent
+                    or auditor from child
+                    or key_contact from membership
+
+type project_membership
+  relations
+    define key_contact: [user]
+    define auditor: [user, team#member] or key_contact
 ```
+
+**Hierarchy cascade:** `auditor` on `b2b_org` propagates transitively through the entire connected org hierarchy via `parent` and `child` tuples. A user with `auditor` on any org can view every other org in the same hierarchy. `writer` does not cascade — edit access stays on the assigned org only.
+
+**Key contact access:** a user with `key_contact` on a `project_membership` automatically becomes `auditor` on the parent `b2b_org` (via `key_contact from membership`).
 
 Authorization checks in Heimdall ruleset:
 - **GET /projects/{project_id}/\*** — requires `auditor` on `project:{project_id}`
-- **POST/PUT/DELETE /projects/{project_id}/memberships/{id}/key_contacts[/{cid}]** — requires `writer` on `project:{project_id}`
+- **GET/POST/PUT/DELETE /project_memberships/{m_uid}/key_contacts/\*** — requires `auditor`/`writer` on `project_membership:{m_uid}`
+- **GET /b2b_orgs/{uid}** — requires `auditor` on `b2b_org:{uid}`
+- **POST/PUT /b2b_orgs/\*** — requires `writer` on `b2b_org:{uid}`
 - **GET /members/\*** — `allow_all` passthrough (returns 410 Gone unconditionally)
 
 ## Testing Patterns

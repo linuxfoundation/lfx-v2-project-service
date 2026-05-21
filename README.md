@@ -63,20 +63,33 @@ minimise round-trips.
 
 ## API Endpoints
 
-The API is project-scoped. All data endpoints are nested under
-`/projects/{project_id}` where `project_id` is the v2 project UUID.
+### Project membership
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/projects/{project_id}/tiers` | List membership tiers for a project |
-| GET | `/projects/{project_id}/tiers/{tier_id}` | Get a specific membership tier |
-| GET | `/projects/{project_id}/memberships` | List memberships for a project |
-| GET | `/projects/{project_id}/memberships/{id}` | Get a specific membership |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts` | List key contacts for a membership |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Get a specific key contact |
-| POST | `/projects/{project_id}/memberships/{id}/key_contacts` | Add a key contact |
-| PUT | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Update a key contact |
-| DELETE | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Remove a key contact |
+| GET | `/project_memberships/{uid}` | Get a project membership |
+
+### Key contacts (nested under project_membership)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact |
+| POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact |
+| PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact |
+| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact |
+
+### B2B org writes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID |
+| PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org |
+| GET | `/b2b_orgs/{uid}` | Get a B2B org |
+
+### Utility
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/readyz` | Readiness check |
 | GET | `/livez` | Liveness check |
 

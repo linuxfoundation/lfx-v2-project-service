@@ -10,6 +10,7 @@ import (
 	"expvar"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -275,8 +276,8 @@ func (s *membershipServicesrvc) resolveSubForContact(ctx context.Context, curren
 }
 
 // publishB2BOrgEvents fans out an indexer message, an FGA update-access message,
-// and any b2b_org#parent reparenting messages for the given org. current is nil
-// on create. Publish failures are swallowed and logged with
+// and any b2b_org#parent + b2b_org#child reparenting messages for the given org.
+// current is nil on create. Publish failures are swallowed and logged with
 // publish_failed_for_backfill_repair=true — /admin/reindex recovers missed records.
 func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current, org *model.B2BOrg, action indexerConstants.MessageAction) {
 	indexMsg := &model.MemberIndexerMessage{
@@ -299,6 +300,12 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current
 	}
 	fgaMsg := buildB2BOrgFGAMessage(org, orgAdminTeamUID)
 
+	// Fetch child lists for affected parents so the builder can emit child-list
+	// FGA tuples alongside the parent-ref message. Done synchronously before the
+	// goroutine group since the slices are immutable inputs. Errors are logged and
+	// result in nil slices — the builder skips child-list messages when nil.
+	oldParentChildren, newParentChildren := s.fetchChildListsForReparent(ctx, current, org)
+
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		return s.memberPublisher.Indexer(gCtx, constants.IndexB2BOrgSubject, builtMsg, false)
@@ -307,9 +314,9 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current
 		return s.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, fgaMsg, false)
 	})
 
-	// Emit b2b_org#parent FGA tuple(s) when ParentUID changes.
-	for _, parentMsg := range buildB2BOrgReparentingMessages(current, org) {
-		msg := parentMsg // capture loop var
+	// Emit b2b_org#parent and b2b_org#child FGA tuples when ParentUID changes.
+	for _, reparentMsg := range buildB2BOrgReparentingMessages(current, org, oldParentChildren, newParentChildren) {
+		msg := reparentMsg // capture loop var
 		g.Go(func() error {
 			return s.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, msg, false)
 		})
@@ -321,6 +328,66 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
 	}
+}
+
+// fetchChildListsForReparent computes the post-move child-UID slices for the
+// old and new parent when a b2b_org's ParentUID changes. Returns (nil, nil)
+// when parent is unchanged — the builder treats nil as "skip child-list message".
+// Errors are logged and cause the affected slice to be nil (skip, don't corrupt).
+func (s *membershipServicesrvc) fetchChildListsForReparent(ctx context.Context, current, org *model.B2BOrg) (oldChildren, newChildren []string) {
+	oldParent := ""
+	if current != nil {
+		oldParent = current.ParentUID
+	}
+	newParent := org.ParentUID
+	if oldParent == newParent {
+		return nil, nil
+	}
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	if oldParent != "" {
+		g.Go(func() error {
+			uids, err := s.b2bOrgReader.FetchChildUIDsByParentUID(gCtx, oldParent)
+			if err != nil {
+				slog.WarnContext(ctx, "failed to fetch children of old parent for FGA child-list update",
+					"old_parent_uid", oldParent, "org_uid", org.UID, "error", err,
+					"publish_failed_for_backfill_repair", true)
+				return nil // swallow; nil slice = skip message
+			}
+			// Remove org from OldP's child list — it has moved away.
+			for _, u := range uids {
+				if u != org.UID {
+					oldChildren = append(oldChildren, u)
+				}
+			}
+			if oldChildren == nil {
+				oldChildren = []string{} // non-nil empty = emit clear
+			}
+			return nil
+		})
+	}
+
+	if newParent != "" {
+		g.Go(func() error {
+			uids, err := s.b2bOrgReader.FetchChildUIDsByParentUID(gCtx, newParent)
+			if err != nil {
+				slog.WarnContext(ctx, "failed to fetch children of new parent for FGA child-list update",
+					"new_parent_uid", newParent, "org_uid", org.UID, "error", err,
+					"publish_failed_for_backfill_repair", true)
+				return nil // swallow; nil slice = skip message
+			}
+			// Ensure org is in NewP's list regardless of whether SF has processed the move.
+			newChildren = uids
+			if !slices.Contains(newChildren, org.UID) {
+				newChildren = append(newChildren, org.UID)
+			}
+			return nil
+		})
+	}
+
+	_ = g.Wait()
+	return oldChildren, newChildren
 }
 
 // ── Project Memberships ──────────────────────────────────────────────────────

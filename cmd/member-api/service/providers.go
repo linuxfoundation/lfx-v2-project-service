@@ -256,8 +256,8 @@ func B2BOrgReaderImpl(ctx context.Context) port.B2BOrgReader {
 
 	case "salesforce":
 		slog.InfoContext(ctx, "initialising Salesforce B2B org reader with sObject cache")
-		sObjectClientInit(ctx)
-		return salesforce.NewB2BOrgReader(sObjectClient)
+		sObjectClientInit(ctx) // also calls sfInit internally
+		return salesforce.NewB2BOrgReader(sObjectClient, sfClient)
 
 	default:
 		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
