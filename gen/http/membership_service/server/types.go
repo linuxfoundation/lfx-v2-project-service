@@ -1372,7 +1372,7 @@ type ProjectKeyContactResponseResponseBody struct {
 type AdminReindexItemRequestBody struct {
 	// Entity type: b2b_org, project_membership, or key_contact
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
-	// Entity UID (UUID v4)
+	// Entity UID (invertible UUID v8)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 }
 

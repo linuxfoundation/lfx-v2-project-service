@@ -71,7 +71,7 @@ var MethodNames = [12]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", 
 type AdminReindexItem struct {
 	// Entity type: b2b_org, project_membership, or key_contact
 	Type string
-	// Entity UID (UUID v4)
+	// Entity UID (invertible UUID v8)
 	UID string
 }
 

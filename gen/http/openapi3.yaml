@@ -1123,7 +1123,7 @@ components:
                     example: b2b_org
                 uid:
                     type: string
-                    description: Entity UID (UUID v4)
+                    description: Entity UID (invertible UUID v8)
                     example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
             description: A single entity to reindex (targeted mode)

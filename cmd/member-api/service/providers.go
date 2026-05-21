@@ -415,12 +415,25 @@ func BackfillIteratorImpl(ctx context.Context) BackfillIterator {
 // (or mock) dependencies based on REPOSITORY_SOURCE / MESSAGING_SOURCE.
 func BackfillRunnerImpl(ctx context.Context) *BackfillRunner {
 	natsInit(ctx)
-	sObjectClientInit(ctx) // ensures sObjectClient is ready for KeyContactReader
+
+	repoSource := os.Getenv("REPOSITORY_SOURCE")
+	if repoSource == "" {
+		repoSource = "salesforce"
+	}
+
+	var kcReader KeyContactSObjectReader
+	if repoSource == "salesforce" {
+		sObjectClientInit(ctx)
+		kcReader = salesforce.NewKeyContactReader(sObjectClient)
+	} else {
+		kcReader = mock.NewMockKeyContactSObjectReader()
+	}
+
 	return NewBackfillRunner(
 		BackfillIteratorImpl(ctx),
 		B2BOrgReaderImpl(ctx),
 		ProjectMembershipReaderImpl(ctx),
-		salesforce.NewKeyContactReader(sObjectClient),
+		kcReader,
 		MemberPublisherImpl(ctx),
 		natsClient,
 	)

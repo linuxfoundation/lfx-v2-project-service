@@ -154,7 +154,7 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 |--------|------|-------------|---------------|
 | POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
 
-Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (comma-separated SFIDs), and `dry_run` (count only, no publish).
+Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
 
 ### Utility
 

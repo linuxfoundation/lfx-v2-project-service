@@ -333,6 +333,9 @@ WHERE IsDeleted = false`
 		if len(contactIDs) > 0 {
 			if em, emailErr := r.fetchPrimaryEmails(ctx, contactIDs); emailErr == nil {
 				emailMap = em
+			} else {
+				slog.WarnContext(ctx, "fetchPrimaryEmails failed on page; contacts will be indexed without primary email",
+					"batch_size", len(contactIDs), "error", emailErr)
 			}
 		}
 

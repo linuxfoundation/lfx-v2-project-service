@@ -461,7 +461,7 @@ var AdminReindexItem = dsl.Type("admin-reindex-item", func() {
 	dsl.Attribute("type", dsl.String, "Entity type: b2b_org, project_membership, or key_contact", func() {
 		dsl.Example("b2b_org")
 	})
-	dsl.Attribute("uid", dsl.String, "Entity UID (UUID v4)", func() {
+	dsl.Attribute("uid", dsl.String, "Entity UID (invertible UUID v8)", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
 	})
