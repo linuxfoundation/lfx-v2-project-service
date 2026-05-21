@@ -414,6 +414,42 @@ func (s *NatsRepository) UpdateProjectSettings(ctx context.Context, projectSetti
 	return nil
 }
 
+// CreateInviteMapping writes the invite UID → project UID mapping into the project-settings KV bucket.
+func (s *NatsRepository) CreateInviteMapping(ctx context.Context, inviteUID, projectUID string) error {
+	key := fmt.Sprintf(constants.KVLookupInviteMappingPrefix, inviteUID)
+	_, err := s.ProjectSettings.Put(ctx, key, []byte(projectUID))
+	if err != nil {
+		slog.ErrorContext(ctx, "error writing invite mapping to NATS KV store", constants.ErrKey, err, "invite_uid", inviteUID, "project_uid", projectUID)
+		return domain.ErrInternal
+	}
+	return nil
+}
+
+// GetProjectUIDByInviteUID resolves an invite UID to its project UID via the mapping.
+func (s *NatsRepository) GetProjectUIDByInviteUID(ctx context.Context, inviteUID string) (string, error) {
+	key := fmt.Sprintf(constants.KVLookupInviteMappingPrefix, inviteUID)
+	entry, err := s.ProjectSettings.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return "", domain.ErrInviteMappingNotFound
+		}
+		slog.ErrorContext(ctx, "error reading invite mapping from NATS KV store", constants.ErrKey, err, "invite_uid", inviteUID)
+		return "", domain.ErrInternal
+	}
+	return string(entry.Value()), nil
+}
+
+// DeleteInviteMapping removes the invite UID → project UID mapping once the invite is consumed.
+func (s *NatsRepository) DeleteInviteMapping(ctx context.Context, inviteUID string) error {
+	key := fmt.Sprintf(constants.KVLookupInviteMappingPrefix, inviteUID)
+	err := s.ProjectSettings.Delete(ctx, key)
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		slog.ErrorContext(ctx, "error deleting invite mapping from NATS KV store", constants.ErrKey, err, "invite_uid", inviteUID)
+		return domain.ErrInternal
+	}
+	return nil
+}
+
 func (s *NatsRepository) deleteProjectSlugMapping(ctx context.Context, projectSlug string) error {
 	err := s.Projects.Delete(ctx, fmt.Sprintf("slug/%s", projectSlug))
 	if err != nil {

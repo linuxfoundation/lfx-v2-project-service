@@ -2929,6 +2929,24 @@ func unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v *UserInfoResponseBo
 		Username: v.Username,
 		Avatar:   v.Avatar,
 	}
+	if v.Invite != nil {
+		res.Invite = unmarshalInviteInfoResponseBodyToProjectserviceInviteInfo(v.Invite)
+	}
+
+	return res
+}
+
+// unmarshalInviteInfoResponseBodyToProjectserviceInviteInfo builds a value of
+// type *projectservice.InviteInfo from a value of type *InviteInfoResponseBody.
+func unmarshalInviteInfoResponseBodyToProjectserviceInviteInfo(v *InviteInfoResponseBody) *projectservice.InviteInfo {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.InviteInfo{
+		UID:       v.UID,
+		Email:     v.Email,
+		ExpiresAt: v.ExpiresAt,
+	}
 
 	return res
 }
@@ -2945,6 +2963,24 @@ func marshalProjectserviceUserInfoToUserInfoRequestBody(v *projectservice.UserIn
 		Username: v.Username,
 		Avatar:   v.Avatar,
 	}
+	if v.Invite != nil {
+		res.Invite = marshalProjectserviceInviteInfoToInviteInfoRequestBody(v.Invite)
+	}
+
+	return res
+}
+
+// marshalProjectserviceInviteInfoToInviteInfoRequestBody builds a value of
+// type *InviteInfoRequestBody from a value of type *projectservice.InviteInfo.
+func marshalProjectserviceInviteInfoToInviteInfoRequestBody(v *projectservice.InviteInfo) *InviteInfoRequestBody {
+	if v == nil {
+		return nil
+	}
+	res := &InviteInfoRequestBody{
+		UID:       v.UID,
+		Email:     v.Email,
+		ExpiresAt: v.ExpiresAt,
+	}
 
 	return res
 }
@@ -2960,6 +2996,24 @@ func marshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody) 
 		Email:    v.Email,
 		Username: v.Username,
 		Avatar:   v.Avatar,
+	}
+	if v.Invite != nil {
+		res.Invite = marshalInviteInfoRequestBodyToProjectserviceInviteInfo(v.Invite)
+	}
+
+	return res
+}
+
+// marshalInviteInfoRequestBodyToProjectserviceInviteInfo builds a value of
+// type *projectservice.InviteInfo from a value of type *InviteInfoRequestBody.
+func marshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoRequestBody) *projectservice.InviteInfo {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.InviteInfo{
+		UID:       v.UID,
+		Email:     v.Email,
+		ExpiresAt: v.ExpiresAt,
 	}
 
 	return res

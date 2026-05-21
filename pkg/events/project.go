@@ -12,12 +12,20 @@ package events
 
 import "time"
 
+// InviteInfo holds the pending invite metadata for a user without an LFID.
+type InviteInfo struct {
+	UID       string     `json:"uid"`
+	Email     string     `json:"email"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
 // UserInfo is the user representation used in project event payloads.
 type UserInfo struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Username string `json:"username"`
-	Avatar   string `json:"avatar"`
+	Name     string      `json:"name"`
+	Email    string      `json:"email"`
+	Username string      `json:"username"`
+	Avatar   string      `json:"avatar"`
+	Invite   *InviteInfo `json:"invite,omitempty"`
 }
 
 // ProjectSettings is the project-settings representation used in event payloads.
@@ -50,4 +58,13 @@ type ProjectSettingsUpdatedMessage struct {
 	OldSettings ProjectSettings `json:"old_settings"`
 	NewSettings ProjectSettings `json:"new_settings"`
 	Actor       Actor           `json:"actor"`
+}
+
+// InviteAccepted is the NATS event payload published by the LFX self-serve web app
+// on lfx.invite.accepted when a user completes LFID account creation and accepts
+// their invite. Resource services subscribe to this subject to promote the user from
+// email-only to LFID and clean up pending invite state.
+type InviteAccepted struct {
+	InviteUID string `json:"invite_uid"`
+	Username  string `json:"username"`
 }

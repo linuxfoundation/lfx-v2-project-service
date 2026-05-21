@@ -1205,6 +1205,18 @@ type UserInfoResponseBody struct {
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// The avatar URL of the user
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
+	// Pending invite details; present only for users without an LFID
+	Invite *InviteInfoResponseBody `form:"invite,omitempty" json:"invite,omitempty" xml:"invite,omitempty"`
+}
+
+// InviteInfoResponseBody is used to define fields on response body types.
+type InviteInfoResponseBody struct {
+	// The UID of the invite
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// The email address the invite was sent to
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// RFC3339 expiry timestamp of the invite
+	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
 }
 
 // ProjectBaseResponseBody is used to define fields on response body types.
@@ -1359,6 +1371,18 @@ type UserInfoRequestBody struct {
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// The avatar URL of the user
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
+	// Pending invite details; present only for users without an LFID
+	Invite *InviteInfoRequestBody `form:"invite,omitempty" json:"invite,omitempty" xml:"invite,omitempty"`
+}
+
+// InviteInfoRequestBody is used to define fields on request body types.
+type InviteInfoRequestBody struct {
+	// The UID of the invite
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+	// The email address the invite was sent to
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// RFC3339 expiry timestamp of the invite
+	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
 }
 
 // NewGetProjectsResponseBody builds the HTTP response body from the result of
@@ -3102,6 +3126,20 @@ func ValidateUserInfoRequestBody(body *UserInfoRequestBody) (err error) {
 	}
 	if body.Avatar != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.avatar", *body.Avatar, "^$|^[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$"))
+	}
+	if body.Invite != nil {
+		if err2 := ValidateInviteInfoRequestBody(body.Invite); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	return
+}
+
+// ValidateInviteInfoRequestBody runs the validations defined on
+// InviteInfoRequestBody
+func ValidateInviteInfoRequestBody(body *InviteInfoRequestBody) (err error) {
+	if body.ExpiresAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.expires_at", *body.ExpiresAt, goa.FormatDateTime))
 	}
 	return
 }

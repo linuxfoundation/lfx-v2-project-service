@@ -241,6 +241,21 @@ func ProjectRepositoryURLAttribute() {
 	})
 }
 
+// InviteInfo is the DSL type for pending invite metadata on a non-LFID user.
+var InviteInfo = Type("InviteInfo", func() {
+	Description("Pending invite details for a user who does not yet have an LFID.")
+	Attribute("uid", String, "The UID of the invite", func() {
+		Example("550e8400-e29b-41d4-a716-446655440000")
+	})
+	Attribute("email", String, "The email address the invite was sent to", func() {
+		Example("john.doe@example.com")
+	})
+	Attribute("expires_at", String, "RFC3339 expiry timestamp of the invite", func() {
+		Example("2026-06-18T00:00:00Z")
+		Format(FormatDateTime)
+	})
+})
+
 // UserInfo is the DSL type for user information.
 var UserInfo = Type("UserInfo", func() {
 	Description("User information including profile details.")
@@ -259,6 +274,7 @@ var UserInfo = Type("UserInfo", func() {
 		Example("https://example.com/avatar.jpg")
 		Pattern(`^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+$`)
 	})
+	Attribute("invite", InviteInfo, "Pending invite details; present only for users without an LFID. Server-managed — ignored on write requests.")
 })
 
 // ProjectAuditorsAttribute is the DSL attribute for a project auditors.

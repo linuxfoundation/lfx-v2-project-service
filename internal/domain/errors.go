@@ -44,4 +44,8 @@ var (
 	ErrFolderNameExists = errors.New("folder with the same name already exists for this project")
 	// ErrFolderNotEmpty is returned when attempting to delete a folder that still contains links or documents.
 	ErrFolderNotEmpty = errors.New("folder cannot be deleted because it contains links or documents; remove all items from the folder first")
+
+	// ErrInviteMappingNotFound is returned when no invite→project mapping exists for the given invite UID.
+	// This is distinct from ErrProjectNotFound: the project may exist but no mapping was written for this invite.
+	ErrInviteMappingNotFound = errors.New("invite mapping not found")
 )
