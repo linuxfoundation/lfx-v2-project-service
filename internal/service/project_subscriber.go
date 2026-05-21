@@ -123,7 +123,7 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 	}
 
 	slog.InfoContext(ctx, "project_subscriber: sending invite request to invite service",
-		"role", role, "invite_role", inviteRole, "project_uid", projectUID, "recipient_email", recipientEmail)
+		"role", role, "invite_role", inviteRole, "project_uid", projectUID)
 
 	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
 	defer cancel()
@@ -144,10 +144,10 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 			constants.ErrKey, err, "role", role, "project_uid", projectUID)
 		return nil
 	}
-
 	if result.InviteUID == "" {
+		// Defensive: infra-layer SendInviteRequest validates this, but guard here too.
 		slog.WarnContext(ctx, "project_subscriber: invite service responded without an invite UID — skipping write-back",
-			"role", role, "project_uid", projectUID, "recipient_email", recipientEmail)
+			"role", role, "project_uid", projectUID)
 		return nil
 	}
 
@@ -184,9 +184,23 @@ func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role,
 	return nil
 }
 
+// roleSlice returns a pointer to the settings slice for the given role,
+// or nil for an unrecognised role.
+func roleSlice(s *models.ProjectSettings, role string) *[]models.UserInfo {
+	switch role {
+	case roleWriter:
+		return &s.Writers
+	case roleAuditor:
+		return &s.Auditors
+	case roleMeetingCoordinator:
+		return &s.MeetingCoordinators
+	}
+	return nil
+}
+
 func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
 	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite info",
-		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail)
+		"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
 
 	settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 	if err != nil {
@@ -195,44 +209,28 @@ func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, ro
 		return err
 	}
 
-	var slice []models.UserInfo
-	switch role {
-	case roleWriter:
-		slice = settings.Writers
-	case roleAuditor:
-		slice = settings.Auditors
-	case roleMeetingCoordinator:
-		slice = settings.MeetingCoordinators
-	default:
+	slicePtr := roleSlice(settings, role)
+	if slicePtr == nil {
 		return nil
 	}
 
 	normalizedRecipient := strings.ToLower(strings.TrimSpace(recipientEmail))
 	updated := false
-	for i := range slice {
-		if strings.ToLower(strings.TrimSpace(slice[i].Email)) == normalizedRecipient {
+	for i := range *slicePtr {
+		if strings.ToLower(strings.TrimSpace((*slicePtr)[i].Email)) == normalizedRecipient {
 			inv := &models.InviteInfo{UID: inviteUID, Email: inviteEmail}
 			if !expiresAt.IsZero() {
 				inv.ExpiresAt = &expiresAt
 			}
-			slice[i].Invite = inv
+			(*slicePtr)[i].Invite = inv
 			updated = true
 			break
 		}
 	}
 	if !updated {
 		slog.WarnContext(ctx, "project_subscriber: user not found in role slice — invite info not stored (user may have been removed)",
-			"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID)
+			"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
 		return nil
-	}
-
-	switch role {
-	case roleWriter:
-		settings.Writers = slice
-	case roleAuditor:
-		settings.Auditors = slice
-	case roleMeetingCoordinator:
-		settings.MeetingCoordinators = slice
 	}
 
 	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
@@ -247,7 +245,7 @@ func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, ro
 	}
 
 	slog.InfoContext(ctx, "project_subscriber: stored invite info on member record",
-		"project_uid", projectUID, "role", role, "recipient_email", recipientEmail, "invite_uid", inviteUID, "expires_at", expiresAt)
+		"project_uid", projectUID, "role", role, "invite_uid", inviteUID, "expires_at", expiresAt)
 
 	// Write the invite UID → project UID mapping so HandleInviteAccepted can route the
 	// acceptance event without scanning all project settings.
@@ -324,18 +322,16 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 	return "A project administrator"
 }
 
-// inviteAcceptedMessage is the payload published by the LFX self-serve web app on InviteAcceptedSubject.
-type inviteAcceptedMessage struct {
-	InviteUID string `json:"invite_uid"`
-	Username  string `json:"username"`
-}
-
 // HandleInviteAccepted processes an invite acceptance event from the LFX self-serve web app.
 // It locates the project settings that own the invite via the mapping written at invite-send time,
 // promotes the user from non-LFID (email-only) to LFID (username set, invite cleared), persists
 // the update, deletes the consumed mapping, and re-indexes.
+//
+// Note: a single notificationTimeout deadline covers the entire handler body including all retry
+// attempts. If KV contention causes all retries to exhaust the budget, the promotion is lost and
+// the user must re-accept the invite link to trigger a new acceptance event.
 func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.Message) error {
-	var event inviteAcceptedMessage
+	var event events.InviteAccepted
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal invite_accepted event", constants.ErrKey, err)
 		return nil
@@ -375,18 +371,25 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		var settingsErr error
 		settings, revision, settingsErr = s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if settingsErr != nil {
+			if attempt < maxPromoteRetries-1 {
+				slog.DebugContext(ctx, "project_subscriber: transient error reading settings for invite acceptance — retrying",
+					constants.ErrKey, settingsErr, "attempt", attempt+1, "project_uid", projectUID, "invite_uid", event.InviteUID)
+				continue
+			}
 			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite acceptance",
 				constants.ErrKey, settingsErr, "project_uid", projectUID, "invite_uid", event.InviteUID)
 			return nil
 		}
 
 		promoted = false
+	outer:
 		for _, slice := range []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators} {
 			for i := range *slice {
 				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
 					(*slice)[i].Username = event.Username
 					(*slice)[i].Invite = nil
 					promoted = true
+					break outer // invite UIDs are unique; no need to scan further
 				}
 			}
 		}
@@ -439,9 +442,11 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 // being promoted to LFID. Used to suppress redundant notification emails on promotion.
 func wasInvitedInOldSettings(email string, old events.ProjectSettings) bool {
 	normalized := strings.ToLower(strings.TrimSpace(email))
-	for _, u := range append(append(old.Writers, old.Auditors...), old.MeetingCoordinators...) {
-		if u.Username == "" && strings.ToLower(strings.TrimSpace(u.Email)) == normalized {
-			return true
+	for _, slice := range [][]events.UserInfo{old.Writers, old.Auditors, old.MeetingCoordinators} {
+		for _, u := range slice {
+			if u.Username == "" && strings.ToLower(strings.TrimSpace(u.Email)) == normalized {
+				return true
+			}
 		}
 	}
 	return false

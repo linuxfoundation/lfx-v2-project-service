@@ -59,3 +59,12 @@ type ProjectSettingsUpdatedMessage struct {
 	NewSettings ProjectSettings `json:"new_settings"`
 	Actor       Actor           `json:"actor"`
 }
+
+// InviteAccepted is the NATS event payload published by the LFX self-serve web app
+// on lfx.invite.accepted when a user completes LFID account creation and accepts
+// their invite. Resource services subscribe to this subject to promote the user from
+// email-only to LFID and clean up pending invite state.
+type InviteAccepted struct {
+	InviteUID string `json:"invite_uid"`
+	Username  string `json:"username"`
+}

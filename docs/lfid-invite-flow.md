@@ -92,7 +92,8 @@ The mapping is written in `storeInviteInfo` and read + deleted in `HandleInviteA
 ## Timeout and Retry Behavior
 
 - All outbound calls (invite service request/reply, KV read/write, indexer publish) run under `notificationTimeout` (5 seconds).
-- `storeInviteInfo` retries up to 3 times on `ErrRevisionMismatch`. This handles the case where multiple non-LFID users are added in the same settings update and their concurrent write-backs race on the same KV revision.
+- `storeInviteInfo` retries up to 3 times on `ErrRevisionMismatch`. Each attempt gets a fresh 5-second window. This handles the case where multiple non-LFID users are added in the same settings update and their concurrent write-backs race on the same KV revision.
+- `HandleInviteAccepted` applies a **single** `notificationTimeout` deadline to its entire body, including all 3 retry attempts. Under KV contention, if all retries exhaust the 5-second budget before a successful write, the promotion is lost. The invite mapping is left intact, so the user can recover by clicking the invite link again to generate a new `lfx.invite.accepted` event.
 - Errors from individual sends are logged but never propagated — the handler is entirely best-effort and always returns `nil`.
 
 ---

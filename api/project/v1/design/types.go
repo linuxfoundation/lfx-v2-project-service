@@ -274,7 +274,7 @@ var UserInfo = Type("UserInfo", func() {
 		Example("https://example.com/avatar.jpg")
 		Pattern(`^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+$`)
 	})
-	Attribute("invite", InviteInfo, "Pending invite details; present only for users without an LFID")
+	Attribute("invite", InviteInfo, "Pending invite details; present only for users without an LFID. Server-managed — ignored on write requests.")
 })
 
 // ProjectAuditorsAttribute is the DSL attribute for a project auditors.

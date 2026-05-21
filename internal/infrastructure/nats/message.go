@@ -230,11 +230,13 @@ func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.Se
 		}
 	}
 
-	var result domain.InviteResult
-	if resp.Invite != nil {
-		result.InviteUID = resp.Invite.UID
-		result.RecipientEmail = resp.Invite.Email
-		result.ExpiresAt = resp.Invite.ExpiresAt
+	if resp.Invite == nil || resp.Invite.UID == "" {
+		return domain.InviteResult{}, fmt.Errorf("invite service returned success but invite_uid is empty")
+	}
+	result := domain.InviteResult{
+		InviteUID:      resp.Invite.UID,
+		RecipientEmail: resp.Invite.Email,
+		ExpiresAt:      resp.Invite.ExpiresAt,
 	}
 	slog.DebugContext(ctx, "invite service replied", "invite_uid", result.InviteUID, "expires_at", result.ExpiresAt)
 	return result, nil
