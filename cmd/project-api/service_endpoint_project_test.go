@@ -190,8 +190,9 @@ func TestCreateProject(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api, mockRepo, mockMsg := setupAPI()
+			mockUserReader := api.service.UserReader.(*domain.MockUserReader)
 			if tt.setupUserReader != nil {
-				tt.setupUserReader(api.service.UserReader.(*domain.MockUserReader))
+				tt.setupUserReader(mockUserReader)
 			}
 			tt.setupMocks(mockRepo, mockMsg)
 
@@ -208,6 +209,7 @@ func TestCreateProject(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
+			mockUserReader.AssertExpectations(t)
 		})
 	}
 }

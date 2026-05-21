@@ -22,6 +22,8 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
+	"sync"
+
 	"golang.org/x/sync/errgroup"
 )
 
@@ -107,19 +109,13 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		runSync = *payload.XSync
 	}
 
-	// Enrich writer/auditor/coordinator usernames from the auth service before persisting.
-	// The caller is not authoritative for another user's LFID — always use the lookup result.
-	for _, slice := range [][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators} {
-		if err := s.enrichUserSlice(ctx, slice); err != nil {
-			slog.ErrorContext(ctx, "error enriching user slice", constants.ErrKey, err)
-			return nil, domain.ErrInternal
-		}
-	}
-	for _, single := range []*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner} {
-		if err := s.enrichSingleUser(ctx, single); err != nil {
-			slog.ErrorContext(ctx, "error enriching single user", constants.ErrKey, err)
-			return nil, domain.ErrInternal
-		}
+	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
+	if err := s.enrichAllRoleFields(ctx,
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
+	); err != nil {
+		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
+		return nil, domain.ErrInternal
 	}
 
 	// Create the project and settings structs
@@ -540,18 +536,13 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		runSync = *payload.XSync
 	}
 
-	// Enrich writer/auditor/coordinator usernames from the auth service before persisting.
-	for _, slice := range [][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators} {
-		if err := s.enrichUserSlice(ctx, slice); err != nil {
-			slog.ErrorContext(ctx, "error enriching user slice", constants.ErrKey, err)
-			return nil, domain.ErrInternal
-		}
-	}
-	for _, single := range []*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner} {
-		if err := s.enrichSingleUser(ctx, single); err != nil {
-			slog.ErrorContext(ctx, "error enriching single user", constants.ErrKey, err)
-			return nil, domain.ErrInternal
-		}
+	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
+	if err := s.enrichAllRoleFields(ctx,
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
+	); err != nil {
+		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
+		return nil, domain.ErrInternal
 	}
 
 	// Prepare the updated project settings
@@ -753,47 +744,93 @@ func isCrowdfundingOnly(fundingModels []string) bool {
 	return len(fundingModels) == 1 && fundingModels[0] == "Crowdfunding"
 }
 
-// enrichUserSlice overwrites the Username field on each UserInfo entry with the authoritative LFID
-// returned by the auth service for that entry's email address.
-// The caller's supplied username is always replaced — it is untrusted because the caller does not
-// own the assignee's login profile.
-// If the email is missing or does not match a registered user the username is cleared to nil.
-// Any transport error from the auth service is returned and the calling request fails.
-func (s *ProjectsService) enrichUserSlice(ctx context.Context, users []*projsvc.UserInfo) error {
-	if len(users) == 0 {
+// enrichAllRoleFields overwrites Username on every UserInfo across all supplied slices and singles
+// with the authoritative LFID from the auth service.
+// Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
+// Misses (unknown email, empty email) write an explicit empty-string pointer so the settings
+// converter always overwrites any previously-stored username in the database.
+// Transport errors are returned and the request fails — stale LFIDs are never silently kept.
+func (s *ProjectsService) enrichAllRoleFields(
+	ctx context.Context,
+	slices [][]*projsvc.UserInfo,
+	singles []*projsvc.UserInfo,
+) error {
+	if s.UserReader == nil {
+		return domain.ErrInternal
+	}
+
+	// Gather all entries grouped by email; clear username immediately for entries without an email.
+	type group struct{ users []*projsvc.UserInfo }
+	byEmail := make(map[string]*group)
+
+	gather := func(u *projsvc.UserInfo) {
+		if u == nil {
+			return
+		}
+		if u.Email == nil || *u.Email == "" {
+			u.Username = misc.StringPtr("")
+			return
+		}
+		eg := byEmail[*u.Email]
+		if eg == nil {
+			eg = &group{}
+			byEmail[*u.Email] = eg
+		}
+		eg.users = append(eg.users, u)
+	}
+
+	for _, slice := range slices {
+		for _, u := range slice {
+			gather(u)
+		}
+	}
+	for _, u := range singles {
+		gather(u)
+	}
+
+	if len(byEmail) == 0 {
 		return nil
 	}
+
+	// Look up each unique email concurrently.
+	results := make(map[string]string, len(byEmail))
+	var mu sync.Mutex
 	const maxConcurrent = 8
 	g, gCtx := errgroup.WithContext(ctx)
 	sem := make(chan struct{}, maxConcurrent)
-	for _, u := range users {
-		u := u
+
+	for email := range byEmail {
+		email := email
 		g.Go(func() error {
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			return s.enrichSingleUser(gCtx, u)
+			username, err := s.UserReader.UsernameByEmail(gCtx, email)
+			if err != nil {
+				if errors.Is(err, domain.ErrUserNotFound) {
+					mu.Lock()
+					results[email] = ""
+					mu.Unlock()
+					return nil
+				}
+				return err
+			}
+			mu.Lock()
+			results[email] = username
+			mu.Unlock()
+			return nil
 		})
 	}
-	return g.Wait()
-}
 
-// enrichSingleUser enriches one UserInfo entry in place; see enrichUserSlice for full semantics.
-func (s *ProjectsService) enrichSingleUser(ctx context.Context, u *projsvc.UserInfo) error {
-	if u == nil {
-		return nil
-	}
-	if u.Email == nil || *u.Email == "" {
-		u.Username = nil
-		return nil
-	}
-	username, err := s.UserReader.UsernameByEmail(ctx, *u.Email)
-	if err != nil {
-		if errors.Is(err, domain.ErrUserNotFound) {
-			u.Username = nil
-			return nil
-		}
+	if err := g.Wait(); err != nil {
 		return err
 	}
-	u.Username = &username
+
+	// Apply resolved usernames — empty string clears any previously-stored value.
+	for email, eg := range byEmail {
+		username := results[email]
+		for _, u := range eg.users {
+			u.Username = misc.StringPtr(username)
+		}
+	}
 	return nil
 }

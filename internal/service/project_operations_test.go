@@ -1027,6 +1027,42 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			expectedErr: domain.ErrInternal,
 		},
 		{
+			// Regression: if a writer had a previously-stored username and the auth service can no longer
+			// resolve their email, the stale username must be overwritten (not silently preserved).
+			name: "unknown email with previously-stored username — stale username cleared",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("stale-lfid"), Name: misc.StringPtr("Old User"), Email: misc.StringPtr("gone@example.com")},
+				},
+			},
+			setupUserReader: func(mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "gone@example.com").Return("", domain.ErrUserNotFound)
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Existing settings already have a writer with the same email and a stored LFID.
+				existingSettings := &models.ProjectSettings{
+					UID: "project-uid-1",
+					Writers: []models.UserInfo{
+						{Email: "gone@example.com", Username: "stale-lfid"},
+					},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				// Username must be "" — the stale "stale-lfid" must not be preserved.
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == ""
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
 			name:        "service not ready",
 			payload:     &projsvc.UpdateProjectSettingsPayload{UID: misc.StringPtr("project-uid-1")},
 			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
