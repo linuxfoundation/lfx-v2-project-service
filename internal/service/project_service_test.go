@@ -145,6 +145,7 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	mockRepo := &domain.MockProjectRepository{}
 	mockBuilder := &domain.MockMessageBuilder{}
 	mockAuth := &auth.MockJWTAuth{}
+	mockUserReader := &domain.MockUserReader{}
 
 	service := NewProjectsService(mockAuth, ServiceConfig{})
 	service.ProjectRepository = mockRepo
@@ -152,6 +153,7 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	service.LinkRepository = &domain.MockLinkRepository{}
 	service.FolderRepository = &domain.MockFolderRepository{}
 	service.MessageBuilder = mockBuilder
+	service.UserReader = mockUserReader
 
 	return service, mockRepo, mockBuilder, mockAuth
 }

@@ -95,4 +95,8 @@ const (
 	// AuthUserMetadataReadSubject is the subject for looking up a user's profile metadata by principal.
 	// The subject is of the form: lfx.auth-service.user_metadata.read
 	AuthUserMetadataReadSubject = "lfx.auth-service.user_metadata.read"
+
+	// AuthEmailToUsernameSubject resolves a registered LFID username by primary email.
+	// Request: plain-text email. Reply: plain-text username on success, JSON error envelope on miss.
+	AuthEmailToUsernameSubject = "lfx.auth-service.email_to_username"
 )

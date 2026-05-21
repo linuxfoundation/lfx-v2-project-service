@@ -64,3 +64,35 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	}
 	return result, nil
 }
+
+// emailToUsernameErrorResponse mirrors the auth-service error envelope for lfx.auth-service.email_to_username.
+// The type is internal to the auth service, so we keep a local copy of the relevant fields.
+type emailToUsernameErrorResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// UsernameByEmail resolves the registered LFID username for the given primary email address.
+// The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
+func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
+	reply, err := u.NatsConn.RequestMsgWithContext(ctx, &natsgo.Msg{
+		Subject: constants.AuthEmailToUsernameSubject,
+		Data:    []byte(email),
+	})
+	if err != nil {
+		return "", fmt.Errorf("email_to_username request failed: %w", err)
+	}
+
+	// Try to decode as a JSON error envelope first — the auth service sends this on miss.
+	var errResp emailToUsernameErrorResponse
+	if json.Unmarshal(reply.Data, &errResp) == nil && !errResp.Success {
+		return "", domain.ErrUserNotFound
+	}
+
+	username := string(reply.Data)
+	if username == "" {
+		return "", domain.ErrUserNotFound
+	}
+
+	return username, nil
+}

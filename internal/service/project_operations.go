@@ -107,6 +107,21 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		runSync = *payload.XSync
 	}
 
+	// Enrich writer/auditor/coordinator usernames from the auth service before persisting.
+	// The caller is not authoritative for another user's LFID — always use the lookup result.
+	for _, slice := range [][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators} {
+		if err := s.enrichUserSlice(ctx, slice); err != nil {
+			slog.ErrorContext(ctx, "error enriching user slice", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
+	}
+	for _, single := range []*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner} {
+		if err := s.enrichSingleUser(ctx, single); err != nil {
+			slog.ErrorContext(ctx, "error enriching single user", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
+	}
+
 	// Create the project and settings structs
 	id := uuid.NewString()
 	project := &projsvc.ProjectBase{
@@ -525,6 +540,20 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		runSync = *payload.XSync
 	}
 
+	// Enrich writer/auditor/coordinator usernames from the auth service before persisting.
+	for _, slice := range [][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators} {
+		if err := s.enrichUserSlice(ctx, slice); err != nil {
+			slog.ErrorContext(ctx, "error enriching user slice", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
+	}
+	for _, single := range []*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner} {
+		if err := s.enrichSingleUser(ctx, single); err != nil {
+			slog.ErrorContext(ctx, "error enriching single user", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
+	}
+
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
@@ -722,4 +751,40 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 // This matches v1's strict validation where Type must equal "Crowdfunding" (not in combination with other types).
 func isCrowdfundingOnly(fundingModels []string) bool {
 	return len(fundingModels) == 1 && fundingModels[0] == "Crowdfunding"
+}
+
+// enrichUserSlice overwrites the Username field on each UserInfo entry with the authoritative LFID
+// returned by the auth service for that entry's email address.
+// The caller's supplied username is always replaced — it is untrusted because the caller does not
+// own the assignee's login profile.
+// If the email is missing or does not match a registered user the username is cleared to nil.
+// Any transport error from the auth service is returned and the calling request fails.
+func (s *ProjectsService) enrichUserSlice(ctx context.Context, users []*projsvc.UserInfo) error {
+	for _, u := range users {
+		if err := s.enrichSingleUser(ctx, u); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// enrichSingleUser enriches one UserInfo entry in place; see enrichUserSlice for full semantics.
+func (s *ProjectsService) enrichSingleUser(ctx context.Context, u *projsvc.UserInfo) error {
+	if u == nil {
+		return nil
+	}
+	if u.Email == nil || *u.Email == "" {
+		u.Username = nil
+		return nil
+	}
+	username, err := s.UserReader.UsernameByEmail(ctx, *u.Email)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			u.Username = nil
+			return nil
+		}
+		return err
+	}
+	u.Username = &username
+	return nil
 }
