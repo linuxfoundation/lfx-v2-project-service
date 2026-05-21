@@ -553,6 +553,266 @@ func TestDiffNewMembers(t *testing.T) {
 	}
 }
 
+func TestHandleInviteAccepted(t *testing.T) {
+	const inviteUID = "inv-abc"
+	const username = "newuser"
+	const projectUID = "proj-1"
+
+	makeSettings := func() *models.ProjectSettings {
+		return &models.ProjectSettings{
+			UID:     projectUID,
+			Writers: []models.UserInfo{{Email: "writer@example.com", Invite: &models.InviteInfo{UID: inviteUID}}},
+		}
+	}
+
+	indexMatcher := mock.MatchedBy(func(msg any) bool {
+		env, ok := msg.(indexerTypes.IndexerMessageEnvelope)
+		if !ok {
+			return false
+		}
+		s, ok := env.Data.(models.ProjectSettings)
+		if !ok {
+			return false
+		}
+		for _, u := range s.Writers {
+			if u.Username == username && u.Invite == nil {
+				return true
+			}
+		}
+		return false
+	})
+
+	tests := []struct {
+		name      string
+		payload   any
+		setupRepo func(*domain.MockProjectRepository)
+		setupMsg  func(*domain.MockMessageBuilder)
+		wantErr   bool
+	}{
+		{
+			name:    "malformed payload — returns nil without crashing",
+			payload: []byte("not json"),
+		},
+		{
+			name:    "missing invite_uid — discarded",
+			payload: events.InviteAccepted{InviteUID: "", Username: username},
+		},
+		{
+			name:    "missing username — discarded",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: ""},
+		},
+		{
+			name:    "ErrInviteMappingNotFound — silently ignored (debug log, no warn)",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).
+					Return("", domain.ErrInviteMappingNotFound)
+			},
+		},
+		{
+			name:    "KV error on GetProjectUIDByInviteUID — warn logged, nil returned",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).
+					Return("", assert.AnError)
+			},
+		},
+		{
+			name:    "happy path — user promoted, mapping deleted, indexer called",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
+				}), uint64(1)).Return(nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+			},
+		},
+		{
+			name:    "ErrRevisionMismatch on UPDATE — succeeds on attempt 2",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				// First GET + UPDATE fails with revision mismatch; second GET + UPDATE succeeds.
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(makeSettings(), uint64(1), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).
+					Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(makeSettings(), uint64(2), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
+				}), uint64(2)).Return(nil).Once()
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+			},
+		},
+		{
+			name:    "promoted == false (stale mapping) — mapping deleted, nil returned",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				// Settings contain no entry with the invite UID.
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+					Return(&models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}}, uint64(1), nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+		},
+		{
+			name:    "mapping-delete failure after acceptance — warn logged, not fatal",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(assert.AnError)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &domain.MockProjectRepository{}
+			mockMsg := &domain.MockMessageBuilder{}
+			if tt.setupRepo != nil {
+				tt.setupRepo(mockRepo)
+			}
+			if tt.setupMsg != nil {
+				tt.setupMsg(mockMsg)
+			}
+
+			svc := &ProjectsService{
+				ProjectRepository: mockRepo,
+				MessageBuilder:    mockMsg,
+			}
+
+			var data []byte
+			if raw, ok := tt.payload.([]byte); ok {
+				data = raw
+			} else {
+				data = marshalEvent(t, tt.payload)
+			}
+			msg := domain.NewMockMessage(data, "")
+			err := svc.HandleInviteAccepted(context.Background(), msg)
+			assert.NoError(t, err)
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+func TestStoreInviteInfo(t *testing.T) {
+	const projectUID = "proj-1"
+	const inviteUID = "inv-xyz"
+	const inviteEmail = "invite@example.com"
+	const recipientEmail = "writer@example.com"
+
+	expiresAt := time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Second)
+
+	makeSettings := func(rev uint64) (*models.ProjectSettings, uint64) {
+		return &models.ProjectSettings{
+			UID:     projectUID,
+			Writers: []models.UserInfo{{Email: recipientEmail}},
+		}, rev
+	}
+
+	inviteMatcher := mock.MatchedBy(func(s *models.ProjectSettings) bool {
+		return len(s.Writers) > 0 && s.Writers[0].Invite != nil && s.Writers[0].Invite.UID == inviteUID
+	})
+
+	tests := []struct {
+		name      string
+		setupRepo func(*domain.MockProjectRepository)
+		setupMsg  func(*domain.MockMessageBuilder)
+		wantErr   bool
+	}{
+		{
+			name: "happy path — invite info stamped and mapping created",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				s, rev := makeSettings(1)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s, rev, nil)
+				r.On("UpdateProjectSettings", mock.Anything, inviteMatcher, rev).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, inviteUID, projectUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name: "ErrRevisionMismatch twice then success on attempt 3",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				s1, _ := makeSettings(1)
+				s2, _ := makeSettings(2)
+				s3, _ := makeSettings(3)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s1, uint64(1), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s2, uint64(2), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(2)).Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s3, uint64(3), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, inviteMatcher, uint64(3)).Return(nil).Once()
+				r.On("CreateInviteMapping", mock.Anything, inviteUID, projectUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name: "user not found in role slice — no update, no error",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(&models.ProjectSettings{
+					UID:     projectUID,
+					Writers: []models.UserInfo{{Email: "other@example.com"}},
+				}, uint64(1), nil)
+			},
+		},
+		{
+			name: "KV read error — returned to caller",
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(nil, uint64(0), assert.AnError)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &domain.MockProjectRepository{}
+			mockMsg := &domain.MockMessageBuilder{}
+			if tt.setupRepo != nil {
+				tt.setupRepo(mockRepo)
+			}
+			if tt.setupMsg != nil {
+				tt.setupMsg(mockMsg)
+			}
+
+			svc := &ProjectsService{
+				ProjectRepository: mockRepo,
+				MessageBuilder:    mockMsg,
+			}
+
+			err := svc.storeInviteInfo(context.Background(), projectUID, roleWriter, recipientEmail, inviteUID, inviteEmail, expiresAt)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
 // Compile-time checks for imported API types.
 var (
 	_ emailapi.SendEmailRequest
