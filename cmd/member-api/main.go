@@ -137,6 +137,7 @@ func main() {
 		service.MemberPublisherImpl(ctx),
 		service.UserReaderImpl(ctx),
 		service.GlobalOrgAdminTeamUID(),
+		service.BackfillRunnerImpl(ctx),
 	)
 
 	// Wrap the services in endpoints.

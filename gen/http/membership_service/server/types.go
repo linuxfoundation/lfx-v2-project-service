@@ -95,8 +95,19 @@ type UpdateKeyContactRequestBody struct {
 // AdminReindexRequestBody is the type of the "membership-service" service
 // "admin-reindex" endpoint HTTP request body.
 type AdminReindexRequestBody struct {
-	// List of entity types to reindex (optional; if empty, reindex all types)
+	// Entity types to reindex (optional; default = all in-scope: b2b_org,
+	// project_membership, key_contact). Mutually exclusive with items.
 	Types []string `form:"types,omitempty" json:"types,omitempty" xml:"types,omitempty"`
+	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
+	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
+	// Handler normalises to UTC.
+	Since *string `form:"since,omitempty" json:"since,omitempty" xml:"since,omitempty"`
+	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
+	// with types and since. Max 100 items.
+	Items []*AdminReindexItemRequestBody `form:"items,omitempty" json:"items,omitempty" xml:"items,omitempty"`
+	// When true, walk SOQL/live-path but skip publishing. Final log includes
+	// would_publish_count.
+	DryRun *bool `form:"dry_run,omitempty" json:"dry_run,omitempty" xml:"dry_run,omitempty"`
 }
 
 // GetB2bOrgResponseBody is the type of the "membership-service" service
@@ -1357,6 +1368,14 @@ type ProjectKeyContactResponseResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// AdminReindexItemRequestBody is used to define fields on request body types.
+type AdminReindexItemRequestBody struct {
+	// Entity type: b2b_org, project_membership, or key_contact
+	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
+	// Entity UID (invertible UUID v8)
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+}
+
 // NewGetB2bOrgResponseBody builds the HTTP response body from the result of
 // the "get-b2b-org" endpoint of the "membership-service" service.
 func NewGetB2bOrgResponseBody(res *membershipservice.GetB2bOrgResult) *GetB2bOrgResponseBody {
@@ -2551,12 +2570,30 @@ func NewDeleteKeyContactPayload(membershipUID string, uid string, version *strin
 // NewAdminReindexPayload builds a membership-service service admin-reindex
 // endpoint payload.
 func NewAdminReindexPayload(body *AdminReindexRequestBody, version *string, bearerToken *string) *membershipservice.AdminReindexPayload {
-	v := &membershipservice.AdminReindexPayload{}
+	v := &membershipservice.AdminReindexPayload{
+		Since: body.Since,
+	}
+	if body.DryRun != nil {
+		v.DryRun = *body.DryRun
+	}
 	if body.Types != nil {
 		v.Types = make([]string, len(body.Types))
 		for i, val := range body.Types {
 			v.Types[i] = val
 		}
+	}
+	if body.Items != nil {
+		v.Items = make([]*membershipservice.AdminReindexItem, len(body.Items))
+		for i, val := range body.Items {
+			if val == nil {
+				v.Items[i] = nil
+				continue
+			}
+			v.Items[i] = unmarshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem(val)
+		}
+	}
+	if body.DryRun == nil {
+		v.DryRun = false
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -2629,6 +2666,40 @@ func ValidateUpdateKeyContactRequestBody(body *UpdateKeyContactRequestBody) (err
 		if !(*body.Status == "Active" || *body.Status == "Inactive") {
 			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.status", *body.Status, []any{"Active", "Inactive"}))
 		}
+	}
+	return
+}
+
+// ValidateAdminReindexRequestBody runs the validations defined on
+// Admin-ReindexRequestBody
+func ValidateAdminReindexRequestBody(body *AdminReindexRequestBody) (err error) {
+	if body.Since != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.since", *body.Since, goa.FormatDateTime))
+	}
+	if len(body.Items) > 100 {
+		err = goa.MergeErrors(err, goa.InvalidLengthError("body.items", body.Items, len(body.Items), 100, false))
+	}
+	for _, e := range body.Items {
+		if e != nil {
+			if err2 := ValidateAdminReindexItemRequestBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	return
+}
+
+// ValidateAdminReindexItemRequestBody runs the validations defined on
+// admin-reindex-itemRequestBody
+func ValidateAdminReindexItemRequestBody(body *AdminReindexItemRequestBody) (err error) {
+	if body.Type == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("type", "body"))
+	}
+	if body.UID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("uid", "body"))
+	}
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
 	return
 }

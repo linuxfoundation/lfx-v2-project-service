@@ -429,3 +429,17 @@ func (m *MockProjectMembershipReader) AssembleProjectMembership(_ context.Contex
 	}
 	return nil, time.Time{}, errors.NewNotFound("project membership not found in mock")
 }
+
+// MockKeyContactSObjectReader is a no-op implementation of the
+// service.KeyContactSObjectReader interface for use when REPOSITORY_SOURCE=mock.
+type MockKeyContactSObjectReader struct{}
+
+// NewMockKeyContactSObjectReader returns a MockKeyContactSObjectReader.
+func NewMockKeyContactSObjectReader() *MockKeyContactSObjectReader {
+	return &MockKeyContactSObjectReader{}
+}
+
+// AssembleKeyContact always returns not-implemented.
+func (m *MockKeyContactSObjectReader) AssembleKeyContact(_ context.Context, uid string) (*model.KeyContact, time.Time, error) {
+	return nil, time.Time{}, errors.NewNotImplemented("AssembleKeyContact not implemented in mock")
+}

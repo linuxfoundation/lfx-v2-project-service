@@ -126,36 +126,6 @@ func NewMembershipRepo(client *sf.Salesforce) *MembershipRepo {
 	return &MembershipRepo{client: client}
 }
 
-// FetchAllMemberships fetches all membership Assets from Salesforce via SOQL
-// and returns them as ProjectMembership domain objects with denormalized Account
-// and Product2 fields.
-func (r *MembershipRepo) FetchAllMemberships(ctx context.Context) ([]*model.ProjectMembership, error) {
-	slog.InfoContext(ctx, "fetching all memberships from Salesforce via SOQL")
-
-	var assets []soqlAsset
-	if err := r.client.Query(membershipSOQL, &assets); err != nil {
-		slog.ErrorContext(ctx, "failed to fetch memberships from Salesforce", "error", err)
-		return nil, fmt.Errorf("fetching memberships via SOQL: %w", err)
-	}
-
-	slog.InfoContext(ctx, "fetched memberships from Salesforce", "count", len(assets))
-
-	memberships := make([]*model.ProjectMembership, 0, len(assets))
-	for _, asset := range assets {
-		m, err := convertSOQLToProjectMembership(asset)
-		if err != nil {
-			slog.WarnContext(ctx, "skipping membership with invalid SFID",
-				"sfid", asset.ID,
-				"error", err,
-			)
-			continue
-		}
-		memberships = append(memberships, m)
-	}
-
-	return memberships, nil
-}
-
 // FetchMembershipBySFID fetches a single membership Asset by its Salesforce ID.
 // Returns nil if the asset is not found or is not a membership.
 func (r *MembershipRepo) FetchMembershipBySFID(ctx context.Context, assetSFID string) (*model.ProjectMembership, error) {
@@ -412,6 +382,18 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 	}
 
 	return m, nil
+}
+
+// IterProjectMemberships iterates over all memberships from Salesforce, applying
+// an optional LastModifiedDate filter when since is provided. Calls fn for each
+// page of converted records. Conversion errors are logged and skipped.
+func (r *MembershipRepo) IterProjectMemberships(ctx context.Context, since *time.Time, fn func([]*model.ProjectMembership) error) error {
+	query := membershipSOQL
+	if since != nil {
+		iso := since.UTC().Format(time.RFC3339)
+		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+	}
+	return IterPages(ctx, r.client, query, convertSOQLToProjectMembership, fn)
 }
 
 // resolvePurchaseDate mirrors the PostgreSQL COALESCE(PurchaseDate, InstallDate,

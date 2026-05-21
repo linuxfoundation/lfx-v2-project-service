@@ -455,11 +455,34 @@ var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 	})
 })
 
+// AdminReindexItem identifies a single entity to reindex in targeted mode.
+var AdminReindexItem = dsl.Type("admin-reindex-item", func() {
+	dsl.Description("A single entity to reindex (targeted mode)")
+	dsl.Attribute("type", dsl.String, "Entity type: b2b_org, project_membership, or key_contact", func() {
+		dsl.Example("b2b_org")
+	})
+	dsl.Attribute("uid", dsl.String, "Entity UID (invertible UUID v8)", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
+	dsl.Required("type", "uid")
+})
+
 // AdminReindexPayload is the DSL type for the reindex admin action request.
 var AdminReindexPayload = dsl.Type("admin-reindex-payload", func() {
 	dsl.Description("Request payload for triggering a reindex operation")
-	dsl.Attribute("types", dsl.ArrayOf(dsl.String), "List of entity types to reindex (optional; if empty, reindex all types)", func() {
-		dsl.Example([]string{"membership", "key_contact"})
+	dsl.Attribute("types", dsl.ArrayOf(dsl.String), "Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact). Mutually exclusive with items.", func() {
+		dsl.Example([]string{"b2b_org", "project_membership"})
+	})
+	dsl.Attribute("since", dsl.String, "ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC.", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2026-05-20T00:00:00Z")
+	})
+	dsl.Attribute("items", dsl.ArrayOf(AdminReindexItem), "Targeted list of entities to reindex (surgical mode). Mutually exclusive with types and since. Max 100 items.", func() {
+		dsl.MaxLength(100)
+	})
+	dsl.Attribute("dry_run", dsl.Boolean, "When true, walk SOQL/live-path but skip publishing. Final log includes would_publish_count.", func() {
+		dsl.Default(false)
 	})
 })
 

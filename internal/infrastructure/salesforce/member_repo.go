@@ -28,19 +28,6 @@ type soqlProduct2 struct {
 	Project          *soqlAssetProject `salesforce:"Project__r"`
 }
 
-// tierSOQL fetches all Product2 records in the Membership family that are
-// linked to a Project__c, including the project relationship for name and slug.
-const tierSOQL = `
-SELECT
-    Id, Name, Family, Type__c, Project__c,
-    CreatedDate, LastModifiedDate,
-    Project__r.Id, Project__r.Name, Project__r.Slug__c, Project__r.Status__c
-FROM Product2
-WHERE Family = 'Membership'
-    AND Project__c != null
-    AND IsDeleted = false
-`
-
 // tierByIDSOQL fetches a single Product2 record by its Salesforce ID.
 // The caller must substitute a quoteSOQL-escaped ID for the %s placeholder.
 const tierByIDSOQL = `
@@ -77,35 +64,6 @@ type MemberRepo struct {
 // NewMemberRepo creates a new MemberRepo backed by the given Salesforce client.
 func NewMemberRepo(client *sf.Salesforce) *MemberRepo {
 	return &MemberRepo{client: client}
-}
-
-// FetchAllTiers fetches all membership Product2 records from Salesforce that are
-// linked to a Project__c, returning them as MembershipTier domain objects.
-func (r *MemberRepo) FetchAllTiers(ctx context.Context) ([]*model.MembershipTier, error) {
-	slog.InfoContext(ctx, "fetching all membership tiers from Salesforce via SOQL")
-
-	var products []soqlProduct2
-	if err := r.client.Query(tierSOQL, &products); err != nil {
-		slog.ErrorContext(ctx, "failed to fetch membership tiers from Salesforce", "error", err)
-		return nil, fmt.Errorf("fetching membership tiers via SOQL: %w", err)
-	}
-
-	slog.InfoContext(ctx, "fetched membership tiers from Salesforce", "count", len(products))
-
-	tiers := make([]*model.MembershipTier, 0, len(products))
-	for _, p := range products {
-		t, err := convertSOQLToMembershipTier(p)
-		if err != nil {
-			slog.WarnContext(ctx, "skipping membership tier with invalid SFID",
-				"sfid", p.ID,
-				"error", err,
-			)
-			continue
-		}
-		tiers = append(tiers, t)
-	}
-
-	return tiers, nil
 }
 
 // FetchTierBySFID fetches a single membership Product2 record by its Salesforce

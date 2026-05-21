@@ -517,7 +517,7 @@ func membershipServiceAdminReindexUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"types\": [\n         \"membership\",\n         \"key_contact\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceReadyzUsage() {

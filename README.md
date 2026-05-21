@@ -86,6 +86,12 @@ minimise round-trips.
 | PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org |
 | GET | `/b2b_orgs/{uid}` | Get a B2B org |
 
+### Admin
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch (requires global org-admin membership) |
+
 ### Utility
 
 | Method | Path | Description |

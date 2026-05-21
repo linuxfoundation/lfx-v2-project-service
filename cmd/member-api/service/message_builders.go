@@ -13,12 +13,17 @@
 package service
 
 import (
+	"context"
+	"log/slog"
 	"strings"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 )
 
 // boolPtr returns a pointer to the given bool value.
@@ -299,5 +304,77 @@ func buildChildListMessage(parentUID string, children []string) fgatypes.Generic
 			References:       childRefs,
 			ExcludeRelations: b2bOrgNonChildRelations,
 		},
+	}
+}
+
+// publishB2BOrgIndexer builds and publishes a MemberIndexerMessage for a B2BOrg.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
+func publishB2BOrgIndexer(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, action indexerConstants.MessageAction) {
+	indexMsg := &model.MemberIndexerMessage{
+		Action:         action,
+		Tags:           org.Tags(),
+		IndexingConfig: buildB2BOrgIndexingConfig(org),
+	}
+	builtMsg, err := indexMsg.Build(ctx, org)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build b2b org indexer message",
+			"uid", org.UID,
+			"error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	if pubErr := p.Indexer(ctx, constants.IndexB2BOrgSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "b2b org indexer publish failed",
+			"uid", org.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// publishProjectMembershipIndexer builds and publishes a MemberIndexerMessage for a ProjectMembership.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
+func publishProjectMembershipIndexer(ctx context.Context, p port.MemberPublisher, pm *model.ProjectMembership, action indexerConstants.MessageAction) {
+	indexMsg := &model.MemberIndexerMessage{
+		Action:         action,
+		Tags:           pm.Tags(),
+		IndexingConfig: buildProjectMembershipIndexingConfig(pm),
+	}
+	builtMsg, err := indexMsg.Build(ctx, pm)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build project membership indexer message",
+			"uid", pm.UID,
+			"error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	if pubErr := p.Indexer(ctx, constants.IndexProjectMembershipSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "project membership indexer publish failed",
+			"uid", pm.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// publishKeyContactIndexer builds and publishes a MemberIndexerMessage for a KeyContact.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
+func publishKeyContactIndexer(ctx context.Context, p port.MemberPublisher, kc *model.KeyContact, action indexerConstants.MessageAction) {
+	indexMsg := &model.MemberIndexerMessage{
+		Action:         action,
+		Tags:           kc.Tags(),
+		IndexingConfig: buildKeyContactIndexingConfig(kc),
+	}
+	builtMsg, err := indexMsg.Build(ctx, kc)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build key contact indexer message",
+			"uid", kc.UID,
+			"error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	if pubErr := p.Indexer(ctx, constants.IndexKeyContactSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "key contact indexer publish failed",
+			"uid", kc.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
 	}
 }

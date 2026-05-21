@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -229,6 +230,9 @@ func QueryAllPages[T any](ctx context.Context, client *sf.Salesforce, query stri
 	token := locator
 
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, 0, fmt.Errorf("QueryAllPages aborted by context: %w", err)
+		}
 		result, err := QueryPage[T](ctx, client, query, token)
 		if err != nil {
 			return nil, 0, fmt.Errorf("fetching page (token=%q): %w", token, err)
@@ -244,6 +248,53 @@ func QueryAllPages[T any](ctx context.Context, client *sf.Salesforce, query stri
 	}
 
 	return all, totalSize, nil
+}
+
+// IterPages fetches pages of SOQL query results, converts each record from Raw
+// to Out via the converter function, and passes batches of converted records to
+// the callback function fn. Memory is bounded to one page at a time.
+//
+// Conversion errors are logged as warnings and the offending record is skipped.
+// If fn returns an error, iteration stops immediately and that error is returned.
+func IterPages[Raw any, Out any](
+	ctx context.Context,
+	client *sf.Salesforce,
+	query string,
+	converter func(Raw) (Out, error),
+	fn func([]Out) error,
+) error {
+	token := ""
+
+	for {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("IterPages aborted by context: %w", err)
+		}
+		result, err := QueryPage[Raw](ctx, client, query, token)
+		if err != nil {
+			return fmt.Errorf("fetching page (token=%q): %w", token, err)
+		}
+
+		converted := make([]Out, 0, len(result.Records))
+		for _, raw := range result.Records {
+			out, err := converter(raw)
+			if err != nil {
+				slog.WarnContext(ctx, "skipping record due to conversion error", "error", err)
+				continue
+			}
+			converted = append(converted, out)
+		}
+
+		if err := fn(converted); err != nil {
+			return err
+		}
+
+		if result.NextPageToken == "" {
+			break
+		}
+		token = result.NextPageToken
+	}
+
+	return nil
 }
 
 // truncate shortens s to at most n bytes, appending "…" if truncated.

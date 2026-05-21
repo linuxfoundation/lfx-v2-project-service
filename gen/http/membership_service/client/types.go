@@ -93,8 +93,19 @@ type UpdateKeyContactRequestBody struct {
 // AdminReindexRequestBody is the type of the "membership-service" service
 // "admin-reindex" endpoint HTTP request body.
 type AdminReindexRequestBody struct {
-	// List of entity types to reindex (optional; if empty, reindex all types)
+	// Entity types to reindex (optional; default = all in-scope: b2b_org,
+	// project_membership, key_contact). Mutually exclusive with items.
 	Types []string `form:"types,omitempty" json:"types,omitempty" xml:"types,omitempty"`
+	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
+	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
+	// Handler normalises to UTC.
+	Since *string `form:"since,omitempty" json:"since,omitempty" xml:"since,omitempty"`
+	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
+	// with types and since. Max 100 items.
+	Items []*AdminReindexItemRequestBody `form:"items,omitempty" json:"items,omitempty" xml:"items,omitempty"`
+	// When true, walk SOQL/live-path but skip publishing. Final log includes
+	// would_publish_count.
+	DryRun bool `form:"dry_run" json:"dry_run" xml:"dry_run"`
 }
 
 // GetB2bOrgResponseBody is the type of the "membership-service" service
@@ -1355,6 +1366,14 @@ type ProjectKeyContactResponseResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// AdminReindexItemRequestBody is used to define fields on request body types.
+type AdminReindexItemRequestBody struct {
+	// Entity type: b2b_org, project_membership, or key_contact
+	Type string `form:"type" json:"type" xml:"type"`
+	// Entity UID (invertible UUID v8)
+	UID string `form:"uid" json:"uid" xml:"uid"`
+}
+
 // NewCreateB2bOrgRequestBody builds the HTTP request body from the payload of
 // the "create-b2b-org" endpoint of the "membership-service" service.
 func NewCreateB2bOrgRequestBody(p *membershipservice.CreateB2bOrgPayload) *CreateB2bOrgRequestBody {
@@ -1415,11 +1434,30 @@ func NewUpdateKeyContactRequestBody(p *membershipservice.UpdateKeyContactPayload
 // NewAdminReindexRequestBody builds the HTTP request body from the payload of
 // the "admin-reindex" endpoint of the "membership-service" service.
 func NewAdminReindexRequestBody(p *membershipservice.AdminReindexPayload) *AdminReindexRequestBody {
-	body := &AdminReindexRequestBody{}
+	body := &AdminReindexRequestBody{
+		Since:  p.Since,
+		DryRun: p.DryRun,
+	}
 	if p.Types != nil {
 		body.Types = make([]string, len(p.Types))
 		for i, val := range p.Types {
 			body.Types[i] = val
+		}
+	}
+	if p.Items != nil {
+		body.Items = make([]*AdminReindexItemRequestBody, len(p.Items))
+		for i, val := range p.Items {
+			if val == nil {
+				body.Items[i] = nil
+				continue
+			}
+			body.Items[i] = marshalMembershipserviceAdminReindexItemToAdminReindexItemRequestBody(val)
+		}
+	}
+	{
+		var zero bool
+		if body.DryRun == zero {
+			body.DryRun = false
 		}
 	}
 	return body
@@ -4157,5 +4195,12 @@ func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactRespon
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
+	return
+}
+
+// ValidateAdminReindexItemRequestBody runs the validations defined on
+// admin-reindex-itemRequestBody
+func ValidateAdminReindexItemRequestBody(body *AdminReindexItemRequestBody) (err error) {
+	err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", body.UID, goa.FormatUUID))
 	return
 }

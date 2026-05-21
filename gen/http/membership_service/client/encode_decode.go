@@ -1979,3 +1979,33 @@ func DecodeDebugVarsResponse(decoder func(*http.Response) goahttp.Decoder, resto
 		}
 	}
 }
+
+// marshalMembershipserviceAdminReindexItemToAdminReindexItemRequestBody builds
+// a value of type *AdminReindexItemRequestBody from a value of type
+// *membershipservice.AdminReindexItem.
+func marshalMembershipserviceAdminReindexItemToAdminReindexItemRequestBody(v *membershipservice.AdminReindexItem) *AdminReindexItemRequestBody {
+	if v == nil {
+		return nil
+	}
+	res := &AdminReindexItemRequestBody{
+		Type: v.Type,
+		UID:  v.UID,
+	}
+
+	return res
+}
+
+// marshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem builds
+// a value of type *membershipservice.AdminReindexItem from a value of type
+// *AdminReindexItemRequestBody.
+func marshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem(v *AdminReindexItemRequestBody) *membershipservice.AdminReindexItem {
+	if v == nil {
+		return nil
+	}
+	res := &membershipservice.AdminReindexItem{
+		Type: v.Type,
+		UID:  v.UID,
+	}
+
+	return res
+}
