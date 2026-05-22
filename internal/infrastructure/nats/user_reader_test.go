@@ -109,7 +109,8 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 
 func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 	marshalSuccess := func(data map[string]interface{}) []byte {
-		b, _ := json.Marshal(map[string]interface{}{"success": true, "data": data})
+		b, err := json.Marshal(map[string]interface{}{"success": true, "data": data})
+		require.NoError(t, err)
 		return b
 	}
 

@@ -836,7 +836,7 @@ func (s *ProjectsService) enrichAllRoleFields(
 				m, metaErr := s.UserReader.UserMetadataByPrincipal(gCtx, username)
 				if metaErr != nil {
 					slog.WarnContext(gCtx, "user metadata lookup failed; name/avatar will not be enriched",
-						"email", email, "username", username, constants.ErrKey, metaErr)
+						"has_username", username != "", constants.ErrKey, metaErr)
 				} else {
 					meta = m
 				}
@@ -853,10 +853,9 @@ func (s *ProjectsService) enrichAllRoleFields(
 		return err
 	}
 
-	// Apply resolved username, name, and avatar — empty strings clear any previously-stored values.
-	// UserMetadata carries additional profile fields (JobTitle, Organization, etc.) that UserInfo
-	// does not currently model; they are fetched now so the domain struct is complete for callers
-	// that may need them in future without requiring a second NATS round-trip.
+	// Apply resolved username, name, and avatar to each UserInfo entry.
+	// Only Name and Avatar are written back; other metadata fields (JobTitle, Organization, etc.)
+	// are not surfaced in UserInfo and are discarded after this call.
 	for email, eg := range byEmail {
 		r := results[email]
 		for _, u := range eg.users {
