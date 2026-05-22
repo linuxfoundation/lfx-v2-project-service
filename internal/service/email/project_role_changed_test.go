@@ -11,58 +11,59 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenderProjectRoleNotification(t *testing.T) {
+func TestRenderProjectRoleChanged(t *testing.T) {
 	tests := []struct {
 		name        string
-		data        ProjectRoleNotificationData
+		data        ProjectRoleChangedData
 		wantSubject []string
-		wantNotSubj []string
 		wantHTML    []string
 		wantText    []string
 	}{
 		{
-			name: "single role with inviter",
-			data: ProjectRoleNotificationData{
+			name: "single role swap with inviter",
+			data: ProjectRoleChangedData{
 				RecipientName: "Alice",
 				ProjectName:   "Demo Project",
-				Roles:         []string{"Writer"},
+				OldRoles:      []string{"Writer"},
+				NewRoles:      []string{"Auditor"},
 				ProjectURL:    "https://app.dev.lfx.dev/projects/demo-project",
 				InviterName:   "Bob",
 			},
-			wantSubject: []string{"Writer", "Demo Project", "Bob"},
-			wantHTML:    []string{"Alice", "Demo Project", "Writer", "https://app.dev.lfx.dev/projects/demo-project", "Bob"},
-			wantText:    []string{"Alice", "Demo Project", "Writer", "https://app.dev.lfx.dev/projects/demo-project", "Bob"},
+			wantSubject: []string{"Bob", "Demo Project"},
+			wantHTML:    []string{"Alice", "Demo Project", "Writer", "Auditor", "https://app.dev.lfx.dev/projects/demo-project", "Bob"},
+			wantText:    []string{"Alice", "Demo Project", "Writer", "Auditor"},
 		},
 		{
-			name: "multiple roles with inviter",
-			data: ProjectRoleNotificationData{
+			name: "role added to existing roles",
+			data: ProjectRoleChangedData{
 				RecipientName: "Alice",
 				ProjectName:   "Demo Project",
-				Roles:         []string{"Writer", "Auditor"},
+				OldRoles:      []string{"Writer"},
+				NewRoles:      []string{"Writer", "Auditor"},
 				ProjectURL:    "https://app.dev.lfx.dev/projects/demo-project",
 				InviterName:   "Bob",
 			},
-			wantSubject: []string{"Writer and Auditor", "Demo Project", "Bob"},
-			wantHTML:    []string{"Alice", "Demo Project", "Writer and Auditor", "https://app.dev.lfx.dev/projects/demo-project", "Bob"},
-			wantText:    []string{"Alice", "Demo Project", "Writer and Auditor"},
+			wantHTML: []string{"Alice", "Demo Project", "Writer", "Auditor"},
+			wantText: []string{"Alice", "Demo Project", "Writer", "Auditor"},
 		},
 		{
 			name: "no inviter name — fallback subject",
-			data: ProjectRoleNotificationData{
+			data: ProjectRoleChangedData{
 				RecipientName: "Alice",
 				ProjectName:   "Demo Project",
-				Roles:         []string{"Auditor"},
+				OldRoles:      []string{"Writer"},
+				NewRoles:      []string{"Auditor"},
 				ProjectURL:    "https://app.dev.lfx.dev/projects/demo-project",
 			},
-			wantSubject: []string{"Auditor", "Demo Project"},
-			wantHTML:    []string{"Alice", "Demo Project", "Auditor"},
-			wantText:    []string{"Alice", "Demo Project", "Auditor"},
+			wantSubject: []string{"Demo Project"},
+			wantHTML:    []string{"Alice", "Demo Project"},
+			wantText:    []string{"Alice", "Demo Project"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			subject, html, text, err := RenderProjectRoleNotification(tt.data)
+			subject, html, text, err := RenderProjectRoleChanged(tt.data)
 			require.NoError(t, err)
 
 			for _, want := range tt.wantSubject {
