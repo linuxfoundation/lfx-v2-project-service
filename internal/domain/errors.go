@@ -48,4 +48,8 @@ var (
 	// ErrInviteMappingNotFound is returned when no invite→project mapping exists for the given invite UID.
 	// This is distinct from ErrProjectNotFound: the project may exist but no mapping was written for this invite.
 	ErrInviteMappingNotFound = errors.New("invite mapping not found")
+
+	// ErrUserNotFound is returned by UserReader when no registered user matches the given lookup criteria.
+	// It is handled internally (treated as a lookup miss) and is never surfaced to the HTTP layer.
+	ErrUserNotFound = errors.New("user not found")
 )

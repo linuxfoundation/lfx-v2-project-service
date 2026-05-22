@@ -30,7 +30,8 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig) *Projec
 // ServiceReady checks if the service is ready for use.
 func (s *ProjectsService) ServiceReady() bool {
 	return s.ProjectRepository != nil && s.MessageBuilder != nil &&
-		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil
+		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil &&
+		s.UserReader != nil
 }
 
 // ServiceConfig is the configuration for the ProjectsService.

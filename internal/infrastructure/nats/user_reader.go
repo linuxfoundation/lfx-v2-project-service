@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	natsgo "github.com/nats-io/nats.go"
 
@@ -63,4 +64,42 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 		result.FamilyName = *response.Data.FamilyName
 	}
 	return result, nil
+}
+
+// emailToUsernameErrorResponse mirrors the auth-service error envelope for lfx.auth-service.email_to_username.
+// The type is internal to the auth service, so we keep a local copy of the relevant fields.
+type emailToUsernameErrorResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// UsernameByEmail resolves the registered LFID username for the given primary email address.
+// The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
+func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
+	reply, err := u.NatsConn.RequestMsgWithContext(ctx, &natsgo.Msg{
+		Subject: constants.AuthEmailToUsernameSubject,
+		Data:    []byte(email),
+	})
+	if err != nil {
+		return "", fmt.Errorf("email_to_username request failed: %w", err)
+	}
+
+	// The auth service sends a plain-text username on success and a JSON error envelope on miss.
+	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing
+	// newline or leading space don't corrupt the username or bypass JSON detection.
+	body := strings.TrimSpace(string(reply.Data))
+	if body == "" {
+		return "", domain.ErrUserNotFound
+	}
+
+	// Only attempt JSON decode when the trimmed body starts with '{' to avoid misinterpreting a
+	// valid plain-text username that happens to be valid JSON (e.g. a numeric string).
+	if body[0] == '{' {
+		var errResp emailToUsernameErrorResponse
+		if json.Unmarshal([]byte(body), &errResp) == nil && !errResp.Success {
+			return "", domain.ErrUserNotFound
+		}
+	}
+
+	return body, nil
 }

@@ -8,6 +8,8 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -105,6 +107,15 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	runSync := false
 	if payload.XSync != nil {
 		runSync = *payload.XSync
+	}
+
+	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
+	if err := s.enrichAllRoleFields(ctx,
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
+	); err != nil {
+		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
+		return nil, domain.ErrInternal
 	}
 
 	// Create the project and settings structs
@@ -525,6 +536,15 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		runSync = *payload.XSync
 	}
 
+	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
+	if err := s.enrichAllRoleFields(ctx,
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
+	); err != nil {
+		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
@@ -722,4 +742,97 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 // This matches v1's strict validation where Type must equal "Crowdfunding" (not in combination with other types).
 func isCrowdfundingOnly(fundingModels []string) bool {
 	return len(fundingModels) == 1 && fundingModels[0] == "Crowdfunding"
+}
+
+// enrichAllRoleFields overwrites Username on every UserInfo across all supplied slices and singles
+// with the authoritative LFID from the auth service.
+// Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
+// Misses (unknown email, empty email) write an explicit empty-string pointer so the settings
+// converter always overwrites any previously-stored username in the database.
+// Transport errors are returned and the request fails — stale LFIDs are never silently kept.
+func (s *ProjectsService) enrichAllRoleFields(
+	ctx context.Context,
+	slices [][]*projsvc.UserInfo,
+	singles []*projsvc.UserInfo,
+) error {
+	if s.UserReader == nil {
+		return domain.ErrInternal
+	}
+
+	// Gather all entries grouped by email; clear username immediately for entries without an email.
+	type group struct{ users []*projsvc.UserInfo }
+	byEmail := make(map[string]*group)
+
+	gather := func(u *projsvc.UserInfo) {
+		if u == nil {
+			return
+		}
+		if u.Email == nil || *u.Email == "" {
+			u.Username = misc.StringPtr("")
+			return
+		}
+		// Normalize email so Bob@Example.com and bob@example.com share the same lookup.
+		normEmail := strings.ToLower(strings.TrimSpace(*u.Email))
+		eg := byEmail[normEmail]
+		if eg == nil {
+			eg = &group{}
+			byEmail[normEmail] = eg
+		}
+		eg.users = append(eg.users, u)
+	}
+
+	for _, slice := range slices {
+		for _, u := range slice {
+			gather(u)
+		}
+	}
+	for _, u := range singles {
+		gather(u)
+	}
+
+	if len(byEmail) == 0 {
+		return nil
+	}
+
+	// Look up each unique email concurrently.
+	results := make(map[string]string, len(byEmail))
+	var mu sync.Mutex
+	const maxConcurrent = 8
+	g, gCtx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, maxConcurrent)
+
+	for email := range byEmail {
+		email := email
+		g.Go(func() error {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			username, err := s.UserReader.UsernameByEmail(gCtx, email)
+			if err != nil {
+				if errors.Is(err, domain.ErrUserNotFound) {
+					mu.Lock()
+					results[email] = ""
+					mu.Unlock()
+					return nil
+				}
+				return err
+			}
+			mu.Lock()
+			results[email] = username
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	// Apply resolved usernames — empty string clears any previously-stored value.
+	for email, eg := range byEmail {
+		username := results[email]
+		for _, u := range eg.users {
+			u.Username = misc.StringPtr(username)
+		}
+	}
+	return nil
 }

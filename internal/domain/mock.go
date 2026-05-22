@@ -280,6 +280,24 @@ func (m *MockMessageBuilder) SendInviteRequest(ctx context.Context, req inviteap
 	return args.Get(0).(InviteResult), args.Error(1)
 }
 
+// MockUserReader implements UserReader for testing.
+type MockUserReader struct {
+	mock.Mock
+}
+
+func (m *MockUserReader) UserMetadataByPrincipal(ctx context.Context, principal string) (*UserMetadata, error) {
+	args := m.Called(ctx, principal)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*UserMetadata), args.Error(1)
+}
+
+func (m *MockUserReader) UsernameByEmail(ctx context.Context, email string) (string, error) {
+	args := m.Called(ctx, email)
+	return args.String(0), args.Error(1)
+}
+
 // MockMessage implements Message for testing
 type MockMessage struct {
 	mock.Mock
