@@ -814,7 +814,6 @@ func (s *ProjectsService) enrichAllRoleFields(
 	sem := make(chan struct{}, maxConcurrent)
 
 	for email := range byEmail {
-		email := email
 		g.Go(func() error {
 			sem <- struct{}{}
 			defer func() { <-sem }()
@@ -855,6 +854,9 @@ func (s *ProjectsService) enrichAllRoleFields(
 	}
 
 	// Apply resolved username, name, and avatar — empty strings clear any previously-stored values.
+	// UserMetadata carries additional profile fields (JobTitle, Organization, etc.) that UserInfo
+	// does not currently model; they are fetched now so the domain struct is complete for callers
+	// that may need them in future without requiring a second NATS round-trip.
 	for email, eg := range byEmail {
 		r := results[email]
 		for _, u := range eg.users {

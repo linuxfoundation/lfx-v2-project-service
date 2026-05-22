@@ -19,54 +19,57 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
+// replyMsg builds a minimal NATS reply message for success cases.
+// Transport-error cases should pass nil as the reply directly.
 func replyMsg(data []byte) *natsgo.Msg { return &natsgo.Msg{Data: data} }
 
 func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 	tests := []struct {
 		name       string
-		replyData  []byte
+		reply      *natsgo.Msg // nil simulates a transport error
 		replyErr   error
 		wantUser   string
 		wantErr    error
 		wantErrStr string
 	}{
 		{
-			name:      "plain-text username returned on success",
-			replyData: []byte("alice"),
-			wantUser:  "alice",
+			name:     "plain-text username returned on success",
+			reply:    replyMsg([]byte("alice")),
+			wantUser: "alice",
 		},
 		{
-			name:      "trailing newline trimmed from username",
-			replyData: []byte("alice\n"),
-			wantUser:  "alice",
+			name:     "trailing newline trimmed from username",
+			reply:    replyMsg([]byte("alice\n")),
+			wantUser: "alice",
 		},
 		{
-			name:      "leading and trailing whitespace trimmed",
-			replyData: []byte("  alice  "),
-			wantUser:  "alice",
+			name:     "leading and trailing whitespace trimmed",
+			reply:    replyMsg([]byte("  alice  ")),
+			wantUser: "alice",
 		},
 		{
-			name:      "empty body returns ErrUserNotFound",
-			replyData: []byte(""),
-			wantErr:   domain.ErrUserNotFound,
+			name:    "empty body returns ErrUserNotFound",
+			reply:   replyMsg([]byte("")),
+			wantErr: domain.ErrUserNotFound,
 		},
 		{
-			name:      "whitespace-only body returns ErrUserNotFound",
-			replyData: []byte("   \n  "),
-			wantErr:   domain.ErrUserNotFound,
+			name:    "whitespace-only body returns ErrUserNotFound",
+			reply:   replyMsg([]byte("   \n  ")),
+			wantErr: domain.ErrUserNotFound,
 		},
 		{
-			name:      "JSON error envelope returns ErrUserNotFound",
-			replyData: []byte(`{"success":false,"error":"user not found"}`),
-			wantErr:   domain.ErrUserNotFound,
+			name:    "JSON error envelope returns ErrUserNotFound",
+			reply:   replyMsg([]byte(`{"success":false,"error":"user not found"}`)),
+			wantErr: domain.ErrUserNotFound,
 		},
 		{
-			name:      "JSON success envelope returns ErrUserNotFound instead of leaking JSON as username",
-			replyData: []byte(`{"success":true,"username":"alice"}`),
-			wantErr:   domain.ErrUserNotFound,
+			name:    "JSON success envelope returns ErrUserNotFound instead of leaking JSON as username",
+			reply:   replyMsg([]byte(`{"success":true,"username":"alice"}`)),
+			wantErr: domain.ErrUserNotFound,
 		},
 		{
 			name:       "transport error is wrapped and returned",
+			reply:      nil,
 			replyErr:   errors.New("nats: connection closed"),
 			wantErrStr: "email_to_username request failed",
 		},
@@ -77,19 +80,20 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 			mockConn := &MockNATSConn{}
 			mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *natsgo.Msg) bool {
 				return msg.Subject == constants.AuthEmailToUsernameSubject
-			})).Return(replyMsg(tt.replyData), tt.replyErr)
+			})).Return(tt.reply, tt.replyErr)
 
 			reader := &UserReaderNATS{NatsConn: mockConn}
 			got, err := reader.UsernameByEmail(context.Background(), "test@example.com")
 
-			if tt.wantErr != nil {
+			switch {
+			case tt.wantErr != nil:
 				assert.ErrorIs(t, err, tt.wantErr)
 				assert.Empty(t, got)
-			} else if tt.wantErrStr != "" {
+			case tt.wantErrStr != "":
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErrStr)
 				assert.Empty(t, got)
-			} else {
+			default:
 				require.NoError(t, err)
 				assert.Equal(t, tt.wantUser, got)
 			}
@@ -106,14 +110,14 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		replyData  []byte
+		reply      *natsgo.Msg // nil simulates a transport error
 		replyErr   error
 		wantMeta   *domain.UserMetadata
 		wantErrStr string
 	}{
 		{
 			name: "all fields populated",
-			replyData: marshalSuccess(map[string]interface{}{
+			reply: replyMsg(marshalSuccess(map[string]interface{}{
 				"name":           "Alice Example",
 				"given_name":     "Alice",
 				"family_name":    "Example",
@@ -128,7 +132,7 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 				"postal_code":    "94105",
 				"phone_number":   "+14155550100",
 				"t_shirt_size":   "M",
-			}),
+			})),
 			wantMeta: &domain.UserMetadata{
 				Name:          "Alice Example",
 				GivenName:     "Alice",
@@ -147,22 +151,23 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 			},
 		},
 		{
-			name:      "partial fields — omitted fields remain zero-value",
-			replyData: marshalSuccess(map[string]interface{}{"name": "Bob"}),
-			wantMeta:  &domain.UserMetadata{Name: "Bob"},
+			name:     "partial fields — omitted fields remain zero-value",
+			reply:    replyMsg(marshalSuccess(map[string]interface{}{"name": "Bob"})),
+			wantMeta: &domain.UserMetadata{Name: "Bob"},
 		},
 		{
 			name:       "success=false returns error",
-			replyData:  []byte(`{"success":false,"error":"not found"}`),
+			reply:      replyMsg([]byte(`{"success":false,"error":"not found"}`)),
 			wantErrStr: "user metadata not found",
 		},
 		{
 			name:       "malformed JSON returns parse error",
-			replyData:  []byte(`not-json`),
+			reply:      replyMsg([]byte(`not-json`)),
 			wantErrStr: "failed to parse user_metadata response",
 		},
 		{
 			name:       "transport error is returned",
+			reply:      nil,
 			replyErr:   fmt.Errorf("nats: timeout"),
 			wantErrStr: "nats: timeout",
 		},
@@ -173,7 +178,7 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 			mockConn := &MockNATSConn{}
 			mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *natsgo.Msg) bool {
 				return msg.Subject == constants.AuthUserMetadataReadSubject
-			})).Return(replyMsg(tt.replyData), tt.replyErr)
+			})).Return(tt.reply, tt.replyErr)
 
 			reader := &UserReaderNATS{NatsConn: mockConn}
 			got, err := reader.UserMetadataByPrincipal(context.Background(), "alice")

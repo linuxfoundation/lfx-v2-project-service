@@ -1120,7 +1120,10 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				// Username is enriched; name/avatar keep caller-supplied values when metadata fails.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Writers) == 1 && s.Writers[0].Username == "dave-lfid"
+					return len(s.Writers) == 1 &&
+						s.Writers[0].Username == "dave-lfid" &&
+						s.Writers[0].Name == "Dave" && // caller-supplied — not overwritten on metadata failure
+						s.Writers[0].Avatar == "" // caller supplied no avatar — still empty
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
