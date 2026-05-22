@@ -156,6 +156,10 @@ func TestCreateProject(t *testing.T) {
 				mockUserReader.On("UsernameByEmail", mock.Anything, "user2@example.com").Return("user2", nil)
 				mockUserReader.On("UsernameByEmail", mock.Anything, "user3@example.com").Return("user3", nil)
 				mockUserReader.On("UsernameByEmail", mock.Anything, "user4@example.com").Return("user4", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user1").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user2").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user3").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user4").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
 				// Mock parent project exists (for ParentUID validation)
