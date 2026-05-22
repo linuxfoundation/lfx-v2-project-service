@@ -836,7 +836,7 @@ func (s *ProjectsService) enrichAllRoleFields(
 				m, metaErr := s.UserReader.UserMetadataByPrincipal(gCtx, username)
 				if metaErr != nil {
 					slog.WarnContext(gCtx, "user metadata lookup failed; name/avatar will not be enriched",
-						"has_username", username != "", constants.ErrKey, metaErr)
+						constants.ErrKey, metaErr)
 				} else {
 					meta = m
 				}

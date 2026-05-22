@@ -61,7 +61,10 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	}
 
 	if !response.Success || response.Data == nil {
-		return nil, fmt.Errorf("user metadata not found for principal %s: %s", principal, response.Error)
+		if response.Error != "" {
+			return nil, fmt.Errorf("user metadata not found: %s", response.Error)
+		}
+		return nil, fmt.Errorf("user metadata not found")
 	}
 
 	d := response.Data
