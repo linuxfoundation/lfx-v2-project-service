@@ -68,6 +68,11 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 			wantErr: domain.ErrUserNotFound,
 		},
 		{
+			name:    "malformed JSON object returns ErrUserNotFound instead of leaking raw body as username",
+			reply:   replyMsg([]byte(`{"success":"true"}`)),
+			wantErr: domain.ErrUserNotFound,
+		},
+		{
 			name:       "transport error is wrapped and returned",
 			reply:      nil,
 			replyErr:   errors.New("nats: connection closed"),

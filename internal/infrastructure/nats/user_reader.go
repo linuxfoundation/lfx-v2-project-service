@@ -111,13 +111,6 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	return result, nil
 }
 
-// emailToUsernameErrorResponse mirrors the auth-service error envelope for lfx.auth-service.email_to_username.
-// The type is internal to the auth service, so we keep a local copy of the relevant fields.
-type emailToUsernameErrorResponse struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error,omitempty"`
-}
-
 // UsernameByEmail resolves the registered LFID username for the given primary email address.
 // The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
 func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
@@ -137,21 +130,11 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 		return "", domain.ErrUserNotFound
 	}
 
-	// Only attempt JSON decode when the trimmed body starts with '{' to avoid misinterpreting a
-	// valid plain-text username that happens to be valid JSON (e.g. a numeric string).
-	// If the body parses as any valid JSON object, treat it as an error envelope: the current
-	// contract is plain-text on success, so a JSON body is always an error or an unexpected format
-	// — neither of which should be returned as a username and propagated into access control.
+	// Any object-shaped response (starts with '{') is an error envelope or contract violation.
+	// Never return JSON as a username — it would propagate garbage into access control.
+	// This covers both well-formed error envelopes and malformed JSON blobs.
 	if body[0] == '{' {
-		var errResp emailToUsernameErrorResponse
-		if json.Unmarshal([]byte(body), &errResp) == nil {
-			if !errResp.Success {
-				return "", domain.ErrUserNotFound
-			}
-			// Parsed successfully but success=true — unexpected JSON success envelope from the
-			// auth service; treat as not found rather than leak the raw JSON as a username.
-			return "", domain.ErrUserNotFound
-		}
+		return "", domain.ErrUserNotFound
 	}
 
 	return body, nil

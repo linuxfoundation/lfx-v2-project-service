@@ -836,7 +836,7 @@ func (s *ProjectsService) enrichAllRoleFields(
 				m, metaErr := s.UserReader.UserMetadataByPrincipal(gCtx, username)
 				if metaErr != nil {
 					slog.WarnContext(gCtx, "user metadata lookup failed; name/avatar will not be enriched",
-						"email", email, "username", username, "error", metaErr)
+						"email", email, "username", username, constants.ErrKey, metaErr)
 				} else {
 					meta = m
 				}
@@ -862,8 +862,14 @@ func (s *ProjectsService) enrichAllRoleFields(
 		for _, u := range eg.users {
 			u.Username = misc.StringPtr(r.username)
 			if r.metadata != nil {
-				u.Name = misc.StringPtr(r.metadata.Name)
-				u.Avatar = misc.StringPtr(r.metadata.Picture)
+				// Only overwrite when the auth service returned a non-empty value so a partial
+				// metadata response doesn't silently erase a previously stored display name/avatar.
+				if r.metadata.Name != "" {
+					u.Name = misc.StringPtr(r.metadata.Name)
+				}
+				if r.metadata.Picture != "" {
+					u.Avatar = misc.StringPtr(r.metadata.Picture)
+				}
 			}
 		}
 	}
