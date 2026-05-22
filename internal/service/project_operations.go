@@ -744,12 +744,13 @@ func isCrowdfundingOnly(fundingModels []string) bool {
 	return len(fundingModels) == 1 && fundingModels[0] == "Crowdfunding"
 }
 
-// enrichAllRoleFields overwrites Username on every UserInfo across all supplied slices and singles
-// with the authoritative LFID from the auth service.
+// enrichAllRoleFields overwrites Username, Name, and Avatar on every UserInfo across all supplied
+// slices and singles with authoritative values from the auth service.
 // Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
-// Misses (unknown email, empty email) write an explicit empty-string pointer so the settings
-// converter always overwrites any previously-stored username in the database.
-// Transport errors are returned and the request fails — stale LFIDs are never silently kept.
+// Username misses (unknown email, empty email) write an explicit empty-string pointer so the
+// settings converter always overwrites any previously-stored username in the database.
+// Username transport errors fail the request — stale LFIDs must never be silently kept.
+// Metadata (name/avatar) errors only log a warning; display fields do not block the write.
 func (s *ProjectsService) enrichAllRoleFields(
 	ctx context.Context,
 	slices [][]*projsvc.UserInfo,
@@ -794,8 +795,14 @@ func (s *ProjectsService) enrichAllRoleFields(
 		return nil
 	}
 
+	// enrichResult holds the resolved identity and profile for one email address.
+	type enrichResult struct {
+		username string
+		metadata *domain.UserMetadata
+	}
+
 	// Look up each unique email concurrently.
-	results := make(map[string]string, len(byEmail))
+	results := make(map[string]enrichResult, len(byEmail))
 	var mu sync.Mutex
 	const maxConcurrent = 8
 	g, gCtx := errgroup.WithContext(ctx)
@@ -806,18 +813,33 @@ func (s *ProjectsService) enrichAllRoleFields(
 		g.Go(func() error {
 			sem <- struct{}{}
 			defer func() { <-sem }()
+
 			username, err := s.UserReader.UsernameByEmail(gCtx, email)
 			if err != nil {
 				if errors.Is(err, domain.ErrUserNotFound) {
 					mu.Lock()
-					results[email] = ""
+					results[email] = enrichResult{}
 					mu.Unlock()
 					return nil
 				}
 				return err
 			}
+
+			// Username resolved — now fetch authoritative profile data.
+			// Metadata failures are non-fatal: display fields must not block the write.
+			var meta *domain.UserMetadata
+			if username != "" {
+				m, metaErr := s.UserReader.UserMetadataByPrincipal(gCtx, username)
+				if metaErr != nil {
+					slog.WarnContext(gCtx, "user metadata lookup failed; name/avatar will not be enriched",
+						"email", email, "username", username, "error", metaErr)
+				} else {
+					meta = m
+				}
+			}
+
 			mu.Lock()
-			results[email] = username
+			results[email] = enrichResult{username: username, metadata: meta}
 			mu.Unlock()
 			return nil
 		})
@@ -827,11 +849,15 @@ func (s *ProjectsService) enrichAllRoleFields(
 		return err
 	}
 
-	// Apply resolved usernames — empty string clears any previously-stored value.
+	// Apply resolved username, name, and avatar — empty strings clear any previously-stored values.
 	for email, eg := range byEmail {
-		username := results[email]
+		r := results[email]
 		for _, u := range eg.users {
-			u.Username = misc.StringPtr(username)
+			u.Username = misc.StringPtr(r.username)
+			if r.metadata != nil {
+				u.Name = misc.StringPtr(r.metadata.Name)
+				u.Avatar = misc.StringPtr(r.metadata.Picture)
+			}
 		}
 	}
 	return nil

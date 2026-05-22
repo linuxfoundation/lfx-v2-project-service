@@ -232,6 +232,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
 				mockUserReader.On("UsernameByEmail", mock.Anything, "carol@example.com").Return("carol-lfid", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "carol-lfid").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "new-project").Return(false, nil)
@@ -894,6 +895,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
 				mockUserReader.On("UsernameByEmail", mock.Anything, "alice@example.com").Return("alice", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "alice").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1", CreatedAt: func() *time.Time { t := time.Now(); return &t }()}
@@ -939,6 +941,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
 				mockUserReader.On("UsernameByEmail", mock.Anything, "bob@example.com").Return("real-bob", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "real-bob").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
@@ -1054,6 +1057,70 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				// Username must be "" — the stale "stale-lfid" must not be preserved.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == ""
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "metadata enriched from auth service — name and avatar overwritten",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("caller-name"), Name: misc.StringPtr("Caller Supplied Name"), Email: misc.StringPtr("carol@example.com"), Avatar: misc.StringPtr("http://bad-avatar.example.com")},
+				},
+			},
+			setupUserReader: func(mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "carol@example.com").Return("carol-lfid", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "carol-lfid").Return(&domain.UserMetadata{
+					Name:    "Carol Real Name",
+					Picture: "https://auth.example.com/carol.png",
+				}, nil)
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				// Username, name, and avatar must all come from auth service, not the caller.
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 &&
+						s.Writers[0].Username == "carol-lfid" &&
+						s.Writers[0].Name == "Carol Real Name" &&
+						s.Writers[0].Avatar == "https://auth.example.com/carol.png"
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name: "metadata lookup fails — request still succeeds, name/avatar unchanged",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Dave"), Email: misc.StringPtr("dave@example.com")},
+				},
+			},
+			setupUserReader: func(mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "dave@example.com").Return("dave-lfid", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "dave-lfid").Return((*domain.UserMetadata)(nil), assert.AnError)
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				// Username is enriched; name/avatar keep caller-supplied values when metadata fails.
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == "dave-lfid"
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
