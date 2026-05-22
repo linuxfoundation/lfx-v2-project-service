@@ -756,6 +756,7 @@ func (s *ProjectsService) enrichAllRoleFields(
 	slices [][]*projsvc.UserInfo,
 	singles []*projsvc.UserInfo,
 ) error {
+	// Guard for incomplete wiring outside the normal ServiceReady path.
 	if s.UserReader == nil {
 		return domain.ErrInternal
 	}
@@ -768,12 +769,16 @@ func (s *ProjectsService) enrichAllRoleFields(
 		if u == nil {
 			return
 		}
-		if u.Email == nil || *u.Email == "" {
+		// Normalize first so a whitespace-only email like "   " doesn't reach the NATS call.
+		if u.Email == nil {
 			u.Username = misc.StringPtr("")
 			return
 		}
-		// Normalize email so Bob@Example.com and bob@example.com share the same lookup.
 		normEmail := strings.ToLower(strings.TrimSpace(*u.Email))
+		if normEmail == "" {
+			u.Username = misc.StringPtr("")
+			return
+		}
 		eg := byEmail[normEmail]
 		if eg == nil {
 			eg = &group{}

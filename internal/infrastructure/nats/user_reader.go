@@ -139,9 +139,17 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 
 	// Only attempt JSON decode when the trimmed body starts with '{' to avoid misinterpreting a
 	// valid plain-text username that happens to be valid JSON (e.g. a numeric string).
+	// If the body parses as any valid JSON object, treat it as an error envelope: the current
+	// contract is plain-text on success, so a JSON body is always an error or an unexpected format
+	// — neither of which should be returned as a username and propagated into access control.
 	if body[0] == '{' {
 		var errResp emailToUsernameErrorResponse
-		if json.Unmarshal([]byte(body), &errResp) == nil && !errResp.Success {
+		if json.Unmarshal([]byte(body), &errResp) == nil {
+			if !errResp.Success {
+				return "", domain.ErrUserNotFound
+			}
+			// Parsed successfully but success=true — unexpected JSON success envelope from the
+			// auth service; treat as not found rather than leak the raw JSON as a username.
 			return "", domain.ErrUserNotFound
 		}
 	}
