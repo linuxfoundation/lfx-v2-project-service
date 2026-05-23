@@ -88,7 +88,7 @@ func newTestMembershipService() membershipservice.Service {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 }
 
 // mockKeyContactWriter is a simple test implementation of port.KeyContactWriter.
@@ -506,7 +506,7 @@ func newTestMembershipServiceWith(
 		&mock.MockUserReader{},
 		globalOrgAdminTeamUID,
 		nil,
-	)
+		nil)
 }
 
 // TestGetProjectMembership_Happy verifies that GetProjectMembership assembles
@@ -554,7 +554,7 @@ func TestGetProjectMembership_Happy(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	result, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
 		UID: "membership-uid-001",
@@ -595,7 +595,7 @@ func TestGetProjectMembership_NotFound(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
 		UID: "nonexistent-uid",
@@ -631,7 +631,7 @@ func TestGetProjectMembership_ReaderError(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
 		UID: "test-uid",
@@ -660,7 +660,7 @@ func TestGetKeyContact_Happy(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 	ctx := context.Background()
 
 	result, err := svc.GetKeyContact(ctx, &membershipservice.GetKeyContactPayload{
@@ -694,7 +694,7 @@ func TestGetKeyContact_NotFound(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 	ctx := context.Background()
 
 	_, err := svc.GetKeyContact(ctx, &membershipservice.GetKeyContactPayload{
@@ -723,7 +723,7 @@ func TestCreateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 	ctx := context.Background()
 
 	_, err := svc.CreateKeyContact(ctx, &membershipservice.CreateKeyContactPayload{
@@ -755,7 +755,7 @@ func TestUpdateKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 	ctx := context.Background()
 
 	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
@@ -785,7 +785,7 @@ func TestDeleteKeyContact_MockReturnsNotImplemented(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 	ctx := context.Background()
 
 	err := svc.DeleteKeyContact(ctx, &membershipservice.DeleteKeyContactPayload{
@@ -816,7 +816,7 @@ func TestUpdateKeyContact_StalePreconditionFailed(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 	ctx := context.Background()
 
 	_, err := svc.UpdateKeyContact(ctx, &membershipservice.UpdateKeyContactPayload{
@@ -850,7 +850,7 @@ func TestGetKeyContact_MembershipMismatch(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	_, err := svc.GetKeyContact(context.Background(), &membershipservice.GetKeyContactPayload{
 		UID:           "contact-role-1",       // exists in membership-1
@@ -879,7 +879,7 @@ func TestUpdateKeyContact_MembershipMismatch(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
 		UID:           "contact-role-1",
@@ -908,7 +908,7 @@ func TestDeleteKeyContact_MembershipMismatch(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	err := svc.DeleteKeyContact(context.Background(), &membershipservice.DeleteKeyContactPayload{
 		UID:           "contact-role-1",
@@ -1364,7 +1364,7 @@ func newTestMembershipServiceWithMockReader(mockReader port.MemberReader) member
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	return svc
 }
@@ -1400,7 +1400,7 @@ func TestCreateKeyContact_MembershipNotFound(t *testing.T) {
 		&mock.MockUserReader{},
 		"",
 		nil,
-	)
+		nil)
 
 	_, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
 		MembershipUID: "nonexistent-membership",
@@ -1442,7 +1442,7 @@ func TestCreateKeyContact_EmptySubSkipsFGAPublish(t *testing.T) {
 		&mock.MockUserReader{}, // always returns "" → sub empty
 		"",
 		nil,
-	)
+		nil)
 
 	result, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
 		MembershipUID: "11111111-1111-1111-1111-111111111111",
@@ -1459,6 +1459,56 @@ func TestCreateKeyContact_EmptySubSkipsFGAPublish(t *testing.T) {
 		assert.NotEqual(t, "lfx.fga-sync.member_put", s,
 			"Access(member_put) must not be called when sub is empty")
 	}
+}
+
+// TestCreateKeyContact_EmitsProjectMembershipUpdateAccessBeforeMemberPut verifies that
+// CreateKeyContact emits a project_membership update_access FGA message before the
+// key_contact member_put, so the parent tuple exists before the child is linked.
+func TestCreateKeyContact_EmitsProjectMembershipUpdateAccessBeforeMemberPut(t *testing.T) {
+	mockRepo := mock.NewMockMembershipRepository()
+	pub := &accessSubjectCapture{}
+	kc := &model.KeyContact{
+		UID:           "new-kc-uid",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		Email:         "alice@example.com",
+		Role:          "Billing Contact",
+		Status:        "Active",
+		UpdatedAt:     time.Now(),
+	}
+	userReader := &configuredUserReader{subs: map[string]string{"alice@example.com": "sub-alice"}}
+	svc := NewMembershipService(
+		usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&returningKCWriter{contact: kc},
+		mock.NewMockB2BOrgReader(),
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		pub,
+		userReader,
+		"",
+		nil,
+		nil,
+	)
+
+	_, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		Email:         "alice@example.com",
+		FirstName:     "Alice",
+		LastName:      "Smith",
+		Role:          "Billing Contact",
+	})
+
+	require.NoError(t, err)
+	subjects := pub.accessSubjects()
+	require.GreaterOrEqual(t, len(subjects), 2, "must emit at least update_access + member_put")
+
+	// update_access (project_membership) must come before member_put (key_contact).
+	updateIdx := strings.Index(fmt.Sprintf("%v", subjects), "lfx.fga-sync.update_access")
+	memberPutIdx := strings.Index(fmt.Sprintf("%v", subjects), "lfx.fga-sync.member_put")
+	assert.GreaterOrEqual(t, updateIdx, 0, "update_access must be present")
+	assert.GreaterOrEqual(t, memberPutIdx, 0, "member_put must be present")
+	assert.Less(t, updateIdx, memberPutIdx, "update_access must precede member_put")
 }
 
 // TestUpdateKeyContact_EmailChange_PutBeforeRemove verifies that when an email
@@ -1496,7 +1546,7 @@ func TestUpdateKeyContact_EmailChange_PutBeforeRemove(t *testing.T) {
 		userReader,
 		"",
 		nil,
-	)
+		nil)
 
 	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
 		UID:           "contact-role-1",
@@ -1578,4 +1628,209 @@ var (
 	_ port.MemberPublisher         = (*capturingPublisher)(nil)
 	_ port.MemberPublisher         = (*indexerMessageCapture)(nil)
 	_ port.MemberPublisher         = (*accessSubjectCapture)(nil)
+	_ port.OrgSettingsStorage      = (*mock.MockOrgSettingsStorage)(nil)
 )
+
+// ── OrgSettings handler tests ──────────────────────────────────────────────
+
+// newTestSvcWithOrgSettings builds a service with a real OrgSettingsStorage mock
+// and a seeded B2BOrgReader (needed by publishB2BOrgEvents).
+func newTestSvcWithOrgSettings(orgStore *mock.MockOrgSettingsStorage) membershipservice.Service {
+	return newTestSvcWithOrgSettingsAndPublisher(orgStore, mock.NewMockMemberPublisher())
+}
+
+func newTestSvcWithOrgSettingsAndPublisher(orgStore *mock.MockOrgSettingsStorage, pub port.MemberPublisher) membershipservice.Service {
+	mockRepo := mock.NewMockMembershipRepository()
+	readUC := usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo))
+	return NewMembershipService(
+		readUC,
+		mockRepo,
+		&auth.MockJWTAuth{},
+		&mockKeyContactWriter{},
+		&seededB2BOrgReader{org: sampleB2BOrg},
+		mock.NewMockB2BOrgWriter(),
+		mock.NewMockProjectMembershipReader(),
+		pub,
+		&mock.MockUserReader{},
+		"",
+		nil,
+		orgStore,
+	)
+}
+
+// TestGetB2bOrgSettings_NoSettingsYet verifies that when no settings record exists
+// the handler returns an empty but valid response (200 with empty arrays).
+func TestGetB2bOrgSettings_NoSettingsYet(t *testing.T) {
+	svc := newTestSvcWithOrgSettings(mock.NewMockOrgSettingsStorage())
+	ctx := context.Background()
+
+	result, err := svc.GetB2bOrgSettings(ctx, &membershipservice.GetB2bOrgSettingsPayload{
+		UID: "lf-uid-001",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.Settings)
+	assert.Empty(t, result.Settings.Writers, "no settings stored → empty writers")
+	assert.Empty(t, result.Settings.Auditors, "no settings stored → empty auditors")
+}
+
+// TestGetB2bOrgSettings_WithSettings verifies that stored settings are correctly
+// mapped to the response type including invite_status.
+func TestGetB2bOrgSettings_WithSettings(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	store := mock.NewMockOrgSettingsStorage()
+	store.Seed("lf-uid-001", &model.OrgSettings{
+		Writers: []model.OrgUser{
+			{
+				Email:        "alice@example.com",
+				Username:     "alice",
+				InvitedAs:    "writer",
+				InviteStatus: model.InviteStatusAccepted,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+		},
+		Auditors: []model.OrgUser{
+			{
+				Email:        "bob@example.com",
+				InvitedAs:    "auditor",
+				InviteStatus: model.InviteStatusPending,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, 5)
+
+	svc := newTestSvcWithOrgSettings(store)
+	result, err := svc.GetB2bOrgSettings(context.Background(), &membershipservice.GetB2bOrgSettingsPayload{
+		UID: "lf-uid-001",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result.Settings)
+	require.Len(t, result.Settings.Writers, 1, "must have one writer")
+	assert.Equal(t, "alice@example.com", result.Settings.Writers[0].Email)
+	assert.Equal(t, "alice", *result.Settings.Writers[0].Username)
+	require.NotNil(t, result.Settings.Writers[0].InviteStatus)
+	assert.Equal(t, "accepted", *result.Settings.Writers[0].InviteStatus)
+
+	require.Len(t, result.Settings.Auditors, 1, "must have one auditor")
+	assert.Equal(t, "bob@example.com", result.Settings.Auditors[0].Email)
+	require.NotNil(t, result.Settings.Auditors[0].InviteStatus)
+	assert.Equal(t, "pending", *result.Settings.Auditors[0].InviteStatus)
+}
+
+// TestUpdateB2bOrgSettings_Create verifies that when no prior settings exist a
+// new record is created and returned.
+func TestUpdateB2bOrgSettings_Create(t *testing.T) {
+	store := mock.NewMockOrgSettingsStorage()
+	svc := newTestSvcWithOrgSettings(store)
+	ctx := context.Background()
+
+	username := "alice"
+	result, err := svc.UpdateB2bOrgSettings(ctx, &membershipservice.UpdateB2bOrgSettingsPayload{
+		UID: "lf-uid-001",
+		Writers: []*membershipservice.OrgUser{
+			{Email: "alice@example.com", InvitedAs: "writer", Username: &username},
+		},
+		Auditors: []*membershipservice.OrgUser{},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.Settings)
+	require.Len(t, result.Settings.Writers, 1)
+	assert.Equal(t, "alice@example.com", result.Settings.Writers[0].Email)
+	assert.Equal(t, "alice", *result.Settings.Writers[0].Username)
+	require.NotNil(t, result.Settings.Writers[0].InviteStatus)
+	assert.Equal(t, "accepted", *result.Settings.Writers[0].InviteStatus)
+	assert.Empty(t, result.Settings.Auditors)
+}
+
+// TestUpdateB2bOrgSettings_NilWritersKeepsExisting verifies that nil writers
+// payload leaves the existing writers unchanged (nil = keep, [] = clear).
+func TestUpdateB2bOrgSettings_NilWritersKeepsExisting(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	store := mock.NewMockOrgSettingsStorage()
+	store.Seed("lf-uid-001", &model.OrgSettings{
+		Writers: []model.OrgUser{
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted, CreatedAt: now, UpdatedAt: now},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, 1)
+
+	svc := newTestSvcWithOrgSettings(store)
+	result, err := svc.UpdateB2bOrgSettings(context.Background(), &membershipservice.UpdateB2bOrgSettingsPayload{
+		UID:      "lf-uid-001",
+		Writers:  nil, // nil = keep existing
+		Auditors: []*membershipservice.OrgUser{},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Settings.Writers, 1, "nil writers must preserve existing")
+	assert.Equal(t, "alice@example.com", result.Settings.Writers[0].Email)
+}
+
+// TestUpdateB2bOrgSettings_ClearWriters verifies that an explicit empty slice
+// removes all writers.
+func TestUpdateB2bOrgSettings_ClearWriters(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	store := mock.NewMockOrgSettingsStorage()
+	store.Seed("lf-uid-001", &model.OrgSettings{
+		Writers: []model.OrgUser{
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted, CreatedAt: now, UpdatedAt: now},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, 1)
+
+	svc := newTestSvcWithOrgSettings(store)
+	result, err := svc.UpdateB2bOrgSettings(context.Background(), &membershipservice.UpdateB2bOrgSettingsPayload{
+		UID:     "lf-uid-001",
+		Writers: []*membershipservice.OrgUser{}, // explicit empty = clear
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, result.Settings.Writers, "empty slice must clear all writers")
+}
+
+// TestUpdateB2bOrgSettings_Conflict verifies that a stale revision returns a
+// Goa Conflict error.
+func TestUpdateB2bOrgSettings_Conflict(t *testing.T) {
+	store := mock.NewMockOrgSettingsStorage()
+	store.SetPutError(pkgerrors.NewConflict("stale revision"))
+
+	svc := newTestSvcWithOrgSettings(store)
+	_, err := svc.UpdateB2bOrgSettings(context.Background(), &membershipservice.UpdateB2bOrgSettingsPayload{
+		UID:     "lf-uid-001",
+		Writers: []*membershipservice.OrgUser{},
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "Conflict", serviceErr.Name)
+}
+
+// TestUpdateB2bOrgSettings_PublishesFGAEvents verifies that PUT settings triggers
+// an FGA update_access event for the b2b_org.
+func TestUpdateB2bOrgSettings_PublishesFGAEvents(t *testing.T) {
+	pub := &capturingPublisher{}
+	store := mock.NewMockOrgSettingsStorage()
+	svc := newTestSvcWithOrgSettingsAndPublisher(store, pub)
+
+	username := "alice"
+	_, err := svc.UpdateB2bOrgSettings(context.Background(), &membershipservice.UpdateB2bOrgSettingsPayload{
+		UID: "lf-uid-001",
+		Writers: []*membershipservice.OrgUser{
+			{Email: "alice@example.com", InvitedAs: "writer", Username: &username},
+		},
+	})
+
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, pub.count(), 1, "PUT settings must publish at least one event")
+}

@@ -24,7 +24,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"membership-service (get-b2b-org|create-b2b-org|update-b2b-org|get-project-membership|get-key-contact|create-key-contact|update-key-contact|delete-key-contact|admin-reindex|readyz|livez|debug-vars)",
+		"membership-service (get-b2b-org|create-b2b-org|update-b2b-org|get-b2b-org-settings|update-b2b-org-settings|get-project-membership|get-key-contact|create-key-contact|update-key-contact|delete-key-contact|admin-reindex|readyz|livez|debug-vars)",
 	}
 }
 
@@ -65,6 +65,17 @@ func ParseEndpoint(
 		membershipServiceUpdateB2bOrgBearerTokenFlag       = membershipServiceUpdateB2bOrgFlags.String("bearer-token", "", "")
 		membershipServiceUpdateB2bOrgIfMatchFlag           = membershipServiceUpdateB2bOrgFlags.String("if-match", "", "")
 		membershipServiceUpdateB2bOrgIfUnmodifiedSinceFlag = membershipServiceUpdateB2bOrgFlags.String("if-unmodified-since", "", "")
+
+		membershipServiceGetB2bOrgSettingsFlags           = flag.NewFlagSet("get-b2b-org-settings", flag.ExitOnError)
+		membershipServiceGetB2bOrgSettingsUIDFlag         = membershipServiceGetB2bOrgSettingsFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceGetB2bOrgSettingsVersionFlag     = membershipServiceGetB2bOrgSettingsFlags.String("version", "", "")
+		membershipServiceGetB2bOrgSettingsBearerTokenFlag = membershipServiceGetB2bOrgSettingsFlags.String("bearer-token", "", "")
+
+		membershipServiceUpdateB2bOrgSettingsFlags           = flag.NewFlagSet("update-b2b-org-settings", flag.ExitOnError)
+		membershipServiceUpdateB2bOrgSettingsBodyFlag        = membershipServiceUpdateB2bOrgSettingsFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateB2bOrgSettingsUIDFlag         = membershipServiceUpdateB2bOrgSettingsFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceUpdateB2bOrgSettingsVersionFlag     = membershipServiceUpdateB2bOrgSettingsFlags.String("version", "", "")
+		membershipServiceUpdateB2bOrgSettingsBearerTokenFlag = membershipServiceUpdateB2bOrgSettingsFlags.String("bearer-token", "", "")
 
 		membershipServiceGetProjectMembershipFlags               = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
 		membershipServiceGetProjectMembershipUIDFlag             = membershipServiceGetProjectMembershipFlags.String("uid", "REQUIRED", "Project membership UID")
@@ -118,6 +129,8 @@ func ParseEndpoint(
 	membershipServiceGetB2bOrgFlags.Usage = membershipServiceGetB2bOrgUsage
 	membershipServiceCreateB2bOrgFlags.Usage = membershipServiceCreateB2bOrgUsage
 	membershipServiceUpdateB2bOrgFlags.Usage = membershipServiceUpdateB2bOrgUsage
+	membershipServiceGetB2bOrgSettingsFlags.Usage = membershipServiceGetB2bOrgSettingsUsage
+	membershipServiceUpdateB2bOrgSettingsFlags.Usage = membershipServiceUpdateB2bOrgSettingsUsage
 	membershipServiceGetProjectMembershipFlags.Usage = membershipServiceGetProjectMembershipUsage
 	membershipServiceGetKeyContactFlags.Usage = membershipServiceGetKeyContactUsage
 	membershipServiceCreateKeyContactFlags.Usage = membershipServiceCreateKeyContactUsage
@@ -170,6 +183,12 @@ func ParseEndpoint(
 
 			case "update-b2b-org":
 				epf = membershipServiceUpdateB2bOrgFlags
+
+			case "get-b2b-org-settings":
+				epf = membershipServiceGetB2bOrgSettingsFlags
+
+			case "update-b2b-org-settings":
+				epf = membershipServiceUpdateB2bOrgSettingsFlags
 
 			case "get-project-membership":
 				epf = membershipServiceGetProjectMembershipFlags
@@ -232,6 +251,12 @@ func ParseEndpoint(
 			case "update-b2b-org":
 				endpoint = c.UpdateB2bOrg()
 				data, err = membershipservicec.BuildUpdateB2bOrgPayload(*membershipServiceUpdateB2bOrgBodyFlag, *membershipServiceUpdateB2bOrgUIDFlag, *membershipServiceUpdateB2bOrgVersionFlag, *membershipServiceUpdateB2bOrgBearerTokenFlag, *membershipServiceUpdateB2bOrgIfMatchFlag, *membershipServiceUpdateB2bOrgIfUnmodifiedSinceFlag)
+			case "get-b2b-org-settings":
+				endpoint = c.GetB2bOrgSettings()
+				data, err = membershipservicec.BuildGetB2bOrgSettingsPayload(*membershipServiceGetB2bOrgSettingsUIDFlag, *membershipServiceGetB2bOrgSettingsVersionFlag, *membershipServiceGetB2bOrgSettingsBearerTokenFlag)
+			case "update-b2b-org-settings":
+				endpoint = c.UpdateB2bOrgSettings()
+				data, err = membershipservicec.BuildUpdateB2bOrgSettingsPayload(*membershipServiceUpdateB2bOrgSettingsBodyFlag, *membershipServiceUpdateB2bOrgSettingsUIDFlag, *membershipServiceUpdateB2bOrgSettingsVersionFlag, *membershipServiceUpdateB2bOrgSettingsBearerTokenFlag)
 			case "get-project-membership":
 				endpoint = c.GetProjectMembership()
 				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag, *membershipServiceGetProjectMembershipIfNoneMatchFlag, *membershipServiceGetProjectMembershipIfModifiedSinceFlag)
@@ -275,6 +300,8 @@ func membershipServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    get-b2b-org: Get a specific B2B organization by UID`)
 	fmt.Fprintln(os.Stderr, `    create-b2b-org: Create a new B2B organization`)
 	fmt.Fprintln(os.Stderr, `    update-b2b-org: Update a B2B organization`)
+	fmt.Fprintln(os.Stderr, `    get-b2b-org-settings: Get the access-control settings (writers and auditors) for a B2B organization`)
+	fmt.Fprintln(os.Stderr, `    update-b2b-org-settings: Replace the writers and/or auditors list on a B2B organization (full-replace semantics)`)
 	fmt.Fprintln(os.Stderr, `    get-project-membership: Get a specific project membership by UID`)
 	fmt.Fprintln(os.Stderr, `    get-key-contact: Get a specific key contact by UID`)
 	fmt.Fprintln(os.Stderr, `    create-key-contact: Create a new key contact`)
@@ -362,6 +389,52 @@ func membershipServiceUpdateB2bOrgUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+}
+
+func membershipServiceGetB2bOrgSettingsUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-b2b-org-settings", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Get the access-control settings (writers and auditors) for a B2B organization`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-b2b-org-settings --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func membershipServiceUpdateB2bOrgSettingsUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-b2b-org-settings", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Replace the writers and/or auditors list on a B2B organization (full-replace semantics)`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceGetProjectMembershipUsage() {

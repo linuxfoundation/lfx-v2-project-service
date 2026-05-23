@@ -19,6 +19,8 @@ type Client struct {
 	GetB2bOrgEndpoint            goa.Endpoint
 	CreateB2bOrgEndpoint         goa.Endpoint
 	UpdateB2bOrgEndpoint         goa.Endpoint
+	GetB2bOrgSettingsEndpoint    goa.Endpoint
+	UpdateB2bOrgSettingsEndpoint goa.Endpoint
 	GetProjectMembershipEndpoint goa.Endpoint
 	GetKeyContactEndpoint        goa.Endpoint
 	CreateKeyContactEndpoint     goa.Endpoint
@@ -32,11 +34,13 @@ type Client struct {
 
 // NewClient initializes a "membership-service" service client given the
 // endpoints.
-func NewClient(getB2bOrg, createB2bOrg, updateB2bOrg, getProjectMembership, getKeyContact, createKeyContact, updateKeyContact, deleteKeyContact, adminReindex, readyz, livez, debugVars goa.Endpoint) *Client {
+func NewClient(getB2bOrg, createB2bOrg, updateB2bOrg, getB2bOrgSettings, updateB2bOrgSettings, getProjectMembership, getKeyContact, createKeyContact, updateKeyContact, deleteKeyContact, adminReindex, readyz, livez, debugVars goa.Endpoint) *Client {
 	return &Client{
 		GetB2bOrgEndpoint:            getB2bOrg,
 		CreateB2bOrgEndpoint:         createB2bOrg,
 		UpdateB2bOrgEndpoint:         updateB2bOrg,
+		GetB2bOrgSettingsEndpoint:    getB2bOrgSettings,
+		UpdateB2bOrgSettingsEndpoint: updateB2bOrgSettings,
 		GetProjectMembershipEndpoint: getProjectMembership,
 		GetKeyContactEndpoint:        getKeyContact,
 		CreateKeyContactEndpoint:     createKeyContact,
@@ -104,6 +108,41 @@ func (c *Client) UpdateB2bOrg(ctx context.Context, p *UpdateB2bOrgPayload) (res 
 		return
 	}
 	return ires.(*UpdateB2bOrgResult), nil
+}
+
+// GetB2bOrgSettings calls the "get-b2b-org-settings" endpoint of the
+// "membership-service" service.
+// GetB2bOrgSettings may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) GetB2bOrgSettings(ctx context.Context, p *GetB2bOrgSettingsPayload) (res *GetB2bOrgSettingsResult, err error) {
+	var ires any
+	ires, err = c.GetB2bOrgSettingsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*GetB2bOrgSettingsResult), nil
+}
+
+// UpdateB2bOrgSettings calls the "update-b2b-org-settings" endpoint of the
+// "membership-service" service.
+// UpdateB2bOrgSettings may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Concurrent modification — retry with fresh settings
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateB2bOrgSettings(ctx context.Context, p *UpdateB2bOrgSettingsPayload) (res *UpdateB2bOrgSettingsResult, err error) {
+	var ires any
+	ires, err = c.UpdateB2bOrgSettingsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*UpdateB2bOrgSettingsResult), nil
 }
 
 // GetProjectMembership calls the "get-project-membership" endpoint of the

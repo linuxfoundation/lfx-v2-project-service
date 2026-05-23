@@ -85,36 +85,6 @@ func TestBuildB2BOrgIndexingConfig_WithParent(t *testing.T) {
 	)
 }
 
-// TestBuildB2BOrgFGAMessage_WithGlobalAdmin locks down the FGA message shape
-// when a globalOrgAdminTeamUID is provided (create path).
-func TestBuildB2BOrgFGAMessage_WithGlobalAdmin(t *testing.T) {
-	msg := buildB2BOrgFGAMessage(testB2BOrg, "global-admin-team-uid")
-
-	assert.Equal(t, "b2b_org", msg.ObjectType)
-	assert.Equal(t, "update_access", msg.Operation)
-
-	data, ok := msg.Data.(fgatypes.GenericAccessData)
-	require.True(t, ok, "Data must be GenericAccessData")
-	assert.Equal(t, "b2b-org-uid-001", data.UID)
-	require.Contains(t, data.References, "global_org_admin",
-		"create must set global_org_admin reference")
-	assert.Equal(t,
-		[]string{"team:global-admin-team-uid"},
-		data.References["global_org_admin"],
-	)
-}
-
-// TestBuildB2BOrgFGAMessage_NoGlobalAdmin verifies that when no team UID is
-// provided (update path), References is empty so no unintended grants are made.
-func TestBuildB2BOrgFGAMessage_NoGlobalAdmin(t *testing.T) {
-	msg := buildB2BOrgFGAMessage(testB2BOrg, "")
-
-	data, ok := msg.Data.(fgatypes.GenericAccessData)
-	require.True(t, ok)
-	assert.Empty(t, data.References,
-		"update path must not set global_org_admin when team UID is empty")
-}
-
 // TestBuildProjectMembershipIndexingConfig locks down the IndexingConfig shape
 // for ProjectMembership. This golden exists before handler wiring so that PR B
 // can reference it as the wire-format contract.
@@ -331,11 +301,11 @@ func TestBuildB2BOrgReparentingMessages_NoChange(t *testing.T) {
 	assert.Nil(t, msgs, "no change in parent must produce no messages")
 }
 
-// TestBuildB2BOrgFGAMessage_ExcludesParentAndChild verifies that the main b2b_org
-// FGA message excludes both parent and child relations so reparenting messages
-// from buildB2BOrgReparentingMessages are never overwritten.
-func TestBuildB2BOrgFGAMessage_ExcludesParentAndChild(t *testing.T) {
-	msg := buildB2BOrgFGAMessage(testB2BOrg, "")
+// TestBuildB2BOrgFGAMessage_ExcludesParentChildAndMembership verifies that the main
+// b2b_org FGA message excludes parent, child, and membership relations so that each
+// code path that owns those tuples is not accidentally overwritten.
+func TestBuildB2BOrgFGAMessage_ExcludesParentChildAndMembership(t *testing.T) {
+	msg := buildB2BOrgFGAMessage(testB2BOrg, "", nil, nil, nil)
 
 	data, ok := msg.Data.(fgatypes.GenericAccessData)
 	require.True(t, ok)
@@ -343,4 +313,105 @@ func TestBuildB2BOrgFGAMessage_ExcludesParentAndChild(t *testing.T) {
 		"parent must be excluded so the main message does not wipe parent tuples")
 	assert.Contains(t, data.ExcludeRelations, "child",
 		"child must be excluded so the main message does not wipe child-list tuples")
+	assert.Contains(t, data.ExcludeRelations, "membership",
+		"membership must be excluded when no membershipUIDs are provided")
+}
+
+// TestBuildB2BOrgFGAMessage_WithWritersAndAuditors verifies that accepted writers
+// and auditors are emitted as FGA relations.
+func TestBuildB2BOrgFGAMessage_WithWritersAndAuditors(t *testing.T) {
+	writers := []string{"alice", "bob"}
+	auditors := []string{"viewer1"}
+	msg := buildB2BOrgFGAMessage(testB2BOrg, "global-admin-uid", writers, auditors, nil)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Equal(t, []string{"alice", "bob"}, data.Relations["writer"])
+	assert.Equal(t, []string{"viewer1"}, data.Relations["auditor"])
+	assert.Equal(t, []string{"team:global-admin-uid"}, data.References["global_org_admin"])
+}
+
+// TestBuildB2BOrgFGAMessage_WithMembershipUIDs verifies that membership references
+// are included when membershipUIDs is non-empty, and that the membership relation
+// is NOT in ExcludeRelations so fga-sync can manage it.
+func TestBuildB2BOrgFGAMessage_WithMembershipUIDs(t *testing.T) {
+	membershipUIDs := []string{"pm-uid-001", "pm-uid-002"}
+	msg := buildB2BOrgFGAMessage(testB2BOrg, "", nil, nil, membershipUIDs)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Equal(t,
+		[]string{"project_membership:pm-uid-001", "project_membership:pm-uid-002"},
+		data.References["membership"],
+		"membership refs must carry project_membership:<uid> prefixes",
+	)
+	assert.NotContains(t, data.ExcludeRelations, "membership",
+		"membership must NOT be excluded when UIDs are provided — fga-sync must sync it")
+}
+
+// TestBuildB2BOrgFGAMessage_WithGlobalAdmin locks down the FGA message shape
+// when a globalOrgAdminTeamUID is provided (create path).
+func TestBuildB2BOrgFGAMessage_WithGlobalAdmin(t *testing.T) {
+	msg := buildB2BOrgFGAMessage(testB2BOrg, "global-admin-team-uid", nil, nil, nil)
+
+	assert.Equal(t, "b2b_org", msg.ObjectType)
+	assert.Equal(t, "update_access", msg.Operation)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok, "Data must be GenericAccessData")
+	assert.Equal(t, "b2b-org-uid-001", data.UID)
+	require.Contains(t, data.References, "global_org_admin",
+		"create must set global_org_admin reference")
+	assert.Equal(t,
+		[]string{"team:global-admin-team-uid"},
+		data.References["global_org_admin"],
+	)
+}
+
+// TestBuildB2BOrgFGAMessage_NoGlobalAdmin verifies that when no team UID is
+// provided (update path), global_org_admin is not set in References.
+func TestBuildB2BOrgFGAMessage_NoGlobalAdmin(t *testing.T) {
+	msg := buildB2BOrgFGAMessage(testB2BOrg, "", nil, nil, nil)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.NotContains(t, data.References, "global_org_admin",
+		"update path must not set global_org_admin when team UID is empty")
+}
+
+// TestBuildProjectMembershipFGAMessage locks down the update_access shape for a
+// project_membership. The child declares its parent refs (down-to-up) and
+// excludes key_contact so member_put/member_remove own those tuples.
+func TestBuildProjectMembershipFGAMessage(t *testing.T) {
+	pm := &model.ProjectMembership{
+		UID:        "pm-uid-001",
+		B2BOrgUID:  "b2b-org-uid-001",
+		ProjectUID: "project-uid-001",
+	}
+	msg := buildProjectMembershipFGAMessage(pm)
+
+	assert.Equal(t, "project_membership", msg.ObjectType)
+	assert.Equal(t, "update_access", msg.Operation)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok, "Data must be GenericAccessData")
+	assert.Equal(t, "pm-uid-001", data.UID)
+	assert.Equal(t, []string{"b2b_org:b2b-org-uid-001"}, data.References["b2b_org"],
+		"b2b_org parent reference required for auditor from b2b_org cascade")
+	assert.Equal(t, []string{"project:project-uid-001"}, data.References["project"],
+		"project parent reference required for auditor from project cascade")
+	assert.Contains(t, data.ExcludeRelations, "key_contact",
+		"key_contact must be excluded — managed via member_put/member_remove")
+}
+
+// TestBuildProjectMembershipFGAMessage_MissingParents verifies that absent
+// B2BOrgUID or ProjectUID simply omits those references without panicking.
+func TestBuildProjectMembershipFGAMessage_MissingParents(t *testing.T) {
+	pm := &model.ProjectMembership{UID: "pm-uid-sparse"}
+	msg := buildProjectMembershipFGAMessage(pm)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Empty(t, data.References, "no parent UIDs means no references")
+	assert.Contains(t, data.ExcludeRelations, "key_contact")
 }

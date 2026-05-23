@@ -186,6 +186,126 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 	return v, nil
 }
 
+// BuildGetB2bOrgSettingsPayload builds the payload for the membership-service
+// get-b2b-org-settings endpoint from CLI flags.
+func BuildGetB2bOrgSettingsPayload(membershipServiceGetB2bOrgSettingsUID string, membershipServiceGetB2bOrgSettingsVersion string, membershipServiceGetB2bOrgSettingsBearerToken string) (*membershipservice.GetB2bOrgSettingsPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = membershipServiceGetB2bOrgSettingsUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceGetB2bOrgSettingsVersion != "" {
+			version = &membershipServiceGetB2bOrgSettingsVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceGetB2bOrgSettingsBearerToken != "" {
+			bearerToken = &membershipServiceGetB2bOrgSettingsBearerToken
+		}
+	}
+	v := &membershipservice.GetB2bOrgSettingsPayload{}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildUpdateB2bOrgSettingsPayload builds the payload for the
+// membership-service update-b2b-org-settings endpoint from CLI flags.
+func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody string, membershipServiceUpdateB2bOrgSettingsUID string, membershipServiceUpdateB2bOrgSettingsVersion string, membershipServiceUpdateB2bOrgSettingsBearerToken string) (*membershipservice.UpdateB2bOrgSettingsPayload, error) {
+	var err error
+	var body UpdateB2bOrgSettingsRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceUpdateB2bOrgSettingsBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }'")
+		}
+		for _, e := range body.Writers {
+			if e != nil {
+				if err2 := ValidateOrgUserRequestBody(e); err2 != nil {
+					err = goa.MergeErrors(err, err2)
+				}
+			}
+		}
+		for _, e := range body.Auditors {
+			if e != nil {
+				if err2 := ValidateOrgUserRequestBody(e); err2 != nil {
+					err = goa.MergeErrors(err, err2)
+				}
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceUpdateB2bOrgSettingsUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsVersion != "" {
+			version = &membershipServiceUpdateB2bOrgSettingsVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsBearerToken != "" {
+			bearerToken = &membershipServiceUpdateB2bOrgSettingsBearerToken
+		}
+	}
+	v := &membershipservice.UpdateB2bOrgSettingsPayload{}
+	if body.Writers != nil {
+		v.Writers = make([]*membershipservice.OrgUser, len(body.Writers))
+		for i, val := range body.Writers {
+			if val == nil {
+				v.Writers[i] = nil
+				continue
+			}
+			v.Writers[i] = marshalOrgUserRequestBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	if body.Auditors != nil {
+		v.Auditors = make([]*membershipservice.OrgUser, len(body.Auditors))
+		for i, val := range body.Auditors {
+			if val == nil {
+				v.Auditors[i] = nil
+				continue
+			}
+			v.Auditors[i] = marshalOrgUserRequestBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
 // BuildGetProjectMembershipPayload builds the payload for the
 // membership-service get-project-membership endpoint from CLI flags.
 func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipUID string, membershipServiceGetProjectMembershipVersion string, membershipServiceGetProjectMembershipBearerToken string, membershipServiceGetProjectMembershipIfNoneMatch string, membershipServiceGetProjectMembershipIfModifiedSince string) (*membershipservice.GetProjectMembershipPayload, error) {

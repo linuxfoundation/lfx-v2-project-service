@@ -616,6 +616,331 @@ func DecodeUpdateB2bOrgResponse(decoder func(*http.Response) goahttp.Decoder, re
 	}
 }
 
+// BuildGetB2bOrgSettingsRequest instantiates a HTTP request object with method
+// and path set to call the "membership-service" service "get-b2b-org-settings"
+// endpoint
+func (c *Client) BuildGetB2bOrgSettingsRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*membershipservice.GetB2bOrgSettingsPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "get-b2b-org-settings", "*membershipservice.GetB2bOrgSettingsPayload", v)
+		}
+		uid = p.UID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: GetB2bOrgSettingsMembershipServicePath(uid)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "get-b2b-org-settings", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeGetB2bOrgSettingsRequest returns an encoder for requests sent to the
+// membership-service get-b2b-org-settings server.
+func EncodeGetB2bOrgSettingsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.GetB2bOrgSettingsPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "get-b2b-org-settings", "*membershipservice.GetB2bOrgSettingsPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeGetB2bOrgSettingsResponse returns a decoder for responses returned by
+// the membership-service get-b2b-org-settings endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeGetB2bOrgSettingsResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeGetB2bOrgSettingsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body GetB2bOrgSettingsResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-b2b-org-settings", err)
+			}
+			err = ValidateGetB2bOrgSettingsResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-b2b-org-settings", err)
+			}
+			res := NewGetB2bOrgSettingsResultOK(&body)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body GetB2bOrgSettingsNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-b2b-org-settings", err)
+			}
+			err = ValidateGetB2bOrgSettingsNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-b2b-org-settings", err)
+			}
+			return nil, NewGetB2bOrgSettingsNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body GetB2bOrgSettingsBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-b2b-org-settings", err)
+			}
+			err = ValidateGetB2bOrgSettingsBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-b2b-org-settings", err)
+			}
+			return nil, NewGetB2bOrgSettingsBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body GetB2bOrgSettingsInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-b2b-org-settings", err)
+			}
+			err = ValidateGetB2bOrgSettingsInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-b2b-org-settings", err)
+			}
+			return nil, NewGetB2bOrgSettingsInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body GetB2bOrgSettingsServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "get-b2b-org-settings", err)
+			}
+			err = ValidateGetB2bOrgSettingsServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "get-b2b-org-settings", err)
+			}
+			return nil, NewGetB2bOrgSettingsServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "get-b2b-org-settings", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildUpdateB2bOrgSettingsRequest instantiates a HTTP request object with
+// method and path set to call the "membership-service" service
+// "update-b2b-org-settings" endpoint
+func (c *Client) BuildUpdateB2bOrgSettingsRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*membershipservice.UpdateB2bOrgSettingsPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "update-b2b-org-settings", "*membershipservice.UpdateB2bOrgSettingsPayload", v)
+		}
+		uid = p.UID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateB2bOrgSettingsMembershipServicePath(uid)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "update-b2b-org-settings", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateB2bOrgSettingsRequest returns an encoder for requests sent to
+// the membership-service update-b2b-org-settings server.
+func EncodeUpdateB2bOrgSettingsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.UpdateB2bOrgSettingsPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "update-b2b-org-settings", "*membershipservice.UpdateB2bOrgSettingsPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewUpdateB2bOrgSettingsRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("membership-service", "update-b2b-org-settings", err)
+		}
+		return nil
+	}
+}
+
+// DecodeUpdateB2bOrgSettingsResponse returns a decoder for responses returned
+// by the membership-service update-b2b-org-settings endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeUpdateB2bOrgSettingsResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUpdateB2bOrgSettingsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body UpdateB2bOrgSettingsResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-settings", err)
+			}
+			err = ValidateUpdateB2bOrgSettingsResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
+			}
+			res := NewUpdateB2bOrgSettingsResultOK(&body)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body UpdateB2bOrgSettingsNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-settings", err)
+			}
+			err = ValidateUpdateB2bOrgSettingsNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
+			}
+			return nil, NewUpdateB2bOrgSettingsNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body UpdateB2bOrgSettingsBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-settings", err)
+			}
+			err = ValidateUpdateB2bOrgSettingsBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
+			}
+			return nil, NewUpdateB2bOrgSettingsBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateB2bOrgSettingsConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-settings", err)
+			}
+			err = ValidateUpdateB2bOrgSettingsConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
+			}
+			return nil, NewUpdateB2bOrgSettingsConflict(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UpdateB2bOrgSettingsInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-settings", err)
+			}
+			err = ValidateUpdateB2bOrgSettingsInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
+			}
+			return nil, NewUpdateB2bOrgSettingsInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UpdateB2bOrgSettingsServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-settings", err)
+			}
+			err = ValidateUpdateB2bOrgSettingsServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
+			}
+			return nil, NewUpdateB2bOrgSettingsServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "update-b2b-org-settings", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // BuildGetProjectMembershipRequest instantiates a HTTP request object with
 // method and path set to call the "membership-service" service
 // "get-project-membership" endpoint
@@ -1978,6 +2303,60 @@ func DecodeDebugVarsResponse(decoder func(*http.Response) goahttp.Decoder, resto
 			return nil, goahttp.ErrInvalidResponse("membership-service", "debug-vars", resp.StatusCode, string(body))
 		}
 	}
+}
+
+// unmarshalOrgUserResponseBodyToMembershipserviceOrgUser builds a value of
+// type *membershipservice.OrgUser from a value of type *OrgUserResponseBody.
+func unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(v *OrgUserResponseBody) *membershipservice.OrgUser {
+	if v == nil {
+		return nil
+	}
+	res := &membershipservice.OrgUser{
+		Avatar:       v.Avatar,
+		Email:        *v.Email,
+		Name:         v.Name,
+		Username:     v.Username,
+		InvitedAs:    *v.InvitedAs,
+		InviteStatus: v.InviteStatus,
+	}
+
+	return res
+}
+
+// marshalMembershipserviceOrgUserToOrgUserRequestBody builds a value of type
+// *OrgUserRequestBody from a value of type *membershipservice.OrgUser.
+func marshalMembershipserviceOrgUserToOrgUserRequestBody(v *membershipservice.OrgUser) *OrgUserRequestBody {
+	if v == nil {
+		return nil
+	}
+	res := &OrgUserRequestBody{
+		Avatar:       v.Avatar,
+		Email:        v.Email,
+		Name:         v.Name,
+		Username:     v.Username,
+		InvitedAs:    v.InvitedAs,
+		InviteStatus: v.InviteStatus,
+	}
+
+	return res
+}
+
+// marshalOrgUserRequestBodyToMembershipserviceOrgUser builds a value of type
+// *membershipservice.OrgUser from a value of type *OrgUserRequestBody.
+func marshalOrgUserRequestBodyToMembershipserviceOrgUser(v *OrgUserRequestBody) *membershipservice.OrgUser {
+	if v == nil {
+		return nil
+	}
+	res := &membershipservice.OrgUser{
+		Avatar:       v.Avatar,
+		Email:        v.Email,
+		Name:         v.Name,
+		Username:     v.Username,
+		InvitedAs:    v.InvitedAs,
+		InviteStatus: v.InviteStatus,
+	}
+
+	return res
 }
 
 // marshalMembershipserviceAdminReindexItemToAdminReindexItemRequestBody builds

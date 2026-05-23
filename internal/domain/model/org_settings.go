@@ -1,0 +1,102 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
+package model
+
+import "time"
+
+// InviteStatus represents the lifecycle state of an OrgUser entry.
+type InviteStatus string
+
+const (
+	// InviteStatusPending — invite sent, user has not yet accepted.
+	InviteStatusPending InviteStatus = "pending"
+	// InviteStatusAccepted — invite accepted; Username is set and FGA tuple is active.
+	InviteStatusAccepted InviteStatus = "accepted"
+	// InviteStatusRevoked — access revoked; entry retained for audit trail.
+	InviteStatusRevoked InviteStatus = "revoked"
+	// InviteStatusExpired — invite expired without acceptance; retained for audit trail.
+	InviteStatusExpired InviteStatus = "expired"
+)
+
+// OrgUser is a member of a b2b_org settings list (writers or auditors).
+// Base fields mirror CommitteeUser in lfx-v2-committee-service; invite fields
+// extend it to support pre-LFID invitations.
+//
+// FGA tuple is emitted only when InviteStatus == InviteStatusAccepted AND
+// Username is non-empty. Pending/revoked/expired entries are persisted for
+// audit trail but produce no FGA tuple.
+type OrgUser struct {
+	// Avatar is the user's avatar URL, if known.
+	Avatar string `json:"avatar,omitempty"`
+	// Email is the user's email address. Required; identifies the user before
+	// they accept the invite and their LFID username is known.
+	Email string `json:"email"`
+	// Name is the user's display name.
+	Name string `json:"name,omitempty"`
+	// Username is the LFID username (OIDC sub). Set once the invite is accepted.
+	// Absent for pending invites.
+	Username string `json:"username,omitempty"`
+
+	// InviteUUID is the opaque token sent to the invitee. Cleared on acceptance.
+	InviteUUID string `json:"invite_uuid,omitempty"`
+	// InvitedAs is the relation being granted: "writer" or "auditor".
+	InvitedAs string `json:"invited_as"`
+	// InviteStatus is the current lifecycle state of this entry.
+	InviteStatus InviteStatus `json:"invite_status"`
+
+	// InvitedAt is when the invite was sent.
+	InvitedAt *time.Time `json:"invited_at,omitempty"`
+	// InvitedBy is the username of the writer who sent this invite.
+	InvitedBy string `json:"invited_by,omitempty"`
+	// AcceptedAt is when the invite was accepted.
+	AcceptedAt *time.Time `json:"accepted_at,omitempty"`
+	// RevokedAt is when access was revoked.
+	RevokedAt *time.Time `json:"revoked_at,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// OrgSettings holds the access-control principals for a b2b_org. Stored in a
+// dedicated NATS KV bucket (membership-settings) separate from the Salesforce-
+// backed org record so that FGA state changes never touch Salesforce data.
+type OrgSettings struct {
+	// Writers holds the org's administrators. Full-replace on PUT.
+	Writers []OrgUser `json:"writers"`
+	// Auditors holds read-only principals. Full-replace on PUT.
+	Auditors []OrgUser `json:"auditors"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ActiveWriterUsernames returns the LFID usernames of writers whose invite has
+// been accepted. Entries without a username (pending invites) are silently
+// skipped — matching committee-service extractUsernames behaviour.
+func (s *OrgSettings) ActiveWriterUsernames() []string {
+	if s == nil {
+		return nil
+	}
+	return activeUsernames(s.Writers)
+}
+
+// ActiveAuditorUsernames returns the LFID usernames of auditors whose invite
+// has been accepted. Pending/revoked/expired entries are skipped.
+func (s *OrgSettings) ActiveAuditorUsernames() []string {
+	if s == nil {
+		return nil
+	}
+	return activeUsernames(s.Auditors)
+}
+
+// activeUsernames filters a slice to accepted entries with a non-empty username.
+func activeUsernames(users []OrgUser) []string {
+	var out []string
+	for _, u := range users {
+		if u.InviteStatus == InviteStatusAccepted && u.Username != "" {
+			out = append(out, u.Username)
+		}
+	}
+	return out
+}

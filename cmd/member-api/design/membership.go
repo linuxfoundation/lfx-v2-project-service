@@ -170,6 +170,89 @@ var _ = dsl.Service("membership-service", func() {
 		})
 	})
 
+	dsl.Method("get-b2b-org-settings", func() {
+		dsl.Description("Get the access-control settings (writers and auditors) for a B2B organization")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			dsl.Required("uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("settings", B2BOrgSettingsResponse, "B2B organization access-control settings")
+			dsl.Required("settings")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.GET("/b2b_orgs/{uid}/settings")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("settings")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("update-b2b-org-settings", func() {
+		dsl.Description("Replace the writers and/or auditors list on a B2B organization (full-replace semantics)")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			dsl.Extend(B2BOrgSettingsUpdateBody)
+			dsl.Required("uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("settings", B2BOrgSettingsResponse, "Updated B2B organization access-control settings")
+			dsl.Required("settings")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Concurrent modification — retry with fresh settings")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.PUT("/b2b_orgs/{uid}/settings")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("settings")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
 	// ── Project Memberships (Asset) ──────────────────────────────────────────
 
 	dsl.Method("get-project-membership", func() {

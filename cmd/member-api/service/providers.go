@@ -411,6 +411,15 @@ func BackfillIteratorImpl(ctx context.Context) BackfillIterator {
 	}
 }
 
+// OrgSettingsStorageImpl returns the port.OrgSettingsStorage implementation
+// backed by the "org-settings" NATS KV bucket (authoritative, no MaxAge TTL).
+// Always returns the NATS-backed storage regardless of REPOSITORY_SOURCE —
+// settings are not Salesforce data, so there is no mock alternative.
+func OrgSettingsStorageImpl(ctx context.Context) port.OrgSettingsStorage {
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
 // BackfillRunnerImpl constructs a BackfillRunner wired with all production
 // (or mock) dependencies based on REPOSITORY_SOURCE / MESSAGING_SOURCE.
 func BackfillRunnerImpl(ctx context.Context) *BackfillRunner {

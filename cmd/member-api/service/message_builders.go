@@ -73,12 +73,44 @@ func buildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
 }
 
 // buildB2BOrgFGAMessage constructs a GenericFGAMessage for a B2BOrg access-control
-// update. On create, globalOrgAdminTeamUID must be non-empty so that the global org
-// admin team receives references on the new record.
-func buildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string) fgatypes.GenericFGAMessage {
+// update.
+//
+//   - globalOrgAdminTeamUID: set on create to grant the LF global-admin team; empty on updates.
+//   - writers, auditors: LFID usernames of accepted principals from OrgSettings.
+//     Entries are placed in Relations["writer"] / Relations["auditor"] so fga-sync can
+//     diff and delete removed users. Nil means "no direct user assignments".
+//   - membershipUIDs: UIDs of project_memberships owned by this org. When non-nil,
+//     References["membership"] is populated so the `key_contact from membership`
+//     cascade on b2b_org becomes reachable. When nil, "membership" is added to
+//     ExcludeRelations so existing membership tuples are not accidentally wiped.
+//
+// parent and child tuples are always excluded — those are managed by
+// buildB2BOrgReparentingMessages.
+func buildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string, writers, auditors, membershipUIDs []string) fgatypes.GenericFGAMessage {
 	refs := make(map[string][]string)
 	if globalOrgAdminTeamUID != "" {
 		refs["global_org_admin"] = []string{"team:" + globalOrgAdminTeamUID}
+	}
+	if len(membershipUIDs) > 0 {
+		mRefs := make([]string, len(membershipUIDs))
+		for i, uid := range membershipUIDs {
+			mRefs[i] = "project_membership:" + uid
+		}
+		refs["membership"] = mRefs
+	}
+
+	relations := make(map[string][]string)
+	if len(writers) > 0 {
+		relations["writer"] = writers
+	}
+	if len(auditors) > 0 {
+		relations["auditor"] = auditors
+	}
+
+	excludes := []string{"parent", "child"}
+	if len(membershipUIDs) == 0 {
+		// membership refs not provided — leave existing tuples untouched.
+		excludes = append(excludes, "membership")
 	}
 
 	return fgatypes.GenericFGAMessage{
@@ -86,8 +118,34 @@ func buildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string) fgat
 		Operation:  "update_access",
 		Data: fgatypes.GenericAccessData{
 			UID:              org.UID,
+			Relations:        relations,
 			References:       refs,
-			ExcludeRelations: []string{"parent", "child"}, // parent and child tuples are managed by buildB2BOrgReparentingMessages
+			ExcludeRelations: excludes,
+		},
+	}
+}
+
+// buildProjectMembershipFGAMessage constructs a GenericFGAMessage for a
+// ProjectMembership access-control update. The membership declares its parent
+// objects (b2b_org + project) as References, following the down-to-up pattern
+// used by the project and committee services. key_contact is excluded because
+// those tuples are managed via member_put/member_remove.
+func buildProjectMembershipFGAMessage(pm *model.ProjectMembership) fgatypes.GenericFGAMessage {
+	refs := make(map[string][]string)
+	if pm.B2BOrgUID != "" {
+		refs["b2b_org"] = []string{"b2b_org:" + pm.B2BOrgUID}
+	}
+	if pm.ProjectUID != "" {
+		refs["project"] = []string{"project:" + pm.ProjectUID}
+	}
+
+	return fgatypes.GenericFGAMessage{
+		ObjectType: "project_membership",
+		Operation:  "update_access",
+		Data: fgatypes.GenericAccessData{
+			UID:              pm.UID,
+			References:       refs,
+			ExcludeRelations: []string{"key_contact"},
 		},
 	}
 }

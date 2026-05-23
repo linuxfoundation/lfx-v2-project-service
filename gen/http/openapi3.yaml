@@ -471,6 +471,274 @@ paths:
                                 $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/settings:
+        get:
+            tags:
+                - membership-service
+            summary: get-b2b-org-settings membership-service
+            description: Get the access-control settings (writers and auditors) for a B2B organization
+            operationId: membership-service#get-b2b-org-settings
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgSettingsResponse'
+                            example:
+                                auditors:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                created_at: "2025-01-01T00:00:00Z"
+                                updated_at: "2025-06-01T12:00:00Z"
+                                writers:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        put:
+            tags:
+                - membership-service
+            summary: update-b2b-org-settings membership-service
+            description: Replace the writers and/or auditors list on a B2B organization (full-replace semantics)
+            operationId: membership-service#update-b2b-org-settings
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateB2bOrgSettingsRequestBody'
+                        example:
+                            auditors:
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
+                            writers:
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgSettingsResponse'
+                            example:
+                                auditors:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                created_at: "2025-01-01T00:00:00Z"
+                                updated_at: "2025-06-01T12:00:00Z"
+                                writers:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Concurrent modification — retry with fresh settings'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
     /project_memberships/{membership_uid}/key_contacts:
         post:
             tags:
@@ -1163,14 +1431,14 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Aspernatur qui sed ratione sint consequatur.
+                        example: Dolores aperiam et.
                     description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact). Mutually exclusive with items.'
                     example:
                         - b2b_org
                         - project_membership
             description: Request payload for triggering a reindex operation
             example:
-                dry_run: false
+                dry_run: true
                 items:
                     - type: b2b_org
                       uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
@@ -1229,7 +1497,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Error occaecati.
+                        example: Quia maxime cupiditate facere doloremque dolores blanditiis.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -1317,6 +1585,212 @@ components:
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
                 website: https://example.com
+        B2bOrgSettingsResponse:
+            type: object
+            properties:
+                auditors:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/OrgUser'
+                    description: Read-only principals (auditor relation in FGA). Full-replace on PUT.
+                    example:
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                created_at:
+                    type: string
+                    description: Settings record creation timestamp
+                    example: "2025-01-01T00:00:00Z"
+                    format: date-time
+                updated_at:
+                    type: string
+                    description: Settings record last-update timestamp
+                    example: "2025-06-01T12:00:00Z"
+                    format: date-time
+                writers:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/OrgUser'
+                    description: Org administrators (writer relation in FGA). Full-replace on PUT.
+                    example:
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+            description: 'Access-control settings for a b2b_org: writers and auditors'
+            example:
+                auditors:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                created_at: "2025-01-01T00:00:00Z"
+                updated_at: "2025-06-01T12:00:00Z"
+                writers:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+        B2bOrgSettingsUpdateBody:
+            type: object
+            properties:
+                auditors:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/OrgUser'
+                    description: Complete replacement list for org auditors. Nil = leave unchanged; [] = remove all.
+                    example:
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                writers:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/OrgUser'
+                    description: Complete replacement list for org writers. Nil = leave unchanged; [] = remove all.
+                    example:
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+            description: 'Request body for replacing the writers and/or auditors list on a b2b_org. Full-replace: nil = keep existing; [] = remove all.'
+            example:
+                auditors:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                writers:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
         B2bOrgUpdateBody:
             type: object
             properties:
@@ -1406,8 +1880,8 @@ components:
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: false
-                timeout: true
+                temporary: true
+                timeout: false
             required:
                 - name
                 - id
@@ -1588,6 +2062,53 @@ components:
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2025-06-01T12:00:00Z"
+        OrgUser:
+            type: object
+            properties:
+                avatar:
+                    type: string
+                    description: User avatar URL
+                    example: https://avatars.githubusercontent.com/u/12345
+                email:
+                    type: string
+                    description: User email address; required to identify the principal
+                    example: alice@example.com
+                    format: email
+                invite_status:
+                    type: string
+                    description: Invite lifecycle state; returned on GET, derived by service on PUT
+                    example: accepted
+                    enum:
+                        - pending
+                        - accepted
+                        - revoked
+                        - expired
+                invited_as:
+                    type: string
+                    description: 'Relation being granted: writer or auditor'
+                    example: writer
+                    enum:
+                        - writer
+                        - auditor
+                name:
+                    type: string
+                    description: User display name
+                    example: Alice Smith
+                username:
+                    type: string
+                    description: LFID username (OIDC sub); absent for pending invites
+                    example: alice
+            description: A writer or auditor principal on a b2b_org settings list
+            example:
+                avatar: https://avatars.githubusercontent.com/u/12345
+                email: alice@example.com
+                invite_status: accepted
+                invited_as: writer
+                name: Alice Smith
+                username: alice
+            required:
+                - email
+                - invited_as
         ProjectKeyContactResponse:
             type: object
             properties:
@@ -1888,6 +2409,90 @@ components:
                 primary_domain: example.com
                 sector: Software
                 website: https://example.com
+        UpdateB2bOrgSettingsRequestBody:
+            type: object
+            properties:
+                auditors:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/OrgUser'
+                    description: Complete replacement list for org auditors. Nil = leave unchanged; [] = remove all.
+                    example:
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                writers:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/OrgUser'
+                    description: Complete replacement list for org writers. Nil = leave unchanged; [] = remove all.
+                    example:
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+            example:
+                auditors:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                writers:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
         UpdateKeyContactRequestBody:
             type: object
             properties:

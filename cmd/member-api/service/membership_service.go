@@ -41,6 +41,7 @@ type membershipServicesrvc struct {
 	memberPublisher          port.MemberPublisher
 	projectMembershipReader  port.ProjectMembershipReader
 	userReader               port.UserReader
+	orgSettingsStorage       port.OrgSettingsStorage
 	globalOrgAdminTeamUID    string
 	backfillRunner           *BackfillRunner
 }
@@ -211,6 +212,20 @@ func (s *membershipServicesrvc) publishKeyContactIndexer(ctx context.Context, kc
 	publishKeyContactIndexer(ctx, s.memberPublisher, kc, action)
 }
 
+// publishProjectMembershipFGA emits a project_membership update_access FGA message
+// so that parent b2b_org and project reference tuples exist before any key_contact
+// member_put cascades through them. Errors are logged and swallowed — idempotent
+// via fga-sync diff; repair via /admin/reindex if needed.
+func (s *membershipServicesrvc) publishProjectMembershipFGA(ctx context.Context, pm *model.ProjectMembership) {
+	msg := buildProjectMembershipFGAMessage(pm)
+	if pubErr := s.memberPublisher.Access(ctx, constants.FGASyncUpdateAccessSubject, msg, false); pubErr != nil {
+		slog.WarnContext(ctx, "project_membership FGA update_access publish failed",
+			"membership_uid", pm.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
 // publishKeyContactFGAPut grants the key_contact relation on the parent
 // project_membership to the given sub. No-op when sub is empty.
 func (s *membershipServicesrvc) publishKeyContactFGAPut(ctx context.Context, membershipUID, sub string) {
@@ -268,7 +283,11 @@ func (s *membershipServicesrvc) publishB2BOrgEvents(ctx context.Context, current
 	if action == indexerConstants.ActionCreated {
 		orgAdminTeamUID = s.globalOrgAdminTeamUID
 	}
-	fgaMsg := buildB2BOrgFGAMessage(org, orgAdminTeamUID)
+	// writers, auditors, and membershipUIDs are fetched from the settings/index
+	// store and passed when the settings PUT handler calls this path. For the
+	// legacy create/update path they are nil, which leaves existing tuples for
+	// those relations untouched (ExcludeRelations includes "membership").
+	fgaMsg := buildB2BOrgFGAMessage(org, orgAdminTeamUID, nil, nil, nil)
 
 	// Fetch child lists for affected parents so the builder can emit child-list
 	// FGA tuples alongside the parent-ref message. Done synchronously before the
@@ -468,6 +487,10 @@ func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *members
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
+
+	// Emit project_membership update_access so the parent tuple exists before the
+	// key_contact member_put. fga-sync diffs, so this is idempotent on re-create.
+	s.publishProjectMembershipFGA(ctx, pm)
 
 	// Resolve the OIDC sub and publish the keycontact FGA put. Indexer is always published.
 	// Username is not persisted to Salesforce or NATS cache — it is always re-resolved
@@ -1005,6 +1028,155 @@ func payloadToB2BOrgInput(p *membershipservice.UpdateB2bOrgPayload) model.B2BOrg
 	return input
 }
 
+// ── Org settings handlers ─────────────────────────────────────────────────────
+
+// GetB2bOrgSettings returns the current access-control settings for a b2b_org.
+// When no settings record exists yet it returns empty arrays — not a 404.
+func (s *membershipServicesrvc) GetB2bOrgSettings(ctx context.Context, p *membershipservice.GetB2bOrgSettingsPayload) (*membershipservice.GetB2bOrgSettingsResult, error) {
+	settings, _, err := s.orgSettingsStorage.GetOrgSettings(ctx, p.UID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.GetB2bOrgSettingsResult{
+		Settings: orgSettingsToResponse(settings),
+	}, nil
+}
+
+// UpdateB2bOrgSettings fully replaces the writers and/or auditors for a b2b_org.
+// Nil writers/auditors = leave existing unchanged; explicit empty slice = clear.
+func (s *membershipServicesrvc) UpdateB2bOrgSettings(ctx context.Context, p *membershipservice.UpdateB2bOrgSettingsPayload) (*membershipservice.UpdateB2bOrgSettingsResult, error) {
+	existing, revision, err := s.orgSettingsStorage.GetOrgSettings(ctx, p.UID)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	now := time.Now().UTC()
+	updated := &model.OrgSettings{
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if existing != nil {
+		updated.CreatedAt = existing.CreatedAt
+		updated.Writers = existing.Writers
+		updated.Auditors = existing.Auditors
+	}
+
+	if p.Writers != nil {
+		updated.Writers = orgUsersFromPayload(p.Writers, now)
+	}
+	if p.Auditors != nil {
+		updated.Auditors = orgUsersFromPayload(p.Auditors, now)
+	}
+
+	if err := s.orgSettingsStorage.PutOrgSettings(ctx, p.UID, updated, revision); err != nil {
+		return nil, wrapError(ctx, err)
+	}
+
+	s.publishB2BOrgSettingsFGA(ctx, p.UID, updated)
+
+	return &membershipservice.UpdateB2bOrgSettingsResult{
+		Settings: orgSettingsToResponse(updated),
+	}, nil
+}
+
+// publishB2BOrgSettingsFGA emits a b2b_org update_access FGA message with the
+// active writers and auditors from settings. Errors are logged and swallowed —
+// fga-sync can be repaired via /admin/reindex.
+func (s *membershipServicesrvc) publishB2BOrgSettingsFGA(ctx context.Context, orgUID string, settings *model.OrgSettings) {
+	org, err := s.b2bOrgReader.GetB2BOrg(ctx, orgUID)
+	if err != nil {
+		slog.WarnContext(ctx, "could not fetch org for settings FGA publish — skipping",
+			"uid", orgUID, "error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	fgaMsg := buildB2BOrgFGAMessage(
+		org,
+		"",
+		settings.ActiveWriterUsernames(),
+		settings.ActiveAuditorUsernames(),
+		nil,
+	)
+	if pubErr := s.memberPublisher.Access(ctx, constants.FGASyncUpdateAccessSubject, fgaMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "b2b org settings FGA publish failed",
+			"uid", orgUID, "error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// orgSettingsToResponse maps domain OrgSettings to the generated response type.
+// A nil settings pointer is treated as empty (no settings stored yet).
+func orgSettingsToResponse(s *model.OrgSettings) *membershipservice.B2bOrgSettingsResponse {
+	resp := &membershipservice.B2bOrgSettingsResponse{
+		Writers:  []*membershipservice.OrgUser{},
+		Auditors: []*membershipservice.OrgUser{},
+	}
+	if s == nil {
+		return resp
+	}
+	for _, u := range s.Writers {
+		resp.Writers = append(resp.Writers, orgUserToResponse(u))
+	}
+	for _, u := range s.Auditors {
+		resp.Auditors = append(resp.Auditors, orgUserToResponse(u))
+	}
+	createdAt := s.CreatedAt.UTC().Format(time.RFC3339)
+	resp.CreatedAt = &createdAt
+	updatedAt := s.UpdatedAt.UTC().Format(time.RFC3339)
+	resp.UpdatedAt = &updatedAt
+	return resp
+}
+
+// orgUserToResponse maps a domain OrgUser to the generated API type.
+func orgUserToResponse(u model.OrgUser) *membershipservice.OrgUser {
+	out := &membershipservice.OrgUser{
+		Email:     u.Email,
+		InvitedAs: u.InvitedAs,
+	}
+	if u.Avatar != "" {
+		out.Avatar = &u.Avatar
+	}
+	if u.Name != "" {
+		out.Name = &u.Name
+	}
+	if u.Username != "" {
+		out.Username = &u.Username
+	}
+	status := string(u.InviteStatus)
+	out.InviteStatus = &status
+	return out
+}
+
+// orgUsersFromPayload maps the API payload slice to domain OrgUser slice, deriving
+// InviteStatus: accepted when Username is set, pending otherwise.
+func orgUsersFromPayload(users []*membershipservice.OrgUser, now time.Time) []model.OrgUser {
+	out := make([]model.OrgUser, 0, len(users))
+	for _, u := range users {
+		if u == nil {
+			continue
+		}
+		du := model.OrgUser{
+			Email:        u.Email,
+			InvitedAs:    u.InvitedAs,
+			InviteStatus: model.InviteStatusPending,
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}
+		if u.Avatar != nil {
+			du.Avatar = *u.Avatar
+		}
+		if u.Name != nil {
+			du.Name = *u.Name
+		}
+		if u.Username != nil && *u.Username != "" {
+			du.Username = *u.Username
+			du.InviteStatus = model.InviteStatusAccepted
+		}
+		out = append(out, du)
+	}
+	return out
+}
+
 // ── Constructor ───────────────────────────────────────────────────────────────
 
 // NewMembershipService returns the membership-service implementation with
@@ -1021,6 +1193,7 @@ func NewMembershipService(
 	userReader port.UserReader,
 	globalOrgAdminTeamUID string,
 	backfillRunner *BackfillRunner,
+	orgSettingsStorage port.OrgSettingsStorage,
 ) membershipservice.Service {
 	return &membershipServicesrvc{
 		memberReaderOrchestrator: readMemberUseCase,
@@ -1032,6 +1205,7 @@ func NewMembershipService(
 		projectMembershipReader:  projectMembershipReader,
 		memberPublisher:          memberPublisher,
 		userReader:               userReader,
+		orgSettingsStorage:       orgSettingsStorage,
 		globalOrgAdminTeamUID:    globalOrgAdminTeamUID,
 		backfillRunner:           backfillRunner,
 	}

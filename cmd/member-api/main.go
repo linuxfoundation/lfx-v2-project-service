@@ -138,6 +138,7 @@ func main() {
 		service.UserReaderImpl(ctx),
 		service.GlobalOrgAdminTeamUID(),
 		service.BackfillRunnerImpl(ctx),
+		service.OrgSettingsStorageImpl(ctx),
 	)
 
 	// Wrap the services in endpoints.

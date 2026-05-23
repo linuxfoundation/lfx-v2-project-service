@@ -246,7 +246,7 @@ func newTestMembershipServiceWithBackfill(runner *BackfillRunner) membershipserv
 		&mock.MockUserReader{},
 		"",
 		runner,
-	)
+		nil,)
 }
 
 // newTestBackfillRunner returns a BackfillRunner with empty mock iterator (no NATS).

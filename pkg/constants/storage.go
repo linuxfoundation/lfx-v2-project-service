@@ -18,4 +18,10 @@ const (
 	// GET metadata (ETag, Last-Modified) alongside the JSON-encoded sObject body,
 	// enabling If-None-Match / If-Modified-Since cache validation on re-fetch.
 	KVBucketNameSObjectCache = "member-service-cache"
+
+	// KVBucketNameOrgSettings is the name of the KV bucket for authoritative
+	// b2b_org settings (writers, auditors, pending invites) and the per-org
+	// membership-UID index. No MaxAge TTL — entries are never silently evicted.
+	// Mirrors the committee-service "committee-settings" bucket pattern.
+	KVBucketNameOrgSettings = "org-settings"
 )

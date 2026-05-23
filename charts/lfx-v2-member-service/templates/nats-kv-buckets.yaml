@@ -24,6 +24,31 @@ spec:
   ttl: {{ .Values.nats.kv_bucket_cache.ttl }}
 {{- end }}
 ---
+{{- if .Values.nats.kv_bucket_org_settings.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_org_settings.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_org_settings.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_org_settings.name }}
+  replicas: {{ .Values.nats.kv_bucket_org_settings.replicas }}
+  history: {{ .Values.nats.kv_bucket_org_settings.history }}
+  storage: {{ .Values.nats.kv_bucket_org_settings.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_org_settings.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_org_settings.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_org_settings.compression }}
+  {{- if .Values.nats.kv_bucket_org_settings.ttl }}
+  ttl: {{ .Values.nats.kv_bucket_org_settings.ttl }}
+  {{- end }}
+{{- end }}
+---
 {{- if .Values.nats.kv_bucket_sobject_cache.creation }}
 apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue
