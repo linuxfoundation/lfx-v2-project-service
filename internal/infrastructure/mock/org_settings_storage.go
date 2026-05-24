@@ -55,8 +55,9 @@ func (m *MockB2BOrgSettings) GetSettings(_ context.Context, orgUID string) (*mod
 	return s, m.revision[orgUID], nil
 }
 
-// UpdateSettings stores settings for orgUID. Optimistic-lock semantics are only
-// lightly enforced here (non-zero revision must match stored revision).
+// UpdateSettings stores settings for orgUID, mirroring production NATS semantics:
+// revision == 0 → exclusive create (Conflict if already exists);
+// revision > 0  → optimistic-lock update (Conflict if revision doesn't match).
 func (m *MockB2BOrgSettings) UpdateSettings(_ context.Context, s *model.B2BOrgSettings, revision uint64) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -66,7 +67,11 @@ func (m *MockB2BOrgSettings) UpdateSettings(_ context.Context, s *model.B2BOrgSe
 		return err
 	}
 	orgUID := s.UID
-	if revision > 0 {
+	if revision == 0 {
+		if _, exists := m.settings[orgUID]; exists {
+			return errors.NewConflict("org settings were created concurrently, please retry")
+		}
+	} else {
 		if stored, ok := m.revision[orgUID]; !ok || stored != revision {
 			return errors.NewConflict("stale revision")
 		}

@@ -83,9 +83,9 @@ func BuildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
 //
 //   - globalOrgAdminTeamUID: set on create to grant the LF global-admin team; empty on updates.
 //   - writers, auditors: LFID usernames of accepted principals from OrgSettings.
-//   - membershipUIDs: UIDs of project_memberships owned by this org. When non-nil,
-//     References["membership"] is populated. When nil, "membership" is added to
-//     ExcludeRelations so existing membership tuples are not accidentally wiped.
+//   - membershipUIDs: UIDs of project_memberships owned by this org. When non-empty,
+//     References["membership"] is populated. When empty or nil, "membership" is added
+//     to ExcludeRelations so existing membership tuples are not accidentally wiped.
 //
 // parent and child tuples are always excluded — managed by BuildB2BOrgReparentingMessages.
 func BuildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string, writers, auditors, membershipUIDs []string) fgatypes.GenericFGAMessage {

@@ -14,6 +14,7 @@ import (
 type B2BOrgSettingsWriter interface {
 	// UpdateSettings persists settings for a b2b_org. The org UID is carried
 	// in settings.UID. When revision > 0, uses optimistic-locking (kv.Update);
-	// when revision == 0, unconditional put. Returns a conflict error on stale revision.
+	// when revision == 0, uses an exclusive create (fails with Conflict if a
+	// concurrent first-write already landed). Returns Conflict on any revision mismatch.
 	UpdateSettings(ctx context.Context, settings *model.B2BOrgSettings, revision uint64) error
 }

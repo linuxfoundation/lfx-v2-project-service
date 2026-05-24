@@ -48,8 +48,8 @@ All messages use the generic FGA message format on the following NATS subjects:
 | `global_org_admin` | `"team:{globalOrgAdminTeamUID}"` | On create only, when `globalOrgAdminTeamUID` is non-empty |
 | `parent` | `"b2b_org:{ParentUID}"` | When `ParentUID` changes; empty clears the tuple |
 | `child` | `["b2b_org:{child_uid}", ...]` | Updated on old/new parent when `ParentUID` changes |
-| `writer` | `"user:{username}"` (one per accepted writer) | When org settings are updated with a non-nil writers field |
-| `auditor` | `"user:{username}"` (one per accepted auditor) | When org settings are updated with a non-nil auditors field |
+| `writer` | raw username/OIDC sub string (one per accepted writer, e.g. `"auth0\|alice"`) | When org settings are updated with a non-nil writers field |
+| `auditor` | raw username/OIDC sub string (one per accepted auditor) | When org settings are updated with a non-nil auditors field |
 
 > `parent` and `child` relations are always excluded from `update_access` via `ExcludeRelations` and managed by separate reparenting messages.
 >

@@ -77,8 +77,6 @@ func ValidateAndBuildRequest(p *membershipservice.AdminReindexPayload) (Backfill
 			return BackfillRequest{}, pkgerrors.NewValidation(
 				fmt.Sprintf("since must be a valid RFC 3339 timestamp with an explicit zone offset (e.g. 2026-05-20T00:00:00Z): %v", parseErr))
 		}
-		// Reject naive timestamps (no zone) — time.Parse(RFC3339) already requires a zone,
-		// but guard against edge cases by checking the zero offset is explicit.
 		utc := t.UTC()
 		since = &utc
 	}
