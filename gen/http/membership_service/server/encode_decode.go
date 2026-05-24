@@ -396,11 +396,10 @@ func DecodeUpdateB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) go
 		}
 
 		var (
-			uid               string
-			version           *string
-			bearerToken       *string
-			ifMatch           *string
-			ifUnmodifiedSince *string
+			uid         string
+			version     *string
+			bearerToken *string
+			ifMatch     *string
 
 			params = mux.Vars(r)
 		)
@@ -423,14 +422,10 @@ func DecodeUpdateB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) go
 		if ifMatchRaw != "" {
 			ifMatch = &ifMatchRaw
 		}
-		ifUnmodifiedSinceRaw := r.Header.Get("If-Unmodified-Since")
-		if ifUnmodifiedSinceRaw != "" {
-			ifUnmodifiedSince = &ifUnmodifiedSinceRaw
-		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateB2bOrgPayload(&body, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
+		payload = NewUpdateB2bOrgPayload(&body, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -544,6 +539,12 @@ func EncodeGetB2bOrgSettingsResponse(encoder func(context.Context, http.Response
 		res, _ := v.(*membershipservice.GetB2bOrgSettingsResult)
 		enc := encoder(ctx, w)
 		body := NewGetB2bOrgSettingsResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -668,6 +669,12 @@ func EncodeUpdateB2bOrgSettingsResponse(encoder func(context.Context, http.Respo
 		res, _ := v.(*membershipservice.UpdateB2bOrgSettingsResult)
 		enc := encoder(ctx, w)
 		body := NewUpdateB2bOrgSettingsResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -702,6 +709,7 @@ func DecodeUpdateB2bOrgSettingsRequest(mux goahttp.Muxer, decoder func(*http.Req
 			uid         string
 			version     *string
 			bearerToken *string
+			ifMatch     *string
 
 			params = mux.Vars(r)
 		)
@@ -720,10 +728,14 @@ func DecodeUpdateB2bOrgSettingsRequest(mux goahttp.Muxer, decoder func(*http.Req
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
+		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateB2bOrgSettingsPayload(&body, uid, version, bearerToken)
+		payload = NewUpdateB2bOrgSettingsPayload(&body, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -784,6 +796,19 @@ func EncodeUpdateB2bOrgSettingsError(encoder func(context.Context, http.Response
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusConflict)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgSettingsPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError
@@ -1384,12 +1409,11 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		}
 
 		var (
-			membershipUID     string
-			uid               string
-			version           *string
-			bearerToken       *string
-			ifMatch           *string
-			ifUnmodifiedSince *string
+			membershipUID string
+			uid           string
+			version       *string
+			bearerToken   *string
+			ifMatch       *string
 
 			params = mux.Vars(r)
 		)
@@ -1414,14 +1438,10 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		if ifMatchRaw != "" {
 			ifMatch = &ifMatchRaw
 		}
-		ifUnmodifiedSinceRaw := r.Header.Get("If-Unmodified-Since")
-		if ifUnmodifiedSinceRaw != "" {
-			ifUnmodifiedSince = &ifUnmodifiedSinceRaw
-		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateKeyContactPayload(&body, membershipUID, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
+		payload = NewUpdateKeyContactPayload(&body, membershipUID, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")

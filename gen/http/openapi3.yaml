@@ -32,7 +32,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/AdminReindexPayload'
                         example:
-                            dry_run: false
+                            dry_run: true
                             items:
                                 - type: b2b_org
                                   uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
@@ -364,15 +364,6 @@ paths:
                     description: If-Match header value for conditional requests
                     example: "123"
                   example: "123"
-                - name: If-Unmodified-Since
-                  in: header
-                  description: If-Unmodified-Since header value for conditional requests (HTTP date format)
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: If-Unmodified-Since header value for conditional requests (HTTP date format)
-                    example: Wed, 21 Oct 2025 07:28:00 GMT
-                  example: Wed, 21 Oct 2025 07:28:00 GMT
             requestBody:
                 required: true
                 content:
@@ -503,6 +494,21 @@ paths:
             responses:
                 "200":
                     description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
                     content:
                         application/json:
                             schema:
@@ -608,6 +614,15 @@ paths:
                     example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                     format: uuid
                   example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
             requestBody:
                 required: true
                 content:
@@ -656,6 +671,21 @@ paths:
             responses:
                 "200":
                     description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
                     content:
                         application/json:
                             schema:
@@ -721,6 +751,12 @@ paths:
                                 $ref: '#/components/schemas/Error'
                 "409":
                     description: 'Conflict: Concurrent modification — retry with fresh settings'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -1139,15 +1175,6 @@ paths:
                     description: If-Match header value for conditional requests
                     example: "123"
                   example: "123"
-                - name: If-Unmodified-Since
-                  in: header
-                  description: If-Unmodified-Since header value for conditional requests (HTTP date format)
-                  allowEmptyValue: true
-                  schema:
-                    type: string
-                    description: If-Unmodified-Since header value for conditional requests (HTTP date format)
-                    example: Wed, 21 Oct 2025 07:28:00 GMT
-                  example: Wed, 21 Oct 2025 07:28:00 GMT
             requestBody:
                 required: true
                 content:
@@ -1408,7 +1435,7 @@ components:
                     type: boolean
                     description: When true, walk SOQL/live-path but skip publishing. Final log includes would_publish_count.
                     default: false
-                    example: false
+                    example: true
                 items:
                     type: array
                     items:
@@ -1431,7 +1458,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Dolores aperiam et.
+                        example: Est dolore qui repellendus animi asperiores facilis.
                     description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact). Mutually exclusive with items.'
                     example:
                         - b2b_org
@@ -1497,7 +1524,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Quia maxime cupiditate facere doloremque dolores blanditiis.
+                        example: Dolores aperiam et.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -1606,6 +1633,18 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
                 created_at:
                     type: string
                     description: Settings record creation timestamp
@@ -1661,21 +1700,9 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
                 created_at: "2025-01-01T00:00:00Z"
                 updated_at: "2025-06-01T12:00:00Z"
                 writers:
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -1779,18 +1806,6 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
         B2bOrgUpdateBody:
             type: object
             properties:
@@ -1853,7 +1868,7 @@ components:
                 fault:
                     type: boolean
                     description: Is the error a server-side fault?
-                    example: false
+                    example: true
                 id:
                     type: string
                     description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1869,11 +1884,11 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: true
+                    example: false
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
-                    example: false
+                    example: true
             description: Endpoint not implemented
             example:
                 fault: false
@@ -1881,7 +1896,7 @@ components:
                 message: parameter 'p' must be an integer
                 name: bad_request
                 temporary: true
-                timeout: false
+                timeout: true
             required:
                 - name
                 - id
@@ -2454,6 +2469,12 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
             example:
                 auditors:
                     - avatar: https://avatars.githubusercontent.com/u/12345
@@ -2475,12 +2496,6 @@ components:
                       name: Alice Smith
                       username: alice
                 writers:
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted

@@ -16,11 +16,14 @@ import (
 
 	sf "github.com/k-capehart/go-salesforce/v3"
 
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 	infraproject "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/project"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce"
+	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 )
 
 var (
@@ -35,6 +38,11 @@ var (
 
 	projectResolver port.ProjectResolver
 	resolverDoOnce  sync.Once
+
+	// mockSettings is the shared in-memory settings store used in mock mode.
+	// Reader and writer must point at the same instance so writes are visible to reads.
+	mockSettings     *mock.MockB2BOrgSettings
+	mockSettingsOnce sync.Once
 )
 
 // natsTimeoutFromEnv reads the NATS_TIMEOUT environment variable and returns it
@@ -360,7 +368,7 @@ func UserReaderImpl(ctx context.Context) port.UserReader {
 	switch repoSource {
 	case "mock":
 		slog.InfoContext(ctx, "initialising mock user reader")
-		return &mock.MockUserReader{}
+		return mock.NewMockUserReader()
 
 	case "salesforce":
 		slog.InfoContext(ctx, "initialising NATS user reader (auth-service)")
@@ -385,7 +393,7 @@ func GlobalOrgAdminTeamUID() string {
 //
 //   - "salesforce" (default) — Salesforce SOQL paged iterators.
 //   - "mock"                 — In-memory mock with no pre-loaded pages.
-func BackfillIteratorImpl(ctx context.Context) BackfillIterator {
+func BackfillIteratorImpl(ctx context.Context) usecaseSvc.BackfillIterator {
 	repoSource := os.Getenv("REPOSITORY_SOURCE")
 	if repoSource == "" {
 		repoSource = "salesforce"
@@ -394,12 +402,12 @@ func BackfillIteratorImpl(ctx context.Context) BackfillIterator {
 	switch repoSource {
 	case "mock":
 		slog.InfoContext(ctx, "initialising mock backfill iterator")
-		return &mockBackfillIterator{}
+		return &mock.MockBackfillIterator{}
 
 	case "salesforce":
 		slog.InfoContext(ctx, "initialising Salesforce backfill iterator")
 		sfInit(ctx)
-		return newSalesforceBackfillIterator(
+		return salesforce.NewBackfillIterator(
 			salesforce.NewAccountRepo(sfClient),
 			salesforce.NewMembershipRepo(sfClient),
 			salesforce.NewKeyContactRepo(sfClient),
@@ -411,39 +419,134 @@ func BackfillIteratorImpl(ctx context.Context) BackfillIterator {
 	}
 }
 
-// OrgSettingsStorageImpl returns the port.OrgSettingsStorage implementation
-// backed by the "org-settings" NATS KV bucket (authoritative, no MaxAge TTL).
-// Always returns the NATS-backed storage regardless of REPOSITORY_SOURCE —
-// settings are not Salesforce data, so there is no mock alternative.
-func OrgSettingsStorageImpl(ctx context.Context) port.OrgSettingsStorage {
+// mockSettingsInstance returns the shared MockB2BOrgSettings singleton.
+// Reader and writer must share the same instance so writes are visible to reads.
+func mockSettingsInstance(ctx context.Context) *mock.MockB2BOrgSettings {
+	mockSettingsOnce.Do(func() {
+		slog.InfoContext(ctx, "initialising mock B2B org settings store")
+		mockSettings = mock.NewMockB2BOrgSettings()
+	})
+	return mockSettings
+}
+
+// B2BOrgSettingsReaderImpl returns the port.B2BOrgSettingsReader implementation
+// selected by the REPOSITORY_SOURCE environment variable:
+//
+//   - "salesforce" (default) — NATS KV "org-settings" bucket (authoritative, no MaxAge TTL).
+//   - "mock"                 — Shared in-memory mock; lets the service start without NATS.
+func B2BOrgSettingsReaderImpl(ctx context.Context) port.B2BOrgSettingsReader {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockSettingsInstance(ctx)
+	}
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
+// B2BOrgSettingsWriterImpl returns the port.B2BOrgSettingsWriter implementation
+// selected by the REPOSITORY_SOURCE environment variable:
+//
+//   - "salesforce" (default) — NATS KV "org-settings" bucket.
+//   - "mock"                 — Shared in-memory mock; same instance as B2BOrgSettingsReaderImpl.
+func B2BOrgSettingsWriterImpl(ctx context.Context) port.B2BOrgSettingsWriter {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockSettingsInstance(ctx)
+	}
 	natsInit(ctx)
 	return nats.NewStorage(natsClient)
 }
 
 // BackfillRunnerImpl constructs a BackfillRunner wired with all production
 // (or mock) dependencies based on REPOSITORY_SOURCE / MESSAGING_SOURCE.
-func BackfillRunnerImpl(ctx context.Context) *BackfillRunner {
-	natsInit(ctx)
-
+//
+// In mock mode natsClient is nil — the runner skips the distributed full-run
+// lock (safe for local development; no concurrent runners exist).
+func BackfillRunnerImpl(ctx context.Context) *usecaseSvc.Runner {
 	repoSource := os.Getenv("REPOSITORY_SOURCE")
 	if repoSource == "" {
 		repoSource = "salesforce"
 	}
 
-	var kcReader KeyContactSObjectReader
-	if repoSource == "salesforce" {
+	var kcReader usecaseSvc.KeyContactSObjectReader
+	var nc *nats.NATSClient
+
+	switch repoSource {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock backfill runner")
+		kcReader = mock.NewMockKeyContactSObjectReader()
+
+	case "salesforce":
+		slog.InfoContext(ctx, "initialising Salesforce backfill runner")
+		natsInit(ctx)
+		nc = natsClient
 		sObjectClientInit(ctx)
 		kcReader = salesforce.NewKeyContactReader(sObjectClient)
-	} else {
-		kcReader = mock.NewMockKeyContactSObjectReader()
+
+	default:
+		log.Fatalf("unsupported REPOSITORY_SOURCE value: %q", repoSource)
 	}
 
-	return NewBackfillRunner(
+	return usecaseSvc.NewRunner(
 		BackfillIteratorImpl(ctx),
 		B2BOrgReaderImpl(ctx),
 		ProjectMembershipReaderImpl(ctx),
 		kcReader,
 		MemberPublisherImpl(ctx),
-		natsClient,
+		nc,
+	)
+}
+
+// JWTAuthImpl constructs the domain.Authenticator from environment variables.
+// Calls log.Fatalf on configuration or key-fetch errors — same fail-fast
+// pattern as the other provider functions.
+func JWTAuthImpl(ctx context.Context) domain.Authenticator {
+	cfg := auth.JWTAuthConfig{
+		JWKSURL:            os.Getenv("JWKS_URL"),
+		Audience:           os.Getenv("AUDIENCE"),
+		MockLocalPrincipal: os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"),
+	}
+	a, err := auth.NewJWTAuth(cfg)
+	if err != nil {
+		log.Fatalf("failed to set up JWT authentication: %v", err)
+	}
+	return a
+}
+
+// MemberReaderUseCase constructs the MemberReaderOrchestrator use-case wired
+// with the production (or mock) MemberReader adapter.
+func MemberReaderUseCase(ctx context.Context) usecaseSvc.MemberReader {
+	return usecaseSvc.NewMemberReaderOrchestrator(
+		usecaseSvc.WithMemberReader(MemberReaderImpl(ctx)),
+	)
+}
+
+// B2BOrgWriterUseCase constructs the B2BOrgWriter use-case orchestrator wired
+// with all production (or mock) dependencies.
+func B2BOrgWriterUseCase(ctx context.Context) usecaseSvc.B2BOrgWriter {
+	return usecaseSvc.NewB2BOrgWriter(
+		usecaseSvc.WithB2BOrgReader(B2BOrgReaderImpl(ctx)),
+		usecaseSvc.WithB2BOrgWriter(B2BOrgWriterImpl(ctx)),
+		usecaseSvc.WithB2BOrgPublisher(MemberPublisherImpl(ctx)),
+		usecaseSvc.WithGlobalOrgAdminTeamUID(GlobalOrgAdminTeamUID()),
+	)
+}
+
+// KeyContactWriterUseCase constructs the KeyContactWriter use-case orchestrator.
+func KeyContactWriterUseCase(ctx context.Context) usecaseSvc.KeyContactWriter {
+	return usecaseSvc.NewKeyContactWriter(
+		usecaseSvc.WithKCStorage(MemberReaderImpl(ctx)),
+		usecaseSvc.WithKCWriter(KeyContactWriterImpl(ctx)),
+		usecaseSvc.WithKCProjectMembershipReader(ProjectMembershipReaderImpl(ctx)),
+		usecaseSvc.WithKCPublisher(MemberPublisherImpl(ctx)),
+		usecaseSvc.WithKCUserReader(UserReaderImpl(ctx)),
+	)
+}
+
+// OrgSettingsWriterUseCase constructs the OrgSettingsWriter use-case orchestrator.
+func OrgSettingsWriterUseCase(ctx context.Context) usecaseSvc.OrgSettingsWriter {
+	return usecaseSvc.NewOrgSettingsWriter(
+		usecaseSvc.WithOrgSettingsReader(B2BOrgSettingsReaderImpl(ctx)),
+		usecaseSvc.WithOrgSettingsWriter(B2BOrgSettingsWriterImpl(ctx)),
+		usecaseSvc.WithOrgSettingsB2BOrgReader(B2BOrgReaderImpl(ctx)),
+		usecaseSvc.WithOrgSettingsPublisher(MemberPublisherImpl(ctx)),
 	)
 }

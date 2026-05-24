@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 
-	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
@@ -18,25 +17,25 @@ import (
 // checks per-role capacity, and detects idempotent-create duplicates. Returns an
 // existing *model.KeyContact when a matching active (role+email) record is found —
 // the caller must return it directly without calling the writer (self-heal).
-func (s *membershipServicesrvc) normalizeAndValidateCreate(
+func (o *keyContactWriterOrchestrator) normalizeAndValidateCreate(
 	ctx context.Context,
-	p *membershipservice.CreateKeyContactPayload,
+	in *KeyContactCreateInput,
 ) (*model.KeyContact, error) {
-	p.Email = strings.ToLower(strings.TrimSpace(p.Email))
-	p.FirstName = strings.TrimSpace(p.FirstName)
-	p.LastName = strings.TrimSpace(p.LastName)
+	in.Email = strings.ToLower(strings.TrimSpace(in.Email))
+	in.FirstName = strings.TrimSpace(in.FirstName)
+	in.LastName = strings.TrimSpace(in.LastName)
 
-	if p.Email == "" {
+	if in.Email == "" {
 		return nil, pkgerrors.NewValidation("email is required")
 	}
-	if p.FirstName == "" {
+	if in.FirstName == "" {
 		return nil, pkgerrors.NewValidation("first_name is required")
 	}
-	if p.LastName == "" {
+	if in.LastName == "" {
 		return nil, pkgerrors.NewValidation("last_name is required")
 	}
 
-	existing, err := s.storage.ListKeyContactsForMembership(ctx, p.MembershipUID)
+	existing, err := o.storage.ListKeyContactsForMembership(ctx, in.MembershipUID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +46,7 @@ func (s *membershipServicesrvc) normalizeAndValidateCreate(
 			activePerRole[kc.Role]++
 			// Self-heal: same role + same email already active → return as-is.
 			// Short-circuit: writer will not be called so the capacity check below is moot.
-			if kc.Role == p.Role && strings.EqualFold(kc.Email, p.Email) {
+			if kc.Role == in.Role && strings.EqualFold(kc.Email, in.Email) {
 				return kc, nil
 			}
 		}
@@ -59,9 +58,9 @@ func (s *membershipServicesrvc) normalizeAndValidateCreate(
 	// over-capacity race using different Contacts. Strict enforcement would require an
 	// SF-side unique rule on (Asset__c, Role__c, Status__c='Active'); until then, rare
 	// over-capacity records can be corrected via /admin/reindex or manual SF cleanup.
-	if limit, ok := constants.KeyContactRoleLimits[p.Role]; ok && activePerRole[p.Role] >= limit {
+	if limit, ok := constants.KeyContactRoleLimits[in.Role]; ok && activePerRole[in.Role] >= limit {
 		return nil, pkgerrors.NewConflict(
-			fmt.Sprintf("%s is limited to %d per membership", p.Role, limit))
+			fmt.Sprintf("%s is limited to %d per membership", in.Role, limit))
 	}
 
 	return nil, nil
@@ -70,27 +69,25 @@ func (s *membershipServicesrvc) normalizeAndValidateCreate(
 // normalizeAndValidateUpdate lowercases email (if set), then enforces duplicate
 // detection whenever email or role changes, and capacity only when role changes
 // (legacy guard pattern: capacity re-applies only on a role change).
-func (s *membershipServicesrvc) normalizeAndValidateUpdate(
+func (o *keyContactWriterOrchestrator) normalizeAndValidateUpdate(
 	ctx context.Context,
 	current *model.KeyContact,
-	p *membershipservice.UpdateKeyContactPayload,
+	in *KeyContactUpdateInput,
 ) error {
-	// Mutates in-place (not replacing the pointer) so the caller's input.Email —
-	// set from p.Email before this call — also sees the canonical value.
-	if p.Email != nil {
-		*p.Email = strings.ToLower(strings.TrimSpace(*p.Email))
+	if in.Email != nil {
+		*in.Email = strings.ToLower(strings.TrimSpace(*in.Email))
 	}
 
 	newRole := current.Role
-	if p.Role != nil {
-		newRole = *p.Role
+	if in.Role != nil {
+		newRole = *in.Role
 	}
 
 	roleChanging := newRole != current.Role
-	emailChanging := p.Email != nil && !strings.EqualFold(*p.Email, current.Email)
+	emailChanging := in.Email != nil && !strings.EqualFold(*in.Email, current.Email)
 	// Re-activating an inactive contact can exceed capacity or create a (role,email) collision.
-	statusActivating := p.Status != nil &&
-		strings.EqualFold(*p.Status, constants.RoleStatusActive) &&
+	statusActivating := in.Status != nil &&
+		strings.EqualFold(*in.Status, constants.RoleStatusActive) &&
 		!strings.EqualFold(current.Status, constants.RoleStatusActive)
 
 	// Nothing that affects uniqueness or capacity is changing — skip sibling scan.
@@ -98,14 +95,14 @@ func (s *membershipServicesrvc) normalizeAndValidateUpdate(
 		return nil
 	}
 
-	existing, err := s.storage.ListKeyContactsForMembership(ctx, current.MembershipUID)
+	existing, err := o.storage.ListKeyContactsForMembership(ctx, current.MembershipUID)
 	if err != nil {
 		return err
 	}
 
 	effectiveEmail := current.Email
-	if p.Email != nil {
-		effectiveEmail = *p.Email
+	if in.Email != nil {
+		effectiveEmail = *in.Email
 	}
 
 	// Single pass: detect (role, email) duplicates and, when role is changing,

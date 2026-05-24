@@ -58,13 +58,12 @@ func ParseEndpoint(
 		membershipServiceCreateB2bOrgVersionFlag     = membershipServiceCreateB2bOrgFlags.String("version", "", "")
 		membershipServiceCreateB2bOrgBearerTokenFlag = membershipServiceCreateB2bOrgFlags.String("bearer-token", "", "")
 
-		membershipServiceUpdateB2bOrgFlags                 = flag.NewFlagSet("update-b2b-org", flag.ExitOnError)
-		membershipServiceUpdateB2bOrgBodyFlag              = membershipServiceUpdateB2bOrgFlags.String("body", "REQUIRED", "")
-		membershipServiceUpdateB2bOrgUIDFlag               = membershipServiceUpdateB2bOrgFlags.String("uid", "REQUIRED", "B2B organization UID")
-		membershipServiceUpdateB2bOrgVersionFlag           = membershipServiceUpdateB2bOrgFlags.String("version", "", "")
-		membershipServiceUpdateB2bOrgBearerTokenFlag       = membershipServiceUpdateB2bOrgFlags.String("bearer-token", "", "")
-		membershipServiceUpdateB2bOrgIfMatchFlag           = membershipServiceUpdateB2bOrgFlags.String("if-match", "", "")
-		membershipServiceUpdateB2bOrgIfUnmodifiedSinceFlag = membershipServiceUpdateB2bOrgFlags.String("if-unmodified-since", "", "")
+		membershipServiceUpdateB2bOrgFlags           = flag.NewFlagSet("update-b2b-org", flag.ExitOnError)
+		membershipServiceUpdateB2bOrgBodyFlag        = membershipServiceUpdateB2bOrgFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateB2bOrgUIDFlag         = membershipServiceUpdateB2bOrgFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceUpdateB2bOrgVersionFlag     = membershipServiceUpdateB2bOrgFlags.String("version", "", "")
+		membershipServiceUpdateB2bOrgBearerTokenFlag = membershipServiceUpdateB2bOrgFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgIfMatchFlag     = membershipServiceUpdateB2bOrgFlags.String("if-match", "", "")
 
 		membershipServiceGetB2bOrgSettingsFlags           = flag.NewFlagSet("get-b2b-org-settings", flag.ExitOnError)
 		membershipServiceGetB2bOrgSettingsUIDFlag         = membershipServiceGetB2bOrgSettingsFlags.String("uid", "REQUIRED", "B2B organization UID")
@@ -76,6 +75,7 @@ func ParseEndpoint(
 		membershipServiceUpdateB2bOrgSettingsUIDFlag         = membershipServiceUpdateB2bOrgSettingsFlags.String("uid", "REQUIRED", "B2B organization UID")
 		membershipServiceUpdateB2bOrgSettingsVersionFlag     = membershipServiceUpdateB2bOrgSettingsFlags.String("version", "", "")
 		membershipServiceUpdateB2bOrgSettingsBearerTokenFlag = membershipServiceUpdateB2bOrgSettingsFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgSettingsIfMatchFlag     = membershipServiceUpdateB2bOrgSettingsFlags.String("if-match", "", "")
 
 		membershipServiceGetProjectMembershipFlags               = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
 		membershipServiceGetProjectMembershipUIDFlag             = membershipServiceGetProjectMembershipFlags.String("uid", "REQUIRED", "Project membership UID")
@@ -98,14 +98,13 @@ func ParseEndpoint(
 		membershipServiceCreateKeyContactVersionFlag       = membershipServiceCreateKeyContactFlags.String("version", "", "")
 		membershipServiceCreateKeyContactBearerTokenFlag   = membershipServiceCreateKeyContactFlags.String("bearer-token", "", "")
 
-		membershipServiceUpdateKeyContactFlags                 = flag.NewFlagSet("update-key-contact", flag.ExitOnError)
-		membershipServiceUpdateKeyContactBodyFlag              = membershipServiceUpdateKeyContactFlags.String("body", "REQUIRED", "")
-		membershipServiceUpdateKeyContactMembershipUIDFlag     = membershipServiceUpdateKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
-		membershipServiceUpdateKeyContactUIDFlag               = membershipServiceUpdateKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
-		membershipServiceUpdateKeyContactVersionFlag           = membershipServiceUpdateKeyContactFlags.String("version", "", "")
-		membershipServiceUpdateKeyContactBearerTokenFlag       = membershipServiceUpdateKeyContactFlags.String("bearer-token", "", "")
-		membershipServiceUpdateKeyContactIfMatchFlag           = membershipServiceUpdateKeyContactFlags.String("if-match", "", "")
-		membershipServiceUpdateKeyContactIfUnmodifiedSinceFlag = membershipServiceUpdateKeyContactFlags.String("if-unmodified-since", "", "")
+		membershipServiceUpdateKeyContactFlags             = flag.NewFlagSet("update-key-contact", flag.ExitOnError)
+		membershipServiceUpdateKeyContactBodyFlag          = membershipServiceUpdateKeyContactFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateKeyContactMembershipUIDFlag = membershipServiceUpdateKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
+		membershipServiceUpdateKeyContactUIDFlag           = membershipServiceUpdateKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
+		membershipServiceUpdateKeyContactVersionFlag       = membershipServiceUpdateKeyContactFlags.String("version", "", "")
+		membershipServiceUpdateKeyContactBearerTokenFlag   = membershipServiceUpdateKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceUpdateKeyContactIfMatchFlag       = membershipServiceUpdateKeyContactFlags.String("if-match", "", "")
 
 		membershipServiceDeleteKeyContactFlags             = flag.NewFlagSet("delete-key-contact", flag.ExitOnError)
 		membershipServiceDeleteKeyContactMembershipUIDFlag = membershipServiceDeleteKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
@@ -250,13 +249,13 @@ func ParseEndpoint(
 				data, err = membershipservicec.BuildCreateB2bOrgPayload(*membershipServiceCreateB2bOrgBodyFlag, *membershipServiceCreateB2bOrgVersionFlag, *membershipServiceCreateB2bOrgBearerTokenFlag)
 			case "update-b2b-org":
 				endpoint = c.UpdateB2bOrg()
-				data, err = membershipservicec.BuildUpdateB2bOrgPayload(*membershipServiceUpdateB2bOrgBodyFlag, *membershipServiceUpdateB2bOrgUIDFlag, *membershipServiceUpdateB2bOrgVersionFlag, *membershipServiceUpdateB2bOrgBearerTokenFlag, *membershipServiceUpdateB2bOrgIfMatchFlag, *membershipServiceUpdateB2bOrgIfUnmodifiedSinceFlag)
+				data, err = membershipservicec.BuildUpdateB2bOrgPayload(*membershipServiceUpdateB2bOrgBodyFlag, *membershipServiceUpdateB2bOrgUIDFlag, *membershipServiceUpdateB2bOrgVersionFlag, *membershipServiceUpdateB2bOrgBearerTokenFlag, *membershipServiceUpdateB2bOrgIfMatchFlag)
 			case "get-b2b-org-settings":
 				endpoint = c.GetB2bOrgSettings()
 				data, err = membershipservicec.BuildGetB2bOrgSettingsPayload(*membershipServiceGetB2bOrgSettingsUIDFlag, *membershipServiceGetB2bOrgSettingsVersionFlag, *membershipServiceGetB2bOrgSettingsBearerTokenFlag)
 			case "update-b2b-org-settings":
 				endpoint = c.UpdateB2bOrgSettings()
-				data, err = membershipservicec.BuildUpdateB2bOrgSettingsPayload(*membershipServiceUpdateB2bOrgSettingsBodyFlag, *membershipServiceUpdateB2bOrgSettingsUIDFlag, *membershipServiceUpdateB2bOrgSettingsVersionFlag, *membershipServiceUpdateB2bOrgSettingsBearerTokenFlag)
+				data, err = membershipservicec.BuildUpdateB2bOrgSettingsPayload(*membershipServiceUpdateB2bOrgSettingsBodyFlag, *membershipServiceUpdateB2bOrgSettingsUIDFlag, *membershipServiceUpdateB2bOrgSettingsVersionFlag, *membershipServiceUpdateB2bOrgSettingsBearerTokenFlag, *membershipServiceUpdateB2bOrgSettingsIfMatchFlag)
 			case "get-project-membership":
 				endpoint = c.GetProjectMembership()
 				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag, *membershipServiceGetProjectMembershipIfNoneMatchFlag, *membershipServiceGetProjectMembershipIfModifiedSinceFlag)
@@ -268,7 +267,7 @@ func ParseEndpoint(
 				data, err = membershipservicec.BuildCreateKeyContactPayload(*membershipServiceCreateKeyContactBodyFlag, *membershipServiceCreateKeyContactMembershipUIDFlag, *membershipServiceCreateKeyContactVersionFlag, *membershipServiceCreateKeyContactBearerTokenFlag)
 			case "update-key-contact":
 				endpoint = c.UpdateKeyContact()
-				data, err = membershipservicec.BuildUpdateKeyContactPayload(*membershipServiceUpdateKeyContactBodyFlag, *membershipServiceUpdateKeyContactMembershipUIDFlag, *membershipServiceUpdateKeyContactUIDFlag, *membershipServiceUpdateKeyContactVersionFlag, *membershipServiceUpdateKeyContactBearerTokenFlag, *membershipServiceUpdateKeyContactIfMatchFlag, *membershipServiceUpdateKeyContactIfUnmodifiedSinceFlag)
+				data, err = membershipservicec.BuildUpdateKeyContactPayload(*membershipServiceUpdateKeyContactBodyFlag, *membershipServiceUpdateKeyContactMembershipUIDFlag, *membershipServiceUpdateKeyContactUIDFlag, *membershipServiceUpdateKeyContactVersionFlag, *membershipServiceUpdateKeyContactBearerTokenFlag, *membershipServiceUpdateKeyContactIfMatchFlag)
 			case "delete-key-contact":
 				endpoint = c.DeleteKeyContact()
 				data, err = membershipservicec.BuildDeleteKeyContactPayload(*membershipServiceDeleteKeyContactMembershipUIDFlag, *membershipServiceDeleteKeyContactUIDFlag, *membershipServiceDeleteKeyContactVersionFlag, *membershipServiceDeleteKeyContactBearerTokenFlag, *membershipServiceDeleteKeyContactIfMatchFlag)
@@ -371,7 +370,6 @@ func membershipServiceUpdateB2bOrgUsage() {
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprint(os.Stderr, " -if-match STRING")
-	fmt.Fprint(os.Stderr, " -if-unmodified-since STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
@@ -384,11 +382,10 @@ func membershipServiceUpdateB2bOrgUsage() {
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
-	fmt.Fprintln(os.Stderr, `    -if-unmodified-since STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceGetB2bOrgSettingsUsage() {
@@ -420,6 +417,7 @@ func membershipServiceUpdateB2bOrgSettingsUsage() {
 	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
@@ -431,10 +429,11 @@ func membershipServiceUpdateB2bOrgSettingsUsage() {
 	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceGetProjectMembershipUsage() {
@@ -524,7 +523,6 @@ func membershipServiceUpdateKeyContactUsage() {
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprint(os.Stderr, " -if-match STRING")
-	fmt.Fprint(os.Stderr, " -if-unmodified-since STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
@@ -538,11 +536,10 @@ func membershipServiceUpdateKeyContactUsage() {
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
-	fmt.Fprintln(os.Stderr, `    -if-unmodified-since STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\" --if-unmodified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceDeleteKeyContactUsage() {
@@ -590,7 +587,7 @@ func membershipServiceAdminReindexUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceReadyzUsage() {

@@ -366,11 +366,19 @@ func (m *MockB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2B
 // MockMemberPublisher is a no-op implementation of port.MemberPublisher for
 // local development when MESSAGING_SOURCE=mock. All messages are logged but
 // not published to NATS.
-type MockMemberPublisher struct{}
+type MockMemberPublisher struct {
+	accessErr      error
+	LastAccessData any // last payload passed to Access; nil if never called
+}
 
 // NewMockMemberPublisher creates a new MockMemberPublisher.
 func NewMockMemberPublisher() *MockMemberPublisher {
 	return &MockMemberPublisher{}
+}
+
+// SetAccessError configures the mock to return err on the next Access call.
+func (m *MockMemberPublisher) SetAccessError(err error) {
+	m.accessErr = err
 }
 
 // Indexer logs the message and returns nil.
@@ -379,9 +387,15 @@ func (m *MockMemberPublisher) Indexer(ctx context.Context, subject string, _ any
 	return nil
 }
 
-// Access logs the message and returns nil.
-func (m *MockMemberPublisher) Access(ctx context.Context, subject string, _ any, _ bool) error {
+// Access logs the message, captures the payload, and returns the configured error (if any).
+func (m *MockMemberPublisher) Access(ctx context.Context, subject string, msg any, _ bool) error {
 	slog.DebugContext(ctx, "mock: access publish (no-op)", "subject", subject)
+	m.LastAccessData = msg
+	if m.accessErr != nil {
+		err := m.accessErr
+		m.accessErr = nil
+		return err
+	}
 	return nil
 }
 
@@ -407,6 +421,50 @@ func (m *MockKeyContactWriter) UpdateKeyContact(_ context.Context, _ string, _ m
 // DeleteKeyContact always returns not-implemented.
 func (m *MockKeyContactWriter) DeleteKeyContact(_ context.Context, _ string, _ string) error {
 	return errors.NewNotImplemented("delete-key-contact not implemented in mock")
+}
+
+// MockKeyContactWriterWithOK returns a minimal successful response for each port.KeyContactWriter
+// operation. Used in orchestrator unit tests to isolate publish-sequencing behaviour.
+type MockKeyContactWriterWithOK struct{}
+
+// NewMockKeyContactWriterWithOK creates a MockKeyContactWriterWithOK.
+func NewMockKeyContactWriterWithOK() *MockKeyContactWriterWithOK {
+	return &MockKeyContactWriterWithOK{}
+}
+
+func (m *MockKeyContactWriterWithOK) CreateKeyContact(_ context.Context, input model.KeyContactInput) (*model.KeyContact, error) {
+	email := ""
+	if input.Email != nil {
+		email = *input.Email
+	}
+	role := ""
+	if input.Role != nil {
+		role = *input.Role
+	}
+	return &model.KeyContact{
+		UID:           "00000000-0000-0000-0000-000000000099",
+		MembershipUID: input.MembershipUID,
+		Email:         email,
+		Role:          role,
+		UpdatedAt:     time.Now(),
+	}, nil
+}
+
+func (m *MockKeyContactWriterWithOK) UpdateKeyContact(_ context.Context, uid string, input model.KeyContactInput) (*model.KeyContact, error) {
+	email := ""
+	if input.Email != nil {
+		email = *input.Email
+	}
+	return &model.KeyContact{
+		UID:           uid,
+		MembershipUID: input.MembershipUID,
+		Email:         email,
+		UpdatedAt:     time.Now(),
+	}, nil
+}
+
+func (m *MockKeyContactWriterWithOK) DeleteKeyContact(_ context.Context, _ string, _ string) error {
+	return nil
 }
 
 // MockProjectMembershipReader is a stub implementation of port.ProjectMembershipReader
@@ -442,4 +500,17 @@ func NewMockKeyContactSObjectReader() *MockKeyContactSObjectReader {
 // AssembleKeyContact always returns not-implemented.
 func (m *MockKeyContactSObjectReader) AssembleKeyContact(_ context.Context, uid string) (*model.KeyContact, time.Time, error) {
 	return nil, time.Time{}, errors.NewNotImplemented("AssembleKeyContact not implemented in mock")
+}
+
+// MockUserReader provides a no-op mock implementation of port.UserReader
+// for local development when REPOSITORY_SOURCE=mock.
+type MockUserReader struct{}
+
+// NewMockUserReader returns a MockUserReader.
+func NewMockUserReader() *MockUserReader { return &MockUserReader{} }
+
+// SubByEmail always returns an empty string. Satisfies port.UserReader for
+// local development without auth-service.
+func (m *MockUserReader) SubByEmail(_ context.Context, _ string) (string, error) {
+	return "", nil
 }

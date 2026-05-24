@@ -5,7 +5,7 @@ package model
 
 import "time"
 
-// InviteStatus represents the lifecycle state of an OrgUser entry.
+// InviteStatus represents the lifecycle state of a B2BOrgUser entry.
 type InviteStatus string
 
 const (
@@ -19,14 +19,13 @@ const (
 	InviteStatusExpired InviteStatus = "expired"
 )
 
-// OrgUser is a member of a b2b_org settings list (writers or auditors).
-// Base fields mirror CommitteeUser in lfx-v2-committee-service; invite fields
-// extend it to support pre-LFID invitations.
+// B2BOrgUser is a member of a b2b_org settings list (writers or auditors).
+// Invite fields extend the base principal to support pre-LFID invitations.
 //
 // FGA tuple is emitted only when InviteStatus == InviteStatusAccepted AND
 // Username is non-empty. Pending/revoked/expired entries are persisted for
 // audit trail but produce no FGA tuple.
-type OrgUser struct {
+type B2BOrgUser struct {
 	// Avatar is the user's avatar URL, if known.
 	Avatar string `json:"avatar,omitempty"`
 	// Email is the user's email address. Required; identifies the user before
@@ -58,14 +57,16 @@ type OrgUser struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// OrgSettings holds the access-control principals for a b2b_org. Stored in a
-// dedicated NATS KV bucket (membership-settings) separate from the Salesforce-
-// backed org record so that FGA state changes never touch Salesforce data.
-type OrgSettings struct {
+// B2BOrgSettings holds the access-control principals for a b2b_org. Stored in a
+// dedicated NATS KV bucket (org-settings) separate from the Salesforce-backed org
+// record so that FGA state changes never touch Salesforce data.
+type B2BOrgSettings struct {
+	// UID is the b2b_org UID this settings record belongs to.
+	UID string `json:"uid"`
 	// Writers holds the org's administrators. Full-replace on PUT.
-	Writers []OrgUser `json:"writers"`
+	Writers []B2BOrgUser `json:"writers"`
 	// Auditors holds read-only principals. Full-replace on PUT.
-	Auditors []OrgUser `json:"auditors"`
+	Auditors []B2BOrgUser `json:"auditors"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -73,8 +74,8 @@ type OrgSettings struct {
 
 // ActiveWriterUsernames returns the LFID usernames of writers whose invite has
 // been accepted. Entries without a username (pending invites) are silently
-// skipped — matching committee-service extractUsernames behaviour.
-func (s *OrgSettings) ActiveWriterUsernames() []string {
+// skipped — only accepted entries with a known username produce FGA tuples.
+func (s *B2BOrgSettings) ActiveWriterUsernames() []string {
 	if s == nil {
 		return nil
 	}
@@ -83,7 +84,7 @@ func (s *OrgSettings) ActiveWriterUsernames() []string {
 
 // ActiveAuditorUsernames returns the LFID usernames of auditors whose invite
 // has been accepted. Pending/revoked/expired entries are skipped.
-func (s *OrgSettings) ActiveAuditorUsernames() []string {
+func (s *B2BOrgSettings) ActiveAuditorUsernames() []string {
 	if s == nil {
 		return nil
 	}
@@ -91,7 +92,7 @@ func (s *OrgSettings) ActiveAuditorUsernames() []string {
 }
 
 // activeUsernames filters a slice to accepted entries with a non-empty username.
-func activeUsernames(users []OrgUser) []string {
+func activeUsernames(users []B2BOrgUser) []string {
 	var out []string
 	for _, u := range users {
 		if u.InviteStatus == InviteStatusAccepted && u.Username != "" {

@@ -16,11 +16,8 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-member-service/cmd/member-api/service"
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
-	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
 	natsinf "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce"
-
-	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 
 	logging "github.com/linuxfoundation/lfx-v2-member-service/pkg/log"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/utils"
@@ -58,18 +55,6 @@ func main() {
 
 	ctx := context.Background()
 
-	// Set up JWT validator needed by the JWTAuth security handler.
-	jwtAuthConfig := auth.JWTAuthConfig{
-		JWKSURL:            os.Getenv("JWKS_URL"),
-		Audience:           os.Getenv("AUDIENCE"),
-		MockLocalPrincipal: os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"),
-	}
-	jwtAuth, err := auth.NewJWTAuth(jwtAuthConfig)
-	if err != nil {
-		slog.ErrorContext(ctx, "error setting up JWT authentication", "error", err)
-		os.Exit(1)
-	}
-
 	// Set up OpenTelemetry SDK.
 	otelConfig := utils.OTelConfigFromEnv()
 	if otelConfig.ServiceVersion == "" {
@@ -100,8 +85,6 @@ func main() {
 		"graceful-shutdown-seconds", gracefulShutdownSeconds,
 	)
 
-	// Initialize the repositories based on configuration.
-	memberReader := service.MemberReaderImpl(ctx)
 	defer service.CloseNATSClient()
 
 	// Register the project-id-map NATS RPC handler so external services can
@@ -121,24 +104,17 @@ func main() {
 		}()
 	}
 
-	// Initialize the service with use cases.
-	readMemberUseCase := usecaseSvc.NewMemberReaderOrchestrator(
-		usecaseSvc.WithMemberReader(memberReader),
-	)
-
 	membershipServiceSvc := service.NewMembershipService(
-		readMemberUseCase,
-		memberReader,
-		jwtAuth,
-		service.KeyContactWriterImpl(ctx),
+		service.JWTAuthImpl(ctx),
+		service.MemberReaderImpl(ctx),
+		service.MemberReaderUseCase(ctx),
 		service.B2BOrgReaderImpl(ctx),
-		service.B2BOrgWriterImpl(ctx),
 		service.ProjectMembershipReaderImpl(ctx),
-		service.MemberPublisherImpl(ctx),
-		service.UserReaderImpl(ctx),
-		service.GlobalOrgAdminTeamUID(),
+		service.B2BOrgSettingsReaderImpl(ctx),
+		service.B2BOrgWriterUseCase(ctx),
+		service.KeyContactWriterUseCase(ctx),
+		service.OrgSettingsWriterUseCase(ctx),
 		service.BackfillRunnerImpl(ctx),
-		service.OrgSettingsStorageImpl(ctx),
 	)
 
 	// Wrap the services in endpoints.

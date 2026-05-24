@@ -133,6 +133,7 @@ func (c *Client) GetB2bOrgSettings(ctx context.Context, p *GetB2bOrgSettingsPayl
 //   - "NotFound" (type *goa.ServiceError): Resource not found
 //   - "BadRequest" (type *goa.ServiceError): Bad request
 //   - "Conflict" (type *goa.ServiceError): Concurrent modification — retry with fresh settings
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error

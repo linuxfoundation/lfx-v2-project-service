@@ -118,7 +118,7 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 
 // BuildUpdateB2bOrgPayload builds the payload for the membership-service
 // update-b2b-org endpoint from CLI flags.
-func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membershipServiceUpdateB2bOrgUID string, membershipServiceUpdateB2bOrgVersion string, membershipServiceUpdateB2bOrgBearerToken string, membershipServiceUpdateB2bOrgIfMatch string, membershipServiceUpdateB2bOrgIfUnmodifiedSince string) (*membershipservice.UpdateB2bOrgPayload, error) {
+func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membershipServiceUpdateB2bOrgUID string, membershipServiceUpdateB2bOrgVersion string, membershipServiceUpdateB2bOrgBearerToken string, membershipServiceUpdateB2bOrgIfMatch string) (*membershipservice.UpdateB2bOrgPayload, error) {
 	var err error
 	var body UpdateB2bOrgRequestBody
 	{
@@ -159,12 +159,6 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 			ifMatch = &membershipServiceUpdateB2bOrgIfMatch
 		}
 	}
-	var ifUnmodifiedSince *string
-	{
-		if membershipServiceUpdateB2bOrgIfUnmodifiedSince != "" {
-			ifUnmodifiedSince = &membershipServiceUpdateB2bOrgIfUnmodifiedSince
-		}
-	}
 	v := &membershipservice.UpdateB2bOrgPayload{
 		Name:              body.Name,
 		Description:       body.Description,
@@ -181,7 +175,6 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.IfMatch = ifMatch
-	v.IfUnmodifiedSince = ifUnmodifiedSince
 
 	return v, nil
 }
@@ -226,7 +219,7 @@ func BuildGetB2bOrgSettingsPayload(membershipServiceGetB2bOrgSettingsUID string,
 
 // BuildUpdateB2bOrgSettingsPayload builds the payload for the
 // membership-service update-b2b-org-settings endpoint from CLI flags.
-func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody string, membershipServiceUpdateB2bOrgSettingsUID string, membershipServiceUpdateB2bOrgSettingsVersion string, membershipServiceUpdateB2bOrgSettingsBearerToken string) (*membershipservice.UpdateB2bOrgSettingsPayload, error) {
+func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody string, membershipServiceUpdateB2bOrgSettingsUID string, membershipServiceUpdateB2bOrgSettingsVersion string, membershipServiceUpdateB2bOrgSettingsBearerToken string, membershipServiceUpdateB2bOrgSettingsIfMatch string) (*membershipservice.UpdateB2bOrgSettingsPayload, error) {
 	var err error
 	var body UpdateB2bOrgSettingsRequestBody
 	{
@@ -278,6 +271,12 @@ func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody 
 			bearerToken = &membershipServiceUpdateB2bOrgSettingsBearerToken
 		}
 	}
+	var ifMatch *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsIfMatch != "" {
+			ifMatch = &membershipServiceUpdateB2bOrgSettingsIfMatch
+		}
+	}
 	v := &membershipservice.UpdateB2bOrgSettingsPayload{}
 	if body.Writers != nil {
 		v.Writers = make([]*membershipservice.OrgUser, len(body.Writers))
@@ -302,6 +301,7 @@ func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody 
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
 
 	return v, nil
 }
@@ -487,7 +487,7 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 
 // BuildUpdateKeyContactPayload builds the payload for the membership-service
 // update-key-contact endpoint from CLI flags.
-func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, membershipServiceUpdateKeyContactMembershipUID string, membershipServiceUpdateKeyContactUID string, membershipServiceUpdateKeyContactVersion string, membershipServiceUpdateKeyContactBearerToken string, membershipServiceUpdateKeyContactIfMatch string, membershipServiceUpdateKeyContactIfUnmodifiedSince string) (*membershipservice.UpdateKeyContactPayload, error) {
+func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, membershipServiceUpdateKeyContactMembershipUID string, membershipServiceUpdateKeyContactUID string, membershipServiceUpdateKeyContactVersion string, membershipServiceUpdateKeyContactBearerToken string, membershipServiceUpdateKeyContactIfMatch string) (*membershipservice.UpdateKeyContactPayload, error) {
 	var err error
 	var body UpdateKeyContactRequestBody
 	{
@@ -552,12 +552,6 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 			ifMatch = &membershipServiceUpdateKeyContactIfMatch
 		}
 	}
-	var ifUnmodifiedSince *string
-	{
-		if membershipServiceUpdateKeyContactIfUnmodifiedSince != "" {
-			ifUnmodifiedSince = &membershipServiceUpdateKeyContactIfUnmodifiedSince
-		}
-	}
 	v := &membershipservice.UpdateKeyContactPayload{
 		Email:          body.Email,
 		Role:           body.Role,
@@ -571,7 +565,6 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.IfMatch = ifMatch
-	v.IfUnmodifiedSince = ifUnmodifiedSince
 
 	return v, nil
 }
@@ -638,7 +631,7 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceAdminReindexBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
 		}
 	}
 	var version *string

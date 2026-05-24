@@ -286,6 +286,10 @@ type GetB2bOrgSettingsPayload struct {
 type GetB2bOrgSettingsResult struct {
 	// B2B organization access-control settings
 	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
 }
 
 // GetKeyContactPayload is the payload type of the membership-service service
@@ -468,8 +472,6 @@ type UpdateB2bOrgPayload struct {
 	UID string
 	// If-Match header value for conditional requests
 	IfMatch *string
-	// If-Unmodified-Since header value for conditional requests (HTTP date format)
-	IfUnmodifiedSince *string
 	// Organization name
 	Name *string
 	// Organization free-text description
@@ -513,6 +515,8 @@ type UpdateB2bOrgSettingsPayload struct {
 	Version *string
 	// B2B organization UID
 	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
 	// Complete replacement list for org writers. Nil = leave unchanged; [] =
 	// remove all.
 	Writers []*OrgUser
@@ -526,6 +530,10 @@ type UpdateB2bOrgSettingsPayload struct {
 type UpdateB2bOrgSettingsResult struct {
 	// Updated B2B organization access-control settings
 	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
 }
 
 // UpdateKeyContactPayload is the payload type of the membership-service
@@ -541,8 +549,6 @@ type UpdateKeyContactPayload struct {
 	UID string
 	// If-Match header value for conditional requests
 	IfMatch *string
-	// If-Unmodified-Since header value for conditional requests (HTTP date format)
-	IfUnmodifiedSince *string
 	// Contact email address; normalized to lowercase before update
 	Email *string
 	// Contact role designation

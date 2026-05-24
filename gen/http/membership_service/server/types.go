@@ -637,6 +637,25 @@ type UpdateB2bOrgSettingsConflictResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
+// UpdateB2bOrgSettingsPreconditionFailedResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type UpdateB2bOrgSettingsPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
 // UpdateB2bOrgSettingsInternalServerErrorResponseBody is the type of the
 // "membership-service" service "update-b2b-org-settings" endpoint HTTP
 // response body for the "InternalServerError" error.
@@ -2258,6 +2277,21 @@ func NewUpdateB2bOrgSettingsConflictResponseBody(res *goa.ServiceError) *UpdateB
 	return body
 }
 
+// NewUpdateB2bOrgSettingsPreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "update-b2b-org-settings" endpoint of
+// the "membership-service" service.
+func NewUpdateB2bOrgSettingsPreconditionFailedResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsPreconditionFailedResponseBody {
+	body := &UpdateB2bOrgSettingsPreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
 // NewUpdateB2bOrgSettingsInternalServerErrorResponseBody builds the HTTP
 // response body from the result of the "update-b2b-org-settings" endpoint of
 // the "membership-service" service.
@@ -2896,7 +2930,7 @@ func NewCreateB2bOrgPayload(body *CreateB2bOrgRequestBody, version *string, bear
 
 // NewUpdateB2bOrgPayload builds a membership-service service update-b2b-org
 // endpoint payload.
-func NewUpdateB2bOrgPayload(body *UpdateB2bOrgRequestBody, uid string, version *string, bearerToken *string, ifMatch *string, ifUnmodifiedSince *string) *membershipservice.UpdateB2bOrgPayload {
+func NewUpdateB2bOrgPayload(body *UpdateB2bOrgRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.UpdateB2bOrgPayload {
 	v := &membershipservice.UpdateB2bOrgPayload{
 		Name:              body.Name,
 		Description:       body.Description,
@@ -2913,7 +2947,6 @@ func NewUpdateB2bOrgPayload(body *UpdateB2bOrgRequestBody, uid string, version *
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.IfMatch = ifMatch
-	v.IfUnmodifiedSince = ifUnmodifiedSince
 
 	return v
 }
@@ -2931,7 +2964,7 @@ func NewGetB2bOrgSettingsPayload(uid string, version *string, bearerToken *strin
 
 // NewUpdateB2bOrgSettingsPayload builds a membership-service service
 // update-b2b-org-settings endpoint payload.
-func NewUpdateB2bOrgSettingsPayload(body *UpdateB2bOrgSettingsRequestBody, uid string, version *string, bearerToken *string) *membershipservice.UpdateB2bOrgSettingsPayload {
+func NewUpdateB2bOrgSettingsPayload(body *UpdateB2bOrgSettingsRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.UpdateB2bOrgSettingsPayload {
 	v := &membershipservice.UpdateB2bOrgSettingsPayload{}
 	if body.Writers != nil {
 		v.Writers = make([]*membershipservice.OrgUser, len(body.Writers))
@@ -2956,6 +2989,7 @@ func NewUpdateB2bOrgSettingsPayload(body *UpdateB2bOrgSettingsRequestBody, uid s
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
 
 	return v
 }
@@ -3009,7 +3043,7 @@ func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, membershipUID
 
 // NewUpdateKeyContactPayload builds a membership-service service
 // update-key-contact endpoint payload.
-func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, membershipUID string, uid string, version *string, bearerToken *string, ifMatch *string, ifUnmodifiedSince *string) *membershipservice.UpdateKeyContactPayload {
+func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, membershipUID string, uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.UpdateKeyContactPayload {
 	v := &membershipservice.UpdateKeyContactPayload{
 		Email:          body.Email,
 		Role:           body.Role,
@@ -3023,7 +3057,6 @@ func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.IfMatch = ifMatch
-	v.IfUnmodifiedSince = ifUnmodifiedSince
 
 	return v
 }

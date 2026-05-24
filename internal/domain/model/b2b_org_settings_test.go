@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOrgSettings_ActiveWriterUsernames(t *testing.T) {
+func TestB2BOrgSettings_ActiveWriterUsernames(t *testing.T) {
 	tests := []struct {
 		name     string
-		settings *OrgSettings
+		settings *B2BOrgSettings
 		want     []string
 	}{
 		{
 			name: "returns only accepted entries with username",
-			settings: &OrgSettings{
-				Writers: []OrgUser{
+			settings: &B2BOrgSettings{
+				Writers: []B2BOrgUser{
 					{Username: "alice", InviteStatus: InviteStatusAccepted},
 					{Email: "bob@example.com", InviteStatus: InviteStatusPending},
 					{Username: "carol", InviteStatus: InviteStatusRevoked},
@@ -29,8 +29,8 @@ func TestOrgSettings_ActiveWriterUsernames(t *testing.T) {
 		},
 		{
 			name: "accepted entry without username is skipped",
-			settings: &OrgSettings{
-				Writers: []OrgUser{
+			settings: &B2BOrgSettings{
+				Writers: []B2BOrgUser{
 					{Email: "nousername@example.com", InviteStatus: InviteStatusAccepted},
 				},
 			},
@@ -43,7 +43,7 @@ func TestOrgSettings_ActiveWriterUsernames(t *testing.T) {
 		},
 		{
 			name:     "empty writers returns nil",
-			settings: &OrgSettings{},
+			settings: &B2BOrgSettings{},
 			want:     nil,
 		},
 	}
@@ -56,16 +56,16 @@ func TestOrgSettings_ActiveWriterUsernames(t *testing.T) {
 	}
 }
 
-func TestOrgSettings_ActiveAuditorUsernames(t *testing.T) {
+func TestB2BOrgSettings_ActiveAuditorUsernames(t *testing.T) {
 	tests := []struct {
 		name     string
-		settings *OrgSettings
+		settings *B2BOrgSettings
 		want     []string
 	}{
 		{
 			name: "returns only accepted entries with username",
-			settings: &OrgSettings{
-				Auditors: []OrgUser{
+			settings: &B2BOrgSettings{
+				Auditors: []B2BOrgUser{
 					{Username: "viewer1", InviteStatus: InviteStatusAccepted},
 					{Username: "viewer2", InviteStatus: InviteStatusAccepted},
 					{Email: "pending@example.com", InviteStatus: InviteStatusPending},

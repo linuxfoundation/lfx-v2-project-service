@@ -19,9 +19,9 @@ import (
 
 const keyPrefixOrgSettings = "org-settings."
 
-// GetOrgSettings returns the settings for a b2b_org and the current KV revision.
+// GetSettings returns the settings for a b2b_org and the current KV revision.
 // Returns (nil, 0, nil) when no record exists yet.
-func (s *Storage) GetOrgSettings(ctx context.Context, orgUID string) (*model.OrgSettings, uint64, error) {
+func (s *Storage) GetSettings(ctx context.Context, orgUID string) (*model.B2BOrgSettings, uint64, error) {
 	if orgUID == "" {
 		return nil, 0, errs.NewValidation("orgUID cannot be empty")
 	}
@@ -39,7 +39,7 @@ func (s *Storage) GetOrgSettings(ctx context.Context, orgUID string) (*model.Org
 		return nil, 0, errs.NewUnexpected("failed to get org settings", err)
 	}
 
-	var settings model.OrgSettings
+	var settings model.B2BOrgSettings
 	if err := json.Unmarshal(entry.Value(), &settings); err != nil {
 		return nil, 0, errs.NewUnexpected("failed to unmarshal org settings", err)
 	}
@@ -47,14 +47,15 @@ func (s *Storage) GetOrgSettings(ctx context.Context, orgUID string) (*model.Org
 	return &settings, entry.Revision(), nil
 }
 
-// PutOrgSettings persists org settings. When revision > 0 uses optimistic-
-// locking (kv.Update); when revision == 0 uses kv.Put (unconditional create).
-func (s *Storage) PutOrgSettings(ctx context.Context, orgUID string, settings *model.OrgSettings, revision uint64) error {
-	if orgUID == "" {
-		return errs.NewValidation("orgUID cannot be empty")
-	}
+// UpdateSettings persists org settings. The org UID is carried in settings.UID.
+// When revision > 0 uses optimistic-locking (kv.Update); when revision == 0 uses
+// kv.Create (exclusive create — fails on concurrent first-write, returns Conflict).
+func (s *Storage) UpdateSettings(ctx context.Context, settings *model.B2BOrgSettings, revision uint64) error {
 	if settings == nil {
 		return errs.NewValidation("settings cannot be nil")
+	}
+	if settings.UID == "" {
+		return errs.NewValidation("settings.UID cannot be empty")
 	}
 
 	kv, ok := s.client.kvStore[constants.KVBucketNameOrgSettings]
@@ -67,7 +68,7 @@ func (s *Storage) PutOrgSettings(ctx context.Context, orgUID string, settings *m
 		return errs.NewUnexpected("failed to marshal org settings", err)
 	}
 
-	key := keyPrefixOrgSettings + orgUID
+	key := keyPrefixOrgSettings + settings.UID
 	if revision > 0 {
 		newRev, err := kv.Update(ctx, key, data, revision)
 		if err != nil {
@@ -77,12 +78,16 @@ func (s *Storage) PutOrgSettings(ctx context.Context, orgUID string, settings *m
 			return errs.NewConflict("org settings were modified concurrently, please retry")
 		}
 		slog.DebugContext(ctx, "updated org settings",
-			"org_uid", orgUID, "old_revision", revision, "new_revision", newRev)
+			"org_uid", settings.UID, "old_revision", revision, "new_revision", newRev)
 	} else {
-		if _, err := kv.Put(ctx, key, data); err != nil {
-			return errs.NewUnexpected("failed to put org settings", err)
+		newRev, err := kv.Create(ctx, key, data)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				return errs.NewConflict("org settings were created concurrently, please retry")
+			}
+			return errs.NewUnexpected("failed to create org settings", err)
 		}
-		slog.DebugContext(ctx, "created org settings", "org_uid", orgUID)
+		slog.DebugContext(ctx, "created org settings", "org_uid", settings.UID, "revision", newRev)
 	}
 
 	return nil

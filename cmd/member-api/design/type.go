@@ -456,7 +456,7 @@ var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 })
 
 // OrgUserType describes a single principal (writer or auditor) on a b2b_org
-// settings list. Mirrors CommitteeUserType in lfx-v2-committee-service.
+// settings list.
 // invite_status is returned on GET so callers can distinguish pending / accepted
 // / revoked entries, but is NOT required on PUT — the service derives it.
 // Deeper invite lifecycle fields (invite_uuid, invited_at/by, accepted_at,

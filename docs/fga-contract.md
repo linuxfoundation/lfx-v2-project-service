@@ -48,8 +48,12 @@ All messages use the generic FGA message format on the following NATS subjects:
 | `global_org_admin` | `"team:{globalOrgAdminTeamUID}"` | On create only, when `globalOrgAdminTeamUID` is non-empty |
 | `parent` | `"b2b_org:{ParentUID}"` | When `ParentUID` changes; empty clears the tuple |
 | `child` | `["b2b_org:{child_uid}", ...]` | Updated on old/new parent when `ParentUID` changes |
+| `writer` | `"user:{username}"` (one per accepted writer) | When org settings are updated with a non-nil writers field |
+| `auditor` | `"user:{username}"` (one per accepted auditor) | When org settings are updated with a non-nil auditors field |
 
-> `parent` and `child` relations are excluded from the standard `update_access` message via `ExcludeRelations` and are managed by separate reparenting messages.
+> `parent` and `child` relations are always excluded from `update_access` via `ExcludeRelations` and managed by separate reparenting messages.
+>
+> `writer` and `auditor` are excluded from `update_access` when the caller passes `nil` for that field (preserve existing tuples). When the caller passes an explicit slice (even empty), the full-sync runs and revokes any tuples not in the new list. Pending invites (entries without a resolved username) do not produce FGA tuples.
 
 ### Delete
 
@@ -79,6 +83,7 @@ The member service manages the `key_contact` relation on `project_membership` ob
 | Update B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Always sent |
 | Reparent B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Up to 3 messages: org's own `parent`, old parent's `child` list, new parent's `child` list |
 | Delete B2B org | `b2b_org` | `lfx.fga-sync.delete_access` | Always sent |
+| Update org settings | `b2b_org` | `lfx.fga-sync.update_access` | `writer`/`auditor` relations; nil param = preserve existing tuples, explicit (even `[]`) = replace |
 | Create key contact | `project_membership` | `lfx.fga-sync.member_put` | Only when contact has a resolved OIDC sub |
 | Update key contact (sub change) | `project_membership` | `lfx.fga-sync.member_remove` + `lfx.fga-sync.member_put` | Revokes old sub, grants new sub |
 | Delete key contact | `project_membership` | `lfx.fga-sync.member_remove` | Always sent when sub is known |

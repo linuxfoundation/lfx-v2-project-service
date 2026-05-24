@@ -455,10 +455,6 @@ func EncodeUpdateB2bOrgRequest(encoder func(*http.Request) goahttp.Encoder) func
 			head := *p.IfMatch
 			req.Header.Set("If-Match", head)
 		}
-		if p.IfUnmodifiedSince != nil {
-			head := *p.IfUnmodifiedSince
-			req.Header.Set("If-Unmodified-Since", head)
-		}
 		values := req.URL.Query()
 		if p.Version != nil {
 			values.Add("v", *p.Version)
@@ -704,7 +700,19 @@ func DecodeGetB2bOrgSettingsResponse(decoder func(*http.Response) goahttp.Decode
 			if err != nil {
 				return nil, goahttp.ErrValidationError("membership-service", "get-b2b-org-settings", err)
 			}
-			res := NewGetB2bOrgSettingsResultOK(&body)
+			var (
+				etag         *string
+				lastModified *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			lastModifiedRaw := resp.Header.Get("Last-Modified")
+			if lastModifiedRaw != "" {
+				lastModified = &lastModifiedRaw
+			}
+			res := NewGetB2bOrgSettingsResultOK(&body, etag, lastModified)
 			return res, nil
 		case http.StatusNotFound:
 			var (
@@ -811,6 +819,10 @@ func EncodeUpdateB2bOrgSettingsRequest(encoder func(*http.Request) goahttp.Encod
 				req.Header.Set("Authorization", head)
 			}
 		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
 		values := req.URL.Query()
 		if p.Version != nil {
 			values.Add("v", *p.Version)
@@ -831,6 +843,7 @@ func EncodeUpdateB2bOrgSettingsRequest(encoder func(*http.Request) goahttp.Encod
 //   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
 //   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
 //   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
 //   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
 //   - error: internal error
@@ -862,7 +875,19 @@ func DecodeUpdateB2bOrgSettingsResponse(decoder func(*http.Response) goahttp.Dec
 			if err != nil {
 				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
 			}
-			res := NewUpdateB2bOrgSettingsResultOK(&body)
+			var (
+				etag         *string
+				lastModified *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			lastModifiedRaw := resp.Header.Get("Last-Modified")
+			if lastModifiedRaw != "" {
+				lastModified = &lastModifiedRaw
+			}
+			res := NewUpdateB2bOrgSettingsResultOK(&body, etag, lastModified)
 			return res, nil
 		case http.StatusNotFound:
 			var (
@@ -906,6 +931,20 @@ func DecodeUpdateB2bOrgSettingsResponse(decoder func(*http.Response) goahttp.Dec
 				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
 			}
 			return nil, NewUpdateB2bOrgSettingsConflict(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body UpdateB2bOrgSettingsPreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-settings", err)
+			}
+			err = ValidateUpdateB2bOrgSettingsPreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-settings", err)
+			}
+			return nil, NewUpdateB2bOrgSettingsPreconditionFailed(&body)
 		case http.StatusInternalServerError:
 			var (
 				body UpdateB2bOrgSettingsInternalServerErrorResponseBody
@@ -1609,10 +1648,6 @@ func EncodeUpdateKeyContactRequest(encoder func(*http.Request) goahttp.Encoder) 
 		if p.IfMatch != nil {
 			head := *p.IfMatch
 			req.Header.Set("If-Match", head)
-		}
-		if p.IfUnmodifiedSince != nil {
-			head := *p.IfUnmodifiedSince
-			req.Header.Set("If-Unmodified-Since", head)
 		}
 		values := req.URL.Query()
 		if p.Version != nil {

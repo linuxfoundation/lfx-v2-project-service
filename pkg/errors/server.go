@@ -86,3 +86,12 @@ func NewPreconditionFailed(message string, err ...error) PreconditionFailed {
 		},
 	}
 }
+
+// IsPreconditionFailed reports whether err is a PreconditionFailed error.
+func IsPreconditionFailed(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pf PreconditionFailed
+	return errors.As(err, &pf)
+}
