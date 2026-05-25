@@ -701,7 +701,7 @@ func orgUserToResponse(u model.B2BOrgUser) *membershipservice.OrgUser {
 	if u.Username != "" {
 		out.Username = &u.Username
 	}
-	status := string(u.InviteStatus)
+	status := string(u.EffectiveStatus())
 	out.InviteStatus = &status
 	return out
 }

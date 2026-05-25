@@ -103,7 +103,7 @@ func (s *B2BOrgSettings) FulltextTokens() []string {
 	var tokens []string
 	for _, users := range [][]B2BOrgUser{s.Writers, s.Auditors} {
 		for _, u := range users {
-			switch u.effectiveStatus() {
+			switch u.EffectiveStatus() {
 			case InviteStatusAccepted:
 				if u.Name != "" {
 					tokens = append(tokens, u.Name)
@@ -134,27 +134,27 @@ func (s *B2BOrgSettings) Tags() []string {
 	}
 	var tags []string
 	for _, u := range s.Writers {
-		if u.effectiveStatus() == InviteStatusAccepted {
+		if u.EffectiveStatus() == InviteStatusAccepted {
 			tags = append(tags, "has_writers")
 			break
 		}
 	}
 	for _, u := range s.Auditors {
-		if u.effectiveStatus() == InviteStatusAccepted {
+		if u.EffectiveStatus() == InviteStatusAccepted {
 			tags = append(tags, "has_auditors")
 			break
 		}
 	}
 	hasPending := false
 	for _, u := range s.Writers {
-		if u.effectiveStatus() == InviteStatusPending {
+		if u.EffectiveStatus() == InviteStatusPending {
 			hasPending = true
 			break
 		}
 	}
 	if !hasPending {
 		for _, u := range s.Auditors {
-			if u.effectiveStatus() == InviteStatusPending {
+			if u.EffectiveStatus() == InviteStatusPending {
 				hasPending = true
 				break
 			}
@@ -166,10 +166,10 @@ func (s *B2BOrgSettings) Tags() []string {
 	return tags
 }
 
-// effectiveStatus returns the entry's explicit status, or derives it from
+// EffectiveStatus returns the entry's explicit status, or derives it from
 // Username when the field is absent (legacy/admin backfill records that
 // bypassed the invite flow but were written before InviteStatus was tracked).
-func (u B2BOrgUser) effectiveStatus() InviteStatus {
+func (u B2BOrgUser) EffectiveStatus() InviteStatus {
 	if u.InviteStatus != "" {
 		return u.InviteStatus
 	}
@@ -183,7 +183,7 @@ func (u B2BOrgUser) effectiveStatus() InviteStatus {
 func activeUsernames(users []B2BOrgUser) []string {
 	var out []string
 	for _, u := range users {
-		if u.effectiveStatus() == InviteStatusAccepted && u.Username != "" {
+		if u.EffectiveStatus() == InviteStatusAccepted && u.Username != "" {
 			out = append(out, u.Username)
 		}
 	}
