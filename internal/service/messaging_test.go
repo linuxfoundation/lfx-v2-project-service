@@ -4,11 +4,15 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -352,4 +356,131 @@ func TestBuildProjectMembershipFGAMessage_MissingParents(t *testing.T) {
 	require.True(t, ok)
 	assert.Empty(t, data.References)
 	assert.Contains(t, data.ExcludeRelations, "key_contact")
+}
+
+// ── BuildB2BOrgSettingsIndexingConfig ────────────────────────────────────────
+
+var testB2BOrgWithParent = &model.B2BOrg{
+	UID:           "org-uid-001",
+	Name:          "Acme Corp",
+	PrimaryDomain: "acme.com",
+	DomainAliases: []string{"acmecorp.com"},
+	ParentUID:     "parent-org-uid-001",
+}
+
+func TestBuildB2BOrgSettingsIndexingConfig_CoreFields(t *testing.T) {
+	settings := &model.B2BOrgSettings{UID: "org-uid-001"}
+	cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, settings)
+
+	require.NotNil(t, cfg)
+	require.NotNil(t, cfg.Public, "Public must be set explicitly")
+	assert.False(t, *cfg.Public, "settings doc must never be public")
+	assert.Equal(t, "org-uid-001", cfg.ObjectID)
+	assert.Equal(t, "b2b_org:org-uid-001", cfg.AccessCheckObject)
+	assert.Equal(t, fgaconstants.RelationAuditor, cfg.AccessCheckRelation)
+	assert.Equal(t, "b2b_org:org-uid-001", cfg.HistoryCheckObject)
+	assert.Equal(t, fgaconstants.RelationWriter, cfg.HistoryCheckRelation, "history = write-side concern")
+	assert.Equal(t, "acme corp", cfg.SortName)
+}
+
+func TestBuildB2BOrgSettingsIndexingConfig_NameAndAliases(t *testing.T) {
+	settings := &model.B2BOrgSettings{UID: "org-uid-001"}
+	cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, settings)
+
+	assert.Equal(t,
+		[]string{"Acme Corp", "acme.com", "acmecorp.com"},
+		cfg.NameAndAliases,
+		"NameAndAliases must include org name + domains for domain-typeahead even with empty writers",
+	)
+}
+
+func TestBuildB2BOrgSettingsIndexingConfig_ParentRefs(t *testing.T) {
+	settings := &model.B2BOrgSettings{UID: "org-uid-001"}
+	cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, settings)
+
+	assert.Equal(t,
+		[]string{"b2b_org:org-uid-001", "b2b_org:parent-org-uid-001"},
+		cfg.ParentRefs,
+	)
+}
+
+func TestBuildB2BOrgSettingsIndexingConfig_ParentRefs_NoParent(t *testing.T) {
+	org := &model.B2BOrg{UID: "root-org", Name: "Root Org"}
+	settings := &model.B2BOrgSettings{UID: "root-org"}
+	cfg := BuildB2BOrgSettingsIndexingConfig(org, settings)
+
+	assert.Equal(t, []string{"b2b_org:root-org"}, cfg.ParentRefs)
+}
+
+func TestBuildB2BOrgSettingsIndexingConfig_Fulltext_AcceptedAndPending(t *testing.T) {
+	settings := &model.B2BOrgSettings{
+		UID: "org-uid-001",
+		Writers: []model.B2BOrgUser{
+			{Name: "Alice Smith", Email: "alice@acme.com", InviteStatus: model.InviteStatusAccepted},
+			{Email: "pending@acme.com", InviteStatus: model.InviteStatusPending},
+		},
+		Auditors: []model.B2BOrgUser{
+			{Name: "Bob Jones", Email: "bob@acme.com", InviteStatus: model.InviteStatusAccepted},
+		},
+	}
+	cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, settings)
+
+	assert.Contains(t, cfg.Fulltext, "Alice Smith")
+	assert.Contains(t, cfg.Fulltext, "alice@acme.com")
+	assert.Contains(t, cfg.Fulltext, "pending@acme.com")
+	assert.Contains(t, cfg.Fulltext, "Bob Jones")
+	assert.Contains(t, cfg.Fulltext, "bob@acme.com")
+}
+
+func TestBuildB2BOrgSettingsIndexingConfig_Fulltext_ExcludesRevokedExpired(t *testing.T) {
+	settings := &model.B2BOrgSettings{
+		UID: "org-uid-001",
+		Writers: []model.B2BOrgUser{
+			{Name: "Revoked User", Email: "revoked@acme.com", InviteStatus: model.InviteStatusRevoked},
+			{Name: "Expired User", Email: "expired@acme.com", InviteStatus: model.InviteStatusExpired},
+		},
+	}
+	cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, settings)
+
+	assert.NotContains(t, cfg.Fulltext, "revoked@acme.com", "revoked entries must not appear in fulltext")
+	assert.NotContains(t, cfg.Fulltext, "expired@acme.com", "expired entries must not appear in fulltext")
+}
+
+func TestBuildB2BOrgSettingsIndexingConfig_Tags(t *testing.T) {
+	settings := &model.B2BOrgSettings{
+		UID: "org-uid-001",
+		Writers: []model.B2BOrgUser{
+			{InviteStatus: model.InviteStatusAccepted, Username: "alice"},
+		},
+		Auditors: []model.B2BOrgUser{
+			{Email: "pending@acme.com", InviteStatus: model.InviteStatusPending},
+		},
+	}
+	cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, settings)
+
+	assert.Contains(t, cfg.Tags, "has_writers")
+	assert.NotContains(t, cfg.Tags, "has_auditors", "no accepted auditor")
+	assert.Contains(t, cfg.Tags, "has_pending_invites")
+}
+
+// ── PublishB2BOrgSettingsIndexer ─────────────────────────────────────────────
+
+func TestPublishB2BOrgSettingsIndexer_PublishesToCorrectSubject(t *testing.T) {
+	pub := mock.NewMockMemberPublisher()
+	org := &model.B2BOrg{UID: "org-uid-pub-001", Name: "Pub Org"}
+	settings := &model.B2BOrgSettings{UID: "org-uid-pub-001"}
+
+	PublishB2BOrgSettingsIndexer(context.Background(), pub, org, settings, indexerConstants.ActionCreated)
+
+	assert.Equal(t, constants.IndexB2BOrgSettingsSubject, pub.LastIndexSubject)
+}
+
+func TestPublishB2BOrgSettingsIndexer_PublishError_Swallowed(t *testing.T) {
+	pub := mock.NewMockMemberPublisher()
+	pub.SetIndexerError(assert.AnError)
+	org := &model.B2BOrg{UID: "org-uid-pub-002", Name: "Pub Org 2"}
+	settings := &model.B2BOrgSettings{UID: "org-uid-pub-002"}
+
+	// Must not panic or return an error — fire-and-forget.
+	PublishB2BOrgSettingsIndexer(context.Background(), pub, org, settings, indexerConstants.ActionUpdated)
 }

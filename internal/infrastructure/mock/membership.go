@@ -367,9 +367,13 @@ func (m *MockB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2B
 // local development when MESSAGING_SOURCE=mock. All messages are logged but
 // not published to NATS.
 type MockMemberPublisher struct {
-	mu             sync.Mutex
-	accessErr      error
-	LastAccessData any // last payload passed to Access; nil if never called
+	mu                 sync.Mutex
+	accessErr          error
+	indexerErr         error
+	LastAccessData     any      // last payload passed to Access; nil if never called
+	LastIndexSubject   string   // last subject passed to Indexer; empty if never called
+	LastIndexerPayload any      // last message payload passed to Indexer; nil if never called
+	CallOrder          []string // "access" or "indexer" in call order, for ordering assertions
 }
 
 // NewMockMemberPublisher creates a new MockMemberPublisher.
@@ -384,18 +388,36 @@ func (m *MockMemberPublisher) SetAccessError(err error) {
 	m.accessErr = err
 }
 
-// Indexer logs the message and returns nil.
-func (m *MockMemberPublisher) Indexer(ctx context.Context, subject string, _ any, _ bool) error {
+// SetIndexerError configures the mock to return err on the next Indexer call.
+func (m *MockMemberPublisher) SetIndexerError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.indexerErr = err
+}
+
+// Indexer logs the message, captures the subject, records call order, and returns the configured error (if any).
+func (m *MockMemberPublisher) Indexer(ctx context.Context, subject string, msg any, _ bool) error {
 	slog.DebugContext(ctx, "mock: indexer publish (no-op)", "subject", subject)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.LastIndexSubject = subject
+	m.LastIndexerPayload = msg
+	m.CallOrder = append(m.CallOrder, "indexer")
+	if m.indexerErr != nil {
+		err := m.indexerErr
+		m.indexerErr = nil
+		return err
+	}
 	return nil
 }
 
-// Access logs the message, captures the payload, and returns the configured error (if any).
+// Access logs the message, captures the payload, records call order, and returns the configured error (if any).
 func (m *MockMemberPublisher) Access(ctx context.Context, subject string, msg any, _ bool) error {
 	slog.DebugContext(ctx, "mock: access publish (no-op)", "subject", subject)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.LastAccessData = msg
+	m.CallOrder = append(m.CallOrder, "access")
 	if m.accessErr != nil {
 		err := m.accessErr
 		m.accessErr = nil

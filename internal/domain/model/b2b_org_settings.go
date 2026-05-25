@@ -93,11 +93,97 @@ func (s *B2BOrgSettings) ActiveAuditorUsernames() []string {
 	return activeUsernames(s.Auditors)
 }
 
+// FulltextTokens returns the name+email tokens to index for member-identity search.
+// Includes accepted entries (Name + Email) and pending entries (Email + Name-if-present).
+// Excludes revoked and expired — they carry no active access and would mislead search results.
+func (s *B2BOrgSettings) FulltextTokens() []string {
+	if s == nil {
+		return nil
+	}
+	var tokens []string
+	for _, users := range [][]B2BOrgUser{s.Writers, s.Auditors} {
+		for _, u := range users {
+			switch u.effectiveStatus() {
+			case InviteStatusAccepted:
+				if u.Name != "" {
+					tokens = append(tokens, u.Name)
+				}
+				if u.Email != "" {
+					tokens = append(tokens, u.Email)
+				}
+			case InviteStatusPending:
+				if u.Email != "" {
+					tokens = append(tokens, u.Email)
+				}
+				if u.Name != "" {
+					tokens = append(tokens, u.Name)
+				}
+			}
+		}
+	}
+	return tokens
+}
+
+// Tags returns the discrete tag flags for the settings indexer doc.
+// has_writers: ≥1 accepted writer; has_auditors: ≥1 accepted auditor;
+// has_pending_invites: ≥1 pending entry across writers or auditors.
+// Revoked and expired entries do not trigger any flag.
+func (s *B2BOrgSettings) Tags() []string {
+	if s == nil {
+		return nil
+	}
+	var tags []string
+	for _, u := range s.Writers {
+		if u.effectiveStatus() == InviteStatusAccepted {
+			tags = append(tags, "has_writers")
+			break
+		}
+	}
+	for _, u := range s.Auditors {
+		if u.effectiveStatus() == InviteStatusAccepted {
+			tags = append(tags, "has_auditors")
+			break
+		}
+	}
+	hasPending := false
+	for _, u := range s.Writers {
+		if u.effectiveStatus() == InviteStatusPending {
+			hasPending = true
+			break
+		}
+	}
+	if !hasPending {
+		for _, u := range s.Auditors {
+			if u.effectiveStatus() == InviteStatusPending {
+				hasPending = true
+				break
+			}
+		}
+	}
+	if hasPending {
+		tags = append(tags, "has_pending_invites")
+	}
+	return tags
+}
+
+// effectiveStatus returns the entry's explicit status, or derives it from
+// Username when the field is absent (legacy/admin backfill records that
+// bypassed the invite flow but were written before InviteStatus was tracked).
+func (u B2BOrgUser) effectiveStatus() InviteStatus {
+	if u.InviteStatus != "" {
+		return u.InviteStatus
+	}
+	if u.Username != "" {
+		return InviteStatusAccepted
+	}
+	return InviteStatusPending
+}
+
 // activeUsernames filters a slice to accepted entries with a non-empty username.
 func activeUsernames(users []B2BOrgUser) []string {
 	var out []string
 	for _, u := range users {
-		if u.InviteStatus == InviteStatusAccepted && u.Username != "" {
+		if u.effectiveStatus() == InviteStatusAccepted && u.Username != "" {
 			out = append(out, u.Username)
 		}
 	}
