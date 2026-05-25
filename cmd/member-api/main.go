@@ -107,7 +107,6 @@ func main() {
 	membershipServiceSvc := service.NewMembershipService(
 		service.JWTAuthImpl(ctx),
 		service.MemberReaderImpl(ctx),
-		service.MemberReaderUseCase(ctx),
 		service.B2BOrgReaderImpl(ctx),
 		service.ProjectMembershipReaderImpl(ctx),
 		service.B2BOrgSettingsReaderImpl(ctx),

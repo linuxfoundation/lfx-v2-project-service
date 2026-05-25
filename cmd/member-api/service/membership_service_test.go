@@ -93,7 +93,6 @@ var sampleB2BOrg = &model.B2BOrg{
 type svcBuilder struct {
 	auth         domain.Authenticator
 	storage      port.MemberReader
-	memberReader usecaseSvc.MemberReader
 	b2bOrgReader port.B2BOrgReader
 	pmReader     port.ProjectMembershipReader
 	settingsR    port.B2BOrgSettingsReader
@@ -137,7 +136,6 @@ func newTestSvc(opts ...svcOpt) membershipservice.Service {
 	b := &svcBuilder{
 		auth:         &auth.MockJWTAuth{},
 		storage:      mockRepo,
-		memberReader: usecaseSvc.NewMemberReaderOrchestrator(usecaseSvc.WithMemberReader(mockRepo)),
 		b2bOrgReader: mock.NewMockB2BOrgReader(),
 		pmReader:     mock.NewMockProjectMembershipReader(),
 		settingsR:    mock.NewMockB2BOrgSettings(),
@@ -148,7 +146,7 @@ func newTestSvc(opts ...svcOpt) membershipservice.Service {
 	for _, o := range opts {
 		o(b)
 	}
-	return NewMembershipService(b.auth, b.storage, b.memberReader, b.b2bOrgReader,
+	return NewMembershipService(b.auth, b.storage, b.b2bOrgReader,
 		b.pmReader, b.settingsR, b.b2bOrgWriter, b.kcWriter, b.settingsW, b.runner)
 }
 

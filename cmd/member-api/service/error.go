@@ -54,5 +54,5 @@ func wrapError(ctx context.Context, err error) error {
 	}
 
 	slog.ErrorContext(ctx, "request failed", "error", err)
-	return membershipservice.MakeInternalServerError(err)
+	return membershipservice.MakeInternalServerError(errors.New("internal service error"))
 }

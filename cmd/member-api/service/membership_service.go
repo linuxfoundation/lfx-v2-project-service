@@ -26,16 +26,15 @@ import (
 
 // membershipServicesrvc implements the generated membershipservice.Service interface.
 type membershipServicesrvc struct {
-	memberReaderOrchestrator usecaseSvc.MemberReader
-	storage                  port.MemberReader
-	auth                     domain.Authenticator
-	b2bOrgReader             port.B2BOrgReader
-	projectMembershipReader  port.ProjectMembershipReader
-	b2bOrgSettingsReader     port.B2BOrgSettingsReader
-	b2bOrgWriter             usecaseSvc.B2BOrgWriter
-	keyContactWriter         usecaseSvc.KeyContactWriter
-	orgSettingsWriter        usecaseSvc.OrgSettingsWriter
-	backfillRunner           *usecaseSvc.Runner
+	storage                 port.MemberReader
+	auth                    domain.Authenticator
+	b2bOrgReader            port.B2BOrgReader
+	projectMembershipReader port.ProjectMembershipReader
+	b2bOrgSettingsReader    port.B2BOrgSettingsReader
+	b2bOrgWriter            usecaseSvc.B2BOrgWriter
+	keyContactWriter        usecaseSvc.KeyContactWriter
+	orgSettingsWriter       usecaseSvc.OrgSettingsWriter
+	backfillRunner          *usecaseSvc.Runner
 }
 
 // JWTAuth implements the authorization logic for service "membership-service".
@@ -346,6 +345,13 @@ func (s *membershipServicesrvc) AdminReindex(ctx context.Context, p *memberships
 		slog.WarnContext(ctx, "backfill runner not initialised — reindex skipped", "run_id", runID)
 		return &membershipservice.AdminReindexResult{RunID: runID}, nil
 	}
+	// Fire-and-forget: the backfill runs independently of the HTTP request lifetime.
+	// context.WithoutCancel prevents HTTP cancellation from killing a running page, but
+	// the goroutine is not registered on the server's shutdown WaitGroup — a SIGTERM
+	// during a large reindex will interrupt the run mid-flight (partial index, no error
+	// logged). Accepted trade-off: /admin/reindex is a manual recovery tool and the
+	// backfill can be re-triggered; graceful-shutdown integration is tracked as a
+	// follow-up.
 	go s.backfillRunner.Run(context.WithoutCancel(ctx), req)
 
 	return &membershipservice.AdminReindexResult{RunID: runID}, nil
@@ -737,7 +743,6 @@ func orgUsersFromPayload(users []*membershipservice.OrgUser, now time.Time) []mo
 func NewMembershipService(
 	auth domain.Authenticator,
 	storage port.MemberReader,
-	memberReader usecaseSvc.MemberReader,
 	b2bOrgReader port.B2BOrgReader,
 	projectMshipR port.ProjectMembershipReader,
 	b2bOrgSettingsReader port.B2BOrgSettingsReader,
@@ -747,15 +752,14 @@ func NewMembershipService(
 	backfillRunner *usecaseSvc.Runner,
 ) membershipservice.Service {
 	return &membershipServicesrvc{
-		memberReaderOrchestrator: memberReader,
-		storage:                  storage,
-		auth:                     auth,
-		b2bOrgReader:             b2bOrgReader,
-		projectMembershipReader:  projectMshipR,
-		b2bOrgSettingsReader:     b2bOrgSettingsReader,
-		b2bOrgWriter:             b2bOrgWriter,
-		keyContactWriter:         keyContactWriter,
-		orgSettingsWriter:        orgSettingsWriter,
-		backfillRunner:           backfillRunner,
+		storage:                 storage,
+		auth:                    auth,
+		b2bOrgReader:            b2bOrgReader,
+		projectMembershipReader: projectMshipR,
+		b2bOrgSettingsReader:    b2bOrgSettingsReader,
+		b2bOrgWriter:            b2bOrgWriter,
+		keyContactWriter:        keyContactWriter,
+		orgSettingsWriter:       orgSettingsWriter,
+		backfillRunner:          backfillRunner,
 	}
 }
