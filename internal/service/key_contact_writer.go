@@ -188,17 +188,19 @@ func (o *keyContactWriterOrchestrator) Update(ctx context.Context, in KeyContact
 	emailChanging := in.Email != nil && !strings.EqualFold(*in.Email, current.Email)
 
 	input := model.KeyContactInput{
-		Email:             in.Email,
-		FirstName:         derefOrStr(in.FirstName, current.FirstName),
-		LastName:          derefOrStr(in.LastName, current.LastName),
-		Title:             derefPtrStr(in.Title),
-		Role:              in.Role,
-		Status:            in.Status,
-		BoardMember:       in.BoardMember,
-		PrimaryContact:    in.PrimaryContact,
-		MembershipUID:     in.MembershipUID,
-		AccountSFID:       current.B2BOrgUID,
-		IfUnmodifiedSince: current.UpdatedAt.UTC().Format(constants.HTTPDateFormat),
+		Email:          in.Email,
+		FirstName:      derefOrStr(in.FirstName, current.FirstName),
+		LastName:       derefOrStr(in.LastName, current.LastName),
+		Title:          derefPtrStr(in.Title),
+		Role:           in.Role,
+		Status:         in.Status,
+		BoardMember:    in.BoardMember,
+		PrimaryContact: in.PrimaryContact,
+		MembershipUID:  in.MembershipUID,
+		AccountSFID:    current.B2BOrgUID,
+	}
+	if in.IfMatch != "" {
+		input.IfUnmodifiedSince = current.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
 	}
 
 	newKC, err := o.keyContactWriter.UpdateKeyContact(ctx, in.UID, input)

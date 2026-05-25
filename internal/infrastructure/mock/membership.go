@@ -367,6 +367,7 @@ func (m *MockB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2B
 // local development when MESSAGING_SOURCE=mock. All messages are logged but
 // not published to NATS.
 type MockMemberPublisher struct {
+	mu             sync.Mutex
 	accessErr      error
 	LastAccessData any // last payload passed to Access; nil if never called
 }
@@ -378,6 +379,8 @@ func NewMockMemberPublisher() *MockMemberPublisher {
 
 // SetAccessError configures the mock to return err on the next Access call.
 func (m *MockMemberPublisher) SetAccessError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.accessErr = err
 }
 
@@ -390,6 +393,8 @@ func (m *MockMemberPublisher) Indexer(ctx context.Context, subject string, _ any
 // Access logs the message, captures the payload, and returns the configured error (if any).
 func (m *MockMemberPublisher) Access(ctx context.Context, subject string, msg any, _ bool) error {
 	slog.DebugContext(ctx, "mock: access publish (no-op)", "subject", subject)
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.LastAccessData = msg
 	if m.accessErr != nil {
 		err := m.accessErr
