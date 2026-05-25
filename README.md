@@ -46,9 +46,10 @@ Key-Value cache to minimise round-trips.
   (writers/auditors), and an admin reindex endpoint.
 - **Salesforce-backed**: All membership data is fetched directly from Salesforce
   via SOQL queries; no PostgreSQL dependency at runtime.
-- **NATS KV cache**: Two buckets — `membership-cache` for Salesforce-backed
-  records (6 h stale / 23 h expire / 24 h TTL) and `org-settings` for
-  authoritative org access-control settings (no TTL, optimistic locking).
+- **NATS KV cache**: Three buckets — `membership-cache` for Salesforce-backed
+  records (6 h stale / 23 h expire / 24 h TTL); `member-service-cache` for
+  Salesforce sObject REST responses (raw JSON, no soft-TTL); and `org-settings`
+  for authoritative org access-control settings (no TTL, optimistic locking).
 - **Project ID resolution**: The `ProjectResolver` translates v2 project UIDs to
   Salesforce `Project__c.Id` values by chaining a NATS RPC to the project-service
   and a SOQL lookup, backed by the same KV cache.

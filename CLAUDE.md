@@ -277,11 +277,15 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 
 ## NATS Storage
 
-The service uses two NATS KV buckets.
+The service uses three NATS KV buckets.
 
 ### `org-settings` Bucket
 
-Stores b2b_org access-control principals (writers, auditors, pending invites). **Authoritative state** — no MaxAge TTL, no soft-TTL envelopes. Key pattern: `org-settings.{orgUID}` → raw JSON `model.OrgSettings`. Optimistic locking via KV revision on every PUT.
+Stores b2b_org access-control principals (writers, auditors, pending invites). **Authoritative state** — no MaxAge TTL, no soft-TTL envelopes. Key pattern: `org-settings.{orgUID}` → raw JSON `model.B2BOrgSettings`. Optimistic locking via KV revision on every PUT.
+
+### `member-service-cache` Bucket
+
+Stores raw Salesforce sObject REST responses as `SObjectCacheEntry` JSON envelopes (no soft-TTL wrappers). Used for B2B org lookups and other sObject fetches that bypass the SOQL path.
 
 ### `membership-cache` Bucket
 
