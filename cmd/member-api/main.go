@@ -104,6 +104,20 @@ func main() {
 		}()
 	}
 
+	// Register the b2b-org-id-map NATS RPC handler so external services can
+	// resolve Salesforce Account SFIDs to v2 b2b_org UUIDs. The resolver is
+	// pure CPU (no Salesforce/NATS deps) and is always available.
+	b2bOrgIDMapSub, err := natsinf.SubscribeB2BOrgIDMap(natsClient.Conn(), service.B2BOrgResolverImpl(ctx))
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to subscribe to b2b-org-id-map RPC", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if drainErr := b2bOrgIDMapSub.Drain(); drainErr != nil {
+			slog.WarnContext(ctx, "error draining b2b-org-id-map subscription", "error", drainErr)
+		}
+	}()
+
 	membershipServiceSvc := service.NewMembershipService(
 		service.JWTAuthImpl(ctx),
 		service.MemberReaderImpl(ctx),

@@ -56,6 +56,7 @@ internal/
 │   │   ├── client.go        # NATSClient with KV bucket initialisation
 │   │   ├── config.go        # NATS configuration
 │   │   ├── project_id_map_handler.go  # RPC handler for lfx.member.project-id-map.lookup
+│   │   ├── b2b_org_id_map_handler.go  # RPC handler for lfx.member.b2b-org-id-map.lookup
 │   │   ├── project_rpc.go   # NATS RPC calls to the project-service
 │   │   └── storage.go       # KV cache Get/Put helpers for each record type
 │   ├── project/             # ProjectResolver implementation
@@ -359,32 +360,39 @@ UIDFromSlug(ctx, slug)
 
 `NewProjectResolver` in `internal/infrastructure/project/resolver.go` wires together `*nats.ProjectRPC`, `*salesforce.ProjectRepo`, and `*nats.Storage`. The resolver is constructed in `cmd/member-api/service/providers.go` and passed to `salesforce.NewMemberReader`.
 
-## NATS RPC Endpoint
+## NATS RPC Endpoints
 
-The service also **handles** inbound NATS requests from other services via the subject `lfx.member.project-id-map.lookup` (implemented in `internal/infrastructure/nats/project_id_map_handler.go`).
+The service handles two inbound NATS request/reply subjects that allow other services to resolve identifiers without depending on Salesforce or this service's HTTP layer.
+
+### Project ID Map Lookup (`lfx.member.project-id-map.lookup`)
+
+Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolution chains: KV cache → project-service NATS RPC (get slug) → Salesforce SOQL.
 
 | Field | Value |
 |-------|-------|
 | **Subject** | `lfx.member.project-id-map.lookup` |
 | **Transport** | NATS core request/reply |
 
-**Request body (JSON):**
+**Request:** `{"project_uid": "<v2 project UUID>"}`
 
-```json
-{"project_uid": "<v2 project UUID>"}
-```
+**Response — success:** `{"project_sfid": "<Salesforce Project__c.Id>"}`
 
-**Response — success:**
+**Response — error:** `{"error": "<human-readable message>"}`
 
-```json
-{"project_sfid": "<Salesforce Project__c.Id>"}
-```
+### B2B Org ID Map Lookup (`lfx.member.b2b-org-id-map.lookup`)
 
-**Response — not found or error:**
+Implemented in `internal/infrastructure/nats/b2b_org_id_map_handler.go`. Resolution is **pure CPU** via `pkg/sfuuid.ToUUID()` — no KV or Salesforce round-trip required.
 
-```json
-{"error": "<human-readable message>"}
-```
+| Field | Value |
+|-------|-------|
+| **Subject** | `lfx.member.b2b-org-id-map.lookup` |
+| **Transport** | NATS core request/reply |
+
+**Request:** `{"b2b_org_sfid": "<Salesforce Account.Id>"}`
+
+**Response — success:** `{"b2b_org_uid": "<v2 b2b_org UUID>"}`
+
+**Response — error:** `{"error": "<human-readable message>"}` (`"b2b_org_sfid is required"`, `"b2b org not found"`, `"invalid request body"`)
 
 The reply is always valid JSON. Callers should check for the `"error"` key to detect failure.
 

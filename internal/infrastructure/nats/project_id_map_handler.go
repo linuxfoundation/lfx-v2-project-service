@@ -40,35 +40,29 @@ type projectIDMapResponse struct {
 //
 // The returned *nats.Subscription can be used to drain or unsubscribe on
 // shutdown. A non-nil error means the subscription could not be established.
+// processProjectIDMapRequest decodes a raw request body and calls the resolver,
+// returning the response value to be marshalled. Extracted for testability.
+func processProjectIDMapRequest(ctx context.Context, data []byte, resolver port.ProjectResolver) any {
+	var req projectIDMapRequest
+	if err := json.Unmarshal(data, &req); err != nil {
+		slog.WarnContext(ctx, "project-id-map: failed to decode request", "error", err)
+		return map[string]string{"error": "invalid request body"}
+	}
+	if req.ProjectUID == "" {
+		return map[string]string{"error": "project_uid is required"}
+	}
+	sfid, err := resolver.SFIDFromUID(ctx, req.ProjectUID)
+	if err != nil {
+		slog.DebugContext(ctx, "project-id-map: resolution failed",
+			"project_uid", req.ProjectUID, "error", err)
+		return map[string]string{"error": "project not found"}
+	}
+	return projectIDMapResponse{ProjectSFID: sfid}
+}
+
 func SubscribeProjectIDMap(conn *nats.Conn, resolver port.ProjectResolver) (*nats.Subscription, error) {
 	sub, err := conn.Subscribe(constants.ProjectIDMapLookupSubject, func(msg *nats.Msg) {
-		ctx := context.Background()
-
-		var req projectIDMapRequest
-		if decodeErr := json.Unmarshal(msg.Data, &req); decodeErr != nil {
-			slog.WarnContext(ctx, "project-id-map: failed to decode request",
-				"error", decodeErr,
-			)
-			replyError(msg, "invalid request body")
-			return
-		}
-
-		if req.ProjectUID == "" {
-			replyError(msg, "project_uid is required")
-			return
-		}
-
-		sfid, resolveErr := resolver.SFIDFromUID(ctx, req.ProjectUID)
-		if resolveErr != nil {
-			slog.DebugContext(ctx, "project-id-map: resolution failed",
-				"project_uid", req.ProjectUID,
-				"error", resolveErr,
-			)
-			replyError(msg, "project not found")
-			return
-		}
-
-		replyJSON(msg, projectIDMapResponse{ProjectSFID: sfid})
+		replyJSON(msg, processProjectIDMapRequest(context.Background(), msg.Data, resolver))
 	})
 	if err != nil {
 		return nil, err
@@ -81,28 +75,24 @@ func SubscribeProjectIDMap(conn *nats.Conn, resolver port.ProjectResolver) (*nat
 	return sub, nil
 }
 
-// replyError sends a JSON error response to the NATS reply subject.
-func replyError(msg *nats.Msg, errMsg string) {
-	replyJSON(msg, projectIDMapResponse{Error: errMsg})
-}
-
-// replyJSON marshals resp and publishes it to msg.Reply. Marshalling errors are
-// logged and a plain-text fallback is sent instead so the caller never hangs
-// waiting for a reply that never arrives.
-func replyJSON(msg *nats.Msg, resp projectIDMapResponse) {
+// replyJSON marshals payload and publishes it to msg.Reply. Marshalling errors
+// are logged and a plain-text fallback is sent instead so the caller never
+// hangs waiting for a reply that never arrives. Shared by all id-map handlers
+// in this package.
+func replyJSON(msg *nats.Msg, payload any) {
 	if msg.Reply == "" {
 		// Fire-and-forget message; nothing to reply to.
 		return
 	}
 
-	data, err := json.Marshal(resp)
+	data, err := json.Marshal(payload)
 	if err != nil {
-		slog.Error("project-id-map: failed to marshal response", "error", err)
+		slog.Error("id-map: failed to marshal response", "error", err)
 		_ = msg.Respond([]byte(`{"error":"internal serialisation error"}`))
 		return
 	}
 
 	if err := msg.Respond(data); err != nil {
-		slog.Error("project-id-map: failed to send reply", "error", err)
+		slog.Error("id-map: failed to send reply", "error", err)
 	}
 }
