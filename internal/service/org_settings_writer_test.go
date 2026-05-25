@@ -99,6 +99,30 @@ func TestOrgSettingsWriter_Update_IfMatch_Matches_Succeeds(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestOrgSettingsWriter_Update_IfMatch_RoundTrip_Succeeds(t *testing.T) {
+	// Seed a record, compute its ETag via GetSettings, then assert Update accepts it.
+	// This locks in that the ETag produced on GET is the same value accepted on PUT.
+	store := mock.NewMockB2BOrgSettings()
+	existing := &model.B2BOrgSettings{
+		UID:       testOrgUID,
+		CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Writers:   []model.B2BOrgUser{{Email: "alice@example.com"}},
+	}
+	store.Seed(testOrgUID, existing, 1)
+
+	// Simulate GET: read settings and derive ETag exactly as the handler does.
+	seeded, _, err := store.GetSettings(context.Background(), testOrgUID)
+	require.NoError(t, err)
+	etagVal, err := etag.LFXEtag(seeded)
+	require.NoError(t, err)
+
+	// PUT with that ETag must succeed.
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, IfMatch: etagVal}
+	_, err = writer.Update(context.Background(), in)
+	assert.NoError(t, err, "ETag from GET must be accepted by a subsequent PUT")
+}
+
 func TestOrgSettingsWriter_Update_IfMatch_NoExistingRecord_PreconditionFailed(t *testing.T) {
 	store := mock.NewMockB2BOrgSettings() // empty — no existing settings
 

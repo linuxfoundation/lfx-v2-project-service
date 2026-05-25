@@ -10,12 +10,16 @@ import (
 	"testing"
 	"time"
 
+	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
+	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func strPtr(s string) *string { return &s }
 
 func TestBackfillRunner_FullMode_PublishesAllTypes(t *testing.T) {
 	org := &model.B2BOrg{UID: "org-1"}
@@ -165,4 +169,16 @@ func (r *seededB2BOrgReaderForBackfill) GetB2BOrg(_ context.Context, _ string) (
 
 func (r *seededB2BOrgReaderForBackfill) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
 	return nil, nil
+}
+
+// ── ValidateAndBuildRequest ──────────────────────────────────────────────────
+
+func TestValidateAndBuildRequest_Since_ZonelessTimestamp_ReturnsValidationError(t *testing.T) {
+	payload := &membershipservice.AdminReindexPayload{
+		Since: strPtr("2026-05-20T00:00:00"), // no zone offset — must be rejected
+	}
+	_, err := svc.ValidateAndBuildRequest(payload)
+	require.Error(t, err, "zone-less RFC 3339 timestamp must be rejected")
+	var valErr pkgerrors.Validation
+	assert.ErrorAs(t, err, &valErr, "expected Validation error, got: %v", err)
 }

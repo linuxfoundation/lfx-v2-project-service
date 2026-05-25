@@ -44,6 +44,9 @@ spec:
   maxValueSize: {{ .Values.nats.kv_bucket_org_settings.maxValueSize }}
   maxBytes: {{ .Values.nats.kv_bucket_org_settings.maxBytes }}
   compression: {{ .Values.nats.kv_bucket_org_settings.compression }}
+  # IMPORTANT: do not set ttl in production — this bucket holds authoritative
+  # access-control state. TTL eviction silently revokes all org writers/auditors
+  # with no audit trail. Only enable for local-dev bucket teardown.
   {{- if .Values.nats.kv_bucket_org_settings.ttl }}
   ttl: {{ .Values.nats.kv_bucket_org_settings.ttl }}
   {{- end }}

@@ -130,6 +130,10 @@ spec:
           - GET
         routes:
           - path: /b2b_orgs/:uid/settings
+      # Gated by auditor (not writer) so that existing writers and auditors can see
+      # the full principal list, including pending-invite email addresses. This is
+      # intentional — auditors are trusted principals who need visibility into who
+      # has access in order to manage invitations.
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator

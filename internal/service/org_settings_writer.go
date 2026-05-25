@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
@@ -86,6 +87,12 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 		}
 	}
 
+	// Bound slice length to prevent unbounded NATS KV value growth.
+	const maxPrincipals = 200
+	if len(in.Writers) > maxPrincipals || len(in.Auditors) > maxPrincipals {
+		return nil, pkgerrors.NewValidation("writers and auditors lists must not exceed 200 entries each")
+	}
+
 	now := time.Now().UTC()
 	updated := &model.B2BOrgSettings{
 		UID:       in.OrgUID,
@@ -94,8 +101,8 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 	}
 	if existing != nil {
 		updated.CreatedAt = existing.CreatedAt
-		updated.Writers = existing.Writers
-		updated.Auditors = existing.Auditors
+		updated.Writers = slices.Clone(existing.Writers)
+		updated.Auditors = slices.Clone(existing.Auditors)
 	}
 
 	if in.Writers != nil {

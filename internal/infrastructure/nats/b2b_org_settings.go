@@ -17,6 +17,10 @@ import (
 	errs "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 )
 
+// keyPrefixOrgSettings is the NATS KV key prefix for org settings records.
+// orgUID must be a valid UUID — callers are responsible for sanitising input
+// before reaching this layer. HTTP callers are safe because Goa validates path
+// params as UUIDs; non-HTTP callers (RPC, admin tools) must do the same.
 const keyPrefixOrgSettings = "org-settings."
 
 // GetSettings returns the settings for a b2b_org and the current KV revision.
@@ -75,7 +79,10 @@ func (s *Storage) UpdateSettings(ctx context.Context, settings *model.B2BOrgSett
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				return errs.NewNotFound("org settings not found for update")
 			}
-			return errs.NewConflict("org settings were modified concurrently, please retry")
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				return errs.NewConflict("org settings were modified concurrently, please retry")
+			}
+			return errs.NewUnexpected("failed to update org settings", err)
 		}
 		slog.DebugContext(ctx, "updated org settings",
 			"org_uid", settings.UID, "old_revision", revision, "new_revision", newRev)

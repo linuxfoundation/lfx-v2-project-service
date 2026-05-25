@@ -63,9 +63,11 @@ type B2BOrgUser struct {
 type B2BOrgSettings struct {
 	// UID is the b2b_org UID this settings record belongs to.
 	UID string `json:"uid"`
-	// Writers holds the org's administrators. Full-replace on PUT.
+	// Writers holds the org's administrator principals.
+	// nil in PUT payload = preserve existing; explicit empty slice = clear all.
 	Writers []B2BOrgUser `json:"writers"`
-	// Auditors holds read-only principals. Full-replace on PUT.
+	// Auditors holds read-only principals.
+	// nil in PUT payload = preserve existing; explicit empty slice = clear all.
 	Auditors []B2BOrgUser `json:"auditors"`
 
 	CreatedAt time.Time `json:"created_at"`
