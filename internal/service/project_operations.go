@@ -818,6 +818,9 @@ func (s *ProjectsService) enrichAllRoleFields(
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
+			// username holds the auth subject identifier returned by SubByEmail. The field
+			// is named "username" because ProjectSettings stores it under that key —
+			// renaming requires a coordinated data migration with fga-sync.
 			username, err := s.UserReader.SubByEmail(gCtx, email)
 			if err != nil {
 				if errors.Is(err, domain.ErrUserNotFound) {
@@ -829,7 +832,7 @@ func (s *ProjectsService) enrichAllRoleFields(
 				return err
 			}
 
-			// Username resolved — now fetch authoritative profile data.
+			// Subject resolved — now fetch authoritative profile data.
 			// Metadata failures are non-fatal: display fields must not block the write.
 			var meta *domain.UserMetadata
 			if username != "" {
