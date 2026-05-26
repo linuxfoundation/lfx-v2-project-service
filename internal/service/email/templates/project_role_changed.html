@@ -26,6 +26,7 @@
         .footer-hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 24px 0; }
         .footer { font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0; }
         .footer a { color: #9ca3af; }
+        .capabilities-list { margin: 0 0 16px 0; padding-left: 24px; color: #374151; font-size: 15px; line-height: 1.8; }
         @media only screen and (max-width: 620px) {
             .wrapper { padding: 24px 20px; }
         }
@@ -48,9 +49,8 @@
         <tr><td class="role-label">New {{.NewRoleWord}}:</td><td><strong>{{.NewJoinedRoles}}</strong></td></tr>
     </table>
 
-
     {{range .NewCapabilityGroups}}<p>With the <strong>{{.Role}}</strong> role, you can:</p>
-    <ul style="margin: 0 0 16px 0; padding-left: 24px; color: #374151; font-size: 15px; line-height: 1.8;">
+    <ul class="capabilities-list">
       {{range .Items}}<li>{{.}}</li>
       {{end}}</ul>
     {{end}}
