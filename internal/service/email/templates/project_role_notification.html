@@ -39,6 +39,12 @@
     <p class="greeting">Hi {{.RecipientName}},</p>
 
     {{if .InviterName}}<p>{{.InviterName}} has added you as {{.Article}}<strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>You have been added as {{.Article}}<strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{end}}
+
+    {{range .CapabilityGroups}}<p>With the <strong>{{.Role}}</strong> role, you can:</p>
+    <ul style="margin: 0 0 16px 0; padding-left: 24px; color: #374151; font-size: 15px; line-height: 1.8;">
+      {{range .Items}}<li>{{.}}</li>
+      {{end}}</ul>
+    {{end}}
     <p>You can view the project dashboard by visiting the link below.</p>
 
     <!-- djlint:off H021 --><a href="{{.ProjectURL}}" class="btn" style="color:#ffffff!important;">View Project</a><!-- djlint:on H021 -->

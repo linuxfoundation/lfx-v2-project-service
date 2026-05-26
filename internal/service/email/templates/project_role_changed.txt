@@ -7,7 +7,10 @@ Hi {{.RecipientName}},
 Previous {{.OldRoleWord}}: {{.OldJoinedRoles}}
 New {{.NewRoleWord}}: {{.NewJoinedRoles}}
 
-You can view the project here:
+{{range .NewCapabilityGroups}}With the {{.Role}} role, you can:
+{{range .Items}}- {{.}}
+{{end}}
+{{end}}You can view the project here:
 {{.ProjectURL}}
 
 ---

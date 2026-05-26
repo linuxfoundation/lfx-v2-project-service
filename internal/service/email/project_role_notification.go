@@ -27,14 +27,15 @@ var (
 
 // ProjectRoleNotificationData holds the template variables for a project role notification email.
 type ProjectRoleNotificationData struct {
-	RecipientName string
-	ProjectName   string
-	Roles         []string
-	JoinedRoles   string // pre-computed by RenderProjectRoleNotification; set automatically
-	RoleWord      string // "role" (single) or "roles" (multiple); set automatically
-	Article       string // "a " (single) or "" (multiple); set automatically
-	ProjectURL    string
-	InviterName   string
+	RecipientName    string
+	ProjectName      string
+	Roles            []string
+	JoinedRoles      string // pre-computed by RenderProjectRoleNotification; set automatically
+	RoleWord         string // "role" (single) or "roles" (multiple); set automatically
+	Article          string // "a " (single) or "" (multiple); set automatically
+	ProjectURL       string
+	InviterName      string
+	CapabilityGroups []RoleCapabilityGroup // pre-computed by RenderProjectRoleNotification; set automatically
 }
 
 // RenderProjectRoleNotification renders the subject, HTML body, and plain-text body
@@ -45,6 +46,7 @@ func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, h
 		return
 	}
 	data.JoinedRoles = joinRoles(data.Roles)
+	data.CapabilityGroups = capabilityGroupsFor(data.Roles)
 	if len(data.Roles) == 1 {
 		data.RoleWord = "role"
 		data.Article = "a "

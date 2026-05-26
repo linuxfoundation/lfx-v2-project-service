@@ -27,16 +27,17 @@ var (
 
 // ProjectRoleChangedData holds the template variables for a project role change notification email.
 type ProjectRoleChangedData struct {
-	RecipientName  string
-	ProjectName    string
-	OldRoles       []string
-	NewRoles       []string
-	OldJoinedRoles string // pre-computed by RenderProjectRoleChanged
-	NewJoinedRoles string // pre-computed by RenderProjectRoleChanged
-	OldRoleWord    string // "role" or "roles"; set automatically
-	NewRoleWord    string // "role" or "roles"; set automatically
-	ProjectURL     string
-	InviterName    string
+	RecipientName       string
+	ProjectName         string
+	OldRoles            []string
+	NewRoles            []string
+	OldJoinedRoles      string // pre-computed by RenderProjectRoleChanged
+	NewJoinedRoles      string // pre-computed by RenderProjectRoleChanged
+	OldRoleWord         string // "role" or "roles"; set automatically
+	NewRoleWord         string // "role" or "roles"; set automatically
+	ProjectURL          string
+	InviterName         string
+	NewCapabilityGroups []RoleCapabilityGroup // pre-computed by RenderProjectRoleChanged; set automatically
 }
 
 // RenderProjectRoleChanged renders the subject, HTML body, and plain-text body
@@ -49,6 +50,7 @@ func RenderProjectRoleChanged(data ProjectRoleChangedData) (subject, html, text 
 
 	data.OldJoinedRoles = joinRoles(data.OldRoles)
 	data.NewJoinedRoles = joinRoles(data.NewRoles)
+	data.NewCapabilityGroups = capabilityGroupsFor(data.NewRoles)
 
 	if len(data.OldRoles) == 1 {
 		data.OldRoleWord = "role"
