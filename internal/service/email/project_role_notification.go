@@ -30,6 +30,8 @@ type ProjectRoleNotificationData struct {
 	ProjectName   string
 	Roles         []string
 	JoinedRoles   string // pre-computed by RenderProjectRoleNotification; set automatically
+	RoleWord      string // "role" (single) or "roles" (multiple); set automatically
+	Article       string // "a " (single) or "" (multiple); set automatically
 	ProjectURL    string
 	InviterName   string
 }
@@ -38,10 +40,18 @@ type ProjectRoleNotificationData struct {
 // for a project role notification email (user added to a project).
 func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, html, text string, err error) {
 	data.JoinedRoles = joinRoles(data.Roles)
-	if data.InviterName != "" {
-		subject = data.InviterName + " added you as a " + data.JoinedRoles + " on " + data.ProjectName
+	if len(data.Roles) == 1 {
+		data.RoleWord = "role"
+		data.Article = "a "
 	} else {
-		subject = "You have been added as a " + data.JoinedRoles + " on " + data.ProjectName
+		data.RoleWord = "roles"
+		data.Article = ""
+	}
+
+	if data.InviterName != "" {
+		subject = data.InviterName + " added you as " + data.Article + data.JoinedRoles + " " + data.RoleWord + " on " + data.ProjectName
+	} else {
+		subject = "You have been added as " + data.Article + data.JoinedRoles + " " + data.RoleWord + " on " + data.ProjectName
 	}
 
 	var htmlBuf bytes.Buffer

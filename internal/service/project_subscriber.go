@@ -789,10 +789,10 @@ func isManageViewNoOp(oldRoles, newRoles []string) bool {
 }
 
 // roleDisplayName maps an internal role name to its user-facing display name.
-// Writer and Meeting Coordinator both map to "Manage"; Auditor maps to "View".
+// Writer → "Manage", Auditor → "View", Meeting Coordinator stays as-is.
 func roleDisplayName(role string) string {
 	switch role {
-	case roleWriter, roleMeetingCoordinator:
+	case roleWriter:
 		return "Manage"
 	case roleAuditor:
 		return "View"
@@ -802,8 +802,8 @@ func roleDisplayName(role string) string {
 }
 
 // rolesForDisplay converts a slice of internal role names to deduplicated display names
-// ("Manage" / "View"), then drops "View" when "Manage" is also present, since Manage
-// already implies View access.  Order follows the input slice.
+// and drops "View" when "Manage" (Writer) is also present, since Manage already implies
+// View access.  Meeting Coordinator is kept as a distinct label.  Order follows input.
 func rolesForDisplay(roles []string) []string {
 	seen := make(map[string]bool, len(roles))
 	result := make([]string, 0, len(roles))

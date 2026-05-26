@@ -837,11 +837,11 @@ func TestRolesForDisplay(t *testing.T) {
 	}{
 		{name: "Writer → Manage", roles: []string{roleWriter}, want: []string{"Manage"}},
 		{name: "Auditor → View", roles: []string{roleAuditor}, want: []string{"View"}},
-		{name: "Meeting Coordinator → Manage", roles: []string{roleMeetingCoordinator}, want: []string{"Manage"}},
+		{name: "Meeting Coordinator → Meeting Coordinator", roles: []string{roleMeetingCoordinator}, want: []string{"Meeting Coordinator"}},
 		{name: "Writer+Auditor → Manage (View dropped)", roles: []string{roleWriter, roleAuditor}, want: []string{"Manage"}},
-		{name: "MC+Auditor → Manage (View dropped)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Manage"}},
-		{name: "Writer+MC → Manage (deduplicated)", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage"}},
-		{name: "Writer+MC+Auditor → Manage", roles: []string{roleWriter, roleMeetingCoordinator, roleAuditor}, want: []string{"Manage"}},
+		{name: "MC+Auditor → Meeting Coordinator and View (no Manage present)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Meeting Coordinator", "View"}},
+		{name: "Writer+MC → Manage and Meeting Coordinator", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage", "Meeting Coordinator"}},
+		{name: "Writer+MC+Auditor → Manage and Meeting Coordinator (View dropped)", roles: []string{roleWriter, roleMeetingCoordinator, roleAuditor}, want: []string{"Manage", "Meeting Coordinator"}},
 		{name: "empty → empty", roles: nil, want: []string{}},
 	}
 
