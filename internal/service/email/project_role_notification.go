@@ -54,9 +54,9 @@ func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, h
 	}
 
 	if data.InviterName != "" {
-		subject = data.InviterName + " added you as " + data.Article + data.JoinedRoles + " " + data.RoleWord + " on " + data.ProjectName
+		subject = data.InviterName + " added you as " + data.Article + data.JoinedRoles + " on " + data.ProjectName
 	} else {
-		subject = "You have been added as " + data.Article + data.JoinedRoles + " " + data.RoleWord + " on " + data.ProjectName
+		subject = "You have been added as " + data.Article + data.JoinedRoles + " on " + data.ProjectName
 	}
 
 	var htmlBuf bytes.Buffer

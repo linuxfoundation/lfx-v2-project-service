@@ -642,7 +642,13 @@ func diffUserChanges(old, new events.ProjectSettings) []userChange {
 			}
 
 			e := primary[canonKey]
-			e.user = u // overwrite so the freshest shape is kept
+			// Prefer the most complete identity record: take the new entry only if it
+			// has a Username or the stored record has none yet.  This prevents an
+			// email-only invite entry (Username="") from wiping out a Username+Email
+			// entry seen earlier in a different role slice.
+			if u.Username != "" || e.user.Username == "" {
+				e.user = u
+			}
 			// Guard against duplicate user entries within the same role slice.
 			alreadyHas := false
 			for _, r := range e.roles {
