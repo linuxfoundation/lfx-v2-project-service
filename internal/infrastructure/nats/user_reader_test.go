@@ -84,11 +84,11 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockConn := &MockNATSConn{}
 			mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *natsgo.Msg) bool {
-				return msg.Subject == constants.AuthEmailToUsernameSubject
+				return msg.Subject == constants.AuthEmailToSubSubject
 			})).Return(tt.reply, tt.replyErr)
 
 			reader := &UserReaderNATS{NatsConn: mockConn}
-			got, err := reader.UsernameByEmail(context.Background(), "test@example.com")
+			got, err := reader.SubByEmail(context.Background(), "test@example.com")
 
 			switch {
 			case tt.wantErr != nil:

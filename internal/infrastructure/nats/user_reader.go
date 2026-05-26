@@ -114,11 +114,11 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	return result, nil
 }
 
-// UsernameByEmail resolves the registered LFID username for the given primary email address.
-// The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
-func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
+// SubByEmail resolves the subject identifier for the given primary email address.
+// The auth service replies with a plain-text subject on success, or a JSON error envelope on miss.
+func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, error) {
 	reply, err := u.NatsConn.RequestMsgWithContext(ctx, &natsgo.Msg{
-		Subject: constants.AuthEmailToUsernameSubject,
+		Subject: constants.AuthEmailToSubSubject,
 		Data:    []byte(email),
 	})
 	if err != nil {

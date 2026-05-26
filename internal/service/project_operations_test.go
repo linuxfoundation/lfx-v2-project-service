@@ -231,13 +231,13 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "carol@example.com").Return("carol-lfid", nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "carol-lfid").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("SubByEmail", mock.Anything, "carol@example.com").Return("auth0|carol-lfid", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|carol-lfid").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "new-project").Return(false, nil)
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Writers) == 1 && s.Writers[0].Username == "carol-lfid"
+					return len(s.Writers) == 1 && s.Writers[0].Username == "auth0|carol-lfid"
 				})).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -894,14 +894,14 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "alice@example.com").Return("alice", nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "alice").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("SubByEmail", mock.Anything, "alice@example.com").Return("auth0|alice", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|alice").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1", CreatedAt: func() *time.Time { t := time.Now(); return &t }()}
 				updatedSettings := &models.ProjectSettings{
 					UID:     "project-uid-1",
-					Writers: []models.UserInfo{{Username: "alice", Name: "Alice", Email: "alice@example.com"}},
+					Writers: []models.UserInfo{{Username: "auth0|alice", Name: "Alice", Email: "alice@example.com"}},
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Public: true}
 
@@ -940,8 +940,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "bob@example.com").Return("real-bob", nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "real-bob").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("SubByEmail", mock.Anything, "bob@example.com").Return("auth0|real-bob", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|real-bob").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
@@ -949,7 +949,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Writers) == 1 && s.Writers[0].Username == "real-bob"
+					return len(s.Writers) == 1 && s.Writers[0].Username == "auth0|real-bob"
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -968,7 +968,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "nobody@example.com").Return("", domain.ErrUserNotFound)
+				mockUserReader.On("SubByEmail", mock.Anything, "nobody@example.com").Return("", domain.ErrUserNotFound)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
@@ -1019,7 +1019,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "eve@example.com").Return("", assert.AnError)
+				mockUserReader.On("SubByEmail", mock.Anything, "eve@example.com").Return("", assert.AnError)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
@@ -1041,7 +1041,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "gone@example.com").Return("", domain.ErrUserNotFound)
+				mockUserReader.On("SubByEmail", mock.Anything, "gone@example.com").Return("", domain.ErrUserNotFound)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				// Existing settings already have a writer with the same email and a stored LFID.
@@ -1075,8 +1075,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "carol@example.com").Return("carol-lfid", nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "carol-lfid").Return(&domain.UserMetadata{
+				mockUserReader.On("SubByEmail", mock.Anything, "carol@example.com").Return("auth0|carol-lfid", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|carol-lfid").Return(&domain.UserMetadata{
 					Name:    "Carol Real Name",
 					Picture: "https://auth.example.com/carol.png",
 				}, nil)
@@ -1089,7 +1089,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				// Username, name, and avatar must all come from auth service, not the caller.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 &&
-						s.Writers[0].Username == "carol-lfid" &&
+						s.Writers[0].Username == "auth0|carol-lfid" &&
 						s.Writers[0].Name == "Carol Real Name" &&
 						s.Writers[0].Avatar == "https://auth.example.com/carol.png"
 				}), uint64(1)).Return(nil)
@@ -1110,8 +1110,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "dave@example.com").Return("dave-lfid", nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "dave-lfid").Return((*domain.UserMetadata)(nil), assert.AnError)
+				mockUserReader.On("SubByEmail", mock.Anything, "dave@example.com").Return("auth0|dave-lfid", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|dave-lfid").Return((*domain.UserMetadata)(nil), assert.AnError)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
@@ -1121,7 +1121,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				// Username is enriched; name/avatar keep caller-supplied values when metadata fails.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 &&
-						s.Writers[0].Username == "dave-lfid" &&
+						s.Writers[0].Username == "auth0|dave-lfid" &&
 						s.Writers[0].Name == "Dave" && // caller-supplied — not overwritten on metadata failure
 						s.Writers[0].Avatar == "" // caller supplied no avatar — still empty
 				}), uint64(1)).Return(nil)

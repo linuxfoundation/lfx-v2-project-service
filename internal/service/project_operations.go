@@ -818,7 +818,7 @@ func (s *ProjectsService) enrichAllRoleFields(
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			username, err := s.UserReader.UsernameByEmail(gCtx, email)
+			username, err := s.UserReader.SubByEmail(gCtx, email)
 			if err != nil {
 				if errors.Is(err, domain.ErrUserNotFound) {
 					mu.Lock()
