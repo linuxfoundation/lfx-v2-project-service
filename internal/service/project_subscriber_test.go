@@ -503,6 +503,26 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 0,
 		},
 		{
+			// Swapping a subordinate role while holding Writer collapses to the same display
+			// ("Manage") — sending "Manage → Manage" is confusing and should be suppressed.
+			name: "LFID Writer+Auditor swaps to Writer+Meeting Coordinator — no email (display identical)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:             []events.UserInfo{alice},
+					MeetingCoordinators: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
 			// Losing Writer while still having Auditor is a meaningful downgrade — email must be sent.
 			name: "LFID Writer+Auditor loses Writer — role changed email sent",
 			event: events.ProjectSettingsUpdatedMessage{

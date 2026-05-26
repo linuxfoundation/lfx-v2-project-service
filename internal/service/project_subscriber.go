@@ -134,10 +134,18 @@ func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, proj
 	case changeAdded:
 		return s.sendRoleNotificationEmail(ctx, projectUID, projectName, change.NewRoles, change.User.Email, recipientName, inviterName, projectURL)
 	case changeChanged:
-		// Suppress email when the only change is gaining Auditor (View) while already
-		// holding a Manage role (Writer or Meeting Coordinator), since Manage includes View.
+		// Suppress email when the only change is gaining or losing a subordinate role
+		// (Auditor, Meeting Coordinator) while Writer is held in both old and new — the
+		// user's visible Manage access is unchanged.
 		if isWriterSupersededNoOp(change.OldRoles, change.NewRoles) {
 			slog.DebugContext(ctx, "project_subscriber: skipping role-changed email — gaining View on top of Manage is a no-op",
+				"project_uid", projectUID, "old_roles", change.OldRoles, "new_roles", change.NewRoles)
+			return nil
+		}
+		// Suppress email when a subordinate-role swap leaves the visible display identical
+		// (e.g. Writer+Auditor → Writer+Meeting Coordinator both collapse to "Manage").
+		if rolesEqual(rolesForDisplay(change.OldRoles), rolesForDisplay(change.NewRoles)) {
+			slog.DebugContext(ctx, "project_subscriber: skipping role-changed email — display roles unchanged after collapsing",
 				"project_uid", projectUID, "old_roles", change.OldRoles, "new_roles", change.NewRoles)
 			return nil
 		}
@@ -736,7 +744,7 @@ func memberKeys(u events.UserInfo) []string {
 		keys = append(keys, "username:"+u.Username)
 	}
 	if u.Email != "" {
-		keys = append(keys, "email:"+u.Email)
+		keys = append(keys, "email:"+strings.ToLower(strings.TrimSpace(u.Email)))
 	}
 	return keys
 }
