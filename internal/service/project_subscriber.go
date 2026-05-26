@@ -179,7 +179,16 @@ func (s *ProjectsService) handleNonLFIDChange(ctx context.Context, projectUID, p
 		rolesToInvite = setDiffRoles(change.NewRoles, change.OldRoles)
 	}
 
+	// Deduplicate by mapped invite role before sending — Writer and Meeting Coordinator
+	// both map to Manage, so having both in rolesToInvite would otherwise trigger two
+	// invites for the same effective access level.
+	seenInviteRole := make(map[string]bool, len(rolesToInvite))
 	for _, role := range rolesToInvite {
+		inviteRole := mapRoleToInviteRole(role)
+		if inviteRole == "" || seenInviteRole[inviteRole] {
+			continue
+		}
+		seenInviteRole[inviteRole] = true
 		if err := s.sendInvite(ctx, projectUID, projectName, role, change.User.Email, recipientName, inviterName, projectURL); err != nil {
 			return err
 		}

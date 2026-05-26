@@ -31,7 +31,6 @@ type ProjectRoleNotificationData struct {
 	ProjectName      string
 	Roles            []string
 	JoinedRoles      string // pre-computed by RenderProjectRoleNotification; set automatically
-	RoleWord         string // "role" (single) or "roles" (multiple); set automatically
 	Article          string // "a " (single) or "" (multiple); set automatically
 	ProjectURL       string
 	InviterName      string
@@ -48,10 +47,8 @@ func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, h
 	data.JoinedRoles = joinRoles(data.Roles)
 	data.CapabilityGroups = capabilityGroupsFor(data.Roles)
 	if len(data.Roles) == 1 {
-		data.RoleWord = "role"
 		data.Article = "a "
 	} else {
-		data.RoleWord = "roles"
 		data.Article = ""
 	}
 

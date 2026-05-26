@@ -467,6 +467,23 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 0,
 		},
 		{
+			// non-LFID user added with both Writer and Meeting Coordinator: both map to Manage,
+			// so only one invite should be sent (not two).
+			name: "non-LFID Writer+Meeting Coordinator added — only one invite sent (dedup by invite role)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers:             []events.UserInfo{noLFIDWriter},
+					MeetingCoordinators: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+		},
+		{
 			// Losing Auditor while keeping Writer is symmetric: Manage still includes View, no email.
 			name: "LFID Writer+Auditor loses Auditor — no email (Manage includes View)",
 			event: events.ProjectSettingsUpdatedMessage{
