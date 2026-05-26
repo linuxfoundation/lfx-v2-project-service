@@ -466,6 +466,42 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantEmailCount:  0,
 			wantInviteCount: 0,
 		},
+		{
+			// Losing Auditor while keeping Writer is symmetric: Manage still includes View, no email.
+			name: "LFID Writer+Auditor loses Auditor — no email (Manage includes View)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// Losing Writer while still having Auditor is a meaningful downgrade — email must be sent.
+			name: "LFID Writer+Auditor loses Writer — role changed email sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -759,10 +795,11 @@ func TestIsManageViewNoOp(t *testing.T) {
 			want:     false,
 		},
 		{
-			name:     "Writer loses Auditor (partial removal) — not a no-op",
+			// Symmetric to gaining Auditor: losing View while keeping Manage is also a no-op.
+			name:     "Writer+Auditor loses Auditor — suppress",
 			oldRoles: []string{roleWriter, roleAuditor},
 			newRoles: []string{roleWriter},
-			want:     false,
+			want:     true,
 		},
 		{
 			name:     "Writer swapped to Auditor — not a no-op",
@@ -787,6 +824,36 @@ func TestIsManageViewNoOp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := isManageViewNoOp(tt.oldRoles, tt.newRoles)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestRolesForDisplay(t *testing.T) {
+	tests := []struct {
+		name  string
+		roles []string
+		want  []string
+	}{
+		{name: "Writer → Manage", roles: []string{roleWriter}, want: []string{"Manage"}},
+		{name: "Auditor → View", roles: []string{roleAuditor}, want: []string{"View"}},
+		{name: "Meeting Coordinator → Manage", roles: []string{roleMeetingCoordinator}, want: []string{"Manage"}},
+		{name: "Writer+Auditor → Manage (View dropped)", roles: []string{roleWriter, roleAuditor}, want: []string{"Manage"}},
+		{name: "MC+Auditor → Manage (View dropped)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Manage"}},
+		{name: "Writer+MC → Manage (deduplicated)", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage"}},
+		{name: "Writer+MC+Auditor → Manage", roles: []string{roleWriter, roleMeetingCoordinator, roleAuditor}, want: []string{"Manage"}},
+		{name: "empty → empty", roles: nil, want: []string{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := rolesForDisplay(tt.roles)
+			if tt.want == nil {
+				tt.want = []string{}
+			}
+			if got == nil {
+				got = []string{}
+			}
 			assert.Equal(t, tt.want, got)
 		})
 	}

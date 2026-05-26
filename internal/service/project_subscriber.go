@@ -339,7 +339,7 @@ func (s *ProjectsService) sendRoleNotificationEmail(ctx context.Context, project
 	subject, html, text, err := email.RenderProjectRoleNotification(email.ProjectRoleNotificationData{
 		RecipientName: recipientName,
 		ProjectName:   projectName,
-		Roles:         roles,
+		Roles:         rolesForDisplay(roles),
 		ProjectURL:    projectURL,
 		InviterName:   inviterName,
 	})
@@ -373,8 +373,8 @@ func (s *ProjectsService) sendRoleChangedEmail(ctx context.Context, projectUID, 
 	subject, html, text, err := email.RenderProjectRoleChanged(email.ProjectRoleChangedData{
 		RecipientName: recipientName,
 		ProjectName:   projectName,
-		OldRoles:      oldRoles,
-		NewRoles:      newRoles,
+		OldRoles:      rolesForDisplay(oldRoles),
+		NewRoles:      rolesForDisplay(newRoles),
 		ProjectURL:    projectURL,
 		InviterName:   inviterName,
 	})
@@ -408,7 +408,7 @@ func (s *ProjectsService) sendRoleRemovedEmail(ctx context.Context, projectUID, 
 	subject, html, text, err := email.RenderProjectRoleRemoved(email.ProjectRoleRemovedData{
 		RecipientName: recipientName,
 		ProjectName:   projectName,
-		OldRoles:      oldRoles,
+		OldRoles:      rolesForDisplay(oldRoles),
 		InviterName:   inviterName,
 	})
 	if err != nil {
@@ -768,21 +768,60 @@ func hasManageRole(roles []string) bool {
 	return false
 }
 
-// isManageViewNoOp reports whether the only change between old and new roles is gaining Auditor
-// (View-level) while already holding a Manage-level role.  Since Manage permissions include View,
-// no notification is needed in that case.
+// isManageViewNoOp reports whether the only difference between old and new roles is the presence
+// of Auditor (View-level), while a Manage-level role exists in both snapshots.  Since Manage
+// permissions include View, neither gaining nor losing Auditor alone warrants a notification.
 func isManageViewNoOp(oldRoles, newRoles []string) bool {
 	if !hasManageRole(oldRoles) || !hasManageRole(newRoles) {
 		return false
 	}
-	gained := setDiffRoles(newRoles, oldRoles)
-	if len(gained) == 0 {
+	// Every changed role (gained or lost) must be Auditor only.
+	delta := append(setDiffRoles(newRoles, oldRoles), setDiffRoles(oldRoles, newRoles)...)
+	if len(delta) == 0 {
 		return false
 	}
-	for _, r := range gained {
+	for _, r := range delta {
 		if r != roleAuditor {
 			return false
 		}
 	}
 	return true
+}
+
+// roleDisplayName maps an internal role name to its user-facing display name.
+// Writer and Meeting Coordinator both map to "Manage"; Auditor maps to "View".
+func roleDisplayName(role string) string {
+	switch role {
+	case roleWriter, roleMeetingCoordinator:
+		return "Manage"
+	case roleAuditor:
+		return "View"
+	default:
+		return role
+	}
+}
+
+// rolesForDisplay converts a slice of internal role names to deduplicated display names
+// ("Manage" / "View"), then drops "View" when "Manage" is also present, since Manage
+// already implies View access.  Order follows the input slice.
+func rolesForDisplay(roles []string) []string {
+	seen := make(map[string]bool, len(roles))
+	result := make([]string, 0, len(roles))
+	for _, r := range roles {
+		d := roleDisplayName(r)
+		if !seen[d] {
+			seen[d] = true
+			result = append(result, d)
+		}
+	}
+	if seen["Manage"] {
+		filtered := result[:0]
+		for _, r := range result {
+			if r != "View" {
+				filtered = append(filtered, r)
+			}
+		}
+		return filtered
+	}
+	return result
 }
