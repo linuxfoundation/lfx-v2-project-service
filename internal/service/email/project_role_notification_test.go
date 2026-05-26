@@ -68,6 +68,9 @@ func TestRenderProjectRoleNotification(t *testing.T) {
 			for _, want := range tt.wantSubject {
 				assert.Contains(t, subject, want)
 			}
+			for _, notWant := range tt.wantNotSubj {
+				assert.NotContains(t, subject, notWant)
+			}
 			for _, want := range tt.wantHTML {
 				assert.Contains(t, html, want)
 			}

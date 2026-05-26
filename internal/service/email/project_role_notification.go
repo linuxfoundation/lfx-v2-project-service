@@ -6,6 +6,7 @@ package email
 import (
 	"bytes"
 	"embed"
+	"errors"
 	htmltemplate "html/template"
 	texttemplate "text/template"
 )
@@ -39,6 +40,10 @@ type ProjectRoleNotificationData struct {
 // RenderProjectRoleNotification renders the subject, HTML body, and plain-text body
 // for a project role notification email (user added to a project).
 func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, html, text string, err error) {
+	if len(data.Roles) == 0 {
+		err = errors.New("email: Roles must be non-empty")
+		return
+	}
 	data.JoinedRoles = joinRoles(data.Roles)
 	if len(data.Roles) == 1 {
 		data.RoleWord = "role"

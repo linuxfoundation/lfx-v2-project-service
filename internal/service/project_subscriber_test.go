@@ -849,6 +849,13 @@ func TestIsWriterSupersededNoOp(t *testing.T) {
 			newRoles: []string{roleWriter},
 			want:     false,
 		},
+		{
+			// Swapping MC for Auditor while keeping Writer is a meaningful subordinate change.
+			name:     "Writer+MC swapped to Writer+Auditor — not a no-op",
+			oldRoles: []string{roleWriter, roleMeetingCoordinator},
+			newRoles: []string{roleWriter, roleAuditor},
+			want:     false,
+		},
 	}
 
 	for _, tt := range tests {

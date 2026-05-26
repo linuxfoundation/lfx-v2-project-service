@@ -4,7 +4,7 @@ Hi {{.RecipientName}},
 
 {{if .InviterName}}{{.InviterName}} has removed you from the {{.ProjectName}} project in LFX Self-Serve.{{else}}You have been removed from the {{.ProjectName}} project in LFX Self-Serve.{{end}}
 
-Your previous role was {{.OldJoinedRoles}}. You no longer have access to this project's resources.
+Your previous {{.OldRoleWord}} {{.OldRoleVerb}} {{.OldJoinedRoles}}. You no longer have access to this project's resources.
 
 ---
 You are receiving this email because your access to a project was removed on LFX Self-Serve.

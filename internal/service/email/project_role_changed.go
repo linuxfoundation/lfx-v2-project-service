@@ -6,6 +6,7 @@ package email
 import (
 	"bytes"
 	"embed"
+	"errors"
 	htmltemplate "html/template"
 	texttemplate "text/template"
 )
@@ -32,6 +33,8 @@ type ProjectRoleChangedData struct {
 	NewRoles       []string
 	OldJoinedRoles string // pre-computed by RenderProjectRoleChanged
 	NewJoinedRoles string // pre-computed by RenderProjectRoleChanged
+	OldRoleWord    string // "role" or "roles"; set automatically
+	NewRoleWord    string // "role" or "roles"; set automatically
 	ProjectURL     string
 	InviterName    string
 }
@@ -39,8 +42,24 @@ type ProjectRoleChangedData struct {
 // RenderProjectRoleChanged renders the subject, HTML body, and plain-text body
 // for a role-change notification email (user's role set was modified but they remain on the project).
 func RenderProjectRoleChanged(data ProjectRoleChangedData) (subject, html, text string, err error) {
+	if len(data.OldRoles) == 0 || len(data.NewRoles) == 0 {
+		err = errors.New("email: OldRoles and NewRoles must both be non-empty")
+		return
+	}
+
 	data.OldJoinedRoles = joinRoles(data.OldRoles)
 	data.NewJoinedRoles = joinRoles(data.NewRoles)
+
+	if len(data.OldRoles) == 1 {
+		data.OldRoleWord = "role"
+	} else {
+		data.OldRoleWord = "roles"
+	}
+	if len(data.NewRoles) == 1 {
+		data.NewRoleWord = "role"
+	} else {
+		data.NewRoleWord = "roles"
+	}
 
 	if data.InviterName != "" {
 		subject = data.InviterName + " updated your role on " + data.ProjectName

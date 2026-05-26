@@ -6,6 +6,7 @@ package email
 import (
 	"bytes"
 	"embed"
+	"errors"
 	htmltemplate "html/template"
 	texttemplate "text/template"
 )
@@ -30,13 +31,27 @@ type ProjectRoleRemovedData struct {
 	ProjectName    string
 	OldRoles       []string
 	OldJoinedRoles string // pre-computed by RenderProjectRoleRemoved
+	OldRoleWord    string // "role" or "roles"; set automatically
+	OldRoleVerb    string // "was" or "were"; set automatically
 	InviterName    string
 }
 
 // RenderProjectRoleRemoved renders the subject, HTML body, and plain-text body
 // for a role-removal notification email (user was fully removed from the project).
 func RenderProjectRoleRemoved(data ProjectRoleRemovedData) (subject, html, text string, err error) {
+	if len(data.OldRoles) == 0 {
+		err = errors.New("email: OldRoles must be non-empty")
+		return
+	}
+
 	data.OldJoinedRoles = joinRoles(data.OldRoles)
+	if len(data.OldRoles) == 1 {
+		data.OldRoleWord = "role"
+		data.OldRoleVerb = "was"
+	} else {
+		data.OldRoleWord = "roles"
+		data.OldRoleVerb = "were"
+	}
 
 	subject = "You have been removed from " + data.ProjectName
 

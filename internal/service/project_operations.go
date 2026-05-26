@@ -767,7 +767,8 @@ func (s *ProjectsService) enrichAllRoleFields(
 		if u == nil {
 			return
 		}
-		if u.Email == nil || *u.Email == "" {
+		// Treat nil, empty, or whitespace-only emails as missing.
+		if u.Email == nil || strings.TrimSpace(*u.Email) == "" {
 			u.Username = misc.StringPtr("")
 			return
 		}

@@ -36,7 +36,7 @@
     <p class="greeting">Hi {{.RecipientName}},</p>
 
     {{if .InviterName}}<p>{{.InviterName}} has removed you from the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>You have been removed from the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{end}}
-    <p>Your previous role was <strong>{{.OldJoinedRoles}}</strong>. You no longer have access to this project's resources.</p>
+    <p>Your previous {{.OldRoleWord}} {{.OldRoleVerb}} <strong>{{.OldJoinedRoles}}</strong>. You no longer have access to this project's resources.</p>
 
     <p class="signoff">Thank you,<br><strong>The Linux Foundation Team</strong></p>
 

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -575,7 +576,7 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 func buildProjectURL(baseURL, slug string) string {
 	base := strings.TrimRight(baseURL, "/") + "/project/overview"
 	if slug != "" {
-		return base + "?project=" + slug
+		return base + "?project=" + url.QueryEscape(slug)
 	}
 	return base
 }
@@ -634,7 +635,17 @@ func diffUserChanges(old, new events.ProjectSettings) []userChange {
 
 			e := primary[canonKey]
 			e.user = u // overwrite so the freshest shape is kept
-			e.roles = append(e.roles, role)
+			// Guard against duplicate user entries within the same role slice.
+			alreadyHas := false
+			for _, r := range e.roles {
+				if r == role {
+					alreadyHas = true
+					break
+				}
+			}
+			if !alreadyHas {
+				e.roles = append(e.roles, role)
+			}
 			primary[canonKey] = e
 			for _, k := range keys {
 				allKeys[k] = canonKey
@@ -769,13 +780,20 @@ func hasWriterRole(roles []string) bool {
 }
 
 // isWriterSupersededNoOp reports whether Writer is present in both old and new roles and the
-// only differences are subordinate roles (Auditor or Meeting Coordinator) that Writer already
-// supersedes.  When true, no notification is needed because the user's effective access is unchanged.
+// change is a purely additive or purely subtractive adjustment of subordinate roles (Auditor or
+// Meeting Coordinator) that Writer already supersedes.  Swaps (simultaneously gaining one
+// subordinate while losing another) are not suppressed — the visible role set still changed.
 func isWriterSupersededNoOp(oldRoles, newRoles []string) bool {
 	if !hasWriterRole(oldRoles) || !hasWriterRole(newRoles) {
 		return false
 	}
-	delta := append(setDiffRoles(newRoles, oldRoles), setDiffRoles(oldRoles, newRoles)...)
+	gained := setDiffRoles(newRoles, oldRoles)
+	lost := setDiffRoles(oldRoles, newRoles)
+	// A swap of subordinate roles is still a meaningful change.
+	if len(gained) > 0 && len(lost) > 0 {
+		return false
+	}
+	delta := append(gained, lost...)
 	if len(delta) == 0 {
 		return false
 	}

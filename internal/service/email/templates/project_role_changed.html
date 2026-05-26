@@ -44,8 +44,8 @@
     {{if .InviterName}}<p>{{.InviterName}} has updated your role on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>Your role on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve has been updated.</p>{{end}}
 
     <table class="role-table">
-        <tr><td class="role-label">Previous role:</td><td>{{.OldJoinedRoles}}</td></tr>
-        <tr><td class="role-label">New role:</td><td><strong>{{.NewJoinedRoles}}</strong></td></tr>
+        <tr><td class="role-label">Previous {{.OldRoleWord}}:</td><td>{{.OldJoinedRoles}}</td></tr>
+        <tr><td class="role-label">New {{.NewRoleWord}}:</td><td><strong>{{.NewJoinedRoles}}</strong></td></tr>
     </table>
 
     <!-- djlint:off H021 --><a href="{{.ProjectURL}}" class="btn" style="color:#ffffff!important;">View Project</a><!-- djlint:on H021 -->

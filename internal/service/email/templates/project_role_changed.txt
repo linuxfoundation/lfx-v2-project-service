@@ -4,8 +4,8 @@ Hi {{.RecipientName}},
 
 {{if .InviterName}}{{.InviterName}} has updated your role on the {{.ProjectName}} project in LFX Self-Serve.{{else}}Your role on the {{.ProjectName}} project in LFX Self-Serve has been updated.{{end}}
 
-Previous role: {{.OldJoinedRoles}}
-New role: {{.NewJoinedRoles}}
+Previous {{.OldRoleWord}}: {{.OldJoinedRoles}}
+New {{.NewRoleWord}}: {{.NewJoinedRoles}}
 
 You can view the project here:
 {{.ProjectURL}}
