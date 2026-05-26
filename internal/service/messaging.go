@@ -445,6 +445,19 @@ func PublishProjectMembershipIndexer(ctx context.Context, p port.MemberPublisher
 	}
 }
 
+// PublishProjectMembershipFGA builds and publishes a GenericFGAMessage for a ProjectMembership,
+// writing the structural b2b_org and project reference tuples that enable the auditor cascade.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
+func PublishProjectMembershipFGA(ctx context.Context, p port.MemberPublisher, pm *model.ProjectMembership) {
+	msg := BuildProjectMembershipFGAMessage(pm)
+	if pubErr := p.Access(ctx, constants.FGASyncUpdateAccessSubject, msg, false); pubErr != nil {
+		slog.WarnContext(ctx, "project membership fga publish failed",
+			"uid", pm.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
 // PublishKeyContactIndexer builds and publishes a MemberIndexerMessage for a KeyContact.
 // Errors are swallowed and logged — /admin/reindex recovers missed records.
 func PublishKeyContactIndexer(ctx context.Context, p port.MemberPublisher, kc *model.KeyContact, action indexerConstants.MessageAction) {
