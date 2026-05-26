@@ -68,6 +68,11 @@ func TestUserReaderNATS_SubByEmail(t *testing.T) {
 			wantErr: domain.ErrUserNotFound,
 		},
 		{
+			name:       "JSON envelope missing success field returns descriptive error",
+			reply:      replyMsg([]byte(`{"error":"something unexpected"}`)),
+			wantErrStr: "email_to_sub response missing success field",
+		},
+		{
 			name:       "JSON success envelope returns error instead of leaking JSON as subject",
 			reply:      replyMsg([]byte(`{"success":true,"username":"alice"}`)),
 			wantErrStr: "unexpected email_to_sub success envelope",

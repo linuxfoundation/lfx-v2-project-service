@@ -139,13 +139,16 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 	// ErrUserNotFound as "member disappeared".
 	if body[0] == '{' {
 		var envelope struct {
-			Success bool   `json:"success"`
+			Success *bool  `json:"success"`
 			Error   string `json:"error,omitempty"`
 		}
 		if err := json.Unmarshal(reply.Data, &envelope); err != nil {
 			return "", fmt.Errorf("failed to parse email_to_sub response: %w", err)
 		}
-		if !envelope.Success {
+		if envelope.Success == nil {
+			return "", fmt.Errorf("email_to_sub response missing success field")
+		}
+		if !*envelope.Success {
 			return "", domain.ErrUserNotFound
 		}
 		return "", fmt.Errorf("unexpected email_to_sub success envelope")

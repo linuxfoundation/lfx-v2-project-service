@@ -239,7 +239,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "auth0|carol-lfid"
 				})).Return(nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
