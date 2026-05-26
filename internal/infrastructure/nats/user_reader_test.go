@@ -23,7 +23,7 @@ import (
 // Transport-error cases should pass nil as the reply directly.
 func replyMsg(data []byte) *natsgo.Msg { return &natsgo.Msg{Data: data} }
 
-func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
+func TestUserReaderNATS_SubByEmail(t *testing.T) {
 	tests := []struct {
 		name       string
 		reply      *natsgo.Msg // nil simulates a transport error
@@ -76,7 +76,7 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 			name:       "transport error is wrapped and returned",
 			reply:      nil,
 			replyErr:   errors.New("nats: connection closed"),
-			wantErrStr: "email_to_username request failed",
+			wantErrStr: "email_to_sub request failed",
 		},
 	}
 

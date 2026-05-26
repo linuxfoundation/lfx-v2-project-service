@@ -122,19 +122,19 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 		Data:    []byte(email),
 	})
 	if err != nil {
-		return "", fmt.Errorf("email_to_username request failed: %w", err)
+		return "", fmt.Errorf("email_to_sub request failed: %w", err)
 	}
 
-	// The auth service sends a plain-text username on success and a JSON error envelope on miss.
+	// The auth service sends a plain-text subject on success and a JSON error envelope on miss.
 	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing
-	// newline or leading space don't corrupt the username or bypass JSON detection.
+	// newline or leading space don't corrupt the subject or bypass JSON detection.
 	body := strings.TrimSpace(string(reply.Data))
 	if body == "" {
 		return "", domain.ErrUserNotFound
 	}
 
 	// Any object-shaped response (starts with '{') is an error envelope or contract violation.
-	// Never return JSON as a username — it would propagate garbage into access control.
+	// Never return JSON as a subject — it would propagate garbage into access control.
 	// This covers both well-formed error envelopes and malformed JSON blobs.
 	if body[0] == '{' {
 		return "", domain.ErrUserNotFound
