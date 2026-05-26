@@ -232,7 +232,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 0,
 		},
 		{
-			name: "LFID user gains additional role (Writer → Writer+Auditor) — role changed email sent",
+			// Writer already implies View (Auditor); gaining Auditor on top is a no-op — no email.
+			name: "LFID user gains Auditor on top of Writer — no email (Manage includes View)",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID: "proj-1",
 				OldSettings: events.ProjectSettings{
@@ -245,7 +246,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				Actor: events.Actor{Name: "Admin"},
 			},
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
-			wantEmailCount:  1,
+			wantEmailCount:  0,
 			wantInviteCount: 0,
 		},
 		{
@@ -409,6 +410,61 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantEmailCount:    1,
 			wantURLContains:   "project/overview",
 			wantURLNotContain: "?project=",
+		},
+		// ── Manage+View permission hierarchy suppression ──────────────────────────────
+		{
+			// Meeting Coordinator also implies View; same suppression applies.
+			name: "LFID Meeting Coordinator gains Auditor — no email (Manage includes View)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					MeetingCoordinators: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					MeetingCoordinators: []events.UserInfo{alice},
+					Auditors:            []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// Auditor → Writer is a meaningful upgrade; email must be sent.
+			name: "LFID Auditor gains Writer — role changed email sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
+		},
+		{
+			// Non-LFID Writer gains Auditor: no invite because Manage already includes View.
+			name: "non-LFID Writer gains Auditor — no invite (Manage includes View)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{noLFIDWriter},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{noLFIDWriter},
+					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
 		},
 	}
 
@@ -673,6 +729,65 @@ func TestDiffUserChanges(t *testing.T) {
 			for _, want := range tt.wantContains {
 				assert.Contains(t, got, want)
 			}
+		})
+	}
+}
+
+func TestIsManageViewNoOp(t *testing.T) {
+	tests := []struct {
+		name     string
+		oldRoles []string
+		newRoles []string
+		want     bool
+	}{
+		{
+			name:     "Writer gains Auditor — suppress",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter, roleAuditor},
+			want:     true,
+		},
+		{
+			name:     "Meeting Coordinator gains Auditor — suppress",
+			oldRoles: []string{roleMeetingCoordinator},
+			newRoles: []string{roleMeetingCoordinator, roleAuditor},
+			want:     true,
+		},
+		{
+			name:     "Auditor gains Writer — not a no-op",
+			oldRoles: []string{roleAuditor},
+			newRoles: []string{roleWriter, roleAuditor},
+			want:     false,
+		},
+		{
+			name:     "Writer loses Auditor (partial removal) — not a no-op",
+			oldRoles: []string{roleWriter, roleAuditor},
+			newRoles: []string{roleWriter},
+			want:     false,
+		},
+		{
+			name:     "Writer swapped to Auditor — not a no-op",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleAuditor},
+			want:     false,
+		},
+		{
+			name:     "Writer gains Writer+Meeting Coordinator — not a no-op",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter, roleMeetingCoordinator},
+			want:     false,
+		},
+		{
+			name:     "identical roles — not a no-op (no change at all)",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter},
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isManageViewNoOp(tt.oldRoles, tt.newRoles)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

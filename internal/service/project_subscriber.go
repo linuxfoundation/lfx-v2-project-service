@@ -68,6 +68,19 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	changes := diffUserChanges(event.OldSettings, event.NewSettings)
 	slog.DebugContext(ctx, "project_subscriber: received project_settings.updated event",
 		"project_uid", event.ProjectUID, "change_count", len(changes))
+	if slog.Default().Enabled(ctx, slog.LevelDebug) {
+		for i, c := range changes {
+			slog.DebugContext(ctx, "project_subscriber: user change detail",
+				"project_uid", event.ProjectUID,
+				"index", i,
+				"kind", c.Kind,
+				"username", c.User.Username,
+				"email", c.User.Email,
+				"old_roles", c.OldRoles,
+				"new_roles", c.NewRoles,
+			)
+		}
+	}
 	if len(changes) == 0 {
 		return nil
 	}
@@ -120,6 +133,13 @@ func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, proj
 	case changeAdded:
 		return s.sendRoleNotificationEmail(ctx, projectUID, projectName, change.NewRoles, change.User.Email, recipientName, inviterName, projectURL)
 	case changeChanged:
+		// Suppress email when the only change is gaining Auditor (View) while already
+		// holding a Manage role (Writer or Meeting Coordinator), since Manage includes View.
+		if isManageViewNoOp(change.OldRoles, change.NewRoles) {
+			slog.DebugContext(ctx, "project_subscriber: skipping role-changed email — gaining View on top of Manage is a no-op",
+				"project_uid", projectUID, "old_roles", change.OldRoles, "new_roles", change.NewRoles)
+			return nil
+		}
 		return s.sendRoleChangedEmail(ctx, projectUID, projectName, change.OldRoles, change.NewRoles, change.User.Email, recipientName, inviterName, projectURL)
 	case changeRemoved:
 		return s.sendRoleRemovedEmail(ctx, projectUID, projectName, change.OldRoles, change.User.Email, recipientName, inviterName)
@@ -137,10 +157,16 @@ func (s *ProjectsService) handleNonLFIDChange(ctx context.Context, projectUID, p
 
 	// For Added: send an invite for every new role.
 	// For Changed: send an invite only for roles that are new (delta), not ones already held.
+	// Skip entirely when the only new roles are View-level while the user already holds Manage.
 	var rolesToInvite []string
 	if change.Kind == changeAdded {
 		rolesToInvite = change.NewRoles
 	} else {
+		if isManageViewNoOp(change.OldRoles, change.NewRoles) {
+			slog.DebugContext(ctx, "project_subscriber: skipping invite — gaining View on top of Manage is a no-op",
+				"project_uid", projectUID)
+			return nil
+		}
 		rolesToInvite = setDiffRoles(change.NewRoles, change.OldRoles)
 	}
 
@@ -730,4 +756,33 @@ func setDiffRoles(a, b []string) []string {
 		}
 	}
 	return diff
+}
+
+// hasManageRole reports whether roles includes a Manage-level role (Writer or Meeting Coordinator).
+func hasManageRole(roles []string) bool {
+	for _, r := range roles {
+		if r == roleWriter || r == roleMeetingCoordinator {
+			return true
+		}
+	}
+	return false
+}
+
+// isManageViewNoOp reports whether the only change between old and new roles is gaining Auditor
+// (View-level) while already holding a Manage-level role.  Since Manage permissions include View,
+// no notification is needed in that case.
+func isManageViewNoOp(oldRoles, newRoles []string) bool {
+	if !hasManageRole(oldRoles) || !hasManageRole(newRoles) {
+		return false
+	}
+	gained := setDiffRoles(newRoles, oldRoles)
+	if len(gained) == 0 {
+		return false
+	}
+	for _, r := range gained {
+		if r != roleAuditor {
+			return false
+		}
+	}
+	return true
 }
