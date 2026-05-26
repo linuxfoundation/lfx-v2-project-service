@@ -413,8 +413,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		},
 		// ── Manage+View permission hierarchy suppression ──────────────────────────────
 		{
-			// Meeting Coordinator also implies View; same suppression applies.
-			name: "LFID Meeting Coordinator gains Auditor — no email (Manage includes View)",
+			// Meeting Coordinator does NOT supersede Auditor — gaining Auditor on top of MC is meaningful.
+			name: "LFID Meeting Coordinator gains Auditor — role changed email sent",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID: "proj-1",
 				OldSettings: events.ProjectSettings{
@@ -427,7 +427,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				Actor: events.Actor{Name: "Admin"},
 			},
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
-			wantEmailCount:  0,
+			wantEmailCount:  1,
 			wantInviteCount: 0,
 		},
 		{
@@ -477,6 +477,24 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				},
 				NewSettings: events.ProjectSettings{
 					Writers: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// Writer supersedes Meeting Coordinator — gaining MC on top of Writer is a no-op.
+			name: "LFID Writer gains Meeting Coordinator — no email (Writer supersedes MC)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:             []events.UserInfo{alice},
+					MeetingCoordinators: []events.UserInfo{alice},
 				},
 				Actor: events.Actor{Name: "Admin"},
 			},
@@ -769,7 +787,7 @@ func TestDiffUserChanges(t *testing.T) {
 	}
 }
 
-func TestIsManageViewNoOp(t *testing.T) {
+func TestIsWriterSupersededNoOp(t *testing.T) {
 	tests := []struct {
 		name     string
 		oldRoles []string
@@ -783,10 +801,35 @@ func TestIsManageViewNoOp(t *testing.T) {
 			want:     true,
 		},
 		{
-			name:     "Meeting Coordinator gains Auditor — suppress",
+			name:     "Writer+Auditor loses Auditor — suppress",
+			oldRoles: []string{roleWriter, roleAuditor},
+			newRoles: []string{roleWriter},
+			want:     true,
+		},
+		{
+			name:     "Writer gains Meeting Coordinator — suppress",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter, roleMeetingCoordinator},
+			want:     true,
+		},
+		{
+			name:     "Writer+MC loses Meeting Coordinator — suppress",
+			oldRoles: []string{roleWriter, roleMeetingCoordinator},
+			newRoles: []string{roleWriter},
+			want:     true,
+		},
+		{
+			name:     "Writer gains both MC and Auditor — suppress",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter, roleMeetingCoordinator, roleAuditor},
+			want:     true,
+		},
+		{
+			// MC does NOT supersede Auditor: gaining Auditor while holding only MC is meaningful.
+			name:     "Meeting Coordinator gains Auditor — not a no-op",
 			oldRoles: []string{roleMeetingCoordinator},
 			newRoles: []string{roleMeetingCoordinator, roleAuditor},
-			want:     true,
+			want:     false,
 		},
 		{
 			name:     "Auditor gains Writer — not a no-op",
@@ -795,22 +838,9 @@ func TestIsManageViewNoOp(t *testing.T) {
 			want:     false,
 		},
 		{
-			// Symmetric to gaining Auditor: losing View while keeping Manage is also a no-op.
-			name:     "Writer+Auditor loses Auditor — suppress",
-			oldRoles: []string{roleWriter, roleAuditor},
-			newRoles: []string{roleWriter},
-			want:     true,
-		},
-		{
 			name:     "Writer swapped to Auditor — not a no-op",
 			oldRoles: []string{roleWriter},
 			newRoles: []string{roleAuditor},
-			want:     false,
-		},
-		{
-			name:     "Writer gains Writer+Meeting Coordinator — not a no-op",
-			oldRoles: []string{roleWriter},
-			newRoles: []string{roleWriter, roleMeetingCoordinator},
 			want:     false,
 		},
 		{
@@ -823,7 +853,7 @@ func TestIsManageViewNoOp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isManageViewNoOp(tt.oldRoles, tt.newRoles)
+			got := isWriterSupersededNoOp(tt.oldRoles, tt.newRoles)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -838,10 +868,10 @@ func TestRolesForDisplay(t *testing.T) {
 		{name: "Writer → Manage", roles: []string{roleWriter}, want: []string{"Manage"}},
 		{name: "Auditor → View", roles: []string{roleAuditor}, want: []string{"View"}},
 		{name: "Meeting Coordinator → Meeting Coordinator", roles: []string{roleMeetingCoordinator}, want: []string{"Meeting Coordinator"}},
-		{name: "Writer+Auditor → Manage (View dropped)", roles: []string{roleWriter, roleAuditor}, want: []string{"Manage"}},
-		{name: "MC+Auditor → Meeting Coordinator and View (no Manage present)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Meeting Coordinator", "View"}},
-		{name: "Writer+MC → Manage and Meeting Coordinator", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage", "Meeting Coordinator"}},
-		{name: "Writer+MC+Auditor → Manage and Meeting Coordinator (View dropped)", roles: []string{roleWriter, roleMeetingCoordinator, roleAuditor}, want: []string{"Manage", "Meeting Coordinator"}},
+		{name: "Writer+Auditor → Manage only (Auditor dropped)", roles: []string{roleWriter, roleAuditor}, want: []string{"Manage"}},
+		{name: "MC+Auditor → both shown (neither supersedes)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Meeting Coordinator", "View"}},
+		{name: "Writer+MC → Manage only (MC dropped)", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage"}},
+		{name: "Writer+MC+Auditor → Manage only (all subordinates dropped)", roles: []string{roleWriter, roleMeetingCoordinator, roleAuditor}, want: []string{"Manage"}},
 		{name: "empty → empty", roles: nil, want: []string{}},
 	}
 

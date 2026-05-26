@@ -135,7 +135,7 @@ func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, proj
 	case changeChanged:
 		// Suppress email when the only change is gaining Auditor (View) while already
 		// holding a Manage role (Writer or Meeting Coordinator), since Manage includes View.
-		if isManageViewNoOp(change.OldRoles, change.NewRoles) {
+		if isWriterSupersededNoOp(change.OldRoles, change.NewRoles) {
 			slog.DebugContext(ctx, "project_subscriber: skipping role-changed email — gaining View on top of Manage is a no-op",
 				"project_uid", projectUID, "old_roles", change.OldRoles, "new_roles", change.NewRoles)
 			return nil
@@ -162,7 +162,7 @@ func (s *ProjectsService) handleNonLFIDChange(ctx context.Context, projectUID, p
 	if change.Kind == changeAdded {
 		rolesToInvite = change.NewRoles
 	} else {
-		if isManageViewNoOp(change.OldRoles, change.NewRoles) {
+		if isWriterSupersededNoOp(change.OldRoles, change.NewRoles) {
 			slog.DebugContext(ctx, "project_subscriber: skipping invite — gaining View on top of Manage is a no-op",
 				"project_uid", projectUID)
 			return nil
@@ -758,30 +758,29 @@ func setDiffRoles(a, b []string) []string {
 	return diff
 }
 
-// hasManageRole reports whether roles includes a Manage-level role (Writer or Meeting Coordinator).
-func hasManageRole(roles []string) bool {
+// hasWriterRole reports whether roles includes the Writer role, which supersedes all other roles.
+func hasWriterRole(roles []string) bool {
 	for _, r := range roles {
-		if r == roleWriter || r == roleMeetingCoordinator {
+		if r == roleWriter {
 			return true
 		}
 	}
 	return false
 }
 
-// isManageViewNoOp reports whether the only difference between old and new roles is the presence
-// of Auditor (View-level), while a Manage-level role exists in both snapshots.  Since Manage
-// permissions include View, neither gaining nor losing Auditor alone warrants a notification.
-func isManageViewNoOp(oldRoles, newRoles []string) bool {
-	if !hasManageRole(oldRoles) || !hasManageRole(newRoles) {
+// isWriterSupersededNoOp reports whether Writer is present in both old and new roles and the
+// only differences are subordinate roles (Auditor or Meeting Coordinator) that Writer already
+// supersedes.  When true, no notification is needed because the user's effective access is unchanged.
+func isWriterSupersededNoOp(oldRoles, newRoles []string) bool {
+	if !hasWriterRole(oldRoles) || !hasWriterRole(newRoles) {
 		return false
 	}
-	// Every changed role (gained or lost) must be Auditor only.
 	delta := append(setDiffRoles(newRoles, oldRoles), setDiffRoles(oldRoles, newRoles)...)
 	if len(delta) == 0 {
 		return false
 	}
 	for _, r := range delta {
-		if r != roleAuditor {
+		if r != roleAuditor && r != roleMeetingCoordinator {
 			return false
 		}
 	}
@@ -802,8 +801,9 @@ func roleDisplayName(role string) string {
 }
 
 // rolesForDisplay converts a slice of internal role names to deduplicated display names
-// and drops "View" when "Manage" (Writer) is also present, since Manage already implies
-// View access.  Meeting Coordinator is kept as a distinct label.  Order follows input.
+// ("Manage", "Meeting Coordinator", "View"), then returns just ["Manage"] when Writer is
+// present, since Writer supersedes both Meeting Coordinator and View.
+// When no Writer, Meeting Coordinator and View are shown independently.  Order follows input.
 func rolesForDisplay(roles []string) []string {
 	seen := make(map[string]bool, len(roles))
 	result := make([]string, 0, len(roles))
@@ -815,13 +815,7 @@ func rolesForDisplay(roles []string) []string {
 		}
 	}
 	if seen["Manage"] {
-		filtered := result[:0]
-		for _, r := range result {
-			if r != "View" {
-				filtered = append(filtered, r)
-			}
-		}
-		return filtered
+		return []string{"Manage"}
 	}
 	return result
 }
