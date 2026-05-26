@@ -801,7 +801,9 @@ func isWriterSupersededNoOp(oldRoles, newRoles []string) bool {
 	if len(gained) > 0 && len(lost) > 0 {
 		return false
 	}
-	delta := append(gained, lost...)
+	delta := make([]string, 0, len(gained)+len(lost))
+	delta = append(delta, gained...)
+	delta = append(delta, lost...)
 	if len(delta) == 0 {
 		return false
 	}
