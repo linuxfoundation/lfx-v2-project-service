@@ -39,7 +39,7 @@
 
     <p class="greeting">Hi {{.RecipientName}},</p>
 
-    {{if .InviterName}}<p>{{.InviterName}} has added you as {{.Article}}<strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>You have been added as {{.Article}}<strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{end}}
+    {{if .InviterName}}<p>{{.InviterName}} has added you as <strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>You have been added as <strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{end}}
 
     {{range .CapabilityGroups}}<p>With the <strong>{{.Role}}</strong> role, you can:</p>
     <ul class="capabilities-list">

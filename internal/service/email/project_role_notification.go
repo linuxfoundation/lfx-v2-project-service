@@ -31,7 +31,6 @@ type ProjectRoleNotificationData struct {
 	ProjectName      string
 	Roles            []string
 	JoinedRoles      string // pre-computed by RenderProjectRoleNotification; set automatically
-	Article          string // "a " (single) or "" (multiple); set automatically
 	ProjectURL       string
 	InviterName      string
 	CapabilityGroups []RoleCapabilityGroup // pre-computed by RenderProjectRoleNotification; set automatically
@@ -46,16 +45,11 @@ func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, h
 	}
 	data.JoinedRoles = joinRoles(data.Roles)
 	data.CapabilityGroups = capabilityGroupsFor(data.Roles)
-	if len(data.Roles) == 1 {
-		data.Article = "a "
-	} else {
-		data.Article = ""
-	}
 
 	if data.InviterName != "" {
-		subject = data.InviterName + " added you as " + data.Article + data.JoinedRoles + " on " + data.ProjectName
+		subject = data.InviterName + " added you as " + data.JoinedRoles + " on " + data.ProjectName
 	} else {
-		subject = "You have been added as " + data.Article + data.JoinedRoles + " on " + data.ProjectName
+		subject = "You have been added as " + data.JoinedRoles + " on " + data.ProjectName
 	}
 
 	var htmlBuf bytes.Buffer

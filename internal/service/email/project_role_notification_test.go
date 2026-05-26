@@ -30,6 +30,7 @@ func TestRenderProjectRoleNotification(t *testing.T) {
 				InviterName:   "Bob",
 			},
 			wantSubject: []string{"Writer", "Demo Project", "Bob"},
+			wantNotSubj: []string{"added you as a "},
 			wantHTML:    []string{"Alice", "Demo Project", "Writer", "https://app.dev.lfx.dev/projects/demo-project", "Bob"},
 			wantText:    []string{"Alice", "Demo Project", "Writer", "https://app.dev.lfx.dev/projects/demo-project", "Bob"},
 		},

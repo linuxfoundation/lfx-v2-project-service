@@ -1034,6 +1034,29 @@ func TestHandleInviteAccepted(t *testing.T) {
 			},
 		},
 		{
+			name:    "user in Writer + MC slices — both entries promoted on acceptance",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				// Writer has the invite UID; MC is the same user but was deduped (no UID).
+				settings := &models.ProjectSettings{
+					UID:                 projectUID,
+					Writers:             []models.UserInfo{{Email: "writer@example.com", Invite: &models.InviteInfo{UID: inviteUID}}},
+					MeetingCoordinators: []models.UserInfo{{Email: "writer@example.com"}},
+				}
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					writerOK := len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
+					mcOK := len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Username == username
+					return writerOK && mcOK
+				}), uint64(1)).Return(nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+			},
+		},
+		{
 			name:    "promoted == false (stale mapping) — mapping deleted, nil returned",
 			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
 			setupRepo: func(r *domain.MockProjectRepository) {

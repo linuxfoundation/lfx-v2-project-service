@@ -2,7 +2,7 @@
 {{- /* SPDX-License-Identifier: MIT */ -}}
 Hi {{.RecipientName}},
 
-{{if .InviterName}}{{.InviterName}} has added you as {{.Article}}{{.JoinedRoles}} on the {{.ProjectName}} project in LFX Self-Serve.{{else}}You have been added as {{.Article}}{{.JoinedRoles}} on the {{.ProjectName}} project in LFX Self-Serve.{{end}}
+{{if .InviterName}}{{.InviterName}} has added you as {{.JoinedRoles}} on the {{.ProjectName}} project in LFX Self-Serve.{{else}}You have been added as {{.JoinedRoles}} on the {{.ProjectName}} project in LFX Self-Serve.{{end}}
 
 {{range .CapabilityGroups}}With the {{.Role}} role, you can:
 {{range .Items}}- {{.}}

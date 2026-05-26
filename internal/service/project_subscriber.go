@@ -533,15 +533,37 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			return nil
 		}
 
+		// Pass 1: find the entry that owns the invite UID and promote it.
+		// Record the normalised email so sibling entries for the same user can be
+		// promoted in pass 2 (they share an email but were deduplicated and never
+		// received their own invite UID).
 		promoted = false
-	outer:
-		for _, slice := range []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators} {
+		var promotedEmail string
+		allSlices := []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators}
+		for _, slice := range allSlices {
 			for i := range *slice {
 				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
+					promotedEmail = strings.ToLower(strings.TrimSpace((*slice)[i].Email))
 					(*slice)[i].Username = event.Username
 					(*slice)[i].Invite = nil
 					promoted = true
-					break outer // invite UIDs are unique; no need to scan further
+					break
+				}
+			}
+			if promoted {
+				break
+			}
+		}
+
+		// Pass 2: promote any sibling entries for the same email that were skipped
+		// during invite deduplication and therefore have no invite UID of their own.
+		if promoted && promotedEmail != "" {
+			for _, slice := range allSlices {
+				for i := range *slice {
+					if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == promotedEmail {
+						(*slice)[i].Username = event.Username
+						(*slice)[i].Invite = nil
+					}
 				}
 			}
 		}
