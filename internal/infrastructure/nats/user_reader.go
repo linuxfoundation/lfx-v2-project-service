@@ -114,30 +114,44 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	return result, nil
 }
 
-// UsernameByEmail resolves the registered LFID username for the given primary email address.
-// The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
-func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
+// SubByEmail resolves the subject identifier for the given primary email address.
+// The auth service replies with a plain-text subject on success, or a JSON error envelope on miss.
+func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, error) {
 	reply, err := u.NatsConn.RequestMsgWithContext(ctx, &natsgo.Msg{
-		Subject: constants.AuthEmailToUsernameSubject,
+		Subject: constants.AuthEmailToSubSubject,
 		Data:    []byte(email),
 	})
 	if err != nil {
-		return "", fmt.Errorf("email_to_username request failed: %w", err)
+		return "", fmt.Errorf("email_to_sub request failed: %w", err)
 	}
 
-	// The auth service sends a plain-text username on success and a JSON error envelope on miss.
+	// The auth service sends a plain-text subject on success and a JSON error envelope on miss.
 	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing
-	// newline or leading space don't corrupt the username or bypass JSON detection.
+	// newline or leading space don't corrupt the subject or bypass JSON detection.
 	body := strings.TrimSpace(string(reply.Data))
 	if body == "" {
 		return "", domain.ErrUserNotFound
 	}
 
-	// Any object-shaped response (starts with '{') is an error envelope or contract violation.
-	// Never return JSON as a username — it would propagate garbage into access control.
-	// This covers both well-formed error envelopes and malformed JSON blobs.
+	// Any object-shaped response is an envelope — parse it to distinguish an explicit
+	// not-found from a malformed or unexpected reply. Returning ErrUserNotFound for
+	// non-404 cases would silently clear stored principals in callers that treat
+	// ErrUserNotFound as "member disappeared".
 	if body[0] == '{' {
-		return "", domain.ErrUserNotFound
+		var envelope struct {
+			Success *bool  `json:"success"`
+			Error   string `json:"error,omitempty"`
+		}
+		if err := json.Unmarshal(reply.Data, &envelope); err != nil {
+			return "", fmt.Errorf("failed to parse email_to_sub response: %w", err)
+		}
+		if envelope.Success == nil {
+			return "", fmt.Errorf("email_to_sub response missing success field")
+		}
+		if !*envelope.Success {
+			return "", domain.ErrUserNotFound
+		}
+		return "", fmt.Errorf("unexpected email_to_sub success envelope")
 	}
 
 	return body, nil
