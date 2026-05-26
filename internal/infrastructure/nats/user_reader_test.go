@@ -33,12 +33,17 @@ func TestUserReaderNATS_SubByEmail(t *testing.T) {
 		wantErrStr string
 	}{
 		{
-			name:     "plain-text username returned on success",
+			name:     "plain-text subject returned on success",
 			reply:    replyMsg([]byte("alice")),
 			wantUser: "alice",
 		},
 		{
-			name:     "trailing newline trimmed from username",
+			name:     "provider-qualified sub preserved without truncation",
+			reply:    replyMsg([]byte("auth0|alice")),
+			wantUser: "auth0|alice",
+		},
+		{
+			name:     "trailing newline trimmed from subject",
 			reply:    replyMsg([]byte("alice\n")),
 			wantUser: "alice",
 		},
@@ -63,14 +68,14 @@ func TestUserReaderNATS_SubByEmail(t *testing.T) {
 			wantErr: domain.ErrUserNotFound,
 		},
 		{
-			name:    "JSON success envelope returns ErrUserNotFound instead of leaking JSON as username",
-			reply:   replyMsg([]byte(`{"success":true,"username":"alice"}`)),
-			wantErr: domain.ErrUserNotFound,
+			name:       "JSON success envelope returns error instead of leaking JSON as subject",
+			reply:      replyMsg([]byte(`{"success":true,"username":"alice"}`)),
+			wantErrStr: "unexpected email_to_sub success envelope",
 		},
 		{
-			name:    "malformed JSON object returns ErrUserNotFound instead of leaking raw body as username",
-			reply:   replyMsg([]byte(`{"success":"true"}`)),
-			wantErr: domain.ErrUserNotFound,
+			name:       "malformed JSON object returns parse error instead of leaking raw body as subject",
+			reply:      replyMsg([]byte(`{"success":"true"}`)),
+			wantErrStr: "failed to parse email_to_sub response",
 		},
 		{
 			name:       "transport error is wrapped and returned",

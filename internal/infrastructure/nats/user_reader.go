@@ -133,11 +133,22 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 		return "", domain.ErrUserNotFound
 	}
 
-	// Any object-shaped response (starts with '{') is an error envelope or contract violation.
-	// Never return JSON as a subject — it would propagate garbage into access control.
-	// This covers both well-formed error envelopes and malformed JSON blobs.
+	// Any object-shaped response is an envelope — parse it to distinguish an explicit
+	// not-found from a malformed or unexpected reply. Returning ErrUserNotFound for
+	// non-404 cases would silently clear stored principals in callers that treat
+	// ErrUserNotFound as "member disappeared".
 	if body[0] == '{' {
-		return "", domain.ErrUserNotFound
+		var envelope struct {
+			Success bool   `json:"success"`
+			Error   string `json:"error,omitempty"`
+		}
+		if err := json.Unmarshal(reply.Data, &envelope); err != nil {
+			return "", fmt.Errorf("failed to parse email_to_sub response: %w", err)
+		}
+		if !envelope.Success {
+			return "", domain.ErrUserNotFound
+		}
+		return "", fmt.Errorf("unexpected email_to_sub success envelope")
 	}
 
 	return body, nil
