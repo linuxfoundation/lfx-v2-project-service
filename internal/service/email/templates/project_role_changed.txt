@@ -1,0 +1,18 @@
+{{- /* Copyright The Linux Foundation and each contributor to LFX. */ -}}
+{{- /* SPDX-License-Identifier: MIT */ -}}
+Hi {{.RecipientName}},
+
+{{if .InviterName}}{{.InviterName}} has updated your role on the {{.ProjectName}} project in LFX Self-Serve.{{else}}Your role on the {{.ProjectName}} project in LFX Self-Serve has been updated.{{end}}
+
+Previous {{.OldRoleWord}}: {{.OldJoinedRoles}}
+New {{.NewRoleWord}}: {{.NewJoinedRoles}}
+
+{{range .NewCapabilityGroups}}With the {{.Role}} role, you can:
+{{range .Items}}- {{.}}
+{{end}}
+{{end}}You can view the project here:
+{{.ProjectURL}}
+
+---
+You are receiving this email because your role on a project was updated on LFX Self-Serve.
+© The Linux Foundation

@@ -769,8 +769,8 @@ func (s *ProjectsService) enrichAllRoleFields(
 		if u == nil {
 			return
 		}
-		// Normalize first so a whitespace-only email like "   " doesn't reach the NATS call.
-		if u.Email == nil {
+		// Treat nil, empty, or whitespace-only emails as missing.
+		if u.Email == nil || strings.TrimSpace(*u.Email) == "" {
 			u.Username = misc.StringPtr("")
 			return
 		}

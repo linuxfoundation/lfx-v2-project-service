@@ -78,8 +78,9 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		wantURLNotContain string
 		setupRepoExtra    func(*domain.MockProjectRepository) // optional extra repo mock setup
 	}{
+		// ── No-op cases ──────────────────────────────────────────────────────────────
 		{
-			name: "no additions — no sends",
+			name: "no changes — no sends",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{Writers: []events.UserInfo{alice}},
@@ -88,6 +89,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantEmailCount:  0,
 			wantInviteCount: 0,
 		},
+		// ── Addition cases (Phase 1 regression) ──────────────────────────────────────
 		{
 			name: "LFID writer added — direct email sent",
 			event: events.ProjectSettingsUpdatedMessage{
@@ -101,7 +103,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 0,
 		},
 		{
-			name: "two LFID users added across roles — two emails sent",
+			name: "two different LFID users added across roles — two emails sent",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
 				OldSettings: events.ProjectSettings{},
@@ -113,6 +115,21 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			},
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
 			wantEmailCount:  2,
+			wantInviteCount: 0,
+		},
+		{
+			name: "same LFID user added to two roles simultaneously — one consolidated email",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
 			wantInviteCount: 0,
 		},
 		{
@@ -197,6 +214,128 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 2,
 			// inviteUID is empty — no write-back expected (returned empty UID path)
 		},
+		// ── Role-change cases (LFID) ──────────────────────────────────────────────────
+		{
+			name: "LFID user role swapped (Writer → Auditor) — role changed email sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
+		},
+		{
+			// Writer already implies View (Auditor); gaining Auditor on top is a no-op — no email.
+			name: "LFID user gains Auditor on top of Writer — no email (Manage includes View)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			name: "LFID user partially removed (Writer+Auditor → Auditor) — role changed email, not removal",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
+		},
+		// ── Removal cases ─────────────────────────────────────────────────────────────
+		{
+			name: "LFID user fully removed — role removed email sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
+		},
+		{
+			name: "non-LFID user removed — no sends",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{noLFIDWriter},
+				},
+				NewSettings: events.ProjectSettings{},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		// ── Non-LFID role-change cases ────────────────────────────────────────────────
+		{
+			name: "non-LFID user already auditor added as writer — invite only for new Writer role",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{noLFIDWriter},
+					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-writer-uid",
+			setupRepoExtra: func(r *domain.MockProjectRepository) {
+				// Settings contains the user in both slices; only Writers entry should be stamped.
+				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
+					Return(&models.ProjectSettings{
+						UID:      "proj-1",
+						Writers:  []models.UserInfo{{Email: noLFIDWriter.Email}},
+						Auditors: []models.UserInfo{{Email: noLFIDWriter.Email}},
+					}, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					if len(s.Writers) == 0 || s.Writers[0].Invite.UID != "invite-writer-uid" {
+						return false
+					}
+					// Auditors entry must NOT have an invite set.
+					if len(s.Auditors) == 0 || s.Auditors[0].Invite != nil {
+						return false
+					}
+					return true
+				}), uint64(1)).Return(nil)
+				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
+			},
+		},
+		// ── Error & edge-case cases ───────────────────────────────────────────────────
 		{
 			name: "send error on email — handler still returns nil",
 			event: events.ProjectSettingsUpdatedMessage{
@@ -248,47 +387,6 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 0,
 		},
 		{
-			// User is already an auditor but gets added as a writer.  Only the Writers
-			// slice entry should receive the invite UID — the Auditors entry is untouched.
-			name: "non-LFID user already auditor added as writer — invite UID stored only on writer entry",
-			event: events.ProjectSettingsUpdatedMessage{
-				ProjectUID: "proj-1",
-				OldSettings: events.ProjectSettings{
-					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
-				},
-				NewSettings: events.ProjectSettings{
-					Writers:  []events.UserInfo{noLFIDWriter},
-					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
-				},
-				Actor: events.Actor{Name: "Admin"},
-			},
-			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
-			wantEmailCount:  0,
-			wantInviteCount: 1,
-			wantInviteRole:  string(inviteapi.InviteRoleManage),
-			inviteUID:       "invite-writer-uid",
-			setupRepoExtra: func(r *domain.MockProjectRepository) {
-				// Settings contains the user in both slices; only Writers entry should be stamped.
-				r.On("GetProjectSettingsWithRevision", mock.Anything, "proj-1").
-					Return(&models.ProjectSettings{
-						UID:      "proj-1",
-						Writers:  []models.UserInfo{{Email: noLFIDWriter.Email}},
-						Auditors: []models.UserInfo{{Email: noLFIDWriter.Email}},
-					}, uint64(1), nil)
-				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					if len(s.Writers) == 0 || s.Writers[0].Invite.UID != "invite-writer-uid" {
-						return false
-					}
-					// Auditors entry must NOT have an invite set.
-					if len(s.Auditors) == 0 || s.Auditors[0].Invite != nil {
-						return false
-					}
-					return true
-				}), uint64(1)).Return(nil)
-				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
-			},
-		},
-		{
 			name: "project with slug — URL includes slug query param",
 			event: events.ProjectSettingsUpdatedMessage{
 				ProjectUID:  "proj-1",
@@ -312,6 +410,152 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantEmailCount:    1,
 			wantURLContains:   "project/overview",
 			wantURLNotContain: "?project=",
+		},
+		// ── Manage+View permission hierarchy suppression ──────────────────────────────
+		{
+			// Meeting Coordinator does NOT supersede Auditor — gaining Auditor on top of MC is meaningful.
+			name: "LFID Meeting Coordinator gains Auditor — role changed email sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					MeetingCoordinators: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					MeetingCoordinators: []events.UserInfo{alice},
+					Auditors:            []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
+		},
+		{
+			// Auditor → Writer is a meaningful upgrade; email must be sent.
+			name: "LFID Auditor gains Writer — role changed email sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
+		},
+		{
+			// Non-LFID Writer gains Auditor: no invite because Manage already includes View.
+			name: "non-LFID Writer gains Auditor — no invite (Manage includes View)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{noLFIDWriter},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{noLFIDWriter},
+					Auditors: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// non-LFID user added with both Writer and Meeting Coordinator: both map to Manage,
+			// so only one invite should be sent (not two).
+			name: "non-LFID Writer+Meeting Coordinator added — only one invite sent (dedup by invite role)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers:             []events.UserInfo{noLFIDWriter},
+					MeetingCoordinators: []events.UserInfo{{Email: noLFIDWriter.Email}},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+		},
+		{
+			// Losing Auditor while keeping Writer is symmetric: Manage still includes View, no email.
+			name: "LFID Writer+Auditor loses Auditor — no email (Manage includes View)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// Writer supersedes Meeting Coordinator — gaining MC on top of Writer is a no-op.
+			name: "LFID Writer gains Meeting Coordinator — no email (Writer supersedes MC)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:             []events.UserInfo{alice},
+					MeetingCoordinators: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// Swapping a subordinate role while holding Writer collapses to the same display
+			// ("Manage") — sending "Manage → Manage" is confusing and should be suppressed.
+			name: "LFID Writer+Auditor swaps to Writer+Meeting Coordinator — no email (display identical)",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Writers:             []events.UserInfo{alice},
+					MeetingCoordinators: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+		},
+		{
+			// Losing Writer while still having Auditor is a meaningful downgrade — email must be sent.
+			name: "LFID Writer+Auditor loses Writer — role changed email sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{alice},
+					Auditors: []events.UserInfo{alice},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{alice},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  1,
+			wantInviteCount: 0,
 		},
 	}
 
@@ -441,7 +685,7 @@ func TestMapRoleToInviteRole(t *testing.T) {
 	}
 }
 
-func TestDiffNewMembers(t *testing.T) {
+func TestDiffUserChanges(t *testing.T) {
 	alice := events.UserInfo{Username: "alice", Email: "alice@example.com", Name: "Alice"}
 	bob := events.UserInfo{Username: "bob", Email: "bob@example.com", Name: "Bob"}
 	noUsername := events.UserInfo{Email: "nouser@example.com", Name: "No Username"}
@@ -452,7 +696,7 @@ func TestDiffNewMembers(t *testing.T) {
 		old          events.ProjectSettings
 		new          events.ProjectSettings
 		wantLen      int
-		wantContains []roleAssignment
+		wantContains []userChange
 	}{
 		{
 			name: "no changes",
@@ -460,28 +704,58 @@ func TestDiffNewMembers(t *testing.T) {
 			new:  events.ProjectSettings{Writers: []events.UserInfo{alice}},
 		},
 		{
-			name:         "writer added",
-			old:          events.ProjectSettings{},
-			new:          events.ProjectSettings{Writers: []events.UserInfo{alice}},
-			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
+			name:    "writer added",
+			old:     events.ProjectSettings{},
+			new:     events.ProjectSettings{Writers: []events.UserInfo{alice}},
+			wantLen: 1,
+			wantContains: []userChange{
+				{User: alice, NewRoles: []string{roleWriter}, Kind: changeAdded},
+			},
 		},
 		{
-			name:         "auditor added",
-			old:          events.ProjectSettings{},
-			new:          events.ProjectSettings{Auditors: []events.UserInfo{bob}},
-			wantLen:      1,
-			wantContains: []roleAssignment{{User: bob, Role: roleAuditor}},
+			name:    "writer removed",
+			old:     events.ProjectSettings{Writers: []events.UserInfo{alice}},
+			new:     events.ProjectSettings{},
+			wantLen: 1,
+			wantContains: []userChange{
+				{User: alice, OldRoles: []string{roleWriter}, Kind: changeRemoved},
+			},
 		},
 		{
-			name:         "meeting coordinator added",
-			old:          events.ProjectSettings{},
-			new:          events.ProjectSettings{MeetingCoordinators: []events.UserInfo{alice}},
-			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: roleMeetingCoordinator}},
+			name:    "writer role swapped to auditor — changed",
+			old:     events.ProjectSettings{Writers: []events.UserInfo{alice}},
+			new:     events.ProjectSettings{Auditors: []events.UserInfo{alice}},
+			wantLen: 1,
+			wantContains: []userChange{
+				{User: alice, OldRoles: []string{roleWriter}, NewRoles: []string{roleAuditor}, Kind: changeChanged},
+			},
 		},
 		{
-			name: "multiple roles added",
+			name: "auditor also gains writer — changed",
+			old:  events.ProjectSettings{Auditors: []events.UserInfo{alice}},
+			new: events.ProjectSettings{
+				Writers:  []events.UserInfo{alice},
+				Auditors: []events.UserInfo{alice},
+			},
+			wantLen: 1,
+			wantContains: []userChange{
+				{User: alice, OldRoles: []string{roleAuditor}, NewRoles: []string{roleWriter, roleAuditor}, Kind: changeChanged},
+			},
+		},
+		{
+			name: "partial removal (writer+auditor → auditor) — changed not removed",
+			old: events.ProjectSettings{
+				Writers:  []events.UserInfo{alice},
+				Auditors: []events.UserInfo{alice},
+			},
+			new:     events.ProjectSettings{Auditors: []events.UserInfo{alice}},
+			wantLen: 1,
+			wantContains: []userChange{
+				{User: alice, OldRoles: []string{roleWriter, roleAuditor}, NewRoles: []string{roleAuditor}, Kind: changeChanged},
+			},
+		},
+		{
+			name: "two different users each added in separate roles",
 			old:  events.ProjectSettings{},
 			new: events.ProjectSettings{
 				Writers:  []events.UserInfo{alice},
@@ -490,16 +764,13 @@ func TestDiffNewMembers(t *testing.T) {
 			wantLen: 2,
 		},
 		{
-			name: "removal only — no additions",
-			old:  events.ProjectSettings{Writers: []events.UserInfo{alice, bob}},
-			new:  events.ProjectSettings{Writers: []events.UserInfo{alice}},
-		},
-		{
-			name:         "user with no username matched by email",
-			old:          events.ProjectSettings{},
-			new:          events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
-			wantLen:      1,
-			wantContains: []roleAssignment{{User: noUsername, Role: roleWriter}},
+			name:    "user with no username matched by email — added",
+			old:     events.ProjectSettings{},
+			new:     events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
+			wantLen: 1,
+			wantContains: []userChange{
+				{User: noUsername, NewRoles: []string{roleWriter}, Kind: changeAdded},
+			},
 		},
 		{
 			name: "user with neither username nor email is skipped",
@@ -507,48 +778,157 @@ func TestDiffNewMembers(t *testing.T) {
 			new:  events.ProjectSettings{Writers: []events.UserInfo{empty}},
 		},
 		{
-			name: "existing user with no username skipped in old set",
-			old:  events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
-			new:  events.ProjectSettings{Writers: []events.UserInfo{noUsername}},
-		},
-		{
-			name:         "duplicate entries in new — only one addition returned",
-			old:          events.ProjectSettings{},
-			new:          events.ProjectSettings{Writers: []events.UserInfo{alice, alice}},
-			wantLen:      1,
-			wantContains: []roleAssignment{{User: alice, Role: "Writer"}},
-		},
-		{
-			// Same person appears email-only in old, then gains a username in new.
-			// The multi-key lookup must recognise the shared email and not treat them as
-			// a new addition.
-			name:    "identity shape change — email-only in old, username+email in new — not a new addition",
+			// Same person: email-only in old Writers, then gains a username in new Writers.
+			// Role set is identical (Writer) → should be treated as no change.
+			name:    "identity shape change (email-only → username+email) with same role — not a change",
 			old:     events.ProjectSettings{Writers: []events.UserInfo{{Email: "alice@example.com"}}},
 			new:     events.ProjectSettings{Writers: []events.UserInfo{{Username: "alice", Email: "alice@example.com"}}},
 			wantLen: 0,
 		},
 		{
-			// Same person listed twice in new with different identity shapes (username+email,
-			// then email-only). seenNew must index all keys so the second entry is recognised
-			// as a duplicate and only one notification is sent.
-			name: "same person twice in new with different identity shapes — only one addition",
-			old:  events.ProjectSettings{},
-			new: events.ProjectSettings{Writers: []events.UserInfo{
-				{Username: "alice", Email: "alice@example.com"},
-				{Email: "alice@example.com"},
-			}},
-			wantLen:      1,
-			wantContains: []roleAssignment{{User: events.UserInfo{Username: "alice", Email: "alice@example.com"}, Role: roleWriter}},
+			// Same person: email-only Auditor in old, gains username and also becomes Writer.
+			name: "identity shape change with role gain — classified as changed",
+			old:  events.ProjectSettings{Auditors: []events.UserInfo{{Email: "alice@example.com"}}},
+			new: events.ProjectSettings{
+				Writers:  []events.UserInfo{{Username: "alice", Email: "alice@example.com"}},
+				Auditors: []events.UserInfo{{Username: "alice", Email: "alice@example.com"}},
+			},
+			wantLen: 1,
+			wantContains: []userChange{
+				{
+					User:     events.UserInfo{Username: "alice", Email: "alice@example.com"},
+					OldRoles: []string{roleAuditor},
+					NewRoles: []string{roleWriter, roleAuditor},
+					Kind:     changeChanged,
+				},
+			},
+		},
+		{
+			// Duplicate entries for alice in the new Writers slice. The per-user map
+			// deduplicates so only one change is returned.
+			name:    "duplicate LFID user in new snapshot — deduplicated",
+			old:     events.ProjectSettings{},
+			new:     events.ProjectSettings{Writers: []events.UserInfo{alice, alice}},
+			wantLen: 1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := diffNewMembers(tt.old, tt.new)
+			got := diffUserChanges(tt.old, tt.new)
 			assert.Len(t, got, tt.wantLen)
 			for _, want := range tt.wantContains {
 				assert.Contains(t, got, want)
 			}
+		})
+	}
+}
+
+func TestIsWriterSupersededNoOp(t *testing.T) {
+	tests := []struct {
+		name     string
+		oldRoles []string
+		newRoles []string
+		want     bool
+	}{
+		{
+			name:     "Writer gains Auditor — suppress",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter, roleAuditor},
+			want:     true,
+		},
+		{
+			name:     "Writer+Auditor loses Auditor — suppress",
+			oldRoles: []string{roleWriter, roleAuditor},
+			newRoles: []string{roleWriter},
+			want:     true,
+		},
+		{
+			name:     "Writer gains Meeting Coordinator — suppress",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter, roleMeetingCoordinator},
+			want:     true,
+		},
+		{
+			name:     "Writer+MC loses Meeting Coordinator — suppress",
+			oldRoles: []string{roleWriter, roleMeetingCoordinator},
+			newRoles: []string{roleWriter},
+			want:     true,
+		},
+		{
+			name:     "Writer gains both MC and Auditor — suppress",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter, roleMeetingCoordinator, roleAuditor},
+			want:     true,
+		},
+		{
+			// MC does NOT supersede Auditor: gaining Auditor while holding only MC is meaningful.
+			name:     "Meeting Coordinator gains Auditor — not a no-op",
+			oldRoles: []string{roleMeetingCoordinator},
+			newRoles: []string{roleMeetingCoordinator, roleAuditor},
+			want:     false,
+		},
+		{
+			name:     "Auditor gains Writer — not a no-op",
+			oldRoles: []string{roleAuditor},
+			newRoles: []string{roleWriter, roleAuditor},
+			want:     false,
+		},
+		{
+			name:     "Writer swapped to Auditor — not a no-op",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleAuditor},
+			want:     false,
+		},
+		{
+			name:     "identical roles — not a no-op (no change at all)",
+			oldRoles: []string{roleWriter},
+			newRoles: []string{roleWriter},
+			want:     false,
+		},
+		{
+			// Swapping MC for Auditor while keeping Writer is a meaningful subordinate change.
+			name:     "Writer+MC swapped to Writer+Auditor — not a no-op",
+			oldRoles: []string{roleWriter, roleMeetingCoordinator},
+			newRoles: []string{roleWriter, roleAuditor},
+			want:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isWriterSupersededNoOp(tt.oldRoles, tt.newRoles)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestRolesForDisplay(t *testing.T) {
+	tests := []struct {
+		name  string
+		roles []string
+		want  []string
+	}{
+		{name: "Writer → Manage", roles: []string{roleWriter}, want: []string{"Manage"}},
+		{name: "Auditor → View", roles: []string{roleAuditor}, want: []string{"View"}},
+		{name: "Meeting Coordinator → Meeting Coordinator", roles: []string{roleMeetingCoordinator}, want: []string{"Meeting Coordinator"}},
+		{name: "Writer+Auditor → Manage only (Auditor dropped)", roles: []string{roleWriter, roleAuditor}, want: []string{"Manage"}},
+		{name: "MC+Auditor → both shown (neither supersedes)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Meeting Coordinator", "View"}},
+		{name: "Writer+MC → Manage only (MC dropped)", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage"}},
+		{name: "Writer+MC+Auditor → Manage only (all subordinates dropped)", roles: []string{roleWriter, roleMeetingCoordinator, roleAuditor}, want: []string{"Manage"}},
+		{name: "empty → empty", roles: nil, want: []string{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := rolesForDisplay(tt.roles)
+			if tt.want == nil {
+				tt.want = []string{}
+			}
+			if got == nil {
+				got = []string{}
+			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -651,6 +1031,29 @@ func TestHandleInviteAccepted(t *testing.T) {
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+			},
+		},
+		{
+			name:    "user in Writer + MC slices — both entries promoted on acceptance",
+			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
+				// Writer has the invite UID; MC is the same user but was deduped (no UID).
+				settings := &models.ProjectSettings{
+					UID:                 projectUID,
+					Writers:             []models.UserInfo{{Email: "writer@example.com", Invite: &models.InviteInfo{UID: inviteUID}}},
+					MeetingCoordinators: []models.UserInfo{{Email: "writer@example.com"}},
+				}
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					writerOK := len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
+					mcOK := len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Username == username
+					return writerOK && mcOK
+				}), uint64(1)).Return(nil)
+				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
 			},
 		},
 		{

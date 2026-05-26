@@ -5,9 +5,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="LFX Self-Serve project role notification">
-    <meta name="keywords" content="LFX, project, role, notification">
-    <title>You've been added to {{.ProjectName}}</title>
+    <meta name="description" content="LFX Self-Serve project role update notification">
+    <meta name="keywords" content="LFX, project, role, update">
+    <title>Your role on {{.ProjectName}} has been updated</title>
     <style>
         body { margin: 0; padding: 0; background-color: #ffffff; font-family: Inter, Arial, sans-serif; color: #111827; }
         .wrapper { max-width: 600px; margin: 0 auto; padding: 32px 40px; }
@@ -16,6 +16,9 @@
         hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 32px 0; }
         p { font-size: 16px; color: #374151; line-height: 1.6; margin: 0 0 16px 0; }
         .greeting { font-size: 15px; color: #374151; margin: 0 0 8px 0; }
+        .role-table { width: 100%; border-collapse: collapse; margin: 0 0 20px 0; }
+        .role-table td { font-size: 15px; color: #374151; padding: 6px 0; }
+        .role-label { color: #6b7280; width: 120px; }
         .btn { display: inline-block; background-color: #009AFF; color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 24px; border-radius: 8px; margin-bottom: 12px; }
         .btn-note { font-size: 13px; color: #6b7280; margin: 0 0 28px 0; }
         .btn-note a { color: #009AFF; text-decoration: none; }
@@ -39,15 +42,18 @@
 
     <p class="greeting">Hi {{.RecipientName}},</p>
 
-    {{if .InviterName}}<p>{{.InviterName}} has added you as <strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>You have been added as <strong>{{.JoinedRoles}}</strong> on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{end}}
+    {{if .InviterName}}<p>{{.InviterName}} has updated your role on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>Your role on the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve has been updated.</p>{{end}}
 
-    {{range .CapabilityGroups}}<p>With the <strong>{{.Role}}</strong> role, you can:</p>
+    <table class="role-table">
+        <tr><td class="role-label">Previous {{.OldRoleWord}}:</td><td>{{.OldJoinedRoles}}</td></tr>
+        <tr><td class="role-label">New {{.NewRoleWord}}:</td><td><strong>{{.NewJoinedRoles}}</strong></td></tr>
+    </table>
+
+    {{range .NewCapabilityGroups}}<p>With the <strong>{{.Role}}</strong> role, you can:</p>
     <ul class="capabilities-list">
       {{range .Items}}<li>{{.}}</li>
       {{end}}</ul>
     {{end}}
-    <p>You can view the project dashboard by visiting the link below.</p>
-
     <!-- djlint:off H021 --><a href="{{.ProjectURL}}" class="btn" style="color:#ffffff!important;">View Project</a><!-- djlint:on H021 -->
     <p class="btn-note">If the button above doesn't work, paste this into your browser: <a href="{{.ProjectURL}}">{{.ProjectURL}}</a></p>
 

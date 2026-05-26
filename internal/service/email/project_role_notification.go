@@ -6,6 +6,7 @@ package email
 import (
 	"bytes"
 	"embed"
+	"errors"
 	htmltemplate "html/template"
 	texttemplate "text/template"
 )
@@ -26,17 +27,30 @@ var (
 
 // ProjectRoleNotificationData holds the template variables for a project role notification email.
 type ProjectRoleNotificationData struct {
-	RecipientName string
-	ProjectName   string
-	Role          string
-	ProjectURL    string
-	InviterName   string
+	RecipientName    string
+	ProjectName      string
+	Roles            []string
+	JoinedRoles      string // pre-computed by RenderProjectRoleNotification; set automatically
+	ProjectURL       string
+	InviterName      string
+	CapabilityGroups []RoleCapabilityGroup // pre-computed by RenderProjectRoleNotification; set automatically
 }
 
 // RenderProjectRoleNotification renders the subject, HTML body, and plain-text body
-// for a project role notification email.
+// for a project role notification email (user added to a project).
 func RenderProjectRoleNotification(data ProjectRoleNotificationData) (subject, html, text string, err error) {
-	subject = data.InviterName + " added you as a " + data.Role + " on " + data.ProjectName
+	if len(data.Roles) == 0 {
+		err = errors.New("email: Roles must be non-empty")
+		return
+	}
+	data.JoinedRoles = joinRoles(data.Roles)
+	data.CapabilityGroups = capabilityGroupsFor(data.Roles)
+
+	if data.InviterName != "" {
+		subject = data.InviterName + " added you as " + data.JoinedRoles + " on " + data.ProjectName
+	} else {
+		subject = "You have been added as " + data.JoinedRoles + " on " + data.ProjectName
+	}
 
 	var htmlBuf bytes.Buffer
 	if err = projectRoleHTMLTemplate.Execute(&htmlBuf, data); err != nil {

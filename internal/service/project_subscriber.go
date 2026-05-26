@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"net/url"
 	"strings"
 	"time"
 
@@ -34,11 +35,29 @@ const (
 	roleMeetingCoordinator = "Meeting Coordinator"
 )
 
+// changeKind classifies a per-user role delta between two settings snapshots.
+type changeKind int
+
+const (
+	changeAdded   changeKind = iota // user is new to the project
+	changeChanged                   // user's role set changed but they remain on the project
+	changeRemoved                   // user was fully removed from the project
+)
+
+// userChange describes the role delta for a single user across a settings update.
+type userChange struct {
+	User     events.UserInfo // freshest snapshot (new settings if present, else old)
+	OldRoles []string        // ordered: Writer, Auditor, Meeting Coordinator
+	NewRoles []string
+	Kind     changeKind
+}
+
 // HandleProjectSettingsUpdated handles project_settings.updated events and sends
-// notification emails to any users newly added as writers, auditors, or meeting coordinators.
-// Users with an LFID (Username present) receive a direct notification email via the email
-// service. Users without an LFID (email-only) receive an invite via the invite service so
-// they can create an LFID and gain access.
+// notification emails when users are added, have their roles changed, or are removed.
+//
+// LFID users (Username set) receive direct emails via the email service.
+// Non-LFID users (email-only) receive invites for new roles via the invite service;
+// removals for non-LFID users are silently skipped.
 // Errors from individual sends are logged but never returned — the handler is best-effort.
 func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg domain.Message) error {
 	var event events.ProjectSettingsUpdatedMessage
@@ -47,10 +66,23 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		return nil
 	}
 
-	additions := diffNewMembers(event.OldSettings, event.NewSettings)
+	changes := diffUserChanges(event.OldSettings, event.NewSettings)
 	slog.DebugContext(ctx, "project_subscriber: received project_settings.updated event",
-		"project_uid", event.ProjectUID, "new_member_count", len(additions))
-	if len(additions) == 0 {
+		"project_uid", event.ProjectUID, "change_count", len(changes))
+	if slog.Default().Enabled(ctx, slog.LevelDebug) {
+		for i, c := range changes {
+			slog.DebugContext(ctx, "project_subscriber: user change detail",
+				"project_uid", event.ProjectUID,
+				"index", i,
+				"kind", c.Kind,
+				"username", c.User.Username,
+				"email", c.User.Email,
+				"old_roles", c.OldRoles,
+				"new_roles", c.NewRoles,
+			)
+		}
+	}
+	if len(changes) == 0 {
 		return nil
 	}
 
@@ -60,54 +92,107 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 		return nil
 	}
 
-	baseURL := strings.TrimRight(s.Config.LFXSelfServeBaseURL, "/") + "/project/overview"
-	projectURL := baseURL
-	if projectBase.Slug != "" {
-		projectURL = baseURL + "?project=" + projectBase.Slug
-	}
-
+	projectURL := buildProjectURL(s.Config.LFXSelfServeBaseURL, projectBase.Slug)
 	inviterName := s.resolveActorDisplayName(ctx, event.Actor)
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(5)
 
-	for _, add := range additions {
+	for _, change := range changes {
 		g.Go(func() error {
-			if add.User.Email == "" {
+			if change.User.Email == "" {
 				slog.WarnContext(gctx, "project_subscriber: skipping notification — recipient has no email address",
-					"role", add.Role, "project_uid", event.ProjectUID)
+					"change_kind", change.Kind, "project_uid", event.ProjectUID)
 				return nil
 			}
 
-			// Skip notification if this user was previously present as an email-only (invited)
-			// entry — they're being promoted from non-LFID to LFID via invite acceptance, not
-			// freshly added. They already received the invite email.
-			if add.User.Username != "" && wasInvitedInOldSettings(add.User.Email, event.OldSettings) {
-				slog.DebugContext(gctx, "project_subscriber: skipping notification — user promoted from invite to LFID",
-					"role", add.Role, "project_uid", event.ProjectUID)
-				return nil
-			}
-
-			recipientName := add.User.Name
+			recipientName := change.User.Name
 			if recipientName == "" {
-				recipientName = add.User.Username
+				recipientName = change.User.Username
 			}
 			if recipientName == "" {
-				recipientName = add.User.Email
+				recipientName = change.User.Email
 			}
 
-			if add.User.Username == "" {
-				// Username == "" means no LFID yet; route through the invite service
-				// so the user must create an account before gaining project access.
-				return s.sendInvite(gctx, event.ProjectUID, projectBase.Name, add.Role, add.User.Email, recipientName, inviterName, projectURL)
+			if change.User.Username == "" {
+				// Non-LFID: route new roles through the invite service; skip removals.
+				return s.handleNonLFIDChange(gctx, event.ProjectUID, projectBase.Name, change, recipientName, inviterName, projectURL)
 			}
 
-			// LFID present — send a direct notification email.
-			return s.sendRoleNotificationEmail(gctx, event.ProjectUID, projectBase.Name, add.Role, add.User.Email, recipientName, inviterName, projectURL)
+			// LFID user: send direct notification email.
+			return s.handleLFIDChange(gctx, event.ProjectUID, projectBase.Name, change, recipientName, inviterName, projectURL)
 		})
 	}
 
 	_ = g.Wait()
+	return nil
+}
+
+// handleLFIDChange sends the appropriate email for a user who has an LFID.
+func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, projectName string, change userChange, recipientName, inviterName, projectURL string) error {
+	switch change.Kind {
+	case changeAdded:
+		return s.sendRoleNotificationEmail(ctx, projectUID, projectName, change.NewRoles, change.User.Email, recipientName, inviterName, projectURL)
+	case changeChanged:
+		// Suppress email when the only change is gaining or losing a subordinate role
+		// (Auditor, Meeting Coordinator) while Writer is held in both old and new — the
+		// user's visible Manage access is unchanged.
+		if isWriterSupersededNoOp(change.OldRoles, change.NewRoles) {
+			slog.DebugContext(ctx, "project_subscriber: skipping role-changed email — gaining View on top of Manage is a no-op",
+				"project_uid", projectUID, "old_roles", change.OldRoles, "new_roles", change.NewRoles)
+			return nil
+		}
+		// Suppress email when a subordinate-role swap leaves the visible display identical
+		// (e.g. Writer+Auditor → Writer+Meeting Coordinator both collapse to "Manage").
+		if rolesEqual(rolesForDisplay(change.OldRoles), rolesForDisplay(change.NewRoles)) {
+			slog.DebugContext(ctx, "project_subscriber: skipping role-changed email — display roles unchanged after collapsing",
+				"project_uid", projectUID, "old_roles", change.OldRoles, "new_roles", change.NewRoles)
+			return nil
+		}
+		return s.sendRoleChangedEmail(ctx, projectUID, projectName, change.OldRoles, change.NewRoles, change.User.Email, recipientName, inviterName, projectURL)
+	case changeRemoved:
+		return s.sendRoleRemovedEmail(ctx, projectUID, projectName, change.OldRoles, change.User.Email, recipientName, inviterName)
+	}
+	return nil
+}
+
+// handleNonLFIDChange sends invites for any newly-gained roles; removals are silently skipped.
+func (s *ProjectsService) handleNonLFIDChange(ctx context.Context, projectUID, projectName string, change userChange, recipientName, inviterName, projectURL string) error {
+	if change.Kind == changeRemoved {
+		slog.DebugContext(ctx, "project_subscriber: skipping removal notification for non-LFID user",
+			"project_uid", projectUID)
+		return nil
+	}
+
+	// For Added: send an invite for every new role.
+	// For Changed: send an invite only for roles that are new (delta), not ones already held.
+	// Skip entirely when the only new roles are View-level while the user already holds Manage.
+	var rolesToInvite []string
+	if change.Kind == changeAdded {
+		rolesToInvite = change.NewRoles
+	} else {
+		if isWriterSupersededNoOp(change.OldRoles, change.NewRoles) {
+			slog.DebugContext(ctx, "project_subscriber: skipping invite — gaining View on top of Manage is a no-op",
+				"project_uid", projectUID)
+			return nil
+		}
+		rolesToInvite = setDiffRoles(change.NewRoles, change.OldRoles)
+	}
+
+	// Deduplicate by mapped invite role before sending — Writer and Meeting Coordinator
+	// both map to Manage, so having both in rolesToInvite would otherwise trigger two
+	// invites for the same effective access level.
+	seenInviteRole := make(map[string]bool, len(rolesToInvite))
+	for _, role := range rolesToInvite {
+		inviteRole := mapRoleToInviteRole(role)
+		if inviteRole == "" || seenInviteRole[inviteRole] {
+			continue
+		}
+		seenInviteRole[inviteRole] = true
+		if err := s.sendInvite(ctx, projectUID, projectName, role, change.User.Email, recipientName, inviterName, projectURL); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -268,17 +353,17 @@ func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, ro
 
 // sendRoleNotificationEmail sends a direct "you were added" notification email via
 // the email service for a user who already has an LFID.
-func (s *ProjectsService) sendRoleNotificationEmail(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, projectURL string) error {
+func (s *ProjectsService) sendRoleNotificationEmail(ctx context.Context, projectUID, projectName string, roles []string, recipientEmail, recipientName, inviterName, projectURL string) error {
 	subject, html, text, err := email.RenderProjectRoleNotification(email.ProjectRoleNotificationData{
 		RecipientName: recipientName,
 		ProjectName:   projectName,
-		Role:          role,
+		Roles:         rolesForDisplay(roles),
 		ProjectURL:    projectURL,
 		InviterName:   inviterName,
 	})
 	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to render email template",
-			constants.ErrKey, err, "role", role, "project_uid", projectUID)
+		slog.WarnContext(ctx, "project_subscriber: failed to render role notification email template",
+			constants.ErrKey, err, "project_uid", projectUID)
 		return nil
 	}
 
@@ -293,10 +378,77 @@ func (s *ProjectsService) sendRoleNotificationEmail(ctx context.Context, project
 	})
 	if sendErr != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to send role notification email",
-			constants.ErrKey, sendErr, "role", role, "project_uid", projectUID)
+			constants.ErrKey, sendErr, "project_uid", projectUID)
 	} else {
-		slog.DebugContext(ctx, "project_subscriber: sent role notification email",
-			"role", role, "project_uid", projectUID)
+		slog.DebugContext(ctx, "project_subscriber: sent role notification email", "project_uid", projectUID)
+	}
+	return nil
+}
+
+// sendRoleChangedEmail sends a "your role was updated" notification email for a user
+// whose role set changed but who remains on the project.
+func (s *ProjectsService) sendRoleChangedEmail(ctx context.Context, projectUID, projectName string, oldRoles, newRoles []string, recipientEmail, recipientName, inviterName, projectURL string) error {
+	subject, html, text, err := email.RenderProjectRoleChanged(email.ProjectRoleChangedData{
+		RecipientName: recipientName,
+		ProjectName:   projectName,
+		OldRoles:      rolesForDisplay(oldRoles),
+		NewRoles:      rolesForDisplay(newRoles),
+		ProjectURL:    projectURL,
+		InviterName:   inviterName,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to render role changed email template",
+			constants.ErrKey, err, "project_uid", projectUID)
+		return nil
+	}
+
+	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
+	defer cancel()
+
+	sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
+		To:      recipientEmail,
+		Subject: subject,
+		HTML:    html,
+		Text:    text,
+	})
+	if sendErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to send role changed email",
+			constants.ErrKey, sendErr, "project_uid", projectUID)
+	} else {
+		slog.DebugContext(ctx, "project_subscriber: sent role changed email", "project_uid", projectUID)
+	}
+	return nil
+}
+
+// sendRoleRemovedEmail sends a "you have been removed" notification email for a user
+// who no longer has any role on the project.
+func (s *ProjectsService) sendRoleRemovedEmail(ctx context.Context, projectUID, projectName string, oldRoles []string, recipientEmail, recipientName, inviterName string) error {
+	subject, html, text, err := email.RenderProjectRoleRemoved(email.ProjectRoleRemovedData{
+		RecipientName: recipientName,
+		ProjectName:   projectName,
+		OldRoles:      rolesForDisplay(oldRoles),
+		InviterName:   inviterName,
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to render role removed email template",
+			constants.ErrKey, err, "project_uid", projectUID)
+		return nil
+	}
+
+	sendCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
+	defer cancel()
+
+	sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
+		To:      recipientEmail,
+		Subject: subject,
+		HTML:    html,
+		Text:    text,
+	})
+	if sendErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to send role removed email",
+			constants.ErrKey, sendErr, "project_uid", projectUID)
+	} else {
+		slog.DebugContext(ctx, "project_subscriber: sent role removed email", "project_uid", projectUID)
 	}
 	return nil
 }
@@ -381,15 +533,37 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			return nil
 		}
 
+		// Pass 1: find the entry that owns the invite UID and promote it.
+		// Record the normalised email so sibling entries for the same user can be
+		// promoted in pass 2 (they share an email but were deduplicated and never
+		// received their own invite UID).
 		promoted = false
-	outer:
-		for _, slice := range []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators} {
+		var promotedEmail string
+		allSlices := []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators}
+		for _, slice := range allSlices {
 			for i := range *slice {
 				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
+					promotedEmail = strings.ToLower(strings.TrimSpace((*slice)[i].Email))
 					(*slice)[i].Username = event.Username
 					(*slice)[i].Invite = nil
 					promoted = true
-					break outer // invite UIDs are unique; no need to scan further
+					break
+				}
+			}
+			if promoted {
+				break
+			}
+		}
+
+		// Pass 2: promote any sibling entries for the same email that were skipped
+		// during invite deduplication and therefore have no invite UID of their own.
+		if promoted && promotedEmail != "" {
+			for _, slice := range allSlices {
+				for i := range *slice {
+					if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == promotedEmail {
+						(*slice)[i].Username = event.Username
+						(*slice)[i].Invite = nil
+					}
 				}
 			}
 		}
@@ -437,19 +611,13 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	return nil
 }
 
-// wasInvitedInOldSettings returns true if the given email was already present in old settings
-// as an email-only (Username == "") entry — meaning the user was previously invited and is now
-// being promoted to LFID. Used to suppress redundant notification emails on promotion.
-func wasInvitedInOldSettings(email string, old events.ProjectSettings) bool {
-	normalized := strings.ToLower(strings.TrimSpace(email))
-	for _, slice := range [][]events.UserInfo{old.Writers, old.Auditors, old.MeetingCoordinators} {
-		for _, u := range slice {
-			if u.Username == "" && strings.ToLower(strings.TrimSpace(u.Email)) == normalized {
-				return true
-			}
-		}
+// buildProjectURL constructs the deep-link URL for a project's overview page.
+func buildProjectURL(baseURL, slug string) string {
+	base := strings.TrimRight(baseURL, "/") + "/project/overview"
+	if slug != "" {
+		return base + "?project=" + url.QueryEscape(slug)
 	}
-	return false
+	return base
 }
 
 // mapRoleToInviteRole converts a project-service role string to the invite service's
@@ -470,68 +638,138 @@ func mapRoleToInviteRole(role string) string {
 	}
 }
 
-// roleAssignment pairs a user with the role they were added to.
-type roleAssignment struct {
-	User events.UserInfo
-	Role string
-}
-
-// diffNewMembers returns the users that appear in newSettings but not in oldSettings,
-// across writers, auditors, and meeting_coordinators. Users are matched by Username
-// when present, otherwise by Email. Users with neither Username nor Email are skipped.
-func diffNewMembers(oldSettings, newSettings events.ProjectSettings) []roleAssignment {
-	var additions []roleAssignment
-	additions = append(additions, diffRole(oldSettings.Writers, newSettings.Writers, roleWriter)...)
-	additions = append(additions, diffRole(oldSettings.Auditors, newSettings.Auditors, roleAuditor)...)
-	additions = append(additions, diffRole(oldSettings.MeetingCoordinators, newSettings.MeetingCoordinators, roleMeetingCoordinator)...)
-	return additions
-}
-
-func diffRole(old, new []events.UserInfo, role string) []roleAssignment {
-	// Index every identity key from old so a user matched by either
-	// username or email is recognised regardless of which field was set.
-	oldSet := make(map[string]struct{}, len(old)*2)
-	for _, u := range old {
-		for _, key := range memberKeys(u) {
-			oldSet[key] = struct{}{}
-		}
+// diffUserChanges returns the per-user role delta between two settings snapshots.
+// Each entry describes a single user and whether they were added, had their role
+// set changed, or were fully removed.  Users whose role set is identical across
+// both snapshots are omitted.  Role order in OldRoles / NewRoles is stable:
+// Writer, Auditor, Meeting Coordinator.
+func diffUserChanges(old, new events.ProjectSettings) []userChange {
+	type entry struct {
+		user  events.UserInfo
+		roles []string
 	}
-	seenNew := make(map[string]struct{}, len(new)*2)
-	var additions []roleAssignment
-	for _, u := range new {
-		keys := memberKeys(u)
-		if len(keys) == 0 {
-			continue
+
+	buildMap := func(settings events.ProjectSettings) (primary map[string]entry, allKeys map[string]string) {
+		primary = make(map[string]entry)
+		allKeys = make(map[string]string)
+
+		add := func(u events.UserInfo, role string) {
+			keys := memberKeys(u)
+			if len(keys) == 0 {
+				return
+			}
+
+			// Find the canonical primary key for this user, resolving across identity
+			// shapes (e.g. email-only entry followed by username+email for the same person).
+			canonKey := ""
+			for _, k := range keys {
+				if pk, ok := allKeys[k]; ok {
+					canonKey = pk
+					break
+				}
+			}
+			if canonKey == "" {
+				canonKey = keys[0]
+			}
+
+			e := primary[canonKey]
+			// Prefer the most complete identity record: take the new entry only if it
+			// has a Username or the stored record has none yet.  This prevents an
+			// email-only invite entry (Username="") from wiping out a Username+Email
+			// entry seen earlier in a different role slice.
+			if u.Username != "" || e.user.Username == "" {
+				e.user = u
+			}
+			// Guard against duplicate user entries within the same role slice.
+			alreadyHas := false
+			for _, r := range e.roles {
+				if r == role {
+					alreadyHas = true
+					break
+				}
+			}
+			if !alreadyHas {
+				e.roles = append(e.roles, role)
+			}
+			primary[canonKey] = e
+			for _, k := range keys {
+				allKeys[k] = canonKey
+			}
 		}
-		// Skip if this user was already seen under any of their identity keys,
-		// covering cases where the same person appears with different identity
-		// shapes (e.g. username+email in one entry, email-only in another).
-		alreadySeen := false
-		for _, key := range keys {
-			if _, ok := seenNew[key]; ok {
-				alreadySeen = true
+
+		for _, u := range settings.Writers {
+			add(u, roleWriter)
+		}
+		for _, u := range settings.Auditors {
+			add(u, roleAuditor)
+		}
+		for _, u := range settings.MeetingCoordinators {
+			add(u, roleMeetingCoordinator)
+		}
+		return
+	}
+
+	oldPrimary, oldAllKeys := buildMap(old)
+	newPrimary, newAllKeys := buildMap(new)
+
+	var changes []userChange
+	matchedOldKeys := make(map[string]bool, len(newPrimary))
+
+	for _, newEntry := range newPrimary {
+		// Resolve which old primary key (if any) corresponds to this new user.
+		oldCanon := ""
+		for _, k := range memberKeys(newEntry.user) {
+			if pk, ok := oldAllKeys[k]; ok {
+				oldCanon = pk
 				break
 			}
 		}
-		if alreadySeen {
+
+		if oldCanon == "" {
+			changes = append(changes, userChange{
+				User:     newEntry.user,
+				NewRoles: newEntry.roles,
+				Kind:     changeAdded,
+			})
 			continue
 		}
-		for _, key := range keys {
-			seenNew[key] = struct{}{}
+		matchedOldKeys[oldCanon] = true
+
+		oldEntry := oldPrimary[oldCanon]
+		if rolesEqual(oldEntry.roles, newEntry.roles) {
+			continue // no change
 		}
-		// The user is already present if ANY of their keys appear in oldSet.
-		present := false
-		for _, key := range keys {
-			if _, ok := oldSet[key]; ok {
-				present = true
+		changes = append(changes, userChange{
+			User:     newEntry.user,
+			OldRoles: oldEntry.roles,
+			NewRoles: newEntry.roles,
+			Kind:     changeChanged,
+		})
+	}
+
+	// Users present in old but absent from new are fully removed.
+	for oldCanon, oldEntry := range oldPrimary {
+		if matchedOldKeys[oldCanon] {
+			continue
+		}
+		// Double-check via newAllKeys in case the resolution above missed a key.
+		found := false
+		for _, k := range memberKeys(oldEntry.user) {
+			if _, ok := newAllKeys[k]; ok {
+				found = true
 				break
 			}
 		}
-		if !present {
-			additions = append(additions, roleAssignment{User: u, Role: role})
+		if !found {
+			changes = append(changes, userChange{
+				User:     oldEntry.user,
+				OldRoles: oldEntry.roles,
+				Kind:     changeRemoved,
+			})
 		}
 	}
-	return additions
+
+	return changes
 }
 
 // memberKeys returns all stable identity keys for a user.
@@ -543,7 +781,106 @@ func memberKeys(u events.UserInfo) []string {
 		keys = append(keys, "username:"+u.Username)
 	}
 	if u.Email != "" {
-		keys = append(keys, "email:"+u.Email)
+		keys = append(keys, "email:"+strings.ToLower(strings.TrimSpace(u.Email)))
 	}
 	return keys
+}
+
+// rolesEqual reports whether two role slices contain the same elements in the same order.
+func rolesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// setDiffRoles returns roles present in a but not in b.
+func setDiffRoles(a, b []string) []string {
+	bSet := make(map[string]struct{}, len(b))
+	for _, r := range b {
+		bSet[r] = struct{}{}
+	}
+	var diff []string
+	for _, r := range a {
+		if _, ok := bSet[r]; !ok {
+			diff = append(diff, r)
+		}
+	}
+	return diff
+}
+
+// hasWriterRole reports whether roles includes the Writer role, which supersedes all other roles.
+func hasWriterRole(roles []string) bool {
+	for _, r := range roles {
+		if r == roleWriter {
+			return true
+		}
+	}
+	return false
+}
+
+// isWriterSupersededNoOp reports whether Writer is present in both old and new roles and the
+// change is a purely additive or purely subtractive adjustment of subordinate roles (Auditor or
+// Meeting Coordinator) that Writer already supersedes.  Swaps (simultaneously gaining one
+// subordinate while losing another) are not suppressed — the visible role set still changed.
+func isWriterSupersededNoOp(oldRoles, newRoles []string) bool {
+	if !hasWriterRole(oldRoles) || !hasWriterRole(newRoles) {
+		return false
+	}
+	gained := setDiffRoles(newRoles, oldRoles)
+	lost := setDiffRoles(oldRoles, newRoles)
+	// A swap of subordinate roles is still a meaningful change.
+	if len(gained) > 0 && len(lost) > 0 {
+		return false
+	}
+	delta := make([]string, 0, len(gained)+len(lost))
+	delta = append(delta, gained...)
+	delta = append(delta, lost...)
+	if len(delta) == 0 {
+		return false
+	}
+	for _, r := range delta {
+		if r != roleAuditor && r != roleMeetingCoordinator {
+			return false
+		}
+	}
+	return true
+}
+
+// roleDisplayName maps an internal role name to its user-facing display name.
+// Writer → "Manage", Auditor → "View", Meeting Coordinator stays as-is.
+func roleDisplayName(role string) string {
+	switch role {
+	case roleWriter:
+		return "Manage"
+	case roleAuditor:
+		return "View"
+	default:
+		return role
+	}
+}
+
+// rolesForDisplay converts a slice of internal role names to deduplicated display names
+// ("Manage", "Meeting Coordinator", "View"), then returns just ["Manage"] when Writer is
+// present, since Writer supersedes both Meeting Coordinator and View.
+// When no Writer, Meeting Coordinator and View are shown independently.  Order follows input.
+func rolesForDisplay(roles []string) []string {
+	seen := make(map[string]bool, len(roles))
+	result := make([]string, 0, len(roles))
+	for _, r := range roles {
+		d := roleDisplayName(r)
+		if !seen[d] {
+			seen[d] = true
+			result = append(result, d)
+		}
+	}
+	if seen["Manage"] {
+		return []string{"Manage"}
+	}
+	return result
 }
