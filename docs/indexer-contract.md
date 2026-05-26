@@ -236,3 +236,63 @@ This document is the authoritative reference for all data the member service sen
 | `b2b_org:{b2b_org_uid}` | Only when `b2b_org_uid` is set |
 | `project:{project_uid}` | Only when `project_uid` is set |
 | `project_membership:{membership_uid}` | Only when `membership_uid` is set |
+
+---
+
+## B2B Org Settings
+
+**Object type:** `b2b_org_settings`
+
+**NATS subject:** `lfx.index.b2b_org_settings`
+
+**Source struct:** `internal/domain/model/b2b_org_settings.go` — `B2BOrgSettings`
+
+**Trigger:** `PUT /b2b_orgs/{uid}/settings` only. Not emitted by backfill — the settings doc exists only when writers/auditors have been explicitly configured.
+
+**Action mapping:** `ActionCreated` on first write (when no prior KV record exists); `ActionUpdated` on all subsequent writes.
+
+**Note:** `ObjectID` equals the parent org UID (not a separate settings UID) so a single point-lookup retrieves both the org doc and the settings doc. Callers filter by `object_type=b2b_org_settings`.
+
+### Payload Fields
+
+| Field | Example value |
+|---|---|
+| `uid` | `cbef1ed5-...` |
+| `writers` | `[{email, name, username, invite_status, ...}]` |
+| `auditors` | `[{email, name, username, invite_status, ...}]` |
+| `created_at` | `2026-01-15T10:00:00Z` |
+| `updated_at` | `2026-05-20T14:30:00Z` |
+
+### Tags
+
+| Tag | Condition |
+|---|---|
+| `has_writers` | ≥1 writer with `invite_status=accepted` |
+| `has_auditors` | ≥1 auditor with `invite_status=accepted` |
+| `has_pending_invites` | ≥1 entry (writer or auditor) with `invite_status=pending` |
+
+> Revoked and expired entries do not trigger any tag — they are audit-trail data, not actionable state.
+
+### Access / History Check
+
+| Field | Value |
+|---|---|
+| `access_check_object` | `b2b_org:{uid}` (parent, not self — settings has no separate FGA type) |
+| `access_check_relation` | `auditor` |
+| `history_check_object` | `b2b_org:{uid}` |
+| `history_check_relation` | `writer` (history = write-side concern; matches project-service precedent) |
+
+### Name and Aliases / Fulltext
+
+| Field | Contents |
+|---|---|
+| `name_and_aliases` | `[org.Name, org.PrimaryDomain, ...org.DomainAliases]` — domain typeahead works even with no writers configured |
+| `fulltext` | Accepted writers/auditors: `Name + Email`. Pending entries: `Email + Name-if-present`. Revoked/expired excluded. |
+| `sort_name` | `lower(org.Name)` |
+
+### Parent References
+
+| Ref | Condition |
+|---|---|
+| `b2b_org:{uid}` | Always (self-ref for point-lookup) |
+| `b2b_org:{parent_uid}` | Only when `parent_uid` is set |

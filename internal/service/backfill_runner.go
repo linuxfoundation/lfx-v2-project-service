@@ -186,6 +186,7 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 				total++
 				if !req.DryRun {
 					PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
+					PublishProjectMembershipFGA(ctx, r.publisher, pm)
 					published++
 				}
 			}
@@ -249,6 +250,7 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 			}
 			if !req.DryRun {
 				PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
+				PublishProjectMembershipFGA(ctx, r.publisher, pm)
 				published++
 			}
 

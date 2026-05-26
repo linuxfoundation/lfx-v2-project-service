@@ -9,6 +9,7 @@ import (
 	"slices"
 	"time"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
@@ -66,7 +67,9 @@ func NewOrgSettingsWriter(opts ...OrgSettingsWriterOption) OrgSettingsWriter {
 	return o
 }
 
-// Update applies a B2BOrgSettingsUpdate and publishes an FGA sync message.
+// Update applies a B2BOrgSettingsUpdate and publishes FGA sync and indexer messages.
+// GetB2BOrg is called once here and shared by both publish helpers to avoid a double fetch.
+// FGA is published before the indexer so access tuples land before the doc is searchable.
 func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSettingsUpdate) (*model.B2BOrgSettings, error) {
 	existing, revision, err := o.settingsReader.GetSettings(ctx, in.OrgUID)
 	if err != nil {
@@ -85,6 +88,14 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 		if currentETag != in.IfMatch {
 			return nil, pkgerrors.NewPreconditionFailed("settings have been modified since your last read — refresh and retry")
 		}
+	}
+
+	// Both nil means the caller omitted both fields — semantic no-op, nothing to write or publish.
+	if in.Writers == nil && in.Auditors == nil {
+		if existing == nil {
+			return &model.B2BOrgSettings{UID: in.OrgUID}, nil
+		}
+		return existing, nil
 	}
 
 	// Bound slice length to prevent unbounded NATS KV value growth.
@@ -116,22 +127,37 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 		return nil, err
 	}
 
-	o.publishFGA(ctx, in, updated)
+	// Fetch org once; share across both publish helpers.
+	action := indexerConstants.ActionUpdated
+	if existing == nil {
+		action = indexerConstants.ActionCreated
+	}
+	o.publishAll(ctx, in, updated, action)
 
 	return updated, nil
 }
 
-func (o *orgSettingsWriterOrchestrator) publishFGA(ctx context.Context, in B2BOrgSettingsUpdate, settings *model.B2BOrgSettings) {
+// publishAll fetches the parent org once and drives both the FGA and indexer publishes.
+// Both are fire-and-forget: errors are logged, never returned to the caller.
+// FGA is published first so access tuples land before the indexer doc is searchable.
+func (o *orgSettingsWriterOrchestrator) publishAll(ctx context.Context, in B2BOrgSettingsUpdate, settings *model.B2BOrgSettings, action indexerConstants.MessageAction) {
 	if o.b2bOrgReader == nil || o.publisher == nil {
 		return
 	}
 	org, err := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID)
 	if err != nil {
-		slog.WarnContext(ctx, "could not fetch org for settings FGA publish — skipping",
+		slog.WarnContext(ctx, "could not fetch org for settings publish — skipping FGA and indexer",
 			"uid", in.OrgUID, "error", err,
 			"publish_failed_for_backfill_repair", true)
 		return
 	}
+	if org == nil {
+		slog.WarnContext(ctx, "org fetch returned nil with no error — skipping FGA and indexer",
+			"uid", in.OrgUID,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+
 	fgaMsg := BuildB2BOrgFGAMessage(
 		org,
 		"",
@@ -144,6 +170,8 @@ func (o *orgSettingsWriterOrchestrator) publishFGA(ctx context.Context, in B2BOr
 			"uid", in.OrgUID, "error", pubErr,
 			"publish_failed_for_backfill_repair", true)
 	}
+
+	PublishB2BOrgSettingsIndexer(ctx, o.publisher, org, settings, action)
 }
 
 // fgaUsernames maps the nil-vs-empty distinction from the input slice through to

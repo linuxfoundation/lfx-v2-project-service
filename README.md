@@ -46,9 +46,10 @@ Key-Value cache to minimise round-trips.
   (writers/auditors), and an admin reindex endpoint.
 - **Salesforce-backed**: All membership data is fetched directly from Salesforce
   via SOQL queries; no PostgreSQL dependency at runtime.
-- **NATS KV cache**: Two buckets — `membership-cache` for Salesforce-backed
-  records (6 h stale / 23 h expire / 24 h TTL) and `org-settings` for
-  authoritative org access-control settings (no TTL, optimistic locking).
+- **NATS KV cache**: Three buckets — `membership-cache` for Salesforce-backed
+  records (6 h stale / 23 h expire / 24 h TTL); `member-service-cache` for
+  Salesforce sObject REST responses (raw JSON, no soft-TTL); and `org-settings`
+  for authoritative org access-control settings (no TTL, optimistic locking).
 - **Project ID resolution**: The `ProjectResolver` translates v2 project UIDs to
   Salesforce `Project__c.Id` values by chaining a NATS RPC to the project-service
   and a SOQL lookup, backed by the same KV cache.
@@ -108,9 +109,9 @@ Key-Value cache to minimise round-trips.
 
 ## NATS API
 
-In addition to the HTTP API, the service handles a NATS request/reply subject
-that allows other services to resolve v2 project UIDs to Salesforce
-`Project__c.Id` values.
+In addition to the HTTP API, the service handles NATS request/reply subjects
+that allow other services to resolve identifiers without querying Salesforce or
+this service's HTTP layer directly.
 
 ### Project ID Map Lookup
 
@@ -146,6 +147,50 @@ Salesforce SOQL query.
 
 ```json
 {"error": "project_uid is required"}
+```
+
+The reply is always valid JSON. Check for the presence of the `"error"` key to
+detect failure.
+
+### B2B Org ID Map Lookup
+
+Resolves a Salesforce Account SFID to its v2 b2b_org UUID. The mapping is
+deterministic (pure base-62 transform via `pkg/sfuuid`) — no Salesforce or KV
+round-trip is required.
+
+| Field | Value |
+|-------|-------|
+| **Subject** | `lfx.member.b2b-org-id-map.lookup` |
+| **Transport** | NATS core request/reply |
+
+**Request body (JSON):**
+
+```json
+{"b2b_org_sfid": "<Salesforce Account.Id>"}
+```
+
+**Response — success:**
+
+```json
+{"b2b_org_uid": "<v2 b2b_org UUID>"}
+```
+
+**Response — not found / invalid SFID:**
+
+```json
+{"error": "b2b org not found"}
+```
+
+**Response — bad request:**
+
+```json
+{"error": "b2b_org_sfid is required"}
+```
+
+**Response — malformed JSON:**
+
+```json
+{"error": "invalid request body"}
 ```
 
 The reply is always valid JSON. Check for the presence of the `"error"` key to

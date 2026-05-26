@@ -56,6 +56,7 @@ internal/
 │   │   ├── client.go        # NATSClient with KV bucket initialisation
 │   │   ├── config.go        # NATS configuration
 │   │   ├── project_id_map_handler.go  # RPC handler for lfx.member.project-id-map.lookup
+│   │   ├── b2b_org_id_map_handler.go  # RPC handler for lfx.member.b2b-org-id-map.lookup
 │   │   ├── project_rpc.go   # NATS RPC calls to the project-service
 │   │   └── storage.go       # KV cache Get/Put helpers for each record type
 │   ├── project/             # ProjectResolver implementation
@@ -151,6 +152,12 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 | PUT | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors | `writer` on `b2b_org:{uid}` |
 
 **Settings semantics:** `nil` writers/auditors = keep existing; explicit `[]` = clear all. Entries with a `username` are `accepted` (FGA tuple emitted); without username are `pending` (no FGA tuple). The legacy `owner` relation is retired — use `writer` instead. Settings are stored in the `org-settings` NATS KV bucket (authoritative, no MaxAge TTL), separate from the Salesforce-backed `membership-cache` bucket.
+
+**Settings publish on PUT:** every successful `PUT /b2b_orgs/{uid}/settings` emits two fire-and-forget messages in order:
+1. `lfx.fga-sync.update_access` (ObjectType=`b2b_org`) — FGA tuple sync for writers/auditors
+2. `lfx.index.b2b_org_settings` — OpenSearch settings doc keyed by org UID (`ActionCreated` on first write, `ActionUpdated` thereafter)
+
+FGA is published before the indexer so access tuples land before the doc is searchable. Errors on either publish are swallowed with `publish_failed_for_backfill_repair=true`; recovery is a re-PUT of the settings. The `lfx.index.b2b_org_settings` doc is **not** published from the backfill runner — it is created on demand by the first PUT that adds a writer or auditor.
 
 ### Admin
 
@@ -271,11 +278,15 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 
 ## NATS Storage
 
-The service uses two NATS KV buckets.
+The service uses three NATS KV buckets.
 
 ### `org-settings` Bucket
 
-Stores b2b_org access-control principals (writers, auditors, pending invites). **Authoritative state** — no MaxAge TTL, no soft-TTL envelopes. Key pattern: `org-settings.{orgUID}` → raw JSON `model.OrgSettings`. Optimistic locking via KV revision on every PUT.
+Stores b2b_org access-control principals (writers, auditors, pending invites). **Authoritative state** — no MaxAge TTL, no soft-TTL envelopes. Key pattern: `org-settings.{orgUID}` → raw JSON `model.B2BOrgSettings`. Optimistic locking via KV revision on every PUT.
+
+### `member-service-cache` Bucket
+
+Stores raw Salesforce sObject REST responses as `SObjectCacheEntry` JSON envelopes (no soft-TTL wrappers). Used for B2B org lookups and other sObject fetches that bypass the SOQL path.
 
 ### `membership-cache` Bucket
 
@@ -349,32 +360,39 @@ UIDFromSlug(ctx, slug)
 
 `NewProjectResolver` in `internal/infrastructure/project/resolver.go` wires together `*nats.ProjectRPC`, `*salesforce.ProjectRepo`, and `*nats.Storage`. The resolver is constructed in `cmd/member-api/service/providers.go` and passed to `salesforce.NewMemberReader`.
 
-## NATS RPC Endpoint
+## NATS RPC Endpoints
 
-The service also **handles** inbound NATS requests from other services via the subject `lfx.member.project-id-map.lookup` (implemented in `internal/infrastructure/nats/project_id_map_handler.go`).
+The service handles two inbound NATS request/reply subjects that allow other services to resolve identifiers without depending on Salesforce or this service's HTTP layer.
+
+### Project ID Map Lookup (`lfx.member.project-id-map.lookup`)
+
+Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolution chains: KV cache → project-service NATS RPC (get slug) → Salesforce SOQL.
 
 | Field | Value |
 |-------|-------|
 | **Subject** | `lfx.member.project-id-map.lookup` |
 | **Transport** | NATS core request/reply |
 
-**Request body (JSON):**
+**Request:** `{"project_uid": "<v2 project UUID>"}`
 
-```json
-{"project_uid": "<v2 project UUID>"}
-```
+**Response — success:** `{"project_sfid": "<Salesforce Project__c.Id>"}`
 
-**Response — success:**
+**Response — error:** `{"error": "<human-readable message>"}`
 
-```json
-{"project_sfid": "<Salesforce Project__c.Id>"}
-```
+### B2B Org ID Map Lookup (`lfx.member.b2b-org-id-map.lookup`)
 
-**Response — not found or error:**
+Implemented in `internal/infrastructure/nats/b2b_org_id_map_handler.go`. Resolution is **pure CPU** via `pkg/sfuuid.ToUUID()` — no KV or Salesforce round-trip required.
 
-```json
-{"error": "<human-readable message>"}
-```
+| Field | Value |
+|-------|-------|
+| **Subject** | `lfx.member.b2b-org-id-map.lookup` |
+| **Transport** | NATS core request/reply |
+
+**Request:** `{"b2b_org_sfid": "<Salesforce Account.Id>"}`
+
+**Response — success:** `{"b2b_org_uid": "<v2 b2b_org UUID>"}`
+
+**Response — error:** `{"error": "<human-readable message>"}` (`"b2b_org_sfid is required"`, `"b2b org not found"`, `"invalid request body"`)
 
 The reply is always valid JSON. Callers should check for the `"error"` key to detect failure.
 

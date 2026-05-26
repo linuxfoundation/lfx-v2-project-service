@@ -9,6 +9,7 @@ import (
 	"time"
 
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
@@ -152,7 +153,7 @@ func TestOrgSettingsWriter_Update_OrgFetchFailure_FGASwallowed(t *testing.T) {
 	// MockB2BOrgReader always returns not-found — FGA publish will be swallowed
 	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	assert.NoError(t, err, "org fetch failure for FGA must not propagate")
@@ -173,7 +174,7 @@ func TestOrgSettingsWriter_Update_PublishFailure_Swallowed(t *testing.T) {
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	assert.NoError(t, err, "FGA publish failure must not propagate")
@@ -211,6 +212,110 @@ func TestOrgSettingsWriter_Update_ClearWriters_FGADoesNotExcludeWriter(t *testin
 	require.True(t, ok)
 	assert.NotContains(t, data.ExcludeRelations, "writer",
 		"explicit empty writers must not be excluded from FGA sync — revocation requires full-sync")
+}
+
+// ── Indexer publish ────────────────────────────────────────────────────────
+
+func TestOrgSettingsWriter_Update_PublishesIndexerAfterFGA(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	pub := mock.NewMockMemberPublisher()
+	seededReader := &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}}
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(seededReader),
+		svc.WithOrgSettingsPublisher(pub),
+	)
+
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	_, err := writer.Update(context.Background(), in)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"access", "indexer"}, pub.CallOrder,
+		"FGA (access) must be published before the indexer to ensure access tuples land first")
+}
+
+func TestOrgSettingsWriter_Update_IndexerSubjectIsSettingsSubject(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	pub := mock.NewMockMemberPublisher()
+	seededReader := &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}}
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(seededReader),
+		svc.WithOrgSettingsPublisher(pub),
+	)
+
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	_, err := writer.Update(context.Background(), in)
+
+	require.NoError(t, err)
+	assert.Equal(t, "lfx.index.b2b_org_settings", pub.LastIndexSubject)
+}
+
+func TestOrgSettingsWriter_Update_IndexerPublishFailure_Swallowed(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	pub := mock.NewMockMemberPublisher()
+	pub.SetIndexerError(pkgerrors.NewUnexpected("nats down", nil))
+	seededReader := &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}}
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(seededReader),
+		svc.WithOrgSettingsPublisher(pub),
+	)
+
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	_, err := writer.Update(context.Background(), in)
+
+	assert.NoError(t, err, "indexer publish failure must not propagate to caller")
+}
+
+func TestOrgSettingsWriter_Update_FirstWrite_EmitsActionCreated(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings() // empty — no existing settings
+	pub := mock.NewMockMemberPublisher()
+	seededReader := &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}}
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(seededReader),
+		svc.WithOrgSettingsPublisher(pub),
+	)
+
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	_, err := writer.Update(context.Background(), in)
+
+	require.NoError(t, err)
+	require.NotNil(t, pub.LastIndexerPayload, "indexer must have been called")
+	msg, ok := pub.LastIndexerPayload.(*model.MemberIndexerMessage)
+	require.True(t, ok, "expected *model.MemberIndexerMessage, got %T", pub.LastIndexerPayload)
+	assert.Equal(t, indexerConstants.ActionCreated, msg.Action,
+		"first write (no prior KV record) must emit ActionCreated")
+}
+
+func TestOrgSettingsWriter_Update_SubsequentWrite_EmitsActionUpdated(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	existing := &model.B2BOrgSettings{UID: testOrgUID}
+	store.Seed(testOrgUID, existing, 1)
+
+	pub := mock.NewMockMemberPublisher()
+	seededReader := &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}}
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(seededReader),
+		svc.WithOrgSettingsPublisher(pub),
+	)
+
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	_, err := writer.Update(context.Background(), in)
+
+	require.NoError(t, err)
+	require.NotNil(t, pub.LastIndexerPayload, "indexer must have been called")
+	msg, ok := pub.LastIndexerPayload.(*model.MemberIndexerMessage)
+	require.True(t, ok, "expected *model.MemberIndexerMessage, got %T", pub.LastIndexerPayload)
+	assert.Equal(t, indexerConstants.ActionUpdated, msg.Action,
+		"write with existing KV record must emit ActionUpdated")
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

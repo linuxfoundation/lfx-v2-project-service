@@ -19,6 +19,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
+	infrab2borg "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/b2borg"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 	infraproject "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/project"
@@ -549,4 +550,12 @@ func OrgSettingsWriterUseCase(ctx context.Context) usecaseSvc.OrgSettingsWriter 
 		usecaseSvc.WithOrgSettingsB2BOrgReader(B2BOrgReaderImpl(ctx)),
 		usecaseSvc.WithOrgSettingsPublisher(MemberPublisherImpl(ctx)),
 	)
+}
+
+// B2BOrgResolverImpl returns a B2BOrgResolver that translates Salesforce Account
+// SFIDs to v2 b2b_org UUIDs via a deterministic base-62 transform (no I/O).
+// Unlike other providers, there is no mock/salesforce distinction — the resolver
+// is pure CPU and works identically in every mode.
+func B2BOrgResolverImpl(_ context.Context) port.B2BOrgResolver {
+	return infrab2borg.NewResolver()
 }

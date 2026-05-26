@@ -78,6 +78,44 @@ func BuildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
 	}
 }
 
+// BuildB2BOrgSettingsIndexingConfig constructs an IndexingConfig for a B2BOrgSettings document.
+// ObjectID equals the parent org UID so a single point-lookup retrieves both org and settings docs
+// (callers filter by object_type). Access-check resolves against the parent b2b_org — settings
+// do not have a separate FGA type.
+// Public is explicitly false — settings docs are never world-readable. Spelled out here so future
+// readers don't adopt committee-service's &parent.Public pattern by mistake.
+// HistoryCheckRelation is writer (not auditor) — history audits are a write-side concern;
+// matches project-service precedent.
+func BuildB2BOrgSettingsIndexingConfig(org *model.B2BOrg, settings *model.B2BOrgSettings) *indexerTypes.IndexingConfig {
+	var nameAndAliases []string
+	if org.Name != "" {
+		nameAndAliases = append(nameAndAliases, org.Name)
+	}
+	if org.PrimaryDomain != "" {
+		nameAndAliases = append(nameAndAliases, org.PrimaryDomain)
+	}
+	nameAndAliases = append(nameAndAliases, org.DomainAliases...)
+
+	parentRefs := []string{"b2b_org:" + org.UID}
+	if org.ParentUID != "" {
+		parentRefs = append(parentRefs, "b2b_org:"+org.ParentUID)
+	}
+
+	return &indexerTypes.IndexingConfig{
+		Public:               boolPtr(false),
+		ObjectID:             org.UID,
+		AccessCheckObject:    "b2b_org:" + org.UID,
+		AccessCheckRelation:  fgaconstants.RelationAuditor,
+		HistoryCheckObject:   "b2b_org:" + org.UID,
+		HistoryCheckRelation: fgaconstants.RelationWriter,
+		SortName:             strings.ToLower(org.Name),
+		NameAndAliases:       nameAndAliases,
+		ParentRefs:           parentRefs,
+		Fulltext:             strings.Join(settings.FulltextTokens(), " "),
+		Tags:                 settings.Tags(),
+	}
+}
+
 // BuildB2BOrgFGAMessage constructs a GenericFGAMessage for a B2BOrg access-control
 // update.
 //
@@ -359,6 +397,30 @@ func PublishB2BOrgIndexer(ctx context.Context, p port.MemberPublisher, org *mode
 	}
 }
 
+// PublishB2BOrgSettingsIndexer builds and publishes a MemberIndexerMessage for B2BOrgSettings.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
+func PublishB2BOrgSettingsIndexer(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, settings *model.B2BOrgSettings, action indexerConstants.MessageAction) {
+	indexMsg := &model.MemberIndexerMessage{
+		Action:         action,
+		Tags:           settings.Tags(),
+		IndexingConfig: BuildB2BOrgSettingsIndexingConfig(org, settings),
+	}
+	builtMsg, err := indexMsg.Build(ctx, settings)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build b2b org settings indexer message",
+			"uid", org.UID,
+			"error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	if pubErr := p.Indexer(ctx, constants.IndexB2BOrgSettingsSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "b2b org settings indexer publish failed",
+			"uid", org.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
 // PublishProjectMembershipIndexer builds and publishes a MemberIndexerMessage for a ProjectMembership.
 // Errors are swallowed and logged — /admin/reindex recovers missed records.
 func PublishProjectMembershipIndexer(ctx context.Context, p port.MemberPublisher, pm *model.ProjectMembership, action indexerConstants.MessageAction) {
@@ -377,6 +439,19 @@ func PublishProjectMembershipIndexer(ctx context.Context, p port.MemberPublisher
 	}
 	if pubErr := p.Indexer(ctx, constants.IndexProjectMembershipSubject, builtMsg, false); pubErr != nil {
 		slog.WarnContext(ctx, "project membership indexer publish failed",
+			"uid", pm.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// PublishProjectMembershipFGA builds and publishes a GenericFGAMessage for a ProjectMembership,
+// writing the structural b2b_org and project reference tuples that enable the auditor cascade.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
+func PublishProjectMembershipFGA(ctx context.Context, p port.MemberPublisher, pm *model.ProjectMembership) {
+	msg := BuildProjectMembershipFGAMessage(pm)
+	if pubErr := p.Access(ctx, constants.FGASyncUpdateAccessSubject, msg, false); pubErr != nil {
+		slog.WarnContext(ctx, "project membership fga publish failed",
 			"uid", pm.UID,
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
