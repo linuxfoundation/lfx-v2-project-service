@@ -663,7 +663,7 @@ func (s *membershipServicesrvc) UpdateB2bOrgSettings(ctx context.Context, p *mem
 	return result, nil
 }
 
-// orgSettingsToResponse maps domain OrgSettings to the generated response type.
+// orgSettingsToResponse maps model.B2BOrgSettings to the generated response type.
 // A nil settings pointer is treated as empty (no settings stored yet).
 func orgSettingsToResponse(s *model.B2BOrgSettings) *membershipservice.B2bOrgSettingsResponse {
 	resp := &membershipservice.B2bOrgSettingsResponse{

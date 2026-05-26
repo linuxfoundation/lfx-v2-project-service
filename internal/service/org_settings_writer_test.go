@@ -153,7 +153,7 @@ func TestOrgSettingsWriter_Update_OrgFetchFailure_FGASwallowed(t *testing.T) {
 	// MockB2BOrgReader always returns not-found — FGA publish will be swallowed
 	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	assert.NoError(t, err, "org fetch failure for FGA must not propagate")
@@ -174,7 +174,7 @@ func TestOrgSettingsWriter_Update_PublishFailure_Swallowed(t *testing.T) {
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	assert.NoError(t, err, "FGA publish failure must not propagate")
@@ -227,7 +227,7 @@ func TestOrgSettingsWriter_Update_PublishesIndexerAfterFGA(t *testing.T) {
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)
@@ -246,7 +246,7 @@ func TestOrgSettingsWriter_Update_IndexerSubjectIsSettingsSubject(t *testing.T) 
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)
@@ -265,7 +265,7 @@ func TestOrgSettingsWriter_Update_IndexerPublishFailure_Swallowed(t *testing.T) 
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	assert.NoError(t, err, "indexer publish failure must not propagate to caller")
@@ -282,7 +282,7 @@ func TestOrgSettingsWriter_Update_FirstWrite_EmitsActionCreated(t *testing.T) {
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)
@@ -307,7 +307,7 @@ func TestOrgSettingsWriter_Update_SubsequentWrite_EmitsActionUpdated(t *testing.
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)

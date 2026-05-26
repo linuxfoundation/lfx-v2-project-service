@@ -76,7 +76,7 @@ func SubscribeProjectIDMap(conn *nats.Conn, resolver port.ProjectResolver) (*nat
 }
 
 // replyJSON marshals payload and publishes it to msg.Reply. Marshalling errors
-// are logged and a plain-text fallback is sent instead so the caller never
+// are logged and a JSON error response is sent instead so the caller never
 // hangs waiting for a reply that never arrives. Shared by all id-map handlers
 // in this package.
 func replyJSON(msg *nats.Msg, payload any) {

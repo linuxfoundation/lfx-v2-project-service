@@ -90,6 +90,14 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 		}
 	}
 
+	// Both nil means the caller omitted both fields — semantic no-op, nothing to write or publish.
+	if in.Writers == nil && in.Auditors == nil {
+		if existing == nil {
+			return &model.B2BOrgSettings{UID: in.OrgUID}, nil
+		}
+		return existing, nil
+	}
+
 	// Bound slice length to prevent unbounded NATS KV value growth.
 	const maxPrincipals = 200
 	if len(in.Writers) > maxPrincipals || len(in.Auditors) > maxPrincipals {
