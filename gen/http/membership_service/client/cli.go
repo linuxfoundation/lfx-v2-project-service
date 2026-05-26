@@ -118,7 +118,7 @@ func BuildCreateB2bOrgPayload(membershipServiceCreateB2bOrgBody string, membersh
 
 // BuildUpdateB2bOrgPayload builds the payload for the membership-service
 // update-b2b-org endpoint from CLI flags.
-func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membershipServiceUpdateB2bOrgUID string, membershipServiceUpdateB2bOrgVersion string, membershipServiceUpdateB2bOrgBearerToken string, membershipServiceUpdateB2bOrgIfMatch string, membershipServiceUpdateB2bOrgIfUnmodifiedSince string) (*membershipservice.UpdateB2bOrgPayload, error) {
+func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membershipServiceUpdateB2bOrgUID string, membershipServiceUpdateB2bOrgVersion string, membershipServiceUpdateB2bOrgBearerToken string, membershipServiceUpdateB2bOrgIfMatch string) (*membershipservice.UpdateB2bOrgPayload, error) {
 	var err error
 	var body UpdateB2bOrgRequestBody
 	{
@@ -159,12 +159,6 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 			ifMatch = &membershipServiceUpdateB2bOrgIfMatch
 		}
 	}
-	var ifUnmodifiedSince *string
-	{
-		if membershipServiceUpdateB2bOrgIfUnmodifiedSince != "" {
-			ifUnmodifiedSince = &membershipServiceUpdateB2bOrgIfUnmodifiedSince
-		}
-	}
 	v := &membershipservice.UpdateB2bOrgPayload{
 		Name:              body.Name,
 		Description:       body.Description,
@@ -181,7 +175,133 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.IfMatch = ifMatch
-	v.IfUnmodifiedSince = ifUnmodifiedSince
+
+	return v, nil
+}
+
+// BuildGetB2bOrgSettingsPayload builds the payload for the membership-service
+// get-b2b-org-settings endpoint from CLI flags.
+func BuildGetB2bOrgSettingsPayload(membershipServiceGetB2bOrgSettingsUID string, membershipServiceGetB2bOrgSettingsVersion string, membershipServiceGetB2bOrgSettingsBearerToken string) (*membershipservice.GetB2bOrgSettingsPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = membershipServiceGetB2bOrgSettingsUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceGetB2bOrgSettingsVersion != "" {
+			version = &membershipServiceGetB2bOrgSettingsVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceGetB2bOrgSettingsBearerToken != "" {
+			bearerToken = &membershipServiceGetB2bOrgSettingsBearerToken
+		}
+	}
+	v := &membershipservice.GetB2bOrgSettingsPayload{}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildUpdateB2bOrgSettingsPayload builds the payload for the
+// membership-service update-b2b-org-settings endpoint from CLI flags.
+func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody string, membershipServiceUpdateB2bOrgSettingsUID string, membershipServiceUpdateB2bOrgSettingsVersion string, membershipServiceUpdateB2bOrgSettingsBearerToken string, membershipServiceUpdateB2bOrgSettingsIfMatch string) (*membershipservice.UpdateB2bOrgSettingsPayload, error) {
+	var err error
+	var body UpdateB2bOrgSettingsRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceUpdateB2bOrgSettingsBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }'")
+		}
+		for _, e := range body.Writers {
+			if e != nil {
+				if err2 := ValidateOrgUserRequestBody(e); err2 != nil {
+					err = goa.MergeErrors(err, err2)
+				}
+			}
+		}
+		for _, e := range body.Auditors {
+			if e != nil {
+				if err2 := ValidateOrgUserRequestBody(e); err2 != nil {
+					err = goa.MergeErrors(err, err2)
+				}
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceUpdateB2bOrgSettingsUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsVersion != "" {
+			version = &membershipServiceUpdateB2bOrgSettingsVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsBearerToken != "" {
+			bearerToken = &membershipServiceUpdateB2bOrgSettingsBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsIfMatch != "" {
+			ifMatch = &membershipServiceUpdateB2bOrgSettingsIfMatch
+		}
+	}
+	v := &membershipservice.UpdateB2bOrgSettingsPayload{}
+	if body.Writers != nil {
+		v.Writers = make([]*membershipservice.OrgUser, len(body.Writers))
+		for i, val := range body.Writers {
+			if val == nil {
+				v.Writers[i] = nil
+				continue
+			}
+			v.Writers[i] = marshalOrgUserRequestBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	if body.Auditors != nil {
+		v.Auditors = make([]*membershipservice.OrgUser, len(body.Auditors))
+		for i, val := range body.Auditors {
+			if val == nil {
+				v.Auditors[i] = nil
+				continue
+			}
+			v.Auditors[i] = marshalOrgUserRequestBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
 
 	return v, nil
 }
@@ -367,7 +487,7 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 
 // BuildUpdateKeyContactPayload builds the payload for the membership-service
 // update-key-contact endpoint from CLI flags.
-func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, membershipServiceUpdateKeyContactMembershipUID string, membershipServiceUpdateKeyContactUID string, membershipServiceUpdateKeyContactVersion string, membershipServiceUpdateKeyContactBearerToken string, membershipServiceUpdateKeyContactIfMatch string, membershipServiceUpdateKeyContactIfUnmodifiedSince string) (*membershipservice.UpdateKeyContactPayload, error) {
+func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, membershipServiceUpdateKeyContactMembershipUID string, membershipServiceUpdateKeyContactUID string, membershipServiceUpdateKeyContactVersion string, membershipServiceUpdateKeyContactBearerToken string, membershipServiceUpdateKeyContactIfMatch string) (*membershipservice.UpdateKeyContactPayload, error) {
 	var err error
 	var body UpdateKeyContactRequestBody
 	{
@@ -432,12 +552,6 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 			ifMatch = &membershipServiceUpdateKeyContactIfMatch
 		}
 	}
-	var ifUnmodifiedSince *string
-	{
-		if membershipServiceUpdateKeyContactIfUnmodifiedSince != "" {
-			ifUnmodifiedSince = &membershipServiceUpdateKeyContactIfUnmodifiedSince
-		}
-	}
 	v := &membershipservice.UpdateKeyContactPayload{
 		Email:          body.Email,
 		Role:           body.Role,
@@ -451,7 +565,6 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.IfMatch = ifMatch
-	v.IfUnmodifiedSince = ifUnmodifiedSince
 
 	return v, nil
 }
@@ -518,7 +631,7 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceAdminReindexBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
 		}
 	}
 	var version *string

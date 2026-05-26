@@ -20,6 +20,8 @@ type Endpoints struct {
 	GetB2bOrg            goa.Endpoint
 	CreateB2bOrg         goa.Endpoint
 	UpdateB2bOrg         goa.Endpoint
+	GetB2bOrgSettings    goa.Endpoint
+	UpdateB2bOrgSettings goa.Endpoint
 	GetProjectMembership goa.Endpoint
 	GetKeyContact        goa.Endpoint
 	CreateKeyContact     goa.Endpoint
@@ -40,6 +42,8 @@ func NewEndpoints(s Service) *Endpoints {
 		GetB2bOrg:            NewGetB2bOrgEndpoint(s, a.JWTAuth),
 		CreateB2bOrg:         NewCreateB2bOrgEndpoint(s, a.JWTAuth),
 		UpdateB2bOrg:         NewUpdateB2bOrgEndpoint(s, a.JWTAuth),
+		GetB2bOrgSettings:    NewGetB2bOrgSettingsEndpoint(s, a.JWTAuth),
+		UpdateB2bOrgSettings: NewUpdateB2bOrgSettingsEndpoint(s, a.JWTAuth),
 		GetProjectMembership: NewGetProjectMembershipEndpoint(s, a.JWTAuth),
 		GetKeyContact:        NewGetKeyContactEndpoint(s, a.JWTAuth),
 		CreateKeyContact:     NewCreateKeyContactEndpoint(s, a.JWTAuth),
@@ -58,6 +62,8 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.GetB2bOrg = m(e.GetB2bOrg)
 	e.CreateB2bOrg = m(e.CreateB2bOrg)
 	e.UpdateB2bOrg = m(e.UpdateB2bOrg)
+	e.GetB2bOrgSettings = m(e.GetB2bOrgSettings)
+	e.UpdateB2bOrgSettings = m(e.UpdateB2bOrgSettings)
 	e.GetProjectMembership = m(e.GetProjectMembership)
 	e.GetKeyContact = m(e.GetKeyContact)
 	e.CreateKeyContact = m(e.CreateKeyContact)
@@ -135,6 +141,52 @@ func NewUpdateB2bOrgEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endp
 			return nil, err
 		}
 		return s.UpdateB2bOrg(ctx, p)
+	}
+}
+
+// NewGetB2bOrgSettingsEndpoint returns an endpoint function that calls the
+// method "get-b2b-org-settings" of service "membership-service".
+func NewGetB2bOrgSettingsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*GetB2bOrgSettingsPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.GetB2bOrgSettings(ctx, p)
+	}
+}
+
+// NewUpdateB2bOrgSettingsEndpoint returns an endpoint function that calls the
+// method "update-b2b-org-settings" of service "membership-service".
+func NewUpdateB2bOrgSettingsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateB2bOrgSettingsPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateB2bOrgSettings(ctx, p)
 	}
 }
 

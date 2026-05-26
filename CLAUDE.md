@@ -147,6 +147,10 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 | POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID | `member` on `team:{globalOrgAdminTeamUID}` |
 | PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org | `writer` on `b2b_org:{uid}` |
 | GET | `/b2b_orgs/{uid}` | Get a B2B org | `auditor` on `b2b_org:{uid}` |
+| GET | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}` |
+| PUT | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors | `writer` on `b2b_org:{uid}` |
+
+**Settings semantics:** `nil` writers/auditors = keep existing; explicit `[]` = clear all. Entries with a `username` are `accepted` (FGA tuple emitted); without username are `pending` (no FGA tuple). The legacy `owner` relation is retired — use `writer` instead. Settings are stored in the `org-settings` NATS KV bucket (authoritative, no MaxAge TTL), separate from the Salesforce-backed `membership-cache` bucket.
 
 ### Admin
 
@@ -267,7 +271,11 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 
 ## NATS Storage
 
-The service uses a single NATS KV bucket for all caching.
+The service uses two NATS KV buckets.
+
+### `org-settings` Bucket
+
+Stores b2b_org access-control principals (writers, auditors, pending invites). **Authoritative state** — no MaxAge TTL, no soft-TTL envelopes. Key pattern: `org-settings.{orgUID}` → raw JSON `model.OrgSettings`. Optimistic locking via KV revision on every PUT.
 
 ### `membership-cache` Bucket
 

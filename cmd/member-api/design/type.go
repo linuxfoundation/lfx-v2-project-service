@@ -455,6 +455,61 @@ var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 	})
 })
 
+// OrgUserType describes a single principal (writer or auditor) on a b2b_org
+// settings list.
+// invite_status is returned on GET so callers can distinguish pending / accepted
+// / revoked entries, but is NOT required on PUT — the service derives it.
+// Deeper invite lifecycle fields (invite_uuid, invited_at/by, accepted_at,
+// revoked_at) are maintained internally in KV and are not exposed.
+var OrgUserType = dsl.Type("org-user", func() {
+	dsl.Description("A writer or auditor principal on a b2b_org settings list")
+	dsl.Attribute("avatar", dsl.String, "User avatar URL", func() {
+		dsl.Example("https://avatars.githubusercontent.com/u/12345")
+	})
+	dsl.Attribute("email", dsl.String, "User email address; required to identify the principal", func() {
+		dsl.Format(dsl.FormatEmail)
+		dsl.Example("alice@example.com")
+	})
+	dsl.Attribute("name", dsl.String, "User display name", func() {
+		dsl.Example("Alice Smith")
+	})
+	dsl.Attribute("username", dsl.String, "LFID username (OIDC sub); absent for pending invites", func() {
+		dsl.Example("alice")
+	})
+	dsl.Attribute("invited_as", dsl.String, "Relation being granted: writer or auditor", func() {
+		dsl.Example("writer")
+		dsl.Enum("writer", "auditor")
+	})
+	dsl.Attribute("invite_status", dsl.String, "Invite lifecycle state; returned on GET, derived by service on PUT", func() {
+		dsl.Example("accepted")
+		dsl.Enum("pending", "accepted", "revoked", "expired")
+	})
+	dsl.Required("email", "invited_as")
+})
+
+// B2BOrgSettingsResponse is the DSL type returned by GET /b2b_orgs/{uid}/settings.
+var B2BOrgSettingsResponse = dsl.Type("b2b-org-settings-response", func() {
+	dsl.Description("Access-control settings for a b2b_org: writers and auditors")
+	dsl.Attribute("writers", dsl.ArrayOf(OrgUserType), "Org administrators (writer relation in FGA). Full-replace on PUT.")
+	dsl.Attribute("auditors", dsl.ArrayOf(OrgUserType), "Read-only principals (auditor relation in FGA). Full-replace on PUT.")
+	dsl.Attribute("created_at", dsl.String, "Settings record creation timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2025-01-01T00:00:00Z")
+	})
+	dsl.Attribute("updated_at", dsl.String, "Settings record last-update timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2025-06-01T12:00:00Z")
+	})
+})
+
+// B2BOrgSettingsUpdateBody is the request body for PUT /b2b_orgs/{uid}/settings.
+// Full-replace semantics: nil = keep existing, [] = clear the list.
+var B2BOrgSettingsUpdateBody = dsl.Type("b2b-org-settings-update-body", func() {
+	dsl.Description("Request body for replacing the writers and/or auditors list on a b2b_org. Full-replace: nil = keep existing; [] = remove all.")
+	dsl.Attribute("writers", dsl.ArrayOf(OrgUserType), "Complete replacement list for org writers. Nil = leave unchanged; [] = remove all.")
+	dsl.Attribute("auditors", dsl.ArrayOf(OrgUserType), "Complete replacement list for org auditors. Nil = leave unchanged; [] = remove all.")
+})
+
 // AdminReindexItem identifies a single entity to reindex in targeted mode.
 var AdminReindexItem = dsl.Type("admin-reindex-item", func() {
 	dsl.Description("A single entity to reindex (targeted mode)")

@@ -396,11 +396,10 @@ func DecodeUpdateB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) go
 		}
 
 		var (
-			uid               string
-			version           *string
-			bearerToken       *string
-			ifMatch           *string
-			ifUnmodifiedSince *string
+			uid         string
+			version     *string
+			bearerToken *string
+			ifMatch     *string
 
 			params = mux.Vars(r)
 		)
@@ -423,14 +422,10 @@ func DecodeUpdateB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) go
 		if ifMatchRaw != "" {
 			ifMatch = &ifMatchRaw
 		}
-		ifUnmodifiedSinceRaw := r.Header.Get("If-Unmodified-Since")
-		if ifUnmodifiedSinceRaw != "" {
-			ifUnmodifiedSince = &ifUnmodifiedSinceRaw
-		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateB2bOrgPayload(&body, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
+		payload = NewUpdateB2bOrgPayload(&body, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -527,6 +522,316 @@ func EncodeUpdateB2bOrgError(encoder func(context.Context, http.ResponseWriter) 
 				body = formatter(ctx, res)
 			} else {
 				body = NewUpdateB2bOrgServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeGetB2bOrgSettingsResponse returns an encoder for responses returned by
+// the membership-service get-b2b-org-settings endpoint.
+func EncodeGetB2bOrgSettingsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*membershipservice.GetB2bOrgSettingsResult)
+		enc := encoder(ctx, w)
+		body := NewGetB2bOrgSettingsResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeGetB2bOrgSettingsRequest returns a decoder for requests sent to the
+// membership-service get-b2b-org-settings endpoint.
+func DecodeGetB2bOrgSettingsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.GetB2bOrgSettingsPayload, error) {
+	return func(r *http.Request) (*membershipservice.GetB2bOrgSettingsPayload, error) {
+		var payload *membershipservice.GetB2bOrgSettingsPayload
+		var (
+			uid         string
+			version     *string
+			bearerToken *string
+			err         error
+
+			params = mux.Vars(r)
+		)
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		versionRaw := r.URL.Query().Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewGetB2bOrgSettingsPayload(uid, version, bearerToken)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeGetB2bOrgSettingsError returns an encoder for errors returned by the
+// get-b2b-org-settings membership-service endpoint.
+func EncodeGetB2bOrgSettingsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetB2bOrgSettingsNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetB2bOrgSettingsBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetB2bOrgSettingsInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewGetB2bOrgSettingsServiceUnavailableResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
+// EncodeUpdateB2bOrgSettingsResponse returns an encoder for responses returned
+// by the membership-service update-b2b-org-settings endpoint.
+func EncodeUpdateB2bOrgSettingsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*membershipservice.UpdateB2bOrgSettingsResult)
+		enc := encoder(ctx, w)
+		body := NewUpdateB2bOrgSettingsResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeUpdateB2bOrgSettingsRequest returns a decoder for requests sent to the
+// membership-service update-b2b-org-settings endpoint.
+func DecodeUpdateB2bOrgSettingsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*membershipservice.UpdateB2bOrgSettingsPayload, error) {
+	return func(r *http.Request) (*membershipservice.UpdateB2bOrgSettingsPayload, error) {
+		var payload *membershipservice.UpdateB2bOrgSettingsPayload
+		var (
+			body UpdateB2bOrgSettingsRequestBody
+			err  error
+		)
+		err = decoder(r).Decode(&body)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return payload, goa.MissingPayloadError()
+			}
+			var gerr *goa.ServiceError
+			if errors.As(err, &gerr) {
+				return payload, gerr
+			}
+			return payload, goa.DecodePayloadError(err.Error())
+		}
+		err = ValidateUpdateB2bOrgSettingsRequestBody(&body)
+		if err != nil {
+			return payload, err
+		}
+
+		var (
+			uid         string
+			version     *string
+			bearerToken *string
+			ifMatch     *string
+
+			params = mux.Vars(r)
+		)
+		uid = params["uid"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		versionRaw := r.URL.Query().Get("v")
+		if versionRaw != "" {
+			version = &versionRaw
+		}
+		if version != nil {
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+		}
+		bearerTokenRaw := r.Header.Get("Authorization")
+		if bearerTokenRaw != "" {
+			bearerToken = &bearerTokenRaw
+		}
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewUpdateB2bOrgSettingsPayload(&body, uid, version, bearerToken, ifMatch)
+		if payload.BearerToken != nil {
+			if strings.Contains(*payload.BearerToken, " ") {
+				// Remove authorization scheme prefix (e.g. "Bearer")
+				cred := strings.SplitN(*payload.BearerToken, " ", 2)[1]
+				payload.BearerToken = &cred
+			}
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeUpdateB2bOrgSettingsError returns an encoder for errors returned by
+// the update-b2b-org-settings membership-service endpoint.
+func EncodeUpdateB2bOrgSettingsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "NotFound":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgSettingsNotFoundResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgSettingsBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "Conflict":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgSettingsConflictResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusConflict)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgSettingsPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
+			return enc.Encode(body)
+		case "InternalServerError":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgSettingsInternalServerErrorResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		case "ServiceUnavailable":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewUpdateB2bOrgSettingsServiceUnavailableResponseBody(res)
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -1104,12 +1409,11 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		}
 
 		var (
-			membershipUID     string
-			uid               string
-			version           *string
-			bearerToken       *string
-			ifMatch           *string
-			ifUnmodifiedSince *string
+			membershipUID string
+			uid           string
+			version       *string
+			bearerToken   *string
+			ifMatch       *string
 
 			params = mux.Vars(r)
 		)
@@ -1134,14 +1438,10 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 		if ifMatchRaw != "" {
 			ifMatch = &ifMatchRaw
 		}
-		ifUnmodifiedSinceRaw := r.Header.Get("If-Unmodified-Since")
-		if ifUnmodifiedSinceRaw != "" {
-			ifUnmodifiedSince = &ifUnmodifiedSinceRaw
-		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewUpdateKeyContactPayload(&body, membershipUID, uid, version, bearerToken, ifMatch, ifUnmodifiedSince)
+		payload = NewUpdateKeyContactPayload(&body, membershipUID, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -1646,6 +1946,42 @@ func EncodeDebugVarsResponse(encoder func(context.Context, http.ResponseWriter) 
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
+}
+
+// marshalMembershipserviceOrgUserToOrgUserResponseBody builds a value of type
+// *OrgUserResponseBody from a value of type *membershipservice.OrgUser.
+func marshalMembershipserviceOrgUserToOrgUserResponseBody(v *membershipservice.OrgUser) *OrgUserResponseBody {
+	if v == nil {
+		return nil
+	}
+	res := &OrgUserResponseBody{
+		Avatar:       v.Avatar,
+		Email:        v.Email,
+		Name:         v.Name,
+		Username:     v.Username,
+		InvitedAs:    v.InvitedAs,
+		InviteStatus: v.InviteStatus,
+	}
+
+	return res
+}
+
+// unmarshalOrgUserRequestBodyToMembershipserviceOrgUser builds a value of type
+// *membershipservice.OrgUser from a value of type *OrgUserRequestBody.
+func unmarshalOrgUserRequestBodyToMembershipserviceOrgUser(v *OrgUserRequestBody) *membershipservice.OrgUser {
+	if v == nil {
+		return nil
+	}
+	res := &membershipservice.OrgUser{
+		Avatar:       v.Avatar,
+		Email:        *v.Email,
+		Name:         v.Name,
+		Username:     v.Username,
+		InvitedAs:    *v.InvitedAs,
+		InviteStatus: v.InviteStatus,
+	}
+
+	return res
 }
 
 // unmarshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem

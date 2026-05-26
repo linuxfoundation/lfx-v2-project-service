@@ -5,15 +5,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
-	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
-	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +19,7 @@ import (
 
 func TestAdminReindex_AcceptsFullReindexAndReturnsRunID(t *testing.T) {
 	runner := newTestBackfillRunner(nil)
-	svc := newTestMembershipServiceWithBackfill(runner)
+	svc := newTestSvc(withBackfillRunner(runner))
 
 	result, err := svc.AdminReindex(context.Background(), &membershipservice.AdminReindexPayload{})
 
@@ -101,7 +96,7 @@ func TestAdminReindex_Validation(t *testing.T) {
 		},
 	}
 
-	svc := newTestMembershipServiceWithBackfill(newTestBackfillRunner(nil))
+	svc := newTestSvc(withBackfillRunner(newTestBackfillRunner(nil)))
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -117,172 +112,12 @@ func TestAdminReindex_Validation(t *testing.T) {
 	}
 }
 
-// ── BackfillRunner unit tests ──────────────────────────────────────────────
-
-func TestBackfillRunner_FullMode_PublishesAllTypes(t *testing.T) {
-	org := &model.B2BOrg{UID: "org-1"}
-	pm := &model.ProjectMembership{UID: "pm-1"}
-	kc := &model.KeyContact{UID: "kc-1"}
-
-	var publishCount atomic.Int32
-	pub := &countingPublisher{count: &publishCount}
-
-	iter := &mockBackfillIterator{
-		b2bOrgs:     [][]*model.B2BOrg{{org}},
-		memberships: [][]*model.ProjectMembership{{pm}},
-		keyContacts: [][]*model.KeyContact{{kc}},
-	}
-
-	runner := NewBackfillRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, pub, nil)
-	req := BackfillRequest{RunID: "test-run", Types: []string{"b2b_org", "project_membership", "key_contact"}}
-	runner.Run(context.Background(), req)
-
-	// 3 records × 1 publish each
-	assert.Equal(t, int32(3), publishCount.Load(), "should publish one message per record")
-}
-
-func TestBackfillRunner_DryRun_DoesNotPublish(t *testing.T) {
-	org := &model.B2BOrg{UID: "org-1"}
-
-	var publishCount atomic.Int32
-	pub := &countingPublisher{count: &publishCount}
-
-	iter := &mockBackfillIterator{
-		b2bOrgs: [][]*model.B2BOrg{{org}},
-	}
-
-	runner := NewBackfillRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, pub, nil)
-	req := BackfillRequest{RunID: "test-run", Types: []string{"b2b_org"}, DryRun: true}
-	runner.Run(context.Background(), req)
-
-	assert.Equal(t, int32(0), publishCount.Load(), "dry_run must not publish")
-}
-
-func TestBackfillRunner_MidRunError_OtherTypesStillRun(t *testing.T) {
-	iterErr := errors.New("salesforce timeout")
-	pm := &model.ProjectMembership{UID: "pm-1"}
-
-	var publishCount atomic.Int32
-	pub := &countingPublisher{count: &publishCount}
-
-	iter := &mockBackfillIterator{
-		b2bErr:      iterErr,                            // b2b_org fails
-		memberships: [][]*model.ProjectMembership{{pm}}, // project_membership succeeds
-	}
-
-	runner := NewBackfillRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, pub, nil)
-	req := BackfillRequest{RunID: "test-run", Types: []string{"b2b_org", "project_membership"}}
-	runner.Run(context.Background(), req)
-
-	// b2b_org fails → 0 publishes; project_membership succeeds → 1 publish
-	assert.Equal(t, int32(1), publishCount.Load(), "error in one type must not stop other types")
-}
-
-func TestBackfillRunner_SinceFilter_PassedThroughToIterator(t *testing.T) {
-	since := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-	var capturedSince *time.Time
-
-	iter := &capturingSinceIterator{capturedSince: &capturedSince}
-	runner := NewBackfillRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, mock.NewMockMemberPublisher(), nil)
-	req := BackfillRequest{RunID: "test-run", Types: []string{"b2b_org"}, Since: &since}
-	runner.Run(context.Background(), req)
-
-	require.NotNil(t, capturedSince, "since must be forwarded to the iterator")
-	assert.Equal(t, since, *capturedSince)
-}
-
-func TestBackfillRunner_TargetedMode_FetchesLiveSObjectAndPublishes(t *testing.T) {
-	const orgUID = "00000000-0000-0000-0000-000000000001"
-	org := &model.B2BOrg{UID: orgUID}
-	b2bReader := &seededB2BOrgReader{org: org}
-
-	var publishCount atomic.Int32
-	pub := &countingPublisher{count: &publishCount}
-
-	runner := NewBackfillRunner(&mockBackfillIterator{}, b2bReader, mock.NewMockProjectMembershipReader(), nil, pub, nil)
-	req := BackfillRequest{
-		RunID: "test-run",
-		Items: []ReindexItem{{Type: "b2b_org", UID: orgUID}},
-	}
-	runner.Run(context.Background(), req)
-
-	assert.Equal(t, int32(1), publishCount.Load(), "targeted mode should publish the fetched record")
-}
-
-func TestBackfillRunner_TargetedMode_NotFoundIsSkipped(t *testing.T) {
-	const orgUID = "00000000-0000-0000-0000-000000000002"
-
-	var publishCount atomic.Int32
-	pub := &countingPublisher{count: &publishCount}
-
-	// MockB2BOrgReader always returns not-found
-	runner := NewBackfillRunner(&mockBackfillIterator{}, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, pub, nil)
-	req := BackfillRequest{
-		RunID: "test-run",
-		Items: []ReindexItem{{Type: "b2b_org", UID: orgUID}},
-	}
-	runner.Run(context.Background(), req)
-
-	assert.Equal(t, int32(0), publishCount.Load(), "not-found items must not publish")
-}
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-// newTestMembershipServiceWithBackfill constructs a test service with a real BackfillRunner.
-func newTestMembershipServiceWithBackfill(runner *BackfillRunner) membershipservice.Service {
-	mockMemberRepo := mock.NewMockMembershipRepository()
-	iter := usecaseSvc.NewMemberReaderOrchestrator(
-		usecaseSvc.WithMemberReader(mockMemberRepo),
-	)
-	return NewMembershipService(
-		iter,
-		mockMemberRepo,
-		&auth.MockJWTAuth{},
-		&mockKeyContactWriter{},
-		mock.NewMockB2BOrgReader(),
-		mock.NewMockB2BOrgWriter(),
-		mock.NewMockProjectMembershipReader(),
-		mock.NewMockMemberPublisher(),
-		&mock.MockUserReader{},
-		"",
-		runner,
-	)
-}
-
-// newTestBackfillRunner returns a BackfillRunner with empty mock iterator (no NATS).
-func newTestBackfillRunner(iter BackfillIterator) *BackfillRunner {
+// newTestBackfillRunner returns a Runner with empty mock iterator (no NATS).
+func newTestBackfillRunner(iter usecaseSvc.BackfillIterator) *usecaseSvc.Runner {
 	if iter == nil {
-		iter = &mockBackfillIterator{}
+		iter = &mock.MockBackfillIterator{}
 	}
-	return NewBackfillRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, mock.NewMockMemberPublisher(), nil)
-}
-
-// countingPublisher counts how many times Indexer is called and satisfies port.MemberPublisher.
-type countingPublisher struct {
-	count *atomic.Int32
-}
-
-func (p *countingPublisher) Indexer(_ context.Context, _ string, _ any, _ bool) error {
-	p.count.Add(1)
-	return nil
-}
-
-func (p *countingPublisher) Access(_ context.Context, _ string, _ any, _ bool) error { return nil }
-
-// capturingSinceIterator captures the since parameter passed to IterB2BOrgs.
-type capturingSinceIterator struct {
-	capturedSince **time.Time
-}
-
-func (c *capturingSinceIterator) IterB2BOrgs(_ context.Context, since *time.Time, _ func([]*model.B2BOrg) error) error {
-	*c.capturedSince = since
-	return nil
-}
-
-func (c *capturingSinceIterator) IterProjectMemberships(_ context.Context, _ *time.Time, _ func([]*model.ProjectMembership) error) error {
-	return nil
-}
-
-func (c *capturingSinceIterator) IterKeyContacts(_ context.Context, _ *time.Time, _ func([]*model.KeyContact) error) error {
-	return nil
+	return usecaseSvc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, mock.NewMockMemberPublisher(), nil)
 }

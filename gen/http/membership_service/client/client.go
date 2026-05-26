@@ -30,6 +30,14 @@ type Client struct {
 	// update-b2b-org endpoint.
 	UpdateB2bOrgDoer goahttp.Doer
 
+	// GetB2bOrgSettings Doer is the HTTP client used to make requests to the
+	// get-b2b-org-settings endpoint.
+	GetB2bOrgSettingsDoer goahttp.Doer
+
+	// UpdateB2bOrgSettings Doer is the HTTP client used to make requests to the
+	// update-b2b-org-settings endpoint.
+	UpdateB2bOrgSettingsDoer goahttp.Doer
+
 	// GetProjectMembership Doer is the HTTP client used to make requests to the
 	// get-project-membership endpoint.
 	GetProjectMembershipDoer goahttp.Doer
@@ -88,6 +96,8 @@ func NewClient(
 		GetB2bOrgDoer:            doer,
 		CreateB2bOrgDoer:         doer,
 		UpdateB2bOrgDoer:         doer,
+		GetB2bOrgSettingsDoer:    doer,
+		UpdateB2bOrgSettingsDoer: doer,
 		GetProjectMembershipDoer: doer,
 		GetKeyContactDoer:        doer,
 		CreateKeyContactDoer:     doer,
@@ -172,6 +182,54 @@ func (c *Client) UpdateB2bOrg() goa.Endpoint {
 		resp, err := c.UpdateB2bOrgDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("membership-service", "update-b2b-org", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// GetB2bOrgSettings returns an endpoint that makes HTTP requests to the
+// membership-service service get-b2b-org-settings server.
+func (c *Client) GetB2bOrgSettings() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeGetB2bOrgSettingsRequest(c.encoder)
+		decodeResponse = DecodeGetB2bOrgSettingsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildGetB2bOrgSettingsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.GetB2bOrgSettingsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "get-b2b-org-settings", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UpdateB2bOrgSettings returns an endpoint that makes HTTP requests to the
+// membership-service service update-b2b-org-settings server.
+func (c *Client) UpdateB2bOrgSettings() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateB2bOrgSettingsRequest(c.encoder)
+		decodeResponse = DecodeUpdateB2bOrgSettingsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateB2bOrgSettingsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateB2bOrgSettingsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "update-b2b-org-settings", err)
 		}
 		return decodeResponse(resp)
 	}

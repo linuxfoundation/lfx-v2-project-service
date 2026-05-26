@@ -17,6 +17,14 @@ import (
 	errs "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 )
 
+// BackfillIterator provides paged SOQL iterators for full and since-filtered
+// backfill modes. Each method calls fn once per page of converted records.
+type BackfillIterator interface {
+	IterB2BOrgs(ctx context.Context, since *time.Time, fn func([]*model.B2BOrg) error) error
+	IterProjectMemberships(ctx context.Context, since *time.Time, fn func([]*model.ProjectMembership) error) error
+	IterKeyContacts(ctx context.Context, since *time.Time, fn func([]*model.KeyContact) error) error
+}
+
 // KeyContactSObjectReader fetches a single KeyContact by UID via the live sObject path.
 // Defined here to avoid a direct service→salesforce dependency while keeping the
 // port package free of infrastructure concerns.
@@ -33,26 +41,11 @@ const (
 // allBackfillTypes is the canonical ordered list of types the backfill supports.
 var allBackfillTypes = []string{entityTypeB2BOrg, entityTypeProjectMembership, entityTypeKeyContact}
 
-// BackfillRequest carries the validated, normalised parameters for a single run.
-type BackfillRequest struct {
-	RunID  string
-	Types  []string   // empty = all in-scope (full/since modes)
-	Since  *time.Time // nil = full reindex
-	Items  []ReindexItem
-	DryRun bool
-}
-
-// ReindexItem identifies a single entity in targeted (items) mode.
-type ReindexItem struct {
-	Type string
-	UID  string
-}
-
-// BackfillRunner orchestrates a reindex run. It is safe to call Run concurrently
+// Runner orchestrates a reindex run. It is safe to call Run concurrently
 // from multiple goroutines (each run is independent). Full-mode runs acquire a
 // per-type NATS KV lock so the same type is not reindexed simultaneously across
 // pods.
-type BackfillRunner struct {
+type Runner struct {
 	iter       BackfillIterator
 	b2bReader  port.B2BOrgReader
 	pmReader   port.ProjectMembershipReader
@@ -61,16 +54,16 @@ type BackfillRunner struct {
 	natsClient *natspkg.NATSClient
 }
 
-// NewBackfillRunner constructs a BackfillRunner.
-func NewBackfillRunner(
+// NewRunner constructs a Runner.
+func NewRunner(
 	iter BackfillIterator,
 	b2bReader port.B2BOrgReader,
 	pmReader port.ProjectMembershipReader,
 	kcReader KeyContactSObjectReader,
 	publisher port.MemberPublisher,
 	natsClient *natspkg.NATSClient,
-) *BackfillRunner {
-	return &BackfillRunner{
+) *Runner {
+	return &Runner{
 		iter:       iter,
 		b2bReader:  b2bReader,
 		pmReader:   pmReader,
@@ -88,7 +81,8 @@ const (
 	modeFull     runMode = "full"
 )
 
-func classifyMode(req BackfillRequest) runMode {
+// ClassifyMode returns the run mode for the given request.
+func ClassifyMode(req BackfillRequest) runMode {
 	if len(req.Items) > 0 {
 		return modeTargeted
 	}
@@ -107,8 +101,8 @@ func effectiveTypes(requested []string) []string {
 
 // Run executes the backfill. It is intended to be called in a goroutine with
 // context.WithoutCancel so it outlives the HTTP request.
-func (r *BackfillRunner) Run(ctx context.Context, req BackfillRequest) {
-	mode := classifyMode(req)
+func (r *Runner) Run(ctx context.Context, req BackfillRequest) {
+	mode := ClassifyMode(req)
 	log := slog.With(
 		"run_id", req.RunID,
 		"component", "backfill",
@@ -164,7 +158,7 @@ func (r *BackfillRunner) Run(ctx context.Context, req BackfillRequest) {
 		"skipped_locked", skipped)
 }
 
-func (r *BackfillRunner) runType(ctx context.Context, log *slog.Logger, req BackfillRequest, sfType string) error {
+func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequest, sfType string) error {
 	var total, published int
 
 	logPage := func(pageLen int) {
@@ -179,7 +173,7 @@ func (r *BackfillRunner) runType(ctx context.Context, log *slog.Logger, req Back
 			for _, org := range orgs {
 				total++
 				if !req.DryRun {
-					publishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+					PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
 					published++
 				}
 			}
@@ -191,7 +185,7 @@ func (r *BackfillRunner) runType(ctx context.Context, log *slog.Logger, req Back
 			for _, pm := range pms {
 				total++
 				if !req.DryRun {
-					publishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
+					PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
 					published++
 				}
 			}
@@ -207,7 +201,7 @@ func (r *BackfillRunner) runType(ctx context.Context, log *slog.Logger, req Back
 			for _, kc := range kcs {
 				total++
 				if !req.DryRun {
-					publishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+					PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
 					published++
 				}
 			}
@@ -219,7 +213,7 @@ func (r *BackfillRunner) runType(ctx context.Context, log *slog.Logger, req Back
 	}
 }
 
-func (r *BackfillRunner) runTargeted(ctx context.Context, log *slog.Logger, req BackfillRequest) {
+func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req BackfillRequest) {
 	var notFound, published int
 
 	for _, item := range req.Items {
@@ -237,7 +231,7 @@ func (r *BackfillRunner) runTargeted(ctx context.Context, log *slog.Logger, req 
 				continue
 			}
 			if !req.DryRun {
-				publishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+				PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
 				published++
 			}
 
@@ -254,7 +248,7 @@ func (r *BackfillRunner) runTargeted(ctx context.Context, log *slog.Logger, req 
 				continue
 			}
 			if !req.DryRun {
-				publishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
+				PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
 				published++
 			}
 
@@ -271,7 +265,7 @@ func (r *BackfillRunner) runTargeted(ctx context.Context, log *slog.Logger, req 
 				continue
 			}
 			if !req.DryRun {
-				publishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+				PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
 				published++
 			}
 		}

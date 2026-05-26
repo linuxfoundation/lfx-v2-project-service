@@ -24,6 +24,11 @@ type Service interface {
 	CreateB2bOrg(context.Context, *CreateB2bOrgPayload) (res *CreateB2bOrgResult, err error)
 	// Update a B2B organization
 	UpdateB2bOrg(context.Context, *UpdateB2bOrgPayload) (res *UpdateB2bOrgResult, err error)
+	// Get the access-control settings (writers and auditors) for a B2B organization
+	GetB2bOrgSettings(context.Context, *GetB2bOrgSettingsPayload) (res *GetB2bOrgSettingsResult, err error)
+	// Replace the writers and/or auditors list on a B2B organization (full-replace
+	// semantics)
+	UpdateB2bOrgSettings(context.Context, *UpdateB2bOrgSettingsPayload) (res *UpdateB2bOrgSettingsResult, err error)
 	// Get a specific project membership by UID
 	GetProjectMembership(context.Context, *GetProjectMembershipPayload) (res *GetProjectMembershipResult, err error)
 	// Get a specific key contact by UID
@@ -65,7 +70,7 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [12]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars"}
+var MethodNames = [14]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-b2b-org-settings", "update-b2b-org-settings", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars"}
 
 // A single entity to reindex (targeted mode)
 type AdminReindexItem struct {
@@ -145,6 +150,18 @@ type B2bOrgResponse struct {
 	// Creation timestamp
 	CreatedAt *string
 	// Last update timestamp
+	UpdatedAt *string
+}
+
+// Access-control settings for a b2b_org: writers and auditors
+type B2bOrgSettingsResponse struct {
+	// Org administrators (writer relation in FGA). Full-replace on PUT.
+	Writers []*OrgUser
+	// Read-only principals (auditor relation in FGA). Full-replace on PUT.
+	Auditors []*OrgUser
+	// Settings record creation timestamp
+	CreatedAt *string
+	// Settings record last-update timestamp
 	UpdatedAt *string
 }
 
@@ -253,6 +270,28 @@ type GetB2bOrgResult struct {
 	LastModified *string
 }
 
+// GetB2bOrgSettingsPayload is the payload type of the membership-service
+// service get-b2b-org-settings method.
+type GetB2bOrgSettingsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+}
+
+// GetB2bOrgSettingsResult is the result type of the membership-service service
+// get-b2b-org-settings method.
+type GetB2bOrgSettingsResult struct {
+	// B2B organization access-control settings
+	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
 // GetKeyContactPayload is the payload type of the membership-service service
 // get-key-contact method.
 type GetKeyContactPayload struct {
@@ -305,6 +344,22 @@ type GetProjectMembershipResult struct {
 	Etag *string
 	// Last-Modified header value (HTTP date format)
 	LastModified *string
+}
+
+// A writer or auditor principal on a b2b_org settings list
+type OrgUser struct {
+	// User avatar URL
+	Avatar *string
+	// User email address; required to identify the principal
+	Email string
+	// User display name
+	Name *string
+	// LFID username (OIDC sub); absent for pending invites
+	Username *string
+	// Relation being granted: writer or auditor
+	InvitedAs string
+	// Invite lifecycle state; returned on GET, derived by service on PUT
+	InviteStatus *string
 }
 
 // A key contact (Project_Role__c) scoped to a membership, with denormalized
@@ -417,8 +472,6 @@ type UpdateB2bOrgPayload struct {
 	UID string
 	// If-Match header value for conditional requests
 	IfMatch *string
-	// If-Unmodified-Since header value for conditional requests (HTTP date format)
-	IfUnmodifiedSince *string
 	// Organization name
 	Name *string
 	// Organization free-text description
@@ -453,6 +506,36 @@ type UpdateB2bOrgResult struct {
 	LastModified *string
 }
 
+// UpdateB2bOrgSettingsPayload is the payload type of the membership-service
+// service update-b2b-org-settings method.
+type UpdateB2bOrgSettingsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Complete replacement list for org writers. Nil = leave unchanged; [] =
+	// remove all.
+	Writers []*OrgUser
+	// Complete replacement list for org auditors. Nil = leave unchanged; [] =
+	// remove all.
+	Auditors []*OrgUser
+}
+
+// UpdateB2bOrgSettingsResult is the result type of the membership-service
+// service update-b2b-org-settings method.
+type UpdateB2bOrgSettingsResult struct {
+	// Updated B2B organization access-control settings
+	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
 // UpdateKeyContactPayload is the payload type of the membership-service
 // service update-key-contact method.
 type UpdateKeyContactPayload struct {
@@ -466,8 +549,6 @@ type UpdateKeyContactPayload struct {
 	UID string
 	// If-Match header value for conditional requests
 	IfMatch *string
-	// If-Unmodified-Since header value for conditional requests (HTTP date format)
-	IfUnmodifiedSince *string
 	// Contact email address; normalized to lowercase before update
 	Email *string
 	// Contact role designation
