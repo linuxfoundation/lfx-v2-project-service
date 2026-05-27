@@ -643,6 +643,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				MessageBuilder:    mockMsg,
 				Config: ServiceConfig{
 					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
+					EmailsEnabled:       true,
+					InvitesEnabled:      true,
 				},
 			}
 
@@ -662,6 +664,72 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		msg := domain.NewMockMessage([]byte("not json"), "")
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
+	})
+
+	// Feature-flag disabled tests: verify no sends occur when the flags are off.
+
+	t.Run("EmailsEnabled=false — no email sent for LFID user added", func(t *testing.T) {
+		mockMsg := &domain.MockMessageBuilder{}
+		mockRepo := &domain.MockProjectRepository{}
+
+		event := events.ProjectSettingsUpdatedMessage{
+			ProjectUID:  "proj-flag",
+			OldSettings: events.ProjectSettings{},
+			NewSettings: events.ProjectSettings{
+				Writers: []events.UserInfo{alice},
+			},
+		}
+		mockRepo.On("GetProjectBase", mock.Anything, "proj-flag").
+			Return(makeProjectBase("proj-flag", "Flag Project", "flag-project"), nil)
+
+		svc := &ProjectsService{
+			ProjectRepository: mockRepo,
+			MessageBuilder:    mockMsg,
+			Config: ServiceConfig{
+				LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
+				EmailsEnabled:       false,
+				InvitesEnabled:      true,
+			},
+		}
+
+		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
+		assert.NoError(t, err)
+		mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", 0)
+		mockRepo.AssertExpectations(t)
+		mockMsg.AssertExpectations(t)
+	})
+
+	t.Run("InvitesEnabled=false — no invite sent for non-LFID user added", func(t *testing.T) {
+		mockMsg := &domain.MockMessageBuilder{}
+		mockRepo := &domain.MockProjectRepository{}
+
+		event := events.ProjectSettingsUpdatedMessage{
+			ProjectUID:  "proj-flag",
+			OldSettings: events.ProjectSettings{},
+			NewSettings: events.ProjectSettings{
+				Writers: []events.UserInfo{noLFIDWriter},
+			},
+		}
+		mockRepo.On("GetProjectBase", mock.Anything, "proj-flag").
+			Return(makeProjectBase("proj-flag", "Flag Project", "flag-project"), nil)
+
+		svc := &ProjectsService{
+			ProjectRepository: mockRepo,
+			MessageBuilder:    mockMsg,
+			Config: ServiceConfig{
+				LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
+				EmailsEnabled:       true,
+				InvitesEnabled:      false,
+			},
+		}
+
+		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
+		assert.NoError(t, err)
+		mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", 0)
+		mockRepo.AssertExpectations(t)
+		mockMsg.AssertExpectations(t)
 	})
 }
 

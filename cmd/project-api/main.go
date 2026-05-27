@@ -98,6 +98,8 @@ func main() {
 	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
 		SkipEtagValidation:  env.SkipEtagValidation,
 		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
+		EmailsEnabled:       env.EmailsEnabled,
+		InvitesEnabled:      env.InvitesEnabled,
 	})
 	svc := NewProjectsAPI(service)
 
@@ -163,6 +165,8 @@ type environment struct {
 	Port                string
 	SkipEtagValidation  bool
 	LFXSelfServeBaseURL string
+	EmailsEnabled       bool
+	InvitesEnabled      bool
 }
 
 func parseEnv() environment {
@@ -195,6 +199,8 @@ func parseEnv() environment {
 		Port:                port,
 		SkipEtagValidation:  skipEtagValidation,
 		LFXSelfServeBaseURL: lfxSelfServeBaseURL,
+		EmailsEnabled:       os.Getenv("EMAILS_ENABLED") == "true",
+		InvitesEnabled:      os.Getenv("INVITES_ENABLED") == "true",
 	}
 }
 

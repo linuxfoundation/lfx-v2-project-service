@@ -268,6 +268,8 @@ func TestEndpoint(t *testing.T) {
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | - | No |
 | `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails | derived from `LFX_ENVIRONMENT` | No |
+| `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
+| `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
 
 ## Authorization (OpenFGA)
 

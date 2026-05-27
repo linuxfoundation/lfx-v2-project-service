@@ -63,6 +63,12 @@ app:
   # skipEtagValidation is a boolean to determine if the etag validation should be skipped
   # (only use for local development)
   skipEtagValidation: false
+  # emailsEnabled gates outbound role-notification emails to LFID users via the email service.
+  # Disabled by default; set to true in environments where email sending should be active.
+  emailsEnabled: false
+  # invitesEnabled gates outbound invite requests for non-LFID users via the invite service.
+  # Disabled by default; set to true in environments where invite sending should be active.
+  invitesEnabled: false
   # jwtAuthDisabledMockLocalPrincipal mocks auth for local development to use a set principal
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""
