@@ -144,6 +144,7 @@ func (s *B2BOrgSettings) Tags() []string {
 	}
 	var tags []string
 	var hasPending bool
+	emittedMemberTags := map[string]struct{}{}
 	hasWriters := false
 	for _, u := range s.Writers {
 		switch u.EffectiveStatus() {
@@ -154,7 +155,10 @@ func (s *B2BOrgSettings) Tags() []string {
 			}
 			if u.Username != "" {
 				tags = append(tags, TagPrefixWritersUsername+u.Username)
-				tags = append(tags, TagPrefixMember+u.Username)
+				if _, seen := emittedMemberTags[u.Username]; !seen {
+					tags = append(tags, TagPrefixMember+u.Username)
+					emittedMemberTags[u.Username] = struct{}{}
+				}
 			}
 		case InviteStatusPending:
 			hasPending = true
@@ -170,7 +174,10 @@ func (s *B2BOrgSettings) Tags() []string {
 			}
 			if u.Username != "" {
 				tags = append(tags, TagPrefixAuditorsUsername+u.Username)
-				tags = append(tags, TagPrefixMember+u.Username)
+				if _, seen := emittedMemberTags[u.Username]; !seen {
+					tags = append(tags, TagPrefixMember+u.Username)
+					emittedMemberTags[u.Username] = struct{}{}
+				}
 			}
 		case InviteStatusPending:
 			hasPending = true

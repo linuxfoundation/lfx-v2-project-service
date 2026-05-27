@@ -488,6 +488,16 @@ func TestBuildB2BOrgSettingsIndexingConfig_Tags(t *testing.T) {
 			wantContains: []string{"member:alice", "member:bob"},
 			wantAbsent:   []string{"has_pending_invites"},
 		},
+		{
+			name: "same user accepted as both writer and auditor emits member tag only once",
+			settings: &model.B2BOrgSettings{
+				UID:      "org-uid-004",
+				Writers:  []model.B2BOrgUser{{InviteStatus: model.InviteStatusAccepted, Username: "charlie"}},
+				Auditors: []model.B2BOrgUser{{InviteStatus: model.InviteStatusAccepted, Username: "charlie"}},
+			},
+			wantContains: []string{"writers.username:charlie", "auditors.username:charlie", "member:charlie"},
+			wantAbsent:   []string{"has_pending_invites"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

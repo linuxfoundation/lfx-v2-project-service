@@ -108,6 +108,27 @@ func TestB2BOrgSettings_ActiveWriterUsernames(t *testing.T) {
 	}
 }
 
+func TestB2BOrgSettings_Tags_MemberTagDeduplication(t *testing.T) {
+	// A user accepted as both writer and auditor must produce member: exactly once.
+	settings := &B2BOrgSettings{
+		UID:      "org-uid",
+		Writers:  []B2BOrgUser{{Username: "charlie", InviteStatus: InviteStatusAccepted}},
+		Auditors: []B2BOrgUser{{Username: "charlie", InviteStatus: InviteStatusAccepted}},
+	}
+	tags := settings.Tags()
+
+	count := 0
+	for _, tag := range tags {
+		if tag == TagPrefixMember+"charlie" {
+			count++
+		}
+	}
+	assert.Equal(t, 1, count, "member:charlie must appear exactly once even when user is both writer and auditor")
+	// Role-specific tags are still both emitted.
+	assert.Contains(t, tags, TagPrefixWritersUsername+"charlie")
+	assert.Contains(t, tags, TagPrefixAuditorsUsername+"charlie")
+}
+
 func TestB2BOrgSettings_ActiveAuditorUsernames(t *testing.T) {
 	tests := []struct {
 		name     string
