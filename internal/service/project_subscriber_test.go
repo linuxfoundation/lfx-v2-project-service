@@ -696,6 +696,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
 		mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", 0)
+		mockRepo.AssertExpectations(t)
+		mockMsg.AssertExpectations(t)
 	})
 
 	t.Run("InvitesEnabled=false — no invite sent for non-LFID user added", func(t *testing.T) {
@@ -726,6 +728,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
 		mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", 0)
+		mockRepo.AssertExpectations(t)
+		mockMsg.AssertExpectations(t)
 	})
 }
 
