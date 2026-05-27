@@ -87,6 +87,11 @@ type B2BOrg struct {
 	// organization has no parent or the parent could not be resolved.
 	ParentDetail *B2BOrgParentDetail `json:"parent_detail,omitempty"`
 
+	// IsParent is true when this org has at least one direct member-eligible child.
+	// Omitted (false) when the org is a leaf. Consumers can find children by
+	// querying the index for parent_uid = this org's UID.
+	IsParent bool `json:"is_parent,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

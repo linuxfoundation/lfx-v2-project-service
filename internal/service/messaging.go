@@ -40,16 +40,21 @@ var b2bOrgNonChildRelations = []string{
 	"global_org_admin", "auditor", "writer", "owner", "membership", "parent",
 }
 
-// BuildB2BOrgIndexingConfig constructs an IndexingConfig for a B2BOrg document.
-func BuildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
-	var nameAndAliases []string
+// orgNameAndAliases builds the name+domain alias slice for an org indexing config.
+func orgNameAndAliases(org *model.B2BOrg) []string {
+	var out []string
 	if org.Name != "" {
-		nameAndAliases = append(nameAndAliases, org.Name)
+		out = append(out, org.Name)
 	}
 	if org.PrimaryDomain != "" {
-		nameAndAliases = append(nameAndAliases, org.PrimaryDomain)
+		out = append(out, org.PrimaryDomain)
 	}
-	nameAndAliases = append(nameAndAliases, org.DomainAliases...)
+	return append(out, org.DomainAliases...)
+}
+
+// BuildB2BOrgIndexingConfig constructs an IndexingConfig for a B2BOrg document.
+func BuildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
+	nameAndAliases := orgNameAndAliases(org)
 
 	var fulltext []string
 	for _, s := range []string{org.Name, org.PrimaryDomain, org.Description, org.Industry, org.Sector} {
@@ -87,14 +92,7 @@ func BuildB2BOrgIndexingConfig(org *model.B2BOrg) *indexerTypes.IndexingConfig {
 // HistoryCheckRelation is writer (not auditor) — history audits are a write-side concern;
 // matches project-service precedent.
 func BuildB2BOrgSettingsIndexingConfig(org *model.B2BOrg, settings *model.B2BOrgSettings) *indexerTypes.IndexingConfig {
-	var nameAndAliases []string
-	if org.Name != "" {
-		nameAndAliases = append(nameAndAliases, org.Name)
-	}
-	if org.PrimaryDomain != "" {
-		nameAndAliases = append(nameAndAliases, org.PrimaryDomain)
-	}
-	nameAndAliases = append(nameAndAliases, org.DomainAliases...)
+	nameAndAliases := orgNameAndAliases(org)
 
 	parentRefs := []string{"b2b_org:" + org.UID}
 	if org.ParentUID != "" {
@@ -271,7 +269,7 @@ func BuildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingC
 		Public:               boolPtr(false),
 		ObjectID:             kc.UID,
 		AccessCheckObject:    "project_membership:" + kc.MembershipUID,
-		AccessCheckRelation:  "key_contact",
+		AccessCheckRelation:  fgaconstants.RelationAuditor,
 		HistoryCheckObject:   "project_membership:" + kc.MembershipUID,
 		HistoryCheckRelation: fgaconstants.RelationAuditor,
 		SortName:             strings.ToLower(kc.LastName + " " + kc.FirstName),
@@ -370,6 +368,27 @@ func BuildChildListMessage(parentUID string, children []string) fgatypes.Generic
 			References:       childRefs,
 			ExcludeRelations: b2bOrgNonChildRelations,
 		},
+	}
+}
+
+// PublishB2BOrgParentFGA emits FGA parent/child hierarchy tuples for a B2BOrg
+// that has a ParentUID. Safe to call during backfill — idempotent.
+// parentChildren is the full current child-UID list for the parent org.
+func PublishB2BOrgParentFGA(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, parentChildren []string) {
+	if org.ParentUID == "" {
+		return
+	}
+	// Synthesise an empty-parent "current" so BuildB2BOrgReparentingMessages emits
+	// the new parent tuple without attempting to clean up a prior parent reference.
+	current := &model.B2BOrg{UID: org.UID}
+	for _, msg := range BuildB2BOrgReparentingMessages(current, org, nil, parentChildren) {
+		if pubErr := p.Access(ctx, constants.FGASyncUpdateAccessSubject, msg, false); pubErr != nil {
+			slog.WarnContext(ctx, "b2b org parent FGA publish failed",
+				"uid", org.UID,
+				"parent_uid", org.ParentUID,
+				"error", pubErr,
+				"publish_failed_for_backfill_repair", true)
+		}
 	}
 }
 

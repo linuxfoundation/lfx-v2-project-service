@@ -11,8 +11,13 @@ const (
 	// this subject.
 	ProjectIDMapLookupSubject = "lfx.member.project-id-map.lookup"
 
-	// B2BOrgIDMapLookupSubject is the NATS request/reply subject for resolving
-	// a Salesforce Account SFID to its v2 b2b_org UUID. The member service
-	// handles this subject. Resolution is deterministic (no I/O required).
-	B2BOrgIDMapLookupSubject = "lfx.member.b2b-org-id-map.lookup"
+	// SFIDToUUIDLookupSubject is the NATS request/reply subject for resolving
+	// a Salesforce SFID to its v2 UUID v8. The member service handles
+	// this subject. Resolution is deterministic (no I/O required).
+	SFIDToUUIDLookupSubject = "lfx.member.sfid-to-uuid.lookup"
+
+	// UUIDToSFIDLookupSubject is the NATS request/reply subject for resolving
+	// a v2 UUID v8 to its Salesforce SFID. The member service handles
+	// this subject. Resolution is deterministic (no I/O required).
+	UUIDToSFIDLookupSubject = "lfx.member.uuid-to-sfid.lookup"
 )

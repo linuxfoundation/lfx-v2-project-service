@@ -5,7 +5,9 @@ package service_test
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -57,6 +59,37 @@ func (r *seededOrgReader) FetchChildUIDsByParentUID(_ context.Context, parentUID
 		}
 	}
 	return nil, nil
+}
+
+// capturingPublisher captures published indexer messages to inspect payload contents.
+type capturingPublisher struct {
+	mu               sync.Mutex
+	indexerMessages  []any // captured message payloads
+	indexerCallCount int
+	accessCallCount  int
+}
+
+func (p *capturingPublisher) Indexer(_ context.Context, _ string, msg any, _ bool) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.indexerMessages = append(p.indexerMessages, msg)
+	p.indexerCallCount++
+	return nil
+}
+
+func (p *capturingPublisher) Access(_ context.Context, _ string, _ any, _ bool) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.accessCallCount++
+	return nil
+}
+
+func (p *capturingPublisher) getIndexerMessages() []any {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	out := make([]any, len(p.indexerMessages))
+	copy(out, p.indexerMessages)
+	return out
 }
 
 func newB2BOrgWriter(orgReader port.B2BOrgReader, orgWriter port.B2BOrgWriter, pub port.MemberPublisher, globalOrgAdminTeamUID string) svc.B2BOrgWriter {
@@ -233,6 +266,84 @@ func TestB2BOrgWriter_Update_Reparenting_EmitsMoreAccessCalls(t *testing.T) {
 		countCalls(reparentPub.calls(), "access:"),
 		countCalls(sameParentPub.calls(), "access:"),
 		"reparenting must emit more FGA access calls than a non-reparenting update")
+}
+
+// ── Children field tests ───────────────────────────────────────────────────
+
+func TestB2BOrgWriter_Create_PopulatesChildrenInIndexer(t *testing.T) {
+	orgWithChildren := &model.B2BOrg{UID: testB2BOrgUID, UpdatedAt: time.Now()}
+	pub := &capturingPublisher{}
+	childUIDs := []string{"child-1", "child-2"}
+	w := newB2BOrgWriter(
+		&seededOrgReader{
+			org:      orgWithChildren,
+			children: map[string][]string{testB2BOrgUID: childUIDs},
+		},
+		&seededOrgWriter{createOrg: orgWithChildren},
+		pub,
+		"admin-team-uid",
+	)
+
+	result, err := w.Create(context.Background(), "sf-account-001")
+
+	require.NoError(t, err)
+	assert.True(t, result.IsParent, "created org with children should have IsParent = true")
+
+	// Verify the indexer message received the is_parent field
+	msgs := pub.getIndexerMessages()
+	require.Len(t, msgs, 1, "should publish exactly one indexer message on create")
+	msgBytes, err := json.Marshal(msgs[0])
+	require.NoError(t, err)
+	var decoded map[string]interface{}
+	require.NoError(t, json.Unmarshal(msgBytes, &decoded))
+	if data, ok := decoded["data"]; ok {
+		dataBytes, _ := json.Marshal(data)
+		var dataObj map[string]interface{}
+		_ = json.Unmarshal(dataBytes, &dataObj)
+		isParentVal, _ := dataObj["is_parent"].(bool)
+		assert.True(t, isParentVal, "indexer message data should include is_parent = true")
+	}
+}
+
+func TestB2BOrgWriter_Create_LeafOrgNoChildren(t *testing.T) {
+	leafOrg := &model.B2BOrg{UID: testB2BOrgUID, UpdatedAt: time.Now()}
+	pub := &capturingPublisher{}
+	w := newB2BOrgWriter(
+		&seededOrgReader{
+			org:      leafOrg,
+			children: map[string][]string{testB2BOrgUID: {}}, // empty children list
+		},
+		&seededOrgWriter{createOrg: leafOrg},
+		pub,
+		"admin-team-uid",
+	)
+
+	result, err := w.Create(context.Background(), "sf-account-001")
+
+	require.NoError(t, err)
+	assert.False(t, result.IsParent, "leaf org should have IsParent = false")
+}
+
+func TestB2BOrgWriter_Update_PopulatesChildrenInIndexer(t *testing.T) {
+	current := &model.B2BOrg{UID: testB2BOrgUID, UpdatedAt: time.Now()}
+	updated := &model.B2BOrg{UID: testB2BOrgUID, Name: "Updated Name", UpdatedAt: time.Now()}
+	pub := &capturingPublisher{}
+	childUIDs := []string{"child-1", "child-2", "child-3"}
+	w := newB2BOrgWriter(
+		&seededOrgReader{
+			org:      current,
+			children: map[string][]string{testB2BOrgUID: childUIDs},
+		},
+		&seededOrgWriter{updateOrg: updated},
+		pub,
+		"",
+	)
+
+	input := model.B2BOrgInput{Name: "Updated Name"}
+	result, err := w.Update(context.Background(), testB2BOrgUID, input, "")
+
+	require.NoError(t, err)
+	assert.True(t, result.IsParent, "updated org with children should have IsParent = true")
 }
 
 // ── Helper ────────────────────────────────────────────────────────────────

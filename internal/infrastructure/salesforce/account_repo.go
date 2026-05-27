@@ -53,10 +53,11 @@ func NewAccountRepo(client *sf.Salesforce) *AccountRepo {
 	return &AccountRepo{client: client}
 }
 
-// FetchChildUIDsByParentUID returns the v2 UUIDs of all Salesforce Accounts
-// whose ParentId matches the SFID derived from parentUID. The result is used
-// to build the FGA child-list tuples required for the b2b_org hierarchy cascade.
-// Returns an empty slice (no error) when the parent has no children.
+// FetchChildUIDsByParentUID returns the v2 UUIDs of member-eligible Salesforce
+// Accounts whose ParentId matches the SFID derived from parentUID. Only accounts
+// with at least one membership Asset are returned — matching the same gate used
+// by accountsSOQLBase so the result contains only UIDs that exist in the index.
+// Returns an empty slice (no error) when the parent has no member-eligible children.
 func (r *AccountRepo) FetchChildUIDsByParentUID(ctx context.Context, parentUID string) ([]string, error) {
 	parentSFID, err := sfuuid.ToSFID(parentUID)
 	if err != nil {
@@ -64,7 +65,9 @@ func (r *AccountRepo) FetchChildUIDsByParentUID(ctx context.Context, parentUID s
 	}
 	slog.DebugContext(ctx, "fetching child account SFIDs from Salesforce", "parent_sfid", parentSFID)
 
-	query := "SELECT Id FROM Account WHERE ParentId = " + quoteSOQL(parentSFID) + " AND IsDeleted = false"
+	query := "SELECT Id FROM Account WHERE ParentId = " + quoteSOQL(parentSFID) +
+		" AND IsDeleted = false" +
+		" AND Id IN (SELECT AccountId FROM Asset WHERE Product2.Family = 'Membership' AND IsDeleted = false)"
 	records, _, err := QueryAllPages[soqlAccountID](ctx, r.client, query, "")
 	if err != nil {
 		return nil, fmt.Errorf("fetching children of parent %s: %w", parentSFID, err)

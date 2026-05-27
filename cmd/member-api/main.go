@@ -104,17 +104,28 @@ func main() {
 		}()
 	}
 
-	// Register the b2b-org-id-map NATS RPC handler so external services can
-	// resolve Salesforce Account SFIDs to v2 b2b_org UUIDs. The resolver is
-	// pure CPU (no Salesforce/NATS deps) and is always available.
-	b2bOrgIDMapSub, err := natsinf.SubscribeB2BOrgIDMap(natsClient.Conn(), service.B2BOrgResolverImpl(ctx))
+	// Register the sfid-to-uuid and uuid-to-sfid NATS RPC handlers so external
+	// services can resolve Salesforce SFIDs to v2 UUIDs and vice versa.
+	// Resolvers are pure CPU (no Salesforce/NATS deps) and always available.
+	sfidToUUIDSub, err := natsinf.HandleSFIDToUUID(natsClient.Conn(), slog.Default())
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to subscribe to b2b-org-id-map RPC", "error", err)
+		slog.ErrorContext(ctx, "failed to subscribe to sfid-to-uuid RPC", "error", err)
 		os.Exit(1)
 	}
 	defer func() {
-		if drainErr := b2bOrgIDMapSub.Drain(); drainErr != nil {
-			slog.WarnContext(ctx, "error draining b2b-org-id-map subscription", "error", drainErr)
+		if drainErr := sfidToUUIDSub.Drain(); drainErr != nil {
+			slog.WarnContext(ctx, "error draining sfid-to-uuid subscription", "error", drainErr)
+		}
+	}()
+
+	uuidToSFIDSub, err := natsinf.HandleUUIDToSFID(natsClient.Conn(), slog.Default())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to subscribe to uuid-to-sfid RPC", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if drainErr := uuidToSFIDSub.Drain(); drainErr != nil {
+			slog.WarnContext(ctx, "error draining uuid-to-sfid subscription", "error", drainErr)
 		}
 	}()
 

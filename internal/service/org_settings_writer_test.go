@@ -227,7 +227,9 @@ func TestOrgSettingsWriter_Update_PublishesIndexerAfterFGA(t *testing.T) {
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
+		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+	}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)
@@ -246,7 +248,9 @@ func TestOrgSettingsWriter_Update_IndexerSubjectIsSettingsSubject(t *testing.T) 
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
+		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+	}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)
@@ -282,7 +286,9 @@ func TestOrgSettingsWriter_Update_FirstWrite_EmitsActionCreated(t *testing.T) {
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
+		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+	}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)
@@ -307,7 +313,9 @@ func TestOrgSettingsWriter_Update_SubsequentWrite_EmitsActionUpdated(t *testing.
 		svc.WithOrgSettingsPublisher(pub),
 	)
 
-	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{}}
+	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
+		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+	}}
 	_, err := writer.Update(context.Background(), in)
 
 	require.NoError(t, err)

@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
 // --- stubs ---
@@ -25,15 +27,6 @@ func (s *stubProjectResolver) SFIDFromUID(_ context.Context, _ string) (string, 
 }
 func (s *stubProjectResolver) UIDFromSlug(_ context.Context, _ string) (string, error) {
 	return "", nil
-}
-
-type stubB2BOrgResolver struct {
-	uid string
-	err error
-}
-
-func (s *stubB2BOrgResolver) UIDFromSFID(_ context.Context, _ string) (string, error) {
-	return s.uid, s.err
 }
 
 // --- helpers ---
@@ -108,45 +101,51 @@ func TestProcessProjectIDMapRequest(t *testing.T) {
 	}
 }
 
-// --- b2b org handler tests ---
+// --- sfid-to-uuid handler tests ---
 
-func TestProcessB2BOrgIDMapRequest(t *testing.T) {
+func TestProcessSFIDToUUIDRequest(t *testing.T) {
 	ctx := context.Background()
 
+	// Use a real 15-char SFID that can be converted
+	realSFID := "001B000000IqhSL"
+	realUUID, err := sfuuid.ToUUID(realSFID)
+	require.NoError(t, err)
+
 	tests := []struct {
-		name     string
-		body     string
-		resolver *stubB2BOrgResolver
-		wantKey  string
-		wantVal  string
+		name    string
+		body    string
+		wantKey string
+		wantVal string
 	}{
 		{
-			name:     "valid SFID returns b2b_org_uid",
-			body:     `{"b2b_org_sfid":"001B000000IqhSLIAZ"}`,
-			resolver: &stubB2BOrgResolver{uid: "4c46585f-878c-8019-80e2-5632d301d19b"},
-			wantKey:  "b2b_org_uid",
-			wantVal:  "4c46585f-878c-8019-80e2-5632d301d19b",
+			name:    "valid 15-char SFID returns uuid",
+			body:    `{"sfid":"001B000000IqhSL"}`,
+			wantKey: "uuid",
+			wantVal: realUUID,
 		},
 		{
-			name:     "missing b2b_org_sfid returns error",
-			body:     `{}`,
-			resolver: &stubB2BOrgResolver{},
-			wantKey:  "error",
-			wantVal:  "b2b_org_sfid is required",
+			name:    "valid 18-char SFID returns uuid",
+			body:    `{"sfid":"001B000000IqhSLIAZ"}`,
+			wantKey: "uuid",
+			wantVal: realUUID,
 		},
 		{
-			name:     "empty b2b_org_sfid returns error",
-			body:     `{"b2b_org_sfid":""}`,
-			resolver: &stubB2BOrgResolver{},
-			wantKey:  "error",
-			wantVal:  "b2b_org_sfid is required",
+			name:    "missing sfid returns error",
+			body:    `{}`,
+			wantKey: "error",
+			wantVal: "sfid is required",
 		},
 		{
-			name:     "resolver error returns not found",
-			body:     `{"b2b_org_sfid":"001B000000IqhSLIAZ"}`,
-			resolver: &stubB2BOrgResolver{err: errors.New("not found")},
-			wantKey:  "error",
-			wantVal:  "b2b org not found",
+			name:    "empty sfid returns error",
+			body:    `{"sfid":""}`,
+			wantKey: "error",
+			wantVal: "sfid is required",
+		},
+		{
+			name:    "invalid SFID returns error",
+			body:    `{"sfid":"invalid!@#$%"}`,
+			wantKey: "error",
+			wantVal: "invalid sfid",
 		},
 		{
 			name:    "malformed JSON returns invalid request body",
@@ -158,11 +157,64 @@ func TestProcessB2BOrgIDMapRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolver := tt.resolver
-			if resolver == nil {
-				resolver = &stubB2BOrgResolver{}
-			}
-			result := processB2BOrgIDMapRequest(ctx, []byte(tt.body), resolver)
+			result := processSFIDToUUIDRequest(ctx, []byte(tt.body))
+			got := mustUnmarshal(t, result)
+			assert.Equal(t, tt.wantVal, got[tt.wantKey], "field %q", tt.wantKey)
+		})
+	}
+}
+
+// --- uuid-to-sfid handler tests ---
+
+func TestProcessUUIDToSFIDRequest(t *testing.T) {
+	ctx := context.Background()
+
+	// Use a real SFID and convert to UUID for testing
+	realSFID := "001B000000IqhSL"
+	realUUID, err := sfuuid.ToUUID(realSFID)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		body    string
+		wantKey string
+		wantVal string
+	}{
+		{
+			name:    "valid UUID returns sfid",
+			body:    `{"uuid":"` + realUUID + `"}`,
+			wantKey: "sfid",
+			wantVal: realSFID,
+		},
+		{
+			name:    "missing uuid returns error",
+			body:    `{}`,
+			wantKey: "error",
+			wantVal: "uuid is required",
+		},
+		{
+			name:    "empty uuid returns error",
+			body:    `{"uuid":""}`,
+			wantKey: "error",
+			wantVal: "uuid is required",
+		},
+		{
+			name:    "invalid UUID returns error",
+			body:    `{"uuid":"not-a-uuid"}`,
+			wantKey: "error",
+			wantVal: "invalid uuid",
+		},
+		{
+			name:    "malformed JSON returns invalid request body",
+			body:    `not-json`,
+			wantKey: "error",
+			wantVal: "invalid request body",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := processUUIDToSFIDRequest(ctx, []byte(tt.body))
 			got := mustUnmarshal(t, result)
 			assert.Equal(t, tt.wantVal, got[tt.wantKey], "field %q", tt.wantKey)
 		})

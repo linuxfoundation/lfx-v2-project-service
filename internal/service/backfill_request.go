@@ -34,6 +34,7 @@ func ValidateAndBuildRequest(p *membershipservice.AdminReindexPayload) (Backfill
 		entityTypeB2BOrg:            true,
 		entityTypeProjectMembership: true,
 		entityTypeKeyContact:        true,
+		entityTypeB2BOrgSettings:    true,
 	}
 
 	// Validate types
@@ -44,7 +45,7 @@ func ValidateAndBuildRequest(p *membershipservice.AdminReindexPayload) (Backfill
 		}
 		if !validTypes[t] {
 			return BackfillRequest{}, pkgerrors.NewValidation(
-				fmt.Sprintf("unknown type %q; supported types: b2b_org, project_membership, key_contact", t))
+				fmt.Sprintf("unknown type %q; supported types: b2b_org, project_membership, key_contact, b2b_org_settings", t))
 		}
 	}
 
@@ -61,7 +62,7 @@ func ValidateAndBuildRequest(p *membershipservice.AdminReindexPayload) (Backfill
 		}
 		if !validTypes[item.Type] {
 			return BackfillRequest{}, pkgerrors.NewValidation(
-				fmt.Sprintf("unknown item type %q; supported types: b2b_org, project_membership, key_contact", item.Type))
+				fmt.Sprintf("unknown item type %q; supported types: b2b_org, project_membership, key_contact, b2b_org_settings", item.Type))
 		}
 		if _, uuidErr := uuid.Parse(item.UID); uuidErr != nil {
 			return BackfillRequest{}, pkgerrors.NewValidation(

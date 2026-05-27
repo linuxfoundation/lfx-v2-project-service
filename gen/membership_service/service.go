@@ -74,7 +74,7 @@ var MethodNames = [14]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", 
 
 // A single entity to reindex (targeted mode)
 type AdminReindexItem struct {
-	// Entity type: b2b_org, project_membership, or key_contact
+	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
 	Type string
 	// Entity UID (invertible UUID v8)
 	UID string
@@ -88,7 +88,8 @@ type AdminReindexPayload struct {
 	// Version of the API
 	Version *string
 	// Entity types to reindex (optional; default = all in-scope: b2b_org,
-	// project_membership, key_contact). Mutually exclusive with items.
+	// project_membership, key_contact, b2b_org_settings). Mutually exclusive with
+	// items.
 	Types []string
 	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
 	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.

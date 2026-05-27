@@ -124,6 +124,16 @@ func (s *B2BOrgSettings) FulltextTokens() []string {
 	return tokens
 }
 
+// Tag prefixes for per-user username tags emitted by Tags().
+// Consumed by the query-service as filter keys (e.g. filters_or=writers.username:<sub>).
+const (
+	TagPrefixWritersUsername  = "writers.username:"
+	TagPrefixAuditorsUsername = "auditors.username:"
+	// TagPrefixMember covers both writers and auditors; use for role-agnostic
+	// "which orgs does user X belong to?" queries.
+	TagPrefixMember = "member:"
+)
+
 // Tags returns the discrete tag flags for the settings indexer doc.
 // has_writers: ≥1 accepted writer; has_auditors: ≥1 accepted auditor;
 // has_pending_invites: ≥1 pending entry across writers or auditors.
@@ -133,31 +143,44 @@ func (s *B2BOrgSettings) Tags() []string {
 		return nil
 	}
 	var tags []string
+	var hasPending bool
+	emittedMemberTags := map[string]struct{}{}
+	hasWriters := false
 	for _, u := range s.Writers {
-		if u.EffectiveStatus() == InviteStatusAccepted {
-			tags = append(tags, "has_writers")
-			break
-		}
-	}
-	for _, u := range s.Auditors {
-		if u.EffectiveStatus() == InviteStatusAccepted {
-			tags = append(tags, "has_auditors")
-			break
-		}
-	}
-	hasPending := false
-	for _, u := range s.Writers {
-		if u.EffectiveStatus() == InviteStatusPending {
-			hasPending = true
-			break
-		}
-	}
-	if !hasPending {
-		for _, u := range s.Auditors {
-			if u.EffectiveStatus() == InviteStatusPending {
-				hasPending = true
-				break
+		switch u.EffectiveStatus() {
+		case InviteStatusAccepted:
+			if !hasWriters {
+				tags = append(tags, "has_writers")
+				hasWriters = true
 			}
+			if u.Username != "" {
+				tags = append(tags, TagPrefixWritersUsername+u.Username)
+				if _, seen := emittedMemberTags[u.Username]; !seen {
+					tags = append(tags, TagPrefixMember+u.Username)
+					emittedMemberTags[u.Username] = struct{}{}
+				}
+			}
+		case InviteStatusPending:
+			hasPending = true
+		}
+	}
+	hasAuditors := false
+	for _, u := range s.Auditors {
+		switch u.EffectiveStatus() {
+		case InviteStatusAccepted:
+			if !hasAuditors {
+				tags = append(tags, "has_auditors")
+				hasAuditors = true
+			}
+			if u.Username != "" {
+				tags = append(tags, TagPrefixAuditorsUsername+u.Username)
+				if _, seen := emittedMemberTags[u.Username]; !seen {
+					tags = append(tags, TagPrefixMember+u.Username)
+					emittedMemberTags[u.Username] = struct{}{}
+				}
+			}
+		case InviteStatusPending:
+			hasPending = true
 		}
 	}
 	if hasPending {

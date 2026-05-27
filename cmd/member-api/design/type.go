@@ -513,7 +513,7 @@ var B2BOrgSettingsUpdateBody = dsl.Type("b2b-org-settings-update-body", func() {
 // AdminReindexItem identifies a single entity to reindex in targeted mode.
 var AdminReindexItem = dsl.Type("admin-reindex-item", func() {
 	dsl.Description("A single entity to reindex (targeted mode)")
-	dsl.Attribute("type", dsl.String, "Entity type: b2b_org, project_membership, or key_contact", func() {
+	dsl.Attribute("type", dsl.String, "Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings", func() {
 		dsl.Example("b2b_org")
 	})
 	dsl.Attribute("uid", dsl.String, "Entity UID (invertible UUID v8)", func() {
@@ -526,7 +526,7 @@ var AdminReindexItem = dsl.Type("admin-reindex-item", func() {
 // AdminReindexPayload is the DSL type for the reindex admin action request.
 var AdminReindexPayload = dsl.Type("admin-reindex-payload", func() {
 	dsl.Description("Request payload for triggering a reindex operation")
-	dsl.Attribute("types", dsl.ArrayOf(dsl.String), "Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact). Mutually exclusive with items.", func() {
+	dsl.Attribute("types", dsl.ArrayOf(dsl.String), "Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.", func() {
 		dsl.Example([]string{"b2b_org", "project_membership"})
 	})
 	dsl.Attribute("since", dsl.String, "ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC.", func() {

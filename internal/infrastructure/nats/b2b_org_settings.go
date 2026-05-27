@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -49,6 +50,32 @@ func (s *Storage) GetSettings(ctx context.Context, orgUID string) (*model.B2BOrg
 	}
 
 	return &settings, entry.Revision(), nil
+}
+
+// ListSettingsOrgUIDs returns the org UIDs for all active keys in the org-settings KV
+// bucket. Returns an empty slice when the bucket is empty (jetstream.ErrNoKeysFound).
+func (s *Storage) ListSettingsOrgUIDs(ctx context.Context) ([]string, error) {
+	kv, ok := s.client.kvStore[constants.KVBucketNameOrgSettings]
+	if !ok {
+		return nil, errs.NewUnexpected(fmt.Sprintf("KV bucket %q not initialized", constants.KVBucketNameOrgSettings))
+	}
+
+	keys, err := kv.Keys(ctx)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return []string{}, nil
+		}
+		return nil, errs.NewUnexpected("failed to list org-settings keys", err)
+	}
+
+	uids := make([]string, 0, len(keys))
+	for _, k := range keys {
+		uid := strings.TrimPrefix(k, keyPrefixOrgSettings)
+		if uid != k { // prefix was present
+			uids = append(uids, uid)
+		}
+	}
+	return uids, nil
 }
 
 // UpdateSettings persists org settings. The org UID is carried in settings.UID.

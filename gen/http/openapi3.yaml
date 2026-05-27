@@ -1414,7 +1414,7 @@ components:
             properties:
                 type:
                     type: string
-                    description: 'Entity type: b2b_org, project_membership, or key_contact'
+                    description: 'Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings'
                     example: b2b_org
                 uid:
                     type: string
@@ -1459,7 +1459,7 @@ components:
                     items:
                         type: string
                         example: Est dolore qui repellendus animi asperiores facilis.
-                    description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact). Mutually exclusive with items.'
+                    description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.'
                     example:
                         - b2b_org
                         - project_membership
