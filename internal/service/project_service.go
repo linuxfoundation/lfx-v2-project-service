@@ -40,4 +40,10 @@ type ServiceConfig struct {
 	SkipEtagValidation bool
 	// LFXSelfServeBaseURL is the base URL for LFX Self-Serve, used to build project URLs in notification emails.
 	LFXSelfServeBaseURL string
+	// EmailsEnabled gates outbound role-notification emails to LFID users via the email service.
+	// Disabled by default; set EMAILS_ENABLED=true to enable.
+	EmailsEnabled bool
+	// InvitesEnabled gates outbound invite requests for non-LFID users via the invite service.
+	// Disabled by default; set INVITES_ENABLED=true to enable.
+	InvitesEnabled bool
 }
