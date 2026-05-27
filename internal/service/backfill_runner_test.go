@@ -174,11 +174,11 @@ func (r *seededB2BOrgReaderForBackfill) FetchChildUIDsByParentUID(_ context.Cont
 
 // seededB2BOrgReaderWithChildren returns orgs with configurable child relationships and tracks fetch calls.
 type seededB2BOrgReaderWithChildren struct {
-	orgs              []*model.B2BOrg
-	children          map[string][]string // parentUID → childUIDs
-	fetchCallCount    atomic.Int32
-	fetchedUIDs       map[string]bool // tracks which UIDs were fetched
-	fetchedUIDsMutext sync.Mutex
+	orgs             []*model.B2BOrg
+	children         map[string][]string // parentUID → childUIDs
+	fetchCallCount   atomic.Int32
+	fetchedUIDs      map[string]bool // tracks which UIDs were fetched
+	fetchedUIDsMutex sync.Mutex
 }
 
 func (r *seededB2BOrgReaderWithChildren) GetB2BOrg(ctx context.Context, uid string) (*model.B2BOrg, error) {
@@ -192,11 +192,11 @@ func (r *seededB2BOrgReaderWithChildren) GetB2BOrg(ctx context.Context, uid stri
 
 func (r *seededB2BOrgReaderWithChildren) FetchChildUIDsByParentUID(_ context.Context, parentUID string) ([]string, error) {
 	r.fetchCallCount.Add(1)
-	r.fetchedUIDsMutext.Lock()
+	r.fetchedUIDsMutex.Lock()
 	if r.fetchedUIDs != nil {
 		r.fetchedUIDs[parentUID] = true
 	}
-	r.fetchedUIDsMutext.Unlock()
+	r.fetchedUIDsMutex.Unlock()
 	if r.children != nil {
 		if uids, ok := r.children[parentUID]; ok {
 			return uids, nil

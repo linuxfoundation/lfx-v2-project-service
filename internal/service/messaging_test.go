@@ -447,20 +447,59 @@ func TestBuildB2BOrgSettingsIndexingConfig_Fulltext_ExcludesRevokedExpired(t *te
 }
 
 func TestBuildB2BOrgSettingsIndexingConfig_Tags(t *testing.T) {
-	settings := &model.B2BOrgSettings{
-		UID: "org-uid-001",
-		Writers: []model.B2BOrgUser{
-			{InviteStatus: model.InviteStatusAccepted, Username: "alice"},
+	tests := []struct {
+		name         string
+		settings     *model.B2BOrgSettings
+		wantContains []string
+		wantAbsent   []string
+	}{
+		{
+			name: "accepted writer emits writer and member tags",
+			settings: &model.B2BOrgSettings{
+				UID: "org-uid-001",
+				Writers: []model.B2BOrgUser{
+					{InviteStatus: model.InviteStatusAccepted, Username: "alice"},
+				},
+				Auditors: []model.B2BOrgUser{
+					{Email: "pending@acme.com", InviteStatus: model.InviteStatusPending},
+				},
+			},
+			wantContains: []string{"has_writers", "has_pending_invites", "writers.username:alice", "member:alice"},
+			wantAbsent:   []string{"has_auditors"},
 		},
-		Auditors: []model.B2BOrgUser{
-			{Email: "pending@acme.com", InviteStatus: model.InviteStatusPending},
+		{
+			name: "accepted auditor emits auditor and member tags",
+			settings: &model.B2BOrgSettings{
+				UID: "org-uid-002",
+				Auditors: []model.B2BOrgUser{
+					{InviteStatus: model.InviteStatusAccepted, Username: "bob"},
+				},
+			},
+			wantContains: []string{"has_auditors", "auditors.username:bob", "member:bob"},
+			wantAbsent:   []string{"has_writers", "has_pending_invites"},
+		},
+		{
+			name: "writer and auditor both get member tag, no duplicates across roles",
+			settings: &model.B2BOrgSettings{
+				UID:      "org-uid-003",
+				Writers:  []model.B2BOrgUser{{InviteStatus: model.InviteStatusAccepted, Username: "alice"}},
+				Auditors: []model.B2BOrgUser{{InviteStatus: model.InviteStatusAccepted, Username: "bob"}},
+			},
+			wantContains: []string{"member:alice", "member:bob"},
+			wantAbsent:   []string{"has_pending_invites"},
 		},
 	}
-	cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, settings)
-
-	assert.Contains(t, cfg.Tags, "has_writers")
-	assert.NotContains(t, cfg.Tags, "has_auditors", "no accepted auditor")
-	assert.Contains(t, cfg.Tags, "has_pending_invites")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := BuildB2BOrgSettingsIndexingConfig(testB2BOrgWithParent, tt.settings)
+			for _, tag := range tt.wantContains {
+				assert.Contains(t, cfg.Tags, tag)
+			}
+			for _, tag := range tt.wantAbsent {
+				assert.NotContains(t, cfg.Tags, tag)
+			}
+		})
+	}
 }
 
 // ── PublishB2BOrgParentFGA ───────────────────────────────────────────────────

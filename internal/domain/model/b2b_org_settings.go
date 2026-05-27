@@ -129,6 +129,9 @@ func (s *B2BOrgSettings) FulltextTokens() []string {
 const (
 	TagPrefixWritersUsername  = "writers.username:"
 	TagPrefixAuditorsUsername = "auditors.username:"
+	// TagPrefixMember covers both writers and auditors; use for role-agnostic
+	// "which orgs does user X belong to?" queries.
+	TagPrefixMember = "member:"
 )
 
 // Tags returns the discrete tag flags for the settings indexer doc.
@@ -151,6 +154,7 @@ func (s *B2BOrgSettings) Tags() []string {
 			}
 			if u.Username != "" {
 				tags = append(tags, TagPrefixWritersUsername+u.Username)
+				tags = append(tags, TagPrefixMember+u.Username)
 			}
 		case InviteStatusPending:
 			hasPending = true
@@ -166,6 +170,7 @@ func (s *B2BOrgSettings) Tags() []string {
 			}
 			if u.Username != "" {
 				tags = append(tags, TagPrefixAuditorsUsername+u.Username)
+				tags = append(tags, TagPrefixMember+u.Username)
 			}
 		case InviteStatusPending:
 			hasPending = true

@@ -273,9 +273,31 @@ This document is the authoritative reference for all data the member service sen
 | `has_pending_invites` | ≥1 entry (writer or auditor) with `invite_status=pending` |
 | `writers.username:{username}` | One tag per accepted writer with a non-empty LFID username |
 | `auditors.username:{username}` | One tag per accepted auditor with a non-empty LFID username |
+| `member:{username}` | One tag per accepted writer **and** auditor — role-agnostic union |
 
 > Revoked and expired entries do not trigger any tag — they are audit-trail data, not actionable state.
-> `writers.username:*` / `auditors.username:*` tags enable query-service filters like `filters_or=writers.username:auth0|alice`.
+
+### Query Patterns
+
+**"Which orgs is user X a member of?" (role-agnostic)**
+```
+GET /query/resources?v=1&type=b2b_org_settings&tags=member:auth0|{username}
+```
+Returns one doc per org where the user is an accepted writer or auditor. Each doc contains `data.uid` (the org UID) and the full `data.writers` / `data.auditors` arrays. The `member:` tag covers both roles so a single call suffices regardless of whether the user is a writer, an auditor, or both on different orgs.
+
+**"Which orgs is user X a writer on?" (role-specific)**
+```
+GET /query/resources?v=1&type=b2b_org_settings&tags=writers.username:auth0|{username}
+```
+
+**"Who has access to org Y?"**
+```
+GET /query/resources?v=1&type=b2b_org_settings&object_id={org_uid}
+```
+Returns the single settings doc for that org with the full writers and auditors roster.
+
+> All three queries are enforced by an FGA `auditor` check on `b2b_org:{uid}` — only the calling user's accessible orgs are returned regardless of filter.
+> Tag values containing `:` or `|` must be URL-encoded in query strings: `:` → `%3A`, `|` → `%7C`.
 
 ### Access / History Check
 

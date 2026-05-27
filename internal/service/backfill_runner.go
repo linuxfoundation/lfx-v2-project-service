@@ -249,7 +249,7 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 		})
 	case entityTypeB2BOrgSettings:
 		if r.settingsReader == nil {
-			return fmt.Errorf("b2b_org_settings backfill requires a settingsReader — wire WithSettingsReader")
+			return fmt.Errorf("b2b_org_settings backfill requires a settingsReader — pass it as the settingsReader argument to NewRunner")
 		}
 		orgUIDs, listErr := r.settingsReader.ListSettingsOrgUIDs(ctx)
 		if listErr != nil {
