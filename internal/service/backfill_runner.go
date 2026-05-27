@@ -296,6 +296,19 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 
 func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req BackfillRequest) {
 	var notFound, published int
+	// childUIDsCache memoises FetchChildUIDsByParentUID within this request so
+	// sibling orgs sharing the same parent don't each trigger a separate SOQL call.
+	childUIDsCache := map[string][]string{}
+	fetchChildUIDs := func(uid string) ([]string, error) {
+		if v, ok := childUIDsCache[uid]; ok {
+			return v, nil
+		}
+		uids, err := r.b2bReader.FetchChildUIDsByParentUID(ctx, uid)
+		if err == nil {
+			childUIDsCache[uid] = uids
+		}
+		return uids, err
+	}
 
 	for _, item := range req.Items {
 		if item.Type == entityTypeB2BOrgSettings && r.settingsReader == nil {
@@ -318,7 +331,7 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 			}
 			if !req.DryRun {
 				// Fetch direct children for the indexer document.
-				childUIDs, childErr := r.b2bReader.FetchChildUIDsByParentUID(ctx, org.UID)
+				childUIDs, childErr := fetchChildUIDs(org.UID)
 				if childErr != nil {
 					log.WarnContext(ctx, "failed to fetch child UIDs for indexer",
 						"uid", org.UID, "error", childErr,
@@ -328,7 +341,7 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 				}
 				PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
 				if org.ParentUID != "" {
-					children, childErr := r.b2bReader.FetchChildUIDsByParentUID(ctx, org.ParentUID)
+					children, childErr := fetchChildUIDs(org.ParentUID)
 					if childErr != nil {
 						log.WarnContext(ctx, "failed to fetch parent children for FGA backfill",
 							"uid", org.UID, "parent_uid", org.ParentUID, "error", childErr,
