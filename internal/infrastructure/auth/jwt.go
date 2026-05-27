@@ -7,17 +7,16 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"net/http"
-
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -26,6 +25,7 @@ const (
 	defaultIssuer      = "heimdall"
 	defaultAudience    = "lfx-v2-project-service"
 	defaultJWKSURL     = "http://heimdall:4457/.well-known/jwks"
+	jwksClientTimeout  = 10 * time.Second
 )
 
 // JWTAuthConfig holds the configuration parameters for JWT authentication.
@@ -93,7 +93,10 @@ func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
 		slog.Error("unexpected URL parsing of default issuer", constants.ErrKey, err)
 		return nil, err
 	}
-	otelClient := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+	otelClient := &http.Client{
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+		Timeout:   jwksClientTimeout,
+	}
 	provider := jwks.NewCachingProvider(issuer, 5*time.Minute, jwks.WithCustomJWKSURI(jwksURL), jwks.WithCustomClient(otelClient))
 
 	// Set up the JWT validator.
