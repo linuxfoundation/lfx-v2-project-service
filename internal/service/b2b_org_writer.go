@@ -106,6 +106,14 @@ func (o *b2bOrgWriterOrchestrator) Update(ctx context.Context, uid string, input
 // (update_access + reparenting child-list messages). Publish failures are
 // swallowed and logged — /admin/reindex recovers missed records.
 func (o *b2bOrgWriterOrchestrator) publishEvents(ctx context.Context, current, org *model.B2BOrg, action indexerConstants.MessageAction) {
+	// Fetch direct children for the indexer document.
+	childUIDs, err := o.b2bOrgReader.FetchChildUIDsByParentUID(ctx, org.UID)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to fetch child UIDs for indexer", "org_uid", org.UID, "err", err)
+	} else {
+		org.IsParent = len(childUIDs) > 0
+	}
+
 	// Indexer first — must be sequential (before the errgroup).
 	PublishB2BOrgIndexer(ctx, o.memberPublisher, org, action)
 

@@ -44,6 +44,7 @@ This document is the authoritative reference for all data the member service sen
 | `is_member` | bool | Whether the org is an active LF member |
 | `parent_uid` | string (optional) | UID of the parent org |
 | `parent_detail` | object (optional) | Denormalized parent info: `uid`, `name`, `logo_url` |
+| `is_parent` | bool (optional) | `true` when this org has at least one direct member-eligible child. Omitted when false. To retrieve children, query the index for `parent_uid = <this uid>`. |
 | `created_at` | timestamp | Creation time (RFC3339) |
 | `updated_at` | timestamp | Last update time (RFC3339) |
 
@@ -215,7 +216,7 @@ This document is the authoritative reference for all data the member service sen
 | Field | Value |
 |---|---|
 | `access_check_object` | `project_membership:{membership_uid}` |
-| `access_check_relation` | `key_contact` |
+| `access_check_relation` | `auditor` |
 | `history_check_object` | `project_membership:{membership_uid}` |
 | `history_check_relation` | `auditor` |
 
@@ -247,7 +248,7 @@ This document is the authoritative reference for all data the member service sen
 
 **Source struct:** `internal/domain/model/b2b_org_settings.go` — `B2BOrgSettings`
 
-**Trigger:** `PUT /b2b_orgs/{uid}/settings` only. Not emitted by backfill — the settings doc exists only when writers/auditors have been explicitly configured.
+**Trigger:** `PUT /b2b_orgs/{uid}/settings` (online path) or `POST /admin/reindex` with `types=["b2b_org_settings"]` (backfill). The doc exists only when writers/auditors have been explicitly configured via PUT.
 
 **Action mapping:** `ActionCreated` on first write (when no prior KV record exists); `ActionUpdated` on all subsequent writes.
 
@@ -270,8 +271,11 @@ This document is the authoritative reference for all data the member service sen
 | `has_writers` | ≥1 writer with `invite_status=accepted` |
 | `has_auditors` | ≥1 auditor with `invite_status=accepted` |
 | `has_pending_invites` | ≥1 entry (writer or auditor) with `invite_status=pending` |
+| `writers.username:{username}` | One tag per accepted writer with a non-empty LFID username |
+| `auditors.username:{username}` | One tag per accepted auditor with a non-empty LFID username |
 
 > Revoked and expired entries do not trigger any tag — they are audit-trail data, not actionable state.
+> `writers.username:*` / `auditors.username:*` tags enable query-service filters like `filters_or=writers.username:auth0|alice`.
 
 ### Access / History Check
 
@@ -296,3 +300,27 @@ This document is the authoritative reference for all data the member service sen
 |---|---|
 | `b2b_org:{uid}` | Always (self-ref for point-lookup) |
 | `b2b_org:{parent_uid}` | Only when `parent_uid` is set |
+
+---
+
+## NATS RPC Endpoints
+
+### Generic SFID↔UUID Lookup
+
+Two entity-agnostic request/reply endpoints for translating between Salesforce IDs and v2 UUIDs. Pure CPU — no Salesforce call, no NATS KV. Covers all entity types (b2b_org, project_membership, key_contact, membership_tier).
+
+| Field | Value |
+|-------|-------|
+| **Subject (SFID→UUID)** | `lfx.member.sfid-to-uuid.lookup` |
+| **Subject (UUID→SFID)** | `lfx.member.uuid-to-sfid.lookup` |
+| **Transport** | NATS core request/reply |
+
+**SFID→UUID request:** `{"sfid":"<15 or 18-char Salesforce ID>"}`
+**SFID→UUID response — success:** `{"uuid":"<uuid v8>"}`
+
+**UUID→SFID request:** `{"uuid":"<uuid v8>"}`
+**UUID→SFID response — success:** `{"sfid":"<15-char Salesforce ID>"}`
+
+**Response — error:** `{"error":"<human-readable message>"}`
+
+The reply is always valid JSON. Callers should check for the `"error"` key to detect failure. 15-char SFIDs are normalised to 18 characters internally before translation; both forms are accepted.

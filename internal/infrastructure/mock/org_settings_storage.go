@@ -19,6 +19,7 @@ type MockB2BOrgSettings struct {
 	settings map[string]*model.B2BOrgSettings
 	revision map[string]uint64
 	putErr   error
+	listErr  error
 }
 
 // NewMockB2BOrgSettings returns an empty, ready-to-use mock.
@@ -42,6 +43,29 @@ func (m *MockB2BOrgSettings) SetPutError(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.putErr = err
+}
+
+// SetListError configures the mock to return err on the next ListSettingsOrgUIDs call.
+func (m *MockB2BOrgSettings) SetListError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.listErr = err
+}
+
+// ListSettingsOrgUIDs returns all seeded org UIDs.
+func (m *MockB2BOrgSettings) ListSettingsOrgUIDs(_ context.Context) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.listErr != nil {
+		err := m.listErr
+		m.listErr = nil
+		return nil, err
+	}
+	uids := make([]string, 0, len(m.settings))
+	for uid := range m.settings {
+		uids = append(uids, uid)
+	}
+	return uids, nil
 }
 
 // GetSettings returns the seeded settings for orgUID, or (nil, 0, nil) when absent.

@@ -491,6 +491,7 @@ func BackfillRunnerImpl(ctx context.Context) *usecaseSvc.Runner {
 		B2BOrgReaderImpl(ctx),
 		ProjectMembershipReaderImpl(ctx),
 		kcReader,
+		B2BOrgSettingsReaderImpl(ctx),
 		MemberPublisherImpl(ctx),
 		nc,
 	)

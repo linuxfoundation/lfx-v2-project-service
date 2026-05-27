@@ -56,7 +56,7 @@ internal/
 │   │   ├── client.go        # NATSClient with KV bucket initialisation
 │   │   ├── config.go        # NATS configuration
 │   │   ├── project_id_map_handler.go  # RPC handler for lfx.member.project-id-map.lookup
-│   │   ├── b2b_org_id_map_handler.go  # RPC handler for lfx.member.b2b-org-id-map.lookup
+│   │   ├── id_map_handler.go          # RPC handlers for lfx.member.sfid-to-uuid.lookup / uuid-to-sfid.lookup
 │   │   ├── project_rpc.go   # NATS RPC calls to the project-service
 │   │   └── storage.go       # KV cache Get/Put helpers for each record type
 │   ├── project/             # ProjectResolver implementation
@@ -379,22 +379,25 @@ Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolut
 
 **Response — error:** `{"error": "<human-readable message>"}`
 
-### B2B Org ID Map Lookup (`lfx.member.b2b-org-id-map.lookup`)
+### Generic SFID↔UUID Lookup
 
-Implemented in `internal/infrastructure/nats/b2b_org_id_map_handler.go`. Resolution is **pure CPU** via `pkg/sfuuid.ToUUID()` — no KV or Salesforce round-trip required.
+Two entity-agnostic request/reply endpoints for translating between Salesforce IDs and v2 UUIDs. Pure CPU — no Salesforce call, no NATS KV. Covers all entity types (b2b_org, project_membership, key_contact, membership_tier).
 
 | Field | Value |
 |-------|-------|
-| **Subject** | `lfx.member.b2b-org-id-map.lookup` |
+| **Subject (SFID→UUID)** | `lfx.member.sfid-to-uuid.lookup` |
+| **Subject (UUID→SFID)** | `lfx.member.uuid-to-sfid.lookup` |
 | **Transport** | NATS core request/reply |
 
-**Request:** `{"b2b_org_sfid": "<Salesforce Account.Id>"}`
+**SFID→UUID request:** `{"sfid":"<15 or 18-char Salesforce ID>"}`
+**SFID→UUID response — success:** `{"uuid":"<uuid v8>"}`
 
-**Response — success:** `{"b2b_org_uid": "<v2 b2b_org UUID>"}`
+**UUID→SFID request:** `{"uuid":"<uuid v8>"}`
+**UUID→SFID response — success:** `{"sfid":"<15-char Salesforce ID>"}`
 
-**Response — error:** `{"error": "<human-readable message>"}` (`"b2b_org_sfid is required"`, `"b2b org not found"`, `"invalid request body"`)
+**Response — error:** `{"error":"<human-readable message>"}`
 
-The reply is always valid JSON. Callers should check for the `"error"` key to detect failure.
+The reply is always valid JSON. Callers should check for the `"error"` key to detect failure. 15-char SFIDs are normalised to 18 characters internally before translation; both forms are accepted.
 
 ## Authentication (JWT / Heimdall)
 

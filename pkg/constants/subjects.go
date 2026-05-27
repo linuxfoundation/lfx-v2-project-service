@@ -11,6 +11,9 @@ const (
 	// IndexB2BOrgSettingsSubject is the NATS subject for indexing B2BOrgSettings records.
 	IndexB2BOrgSettingsSubject = "lfx.index.b2b_org_settings"
 
+	// IndexB2BOrgMemberSubject is the NATS subject for indexing individual B2BOrg writer/auditor records.
+	IndexB2BOrgMemberSubject = "lfx.index.b2b_org_member"
+
 	// IndexProjectMembershipSubject is the NATS subject for indexing ProjectMembership records.
 	IndexProjectMembershipSubject = "lfx.index.project_membership"
 

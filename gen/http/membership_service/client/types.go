@@ -105,7 +105,8 @@ type UpdateKeyContactRequestBody struct {
 // "admin-reindex" endpoint HTTP request body.
 type AdminReindexRequestBody struct {
 	// Entity types to reindex (optional; default = all in-scope: b2b_org,
-	// project_membership, key_contact). Mutually exclusive with items.
+	// project_membership, key_contact, b2b_org_settings). Mutually exclusive with
+	// items.
 	Types []string `form:"types,omitempty" json:"types,omitempty" xml:"types,omitempty"`
 	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
 	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
@@ -1622,7 +1623,7 @@ type ProjectKeyContactResponseResponseBody struct {
 
 // AdminReindexItemRequestBody is used to define fields on request body types.
 type AdminReindexItemRequestBody struct {
-	// Entity type: b2b_org, project_membership, or key_contact
+	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
 	Type string `form:"type" json:"type" xml:"type"`
 	// Entity UID (invertible UUID v8)
 	UID string `form:"uid" json:"uid" xml:"uid"`

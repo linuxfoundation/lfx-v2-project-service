@@ -122,7 +122,7 @@ func TestBuildKeyContactIndexingConfig(t *testing.T) {
 	assert.False(t, *cfg.Public)
 	assert.Equal(t, "kc-uid-001", cfg.ObjectID)
 	assert.Equal(t, "project_membership:pm-uid-001", cfg.AccessCheckObject)
-	assert.Equal(t, "key_contact", cfg.AccessCheckRelation)
+	assert.Equal(t, fgaconstants.RelationAuditor, cfg.AccessCheckRelation)
 	assert.Equal(t, "project_membership:pm-uid-001", cfg.HistoryCheckObject)
 	assert.Equal(t, fgaconstants.RelationAuditor, cfg.HistoryCheckRelation)
 	assert.Equal(t, "lovelace ada", cfg.SortName)
@@ -463,12 +463,53 @@ func TestBuildB2BOrgSettingsIndexingConfig_Tags(t *testing.T) {
 	assert.Contains(t, cfg.Tags, "has_pending_invites")
 }
 
+// ── PublishB2BOrgParentFGA ───────────────────────────────────────────────────
+
+func TestPublishB2BOrgParentFGA_NoParent_NoOp(t *testing.T) {
+	pub := mock.NewMockMemberPublisher()
+	org := &model.B2BOrg{UID: "child-uid", ParentUID: ""}
+
+	PublishB2BOrgParentFGA(context.Background(), pub, org, nil)
+
+	assert.Nil(t, pub.LastAccessData, "no FGA message should be published when ParentUID is empty")
+}
+
+func TestPublishB2BOrgParentFGA_WithParent_EmitsParentAndChildTuples(t *testing.T) {
+	pub := mock.NewMockMemberPublisher()
+	org := &model.B2BOrg{UID: "child-uid", ParentUID: "parent-uid"}
+	parentChildren := []string{"child-uid", "sibling-uid"}
+
+	PublishB2BOrgParentFGA(context.Background(), pub, org, parentChildren)
+
+	require.NotNil(t, pub.LastAccessData, "FGA message must be published")
+	// Two messages: parent tuple on child org + child-list tuple on parent org.
+	accessCalls := 0
+	for _, v := range pub.CallOrder {
+		if v == "access" {
+			accessCalls++
+		}
+	}
+	assert.Equal(t, 2, accessCalls, "expected parent tuple + child-list tuple")
+}
+
+func TestPublishB2BOrgParentFGA_PublishError_Swallowed(t *testing.T) {
+	pub := mock.NewMockMemberPublisher()
+	pub.SetAccessError(assert.AnError)
+	org := &model.B2BOrg{UID: "child-uid", ParentUID: "parent-uid"}
+
+	// Must not panic — fire-and-forget.
+	PublishB2BOrgParentFGA(context.Background(), pub, org, []string{"child-uid"})
+}
+
 // ── PublishB2BOrgSettingsIndexer ─────────────────────────────────────────────
 
 func TestPublishB2BOrgSettingsIndexer_PublishesToCorrectSubject(t *testing.T) {
 	pub := mock.NewMockMemberPublisher()
 	org := &model.B2BOrg{UID: "org-uid-pub-001", Name: "Pub Org"}
-	settings := &model.B2BOrgSettings{UID: "org-uid-pub-001"}
+	settings := &model.B2BOrgSettings{
+		UID:     "org-uid-pub-001",
+		Writers: []model.B2BOrgUser{{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}},
+	}
 
 	PublishB2BOrgSettingsIndexer(context.Background(), pub, org, settings, indexerConstants.ActionCreated)
 
@@ -479,7 +520,10 @@ func TestPublishB2BOrgSettingsIndexer_PublishError_Swallowed(t *testing.T) {
 	pub := mock.NewMockMemberPublisher()
 	pub.SetIndexerError(assert.AnError)
 	org := &model.B2BOrg{UID: "org-uid-pub-002", Name: "Pub Org 2"}
-	settings := &model.B2BOrgSettings{UID: "org-uid-pub-002"}
+	settings := &model.B2BOrgSettings{
+		UID:     "org-uid-pub-002",
+		Writers: []model.B2BOrgUser{{Username: "auth0|bob", Email: "bob@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}},
+	}
 
 	// Must not panic or return an error — fire-and-forget.
 	PublishB2BOrgSettingsIndexer(context.Background(), pub, org, settings, indexerConstants.ActionUpdated)

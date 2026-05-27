@@ -16,4 +16,8 @@ type B2BOrgSettingsReader interface {
 	// current KV revision (needed for optimistic-locking on UpdateSettings).
 	// Returns (nil, 0, nil) when no record exists yet.
 	GetSettings(ctx context.Context, orgUID string) (*model.B2BOrgSettings, uint64, error)
+
+	// ListSettingsOrgUIDs returns the org UIDs for which settings records exist
+	// in the KV bucket. Returns an empty slice when the bucket is empty.
+	ListSettingsOrgUIDs(ctx context.Context) ([]string, error)
 }
