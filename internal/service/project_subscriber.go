@@ -130,6 +130,11 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 
 // handleLFIDChange sends the appropriate email for a user who has an LFID.
 func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, projectName string, change userChange, recipientName, inviterName, projectURL string) error {
+	if !s.Config.EmailsEnabled {
+		slog.DebugContext(ctx, "project_subscriber: skipping email — EMAILS_ENABLED is false",
+			"project_uid", projectUID, "change_kind", change.Kind)
+		return nil
+	}
 	switch change.Kind {
 	case changeAdded:
 		return s.sendRoleNotificationEmail(ctx, projectUID, projectName, change.NewRoles, change.User.Email, recipientName, inviterName, projectURL)
@@ -158,6 +163,11 @@ func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, proj
 
 // handleNonLFIDChange sends invites for any newly-gained roles; removals are silently skipped.
 func (s *ProjectsService) handleNonLFIDChange(ctx context.Context, projectUID, projectName string, change userChange, recipientName, inviterName, projectURL string) error {
+	if !s.Config.InvitesEnabled {
+		slog.DebugContext(ctx, "project_subscriber: skipping invite — INVITES_ENABLED is false",
+			"project_uid", projectUID, "change_kind", change.Kind)
+		return nil
+	}
 	if change.Kind == changeRemoved {
 		slog.DebugContext(ctx, "project_subscriber: skipping removal notification for non-LFID user",
 			"project_uid", projectUID)
