@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	goahttp "goa.design/goa/v3/http"
 
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
 	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
@@ -97,6 +98,8 @@ func main() {
 	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
 		SkipEtagValidation:  env.SkipEtagValidation,
 		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
+		EmailsEnabled:       env.EmailsEnabled,
+		InvitesEnabled:      env.InvitesEnabled,
 	})
 	svc := NewProjectsAPI(service)
 
@@ -162,6 +165,8 @@ type environment struct {
 	Port                string
 	SkipEtagValidation  bool
 	LFXSelfServeBaseURL string
+	EmailsEnabled       bool
+	InvitesEnabled      bool
 }
 
 func parseEnv() environment {
@@ -194,6 +199,8 @@ func parseEnv() environment {
 		Port:                port,
 		SkipEtagValidation:  skipEtagValidation,
 		LFXSelfServeBaseURL: lfxSelfServeBaseURL,
+		EmailsEnabled:       os.Getenv("EMAILS_ENABLED") == "true",
+		InvitesEnabled:      os.Getenv("INVITES_ENABLED") == "true",
 	}
 }
 
@@ -446,6 +453,7 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 	}
 	for _, eh := range []eventHandler{
 		{constants.ProjectSettingsUpdatedSubject, svc.service.HandleProjectSettingsUpdated},
+		{inviteapi.InviteAcceptedSubject, svc.service.HandleInviteAccepted},
 	} {
 		slog.With("subject", eh.subject, "queue", queueName).Debug("subscribing to NATS subject")
 		_, err := natsConn.QueueSubscribe(eh.subject, queueName, func(msg *nats.Msg) {

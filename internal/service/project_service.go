@@ -30,7 +30,8 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig) *Projec
 // ServiceReady checks if the service is ready for use.
 func (s *ProjectsService) ServiceReady() bool {
 	return s.ProjectRepository != nil && s.MessageBuilder != nil &&
-		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil
+		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil &&
+		s.UserReader != nil
 }
 
 // ServiceConfig is the configuration for the ProjectsService.
@@ -39,4 +40,10 @@ type ServiceConfig struct {
 	SkipEtagValidation bool
 	// LFXSelfServeBaseURL is the base URL for LFX Self-Serve, used to build project URLs in notification emails.
 	LFXSelfServeBaseURL string
+	// EmailsEnabled gates outbound role-notification emails to LFID users via the email service.
+	// Disabled by default; set EMAILS_ENABLED=true to enable.
+	EmailsEnabled bool
+	// InvitesEnabled gates outbound invite requests for non-LFID users via the invite service.
+	// Disabled by default; set INVITES_ENABLED=true to enable.
+	InvitesEnabled bool
 }
