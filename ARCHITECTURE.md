@@ -60,12 +60,13 @@ by type prefix.
 
 | Key pattern | Value | TTL |
 |-------------|-------|-----|
-| `tier.{tier_uid}` | `model.MembershipTier` (JSON) | 24 h |
-| `membership.{membership_uid}` | `model.ProjectMembership` (JSON) | 24 h |
-| `key-contacts.{membership_uid}` | `[]*model.ProjectKeyContact` (JSON array) | 24 h |
-| `soql.memberships-by-project.{base64(sfid)}.{base64(sort)}[.{base64(tierSFID)}][.{base64(search:term)}].{batch_index_or_iterator}` | batch of `model.ProjectMembership` records + next-batch iterator (JSON) | 24 h |
-| `project-sfid.{project_uid}` | Salesforce `Project__c.Id` string | 24 h |
-| `project-uid.{slug}` | v2 project UID string | 24 h |
+| `tier.{tier_uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire / 24 h bucket TTL |
+| `membership.{membership_uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire / 24 h bucket TTL |
+| `key-contacts.{membership_uid}` | `CachedValue[[]*model.KeyContact]` | 6 h stale / 23 h expire / 24 h bucket TTL |
+| `soql.memberships-by-project.{base64(sfid)}.{base64(sort)}[.{base64(tierSFID)}][.{base64(search:term)}].{batch_index_or_iterator}` | `CachedValue[*MembershipBatchCacheEntry]` with compressed `model.ProjectMembership` records + next-batch iterator | 6 h stale / 23 h expire / 24 h bucket TTL |
+| `soql.b2b-orgs.{base64(sort)}[.{base64(search:term)}].{batch_index_or_iterator}` | `CachedValue[*B2BOrgBatchCacheEntry]` with compressed `model.B2BOrg` records + next-batch iterator | 6 h stale / 23 h expire / 24 h bucket TTL |
+| `project-sfid.{project_uid}` | `CachedValue[string]` with Salesforce `Project__c.Id` | 6 h stale / 23 h expire / 24 h bucket TTL |
+| `project-uid.{slug}` | `CachedValue[string]` with v2 project UID | 6 h stale / 23 h expire / 24 h bucket TTL |
 
 Collection list endpoints (e.g. `GET /projects/{uid}/memberships`) are served by slicing the
 appropriate batched-SOQL cache entry. On a cache miss the service runs the full SOQL query,
@@ -73,6 +74,12 @@ writes results into KV split across one or more batch entries (written tail-firs
 batch's next-iterator is valid before the head is committed), then serves from the freshly-
 written batch. On a stale hit the cached batch is returned immediately while a background
 goroutine re-fetches batch 0 from Salesforce.
+
+The code and chart also initialize `member-service-cache`, a 7-day NATS KV
+bucket used by `SObjectClient` for Salesforce sObject conditional GET entries
+(`SObjectCacheEntry`). Current live HTTP provider wiring still uses the
+SOQL-backed readers above; the sObject cache is target-architecture support
+already present in the repo, not the source of current collection responses.
 
 ### Interim detour endpoints (LFXV2-1382)
 
@@ -594,7 +601,12 @@ tuples reference it (or after a migration sweep).
 
 ## Salesforce Integration
 
-### sObject API + conditional GET caching (primary read path)
+### sObject API + conditional GET caching (target read path)
+
+This section describes the target read path. Current live HTTP provider wiring
+still uses the SOQL-backed readers described in [Current State](#current-state);
+the `SObjectClient` and `member-service-cache` support are present in the repo
+but are not yet the source of collection responses.
 
 Individual object reads use the Salesforce sObject REST API. The conditional-GET strategy differs
 by object type because Salesforce only serves `ETag` and `Last-Modified` response headers on
@@ -915,7 +927,7 @@ type EventPublisher interface {
 }
 ```
 
-### Removed ports
+### Ports to remove in the target state
 
 - `MembershipSourceReader` (SOQL-backed) — replaced by `sObjectReader` (ETag/Last-Modified-aware) for live
   serving, and a `BackfillRunner` for reindex operations.
@@ -1014,11 +1026,13 @@ handlers) and LFXV2-1366 (Helm chart).
   in-file versioning guidelines).
 - Remove the stub `member` type (after confirming no existing tuples reference it).
 
-### Step 2: sObject client and conditional GET cache — *Done*
+### Step 2: sObject client and conditional GET cache — *Partially Done*
 
-> **Status:** Merged in LFXV2-1357 (PR #23). The `sObjectClient`, `sobject_cache.go`, and
-> `sobject_readers.go` are already in the codebase. The `member-service-cache` NATS KV bucket
-> is declared in the Helm chart.
+> **Status:** The `SObjectClient`, `sobject_cache.go`, and `sobject_readers.go`
+> are already in the codebase, and the `member-service-cache` NATS KV bucket is
+> declared in the Helm chart. Current live HTTP provider wiring still uses
+> SOQL-backed readers, and key-contact writes still invalidate
+> `membership-cache` rather than updating `member-service-cache` envelopes.
 
 - Implement a `sObjectClient` that wraps the Salesforce sObject REST API with conditional GETs:
   `If-None-Match`/`If-Modified-Since` for `Account`; `If-Modified-Since` (derived from
@@ -1027,10 +1041,11 @@ handlers) and LFXV2-1366 (Helm chart).
   key per v2 UID; see cache envelope definition in the Salesforce Integration section).
 - Implement `sObjectReader` adapters for `B2BOrg`, `ProjectMembership`, `KeyContact`, and
   `MembershipTier` that call `sObjectClient` and deserialise into the domain model types.
-- Implement the conditional-write path: read cache → compare LFX ETag → conditional sObject GET
+- Remaining: implement the conditional-write path: read cache → compare LFX ETag → conditional sObject GET
   → conditional sObject PATCH/DELETE with the best available Salesforce precondition header
   (`If-Match` for `Account`, `If-Unmodified-Since` for all others).
-- Remove the SOQL-backed KV reader and all lookup-index bucket reads/writes.
+- Remaining: move live provider wiring off SOQL-backed readers where the target
+  single-object API needs sObject cache semantics.
 
 ### Step 3: Rename internal types and add `b2b_org_uid` — *Done*
 
@@ -1155,18 +1170,22 @@ records; treat these as retryable with exponential backoff and jitter.
 
 ### Post-write event failure handling
 
-If the NATS KV write, Indexer publish, or FGA Sync publish fails after a successful Salesforce
-write, log the failure with enough context (object type, UID, SFID) for the backfill endpoint to
-repair the downstream indexes. Do not fail the HTTP response: the Salesforce record is durably
-written; only the cache and indexes are temporarily stale.
+Target-state note: if the NATS KV write, Indexer publish, or FGA Sync publish
+fails after a successful Salesforce write, log the failure with enough context
+(object type, UID, SFID) for the backfill endpoint to repair the downstream
+indexes. Do not fail the HTTP response: the Salesforce record is durably
+written; only the cache and indexes are temporarily stale. Current key-contact
+writes only invalidate `membership-cache`; this service does not publish
+Indexer or FGA Sync messages today.
 
 ### Key contact denormalization cost
 
 Constructing a fully-denormalized `KeyContact` (or `ProjectMembership`) requires data from
 multiple Salesforce objects: `Project_Role__c`, `Contact`, `Alternate_Email__c`, `Asset`,
 `Account`, and `Product2`. For PubSub CDC events and backfill, this multi-object fetch is
-unavoidable. The sObject cache amortises this cost for live GET requests: a cache hit requires
-only one NATS KV read and zero Salesforce calls.
+unavoidable. In the target read path, the sObject cache amortises this cost for
+live GET requests: a cache hit requires only one NATS KV read and zero
+Salesforce calls. Current live collection endpoints are still SOQL-backed.
 
 ### Salesforce session management
 
