@@ -14,6 +14,11 @@ This document is the authoritative reference for all data the project service se
 - [Project Folder](#project-folder)
 - [Project Document](#project-document)
 
+Project and project-settings delete messages send only the deleted UID. Link,
+folder, and document delete messages include `IndexingConfig` with the owning
+project access metadata so the indexer can retain the same access fields on the
+delete record.
+
 ---
 
 ## Project
@@ -44,6 +49,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `legal_entity_type` | string (optional) | Legal entity type |
 | `legal_entity_name` | string (optional) | Legal entity name |
 | `legal_parent_uid` | string (optional) | UID of the legal parent entity |
+| `funding` | string (optional) | Legacy funding value |
 | `funding_model` | []string (optional) | Funding model types |
 | `entity_dissolution_date` | timestamp (optional) | Date the legal entity was dissolved |
 | `entity_formation_document_url` | string (optional) | URL to the formation document |
@@ -110,6 +116,9 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
 | `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
 | `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
+| `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
+| `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
+| `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 
@@ -325,4 +334,3 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | Ref | Condition |
 |---|---|
 | `project:{project_uid}` | Always set |
-

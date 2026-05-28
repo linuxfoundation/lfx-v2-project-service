@@ -32,10 +32,10 @@ The LFX v2 Project Service is a RESTful API service that manages projects within
   - `DELETE` - delete a folder (requires `If-Match: <etag>`; blocked if folder has links or documents)
 - `/projects/:id/documents`:
   - `POST` - upload a document file for a project (multipart/form-data: `name`, `description`, `folder_uid`, `file`; max 10 MB; allowed MIME types: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, PNG, JPEG, GIF, ZIP)
-- `/projects/:id/documents/:doc_uid`:
+- `/projects/:id/documents/:document_uid`:
   - `GET` - fetch document metadata (returns ETag header)
   - `DELETE` - delete a document (requires `If-Match: <etag>`)
-- `/projects/:id/documents/:doc_uid/download`:
+- `/projects/:id/documents/:document_uid/download`:
   - `GET` - download the document binary (returns `Content-Disposition: attachment` with the original file name)
 
 ### NATS Message Handlers
@@ -74,7 +74,7 @@ This service indexes project data into the indexer service, making it searchable
 - `lfx.index.project_folder`: Published when a project folder is created or deleted.
 - `lfx.index.project_document`: Published when a project document is uploaded or deleted.
 
-Create and update indexer messages include an `IndexingConfig` that provides the metadata controlling how the document is stored, searched, and access-checked in the index. Delete messages omit `IndexingConfig` — only the object ID is needed to remove the document. For the full field reference and message format details, see the [indexer service client guide](https://github.com/linuxfoundation/lfx-v2-indexer-service/blob/main/docs/client-guide.md).
+Create and update indexer messages include an `IndexingConfig` that provides the metadata controlling how the document is stored, searched, and access-checked in the index. Project and project-settings delete messages send the bare UID; link, folder, and document delete messages include `IndexingConfig` with the parent project access metadata. For the full field reference and message format details, see the [indexer service client guide](https://github.com/linuxfoundation/lfx-v2-indexer-service/blob/main/docs/client-guide.md).
 
 For the data schemas, tags, access control values, parent references, and fulltext fields for all resource types — see [`docs/indexer-contract.md`](docs/indexer-contract.md).
 
@@ -358,3 +358,8 @@ license is available in `LICENSE`.
 This project's documentation is licensed under the Creative Commons Attribution
 4.0 International License \(CC-BY-4.0\). A copy of the license is available in
 `LICENSE-docs`.
+
+## Security
+
+See `SECURITY.md` for vulnerability reporting and the security policy for this
+repository.
