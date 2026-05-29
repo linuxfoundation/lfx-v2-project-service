@@ -39,8 +39,14 @@ TEAM_UID="${TEAM_UID:?TEAM_UID must be set}"
 ADMIN_USERS="${ADMIN_USERS:?ADMIN_USERS must be set (comma-separated LFID usernames)}"
 DRY_RUN=false
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-	DRY_RUN=true
+for arg in "$@"; do
+	case "$arg" in
+		--dry-run) DRY_RUN=true ;;
+		*) echo "Unknown argument: $arg"; exit 1 ;;
+	esac
+done
+
+if [[ "$DRY_RUN" == true ]]; then
 	echo "=== DRY RUN MODE — no writes will be performed ==="
 fi
 
@@ -51,25 +57,47 @@ echo ""
 
 TEAM_OBJECT="team:${TEAM_UID}"
 
+# fga_read paginates through /read for a given tuple_key JSON fragment,
+# collecting all results into stdout as newline-separated user strings.
+fga_read() {
+	local filter_json="$1"
+	local token=""
+	while true; do
+		local body
+		if [[ -z "$token" ]]; then
+			body=$(jq -n --argjson tk "$filter_json" '{"tuple_key":$tk,"page_size":100}')
+		else
+			body=$(jq -n --argjson tk "$filter_json" --arg ct "$token" \
+				'{"tuple_key":$tk,"page_size":100,"continuation_token":$ct}')
+		fi
+		local resp
+		if ! resp=$(curl -sf --show-error -X POST "${BASE_URL}/stores/${STORE_ID}/read" \
+			-H 'Content-Type: application/json' \
+			-d "$body" 2>&1); then
+			echo "ERROR: curl failed: $resp" >&2
+			exit 1
+		fi
+		if echo "$resp" | jq -e '.code' >/dev/null 2>&1; then
+			echo "ERROR reading tuples: $(echo "$resp" | jq -r '.message')" >&2
+			exit 1
+		fi
+		echo "$resp" | jq -r '.tuples[]?.key.user'
+		token=$(echo "$resp" | jq -r '.continuation_token // ""')
+		[[ -z "$token" ]] && break
+	done
+}
+
 # ---------------------------------------------------------------------------
-# Step 1: Read existing members so we can report what already exists
+# Step 1: Read existing members (paginated)
 # ---------------------------------------------------------------------------
 
 echo "=== Step 1: Reading existing team members ==="
 
-existing_resp=$(curl -s -X POST "${BASE_URL}/stores/${STORE_ID}/read" \
-	-H 'Content-Type: application/json' \
-	-d "$(jq -n --arg obj "$TEAM_OBJECT" '{"tuple_key":{"object":$obj,"relation":"member"},"page_size":100}')")
+existing_users=$(fga_read "$(jq -n --arg obj "$TEAM_OBJECT" '{"object":$obj,"relation":"member"}')")
 
-if echo "$existing_resp" | jq -e '.code' >/dev/null 2>&1; then
-	echo "ERROR reading existing tuples: $(echo "$existing_resp" | jq -r '.message')"
-	exit 1
-fi
-
-existing_users=$(echo "$existing_resp" | jq -r '[.tuples[]?.key.user] | .[]' 2>/dev/null || true)
 if [[ -n "$existing_users" ]]; then
 	echo "Existing members:"
-	echo "$existing_users" | sed 's/^/  /'
+	while IFS= read -r line; do echo "  $line"; done <<< "$existing_users"
 else
 	echo "  (none)"
 fi
@@ -119,12 +147,15 @@ if [[ "$DRY_RUN" == true ]]; then
 fi
 
 payload=$(jq -n --argjson keys "$tuples_to_write" '{"writes":{"tuple_keys":$keys}}')
-resp=$(curl -s -X POST "${BASE_URL}/stores/${STORE_ID}/write" \
+write_resp=""
+if ! write_resp=$(curl -sf --show-error -X POST "${BASE_URL}/stores/${STORE_ID}/write" \
 	-H 'Content-Type: application/json' \
-	-d "$payload")
-
-if echo "$resp" | jq -e '.code' >/dev/null 2>&1; then
-	echo "ERROR writing tuples: $(echo "$resp" | jq -r '.message')"
+	-d "$payload" 2>&1); then
+	echo "ERROR: curl failed: $write_resp"
+	exit 1
+fi
+if echo "$write_resp" | jq -e '.code' >/dev/null 2>&1; then
+	echo "ERROR writing tuples: $(echo "$write_resp" | jq -r '.message')"
 	exit 1
 fi
 
@@ -132,16 +163,13 @@ echo "  Done — $write_count tuple(s) written."
 echo ""
 
 # ---------------------------------------------------------------------------
-# Step 4: Verify
+# Step 4: Verify (paginated)
 # ---------------------------------------------------------------------------
 
 echo "=== Step 4: Verifying ==="
 
-verify_resp=$(curl -s -X POST "${BASE_URL}/stores/${STORE_ID}/read" \
-	-H 'Content-Type: application/json' \
-	-d "$(jq -n --arg obj "$TEAM_OBJECT" '{"tuple_key":{"object":$obj,"relation":"member"},"page_size":100}')")
-
 echo "Current members of $TEAM_OBJECT:"
-echo "$verify_resp" | jq -r '.tuples[]?.key.user' | sed 's/^/  /'
+fga_read "$(jq -n --arg obj "$TEAM_OBJECT" '{"object":$obj,"relation":"member"}')" | \
+	while IFS= read -r line; do echo "  $line"; done
 echo ""
 echo "=== Done ==="
