@@ -9,16 +9,20 @@ ExternalSecret, IRSA role, region, and chart pins live in `lfx-v2-argocd`.
 
 - **Chart path**: `charts/lfx-v2-member-service/`
 - **Service type**: Salesforce-backed membership API with local NATS KV
-  caches.
-- **HTTPRoute paths**: `/projects/{uid}/tiers(/.*)?`,
-  `/projects/{uid}/memberships(/.*)?`, `/b2b_orgs`,
-  `/b2b_orgs/{uid}/memberships(/.*)?`, `/_memberships/`.
+  caches that also publishes indexer and FGA-sync messages on the write path.
+- **HTTPRoute paths** (`templates/httproute.yaml`): `/b2b_orgs` (Exact),
+  `/b2b_orgs/`, `/project_memberships/`, `/key_contacts` (Exact),
+  `/key_contacts/`, `/admin/`, `/_memberships/`.
   `/debug/vars`, `/livez`, and `/readyz` are mounted by the binary but are
   not exposed by this HTTPRoute.
-- **NATS KV buckets**: `membership-cache`, `member-service-cache`.
-- **B2B detour auth**: `/b2b_orgs` rules currently check `auditor` on the
-  static project UID from `openfga.lfProjectUID`; this is an interim
-  workaround documented in `ARCHITECTURE.md`.
+- **NATS KV buckets**: `membership-cache`, `member-service-cache`,
+  `org-settings`. `org-settings` is authoritative access-control state and
+  must not carry a production TTL.
+- **Heimdall auth** (`templates/ruleset.yaml`): per-object `auditor`/`writer`
+  checks on `b2b_org:{uid}` and `project_membership:{membership_uid}`;
+  `POST /b2b_orgs` and `POST /admin/reindex` check `member` on
+  `team:{{ .Values.app.globalOrgAdminTeamUID }}`. The team UID defaults to the
+  `"_null"` sentinel so an unset deploy fails closed.
 - **Salesforce secret**: the chart references the pre-existing Kubernetes
   Secret named by `values.yaml` at `salesforce.secrets.name`
   (`lfx-v2-member-service-salesforce` by default). The chart does not create

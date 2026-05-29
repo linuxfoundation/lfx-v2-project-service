@@ -70,9 +70,11 @@ For rapid development:
 # Run NATS locally
 docker run -d -p 4222:4222 nats:latest -js
 
-# Optionally pre-create the cache buckets; the service also creates them on startup
+# Optionally pre-create the buckets; the service also creates them on startup
 nats kv add membership-cache --history=1 --storage=file --ttl=24h
 nats kv add member-service-cache --history=1 --storage=file --ttl=168h
+# org-settings is authoritative state — no TTL (local-dev only may add one to tear down)
+nats kv add org-settings --history=20 --storage=file
 
 # Run service with mock auth and Salesforce credentials
 export NATS_URL=nats://localhost:4222
@@ -109,17 +111,23 @@ helm template lfx-v2-member-service ./charts/lfx-v2-member-service/ -n lfx
   `nats-kv-buckets.yaml`.
 - The `member-service-cache` NATS KV bucket is also created automatically for
   sObject conditional-GET cache support.
+- The `org-settings` NATS KV bucket is created automatically for authoritative
+  b2b_org access-control state. It must not carry a production TTL (the chart
+  comments warn against it) since TTL eviction would silently revoke org
+  writers and auditors.
 - Heimdall middleware handles JWT validation.
 - HTTPRoute for Gateway API routing.
 - OpenFGA can be disabled for local development (allows all requests).
 
 ## Common Pitfalls
 
-### Zero results from all list endpoints
+### Empty project-scoped SOQL results
 
-Every project-scoped list returns an empty array.
+Project-scoped SOQL queries (membership reads and the reindex backfill) return
+zero rows.
 Cause: the `ProjectResolver` failed to translate the v2 project UUID to a
-Salesforce `Project__c.Id`. Check that the project-service NATS RPC subjects
+Salesforce `Project__c.Id`, so the SOQL `WHERE` clause bound a UUID Salesforce
+does not store. Check that the project-service NATS RPC subjects
 (`lfx.projects-api.get_slug`, `lfx.projects-api.slug_to_uid`) are reachable and
 that the project slug exists in Salesforce.
 

@@ -3,10 +3,11 @@
 
 # Salesforce-backed cache and ProjectResolver
 
-This service has no PostgreSQL and no sync job. Current live membership and
-B2B detour endpoints fetch on demand from Salesforce SOQL and cache results in
-NATS JetStream KV. The repo also contains an initialized sObject conditional
-GET cache for the target architecture.
+This service has no PostgreSQL and no sync job. Membership reads and the
+reindex backfill fetch from Salesforce SOQL and cache results in NATS
+JetStream KV (`membership-cache`). b2b_org and single-object reads use the
+sObject conditional-GET cache (`member-service-cache`), and authoritative
+b2b_org access-control state lives in `org-settings`.
 
 ## NATS KV cache
 
@@ -22,11 +23,12 @@ prefix to avoid collisions.
 | `key-contacts.{membership_uid}` | `CachedValue[[]*model.KeyContact]` | 6 h stale / 23 h expire |
 | `project-sfid.{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
 | `project-uid.{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
-| `soql.{template}.{params...}.{batch}` | `MembershipBatchCacheEntry` for paged SOQL results | 6 h stale / 23 h expire |
-| `soql.b2b-orgs.{params...}.{batch}` | `B2BOrgBatchCacheEntry` for B2B org search results | 6 h stale / 23 h expire |
+| `soql.memberships-by-project.{params...}.{batch}` | `MembershipBatchCacheEntry` for paged SOQL membership results | 6 h stale / 23 h expire |
 
-The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always
-later than the soft `expires_at` timestamp inside each envelope.
+Prefixes are defined as the dot-delimited `keyPrefix*` constants in
+`internal/infrastructure/nats/storage.go`. The NATS bucket itself has a
+24-hour `MaxAge` (hard eviction), which is always later than the soft
+`expires_at` timestamp inside each envelope.
 
 ### `member-service-cache` bucket
 
@@ -45,6 +47,16 @@ reset that TTL.
 | `project_membership.{uid}` | Salesforce Asset sObject cache entry |
 | `key_contact.{uid}` | Salesforce Project_Role__c sObject cache entry |
 | `membership_tier.{uid}` | Salesforce Product2 sObject cache entry |
+
+### `org-settings` bucket
+
+This bucket holds authoritative b2b_org access-control state (writers,
+auditors, pending invites) — it is not a cache. Keys are `org-settings.{uid}`
+→ raw `model.B2BOrgSettings` JSON (no `CachedValue` envelope, no soft TTL).
+There is no MaxAge eviction; every PUT uses the KV revision for optimistic
+concurrency (compare-and-set), so a concurrent modification returns `409
+Conflict`. Read and write helpers live in
+`internal/infrastructure/nats/b2b_org_settings.go`.
 
 ### Cache freshness states
 
@@ -65,10 +77,10 @@ It is the bridge between the v2 project UUID world and the Salesforce
 
 ### Why it exists
 
-Every project-scoped SOQL query requires a Salesforce `Project__c.Id` in its
-`WHERE` clause. The HTTP API receives a v2 UUID (`project_id` path parameter).
-Without `ProjectResolver`, all list endpoints would silently return zero
-results.
+Every project-scoped SOQL query (membership reads and the reindex backfill)
+requires a Salesforce `Project__c.Id` in its `WHERE` clause. Callers carry v2
+UUIDs. Without `ProjectResolver`, such a query would bind a UUID Salesforce
+does not store and silently return zero rows.
 
 ### Resolution chain: `SFIDFromUID`
 

@@ -33,18 +33,30 @@ work here.
   for adding or changing a membership HTTP endpoint (Goa design, regen,
   handler, tests, Heimdall ruleset). Do not duplicate that recipe here.
 
-## This service does not publish indexer or FGA messages
+## This service publishes indexer and FGA-sync messages
 
-Member service is a Salesforce-backed read/write proxy. It reads through
-SOQL-backed caches and key-contact writes mutate Salesforce
-`Project_Role__c` records, then invalidate cache entries. It does not
-currently emit `lfx.index.*` or `lfx.fga-sync.*`, and it does not run a sync
-job. Do not add indexer-style or fga-sync-style publication unless that
-decision is made deliberately; if it is, route the contract via
-`lfx-v2-indexer-service` and `lfx-v2-fga-sync` and add a local contract doc
-under `docs/`. For the rationale and the deliberate path forward (current
-state vs target state, FGA/indexer graduation plan), see `ARCHITECTURE.md`
-at the repo root.
+Member service is a Salesforce-backed read/write proxy that also publishes to
+the platform indexer and FGA-sync on the write path. It reads through
+SOQL-backed and sObject caches; key-contact and b2b-org mutations write
+Salesforce or the `org-settings` KV bucket, then publish downstream events.
+Subjects live in `pkg/constants/subjects.go`:
+
+- Indexer: `lfx.index.b2b_org`, `lfx.index.b2b_org_settings`,
+  `lfx.index.project_membership`, `lfx.index.key_contact`.
+- FGA-sync: `lfx.fga-sync.update_access`, `lfx.fga-sync.delete_access`.
+
+Publishing goes through the `port.MemberPublisher` port
+(`internal/domain/port/event_publisher.go`), implemented by
+`internal/infrastructure/nats/publisher.go`. Write-path policy: creates and
+updates publish fire-and-forget (`sync=false`) and swallow publish errors,
+logging at warn with `publish_failed_for_backfill_repair=true` so the
+`POST /admin/reindex` backfill can recover; deletes propagate publish errors.
+When a settings PUT publishes, FGA-sync is sent before the indexer so access
+tuples land before the doc is searchable. The canonical contracts live in
+`docs/fga-contract.md` and `docs/indexer-contract.md` (and upstream in
+`lfx-v2-fga-sync` and `lfx-v2-indexer-service`); update those in the same
+change when message shapes change. For the current-vs-target architecture and
+the graduation plan, see `ARCHITECTURE.md` at the repo root.
 
 ## Generated code
 
@@ -69,12 +81,15 @@ at the repo root.
 ## Errors
 
 - Use the existing domain error types from `pkg/errors`: `Validation`,
-  `NotFound`, `ServiceUnavailable`, and `Unexpected`. Mapping to HTTP status
-  lives in `cmd/member-api/service/error.go`.
-- Current mapping: validation 400, not found 404, unavailable 503, and
-  anything else 500. `pkg/errors.Conflict` exists but is not currently mapped
-  by `wrapError`; if a new endpoint needs 409 behavior, update the Goa
-  design and `wrapError` in the same change.
+  `NotFound`, `Conflict`, `ServiceUnavailable`, `PreconditionFailed`,
+  `NotImplemented`, and `Unexpected`. Mapping to HTTP status lives in
+  `cmd/member-api/service/error.go`.
+- Current `wrapError` mapping: not found 404, validation 400, conflict 409,
+  unavailable 503, precondition failed 412, not implemented 501, and anything
+  else 500. The matching Goa `dsl.Error`/`dsl.Response` declarations must
+  exist on a method before its handler can return that status; if a new
+  endpoint needs a status not yet declared, update the Goa design and
+  `wrapError` in the same change.
 - Wrap upstream errors so `errors.Is` and `errors.Unwrap` still work.
 - Translate at the Goa or transport boundary. Do not return raw Salesforce
   HTTP errors, raw NATS errors, or upstream provider payloads to clients.
@@ -104,14 +119,17 @@ at the repo root.
 - Keep subject strings in repo-owned constants (see `pkg/constants` and
   `internal/infrastructure/nats/`). Do not hardcode subject strings at call
   sites.
-- Current inbound RPC is `SubscribeProjectIDMap`, registered with a plain
-  NATS `Subscribe` and drained during shutdown. Do not document it as a
-  queue-group handler unless the code is changed.
+- Inbound RPC handlers are registered with plain NATS `Subscribe` and drained
+  during shutdown: the project-id-map lookup
+  (`lfx.member.project-id-map.lookup`) and the entity-agnostic SFID/UUID
+  lookups (`lfx.member.sfid-to-uuid.lookup`, `lfx.member.uuid-to-sfid.lookup`).
+  Do not document any of them as queue-group handlers unless the code is
+  changed.
 - If adding another horizontally scaled request/reply handler, choose an
   explicit queue group and document it in `references/nats-messaging.md`.
 - Do not write directly to another service's KV bucket. This repo owns
-  `membership-cache` and `member-service-cache`.
-- The existing shutdown path drains the project-id-map subscription and closes
+  `membership-cache`, `member-service-cache`, and `org-settings`.
+- The existing shutdown path drains the inbound RPC subscriptions and closes
   the shared NATS client; match that pattern unless you are deliberately
   changing shutdown semantics.
 - When subjects, queue groups, payload shapes, or KV buckets change, update
@@ -120,17 +138,26 @@ at the repo root.
 ## Goa boundaries (this repo)
 
 - Design files live in `cmd/member-api/design/`.
-- Read-mostly API with a few write endpoints for key contacts
-  (POST/PUT/DELETE).
-- Project-scoped routes: most endpoints accept a `project_id` (v2 UUID) in
-  the path. Slug-to-UID and UID-to-SFID resolution is done via NATS RPC and
-  Salesforce, never inside Goa generated code.
-- The current project-scoped key-contact mutations do not accept `If-Match`.
-  `GET /projects/{project_uid}/memberships/{membership_uid}` returns a
-  static `ETag: 0` sentinel because SOQL-backed records have no meaningful KV
-  revision. Future conditional-write work belongs with the sObject cache
-  design in `ARCHITECTURE.md` and must update Goa, handlers, docs, and tests
-  together.
+- Resource-rooted API surface. Single-object reads, writes, and an admin
+  reindex action:
+  - `b2b_org`: GET/POST/PUT `/b2b_orgs[/{uid}]`, plus GET/PUT
+    `/b2b_orgs/{uid}/settings`.
+  - `project_membership`: GET `/project_memberships/{uid}` only (membership
+    lifecycle is owned by Salesforce, not this HTTP API).
+  - `key_contact`: GET/POST/PUT/DELETE nested under
+    `/project_memberships/{membership_uid}/key_contacts[/{uid}]`.
+  - `POST /admin/reindex` triggers an indexer/FGA backfill.
+- UID and SFID translation (slug-to-UID, UID-to-SFID, and the invertible
+  `sfuuid` UUID v8 encode/decode) is done in the infrastructure layer via NATS
+  RPC, Salesforce, and `pkg/sfuuid`, never inside Goa generated code.
+- Mutating endpoints implement optimistic concurrency. PUT/DELETE accept an
+  `If-Match` header carrying the LFX ETag from a prior GET; a stale ETag
+  returns `412 Precondition Failed`. GET responses carry an `ETag` (a hash of
+  the serialised domain object) and `Last-Modified`, and accept
+  `If-None-Match`/`If-Modified-Since`. Mirror the established
+  `UpdateKeyContact` guard when adding a new mutating handler; settings PUT
+  uses an `org-settings` KV revision for compare-and-set and can return `409
+  Conflict`.
 - For the full add-endpoint recipe (design, regen, handler, tests,
   Heimdall ruleset), use the local `member-add-endpoint` skill.
 

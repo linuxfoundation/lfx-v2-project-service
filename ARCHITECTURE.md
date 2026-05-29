@@ -12,44 +12,51 @@ authorization, OpenSearch indexing via the Indexer Service, and a clean v2 API s
 ## Current State
 
 The v2 member service is currently a **read/write Salesforce B2B proxy** with a NATS KV caching
-layer. The PostgreSQL replica dependency from the v1 platform has been fully removed. The service
-now:
+layer that **also publishes indexer and FGA-sync messages on the write path**. The PostgreSQL
+replica dependency from the v1 platform has been fully removed. The service now:
 
-1. Queries Salesforce directly via SOQL (the `salesforce` infrastructure package) for all reads.
-2. Caches SOQL responses in NATS KV as paginated result batches (stale-while-revalidate) to
-   reduce Salesforce round-trips and serve collection endpoints.
-3. Exposes write endpoints for key contacts (create / update / delete) that mutate
-   `Project_Role__c` records in Salesforce and invalidate the relevant KV cache entries.
-4. Publishes a NATS RPC endpoint (`lfx.member.project-id-map.lookup`) that other services can
-   use to resolve a v2 project UID to its Salesforce `Project__c.Id`.
-5. Resolves project UIDs ↔ slugs via NATS RPC calls to the project-service.
+1. Queries Salesforce via SOQL (the `salesforce` infrastructure package) for membership reads and
+   the reindex backfill, and via the sObject REST API (conditional GET) for `b2b_org` and other
+   single-object reads.
+2. Caches SOQL responses in `membership-cache` (stale-while-revalidate) and sObject responses in
+   `member-service-cache` (HTTP conditional-GET), to reduce Salesforce round-trips.
+3. Exposes single-object reads, write endpoints for `b2b_org` (create/update) and key contacts
+   (create/update/delete), and full-replace b2b_org access-control settings — with `If-Match`
+   optimistic concurrency on mutations.
+4. Publishes indexer (`lfx.index.*`) and FGA-sync (`lfx.fga-sync.*`) messages on writes, and
+   exposes `POST /admin/reindex` to backfill those downstream indexes from Salesforce.
+5. Stores authoritative b2b_org access-control state (writers, auditors, pending invites) in the
+   `org-settings` KV bucket.
+6. Handles inbound NATS RPC to resolve a v2 project UID to its Salesforce `Project__c.Id`
+   (`lfx.member.project-id-map.lookup`) and to translate SFID ↔ UUID
+   (`lfx.member.sfid-to-uuid.lookup`, `lfx.member.uuid-to-sfid.lookup`).
+7. Resolves project UIDs ↔ slugs via NATS RPC calls to the project-service.
 
 ### Current API layout
 
-All v2 member service endpoints live under a project drill-down hierarchy. Most collection
-endpoints are served via a SOQL-backed NATS KV cache: on a cache miss (or stale hit) the service
-issues a SOQL query to Salesforce, writes the result into KV, and returns it; fresh cache hits are
-served directly from KV without a Salesforce round-trip. The exception is the tiers list
-(`GET /projects/{project_uid}/tiers`), which is served directly from Salesforce on every request
-— individual tiers are cached by UID for single-record lookups but the list result is not cached
-as a unit.
+The service exposes resource-rooted endpoints. The authoritative surface is the Goa design
+(`cmd/member-api/design/membership.go`) and the deployed Heimdall ruleset
+(`charts/lfx-v2-member-service/templates/ruleset.yaml`):
 
 | Method | Path | Description | FGA check |
 |--------|------|-------------|-----------|
-| GET | `/projects/{project_uid}/tiers` | List membership tiers (Product2) | `auditor` on `project:{project_uid}` |
-| GET | `/projects/{project_uid}/tiers/{tier_uid}` | Get a membership tier | `auditor` on `project:{project_uid}` |
-| GET | `/projects/{project_uid}/memberships` | List project memberships (Assets) | `auditor` on `project:{project_uid}` |
-| GET | `/projects/{project_uid}/memberships/{membership_uid}` | Get a membership | `auditor` on `project:{project_uid}` |
-| GET | `/projects/{project_uid}/memberships/{membership_uid}/key_contacts` | List key contacts | `auditor` on `project:{project_uid}` |
-| GET | `/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}` | Get a key contact | `auditor` on `project:{project_uid}` |
-| POST | `/projects/{project_uid}/memberships/{membership_uid}/key_contacts` | Create a key contact | `writer` on `project:{project_uid}` |
-| PUT | `/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}` | Update a key contact | `writer` on `project:{project_uid}` |
-| DELETE | `/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}` | Delete a key contact | `writer` on `project:{project_uid}` |
+| GET | `/b2b_orgs/{uid}` | Get a b2b_org (sObject cache) | `auditor` on `b2b_org:{uid}` |
+| POST | `/b2b_orgs` | Create a b2b_org (machine callers) | `member` on `team:{globalOrgAdminTeamUID}` |
+| PUT | `/b2b_orgs/{uid}` | Update a b2b_org | `writer` on `b2b_org:{uid}` |
+| GET | `/b2b_orgs/{uid}/settings` | Get org access-control settings | `auditor` on `b2b_org:{uid}` |
+| PUT | `/b2b_orgs/{uid}/settings` | Full-replace org writers/auditors | `writer` on `b2b_org:{uid}` |
+| GET | `/project_memberships/{uid}` | Get a membership | `auditor` on `project_membership:{uid}` |
+| GET | `/project_memberships/{m_uid}/key_contacts/{uid}` | Get a key contact | `auditor` on `project_membership:{m_uid}` |
+| POST | `/project_memberships/{m_uid}/key_contacts` | Create a key contact | `writer` on `project_membership:{m_uid}` |
+| PUT | `/project_memberships/{m_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{m_uid}` |
+| DELETE | `/project_memberships/{m_uid}/key_contacts/{uid}` | Delete a key contact | `writer` on `project_membership:{m_uid}` |
+| POST | `/admin/reindex` | Trigger an indexer/FGA backfill | `member` on `team:{globalOrgAdminTeamUID}` |
 
-Authorization is checked by the Heimdall API gateway exclusively using the
-`project` OpenFGA type without access for key contacts themselves, or other
-organization-authorized individuals. This is the primary gap the next phase must
-close.
+Authorization is checked by the Heimdall API gateway using the `b2b_org` and `project_membership`
+OpenFGA types per object. The earlier project-scoped drill-down paths and the interim `lfProjectUID`
+detour have been removed. Note that key contacts are still nested under their parent membership path
+(`/project_memberships/{m_uid}/key_contacts/...`) rather than the root `/key_contacts/{uid}` paths
+described in the Target Architecture below — the root key-contact surface is not yet implemented.
 
 ### Current NATS KV bucket layout
 
@@ -64,36 +71,23 @@ by type prefix.
 | `membership.{membership_uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire / 24 h bucket TTL |
 | `key-contacts.{membership_uid}` | `CachedValue[[]*model.KeyContact]` | 6 h stale / 23 h expire / 24 h bucket TTL |
 | `soql.memberships-by-project.{base64(sfid)}.{base64(sort)}[.{base64(tierSFID)}][.{base64(search:term)}].{batch_index_or_iterator}` | `CachedValue[*MembershipBatchCacheEntry]` with compressed `model.ProjectMembership` records + next-batch iterator | 6 h stale / 23 h expire / 24 h bucket TTL |
-| `soql.b2b-orgs.{base64(sort)}[.{base64(search:term)}].{batch_index_or_iterator}` | `CachedValue[*B2BOrgBatchCacheEntry]` with compressed `model.B2BOrg` records + next-batch iterator | 6 h stale / 23 h expire / 24 h bucket TTL |
 | `project-sfid.{project_uid}` | `CachedValue[string]` with Salesforce `Project__c.Id` | 6 h stale / 23 h expire / 24 h bucket TTL |
 | `project-uid.{slug}` | `CachedValue[string]` with v2 project UID | 6 h stale / 23 h expire / 24 h bucket TTL |
 
-Collection list endpoints (e.g. `GET /projects/{uid}/memberships`) are served by slicing the
-appropriate batched-SOQL cache entry. On a cache miss the service runs the full SOQL query,
-writes results into KV split across one or more batch entries (written tail-first so every
-batch's next-iterator is valid before the head is committed), then serves from the freshly-
-written batch. On a stale hit the cached batch is returned immediately while a background
-goroutine re-fetches batch 0 from Salesforce.
+(Prefixes are dot-delimited, per the `keyPrefix*` constants in
+`internal/infrastructure/nats/storage.go`.) The membership SOQL path writes results into KV split
+across one or more batch entries (written tail-first so every batch's next-iterator is valid before
+the head is committed). The earlier `soql.b2b-orgs` batch cache and the B2B org search endpoint it
+backed have been removed.
 
-The code and chart also initialize `member-service-cache`, a 7-day NATS KV
-bucket used by `SObjectClient` for Salesforce sObject conditional GET entries
-(`SObjectCacheEntry`). Current live HTTP provider wiring still uses the
-SOQL-backed readers above; the sObject cache is target-architecture support
-already present in the repo, not the source of current collection responses.
+The code and chart also initialize `member-service-cache`, a 7-day NATS KV bucket used by
+`SObjectClient` for Salesforce sObject conditional-GET entries (`SObjectCacheEntry`). The
+`GET /b2b_orgs/{uid}` read path uses this sObject cache today; membership reads still use the
+SOQL-backed readers above.
 
-### Interim detour endpoints (LFXV2-1382)
-
-As a short-term detour (shipped in v0.5.x), two additional non-idiomatic search endpoints were
-added while the full v2 architecture was being developed:
-
-| Method | Path | Description | FGA check |
-|--------|------|-------------|-----------|
-| GET | `/b2b_orgs` | Search B2B orgs by name (SOQL-backed) | static `lfProjectUID` on `project` type |
-| GET | `/b2b_orgs/{uid}/memberships` | List memberships for a B2B org (SOQL-backed) | static `lfProjectUID` on `project` type |
-
-These endpoints use **SOQL-backed batch caching** (not the sObject conditional GET cache) and a
-static `lfProjectUID` OpenFGA check — neither of which aligns with the target architecture. They
-are interim only and will be **removed** as part of LFXV2-1359 (see [Detour Cleanup](#detour-cleanup) below).
+The chart and client also initialize `org-settings`, an authoritative (no-TTL) NATS KV bucket that
+holds b2b_org access-control state (`org-settings.{uid}` → `model.B2BOrgSettings` JSON). Every
+settings PUT uses the KV revision for optimistic concurrency (compare-and-set).
 
 ### Current domain model (post-detour)
 
@@ -966,9 +960,11 @@ retained or refined in subsequent tickets:
 
 ### Remove (non-idiomatic detour, replaced by target architecture)
 
-The following additions from LFXV2-1382 do **not** align with the target architecture and must
-be removed during the implementation sequence below. Primary owners are LFXV2-1359 (API +
-handlers) and LFXV2-1366 (Helm chart).
+> **Status: done.** All of the detour items listed below have been removed from the codebase
+> (verified against HEAD). The list is retained for historical traceability.
+
+The following additions from LFXV2-1382 did **not** align with the target architecture and have
+been removed. Primary owners were LFXV2-1359 (API + handlers) and LFXV2-1366 (Helm chart).
 
 **Goa API design (`cmd/member-api/design/`):**
 
@@ -1041,11 +1037,12 @@ handlers) and LFXV2-1366 (Helm chart).
   key per v2 UID; see cache envelope definition in the Salesforce Integration section).
 - Implement `sObjectReader` adapters for `B2BOrg`, `ProjectMembership`, `KeyContact`, and
   `MembershipTier` that call `sObjectClient` and deserialise into the domain model types.
-- Remaining: implement the conditional-write path: read cache → compare LFX ETag → conditional sObject GET
-  → conditional sObject PATCH/DELETE with the best available Salesforce precondition header
-  (`If-Match` for `Account`, `If-Unmodified-Since` for all others).
-- Remaining: move live provider wiring off SOQL-backed readers where the target
-  single-object API needs sObject cache semantics.
+- Done: the conditional-write path (read cache → compare LFX ETag → conditional sObject GET →
+  conditional sObject PATCH/DELETE with the best available Salesforce precondition header,
+  `If-Match` for `Account` / `If-Unmodified-Since` for others) is implemented for the active
+  b2b_org and key-contact mutations, and `If-Match` returns `412` on a stale ETag.
+- Remaining: move the remaining live provider wiring (membership reads) off SOQL-backed readers
+  where the target single-object API needs sObject cache semantics.
 
 ### Step 3: Rename internal types and add `b2b_org_uid` — *Done*
 
@@ -1057,9 +1054,16 @@ handlers) and LFXV2-1366 (Helm chart).
 - Add `B2BOrgUID` field to `ProjectMembership` and `KeyContact`; populate from `AccountSFID`
   via `sfuuid.FromSFID` in the Salesforce infrastructure layer.
 
-### Step 4: Root API paths (Goa design) — includes detour cleanup
+### Step 4: Root API paths (Goa design) — includes detour cleanup — *Mostly Done*
 
-> See the [Detour Cleanup](#detour-cleanup) section for the full list of items to remove as
+> **Status:** The detour methods and handlers are removed, and resource-rooted `b2b_org`
+> (GET/POST/PUT + settings GET/PUT), `project_membership` (GET), and key-contact
+> (GET/POST/PUT/DELETE) methods plus `POST /admin/reindex` are in the Goa design and
+> implemented. Remaining gap: key contacts are still nested under
+> `/project_memberships/{membership_uid}/key_contacts/...` rather than the root
+> `/key_contacts/{uid}` paths in the Target API Layout.
+>
+> See the [Detour Cleanup](#detour-cleanup) section for the full list of items removed as
 > part of this step.
 
 - Add `b2b_org` (GET/POST/PUT) and `key_contact` (GET/POST/PUT/DELETE) service methods to the
@@ -1072,7 +1076,13 @@ handlers) and LFXV2-1366 (Helm chart).
 - Remove detour service handlers (`ListB2bOrgs`, `ListB2bOrgMemberships`) and associated
   ports, SOQL infrastructure, and NATS batch cache entries (see Detour Cleanup section).
 
-### Step 5: FGA Sync integration
+### Step 5: FGA Sync integration — *Done*
+
+> **Status:** Implemented. The service publishes `lfx.fga-sync.update_access` /
+> `lfx.fga-sync.delete_access` for `b2b_org`, b2b_org settings, and key contacts via
+> `port.MemberPublisher`. The b2b_org create message includes the `global_org_admin` reference;
+> updates omit it. Publishes are fire-and-forget on the write path (recoverable via
+> `POST /admin/reindex`); deletes propagate publish errors.
 
 - On every create / update / delete of a `b2b_org` or `key_contact` (via the HTTP API), and on
   every `project_membership` change received via PubSub CDC or backfill, publish a FGA Sync
@@ -1082,12 +1092,16 @@ handlers) and LFXV2-1366 (Helm chart).
   reference (team UID loaded from config at startup).
 - On delete, publish a `delete_access` message to remove all FGA tuples for the object.
 
-### Step 6: Indexer integration
+### Step 6: Indexer integration — *Done (write path)*
 
-- On every create / update / delete and on every PubSub CDC event, publish an Indexer message
-  via the `EventPublisher` port.
-- NATS subjects: `lfx.index.b2b_org`, `lfx.index.project_membership`, `lfx.index.key_contact`,
-  `lfx.index.membership_tier`.
+> **Status:** Implemented for the HTTP write path and backfill. The service publishes indexer
+> messages via `port.MemberPublisher`. PubSub CDC (Step 7) is not yet wired, so CDC-driven
+> indexing does not exist yet.
+
+- On every create / update / delete (and, once Step 7 lands, on every PubSub CDC event), publish
+  an Indexer message via the publisher port.
+- NATS subjects (`pkg/constants/subjects.go`): `lfx.index.b2b_org`,
+  `lfx.index.b2b_org_settings`, `lfx.index.project_membership`, `lfx.index.key_contact`.
 
 ### Step 7: PubSub CDC consumer
 
@@ -1096,18 +1110,30 @@ handlers) and LFXV2-1366 (Helm chart).
 - On each event: unconditionally re-fetch the affected sObject, refresh the NATS KV cache
   entry, and publish Indexer + FGA Sync messages.
 
-### Step 8: Indexer backfill endpoint
+### Step 8: Indexer backfill endpoint — *Done*
 
-- Implement the `BackfillRunner` which runs SOQL paged queries for each requested type and
-  publishes Indexer and FGA Sync messages for every record.
-- Add the `POST /admin/reindex` Goa method with the global org-admin team membership check.
-- Run as an asynchronous goroutine; return `202 Accepted` immediately with a run ID for log
-  correlation.
+> **Status:** Implemented. `internal/service/backfill_runner.go` runs SOQL paged queries per
+> requested type and re-publishes Indexer and FGA Sync messages. `POST /admin/reindex` is gated by
+> the global org-admin team check, runs asynchronously, and returns `202 Accepted` with a `run_id`
+> for log correlation. The payload supports `types` (default `b2b_org`, `project_membership`,
+> `key_contact`, `b2b_org_settings`), `since` (RFC 3339 incremental), `items` (targeted, max 100),
+> and `dry_run`.
 
-### Step 9: Heimdall RuleSet update — includes detour cleanup
+- The `BackfillRunner` runs SOQL paged queries for each requested type and publishes Indexer and
+  FGA Sync messages for every record.
+- The `POST /admin/reindex` Goa method enforces the global org-admin team membership check.
+- It runs as an asynchronous goroutine and returns `202 Accepted` immediately with a run ID for
+  log correlation.
 
-> See the [Detour Cleanup](#detour-cleanup) section for the Helm chart items to remove as
-> part of this step.
+### Step 9: Heimdall RuleSet update — includes detour cleanup — *Done*
+
+> **Status:** Implemented. `ruleset.yaml` carries per-object `b2b_org` / `project_membership`
+> rules, the team-membership checks for `POST /b2b_orgs` and `POST /admin/reindex`, and no
+> longer references `lfProjectUID`. The detour HTTPRoute entries and the `openfga.lfProjectUID`
+> value are removed.
+>
+> See the [Detour Cleanup](#detour-cleanup) section for the Helm chart items removed as part of
+> this step.
 
 - Update `charts/lfx-v2-member-service/templates/ruleset.yaml`: remove all project-scoped
   rules and the interim detour rules (static `lfProjectUID` checks), add rules for the new
@@ -1125,8 +1151,8 @@ handlers) and LFXV2-1366 (Helm chart).
 | `SF_CLIENT_ID` | Salesforce connected app client ID | Yes |
 | `SF_CLIENT_SECRET` | Salesforce connected app client secret | Conditional (not required for JWT bearer flow) |
 | `SF_API_VERSION` | Salesforce API version (default: `v63.0`) | No |
-| `SF_PUBSUB_ENDPOINT` | Salesforce PubSub gRPC endpoint (Step 7) | Step 7 |
-| `GLOBAL_ORG_ADMIN_TEAM_UID` | v2 UID of the global org-admin team; written as `global_org_admin` on every `b2b_org` at creation | Yes (Step 5+) |
+| `SF_PUBSUB_ENDPOINT` | Salesforce PubSub gRPC endpoint (future Step 7) | Future (Step 7) |
+| `GLOBAL_ORG_ADMIN_TEAM_UID` | v2 UID of the global org-admin team; written as `global_org_admin` on every `b2b_org` at creation | Yes |
 | `NATS_URL` | NATS server URL | Yes |
 | `PROJECT_RPC_TIMEOUT` | Timeout for project-service NATS RPC calls (default: `5s`) | No |
 
@@ -1170,22 +1196,23 @@ records; treat these as retryable with exponential backoff and jitter.
 
 ### Post-write event failure handling
 
-Target-state note: if the NATS KV write, Indexer publish, or FGA Sync publish
-fails after a successful Salesforce write, log the failure with enough context
-(object type, UID, SFID) for the backfill endpoint to repair the downstream
-indexes. Do not fail the HTTP response: the Salesforce record is durably
-written; only the cache and indexes are temporarily stale. Current key-contact
-writes only invalidate `membership-cache`; this service does not publish
-Indexer or FGA Sync messages today.
+If the NATS KV write, Indexer publish, or FGA Sync publish fails after a
+successful Salesforce write, the service logs the failure with enough context
+(object type, UID, SFID, `publish_failed_for_backfill_repair=true`) for the
+`POST /admin/reindex` backfill to repair the downstream indexes, and does not
+fail the HTTP response: the Salesforce record is durably written; only the
+cache and indexes are temporarily stale. This is the current behaviour for
+b2b_org, b2b_org settings, and key-contact writes (create/update are
+fire-and-forget; deletes propagate the publish error).
 
 ### Key contact denormalization cost
 
 Constructing a fully-denormalized `KeyContact` (or `ProjectMembership`) requires data from
 multiple Salesforce objects: `Project_Role__c`, `Contact`, `Alternate_Email__c`, `Asset`,
 `Account`, and `Product2`. For PubSub CDC events and backfill, this multi-object fetch is
-unavoidable. In the target read path, the sObject cache amortises this cost for
-live GET requests: a cache hit requires only one NATS KV read and zero
-Salesforce calls. Current live collection endpoints are still SOQL-backed.
+unavoidable. The sObject cache amortises this cost for live single-object GET
+requests: a cache hit requires only one NATS KV read and zero Salesforce
+calls. Membership reads still use the SOQL-backed readers.
 
 ### Salesforce session management
 
