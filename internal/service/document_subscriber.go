@@ -20,6 +20,7 @@ import (
 // projectContentItem is a unified representation of a file document or link for notification purposes.
 type projectContentItem struct {
 	projectUID string
+	folderUID  string // empty when not in a folder
 	itemType   string // "file" | "link"
 	itemName   string
 	fileName   string // non-empty for files
@@ -42,8 +43,13 @@ func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, msg 
 		return nil
 	}
 
+	folderUID := ""
+	if doc.FolderUID != nil {
+		folderUID = *doc.FolderUID
+	}
 	s.handleProjectContentCreated(ctx, projectContentItem{
 		projectUID: doc.ProjectUID,
+		folderUID:  folderUID,
 		itemType:   "file",
 		itemName:   doc.Name,
 		fileName:   doc.FileName,
@@ -67,8 +73,13 @@ func (s *ProjectsService) HandleProjectLinkCreated(ctx context.Context, msg doma
 		return nil
 	}
 
+	folderUID := ""
+	if link.FolderUID != nil {
+		folderUID = *link.FolderUID
+	}
 	s.handleProjectContentCreated(ctx, projectContentItem{
 		projectUID: link.ProjectUID,
+		folderUID:  folderUID,
 		itemType:   "link",
 		itemName:   link.Name,
 		url:        link.URL,
@@ -96,6 +107,16 @@ func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item 
 	if err != nil {
 		slog.WarnContext(ctx, "document_subscriber: failed to load project settings", constants.ErrKey, err, "project_uid", item.projectUID)
 		return
+	}
+
+	folderName := ""
+	if item.folderUID != "" {
+		if folder, _, err := s.FolderRepository.GetFolder(ctx, item.projectUID, item.folderUID); err == nil {
+			folderName = folder.Name
+		} else {
+			slog.WarnContext(ctx, "document_subscriber: failed to load folder name — omitting from email",
+				constants.ErrKey, err, "project_uid", item.projectUID, "folder_uid", item.folderUID)
+		}
 	}
 
 	recipients := collectDocumentRecipients(settings, "")
@@ -127,6 +148,7 @@ func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item 
 				DocumentType:  item.itemType,
 				FileName:      item.fileName,
 				URL:           item.url,
+				FolderName:    folderName,
 				UploaderName:  uploaderName,
 				ProjectURL:    projectURL,
 			})

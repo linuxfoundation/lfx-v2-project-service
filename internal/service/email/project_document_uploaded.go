@@ -33,6 +33,7 @@ type ProjectDocumentUploadedData struct {
 	DocumentType  string // "file" | "link"
 	FileName      string // set for files
 	URL           string // set for links
+	FolderName    string // set when the item lives inside a folder
 	UploaderName  string
 	ProjectURL    string
 }

@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
@@ -25,12 +26,15 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		return &models.ProjectSettings{UID: "proj-1", Writers: writers, Auditors: auditors}
 	}
 
+	folderUID := "folder-1"
+
 	tests := []struct {
 		name           string
 		doc            models.ProjectDocument
 		settings       *models.ProjectSettings
 		wantEmailCount int
 		emailsEnabled  bool
+		folderName     string // expected folder name in email; set only when doc has a FolderUID
 	}{
 		{
 			name:           "notifies writer and auditor",
@@ -38,6 +42,14 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
 			wantEmailCount: 2,
 			emailsEnabled:  true,
+		},
+		{
+			name:           "includes folder name when document is in a folder",
+			doc:            models.ProjectDocument{ProjectUID: "proj-1", Name: "Charter", FileName: "charter.pdf", UploadedByUsername: "uploader", FolderUID: &folderUID},
+			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{}),
+			wantEmailCount: 1,
+			emailsEnabled:  true,
+			folderName:     "Legal",
 		},
 		{
 			name:           "no-LFID users skipped",
@@ -74,6 +86,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			mockRepo := &domain.MockProjectRepository{}
 			mockMsg := &domain.MockMessageBuilder{}
 			mockUserReader := &domain.MockUserReader{}
+			mockFolder := &domain.MockFolderRepository{}
 
 			if tt.emailsEnabled && tt.settings != nil {
 				mockRepo.On("GetProjectBase", mock.Anything, tt.doc.ProjectUID).
@@ -82,15 +95,26 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 					Return(tt.settings, nil)
 				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, mock.AnythingOfType("string")).
 					Return((*domain.UserMetadata)(nil), assert.AnError).Maybe()
+				if tt.doc.FolderUID != nil {
+					mockFolder.On("GetFolder", mock.Anything, tt.doc.ProjectUID, *tt.doc.FolderUID).
+						Return(&models.ProjectFolder{UID: *tt.doc.FolderUID, Name: tt.folderName}, uint64(1), nil)
+				}
 			}
 
 			if tt.wantEmailCount > 0 {
-				mockMsg.On("SendEmailRequest", mock.Anything, mock.AnythingOfType("api.SendEmailRequest")).
-					Return(nil).Times(tt.wantEmailCount)
+				if tt.folderName != "" {
+					mockMsg.On("SendEmailRequest", mock.Anything, mock.MatchedBy(func(req emailapi.SendEmailRequest) bool {
+						return strings.Contains(req.HTML, tt.folderName)
+					})).Return(nil).Times(tt.wantEmailCount)
+				} else {
+					mockMsg.On("SendEmailRequest", mock.Anything, mock.AnythingOfType("api.SendEmailRequest")).
+						Return(nil).Times(tt.wantEmailCount)
+				}
 			}
 
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
+				FolderRepository:  mockFolder,
 				MessageBuilder:    mockMsg,
 				UserReader:        mockUserReader,
 				Config: ServiceConfig{
@@ -135,6 +159,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
+			FolderRepository:  &domain.MockFolderRepository{},
 			MessageBuilder:    mockMsg,
 			UserReader:        mockUserReader,
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
@@ -165,6 +190,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
+			FolderRepository:  &domain.MockFolderRepository{},
 			MessageBuilder:    mockMsg,
 			UserReader:        mockUserReader,
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
@@ -230,6 +256,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
+				FolderRepository:  &domain.MockFolderRepository{},
 				MessageBuilder:    mockMsg,
 				UserReader:        mockUserReader,
 				Config: ServiceConfig{

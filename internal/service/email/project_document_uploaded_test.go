@@ -79,6 +79,34 @@ func TestRenderProjectDocumentUploaded(t *testing.T) {
 			wantText:    []string{"Carol", "Spec Link", "https://specs.example.com"},
 		},
 		{
+			name: "folder name shown when provided",
+			data: ProjectDocumentUploadedData{
+				RecipientName: "Alice",
+				ProjectName:   "Demo Project",
+				DocumentName:  "Charter",
+				DocumentType:  "file",
+				FileName:      "charter.pdf",
+				FolderName:    "Legal",
+				UploaderName:  "Bob",
+				ProjectURL:    "https://app.dev.lfx.dev/project/overview?project=demo-project",
+			},
+			wantHTML: []string{"Legal", "Folder"},
+			wantText: []string{"Folder: Legal"},
+		},
+		{
+			name: "no folder name — folder line absent",
+			data: ProjectDocumentUploadedData{
+				RecipientName: "Alice",
+				ProjectName:   "Demo Project",
+				DocumentName:  "Charter",
+				DocumentType:  "file",
+				FileName:      "charter.pdf",
+				ProjectURL:    "https://app.dev.lfx.dev/project/overview?project=demo-project",
+			},
+			wantHTML: []string{"Alice"},
+			wantText: []string{"Alice"},
+		},
+		{
 			name: "missing document name returns error",
 			data: ProjectDocumentUploadedData{
 				RecipientName: "Alice",
