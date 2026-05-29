@@ -19,7 +19,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
 
 // UploadDocument validates and stores a new project document (metadata + binary file).
@@ -150,15 +149,8 @@ func (s *ProjectsService) UploadDocument(
 
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
-		uploadedMsg := events.DocumentUploadedMessage{
-			ProjectUID:   doc.ProjectUID,
-			DocumentName: doc.Name,
-			DocumentType: "file",
-			FileName:     doc.FileName,
-			Actor:        events.Actor{Username: principal},
-		}
-		if err := s.MessageBuilder.SendProjectEventMessage(bgCtx, constants.DocumentUploadedSubject, uploadedMsg); err != nil {
-			slog.WarnContext(bgCtx, "error sending document uploaded event", constants.ErrKey, err)
+		if err := s.MessageBuilder.SendProjectEventMessage(bgCtx, constants.ProjectDocumentCreatedSubject, *doc); err != nil {
+			slog.WarnContext(bgCtx, "error sending document created event", constants.ErrKey, err)
 		}
 	}()
 

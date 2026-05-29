@@ -60,18 +60,6 @@ type ProjectSettingsUpdatedMessage struct {
 	Actor       Actor           `json:"actor"`
 }
 
-// DocumentUploadedMessage is published on lfx.projects-api.document.uploaded whenever a
-// document (file) or link is added to a project. Subscribers fan out notification emails
-// to LFID writers and auditors.
-type DocumentUploadedMessage struct {
-	ProjectUID   string `json:"project_uid"`
-	DocumentName string `json:"document_name"`
-	DocumentType string `json:"document_type"` // "file" | "link"
-	FileName     string `json:"file_name,omitempty"`
-	URL          string `json:"url,omitempty"`
-	Actor        Actor  `json:"actor"`
-}
-
 // InviteAccepted is the NATS event payload published by the LFX self-serve web app
 // on lfx.invite.accepted when a user completes LFID account creation and accepts
 // their invite. Resource services subscribe to this subject to promote the user from

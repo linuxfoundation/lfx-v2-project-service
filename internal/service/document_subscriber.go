@@ -17,48 +17,95 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// HandleDocumentUploaded handles document.uploaded events and fans out notification emails
-// to all LFID writers and auditors on the project (excluding the uploader).
-//
-// Only runs when EmailsEnabled is true; failures per recipient are logged and never propagated.
-func (s *ProjectsService) HandleDocumentUploaded(ctx context.Context, msg domain.Message) error {
+// projectContentItem is a unified representation of a file document or link for notification purposes.
+type projectContentItem struct {
+	projectUID string
+	itemType   string // "file" | "link"
+	itemName   string
+	fileName   string // non-empty for files
+	url        string // non-empty for links
+	createdBy  string // LFID of the uploader/creator
+}
+
+// HandleProjectDocumentCreated handles project_document.created events and notifies all
+// LFID writers and auditors of the project when a new file document is uploaded.
+// Best-effort: send errors are logged but not returned.
+func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, msg domain.Message) error {
 	if !s.Config.EmailsEnabled {
 		slog.DebugContext(ctx, "document_subscriber: skipping notifications — EMAILS_ENABLED is false")
 		return nil
 	}
 
-	var event events.DocumentUploadedMessage
-	if err := json.Unmarshal(msg.Data(), &event); err != nil {
-		slog.WarnContext(ctx, "document_subscriber: failed to unmarshal document uploaded event", constants.ErrKey, err)
+	var doc models.ProjectDocument
+	if err := json.Unmarshal(msg.Data(), &doc); err != nil {
+		slog.WarnContext(ctx, "document_subscriber: failed to unmarshal project_document.created event", constants.ErrKey, err)
 		return nil
 	}
 
-	slog.DebugContext(ctx, "document_subscriber: received document.uploaded event",
-		"project_uid", event.ProjectUID,
-		"document_type", event.DocumentType,
-		"document_name", event.DocumentName,
+	s.handleProjectContentCreated(ctx, projectContentItem{
+		projectUID: doc.ProjectUID,
+		itemType:   "file",
+		itemName:   doc.Name,
+		fileName:   doc.FileName,
+		createdBy:  doc.UploadedByUsername,
+	})
+	return nil
+}
+
+// HandleProjectLinkCreated handles project_link.created events and notifies all
+// LFID writers and auditors of the project when a new link is added.
+// Best-effort: send errors are logged but not returned.
+func (s *ProjectsService) HandleProjectLinkCreated(ctx context.Context, msg domain.Message) error {
+	if !s.Config.EmailsEnabled {
+		slog.DebugContext(ctx, "document_subscriber: skipping notifications — EMAILS_ENABLED is false")
+		return nil
+	}
+
+	var link models.ProjectLink
+	if err := json.Unmarshal(msg.Data(), &link); err != nil {
+		slog.WarnContext(ctx, "document_subscriber: failed to unmarshal project_link.created event", constants.ErrKey, err)
+		return nil
+	}
+
+	s.handleProjectContentCreated(ctx, projectContentItem{
+		projectUID: link.ProjectUID,
+		itemType:   "link",
+		itemName:   link.Name,
+		url:        link.URL,
+		createdBy:  link.CreatedByUsername,
+	})
+	return nil
+}
+
+// handleProjectContentCreated fans out notification emails to all LFID writers and auditors
+// of the project. Individual send failures are logged but never abort the batch.
+func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item projectContentItem) {
+	slog.DebugContext(ctx, "document_subscriber: handling content created event",
+		"project_uid", item.projectUID,
+		"item_type", item.itemType,
+		"item_name", item.itemName,
 	)
 
-	projectBase, err := s.ProjectRepository.GetProjectBase(ctx, event.ProjectUID)
+	projectBase, err := s.ProjectRepository.GetProjectBase(ctx, item.projectUID)
 	if err != nil {
-		slog.WarnContext(ctx, "document_subscriber: failed to load project base", constants.ErrKey, err, "project_uid", event.ProjectUID)
-		return nil
+		slog.WarnContext(ctx, "document_subscriber: failed to load project base", constants.ErrKey, err, "project_uid", item.projectUID)
+		return
 	}
 
-	settings, err := s.ProjectRepository.GetProjectSettings(ctx, event.ProjectUID)
+	settings, err := s.ProjectRepository.GetProjectSettings(ctx, item.projectUID)
 	if err != nil {
-		slog.WarnContext(ctx, "document_subscriber: failed to load project settings", constants.ErrKey, err, "project_uid", event.ProjectUID)
-		return nil
+		slog.WarnContext(ctx, "document_subscriber: failed to load project settings", constants.ErrKey, err, "project_uid", item.projectUID)
+		return
+	}
+
+	recipients := collectDocumentRecipients(settings, "")
+	if len(recipients) == 0 {
+		slog.DebugContext(ctx, "document_subscriber: no eligible recipients — skipping", "project_uid", item.projectUID)
+		return
 	}
 
 	projectURL := buildProjectURL(s.Config.LFXSelfServeBaseURL, projectBase.Slug)
-	uploaderName := s.resolveActorDisplayName(ctx, event.Actor)
-
-	recipients := collectDocumentRecipients(settings, event.Actor.Username)
-	if len(recipients) == 0 {
-		slog.DebugContext(ctx, "document_subscriber: no eligible recipients — skipping", "project_uid", event.ProjectUID)
-		return nil
-	}
+	uploaderName := s.resolveActorDisplayName(ctx, events.Actor{Username: item.createdBy})
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(5)
@@ -73,19 +120,19 @@ func (s *ProjectsService) HandleDocumentUploaded(ctx context.Context, msg domain
 				recipientName = r.Email
 			}
 
-			subject, html, text, renderErr := email.RenderProjectDocumentUploaded(email.ProjectDocumentUploadedData{
+			subj, html, text, renderErr := email.RenderProjectDocumentUploaded(email.ProjectDocumentUploadedData{
 				RecipientName: recipientName,
 				ProjectName:   projectBase.Name,
-				DocumentName:  event.DocumentName,
-				DocumentType:  event.DocumentType,
-				FileName:      event.FileName,
-				URL:           event.URL,
+				DocumentName:  item.itemName,
+				DocumentType:  item.itemType,
+				FileName:      item.fileName,
+				URL:           item.url,
 				UploaderName:  uploaderName,
 				ProjectURL:    projectURL,
 			})
 			if renderErr != nil {
-				slog.WarnContext(gctx, "document_subscriber: failed to render document upload email",
-					constants.ErrKey, renderErr, "project_uid", event.ProjectUID)
+				slog.WarnContext(gctx, "document_subscriber: failed to render content notification email",
+					constants.ErrKey, renderErr, "project_uid", item.projectUID)
 				return nil
 			}
 
@@ -94,28 +141,26 @@ func (s *ProjectsService) HandleDocumentUploaded(ctx context.Context, msg domain
 
 			if sendErr := s.MessageBuilder.SendEmailRequest(sendCtx, emailapi.SendEmailRequest{
 				To:      r.Email,
-				Subject: subject,
+				Subject: subj,
 				HTML:    html,
 				Text:    text,
 			}); sendErr != nil {
-				slog.WarnContext(gctx, "document_subscriber: failed to send document upload notification",
-					constants.ErrKey, sendErr, "project_uid", event.ProjectUID)
+				slog.WarnContext(gctx, "document_subscriber: failed to send content notification email",
+					constants.ErrKey, sendErr, "project_uid", item.projectUID)
 			} else {
-				slog.DebugContext(gctx, "document_subscriber: sent document upload notification", "project_uid", event.ProjectUID)
+				slog.DebugContext(gctx, "document_subscriber: sent content notification email",
+					"project_uid", item.projectUID, "item_type", item.itemType)
 			}
 			return nil
 		})
 	}
 
 	_ = g.Wait()
-	return nil
 }
 
 // collectDocumentRecipients returns the deduplicated set of writers and auditors who should
-// receive a document upload notification. It excludes:
-//   - users without a Username (no LFID)
-//   - users without an Email address
-//   - the uploader (matched by Username)
+// receive a document/link notification. It excludes users without a Username (no LFID) or
+// without an Email address.
 func collectDocumentRecipients(settings *models.ProjectSettings, uploaderUsername string) []models.UserInfo {
 	seen := make(map[string]struct{})
 	var out []models.UserInfo

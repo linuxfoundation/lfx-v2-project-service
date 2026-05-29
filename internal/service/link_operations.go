@@ -18,7 +18,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
 
 // CreateLink creates a new project link.
@@ -100,15 +99,8 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
-		uploadedMsg := events.DocumentUploadedMessage{
-			ProjectUID:   link.ProjectUID,
-			DocumentName: link.Name,
-			DocumentType: "link",
-			URL:          link.URL,
-			Actor:        events.Actor{Username: principal},
-		}
-		if err := s.MessageBuilder.SendProjectEventMessage(bgCtx, constants.DocumentUploadedSubject, uploadedMsg); err != nil {
-			slog.WarnContext(bgCtx, "error sending link uploaded event", constants.ErrKey, err)
+		if err := s.MessageBuilder.SendProjectEventMessage(bgCtx, constants.ProjectLinkCreatedSubject, *link); err != nil {
+			slog.WarnContext(bgCtx, "error sending link created event", constants.ErrKey, err)
 		}
 	}()
 
