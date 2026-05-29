@@ -49,10 +49,14 @@ func RenderProjectDocumentUploaded(data ProjectDocumentUploadedData) (subject, h
 		return
 	}
 
+	docType := "document"
+	if data.DocumentType == "link" {
+		docType = "link"
+	}
 	if data.UploaderName != "" {
-		subject = data.UploaderName + " added \"" + data.DocumentName + "\" to " + data.ProjectName
+		subject = data.UploaderName + " added " + data.DocumentName + " " + docType + " to " + data.ProjectName
 	} else {
-		subject = "A new document was added to " + data.ProjectName
+		subject = "A new " + docType + " was added to " + data.ProjectName
 	}
 
 	var htmlBuf bytes.Buffer

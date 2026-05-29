@@ -16,9 +16,6 @@
         hr { border: none; border-top: 1px solid #e5e7eb; margin: 0 0 32px 0; }
         p { font-size: 16px; color: #374151; line-height: 1.6; margin: 0 0 16px 0; }
         .greeting { font-size: 15px; color: #374151; margin: 0 0 8px 0; }
-        .detail-box { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 20px; margin: 0 0 24px 0; }
-        .detail-box p { margin: 0 0 8px 0; font-size: 15px; }
-        .detail-box p:last-child { margin: 0; }
         .detail-label { font-weight: 600; color: #111827; }
         .detail-link { color: #009AFF; text-decoration: none; word-break: break-all; }
         .btn { display: inline-block; background-color: #009AFF; color: #ffffff !important; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 24px; border-radius: 8px; margin-bottom: 12px; }
@@ -45,11 +42,9 @@
 
     {{if .UploaderName}}<p>{{.UploaderName}} has added a new {{if eq .DocumentType "link"}}link{{else}}document{{end}} to the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{else}}<p>A new {{if eq .DocumentType "link"}}link{{else}}document{{end}} has been added to the <strong>{{.ProjectName}}</strong> project in LFX Self-Serve.</p>{{end}}
 
-    <div class="detail-box">
-        <p><span class="detail-label">Name:</span> {{.DocumentName}}</p>
-        {{if eq .DocumentType "file"}}<p><span class="detail-label">File:</span> {{.FileName}}</p>{{end}}
-        {{if and (eq .DocumentType "link") .URL}}<p><span class="detail-label">URL:</span> <a href="{{.URL}}" class="detail-link">{{.URL}}</a></p>{{end}}
-    </div>
+    <p><span class="detail-label">Name:</span> {{.DocumentName}}</p>
+    {{if eq .DocumentType "file"}}<p><span class="detail-label">File:</span> {{.FileName}}</p>{{end}}
+    {{if and (eq .DocumentType "link") .URL}}<p><span class="detail-label">URL:</span> <a href="{{.URL}}" class="detail-link">{{.URL}}</a></p>{{end}}
 
     <p>You can view the project and its documents by visiting the link below.</p>
 
