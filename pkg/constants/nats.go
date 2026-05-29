@@ -32,6 +32,11 @@ const (
 	// KVLookupLinkKey is the per-project link index key.
 	// Format: lookup/project-links/<projectUID>/<linkUID>
 	KVLookupLinkKey = "lookup/project-links/%s/%s"
+
+	// KVLookupInviteMappingPrefix is the mapping key prefix that resolves an invite UID to the
+	// project UID whose settings contain that invite.
+	// Key: "lookup/project-settings-invite/<invite_uid>", Value: <project_uid>
+	KVLookupInviteMappingPrefix = "lookup/project-settings-invite/%s"
 )
 
 // NATS subjects that the project service sends messages about.
@@ -83,4 +88,15 @@ const (
 	// ProjectGetParentUIDSubject is the subject for getting the parent project UID.
 	// The subject is of the form: lfx.projects-api.get_parent_uid
 	ProjectGetParentUIDSubject = "lfx.projects-api.get_parent_uid"
+)
+
+// NATS subjects for external service lookups.
+const (
+	// AuthUserMetadataReadSubject is the subject for looking up a user's profile metadata by principal.
+	// The subject is of the form: lfx.auth-service.user_metadata.read
+	AuthUserMetadataReadSubject = "lfx.auth-service.user_metadata.read"
+
+	// AuthEmailToSubSubject resolves a subject identifier (e.g. auth0|jmedev) by primary email.
+	// Request: plain-text email. Reply: plain-text subject on success, JSON error envelope on miss.
+	AuthEmailToSubSubject = "lfx.auth-service.email_to_sub"
 )

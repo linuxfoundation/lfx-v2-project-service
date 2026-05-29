@@ -54,6 +54,7 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 					FolderRepository:   &domain.MockFolderRepository{},
 					MessageBuilder:     &domain.MockMessageBuilder{},
 					Auth:               &auth.MockJWTAuth{},
+					UserReader:         &domain.MockUserReader{},
 				}
 			},
 			expectedReady: true,
@@ -100,10 +101,26 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 					LinkRepository:     &domain.MockLinkRepository{},
 					FolderRepository:   &domain.MockFolderRepository{},
 					MessageBuilder:     &domain.MockMessageBuilder{},
+					UserReader:         &domain.MockUserReader{},
 					Auth:               nil,
 				}
 			},
 			expectedReady: true,
+		},
+		{
+			name: "service not ready - missing user reader",
+			setupService: func() *ProjectsService {
+				return &ProjectsService{
+					ProjectRepository:  &domain.MockProjectRepository{},
+					DocumentRepository: &domain.MockDocumentRepository{},
+					LinkRepository:     &domain.MockLinkRepository{},
+					FolderRepository:   &domain.MockFolderRepository{},
+					MessageBuilder:     &domain.MockMessageBuilder{},
+					UserReader:         nil,
+					Auth:               &auth.MockJWTAuth{},
+				}
+			},
+			expectedReady: false,
 		},
 	}
 
@@ -145,6 +162,7 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	mockRepo := &domain.MockProjectRepository{}
 	mockBuilder := &domain.MockMessageBuilder{}
 	mockAuth := &auth.MockJWTAuth{}
+	mockUserReader := &domain.MockUserReader{}
 
 	service := NewProjectsService(mockAuth, ServiceConfig{})
 	service.ProjectRepository = mockRepo
@@ -152,6 +170,7 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	service.LinkRepository = &domain.MockLinkRepository{}
 	service.FolderRepository = &domain.MockFolderRepository{}
 	service.MessageBuilder = mockBuilder
+	service.UserReader = mockUserReader
 
 	return service, mockRepo, mockBuilder, mockAuth
 }

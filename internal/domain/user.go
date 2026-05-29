@@ -1,0 +1,33 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
+package domain
+
+import "context"
+
+// UserMetadata holds profile information for a user returned by the auth service.
+type UserMetadata struct {
+	Picture       string
+	Zoneinfo      string
+	Name          string
+	GivenName     string
+	FamilyName    string
+	JobTitle      string
+	Organization  string
+	Country       string
+	StateProvince string
+	City          string
+	Address       string
+	PostalCode    string
+	PhoneNumber   string
+	TShirtSize    string
+}
+
+// UserReader retrieves user profile information from the auth service.
+type UserReader interface {
+	// UserMetadataByPrincipal retrieves profile metadata for a user by their principal.
+	UserMetadataByPrincipal(ctx context.Context, principal string) (*UserMetadata, error)
+	// SubByEmail resolves the subject identifier for the given primary email address.
+	// Returns ErrUserNotFound when no user is registered with that email.
+	SubByEmail(ctx context.Context, email string) (string, error)
+}

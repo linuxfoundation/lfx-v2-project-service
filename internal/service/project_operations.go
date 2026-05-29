@@ -8,6 +8,8 @@ import (
 	"errors"
 	"log/slog"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,8 +20,9 @@ import (
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"golang.org/x/sync/errgroup"
 )
@@ -106,6 +109,15 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		runSync = *payload.XSync
 	}
 
+	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
+	if err := s.enrichAllRoleFields(ctx,
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
+	); err != nil {
+		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
 	// Create the project and settings structs
 	id := uuid.NewString()
 	project := &projsvc.ProjectBase{
@@ -150,7 +162,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, domain.ErrInternal
 	}
 
-	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings)
+	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "error converting project settings to DB project settings", constants.ErrKey, err)
 		return nil, domain.ErrInternal
@@ -524,6 +536,15 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		runSync = *payload.XSync
 	}
 
+	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
+	if err := s.enrichAllRoleFields(ctx,
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
+	); err != nil {
+		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
@@ -542,7 +563,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		projectSettings.CreatedAt = misc.StringPtr(existingProjectSettingsDB.CreatedAt.Format(time.RFC3339))
 	}
 
-	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings)
+	projectSettingsDB, err := ConvertToDBProjectSettings(projectSettings, existingProjectSettingsDB)
 	if err != nil {
 		slog.ErrorContext(ctx, "error converting project settings to DB project settings", constants.ErrKey, err)
 		return nil, domain.ErrInternal
@@ -584,10 +605,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	})
 
 	g.Go(func() error {
-		msg := models.ProjectSettingsUpdatedMessage{
+		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  *payload.UID,
-			OldSettings: *existingProjectSettingsDB,
-			NewSettings: *projectSettingsDB,
+			OldSettings: DomainSettingsToEvent(existingProjectSettingsDB),
+			NewSettings: DomainSettingsToEvent(projectSettingsDB),
+			Actor:       events.Actor{Username: principal},
 		}
 		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})
@@ -719,4 +742,138 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 // This matches v1's strict validation where Type must equal "Crowdfunding" (not in combination with other types).
 func isCrowdfundingOnly(fundingModels []string) bool {
 	return len(fundingModels) == 1 && fundingModels[0] == "Crowdfunding"
+}
+
+// enrichAllRoleFields overwrites Username, Name, and Avatar on every UserInfo across all supplied
+// slices and singles with authoritative values from the auth service.
+// Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
+// Username misses (unknown email, empty email) write an explicit empty-string pointer so the
+// settings converter always overwrites any previously-stored username in the database.
+// Username transport errors fail the request — stale LFIDs must never be silently kept.
+// Metadata (name/avatar) errors only log a warning; display fields do not block the write.
+func (s *ProjectsService) enrichAllRoleFields(
+	ctx context.Context,
+	slices [][]*projsvc.UserInfo,
+	singles []*projsvc.UserInfo,
+) error {
+	// Guard for incomplete wiring outside the normal ServiceReady path.
+	if s.UserReader == nil {
+		return domain.ErrInternal
+	}
+
+	// Gather all entries grouped by email; clear username immediately for entries without an email.
+	type group struct{ users []*projsvc.UserInfo }
+	byEmail := make(map[string]*group)
+
+	gather := func(u *projsvc.UserInfo) {
+		if u == nil {
+			return
+		}
+		// Treat nil, empty, or whitespace-only emails as missing.
+		if u.Email == nil || strings.TrimSpace(*u.Email) == "" {
+			u.Username = misc.StringPtr("")
+			return
+		}
+		normEmail := strings.ToLower(strings.TrimSpace(*u.Email))
+		if normEmail == "" {
+			u.Username = misc.StringPtr("")
+			return
+		}
+		eg := byEmail[normEmail]
+		if eg == nil {
+			eg = &group{}
+			byEmail[normEmail] = eg
+		}
+		eg.users = append(eg.users, u)
+	}
+
+	for _, slice := range slices {
+		for _, u := range slice {
+			gather(u)
+		}
+	}
+	for _, u := range singles {
+		gather(u)
+	}
+
+	if len(byEmail) == 0 {
+		return nil
+	}
+
+	// enrichResult holds the resolved identity and profile for one email address.
+	type enrichResult struct {
+		username string
+		metadata *domain.UserMetadata
+	}
+
+	// Look up each unique email concurrently.
+	results := make(map[string]enrichResult, len(byEmail))
+	var mu sync.Mutex
+	const maxConcurrent = 8
+	g, gCtx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, maxConcurrent)
+
+	for email := range byEmail {
+		g.Go(func() error {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			// username holds the auth subject identifier returned by SubByEmail. The field
+			// is named "username" because ProjectSettings stores it under that key —
+			// renaming requires a coordinated data migration with fga-sync.
+			username, err := s.UserReader.SubByEmail(gCtx, email)
+			if err != nil {
+				if errors.Is(err, domain.ErrUserNotFound) {
+					mu.Lock()
+					results[email] = enrichResult{}
+					mu.Unlock()
+					return nil
+				}
+				return err
+			}
+
+			// Subject resolved — now fetch authoritative profile data.
+			// Metadata failures are non-fatal: display fields must not block the write.
+			var meta *domain.UserMetadata
+			if username != "" {
+				m, metaErr := s.UserReader.UserMetadataByPrincipal(gCtx, username)
+				if metaErr != nil {
+					slog.WarnContext(gCtx, "user metadata lookup failed; name/avatar will not be enriched",
+						constants.ErrKey, metaErr)
+				} else {
+					meta = m
+				}
+			}
+
+			mu.Lock()
+			results[email] = enrichResult{username: username, metadata: meta}
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	// Apply resolved username, name, and avatar to each UserInfo entry.
+	// Only Name and Avatar are written back; other metadata fields (JobTitle, Organization, etc.)
+	// are not surfaced in UserInfo and are discarded after this call.
+	for email, eg := range byEmail {
+		r := results[email]
+		for _, u := range eg.users {
+			u.Username = misc.StringPtr(r.username)
+			if r.metadata != nil {
+				// Only overwrite when the auth service returned a non-empty value so a partial
+				// metadata response doesn't silently erase a previously stored display name/avatar.
+				if r.metadata.Name != "" {
+					u.Name = misc.StringPtr(r.metadata.Name)
+				}
+				if r.metadata.Picture != "" {
+					u.Avatar = misc.StringPtr(r.metadata.Picture)
+				}
+			}
+		}
+	}
+	return nil
 }

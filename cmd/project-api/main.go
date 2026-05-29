@@ -22,13 +22,15 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	goahttp "goa.design/goa/v3/http"
 
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	genhttp "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
 	genquerysvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/middleware"
 	internalnats "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/log"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/middleware"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/utils"
@@ -94,7 +96,10 @@ func main() {
 
 	// Generated service initialization.
 	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
-		SkipEtagValidation: env.SkipEtagValidation,
+		SkipEtagValidation:  env.SkipEtagValidation,
+		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
+		EmailsEnabled:       env.EmailsEnabled,
+		InvitesEnabled:      env.InvitesEnabled,
 	})
 	svc := NewProjectsAPI(service)
 
@@ -156,9 +161,12 @@ func parseFlags(defaultPort string) flags {
 
 // environment are the environment variables for the project service.
 type environment struct {
-	NatsURL            string
-	Port               string
-	SkipEtagValidation bool
+	NatsURL             string
+	Port                string
+	SkipEtagValidation  bool
+	LFXSelfServeBaseURL string
+	EmailsEnabled       bool
+	InvitesEnabled      bool
 }
 
 func parseEnv() environment {
@@ -175,10 +183,24 @@ func parseEnv() environment {
 	if skipEtagValidationStr == "true" {
 		skipEtagValidation = true
 	}
+	lfxSelfServeBaseURL := os.Getenv("LFX_SELF_SERVE_BASE_URL")
+	if lfxSelfServeBaseURL == "" {
+		switch os.Getenv("LFX_ENVIRONMENT") {
+		case "prod":
+			lfxSelfServeBaseURL = "https://app.lfx.dev"
+		case "staging", "stg":
+			lfxSelfServeBaseURL = "https://app.staging.lfx.dev"
+		default:
+			lfxSelfServeBaseURL = "https://app.dev.lfx.dev"
+		}
+	}
 	return environment{
-		NatsURL:            natsURL,
-		Port:               port,
-		SkipEtagValidation: skipEtagValidation,
+		NatsURL:             natsURL,
+		Port:                port,
+		SkipEtagValidation:  skipEtagValidation,
+		LFXSelfServeBaseURL: lfxSelfServeBaseURL,
+		EmailsEnabled:       os.Getenv("EMAILS_ENABLED") == "true",
+		InvitesEnabled:      os.Getenv("INVITES_ENABLED") == "true",
 	}
 }
 
@@ -330,6 +352,9 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulC
 	svc.service.MessageBuilder = &internalnats.MessageBuilder{
 		NatsConn: natsConn,
 	}
+	svc.service.UserReader = &internalnats.UserReaderNATS{
+		NatsConn: natsConn,
+	}
 
 	// Create NATS subscriptions for the service.
 	err = createNatsSubcriptions(ctx, svc, natsConn)
@@ -415,6 +440,27 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 		_, err := natsConn.QueueSubscribe(subject, queueName, func(msg *nats.Msg) {
 			natsMsg := &internalnats.NatsMsg{Msg: msg}
 			svc.service.HandleMessage(ctx, natsMsg)
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
+			return err
+		}
+	}
+
+	type eventHandler struct {
+		subject string
+		handle  func(ctx context.Context, msg domain.Message) error
+	}
+	for _, eh := range []eventHandler{
+		{constants.ProjectSettingsUpdatedSubject, svc.service.HandleProjectSettingsUpdated},
+		{inviteapi.InviteAcceptedSubject, svc.service.HandleInviteAccepted},
+	} {
+		slog.With("subject", eh.subject, "queue", queueName).Debug("subscribing to NATS subject")
+		_, err := natsConn.QueueSubscribe(eh.subject, queueName, func(msg *nats.Msg) {
+			natsMsg := &internalnats.NatsMsg{Msg: msg}
+			if handlerErr := eh.handle(ctx, natsMsg); handlerErr != nil {
+				slog.WarnContext(ctx, "event handler failed", errKey, handlerErr, "subject", eh.subject)
+			}
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)

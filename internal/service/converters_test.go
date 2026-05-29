@@ -9,6 +9,7 @@ import (
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,6 +94,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    *projsvc.ProjectSettings
+		existing *models.ProjectSettings // simulates the stored record on a PUT
 		expected *models.ProjectSettings
 		wantErr  bool
 	}{
@@ -167,11 +169,49 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "invite preserved when user still in list (PUT does not wipe invite)",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Email: "w@example.com", Name: "Old Name", Invite: &models.InviteInfo{UID: "inv-1", Email: "w@example.com"}},
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("New Name"), Email: misc.StringPtr("w@example.com"), Username: misc.StringPtr(""), Avatar: misc.StringPtr("")},
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Name: "New Name", Email: "w@example.com", Invite: &models.InviteInfo{UID: "inv-1", Email: "w@example.com"}},
+				},
+			},
+		},
+		{
+			name: "invite gone when user removed from list",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Email: "gone@example.com", Invite: &models.InviteInfo{UID: "inv-2", Email: "gone@example.com"}},
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID:     misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{}, // user removed
+			},
+			expected: &models.ProjectSettings{
+				UID:     "test-uid",
+				Writers: nil,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ConvertToDBProjectSettings(tt.input)
+			result, err := ConvertToDBProjectSettings(tt.input, tt.existing)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -441,6 +481,37 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				OpportunityOwner: createTestAPIUserInfo("oo1", "OO One", "oo1@example.com", ""),
 			},
 		},
+		{
+			name: "writer with pending invite is included in response",
+			input: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{
+						Email: "nolfid@example.com",
+						Name:  "No LFID User",
+						Invite: &models.InviteInfo{
+							UID:   "invite-uid-123",
+							Email: "nolfid@example.com",
+						},
+					},
+				},
+			},
+			expected: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{
+					{
+						Name:     misc.StringPtr("No LFID User"),
+						Email:    misc.StringPtr("nolfid@example.com"),
+						Username: misc.StringPtr(""),
+						Avatar:   misc.StringPtr(""),
+						Invite: &projsvc.InviteInfo{
+							UID:   misc.StringPtr("invite-uid-123"),
+							Email: misc.StringPtr("nolfid@example.com"),
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -455,6 +526,96 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 			assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
 			assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 			assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
+		})
+	}
+}
+
+func TestDomainSettingsToEvent(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name     string
+		input    *models.ProjectSettings
+		expected events.ProjectSettings
+	}{
+		{
+			name:     "nil input returns zero value",
+			input:    nil,
+			expected: events.ProjectSettings{},
+		},
+		{
+			name: "full settings mapped correctly",
+			input: &models.ProjectSettings{
+				UID:              "uid-1",
+				MissionStatement: "test mission",
+				AnnouncementDate: &now,
+				Auditors: []models.UserInfo{
+					{Name: "A", Email: "a@example.com", Username: "auser", Avatar: "a.png"},
+				},
+				Writers: []models.UserInfo{
+					{Name: "W", Email: "w@example.com", Username: "wuser", Avatar: "w.png"},
+				},
+				MeetingCoordinators: []models.UserInfo{
+					{Name: "M", Email: "m@example.com", Username: "muser", Avatar: "m.png"},
+				},
+				ExecutiveDirector: &models.UserInfo{Name: "ED", Email: "ed@example.com", Username: "eduser", Avatar: "ed.png"},
+				ProgramManager:    &models.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
+				OpportunityOwner:  &models.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
+				CreatedAt:         &now,
+				UpdatedAt:         &now,
+			},
+			expected: events.ProjectSettings{
+				UID:              "uid-1",
+				MissionStatement: "test mission",
+				AnnouncementDate: &now,
+				Auditors:         []events.UserInfo{{Name: "A", Email: "a@example.com", Username: "auser", Avatar: "a.png"}},
+				Writers:          []events.UserInfo{{Name: "W", Email: "w@example.com", Username: "wuser", Avatar: "w.png"}},
+				MeetingCoordinators: []events.UserInfo{
+					{Name: "M", Email: "m@example.com", Username: "muser", Avatar: "m.png"},
+				},
+				ExecutiveDirector: &events.UserInfo{Name: "ED", Email: "ed@example.com", Username: "eduser", Avatar: "ed.png"},
+				ProgramManager:    &events.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
+				OpportunityOwner:  &events.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
+				CreatedAt:         &now,
+				UpdatedAt:         &now,
+			},
+		},
+		{
+			name: "nil optional pointers produce nil in output",
+			input: &models.ProjectSettings{
+				UID:              "uid-2",
+				MissionStatement: "no optionals",
+			},
+			expected: events.ProjectSettings{
+				UID:              "uid-2",
+				MissionStatement: "no optionals",
+			},
+		},
+		{
+			name: "nil user slice preserves nil (serializes as JSON null not [])",
+			input: &models.ProjectSettings{
+				UID:     "uid-3",
+				Writers: nil,
+			},
+			expected: events.ProjectSettings{
+				UID: "uid-3",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := DomainSettingsToEvent(tt.input)
+			assert.Equal(t, tt.expected.UID, result.UID)
+			assert.Equal(t, tt.expected.MissionStatement, result.MissionStatement)
+			assert.Equal(t, tt.expected.AnnouncementDate, result.AnnouncementDate)
+			assert.Equal(t, tt.expected.Auditors, result.Auditors)
+			assert.Equal(t, tt.expected.Writers, result.Writers)
+			assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
+			assert.Equal(t, tt.expected.ExecutiveDirector, result.ExecutiveDirector)
+			assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
+			assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
+			assert.Equal(t, tt.expected.CreatedAt, result.CreatedAt)
+			assert.Equal(t, tt.expected.UpdatedAt, result.UpdatedAt)
 		})
 	}
 }

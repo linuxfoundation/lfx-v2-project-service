@@ -11,9 +11,12 @@ import (
 	"time"
 
 	"github.com/go-viper/mapstructure/v2"
+	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
 )
@@ -195,5 +198,73 @@ func (m *MessageBuilder) SendProjectEventMessage(ctx context.Context, subject st
 	}
 
 	slog.DebugContext(ctx, "published project event message to NATS", "subject", subject)
+	return nil
+}
+
+// SendInviteRequest sends a request to the invite service for a user who does
+// not yet have an LFID and returns the invite UID from the reply.
+func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (domain.InviteResult, error) {
+	data, err := json.Marshal(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling invite request into JSON", constants.ErrKey, err)
+		return domain.InviteResult{}, err
+	}
+
+	reply, err := m.NatsConn.RequestMsgWithContext(ctx, &nats.Msg{
+		Subject: inviteapi.SendInviteSubject,
+		Data:    data,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "invite service request failed", constants.ErrKey, err)
+		return domain.InviteResult{}, fmt.Errorf("invite service request: %w", err)
+	}
+
+	var resp inviteapi.SendInviteResponse
+	if len(reply.Data) > 0 {
+		if jsonErr := json.Unmarshal(reply.Data, &resp); jsonErr != nil {
+			slog.ErrorContext(ctx, "error unmarshalling invite response", constants.ErrKey, jsonErr)
+			return domain.InviteResult{}, fmt.Errorf("invite service response: %w", jsonErr)
+		}
+		if resp.Error != "" {
+			return domain.InviteResult{}, fmt.Errorf("invite service error: %s", resp.Error)
+		}
+	}
+
+	if resp.Invite == nil || resp.Invite.UID == "" {
+		return domain.InviteResult{}, fmt.Errorf("invite service returned success but invite_uid is empty")
+	}
+	result := domain.InviteResult{
+		InviteUID:      resp.Invite.UID,
+		RecipientEmail: resp.Invite.Email,
+		ExpiresAt:      resp.Invite.ExpiresAt,
+	}
+	slog.DebugContext(ctx, "invite service replied", "invite_uid", result.InviteUID, "expires_at", result.ExpiresAt)
+	return result, nil
+}
+
+// SendEmailRequest sends a request to the email service and waits for a reply.
+func (m *MessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.SendEmailRequest) error {
+	data, err := json.Marshal(req)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling email request into JSON", constants.ErrKey, err)
+		return err
+	}
+
+	reply, err := m.NatsConn.RequestMsgWithContext(ctx, &nats.Msg{
+		Subject: emailapi.SendEmailSubject,
+		Data:    data,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "email service request failed", constants.ErrKey, err)
+		return fmt.Errorf("email service request: %w", err)
+	}
+
+	if len(reply.Data) > 0 {
+		var errResp emailapi.SendEmailErrorResponse
+		if jsonErr := json.Unmarshal(reply.Data, &errResp); jsonErr == nil && errResp.Error != "" {
+			return fmt.Errorf("email service error: %s", errResp.Error)
+		}
+	}
+
 	return nil
 }

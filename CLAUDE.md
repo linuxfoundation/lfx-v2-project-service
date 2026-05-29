@@ -19,7 +19,7 @@ The LFX V2 Project Service is a RESTful API service that manages projects within
 
 ### Key Technologies
 
-- **Language**: Go 1.24.x (`go.mod` declares `go 1.24.0`)
+- **Language**: Go 1.24+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for event-driven architecture
 - **Storage**: NATS Key-Value stores (no traditional database)
@@ -39,7 +39,7 @@ api/                        # API contracts
 └── project/
     └── v1/
         ├── design/         # Goa API design specifications
-        └── gen/            # Generated code (tracked; produced by make apigen)
+        └── gen/            # Generated code (gitignored)
 
 charts/                     # Helm charts containing kubernetes template files for deployments
 
@@ -50,11 +50,13 @@ cmd/project-api/            # Presentation Layer (HTTP/NATS entry point)
 internal/                   # Core business logic
 ├── domain/                # Domain layer (interfaces, models, errors)
 │   └── models/           # Domain entities
-├── service/              # Service layer (business logic)
-├── infrastructure/       # Infrastructure layer
-│   ├── auth/            # JWT authentication
-│   └── nats/            # NATS repository implementation
-└── middleware/          # HTTP middleware
+├── service/               # Service layer (business logic)
+│   └── email/            # Email template rendering (one file per email type)
+└── infrastructure/        # Infrastructure layer
+    ├── auth/             # JWT authentication
+    ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
+    ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger)
+    └── nats/             # NATS repository and message builder
 
 pkg/                    # Shared packages across services
 └── constants/          # Shared constants
@@ -71,31 +73,61 @@ scripts/                # Scripts for services and miscellaneous tasks
 
 ## Development Workflow
 
-### Agent Guidance
+### Prerequisites
 
-Repo-owned guidance lives across the local skill, contract docs, and chart:
+```bash
+# Install Go 1.23+
+# Install Goa framework
+go install goa.design/goa/v3/cmd/goa@latest
 
-- `.claude/skills/project-service-dev/` (auto-attached path-scoped skill) owns Go coding conventions: generated-code boundary, logging, errors, request context, pagination, NATS/KV publishing, tests, formatting, linting, license headers. SKILL.md plus three references (`go-conventions.md`, `goa-and-codegen.md`, `nats-messaging.md`).
-- `.claude/skills/project-service-pr-readiness/` owns the pre-PR shape check only: branch name, JIRA reference, conventional commits, rebase status, DCO plus GPG signing, diff size, and project-service protected files.
-- `.claude/skills/project-service-preflight/` owns the mechanical pre-PR validation after readiness: working tree, license headers, Goa generation, formatting, lint, build, tests, protected files, commit verification, and PR change summary.
-- `docs/indexer-contract.md` and `docs/fga-contract.md` are the authoritative
-  per-resource references for what this service emits. Update them in the same
-  PR as any publisher change.
-- Service-local chart facts live in this repo's Helm chart under
-  `charts/lfx-v2-project-service/`; shared chart conventions live in
-  `lfx-v2-helm/docs/service-chart-patterns.md`.
+# Install linting tools
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+```
 
-Consumed cross-repo contracts:
+### Common Development Tasks
 
-- Generic FGA envelope: `lfx-v2-fga-sync/docs/fga-sync-contract.md`
-- Generic indexer event contract: `lfx-v2-indexer-service/docs/indexer-contract.md`
-- OpenFGA model: `lfx-v2-helm/charts/lfx-platform/templates/openfga/model.yaml`
-- Service chart conventions: `lfx-v2-helm/docs/service-chart-patterns.md`
+#### 1. Generate API Code (REQUIRED after design changes)
 
-Use `/lfx-skills:lfx` if an owner repo is missing locally, the path has moved,
-or the task needs additional peer repos.
+```bash
+make apigen
+# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o api/project/v1
+```
 
-Reusable V2 service architecture and native-service classification live in `/lfx-skills:lfx-platform-architecture`. This repo is a living native-service example, not the central owner of native-service architecture.
+#### 2. Build the Service
+
+```bash
+make build
+```
+
+#### 3. Run Tests
+
+```bash
+make test              # Run unit tests
+make test-verbose      # Verbose output
+make test-coverage     # Generate coverage report
+make test-integration  # Run integration tests (requires -tags=integration)
+```
+
+#### 4. Run the Service Locally
+
+```bash
+# Basic run
+make run
+
+# With debug logging
+make debug
+
+# With custom flags (direct go run)
+go run ./cmd/project-api -d -p 8080
+```
+
+#### 5. Lint and Format Code
+
+```bash
+make fmt    # Format code
+make lint   # Run golangci-lint
+make check  # Check format and lint without modifying
+```
 
 ## Work cycle — post-commit and pre-PR reviews
 
@@ -129,58 +161,6 @@ When the work is done and no more code commits are planned:
 3. Roll fixes into a `fix(review): ...` commit.
 4. Push. Repeat until clean.
 
-### Prerequisites
-
-```bash
-# Install Go 1.24.x
-# Install pinned repo tooling, including Goa v3.22.6 and golangci-lint
-make deps
-```
-
-### Common Development Tasks
-
-#### 1. Generate API Code (REQUIRED after design changes)
-
-```bash
-make apigen
-# or directly: goa gen github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/design -o api/project/v1
-```
-
-#### 2. Build the Service
-
-```bash
-make build
-```
-
-#### 3. Run Tests
-
-```bash
-make test              # Run unit tests
-make test-verbose      # Verbose output
-make test-coverage     # Generate coverage report
-```
-
-#### 4. Run the Service Locally
-
-```bash
-# Basic run
-make run
-
-# With debug logging
-make debug
-
-# With custom flags (direct go run)
-go run ./cmd/project-api -d -p 8080
-```
-
-#### 5. Lint and Format Code
-
-```bash
-make fmt    # Format code
-make lint   # Run golangci-lint
-make check  # Check format and lint without modifying
-```
-
 ## Code Generation (Goa Framework)
 
 The service uses Goa v3 for API code generation. This is **critical** to understand:
@@ -191,22 +171,134 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
    - Service interfaces
    - OpenAPI specifications
    - Type definitions
-
-   Generated files under `api/project/v1/gen/` are tracked in git. Include them
-   in the same change as the design file updates; never hand-edit them.
 3. **Implementation**: You implement the generated interfaces in `cmd/project-api/service*.go` files
 
 ### Adding New Endpoints
 
-See the auto-attached `project-service-dev` skill (sections "Generated code boundary" and "References" pointing at `references/goa-and-codegen.md`) for the design-first recipe. Repo-specific note: any design change that affects authorization must also update `charts/lfx-v2-project-service/templates/ruleset.yaml` in the same PR.
+1. Update `api/project/v1/design/project.go` with new method
+2. Run `make apigen` (from repository root) to regenerate code
+3. Implement the new method in `cmd/project-api/service_endpoint_project.go`
+4. Add tests in `cmd/project-api/service_endpoint_project_test.go`
+5. Update Heimdall ruleset in `charts/*/templates/ruleset.yaml`
 
 ## NATS Messaging Patterns
 
-Subjects, KV bucket inventory, optimistic-locking pattern, and publish order live in `.claude/skills/project-service-dev/references/nats-messaging.md` (auto-attached). The generic FGA envelope lives in `lfx-v2-fga-sync/docs/fga-sync-contract.md`, and this repo's emitted FGA data lives in `docs/fga-contract.md`. Read them before changing subjects, envelopes, or KV layout.
+The service uses NATS for:
+
+1. **Storage**: Key-Value stores for project data
+2. **Events**: Publishing events on data changes
+3. **RPC**: Handling requests from other services
+
+### Key-Value Stores
+
+- `projects`: Base project information
+- `project-settings`: Project settings (separated for access control)
+
+### API Endpoints and Message Subjects
+
+Complete API endpoint documentation and NATS message handlers are now documented in README.md.
+
+There are two distinct NATS patterns in this service — both use `QueueSubscribe` but for different purposes:
+
+**Request/reply RPC** (`internal/service/project_handlers.go`): another service sends a request and blocks waiting for a response. The handler calls `msg.Respond(data)` to return data to the caller.
+
+**Event subscriptions** (`internal/service/project_subscriber.go`): the service reacts to events that were already published (including by itself). No caller is waiting — the handler is fire-and-forget and never calls `msg.Respond`.
+
+```go
+// Inbound RPC — request/reply, caller blocks waiting for response
+"lfx.projects-api.get_name"            // Get project name by UID
+"lfx.projects-api.get_slug"            // Get project slug by UID
+"lfx.projects-api.get_logo"            // Get project logo URL by UID
+"lfx.projects-api.slug_to_uid"         // Convert slug to UID
+"lfx.projects-api.get_parent_uid"      // Get parent project UID
+
+// Inbound events — fire-and-forget, no reply expected
+"lfx.projects-api.project_settings.updated" // Sends role notification emails on member additions
+
+// Outbound events (published by this service)
+"lfx.index.project"                    // Project created/updated/deleted for indexing
+"lfx.index.project_settings"           // Settings created/updated for indexing
+"lfx.projects-api.project_settings.updated" // Settings changed (before/after snapshot)
+"lfx.fga-sync.update_access"           // Generic FGA access control updates
+"lfx.fga-sync.delete_access"           // Generic FGA access control deletion
+"lfx.email-service.send_email"         // Request/reply to email service for role notifications
+```
+
+### FGA Sync Message Format
+
+The service uses the generic FGA sync handlers for access control. All messages use the `GenericFGAMessage` envelope:
+
+```go
+// Update access control (full sync)
+GenericFGAMessage{
+    ObjectType: "project",
+    Operation: "update_access",
+    Data: UpdateAccessData{
+        UID: "project-uid",
+        Public: true,
+        Relations: map[string][]string{
+            "writer": []string{"username1", "username2"},
+            "auditor": []string{"username3"},
+            "meeting_coordinator": []string{"username4"},
+        },
+        References: map[string][]string{
+            "parent": []string{"project:parent-uid"},
+        },
+    },
+}
+
+// Delete all access control
+GenericFGAMessage{
+    ObjectType: "project",
+    Operation: "delete_access",
+    Data: DeleteAccessData{
+        UID: "project-uid",
+    },
+}
+```
+
+**Key Points:**
+
+- Relations map user roles to usernames (e.g., `"writer": ["user1", "user2"]`)
+- References map object relationships with formatted UIDs (e.g., `"parent": ["project:parent-uid"]`)
+- Update operations are full sync - any relations not included will be removed
+- Delete operations remove all access control tuples for the resource
 
 ## Testing Patterns
 
-See the auto-attached `project-service-dev` skill ("Tests" section) for test framework, mock layout, and table-driven conventions.
+### Unit Tests
+
+- Mock all external dependencies (repository, message builder)
+- Test each layer in isolation
+- Use table-driven tests for comprehensive coverage
+- Write one function tests containing multiple test cases that focus on a single function
+- Focus on testing exported functions of packages
+- Unit tests should be alongside the implementation code with the same file name with a suffix of `*_test.go`
+- **IMPORTANT**: Each function should have exactly ONE corresponding test function (e.g., `SendIndexProject` → `TestMessageBuilder_SendIndexProject`) which can have multiple tests cases within it.
+- Add test cases within existing test functions if the function you are trying to test already has one rather than creating new test functions
+
+### Example Test Structure
+
+```go
+func TestEndpoint(t *testing.T) {
+    tests := []struct {
+        name       string
+        payload    *projsvc.Payload
+        setupMocks func(*domain.MockRepo, *domain.MockMsg)
+        wantErr    bool
+    }{
+        // Test cases
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            api, mockRepo, mockMsg := setupAPI()
+            tt.setupMocks(mockRepo, mockMsg)
+            // Test logic
+        })
+    }
+}
+```
 
 ## Environment Variables
 
@@ -218,7 +310,9 @@ See the auto-attached `project-service-dev` skill ("Tests" section) for test fra
 | `JWKS_URL` | JWT verification endpoint | - | No |
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | - | No |
-| `SKIP_ETAG_VALIDATION` | Skip `If-Match` revision checks for local development | false | No |
+| `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails | derived from `LFX_ENVIRONMENT` | No |
+| `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
+| `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
 
 ## Authorization (OpenFGA)
 
@@ -255,10 +349,6 @@ docker run -d -p 4222:4222 nats:latest -js
 # Create KV stores
 nats kv add projects --history=20 --storage=file
 nats kv add project-settings --history=20 --storage=file
-nats kv add project-links --history=20 --storage=file
-nats kv add project-folders --history=20 --storage=file
-nats kv add project-documents-metadata --history=20 --storage=file
-nats object add project-documents --storage=file
 
 # Run service with mock auth
 export NATS_URL=nats://localhost:4222
@@ -323,11 +413,30 @@ GitHub Actions workflows:
 
 ## Common Pitfalls and Solutions
 
-The generated-code boundary, ETag/If-Match handling, NATS publishing order, and request context propagation are covered by the auto-attached `project-service-dev` skill. Repo-specific validation rules to keep in mind:
+### 1. Forgetting to Generate Code
 
-- **Slug format**: must match `^[a-z][a-z0-9_\-]*[a-z0-9]$`.
-- **Parent project**: `parent_uid` must be the empty string or a valid UUID.
-- **NATS connectivity**: the service refuses to start if `NATS_URL` is wrong or NATS is down. Confirm NATS is reachable before running the service.
+**Problem**: Changes to design files not reflected in implementation
+**Solution**: Always run `make apigen` after modifying design files
+
+### 2. ETag Handling
+
+**Problem**: Concurrent updates without proper ETag validation
+**Solution**: Always include If-Match header in PUT/DELETE requests (server responds with ETag header on GET request)
+
+### 3. NATS Connection
+
+**Problem**: Service fails to start due to NATS connection
+**Solution**: Ensure NATS is running and NATS_URL is correct
+
+### 4. Slug Validation
+
+**Problem**: Invalid slug format causes API errors
+**Solution**: Slugs must match `^[a-z][a-z0-9_\-]*[a-z0-9]$`
+
+### 5. Parent Project Validation
+
+**Problem**: Creating projects with invalid parent_uid
+**Solution**: parent_uid must be empty string or valid UUID
 
 ## Mock Data Loading
 
@@ -354,13 +463,32 @@ Every data modification publishes NATS messages:
 - Index messages for search service
 - Access control updates for authorization service
 
-### 3. Request Context
+### 3. NATS Event Wire Types (`pkg/events/`)
 
-Request-context keys (`request-id`, `principal`, `authorization`, `etag`) and the typed-key pattern live in the auto-attached `project-service-dev` skill. The full constant set is in `pkg/constants/http.go`.
+NATS message payload types that other services consume belong in `pkg/events/`, **not** `internal/`. This lets downstream services (e.g., `lfx-v2-invite-service`) import the canonical struct definitions directly.
 
-### 4. Error Handling
+- Domain types in `internal/domain/models/` may differ from wire types and can evolve independently.
+- Explicit converter functions in `internal/service/converters.go` map from domain → event type before publishing.
+- Example: `DomainSettingsToEvent(*models.ProjectSettings) events.ProjectSettings`
 
-Domain sentinels and HTTP mapping live in the auto-attached `project-service-dev` skill. The sentinels themselves are declared in `internal/domain/errors.go` and mapped to HTTP in `cmd/project-api/service_endpoint_project.go::handleError`. New errors must be added to both.
+**Rule:** if a struct appears in a NATS message payload, it belongs in `pkg/events/`, not `internal/`.
+
+### 4. Request Context
+
+Important context values:
+
+- `request-id`: Unique request identifier
+- `authorization`: JWT token from header
+- `etag`: ETag value for optimistic concurrency (sent as If-Match header in requests)
+
+### 5. Error Handling
+
+Domain errors are mapped to HTTP status codes:
+
+- `ErrNotFound` → 404
+- `ErrConflict` → 409
+- `ErrInvalidParentUID` → 400
+- `ErrInternal` → 500
 
 ## Debugging Tips
 
@@ -372,20 +500,17 @@ Domain sentinels and HTTP mapping live in the auto-attached `project-service-dev
 
 ## Documentation Structure
 
-Repo documentation follows the routing model described in the central-skills block at the top of this file. Where each kind of guidance lives:
+The project has a clear documentation hierarchy:
 
-- **README.md**: project overview, quick start, API endpoints, deployment setup.
-- **DEVELOPMENT.md**: human developer guide with build, test, and deploy workflows.
-- **CLAUDE.md** (this file): high-level routing for AI assistants and repo-specific facts that don't belong in an auto-attached skill.
-- **SECURITY.md**: vulnerability reporting and security policy for this repo.
-- **`.claude/skills/project-service-dev/`**: auto-attached path-scoped skill that owns Go coding conventions (logging, errors, request context, pagination, generated-code boundary, NATS/KV publishing, tests, formatting, linting, license headers). SKILL.md plus references under `references/`.
-- **`.claude/skills/project-service-pr-readiness/`**: repo-local shape check before PR creation.
-- **`.claude/skills/project-service-preflight/`**: repo-local mechanical Go preflight after readiness.
-- **`docs/indexer-contract.md`, `docs/fga-contract.md`**: authoritative per-resource references for what this service emits. Update in the same PR as any publisher change.
-- **`charts/lfx-v2-project-service/`**: service-local Helm templates and values. Shared chart conventions live in `lfx-v2-helm/docs/service-chart-patterns.md`.
-- **Central LFX skills** (`/lfx-skills:lfx`, `/lfx-skills:lfx-platform-architecture`): cross-repo routing, platform composition, V2 service classes, write/read/access-check flows.
+- **README.md**: Project overview, quick start, API endpoints, deployment setup
+- **DEVELOPMENT.md**: Comprehensive developer guide with build/test/deploy workflows
+- **CLAUDE.md**: AI assistant instructions and technical details (this file)
 
-Avoid duplicating content across these surfaces. Cross-reference instead.
+Key documentation patterns:
+
+- README focuses on getting the service running quickly
+- DEVELOPMENT.md covers the full development workflow
+- Avoid duplicating content between files - use cross-references instead
 
 ## Contributing Guidelines
 
