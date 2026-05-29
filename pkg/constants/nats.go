@@ -64,12 +64,12 @@ const (
 	IndexProjectDocumentSubject = "lfx.index.project_document"
 
 	// ProjectDocumentCreatedSubject is emitted after a file document is successfully uploaded to a project.
-	// The payload is the marshalled models.ProjectDocument.
+	// The payload is the marshalled events.ProjectDocumentCreatedMessage.
 	// The subject is of the form: lfx.projects-api.project_document.created
 	ProjectDocumentCreatedSubject = "lfx.projects-api.project_document.created"
 
 	// ProjectLinkCreatedSubject is emitted after a link is successfully added to a project.
-	// The payload is the marshalled models.ProjectLink.
+	// The payload is the marshalled events.ProjectLinkCreatedMessage.
 	// The subject is of the form: lfx.projects-api.project_link.created
 	ProjectLinkCreatedSubject = "lfx.projects-api.project_link.created"
 )
