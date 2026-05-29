@@ -14,6 +14,7 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
 
 func TestHandleProjectDocumentCreated(t *testing.T) {
@@ -26,26 +27,31 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		return &models.ProjectSettings{UID: "proj-1", Writers: writers, Auditors: auditors}
 	}
 
-	folderUID := "folder-1"
-
 	tests := []struct {
 		name           string
-		doc            models.ProjectDocument
+		event          events.ProjectDocumentCreatedMessage
 		settings       *models.ProjectSettings
 		wantEmailCount int
 		emailsEnabled  bool
-		folderName     string // expected folder name in email; set only when doc has a FolderUID
+		folderName     string
 	}{
 		{
 			name:           "notifies writer and auditor",
-			doc:            models.ProjectDocument{ProjectUID: "proj-1", Name: "Charter", FileName: "charter.pdf", UploadedByUsername: "uploader"},
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Charter", FileName: "charter.pdf", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
 			wantEmailCount: 2,
 			emailsEnabled:  true,
 		},
 		{
+			name:           "uploader excluded from recipients",
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Charter", FileName: "charter.pdf", CreatedBy: writer.Username},
+			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
+			wantEmailCount: 1, // writer is uploader; only auditor receives
+			emailsEnabled:  true,
+		},
+		{
 			name:           "includes folder name when document is in a folder",
-			doc:            models.ProjectDocument{ProjectUID: "proj-1", Name: "Charter", FileName: "charter.pdf", UploadedByUsername: "uploader", FolderUID: &folderUID},
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Charter", FileName: "charter.pdf", FolderUID: "folder-1", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{}),
 			wantEmailCount: 1,
 			emailsEnabled:  true,
@@ -53,28 +59,28 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		},
 		{
 			name:           "no-LFID users skipped",
-			doc:            models.ProjectDocument{ProjectUID: "proj-1", Name: "Doc", UploadedByUsername: "uploader"},
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{noLFID}, []models.UserInfo{}),
 			wantEmailCount: 0,
 			emailsEnabled:  true,
 		},
 		{
 			name:           "users without email skipped",
-			doc:            models.ProjectDocument{ProjectUID: "proj-1", Name: "Doc", UploadedByUsername: "uploader"},
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{noEmail}, []models.UserInfo{}),
 			wantEmailCount: 0,
 			emailsEnabled:  true,
 		},
 		{
 			name:           "duplicate in writer and auditor deduplicated",
-			doc:            models.ProjectDocument{ProjectUID: "proj-1", Name: "Doc", UploadedByUsername: "uploader"},
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{writer}),
 			wantEmailCount: 1,
 			emailsEnabled:  true,
 		},
 		{
 			name:           "EmailsEnabled=false — no emails sent",
-			doc:            models.ProjectDocument{ProjectUID: "proj-1", Name: "Doc", UploadedByUsername: "uploader"},
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
 			wantEmailCount: 0,
 			emailsEnabled:  false,
@@ -89,15 +95,15 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			mockFolder := &domain.MockFolderRepository{}
 
 			if tt.emailsEnabled && tt.settings != nil {
-				mockRepo.On("GetProjectBase", mock.Anything, tt.doc.ProjectUID).
-					Return(makeProjectBase(tt.doc.ProjectUID, "Demo Project", "demo-project"), nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, tt.doc.ProjectUID).
+				mockRepo.On("GetProjectBase", mock.Anything, tt.event.ProjectUID).
+					Return(makeProjectBase(tt.event.ProjectUID, "Demo Project", "demo-project"), nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, tt.event.ProjectUID).
 					Return(tt.settings, nil)
 				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, mock.AnythingOfType("string")).
 					Return((*domain.UserMetadata)(nil), assert.AnError).Maybe()
-				if tt.doc.FolderUID != nil {
-					mockFolder.On("GetFolder", mock.Anything, tt.doc.ProjectUID, *tt.doc.FolderUID).
-						Return(&models.ProjectFolder{UID: *tt.doc.FolderUID, Name: tt.folderName}, uint64(1), nil)
+				if tt.event.FolderUID != "" {
+					mockFolder.On("GetFolder", mock.Anything, tt.event.ProjectUID, tt.event.FolderUID).
+						Return(&models.ProjectFolder{UID: tt.event.FolderUID, Name: tt.folderName}, uint64(1), nil)
 				}
 			}
 
@@ -123,7 +129,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 				},
 			}
 
-			msg := domain.NewMockMessage(marshalEvent(t, tt.doc), "")
+			msg := domain.NewMockMessage(marshalEvent(t, tt.event), "")
 			err := svc.HandleProjectDocumentCreated(context.Background(), msg)
 			assert.NoError(t, err)
 
@@ -145,8 +151,8 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		mockMsg := &domain.MockMessageBuilder{}
 		mockUserReader := &domain.MockUserReader{}
 
-		doc := models.ProjectDocument{ProjectUID: "proj-1", Name: "Doc", FileName: "doc.pdf", UploadedByUsername: "uploader"}
-		settings := baseSettings([]models.UserInfo{writer}, []models.UserInfo{})
+		event := events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", FileName: "doc.pdf", CreatedBy: "uploader"}
+		settings := &models.ProjectSettings{UID: "proj-1", Writers: []models.UserInfo{{Username: "alice", Email: "alice@example.com", Name: "Alice"}}}
 
 		mockRepo.On("GetProjectBase", mock.Anything, "proj-1").
 			Return(makeProjectBase("proj-1", "Demo Project", "demo-project"), nil)
@@ -165,7 +171,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
 		}
 
-		msg := domain.NewMockMessage(marshalEvent(t, doc), "")
+		msg := domain.NewMockMessage(marshalEvent(t, event), "")
 		err := svc.HandleProjectDocumentCreated(context.Background(), msg)
 		assert.NoError(t, err)
 	})
@@ -175,8 +181,9 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		mockMsg := &domain.MockMessageBuilder{}
 		mockUserReader := &domain.MockUserReader{}
 
-		doc := models.ProjectDocument{ProjectUID: "proj-1", Name: "Spec", FileName: "spec.pdf", UploadedByUsername: "uploader"}
-		settings := baseSettings([]models.UserInfo{writer}, []models.UserInfo{})
+		writer := models.UserInfo{Username: "alice", Email: "alice@example.com", Name: "Alice"}
+		event := events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Spec", FileName: "spec.pdf", CreatedBy: "uploader"}
+		settings := &models.ProjectSettings{UID: "proj-1", Writers: []models.UserInfo{writer}}
 
 		mockRepo.On("GetProjectBase", mock.Anything, "proj-1").
 			Return(makeProjectBase("proj-1", "Demo Project", "demo-project"), nil)
@@ -196,7 +203,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
 		}
 
-		msg := domain.NewMockMessage(marshalEvent(t, doc), "")
+		msg := domain.NewMockMessage(marshalEvent(t, event), "")
 		err := svc.HandleProjectDocumentCreated(context.Background(), msg)
 		assert.NoError(t, err)
 		mockMsg.AssertExpectations(t)
@@ -213,21 +220,28 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		link           models.ProjectLink
+		event          events.ProjectLinkCreatedMessage
 		settings       *models.ProjectSettings
 		wantEmailCount int
 		emailsEnabled  bool
 	}{
 		{
 			name:           "notifies writer and auditor",
-			link:           models.ProjectLink{ProjectUID: "proj-1", Name: "Spec Link", URL: "https://specs.example.com", CreatedByUsername: "uploader"},
+			event:          events.ProjectLinkCreatedMessage{ProjectUID: "proj-1", Name: "Spec Link", URL: "https://specs.example.com", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
 			wantEmailCount: 2,
 			emailsEnabled:  true,
 		},
 		{
+			name:           "uploader excluded from recipients",
+			event:          events.ProjectLinkCreatedMessage{ProjectUID: "proj-1", Name: "Spec Link", URL: "https://specs.example.com", CreatedBy: writer.Username},
+			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
+			wantEmailCount: 1, // writer is creator; only auditor receives
+			emailsEnabled:  true,
+		},
+		{
 			name:           "EmailsEnabled=false — no emails sent",
-			link:           models.ProjectLink{ProjectUID: "proj-1", Name: "Spec Link", URL: "https://specs.example.com", CreatedByUsername: "uploader"},
+			event:          events.ProjectLinkCreatedMessage{ProjectUID: "proj-1", Name: "Spec Link", URL: "https://specs.example.com", CreatedBy: "uploader"},
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
 			wantEmailCount: 0,
 			emailsEnabled:  false,
@@ -241,9 +255,9 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 			mockUserReader := &domain.MockUserReader{}
 
 			if tt.emailsEnabled && tt.settings != nil {
-				mockRepo.On("GetProjectBase", mock.Anything, tt.link.ProjectUID).
-					Return(makeProjectBase(tt.link.ProjectUID, "Demo Project", "demo-project"), nil)
-				mockRepo.On("GetProjectSettings", mock.Anything, tt.link.ProjectUID).
+				mockRepo.On("GetProjectBase", mock.Anything, tt.event.ProjectUID).
+					Return(makeProjectBase(tt.event.ProjectUID, "Demo Project", "demo-project"), nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, tt.event.ProjectUID).
 					Return(tt.settings, nil)
 				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, mock.AnythingOfType("string")).
 					Return((*domain.UserMetadata)(nil), assert.AnError).Maybe()
@@ -265,7 +279,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 				},
 			}
 
-			msg := domain.NewMockMessage(marshalEvent(t, tt.link), "")
+			msg := domain.NewMockMessage(marshalEvent(t, tt.event), "")
 			err := svc.HandleProjectLinkCreated(context.Background(), msg)
 			assert.NoError(t, err)
 
@@ -288,6 +302,10 @@ func TestCollectDocumentRecipients(t *testing.T) {
 	auditor := models.UserInfo{Username: "bob", Email: "bob@example.com", Name: "Bob"}
 	noLFID := models.UserInfo{Email: "nolfid@example.com"}
 	noEmail := models.UserInfo{Username: "noemail"}
+
+	t.Run("nil settings returns nil", func(t *testing.T) {
+		assert.Nil(t, collectDocumentRecipients(nil, ""))
+	})
 
 	t.Run("no eligible recipients returns empty", func(t *testing.T) {
 		settings := &models.ProjectSettings{

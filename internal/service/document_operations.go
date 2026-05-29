@@ -149,8 +149,10 @@ func (s *ProjectsService) UploadDocument(
 
 	bgCtx := context.WithoutCancel(ctx)
 	go func() {
-		if err := s.MessageBuilder.SendProjectEventMessage(bgCtx, constants.ProjectDocumentCreatedSubject, *doc); err != nil {
-			slog.WarnContext(bgCtx, "error sending document created event", constants.ErrKey, err)
+		sendCtx, cancel := context.WithTimeout(bgCtx, notificationTimeout)
+		defer cancel()
+		if err := s.MessageBuilder.SendProjectEventMessage(sendCtx, constants.ProjectDocumentCreatedSubject, DomainDocumentToEvent(doc)); err != nil {
+			slog.WarnContext(sendCtx, "error sending document created event", constants.ErrKey, err)
 		}
 	}()
 

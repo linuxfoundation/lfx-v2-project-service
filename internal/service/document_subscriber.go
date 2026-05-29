@@ -31,29 +31,25 @@ type projectContentItem struct {
 // HandleProjectDocumentCreated handles project_document.created events and notifies all
 // LFID writers and auditors of the project when a new file document is uploaded.
 // Best-effort: send errors are logged but not returned.
-func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, msg domain.Message) error {
+func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, rawMsg domain.Message) error {
 	if !s.Config.EmailsEnabled {
 		slog.DebugContext(ctx, "document_subscriber: skipping notifications — EMAILS_ENABLED is false")
 		return nil
 	}
 
-	var doc models.ProjectDocument
-	if err := json.Unmarshal(msg.Data(), &doc); err != nil {
+	var event events.ProjectDocumentCreatedMessage
+	if err := json.Unmarshal(rawMsg.Data(), &event); err != nil {
 		slog.WarnContext(ctx, "document_subscriber: failed to unmarshal project_document.created event", constants.ErrKey, err)
 		return nil
 	}
 
-	folderUID := ""
-	if doc.FolderUID != nil {
-		folderUID = *doc.FolderUID
-	}
 	s.handleProjectContentCreated(ctx, projectContentItem{
-		projectUID: doc.ProjectUID,
-		folderUID:  folderUID,
+		projectUID: event.ProjectUID,
+		folderUID:  event.FolderUID,
 		itemType:   "file",
-		itemName:   doc.Name,
-		fileName:   doc.FileName,
-		createdBy:  doc.UploadedByUsername,
+		itemName:   event.Name,
+		fileName:   event.FileName,
+		createdBy:  event.CreatedBy,
 	})
 	return nil
 }
@@ -61,29 +57,25 @@ func (s *ProjectsService) HandleProjectDocumentCreated(ctx context.Context, msg 
 // HandleProjectLinkCreated handles project_link.created events and notifies all
 // LFID writers and auditors of the project when a new link is added.
 // Best-effort: send errors are logged but not returned.
-func (s *ProjectsService) HandleProjectLinkCreated(ctx context.Context, msg domain.Message) error {
+func (s *ProjectsService) HandleProjectLinkCreated(ctx context.Context, rawMsg domain.Message) error {
 	if !s.Config.EmailsEnabled {
 		slog.DebugContext(ctx, "document_subscriber: skipping notifications — EMAILS_ENABLED is false")
 		return nil
 	}
 
-	var link models.ProjectLink
-	if err := json.Unmarshal(msg.Data(), &link); err != nil {
+	var event events.ProjectLinkCreatedMessage
+	if err := json.Unmarshal(rawMsg.Data(), &event); err != nil {
 		slog.WarnContext(ctx, "document_subscriber: failed to unmarshal project_link.created event", constants.ErrKey, err)
 		return nil
 	}
 
-	folderUID := ""
-	if link.FolderUID != nil {
-		folderUID = *link.FolderUID
-	}
 	s.handleProjectContentCreated(ctx, projectContentItem{
-		projectUID: link.ProjectUID,
-		folderUID:  folderUID,
+		projectUID: event.ProjectUID,
+		folderUID:  event.FolderUID,
 		itemType:   "link",
-		itemName:   link.Name,
-		url:        link.URL,
-		createdBy:  link.CreatedByUsername,
+		itemName:   event.Name,
+		url:        event.URL,
+		createdBy:  event.CreatedBy,
 	})
 	return nil
 }
@@ -119,7 +111,7 @@ func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item 
 		}
 	}
 
-	recipients := collectDocumentRecipients(settings, "")
+	recipients := collectDocumentRecipients(settings, item.createdBy)
 	if len(recipients) == 0 {
 		slog.DebugContext(ctx, "document_subscriber: no eligible recipients — skipping", "project_uid", item.projectUID)
 		return
@@ -184,6 +176,9 @@ func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item 
 // receive a document/link notification. It excludes users without a Username (no LFID) or
 // without an Email address.
 func collectDocumentRecipients(settings *models.ProjectSettings, uploaderUsername string) []models.UserInfo {
+	if settings == nil {
+		return nil
+	}
 	seen := make(map[string]struct{})
 	var out []models.UserInfo
 

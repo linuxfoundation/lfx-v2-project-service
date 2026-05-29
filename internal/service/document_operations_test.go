@@ -14,6 +14,8 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -42,7 +44,11 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
 				mockDoc.On("CreateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
-				mockMsg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectDocumentCreatedSubject,
+					mock.MatchedBy(func(m any) bool {
+						ev, ok := m.(events.ProjectDocumentCreatedMessage)
+						return ok && ev.ProjectUID == "proj-1"
+					})).Return(nil).Maybe()
 			},
 		},
 		{
@@ -60,7 +66,11 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
 				mockDoc.On("CreateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
-				mockMsg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectDocumentCreatedSubject,
+					mock.MatchedBy(func(m any) bool {
+						ev, ok := m.(events.ProjectDocumentCreatedMessage)
+						return ok && ev.ProjectUID == "proj-1"
+					})).Return(nil).Maybe()
 			},
 		},
 		{
