@@ -53,7 +53,7 @@ internal/
 ├── domain/                  # Domain layer
 │   ├── auth.go              # Authenticator interface
 │   ├── model/               # Domain entities
-│   │   ├── membership.go    # MembershipTier, ProjectMembership, ProjectKeyContact
+│   │   ├── membership.go    # ProjectMembership (MembershipTier in member.go, KeyContact in key_contact.go)
 │   │   └── list_params.go   # ListParams with filter support
 │   └── port/                # Repository interfaces
 │       ├── member_reader.go  # MemberReader interface (main read port)
@@ -116,7 +116,7 @@ salesforce.MemberReader (implements port.MemberReader)
     ├── 2. ProjectResolver.SFIDFromUID (for project-scoped queries)
     │        └── NATS RPC → project-service (get_slug)
     │        └── SOQL query → Salesforce (Project__c WHERE Slug__c = ?)
-    │        └── KV cache write (project-sfid/{uid})
+    │        └── KV cache write (project-sfid.{uid})
     │
     ├── 3. SOQL query → Salesforce REST API
     │
@@ -126,7 +126,7 @@ salesforce.MemberReader (implements port.MemberReader)
 ### Key Design Principles
 
 1. **Salesforce as source of truth**: No PostgreSQL, no sync job. Every record is fetched from Salesforce on cache miss.
-2. **Single KV bucket**: All cached data lives in `membership-cache` with type-prefixed keys (e.g., `tier/`, `membership/`, `key-contacts/`, `project-sfid/`, `project-uid/`).
+2. **Single KV bucket**: All cached data lives in `membership-cache` with type-prefixed keys (e.g., `tier.`, `membership.`, `key-contacts.`, `project-sfid.`, `project-uid.`).
 3. **Stale-while-revalidate**: `CachedValue[T]` envelopes carry `stale_at` and `expires_at` timestamps. Stale entries are served immediately while a background goroutine refreshes from Salesforce.
 4. **Database Independence**: Repository interfaces allow switching storage backends.
 5. **Testability**: Each layer can be tested in isolation using mocks.
@@ -175,7 +175,7 @@ FGA is published before the indexer so access tuples land before the doc is sear
 |--------|------|-------------|---------------|
 | POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
 
-Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
+Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`, `b2b_org_settings`; empty = all), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
 
 ### Utility
 
@@ -185,23 +185,11 @@ Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlat
 | GET | `/livez` | Liveness probe | None |
 | GET | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None |
 
-> **Note:** The legacy `/members/*` and `/memberships/*` endpoints return `410 Gone`.
+> **Note:** The surface is resource-rooted (`/b2b_orgs/...`, `/project_memberships/...`, `/admin/reindex`). There are no `/projects/{project_id}/...` drill-down routes and no `/members/*` or `/memberships/*` routes — requests to those paths are unmatched and return `404`.
 
-### Member Search & Filtering
+> **Optimistic concurrency:** every mutation (`PUT /b2b_orgs/{uid}`, `PUT /b2b_orgs/{uid}/settings`, `POST`/`PUT`/`DELETE` key contacts) takes an `If-Match` header carrying the current resource version. A stale value returns `412 Precondition Failed`.
 
-The list endpoints accept a `filter` query parameter with semicolon-separated `key=value` pairs:
-
-```
-GET /projects/{project_id}/memberships?filter=status=Active
-GET /projects/{project_id}/memberships?filter=status=Active;tier=Gold
-```
-
-| Filter Key | Match Type | Example |
-|------------|------------|---------|
-| `status` | Case-insensitive exact | `status=Active` |
-| `tier` | Case-insensitive exact | `tier=Gold` |
-| `year` | Exact | `year=2026` |
-| `product_name` | Case-insensitive contains | `product_name=Gold` |
+> **Internal filtering:** SOQL-level membership filtering (`MembershipFilters` in `internal/domain/model/list_params.go`, e.g. tier UID / product) is applied internally on the Salesforce read path. It is not exposed as an HTTP `filter` query parameter on the current resource-rooted surface.
 
 ## Development Workflow
 
@@ -235,9 +223,7 @@ make build
 #### 3. Run Tests
 
 ```bash
-make test              # Run unit tests
-make test-verbose      # Verbose output
-make test-coverage     # Generate coverage report
+make test              # Run unit tests (verbose, race detector, writes coverage.out)
 ```
 
 #### 4. Run the Service Locally
@@ -251,7 +237,8 @@ export SF_CLIENT_SECRET=<client-secret>
 make run
 
 # With debug logging
-make debug
+export LOG_LEVEL=debug
+make run
 
 # With mock auth (bypasses Heimdall JWT validation)
 export JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=test-user
@@ -263,7 +250,6 @@ make run
 ```bash
 make fmt    # Format code
 make lint   # Run golangci-lint
-make check  # Check format and lint without modifying
 ```
 
 ## Work cycle — post-commit and pre-PR reviews
@@ -336,11 +322,12 @@ All records share the `membership-cache` bucket. Keys are namespaced by a type p
 
 | Key pattern | Contents | Soft TTL |
 |-------------|----------|----------|
-| `tier/{uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire |
-| `membership/{uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire |
-| `key-contacts/{membership_uid}` | `CachedValue[[]*model.ProjectKeyContact]` | 6 h stale / 23 h expire |
-| `project-sfid/{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
-| `project-uid/{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
+| `tier.{uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire |
+| `membership.{uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire |
+| `key-contacts.{membership_uid}` | `CachedValue[[]*model.KeyContact]` | 6 h stale / 23 h expire |
+| `project-sfid.{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
+| `project-uid.{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
+| `soql.{...}` | `CachedValue[...]` (paged SOQL result batches) | 6 h stale / 23 h expire |
 
 The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always later than the soft `expires_at` timestamp inside each envelope.
 
@@ -368,18 +355,18 @@ Every project-scoped SOQL query requires a Salesforce `Project__c.Id` in its `WH
 ```text
 SFIDFromUID(ctx, projectUID)
     │
-    ├── 1. KV cache lookup: project-sfid/{uid}
+    ├── 1. KV cache lookup: project-sfid.{uid}
     │        Fresh/Stale → return cached SFID
     │
     ├── 2. NATS RPC → project-service (lfx.projects-api.get_slug)
     │        returns slug string
     │
-    ├── 3. KV cache write: project-uid/{slug} → uid  (side-effect)
+    ├── 3. KV cache write: project-uid.{slug} → uid  (side-effect)
     │
     ├── 4. SOQL query → Salesforce
     │        SELECT Id FROM Project__c WHERE Slug__c = '<slug>'
     │
-    └── 5. KV cache write: project-sfid/{uid} → sfid
+    └── 5. KV cache write: project-sfid.{uid} → sfid
             return sfid
 ```
 
@@ -388,7 +375,7 @@ SFIDFromUID(ctx, projectUID)
 ```text
 UIDFromSlug(ctx, slug)
     │
-    ├── 1. KV cache lookup: project-uid/{slug}
+    ├── 1. KV cache lookup: project-uid.{slug}
     │        Fresh/Stale → return cached UID
     │
     ├── 2. NATS RPC → project-service (lfx.projects-api.slug_to_uid)
@@ -495,12 +482,19 @@ type project_membership
 
 **Key contact access:** a user with `key_contact` on a `project_membership` automatically becomes `auditor` on the parent `b2b_org` (via `key_contact from membership`).
 
-Authorization checks in Heimdall ruleset:
-- **GET /projects/{project_id}/\*** — requires `auditor` on `project:{project_id}`
-- **GET/POST/PUT/DELETE /project_memberships/{m_uid}/key_contacts/\*** — requires `auditor`/`writer` on `project_membership:{m_uid}`
-- **GET /b2b_orgs/{uid}** — requires `auditor` on `b2b_org:{uid}`
-- **POST/PUT /b2b_orgs/\*** — requires `writer` on `b2b_org:{uid}`
-- **GET /members/\*** — `allow_all` passthrough (returns 410 Gone unconditionally)
+Authorization checks in Heimdall ruleset (`charts/lfx-v2-member-service/templates/ruleset.yaml`):
+- **GET `/b2b_orgs/:uid`** — `auditor` on `b2b_org:{uid}`
+- **POST `/b2b_orgs`** — `member` on `team:{globalOrgAdminTeamUID}`
+- **PUT `/b2b_orgs/:uid`** — `writer` on `b2b_org:{uid}`
+- **GET `/b2b_orgs/:uid/settings`** — `auditor` on `b2b_org:{uid}` (auditor, not writer, so trusted principals can see the pending-invite list)
+- **PUT `/b2b_orgs/:uid/settings`** — `writer` on `b2b_org:{uid}`
+- **GET `/project_memberships/:uid`** — `auditor` on `project_membership:{uid}`
+- **GET `/project_memberships/:membership_uid/key_contacts/:uid`** — `auditor` on `project_membership:{membership_uid}`
+- **POST/PUT/DELETE `/project_memberships/:membership_uid/key_contacts...`** — `writer` on `project_membership:{membership_uid}` (POST also runs `json_content_type`)
+- **POST `/admin/reindex`** — `member` on `team:{globalOrgAdminTeamUID}`
+- **GET `/_memberships/openapi*`** — `allow_all` passthrough
+
+When `openfga.enabled` is false (local dev), every rule falls back to `allow_all`. There are no `/projects/{project_id}/*`, `/members/*`, or `/memberships/*` rules.
 
 ## Testing Patterns
 
