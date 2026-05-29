@@ -1,9 +1,6 @@
 # Claude Development Guide for LFX V2 Member Service
 
-This is the index. Implementation guidance lives under
-`.claude/skills/member-service-dev/references/` and owned service docs
-live under `docs/`. Read this file first to understand what this service is,
-then jump to the right reference for the work at hand.
+This guide provides essential information for Claude instances working with the LFX V2 Member Service codebase. It includes build commands, architecture patterns, and key technical decisions.
 
 > **Central LFX skills:**
 > - `lfx-skills:lfx` for cross-repo tasks, "where does X live" questions, owner/peer repo routing, or missing checkouts.
@@ -17,177 +14,257 @@ then jump to the right reference for the work at hand.
 
 ## Project Overview
 
-The LFX V2 Member Service is a RESTful API service that provides membership
-data for the Linux Foundation's LFX platform. It exposes endpoints for
-querying project-scoped tiers, memberships, and key contacts, plus write
-endpoints (POST/PUT/DELETE) for managing key contacts. Data is sourced from
-Salesforce via SOQL queries, with NATS Key-Value caches to minimise
-round-trips.
+The LFX V2 Member Service is a RESTful API service that provides membership data for the Linux Foundation's LFX platform. It exposes endpoints for querying project-scoped tiers, memberships, and key contacts, as well as write endpoints (POST/PUT/DELETE) for managing key contacts. Data is sourced directly from Salesforce via SOQL queries, with a per-record NATS Key-Value cache to minimise round-trips.
 
-### Key technologies
+### Key Technologies
 
-- Language: Go 1.24+
-- API framework: Goa v3 (code generation framework)
-- Messaging: NATS with JetStream for KV caching and RPC
-- Storage: NATS Key-Value caches in front of Salesforce:
-  `membership-cache` for SOQL and resolver results, and
-  `member-service-cache` for sObject conditional-GET support
-- Primary data source: Salesforce REST API (SOQL queries via
-  `github.com/k-capehart/go-salesforce/v3`)
-- Authentication: JWT with Heimdall middleware
-- Authorization: OpenFGA for fine-grained access control
-- Container: Chainguard distroless images
-- Orchestration: Kubernetes with Helm charts
+- **Language**: Go 1.24+
+- **API Framework**: Goa v3 (code generation framework)
+- **Messaging**: NATS with JetStream for KV caching and RPC
+- **Storage**: Single NATS Key-Value bucket (`membership-cache`) acting as a TTL cache in front of Salesforce
+- **Primary data source**: Salesforce REST API (SOQL queries via `github.com/k-capehart/go-salesforce/v3`)
+- **Authentication**: JWT with Heimdall middleware
+- **Authorization**: OpenFGA for fine-grained access control
+- **Container**: Chainguard distroless images
+- **Orchestration**: Kubernetes with Helm charts
 
-## Service Boundaries
+## Architecture Overview
 
-This service is a Salesforce-backed read/write proxy for membership data.
-Reads are currently SOQL-backed and cached in NATS KV. Key-contact writes
-mutate Salesforce `Project_Role__c` records and invalidate the relevant
-`membership-cache` entries. There is no PostgreSQL and no sync job.
-
-**This service does NOT publish FGA or indexer messages.** It does not emit
-to `lfx.fga-sync.*` or `lfx.index.*` today. Do not assume PostgreSQL,
-sync-job, indexer-publish, or fga-sync-publish behavior here. If publishing
-is added later, route via `lfx-v2-indexer-service` and `lfx-v2-fga-sync`
-canonical contracts and add a top-level per-contract doc under `docs/`.
-
-## Agent Guidance
-
-Repo-owned guidance is split. Convention and workflow references live under
-`.claude/skills/member-service-dev/references/`. Domain ownership docs
-live under `docs/agent-guidance/`, while chart facts live at top level under
-`docs/`. Go coding conventions themselves are inline in
-`.claude/skills/member-service-dev/SKILL.md`.
-
-- [`nats-messaging.md`](.claude/skills/member-service-dev/references/nats-messaging.md):
-  NATS subjects, RPC contract (`lfx.member.project-id-map.lookup` request
-  and response shape), outbound calls to project-service, and KV bucket
-  inventory.
-- [`development-workflow.md`](.claude/skills/member-service-dev/references/development-workflow.md):
-  prerequisites, Make targets, Goa code generation, JWT and Heimdall flow,
-  OpenFGA `project` type, Docker, CI, and error-mapping reference.
-- [`salesforce-cache.md`](docs/agent-guidance/salesforce-cache.md): the
-  `membership-cache` bucket key prefixes and TTLs, cache freshness states
-  (`Fresh`, `Stale`, `Expired`, `Miss`), `member-service-cache` sObject cache
-  behavior, and the `ProjectResolver` UID-to-SFID resolution chains.
-- [`salesforce-integration.md`](docs/agent-guidance/salesforce-integration.md):
-  service env vars, Salesforce credential flows, local-dev setup,
-  Kubernetes deployment, Helm wiring, and common pitfalls.
-- [`service-helm-chart.md`](docs/service-helm-chart.md):
-  this repo's chart interface.
-
-For NATS handlers and KV layout, the source under
-`internal/infrastructure/nats/` is authoritative. This repo's own README
-and source tree are the source of truth for the Salesforce-backed
-membership cache model.
-
-## Module Map
+The service follows **Clean Architecture** principles with clear separation of concerns. There is no sync job and no PostgreSQL dependency — all membership data is fetched on demand from Salesforce and cached in NATS KV.
 
 ```text
 cmd/member-api/               # Presentation Layer (HTTP entry point)
-  design/                     # Goa API design specifications
-  service/                    # Service handlers (implements Goa interfaces)
-  http.go                     # HTTP server setup and middleware
-  main.go                     # Application entry point
-gen/                          # Generated code (DO NOT EDIT MANUALLY)
+├── design/                  # Goa API design specifications
+│   ├── membership.go        # API endpoints definition (project-scoped routes)
+│   └── type.go              # Goa type definitions (MembershipTier, ProjectMembership, ProjectKeyContact)
+├── service/                 # Service handlers (implements Goa interfaces)
+│   ├── membership_service.go  # Main service handler with endpoint logic
+│   ├── membership_service_response.go  # Response conversion helpers
+│   ├── providers.go         # Dependency initialization (NATS, Salesforce, auth)
+│   └── error.go             # Error mapping helpers
+├── http.go                  # HTTP server setup and middleware
+└── main.go                  # Application entry point
+
+gen/                         # Generated code (DO NOT EDIT MANUALLY)
+├── membership_service/      # Generated service interfaces and endpoints
+└── http/membership_service/ # Generated HTTP server/client code
+
 internal/
-  domain/                     # Domain layer (auth, models, ports)
-  infrastructure/             # Infrastructure layer
-    auth/                     # JWT authentication (Heimdall)
-    mock/                     # Mock repository for testing
-    nats/                     # NATS KV caches and project RPC client
-    project/                  # ProjectResolver implementation
-    salesforce/               # Salesforce SOQL client and repositories
-  middleware/                 # HTTP middleware
-  service/                    # Business logic / use case orchestration
-pkg/constants/                # Shared constants
-charts/lfx-v2-member-service/ # Helm chart
+├── domain/                  # Domain layer
+│   ├── auth.go              # Authenticator interface
+│   ├── model/               # Domain entities
+│   │   ├── membership.go    # MembershipTier, ProjectMembership, ProjectKeyContact
+│   │   └── list_params.go   # ListParams with filter support
+│   └── port/                # Repository interfaces
+│       ├── member_reader.go  # MemberReader interface (main read port)
+│       └── project_resolver.go  # ProjectResolver interface (UID ↔ slug ↔ SFID)
+├── infrastructure/          # Infrastructure layer
+│   ├── auth/                # JWT authentication (Heimdall)
+│   ├── mock/                # Mock repository for testing
+│   ├── nats/                # NATS KV cache and project RPC client
+│   │   ├── cache.go         # CachedValue[T], CacheStatus, TTLConfig
+│   │   ├── client.go        # NATSClient with KV bucket initialisation
+│   │   ├── config.go        # NATS configuration
+│   │   ├── project_id_map_handler.go  # RPC handler for lfx.member.project-id-map.lookup
+│   │   ├── id_map_handler.go          # RPC handlers for lfx.member.sfid-to-uuid.lookup / uuid-to-sfid.lookup
+│   │   ├── project_rpc.go   # NATS RPC calls to the project-service
+│   │   └── storage.go       # KV cache Get/Put helpers for each record type
+│   ├── project/             # ProjectResolver implementation
+│   │   └── resolver.go      # Chains NATS RPC → SOQL → KV cache
+│   └── salesforce/          # Salesforce SOQL client and repositories
+│       ├── config.go        # Config struct and ConfigFromEnv()
+│       ├── helpers.go       # parseSOQLTime, parseSOQLDateTime, quoteSOQL
+│       ├── key_contact_repo.go  # FetchKeyContactsByAssetSFID, FetchKeyContactBySFID
+│       ├── member_reader.go # MemberReader: Salesforce-first + KV cache
+│       ├── member_repo.go   # FetchAllMembers, FetchMemberBySFID
+│       ├── membership_repo.go  # FetchMembershipsByProjectSFID, etc.
+│       ├── models.go        # Salesforce SOQL result types
+│       ├── project_repo.go  # FetchSFIDBySlug, FetchProjectByPCCID, etc.
+│       └── soql.go          # QueryInto[T], QuerySingle[T], QueryOptional[T]
+├── middleware/              # HTTP middleware
+│   ├── authorization.go     # Extracts Authorization header to context
+│   └── request_id.go        # Request ID propagation
+└── service/                 # Business logic / use case orchestration
+    └── member_reader.go     # MemberReaderOrchestrator
+
+pkg/
+└── constants/               # Shared constants (HTTP headers, NATS buckets, etc.)
+
+charts/                      # Helm chart for Kubernetes deployment
+└── lfx-v2-member-service/
 ```
 
-### Data flow
+### Data Flow
 
 ```text
 HTTP Request
-    -> MembershipService (Goa handler)
-    -> MemberReaderOrchestrator
-    -> salesforce.MemberReader
-       -> NATS KV cache (membership-cache)
-          Fresh  -> return cached
-          Stale  -> return cached + background refresh
-          Expired/Miss -> Salesforce
-       -> ProjectResolver.SFIDFromUID (project-scoped queries)
-          -> NATS RPC -> project-service (get_slug)
-          -> SOQL -> Salesforce (Project__c)
-          -> KV cache write
-       -> SOQL -> Salesforce REST API
-       -> KV cache write
-    -> response
+    │
+    ▼
+MembershipService (Goa handler)
+    │
+    ▼
+MemberReaderOrchestrator
+    │
+    ▼
+salesforce.MemberReader (implements port.MemberReader)
+    │
+    ├── 1. Check NATS KV cache (membership-cache bucket)
+    │        CacheStatusFresh  → return cached value
+    │        CacheStatusStale  → return cached value + trigger background refresh
+    │        CacheStatusExpired/Miss → proceed to Salesforce
+    │
+    ├── 2. ProjectResolver.SFIDFromUID (for project-scoped queries)
+    │        └── NATS RPC → project-service (get_slug)
+    │        └── SOQL query → Salesforce (Project__c WHERE Slug__c = ?)
+    │        └── KV cache write (project-sfid/{uid})
+    │
+    ├── 3. SOQL query → Salesforce REST API
+    │
+    └── 4. KV cache write → return to caller
 ```
 
-See [`salesforce-cache.md`](docs/agent-guidance/salesforce-cache.md) for the
-full resolver and cache contract.
+### Key Design Principles
+
+1. **Salesforce as source of truth**: No PostgreSQL, no sync job. Every record is fetched from Salesforce on cache miss.
+2. **Single KV bucket**: All cached data lives in `membership-cache` with type-prefixed keys (e.g., `tier/`, `membership/`, `key-contacts/`, `project-sfid/`, `project-uid/`).
+3. **Stale-while-revalidate**: `CachedValue[T]` envelopes carry `stale_at` and `expires_at` timestamps. Stale entries are served immediately while a background goroutine refreshes from Salesforce.
+4. **Database Independence**: Repository interfaces allow switching storage backends.
+5. **Testability**: Each layer can be tested in isolation using mocks.
+6. **Separation of Concerns**: Clear boundaries between layers.
 
 ## API Endpoints
 
-All data endpoints are project-scoped under `/projects/{project_id}` where
-`project_id` is the v2 project UUID.
+### Project membership
 
 | Method | Path | Description | OpenFGA Check |
 |--------|------|-------------|---------------|
-| GET | `/projects/{project_id}/tiers` | List membership tiers for a project | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/tiers/{tier_id}` | Get a specific tier | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships` | List memberships for a project | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships/{id}` | Get a specific membership | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts` | List key contacts for a membership | `auditor` on `project:{project_id}` |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Get a specific key contact | `auditor` on `project:{project_id}` |
-| POST | `/projects/{project_id}/memberships/{id}/key_contacts` | Add a key contact | `writer` on `project:{project_id}` |
-| PUT | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Update a key contact | `writer` on `project:{project_id}` |
-| DELETE | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Remove a key contact | `writer` on `project:{project_id}` |
-| GET | `/b2b_orgs` | Search B2B organizations (interim detour endpoint) | `auditor` on configured LF project |
-| GET | `/b2b_orgs/{b2b_org_uid}/memberships` | List memberships for a B2B organization (interim detour endpoint) | `auditor` on configured LF project |
+| GET | `/project_memberships/{uid}` | Get a project membership | `auditor` on `project_membership:{uid}` |
+
+### Key contact endpoints (nested under project_membership)
+
+Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 403) when the fetched contact's `membership_uid` doesn't match the path — avoids leaking record existence.
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
+| GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact | `auditor` on `project_membership:{membership_uid}` |
+| POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact | `writer` on `project_membership:{membership_uid}` |
+| PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{membership_uid}` |
+| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact | `writer` on `project_membership:{membership_uid}` |
+
+### B2B org write endpoints
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
+| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID | `member` on `team:{globalOrgAdminTeamUID}` |
+| PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org | `writer` on `b2b_org:{uid}` |
+| GET | `/b2b_orgs/{uid}` | Get a B2B org | `auditor` on `b2b_org:{uid}` |
+| GET | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}` |
+| PUT | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors | `writer` on `b2b_org:{uid}` |
+
+**Settings semantics:** `nil` writers/auditors = keep existing; explicit `[]` = clear all. Entries with a `username` are `accepted` (FGA tuple emitted); without username are `pending` (no FGA tuple). The legacy `owner` relation is retired — use `writer` instead. Settings are stored in the `org-settings` NATS KV bucket (authoritative, no MaxAge TTL), separate from the Salesforce-backed `membership-cache` bucket.
+
+**Settings publish on PUT:** every successful `PUT /b2b_orgs/{uid}/settings` emits two fire-and-forget messages in order:
+1. `lfx.fga-sync.update_access` (ObjectType=`b2b_org`) — FGA tuple sync for writers/auditors
+2. `lfx.index.b2b_org_settings` — OpenSearch settings doc keyed by org UID (`ActionCreated` on first write, `ActionUpdated` thereafter)
+
+FGA is published before the indexer so access tuples land before the doc is searchable. Errors on either publish are swallowed with `publish_failed_for_backfill_repair=true`; recovery is a re-PUT of the settings. The `lfx.index.b2b_org_settings` doc is **not** published from the backfill runner — it is created on demand by the first PUT that adds a writer or auditor.
+
+### Admin
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
+| POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
+
+Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
+
+### Utility
+
+| Method | Path | Description | OpenFGA Check |
+|--------|------|-------------|---------------|
 | GET | `/readyz` | Readiness probe | None |
 | GET | `/livez` | Liveness probe | None |
-| GET | `/debug/vars` | expvar JSON for port-forward/debug use; not exposed by HTTPRoute | None |
 | GET | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None |
 
-The legacy `/members/*` and `/memberships/*` endpoints return `410 Gone` with
-a hint pointing to the replacement paths.
+> **Note:** The legacy `/members/*` and `/memberships/*` endpoints return `410 Gone`.
 
-### Member search and filtering
+### Member Search & Filtering
 
-The list endpoints accept a `filter` query parameter with semicolon-separated
-`key=value` pairs:
+The list endpoints accept a `filter` query parameter with semicolon-separated `key=value` pairs:
 
 ```
-GET /projects/{project_id}/memberships?filter=tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-GET /projects/{project_id}/memberships?search_name=acme
+GET /projects/{project_id}/memberships?filter=status=Active
+GET /projects/{project_id}/memberships?filter=status=Active;tier=Gold
 ```
 
 | Filter Key | Match Type | Example |
 |------------|------------|---------|
-| `tier_uid` | Exact SOQL filter on Product2, decoded from tier UUID | `tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff` |
-| `company_name` | Case-insensitive contains after the SOQL page is fetched | `company_name=Acme` |
-| `project_slug` | Case-insensitive exact after fetch | `project_slug=kubernetes` |
-| `tier_name` | Case-insensitive contains after fetch | `tier_name=Gold` |
-| `status` | Case-insensitive exact after fetch; queries already return active memberships only | `status=Active` |
-| `tier` | Case-insensitive exact after fetch | `tier=Gold` |
-| `year` | Exact after fetch | `year=2026` |
+| `status` | Case-insensitive exact | `status=Active` |
+| `tier` | Case-insensitive exact | `tier=Gold` |
+| `year` | Exact | `year=2026` |
+| `product_name` | Case-insensitive contains | `product_name=Gold` |
 
-## Where to make each change
+## Development Workflow
 
-| Task | Read |
-| --- | --- |
-| Add or change a membership HTTP endpoint | Local `member-add-endpoint` skill (procedural recipe) plus [`development-workflow.md`](.claude/skills/member-service-dev/references/development-workflow.md) (reference) |
-| Go conventions, Goa boundaries, NATS/KV cache and RPC rules, tests, format, license | Local `member-service-dev` skill (auto-attaches on Go paths) |
-| Check PR branch/commit shape before opening a PR | Local `member-service-pr-readiness` skill, then local `member-service-preflight` |
-| Run mechanical before-PR validation | Local `member-service-preflight` skill after `member-service-pr-readiness` |
-| Change cache TTLs or freshness behavior | [`salesforce-cache.md`](docs/agent-guidance/salesforce-cache.md) |
-| Change a NATS subject or RPC contract | [`nats-messaging.md`](.claude/skills/member-service-dev/references/nats-messaging.md) |
-| Wire up new env vars or auth flow | [`salesforce-integration.md`](docs/agent-guidance/salesforce-integration.md) |
-| Change chart values or templates | [`service-helm-chart.md`](docs/service-helm-chart.md) |
-| Add a Goa design change | [`development-workflow.md`](.claude/skills/member-service-dev/references/development-workflow.md) ("Goa code generation") |
-| Reason about current state vs target state (FGA/indexer graduation plan) | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+### Prerequisites
+
+```bash
+# Install Go 1.24+
+# Install Goa framework
+go install goa.design/goa/v3/cmd/goa@latest
+
+# Install linting tools
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+```
+
+### Common Development Tasks
+
+#### 1. Generate API Code (REQUIRED after design changes)
+
+```bash
+make apigen
+# or directly:
+goa gen github.com/linuxfoundation/lfx-v2-member-service/cmd/member-api/design -o .
+```
+
+#### 2. Build the Service
+
+```bash
+make build
+```
+
+#### 3. Run Tests
+
+```bash
+make test              # Run unit tests
+make test-verbose      # Verbose output
+make test-coverage     # Generate coverage report
+```
+
+#### 4. Run the Service Locally
+
+```bash
+# Basic run with Salesforce and NATS
+export NATS_URL=nats://localhost:4222
+export SF_INSTANCE_URL=https://linuxfoundation.my.salesforce.com
+export SF_CLIENT_ID=<client-id>
+export SF_CLIENT_SECRET=<client-secret>
+make run
+
+# With debug logging
+make debug
+
+# With mock auth (bypasses Heimdall JWT validation)
+export JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=test-user
+make run
+```
+
+#### 5. Lint and Format Code
+
+```bash
+make fmt    # Format code
+make lint   # Run golangci-lint
+make check  # Check format and lint without modifying
+```
 
 ## Work cycle — post-commit and pre-PR reviews
 
@@ -221,9 +298,405 @@ When the work is done and no more code commits are planned:
 3. Roll fixes into a `fix(review): ...` commit.
 4. Push. Repeat until clean.
 
-## Resources
+## Code Generation (Goa Framework)
 
-See also [`README.md`](README.md) for human-facing onboarding.
+The service uses Goa v3 for API code generation. This is **critical** to understand:
+
+1. **Design First**: API is defined in `cmd/member-api/design/` files
+2. **Generated Code**: Running `make apigen` generates to `gen/`:
+   - HTTP server/client code
+   - Service interfaces
+   - OpenAPI specifications
+   - Type definitions
+3. **Implementation**: You implement the generated interfaces in `cmd/member-api/service/membership_service.go`
+
+### Adding New Endpoints
+
+1. Update `cmd/member-api/design/membership.go` with new method
+2. Run `make apigen` to regenerate code
+3. Implement the new method in `cmd/member-api/service/membership_service.go`
+4. Add tests for the new endpoint
+5. Update Heimdall ruleset in `charts/lfx-v2-member-service/templates/ruleset.yaml`
+
+## NATS Storage
+
+The service uses three NATS KV buckets.
+
+### `org-settings` Bucket
+
+Stores b2b_org access-control principals (writers, auditors, pending invites). **Authoritative state** — no MaxAge TTL, no soft-TTL envelopes. Key pattern: `org-settings.{orgUID}` → raw JSON `model.B2BOrgSettings`. Optimistic locking via KV revision on every PUT.
+
+### `member-service-cache` Bucket
+
+Stores raw Salesforce sObject REST responses as `SObjectCacheEntry` JSON envelopes (no soft-TTL wrappers). Used for B2B org lookups and other sObject fetches that bypass the SOQL path.
+
+### `membership-cache` Bucket
+
+All records share the `membership-cache` bucket. Keys are namespaced by a type prefix to avoid collisions.
+
+| Key pattern | Contents | Soft TTL |
+|-------------|----------|----------|
+| `tier/{uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire |
+| `membership/{uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire |
+| `key-contacts/{membership_uid}` | `CachedValue[[]*model.ProjectKeyContact]` | 6 h stale / 23 h expire |
+| `project-sfid/{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
+| `project-uid/{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
+
+The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always later than the soft `expires_at` timestamp inside each envelope.
+
+### Cache Freshness States
+
+Defined in `internal/infrastructure/nats/cache.go`:
+
+| Status | Meaning | Caller behaviour |
+|--------|---------|-----------------|
+| `CacheStatusFresh` | Within stale threshold | Serve immediately. |
+| `CacheStatusStale` | Past stale threshold, not yet expired | Serve immediately; trigger background refresh goroutine. |
+| `CacheStatusExpired` | Past expiry threshold | Do **not** serve; fetch synchronously from Salesforce. |
+| `CacheStatusMiss` | Key not present in bucket | Fetch synchronously from Salesforce. |
+
+## ProjectResolver
+
+`internal/infrastructure/project/resolver.go` implements `port.ProjectResolver`. It is the bridge between the v2 project UUID world and the Salesforce `Project__c.Id` world.
+
+### Why it exists
+
+Every project-scoped SOQL query requires a Salesforce `Project__c.Id` in its `WHERE` clause. The HTTP API receives a v2 UUID (`project_id` path parameter). Without `ProjectResolver`, all list endpoints would silently return zero results.
+
+### Resolution chain: `SFIDFromUID`
+
+```text
+SFIDFromUID(ctx, projectUID)
+    │
+    ├── 1. KV cache lookup: project-sfid/{uid}
+    │        Fresh/Stale → return cached SFID
+    │
+    ├── 2. NATS RPC → project-service (lfx.projects-api.get_slug)
+    │        returns slug string
+    │
+    ├── 3. KV cache write: project-uid/{slug} → uid  (side-effect)
+    │
+    ├── 4. SOQL query → Salesforce
+    │        SELECT Id FROM Project__c WHERE Slug__c = '<slug>'
+    │
+    └── 5. KV cache write: project-sfid/{uid} → sfid
+            return sfid
+```
+
+### Resolution chain: `UIDFromSlug`
+
+```text
+UIDFromSlug(ctx, slug)
+    │
+    ├── 1. KV cache lookup: project-uid/{slug}
+    │        Fresh/Stale → return cached UID
+    │
+    ├── 2. NATS RPC → project-service (lfx.projects-api.slug_to_uid)
+    │        returns uid string
+    │
+    └── 3. KV cache write: project-uid/{slug} → uid
+            return uid
+```
+
+### Registration
+
+`NewProjectResolver` in `internal/infrastructure/project/resolver.go` wires together `*nats.ProjectRPC`, `*salesforce.ProjectRepo`, and `*nats.Storage`. The resolver is constructed in `cmd/member-api/service/providers.go` and passed to `salesforce.NewMemberReader`.
+
+## NATS RPC Endpoints
+
+The service handles two inbound NATS request/reply subjects that allow other services to resolve identifiers without depending on Salesforce or this service's HTTP layer.
+
+### Project ID Map Lookup (`lfx.member.project-id-map.lookup`)
+
+Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolution chains: KV cache → project-service NATS RPC (get slug) → Salesforce SOQL.
+
+| Field | Value |
+|-------|-------|
+| **Subject** | `lfx.member.project-id-map.lookup` |
+| **Transport** | NATS core request/reply |
+
+**Request:** `{"project_uid": "<v2 project UUID>"}`
+
+**Response — success:** `{"project_sfid": "<Salesforce Project__c.Id>"}`
+
+**Response — error:** `{"error": "<human-readable message>"}`
+
+### Generic SFID↔UUID Lookup
+
+Two entity-agnostic request/reply endpoints for translating between Salesforce IDs and v2 UUIDs. Pure CPU — no Salesforce call, no NATS KV. Covers all entity types (b2b_org, project_membership, key_contact, membership_tier).
+
+| Field | Value |
+|-------|-------|
+| **Subject (SFID→UUID)** | `lfx.member.sfid-to-uuid.lookup` |
+| **Subject (UUID→SFID)** | `lfx.member.uuid-to-sfid.lookup` |
+| **Transport** | NATS core request/reply |
+
+**SFID→UUID request:** `{"sfid":"<15 or 18-char Salesforce ID>"}`
+**SFID→UUID response — success:** `{"uuid":"<uuid v8>"}`
+
+**UUID→SFID request:** `{"uuid":"<uuid v8>"}`
+**UUID→SFID response — success:** `{"sfid":"<15-char Salesforce ID>"}`
+
+**Response — error:** `{"error":"<human-readable message>"}`
+
+The reply is always valid JSON. Callers should check for the `"error"` key to detect failure. 15-char SFIDs are normalised to 18 characters internally before translation; both forms are accepted.
+
+## Authentication (JWT / Heimdall)
+
+JWT authentication is implemented via `internal/infrastructure/auth/`:
+
+- **`JWTAuth`**: Real implementation that validates tokens via Heimdall JWKS.
+- **`MockJWTAuth`**: Test mock that implements the `domain.Authenticator` interface.
+
+### Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `JWKS_URL` | Heimdall JWKS endpoint | `http://heimdall:4457/.well-known/jwks` |
+| `AUDIENCE` | JWT audience | `lfx-v2-member-service` |
+| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock principal for local dev (bypasses JWT) | `""` (disabled) |
+
+When `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` is set, the service skips JWT validation entirely and uses that value as the authenticated principal. **Only use for local development.**
+
+### How Authentication Works
+
+1. Heimdall intercepts requests and validates the OIDC token.
+2. Heimdall creates a signed JWT with `principal` claim and forwards to this service.
+3. This service validates the Heimdall JWT in `JWTAuth()` (the Goa security handler).
+4. The principal is stored in context as `constants.PrincipalContextID`.
+
+## Authorization (OpenFGA)
+
+The service enforces fine-grained authorization via the v13 OpenFGA model (defined in `lfx-v2-helm`). Relevant types:
+
+```dsl
+type b2b_org
+  relations
+    define global_org_admin: [team#member]
+    define owner: [user]
+    define writer: [user] or owner or global_org_admin
+    define parent: [b2b_org]
+    define child: [b2b_org]
+    define membership: [project_membership]
+    define key_contact: key_contact from membership
+    define auditor: [user, team#member]
+                    or writer
+                    or auditor from parent
+                    or auditor from child
+                    or key_contact from membership
+
+type project_membership
+  relations
+    define key_contact: [user]
+    define auditor: [user, team#member] or key_contact
+```
+
+**Hierarchy cascade:** `auditor` on `b2b_org` propagates transitively through the entire connected org hierarchy via `parent` and `child` tuples. A user with `auditor` on any org can view every other org in the same hierarchy. `writer` does not cascade — edit access stays on the assigned org only.
+
+**Key contact access:** a user with `key_contact` on a `project_membership` automatically becomes `auditor` on the parent `b2b_org` (via `key_contact from membership`).
+
+Authorization checks in Heimdall ruleset:
+- **GET /projects/{project_id}/\*** — requires `auditor` on `project:{project_id}`
+- **GET/POST/PUT/DELETE /project_memberships/{m_uid}/key_contacts/\*** — requires `auditor`/`writer` on `project_membership:{m_uid}`
+- **GET /b2b_orgs/{uid}** — requires `auditor` on `b2b_org:{uid}`
+- **POST/PUT /b2b_orgs/\*** — requires `writer` on `b2b_org:{uid}`
+- **GET /members/\*** — `allow_all` passthrough (returns 410 Gone unconditionally)
+
+## Testing Patterns
+
+### Unit Tests
+
+- Mock all external dependencies using the `mock` package in `internal/infrastructure/mock/`
+- Use `auth.MockJWTAuth` for authentication mocking
+- Table-driven tests for comprehensive coverage
+- Each function has exactly ONE corresponding test function with multiple cases
+- Unit tests alongside implementation with `*_test.go` suffix
+
+### Example Test Structure
+
+```go
+func TestEndpoint(t *testing.T) {
+    tests := []struct {
+        name       string
+        payload    *membershipservice.Payload
+        setupMocks func(*auth.MockJWTAuth)
+        wantErr    bool
+    }{
+        // Test cases
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // Test logic
+        })
+    }
+}
+```
+
+## Environment Variables
+
+### Service Configuration
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `PORT` | HTTP listen port | `8080` | No |
+| `NATS_URL` | NATS server URL | `nats://localhost:4222` | No |
+| `NATS_TIMEOUT` | NATS connection timeout | `10s` | No |
+| `NATS_MAX_RECONNECT` | Max NATS reconnect attempts | `3` | No |
+| `NATS_RECONNECT_WAIT` | Wait between reconnects | `2s` | No |
+| `LOG_LEVEL` | Log level (debug/info/warn/error) | `info` | No |
+| `LOG_ADD_SOURCE` | Include source location in logs | `true` | No |
+| `JWKS_URL` | Heimdall JWKS endpoint for JWT verification | `http://heimdall:4457/.well-known/jwks` | No |
+| `AUDIENCE` | JWT audience | `lfx-v2-member-service` | No |
+| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | `""` | No |
+| `REPOSITORY_SOURCE` | Storage backend (`salesforce` or `mock`) | `salesforce` | No |
+
+### Salesforce Credentials
+
+Credentials are injected from a pre-existing Kubernetes Secret (see Helm chart `values.yaml` `salesforce.secrets` stanza). At least one complete authentication flow must be configured.
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `SF_INSTANCE_URL` | Salesforce instance URL (e.g. `https://linuxfoundation.my.salesforce.com`) | Yes |
+| `SF_CLIENT_ID` | Connected-app consumer key | Yes |
+| `SF_CLIENT_SECRET` | Consumer secret (username/password or client-credentials flow) | Conditional |
+| `SF_USERNAME` | Salesforce username (username/password or JWT bearer flow) | Conditional |
+| `SF_PASSWORD` | Salesforce password (username/password flow) | Conditional |
+| `SF_SECURITY_TOKEN` | Security token appended to password | No |
+| `SF_CONSUMER_RSA_PEM` | PEM-encoded RSA private key (JWT bearer flow) | Conditional |
+| `SF_API_VERSION` | Salesforce REST API version | `v60.0` |
+
+**Authentication flows (one must be satisfiable):**
+
+- **JWT bearer**: `SF_USERNAME` + `SF_CONSUMER_RSA_PEM`
+- **Username/password**: `SF_USERNAME` + `SF_PASSWORD` + `SF_CLIENT_SECRET`
+- **Client-credentials**: `SF_CLIENT_SECRET` (without `SF_USERNAME`)
+
+## Local Development Setup
+
+### Option A: Full Platform Setup
+
+For integration testing with the complete LFX stack:
+
+- Install lfx-platform Helm chart (includes NATS, Heimdall, OpenFGA, Authelia, Traefik).
+- Use `make helm-install-local` with `values.local.yaml`.
+- Full authentication and authorization enabled.
+
+### Option B: Minimal Setup
+
+For rapid development:
+
+```bash
+# Run NATS locally
+docker run -d -p 4222:4222 nats:latest -js
+
+# Create the cache bucket
+nats kv add membership-cache --history=1 --storage=file --ttl=24h
+
+# Run service with mock auth and Salesforce credentials
+export NATS_URL=nats://localhost:4222
+export JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=test-user
+export SF_INSTANCE_URL=https://linuxfoundation.my.salesforce.com
+export SF_CLIENT_ID=<client-id>
+export SF_CLIENT_SECRET=<client-secret>
+make run
+```
+
+**Security Note**: `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` bypasses all authentication and authorization — only for local development.
+
+## Kubernetes Deployment
+
+```bash
+# Install Helm chart
+helm install lfx-v2-member-service ./charts/lfx-v2-member-service/ -n lfx
+
+# Update deployment
+helm upgrade lfx-v2-member-service ./charts/lfx-v2-member-service/ -n lfx
+
+# View generated manifests
+helm template lfx-v2-member-service ./charts/lfx-v2-member-service/ -n lfx
+```
+
+### Helm Configuration
+
+- Salesforce credentials are read from a pre-existing Kubernetes Secret. Create the secret out-of-band (e.g., via ESO, Sealed Secrets, or `kubectl`) before deploying. Configure the secret name and key mappings in `values.yaml` under `salesforce.secrets`.
+- The `membership-cache` NATS KV bucket is created automatically via `nats-kv-buckets.yaml`.
+- Heimdall middleware handles JWT validation.
+- HTTPRoute for Gateway API routing.
+- OpenFGA can be disabled for local development (allows all requests).
+
+## Docker Build
+
+```bash
+# Build from repository root
+docker build -t lfx-v2-member-service:latest .
+
+# The Dockerfile uses:
+# - Chainguard Go image for building
+# - Chainguard static image for runtime (distroless)
+# - Multi-stage build for minimal image size
+```
+
+## CI/CD Pipeline
+
+GitHub Actions workflows:
+
+- **mega-linter.yml**: Comprehensive linting (Go, YAML, Docker, etc.)
+- **member-api-build.yml**: Build and test on PRs
+- **license-header-check.yml**: Ensure proper licensing
+
+## Common Pitfalls and Solutions
+
+### 1. Forgetting to Generate Code
+
+**Problem**: Changes to design files not reflected in implementation.
+**Solution**: Always run `make apigen` after modifying design files.
+
+### 2. Zero Results From All List Endpoints
+
+**Problem**: Every project-scoped list returns an empty array.
+**Solution**: The `ProjectResolver` failed to translate the v2 project UUID to a Salesforce `Project__c.Id`. Check that the project-service NATS RPC subjects (`lfx.projects-api.get_slug`, `lfx.projects-api.slug_to_uid`) are reachable and that the project slug exists in Salesforce.
+
+### 3. NATS Connection
+
+**Problem**: Service fails to start due to NATS connection.
+**Solution**: Ensure NATS is running and `NATS_URL` is correct.
+
+### 4. Salesforce Authentication Failure
+
+**Problem**: Service starts but all reads return errors; logs show `salesforce authentication failed`.
+**Solution**: Verify `SF_INSTANCE_URL`, `SF_CLIENT_ID`, and the credentials for your chosen auth flow are all set correctly.
+
+### 5. JWT Validation in Local Dev
+
+**Problem**: Every request returns 401 Unauthorized.
+**Solution**: Set `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=local-dev-user`.
+
+## Key Implementation Details
+
+### Service Architecture
+
+The `membershipServicesrvc` struct in `membership_service.go` is the central service handler. It holds:
+- `memberReaderOrchestrator`: Use case layer for membership business logic (`MemberReaderOrchestrator`)
+- `storage`: Direct storage access (for readyz check, implements `port.MemberReader`)
+- `auth`: `domain.Authenticator` for JWT validation
+
+### JWTAuth Security Handler
+
+The `JWTAuth` method is called automatically by Goa for all endpoints with `dsl.Security(JWTAuth)`. It:
+1. Calls `auth.ParsePrincipal()` to validate and extract the principal.
+2. Stores the principal in context under `constants.PrincipalContextID`.
+3. Returns an error if authentication fails (results in HTTP 401).
+
+### Error Handling
+
+Domain errors are mapped to HTTP status codes in `cmd/member-api/service/error.go`:
+
+- `ErrNotFound` → 404
+- `ErrInternal` → 500
+- `ErrServiceUnavailable` → 503
+
+## Resources
 
 - [Goa Framework Docs](https://goa.design/docs/)
 - [NATS JetStream Docs](https://docs.nats.io/jetstream)

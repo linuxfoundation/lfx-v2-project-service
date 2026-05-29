@@ -7,6 +7,7 @@
 package salesforce
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -168,6 +169,12 @@ func (c *SObjectClient) FetchSObject(ctx context.Context, sobjectType, sfid, cac
 		return c.handle200(ctx, resp, cacheKey)
 	case http.StatusNotModified:
 		return c.handle304(ctx, cached, sobjectType, sfid, cacheKey)
+	case http.StatusNotFound:
+		body, _ := io.ReadAll(resp.Body)
+		return nil, errs.NewNotFound(
+			fmt.Sprintf("salesforce record not found: %s/%s", sobjectType, sfid),
+			fmt.Errorf("status 404: %s", body),
+		)
 	default:
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("salesforce sObject GET %s/%s: unexpected status %d: %s",
@@ -316,27 +323,83 @@ func (c *SObjectClient) handle304(ctx context.Context, cached *nats.SObjectCache
 // ETag of the last known version). ifUnmodifiedSince is the value to send as
 // If-Unmodified-Since. Both are optional; pass an empty string to omit.
 //
-// The raw *http.Response is returned; the caller is responsible for closing the
-// response body. A non-nil error indicates a transport-level failure.
+// For 2xx and 412 responses the raw *http.Response is returned with a nil
+// error; the caller is responsible for closing the body and interpreting the
+// status code. For all other non-2xx codes the response body is read (so the
+// underlying connection can be reused), the body is closed, and the body text
+// is returned as an error — this preserves Salesforce error codes such as
+// ENTITY_IS_LOCKED in the error message for retryOnLock to detect.
+//
+// On 401 Unauthorized a session refresh is attempted and the request is
+// retried once, matching the behaviour of FetchSObject.
 func (c *SObjectClient) DoConditionalWrite(
 	ctx context.Context,
 	method, uri string,
-	body []byte,
+	reqBody []byte,
 	ifMatch, ifUnmodifiedSince string,
 ) (*http.Response, error) {
-	var opts []sf.RequestOption
-	if ifMatch != "" {
-		opts = append(opts, sf.WithHeader("If-Match", ifMatch))
-	}
-	if ifUnmodifiedSince != "" {
-		opts = append(opts, sf.WithHeader("If-Unmodified-Since", ifUnmodifiedSince))
+	rawURL := c.sf.GetInstanceUrl() + uri
+
+	newReq := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, method, rawURL, bytes.NewReader(reqBody))
+		if err != nil {
+			return nil, fmt.Errorf("build conditional write request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+c.sf.GetAccessToken())
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		if ifMatch != "" {
+			req.Header.Set("If-Match", ifMatch)
+		}
+		if ifUnmodifiedSince != "" {
+			req.Header.Set("If-Unmodified-Since", ifUnmodifiedSince)
+		}
+		return req, nil
 	}
 
-	resp, err := c.sf.DoRequest(method, uri, body, opts...)
+	req, err := newReq()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.sf.GetHTTPClient().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("salesforce conditional write %s %s: %w", method, uri, err)
 	}
-	return resp, nil
+
+	// On 401: refresh session and retry once.
+	if resp.StatusCode == http.StatusUnauthorized {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close() //nolint:errcheck
+		if refreshErr := c.refreshSession(); refreshErr != nil {
+			return nil, fmt.Errorf("salesforce conditional write %s %s: session refresh: %w",
+				method, uri, refreshErr)
+		}
+		req2, err := newReq()
+		if err != nil {
+			return nil, err
+		}
+		resp, err = c.sf.GetHTTPClient().Do(req2)
+		if err != nil {
+			return nil, fmt.Errorf("salesforce conditional write %s %s (retry): %w", method, uri, err)
+		}
+	}
+
+	// 2xx and 412 are returned to the caller for status-code-level handling.
+	if (resp.StatusCode >= 200 && resp.StatusCode < 300) || resp.StatusCode == http.StatusPreconditionFailed {
+		return resp, nil
+	}
+
+	// For all other non-success codes, surface the body as an error so that
+	// Salesforce error codes (e.g. ENTITY_IS_LOCKED) are visible to retryOnLock.
+	respBody, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close() //nolint:errcheck
+	if readErr != nil {
+		return nil, fmt.Errorf("salesforce conditional write %s %s: status %d: read body: %w",
+			method, uri, resp.StatusCode, readErr)
+	}
+	return nil, fmt.Errorf("salesforce conditional write %s %s: status %d: %s",
+		method, uri, resp.StatusCode, respBody)
 }
 
 // InvalidateCache removes the cached sObject entry for the given cache key.

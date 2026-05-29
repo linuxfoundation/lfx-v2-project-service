@@ -25,11 +25,6 @@ import (
 // of SOQL membership batch cache keys for ListMembershipsForProject queries.
 const soqlMembershipsTemplateRef = "memberships-by-project"
 
-// soqlMembershipsByAccountTemplateRef is the stable identifier used as the
-// first segment of SOQL membership batch cache keys for
-// ListMembershipsForB2BOrg queries.
-const soqlMembershipsByAccountTemplateRef = "memberships-by-account"
-
 // MemberReader implements port.MemberReader using Salesforce SOQL as the source
 // of truth and NATS KV as a per-record TTL cache. The cache is a read-through
 // layer: on a miss the record is fetched from Salesforce, written to KV, and
@@ -37,11 +32,12 @@ const soqlMembershipsByAccountTemplateRef = "memberships-by-account"
 // background refresh is triggered. The KV bucket TTL (24 hours) governs hard
 // eviction.
 type MemberReader struct {
-	tiers       *MemberRepo
-	memberships *MembershipRepo
-	contacts    *KeyContactRepo
-	resolver    port.ProjectResolver
-	cache       *nats.Storage
+	tiers            *MemberRepo
+	memberships      *MembershipRepo
+	contacts         *KeyContactRepo
+	keyContactReader *KeyContactReader
+	resolver         port.ProjectResolver
+	cache            *nats.Storage
 }
 
 // NewMemberReader creates a MemberReader backed by the given Salesforce repos,
@@ -50,15 +46,17 @@ func NewMemberReader(
 	tiers *MemberRepo,
 	memberships *MembershipRepo,
 	contacts *KeyContactRepo,
+	keyContactReader *KeyContactReader,
 	resolver port.ProjectResolver,
 	cache *nats.Storage,
 ) *MemberReader {
 	return &MemberReader{
-		tiers:       tiers,
-		memberships: memberships,
-		contacts:    contacts,
-		resolver:    resolver,
-		cache:       cache,
+		tiers:            tiers,
+		memberships:      memberships,
+		contacts:         contacts,
+		keyContactReader: keyContactReader,
+		resolver:         resolver,
+		cache:            cache,
 	}
 }
 
@@ -535,217 +533,6 @@ func splitIntoBatches(records []*model.ProjectMembership, chunkSize int) [][]*mo
 	return chunks
 }
 
-// resolveProjectUIDsForB2BPage iterates over the memberships on a page and
-// resolves each record's ProjectUID from its ProjectSlug via the resolver,
-// if ProjectUID is not already set. When the slug cannot be resolved the record
-// is still returned (slug-only is acceptable); its TierUID is cleared because
-// the tier endpoint is project-scoped and access control requires a valid
-// project UID to reach it.
-func (r *MemberReader) resolveProjectUIDsForB2BPage(ctx context.Context, page model.MembershipPage) model.MembershipPage {
-	for _, m := range page.Memberships {
-		if m.ProjectUID != "" || m.ProjectSlug == "" {
-			continue
-		}
-		uid, err := r.resolver.UIDFromSlug(ctx, m.ProjectSlug)
-		if err != nil {
-			slog.DebugContext(ctx, "could not resolve project UID from slug for b2b org membership; leaving project_uid empty",
-				"membership_uid", m.UID,
-				"project_slug", m.ProjectSlug,
-				"error", err,
-			)
-			// Clear tier_uid: the tier endpoint is under /projects/{project_uid}
-			// and is inaccessible without a resolved project UID.
-			m.TierUID = ""
-			continue
-		}
-		m.ProjectUID = uid
-	}
-	return page
-}
-
-// ─── B2B Org memberships ──────────────────────────────────────────────────────
-
-// membershipByAccountBatchKeyParams returns the stable SOQL key parameters for
-// the given Account SFID and filters. These are the same for all batches in a
-// sequence.
-func (r *MemberReader) membershipByAccountBatchKeyParams(accountSFID string, filters model.MembershipFilters) []string {
-	params := []string{accountSFID, string(filters.EffectiveSortOrder())}
-	if filters.TierUID != "" {
-		tierSFID, err := sfuuid.ToSFID(filters.TierUID)
-		if err != nil {
-			tierSFID = filters.TierUID
-		}
-		params = append(params, tierSFID)
-	}
-	if filters.CompanyNameSearch != "" {
-		params = append(params, "search:"+filters.CompanyNameSearch)
-	}
-	return params
-}
-
-// ListMembershipsForB2BOrg returns a single logical page of ProjectMembership
-// records for the given B2B org UID, across all projects. Results are served
-// from the NATS KV batch cache when available; on a miss the first SF batch is
-// fetched synchronously and the remainder is swept in the background. Each
-// returned membership retains the ProjectSlug populated by the SOQL query; the
-// ProjectUID field is intentionally left empty because these memberships span
-// multiple projects.
-func (r *MemberReader) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
-	accountSFID, err := sfuuid.ToSFID(b2bOrgUID)
-	if err != nil {
-		return model.MembershipPage{}, fmt.Errorf("decoding b2b org UID %s: %w", b2bOrgUID, err)
-	}
-
-	// Decode the inbound cursor. An empty PageToken means first page of batch 0.
-	cursor, err := DecodeCursor(filters.PageToken)
-	if err != nil {
-		return model.MembershipPage{}, fmt.Errorf("invalid page token: %w", err)
-	}
-	// Honour the page size agreed when the sequence was started.
-	if cursor.PageSize > 0 {
-		pageSize = cursor.PageSize
-	}
-	pageSize = NormalizePageSize(pageSize)
-
-	batchParams := r.membershipByAccountBatchKeyParams(accountSFID, filters)
-	batchKey := nats.MembershipBatchCacheKey(soqlMembershipsByAccountTemplateRef, batchParams, cursor.BatchIndex, cursor.NextBatchIterator)
-
-	// ── Cache read ───────────────────────────────────────────────────────────
-	cacheResult, cacheErr := r.cache.GetMembershipBatch(ctx, batchKey)
-	if cacheErr != nil {
-		slog.WarnContext(ctx, "b2b org membership batch cache read error; falling through to Salesforce",
-			"cache_key", batchKey,
-			"error", cacheErr,
-		)
-	} else {
-		switch cacheResult.Status {
-		case nats.CacheStatusFresh:
-			page, decodeErr := sliceCachedBatch(cacheResult.Value, "", cursor, pageSize, cursor.BatchIndex, batchParams)
-			if decodeErr == nil {
-				return r.resolveProjectUIDsForB2BPage(ctx, page), nil
-			}
-			slog.WarnContext(ctx, "failed to decode fresh cached b2b org batch; re-fetching",
-				"cache_key", batchKey, "error", decodeErr,
-			)
-		case nats.CacheStatusStale:
-			page, decodeErr := sliceCachedBatch(cacheResult.Value, "", cursor, pageSize, cursor.BatchIndex, batchParams)
-			if decodeErr == nil {
-				if cursor.BatchIndex == 0 {
-					r.refreshInBackground(func(bgCtx context.Context) error {
-						return r.fetchAndCacheAllBatchesByAccount(bgCtx, b2bOrgUID, accountSFID, filters, batchParams)
-					})
-				}
-				return r.resolveProjectUIDsForB2BPage(ctx, page), nil
-			}
-			slog.WarnContext(ctx, "failed to decode stale cached b2b org batch; re-fetching",
-				"cache_key", batchKey, "error", decodeErr,
-			)
-		}
-		// CacheStatusExpired and CacheStatusMiss fall through to Salesforce.
-	}
-
-	// ── Cache miss / expired: fetch batch 0 from Salesforce ──────────────────
-	if err := r.fetchAndCacheAllBatchesByAccount(ctx, b2bOrgUID, accountSFID, filters, batchParams); err != nil {
-		return model.MembershipPage{}, err
-	}
-
-	freshResult, readErr := r.cache.GetMembershipBatch(ctx, nats.MembershipBatchCacheKey(soqlMembershipsByAccountTemplateRef, batchParams, 0, ""))
-	if readErr != nil || freshResult.Status == nats.CacheStatusMiss {
-		return model.MembershipPage{}, fmt.Errorf("failed to read back batch 0 after Salesforce fetch for b2b org %s", b2bOrgUID)
-	}
-
-	resetCursor := PageCursor{PageSize: pageSize}
-	page, decodeErr := sliceCachedBatch(freshResult.Value, "", resetCursor, pageSize, 0, batchParams)
-	if decodeErr != nil {
-		return model.MembershipPage{}, fmt.Errorf("decoding freshly-fetched batch 0 for b2b org %s: %w", b2bOrgUID, decodeErr)
-	}
-	return r.resolveProjectUIDsForB2BPage(ctx, page), nil
-}
-
-// fetchAndCacheAllBatchesByAccount fetches the first SF batch by Account SFID
-// synchronously, then follows any remaining locators in a background goroutine.
-// Batches are written tail-first: batch N+1 is written before batch N so that
-// batch N's NextBatchIterator is always valid by the time it is readable. Batch
-// 0 is written last (synchronously, before this function returns) so the caller
-// can immediately read it back.
-func (r *MemberReader) fetchAndCacheAllBatchesByAccount(
-	ctx context.Context,
-	b2bOrgUID string,
-	accountSFID string,
-	filters model.MembershipFilters,
-	batchParams []string,
-) error {
-	firstBatch, err := r.memberships.FetchFirstMembershipBatchByAccount(ctx, accountSFID, filters)
-	if err != nil {
-		return fmt.Errorf("fetching first membership batch for b2b org %s: %w", b2bOrgUID, err)
-	}
-
-	// Do NOT stamp ProjectUID — these memberships span multiple projects.
-	// ProjectSlug is already populated from the SOQL JOIN.
-
-	if firstBatch.SFLocator == "" {
-		key0 := nats.MembershipBatchCacheKey(soqlMembershipsByAccountTemplateRef, batchParams, 0, "")
-		return r.cache.PutMembershipBatch(ctx, key0, firstBatch.Records, "", firstBatch.TotalSize)
-	}
-
-	batch0Records := firstBatch.Records
-	locator := firstBatch.SFLocator
-	totalSize := firstBatch.TotalSize
-
-	writeBatch0 := func(bgCtx context.Context, nextIter string) error {
-		key0 := nats.MembershipBatchCacheKey(soqlMembershipsByAccountTemplateRef, batchParams, 0, "")
-		return r.cache.PutMembershipBatch(bgCtx, key0, batch0Records, nextIter, totalSize)
-	}
-
-	sweepRemaining := func(bgCtx context.Context) error {
-		remaining, _, fetchErr := QueryAllPages[soqlAsset](bgCtx, r.memberships.client, "", locator)
-		if fetchErr != nil {
-			return fmt.Errorf("sweeping remaining membership batches for b2b org %s: %w", b2bOrgUID, fetchErr)
-		}
-
-		converted := make([]*model.ProjectMembership, 0, len(remaining))
-		for _, asset := range remaining {
-			m, convErr := convertSOQLToProjectMembership(asset)
-			if convErr != nil {
-				slog.WarnContext(bgCtx, "skipping membership with invalid SFID during account sweep",
-					"sfid", asset.ID, "error", convErr,
-				)
-				continue
-			}
-			// Do NOT stamp ProjectUID — already multi-project.
-			converted = append(converted, m)
-		}
-
-		chunks := splitIntoBatches(converted, sfQueryBatchSize)
-		iterators := make([]string, len(chunks))
-		for i := range iterators {
-			iterators[i] = newBatchIterator()
-		}
-
-		nextIter := ""
-		for i := len(chunks) - 1; i >= 0; i-- {
-			key := nats.MembershipBatchCacheKey(soqlMembershipsByAccountTemplateRef, batchParams, i+1, iterators[i])
-			if putErr := r.cache.PutMembershipBatch(bgCtx, key, chunks[i], nextIter, 0); putErr != nil {
-				slog.WarnContext(bgCtx, "failed to write b2b org membership batch to cache",
-					"batch_index", i+1, "cache_key", key, "error", putErr,
-				)
-				return nil
-			}
-			nextIter = iterators[i]
-		}
-
-		return writeBatch0(bgCtx, nextIter)
-	}
-
-	key0 := nats.MembershipBatchCacheKey(soqlMembershipsByAccountTemplateRef, batchParams, 0, "")
-	if putErr := r.cache.PutMembershipBatch(ctx, key0, batch0Records, "", totalSize); putErr != nil {
-		return fmt.Errorf("writing batch 0 for b2b org %s: %w", b2bOrgUID, putErr)
-	}
-
-	r.refreshInBackground(sweepRemaining)
-	return nil
-}
-
 // GetMembership returns the ProjectMembership identified by membershipUID. The
 // cache is consulted first; on a fresh or stale hit the cached value is returned
 // (stale hits also trigger a background refresh). On an expired entry or a miss
@@ -913,18 +700,9 @@ func (r *MemberReader) fetchKeyContactsFromSalesforce(ctx context.Context, membe
 // from Salesforce by SFID. ProjectUID is resolved from the contact's ProjectSlug
 // via the resolver.
 func (r *MemberReader) GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error) {
-	sfid, err := sfuuid.ToSFID(keyContactUID)
+	contact, _, err := r.keyContactReader.AssembleKeyContact(ctx, keyContactUID)
 	if err != nil {
-		// The UID is not an LFX_ UUID v8 — treat as a raw SFID passed directly.
-		sfid = keyContactUID
-	}
-
-	contact, err := r.contacts.FetchKeyContactBySFID(ctx, sfid)
-	if err != nil {
-		return nil, fmt.Errorf("fetching key contact %s from Salesforce: %w", keyContactUID, err)
-	}
-	if contact == nil {
-		return nil, errs.NewNotFound("key contact not found", fmt.Errorf("uid: %s", keyContactUID))
+		return nil, err
 	}
 
 	// Resolve the v2 project UID from the slug so ProjectUID is always populated.

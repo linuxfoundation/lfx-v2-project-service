@@ -17,10 +17,9 @@ type B2BOrgReader interface {
 	// wrapping ErrNotFound if no record exists for the given uid.
 	GetB2BOrg(ctx context.Context, uid string) (*model.B2BOrg, error)
 
-	// SearchB2BOrgs returns a single page of B2BOrg records filtered by the
-	// supplied predicates. The page size and continuation token are encoded in
-	// filters.PageToken (empty = first page). The returned B2BOrgPage carries
-	// an opaque NextPageToken for the caller to pass on the next request; an
-	// empty NextPageToken means this is the last page.
-	SearchB2BOrgs(ctx context.Context, filters model.B2BOrgFilters, pageSize int) (model.B2BOrgPage, error)
+	// FetchChildUIDsByParentUID returns the v2 UUIDs of all direct child orgs
+	// whose Salesforce Account.ParentId matches the given parent UID. Returns an
+	// empty slice when the parent has no children. Used to build the FGA child-list
+	// tuples that enable the b2b_org hierarchy view cascade.
+	FetchChildUIDsByParentUID(ctx context.Context, parentUID string) ([]string, error)
 }

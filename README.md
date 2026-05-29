@@ -6,10 +6,11 @@ This repository contains the source code for the LFX v2 platform member service.
 
 The LFX v2 Member Service is a RESTful API service that provides membership data
 within the Linux Foundation's LFX platform. It exposes endpoints for querying
-tiers, memberships, and their associated key contacts, organised around projects,
-as well as write endpoints for managing key contacts. Data is sourced directly
-from Salesforce via SOQL queries, with NATS Key-Value caches to minimise
-round-trips.
+project memberships and key contacts, write endpoints for managing B2B orgs
+(create, update, access-control settings) and key contacts (create, update,
+delete), and an admin reindex endpoint for pushing data into OpenSearch. Data is
+sourced directly from Salesforce via SOQL queries, with a per-record NATS
+Key-Value cache to minimise round-trips.
 
 ## File Structure
 
@@ -40,14 +41,15 @@ round-trips.
 
 ## Key Features
 
-- **RESTful API**: Project-scoped endpoints for querying tiers, memberships, and
-  key contacts, plus write endpoints (POST/PUT/DELETE) for key contact management.
+- **RESTful API**: Endpoints for querying project memberships and key contacts,
+  write endpoints for B2B orgs and key contacts, org access-control settings
+  (writers/auditors), and an admin reindex endpoint.
 - **Salesforce-backed**: All membership data is fetched directly from Salesforce
   via SOQL queries; no PostgreSQL dependency at runtime.
-- **NATS KV cache**: SOQL result, resolver, and selected single-record caching
-  in the `membership-cache` bucket with soft-TTL stale-while-revalidate
-  semantics (6 h stale / 23 h expire / 24 h NATS bucket TTL), plus
-  `member-service-cache` for Salesforce sObject conditional-GET support.
+- **NATS KV cache**: Three buckets — `membership-cache` for Salesforce-backed
+  records (6 h stale / 23 h expire / 24 h TTL); `member-service-cache` for
+  Salesforce sObject REST responses (raw JSON, no soft-TTL); and `org-settings`
+  for authoritative org access-control settings (no TTL, optimistic locking).
 - **Project ID resolution**: The `ProjectResolver` translates v2 project UIDs to
   Salesforce `Project__c.Id` values by chaining a NATS RPC to the project-service
   and a SOQL lookup, backed by the same KV cache.
@@ -64,48 +66,52 @@ round-trips.
 
 ## API Endpoints
 
-The API is project-scoped. All data endpoints are nested under
-`/projects/{project_id}` where `project_id` is the v2 project UUID.
+### Project membership
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/projects/{project_id}/tiers` | List membership tiers for a project |
-| GET | `/projects/{project_id}/tiers/{tier_id}` | Get a specific membership tier |
-| GET | `/projects/{project_id}/memberships` | List memberships for a project |
-| GET | `/projects/{project_id}/memberships/{id}` | Get a specific membership |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts` | List key contacts for a membership |
-| GET | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Get a specific key contact |
-| POST | `/projects/{project_id}/memberships/{id}/key_contacts` | Add a key contact |
-| PUT | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Update a key contact |
-| DELETE | `/projects/{project_id}/memberships/{id}/key_contacts/{cid}` | Remove a key contact |
-| GET | `/b2b_orgs` | Search B2B organizations (interim detour endpoint) |
-| GET | `/b2b_orgs/{b2b_org_uid}/memberships` | List memberships for a B2B organization (interim detour endpoint) |
+| GET | `/project_memberships/{uid}` | Get a project membership |
+
+### Key contacts (nested under project_membership)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact |
+| POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact |
+| PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact |
+| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact |
+
+### B2B orgs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID |
+| PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org |
+| GET | `/b2b_orgs/{uid}` | Get a B2B org |
+| GET | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) |
+| PUT | `/b2b_orgs/{uid}/settings` | Update org access-control settings (writers, auditors) |
+
+### Admin
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch (requires global org-admin membership) |
+
+### Utility
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/readyz` | Readiness check |
 | GET | `/livez` | Liveness check |
-| GET | `/debug/vars` | expvar JSON for port-forward/debug use; not exposed by HTTPRoute |
 
 > **Note:** The legacy `/members/*` and `/memberships/*` endpoints return
 > `410 Gone` with a hint pointing to the replacement paths above.
 
-### Filtering
-
-Use the `filter` query parameter with semicolon-separated `key=value` pairs:
-
-```
-GET /projects/{project_id}/memberships?filter=tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-GET /projects/{project_id}/memberships?search_name=acme
-```
-
-The Goa contract advertises `tier_uid`, which is pushed into the SOQL query.
-The handler also applies these compatibility filters after fetching a page:
-`company_name`, `project_slug`, `tier_name`, `status`, `tier`, and `year`.
-`search_name` is pushed to SOQL as a company-name search.
-
 ## NATS API
 
-In addition to the HTTP API, the service handles a NATS request/reply subject
-that allows other services to resolve v2 project UIDs to Salesforce
-`Project__c.Id` values.
+In addition to the HTTP API, the service handles NATS request/reply subjects
+that allow other services to resolve identifiers without querying Salesforce or
+this service's HTTP layer directly.
 
 ### Project ID Map Lookup
 
@@ -146,6 +152,50 @@ Salesforce SOQL query.
 The reply is always valid JSON. Check for the presence of the `"error"` key to
 detect failure.
 
+### B2B Org ID Map Lookup
+
+Resolves a Salesforce Account SFID to its v2 b2b_org UUID. The mapping is
+deterministic (pure base-62 transform via `pkg/sfuuid`) — no Salesforce or KV
+round-trip is required.
+
+| Field | Value |
+|-------|-------|
+| **Subject** | `lfx.member.b2b-org-id-map.lookup` |
+| **Transport** | NATS core request/reply |
+
+**Request body (JSON):**
+
+```json
+{"b2b_org_sfid": "<Salesforce Account.Id>"}
+```
+
+**Response — success:**
+
+```json
+{"b2b_org_uid": "<v2 b2b_org UUID>"}
+```
+
+**Response — not found / invalid SFID:**
+
+```json
+{"error": "b2b org not found"}
+```
+
+**Response — bad request:**
+
+```json
+{"error": "b2b_org_sfid is required"}
+```
+
+**Response — malformed JSON:**
+
+```json
+{"error": "invalid request body"}
+```
+
+The reply is always valid JSON. Check for the presence of the `"error"` key to
+detect failure.
+
 ## Development
 
 To contribute to this repository:
@@ -175,9 +225,8 @@ export SF_CLIENT_ID=<connected-app-client-id>
 export SF_CLIENT_SECRET=<connected-app-client-secret>
 ./bin/member-api
 
-# With mock readers only. Current startup still initializes NATS/Salesforce for
-# the project-id-map RPC handler and key-contact writer wiring.
-REPOSITORY_SOURCE=mock JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=local-dev-user ./bin/member-api
+# With mock data (no NATS or Salesforce required)
+REPOSITORY_SOURCE=mock AUTH_SOURCE=mock ./bin/member-api
 
 # With mock auth only (NATS + Salesforce still required)
 export JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=local-dev-user
@@ -199,7 +248,7 @@ Kubernetes Secret is required in production; see the Helm chart `values.yaml`
 | `SF_PASSWORD` | Salesforce password (username/password flow) | Conditional |
 | `SF_SECURITY_TOKEN` | Security token appended to password | No |
 | `SF_CONSUMER_RSA_PEM` | PEM-encoded RSA private key (JWT bearer flow) | Conditional |
-| `SF_API_VERSION` | Salesforce REST API version (default: `v63.0`) | No |
+| `SF_API_VERSION` | Salesforce REST API version (default: `v60.0`) | No |
 
 At least one complete authentication flow must be configured:
 

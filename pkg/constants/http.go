@@ -20,3 +20,14 @@ const AuthorizationHeader string = "authorization"
 
 // AuthorizationContextID is the context ID for the authorization
 const AuthorizationContextID contextAuthorization = "authorization"
+
+// XOnBehalfOfHeader is the header name for the on-behalf-of principal (lowercase for NATS headers).
+const XOnBehalfOfHeader string = "x-on-behalf-of"
+
+// ServiceAccountBearer is the fallback Authorization header value used by the
+// member-service when no user token is present in the context (e.g. internal writes).
+const ServiceAccountBearer string = "Bearer lfx-v2-member-service"
+
+// HTTPDateFormat is the RFC 1123 date format required by HTTP Last-Modified and
+// If-Unmodified-Since headers (e.g. "Mon, 02 Jan 2006 15:04:05 GMT").
+const HTTPDateFormat = "Mon, 02 Jan 2006 15:04:05 GMT"

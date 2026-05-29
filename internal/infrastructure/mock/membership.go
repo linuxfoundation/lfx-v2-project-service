@@ -52,7 +52,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 
 	// Sample membership (Asset).
 	sampleMembership := &model.ProjectMembership{
-		UID:              "membership-1",
+		UID:              "11111111-1111-1111-1111-111111111111",
 		TierUID:          "tier-1",
 		ProjectUID:       "project-uid-1",
 		ProjectSlug:      "linux-foundation",
@@ -80,7 +80,7 @@ func NewMockMembershipRepository() *MockMembershipRepository {
 	// Sample key contact (Project_Role__c).
 	sampleContact := &model.KeyContact{
 		UID:            "contact-role-1",
-		MembershipUID:  "membership-1",
+		MembershipUID:  "11111111-1111-1111-1111-111111111111",
 		TierUID:        "tier-1",
 		ProjectUID:     "project-uid-1",
 		ProjectSlug:    "linux-foundation",
@@ -250,60 +250,6 @@ func (m *MockMembershipRepository) IsReady(_ context.Context) error {
 	return nil
 }
 
-// ListMembershipsForB2BOrg returns a MembershipPage of ProjectMembership
-// records filtered in-memory by the supplied predicates. The mock does not
-// restrict by B2B org UID — all seeded memberships are eligible — but it
-// does apply status, tier, and company-name-search filters to mirror the
-// behaviour of the real Salesforce SOQL implementation.
-func (m *MockMembershipRepository) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
-	slog.DebugContext(ctx, "mock: listing memberships for b2b org",
-		"b2b_org_uid", b2bOrgUID,
-		"sort_order", filters.EffectiveSortOrder(),
-		"page_size", pageSize,
-	)
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	filterMap := make(map[string]string)
-	// TierUID is a SOQL-level filter; approximate in-memory by matching the
-	// TierUID field directly on the membership record.
-	if filters.TierUID != "" {
-		filterMap["tier_uid"] = filters.TierUID
-	}
-	// Status is not exposed as a filter — hardcoded to active members only,
-	// mirroring the hardcoded AND Status = 'Active' in the SOQL base query.
-	filterMap["status"] = "Active"
-
-	var result []*model.ProjectMembership
-	for _, ms := range m.memberships {
-		if !matchesMockMemberFilters(ms, filterMap, "") {
-			continue
-		}
-		// CompanyNameSearch mirrors the SOQL LIKE predicate pushed down in the
-		// real implementation. Match only on CompanyName (case-insensitive).
-		if filters.CompanyNameSearch != "" &&
-			!strings.Contains(strings.ToLower(ms.CompanyName), filters.CompanyNameSearch) {
-			continue
-		}
-		result = append(result, ms)
-	}
-
-	// Apply in-memory sort to mirror SOQL ORDER BY behaviour.
-	sortMockMemberships(result, filters.EffectiveSortOrder())
-
-	// Apply a simple page cap (no real cursor support in the mock).
-	if pageSize > 0 && len(result) > pageSize {
-		result = result[:pageSize]
-	}
-
-	return model.MembershipPage{
-		Memberships:   result,
-		NextPageToken: "", // mock never paginates
-		TotalSize:     len(result),
-	}, nil
-}
-
 // sortMockMemberships sorts a slice of ProjectMembership records in-place
 // according to the given SortOrder, mirroring the SOQL ORDER BY clauses used
 // in the real Salesforce implementation.
@@ -386,14 +332,212 @@ func NewMockB2BOrgReader() *MockB2BOrgReader {
 	return &MockB2BOrgReader{}
 }
 
-// SearchB2BOrgs always returns an empty page. Satisfies port.B2BOrgReader for
-// local development without Salesforce.
-func (m *MockB2BOrgReader) SearchB2BOrgs(_ context.Context, _ model.B2BOrgFilters, _ int) (model.B2BOrgPage, error) {
-	return model.B2BOrgPage{Orgs: []*model.B2BOrg{}}, nil
-}
-
 // GetB2BOrg always returns not-found. Satisfies port.B2BOrgReader for local
 // development without Salesforce.
 func (m *MockB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
 	return nil, errors.NewNotFound("b2b org not found in mock")
+}
+
+// FetchChildUIDsByParentUID returns nil (no children) in mock mode — no
+// Salesforce to query, so child-list FGA messages are skipped.
+func (m *MockB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
+// MockB2BOrgWriter is a stub implementation of port.B2BOrgWriter for local
+// development when REPOSITORY_SOURCE=mock. All methods return NotImplemented.
+type MockB2BOrgWriter struct{}
+
+// NewMockB2BOrgWriter creates a new MockB2BOrgWriter.
+func NewMockB2BOrgWriter() *MockB2BOrgWriter {
+	return &MockB2BOrgWriter{}
+}
+
+// CreateB2BOrg always returns not-implemented.
+func (m *MockB2BOrgWriter) CreateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
+	return nil, errors.NewNotImplemented("create-b2b-org not implemented in mock")
+}
+
+// UpdateB2BOrg always returns not-implemented.
+func (m *MockB2BOrgWriter) UpdateB2BOrg(_ context.Context, _ string, _ model.B2BOrgInput) (*model.B2BOrg, error) {
+	return nil, errors.NewNotImplemented("update-b2b-org not implemented in mock")
+}
+
+// MockMemberPublisher is a no-op implementation of port.MemberPublisher for
+// local development when MESSAGING_SOURCE=mock. All messages are logged but
+// not published to NATS.
+type MockMemberPublisher struct {
+	mu                 sync.Mutex
+	accessErr          error
+	indexerErr         error
+	LastAccessData     any      // last payload passed to Access; nil if never called
+	LastIndexSubject   string   // last subject passed to Indexer; empty if never called
+	LastIndexerPayload any      // last message payload passed to Indexer; nil if never called
+	CallOrder          []string // "access" or "indexer" in call order, for ordering assertions
+}
+
+// NewMockMemberPublisher creates a new MockMemberPublisher.
+func NewMockMemberPublisher() *MockMemberPublisher {
+	return &MockMemberPublisher{}
+}
+
+// SetAccessError configures the mock to return err on the next Access call.
+func (m *MockMemberPublisher) SetAccessError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.accessErr = err
+}
+
+// SetIndexerError configures the mock to return err on the next Indexer call.
+func (m *MockMemberPublisher) SetIndexerError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.indexerErr = err
+}
+
+// Indexer logs the message, captures the subject, records call order, and returns the configured error (if any).
+func (m *MockMemberPublisher) Indexer(ctx context.Context, subject string, msg any, _ bool) error {
+	slog.DebugContext(ctx, "mock: indexer publish (no-op)", "subject", subject)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.LastIndexSubject = subject
+	m.LastIndexerPayload = msg
+	m.CallOrder = append(m.CallOrder, "indexer")
+	if m.indexerErr != nil {
+		err := m.indexerErr
+		m.indexerErr = nil
+		return err
+	}
+	return nil
+}
+
+// Access logs the message, captures the payload, records call order, and returns the configured error (if any).
+func (m *MockMemberPublisher) Access(ctx context.Context, subject string, msg any, _ bool) error {
+	slog.DebugContext(ctx, "mock: access publish (no-op)", "subject", subject)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.LastAccessData = msg
+	m.CallOrder = append(m.CallOrder, "access")
+	if m.accessErr != nil {
+		err := m.accessErr
+		m.accessErr = nil
+		return err
+	}
+	return nil
+}
+
+// MockKeyContactWriter is a stub implementation of port.KeyContactWriter for
+// local development when REPOSITORY_SOURCE=mock. All methods return NotImplemented.
+type MockKeyContactWriter struct{}
+
+// NewMockKeyContactWriter creates a new MockKeyContactWriter.
+func NewMockKeyContactWriter() *MockKeyContactWriter {
+	return &MockKeyContactWriter{}
+}
+
+// CreateKeyContact always returns not-implemented.
+func (m *MockKeyContactWriter) CreateKeyContact(_ context.Context, _ model.KeyContactInput) (*model.KeyContact, error) {
+	return nil, errors.NewNotImplemented("create-key-contact not implemented in mock")
+}
+
+// UpdateKeyContact always returns not-implemented.
+func (m *MockKeyContactWriter) UpdateKeyContact(_ context.Context, _ string, _ model.KeyContactInput) (*model.KeyContact, error) {
+	return nil, errors.NewNotImplemented("update-key-contact not implemented in mock")
+}
+
+// DeleteKeyContact always returns not-implemented.
+func (m *MockKeyContactWriter) DeleteKeyContact(_ context.Context, _ string, _ string) error {
+	return errors.NewNotImplemented("delete-key-contact not implemented in mock")
+}
+
+// MockKeyContactWriterWithOK returns a minimal successful response for each port.KeyContactWriter
+// operation. Used in orchestrator unit tests to isolate publish-sequencing behaviour.
+type MockKeyContactWriterWithOK struct{}
+
+// NewMockKeyContactWriterWithOK creates a MockKeyContactWriterWithOK.
+func NewMockKeyContactWriterWithOK() *MockKeyContactWriterWithOK {
+	return &MockKeyContactWriterWithOK{}
+}
+
+func (m *MockKeyContactWriterWithOK) CreateKeyContact(_ context.Context, input model.KeyContactInput) (*model.KeyContact, error) {
+	email := ""
+	if input.Email != nil {
+		email = *input.Email
+	}
+	role := ""
+	if input.Role != nil {
+		role = *input.Role
+	}
+	return &model.KeyContact{
+		UID:           "00000000-0000-0000-0000-000000000099",
+		MembershipUID: input.MembershipUID,
+		Email:         email,
+		Role:          role,
+		UpdatedAt:     time.Now(),
+	}, nil
+}
+
+func (m *MockKeyContactWriterWithOK) UpdateKeyContact(_ context.Context, uid string, input model.KeyContactInput) (*model.KeyContact, error) {
+	email := ""
+	if input.Email != nil {
+		email = *input.Email
+	}
+	return &model.KeyContact{
+		UID:           uid,
+		MembershipUID: input.MembershipUID,
+		Email:         email,
+		UpdatedAt:     time.Now(),
+	}, nil
+}
+
+func (m *MockKeyContactWriterWithOK) DeleteKeyContact(_ context.Context, _ string, _ string) error {
+	return nil
+}
+
+// MockProjectMembershipReader is a stub implementation of port.ProjectMembershipReader
+// for local development when REPOSITORY_SOURCE=mock.
+type MockProjectMembershipReader struct{}
+
+// NewMockProjectMembershipReader creates a new MockProjectMembershipReader.
+func NewMockProjectMembershipReader() *MockProjectMembershipReader {
+	return &MockProjectMembershipReader{}
+}
+
+// AssembleProjectMembership returns the seeded membership for "11111111-1111-1111-1111-111111111111" and not-found otherwise.
+func (m *MockProjectMembershipReader) AssembleProjectMembership(_ context.Context, uid string) (*model.ProjectMembership, time.Time, error) {
+	if uid == "11111111-1111-1111-1111-111111111111" {
+		return &model.ProjectMembership{
+			UID:        "11111111-1111-1111-1111-111111111111",
+			ProjectUID: "project-1",
+			B2BOrgUID:  "org-1",
+		}, time.Now(), nil
+	}
+	return nil, time.Time{}, errors.NewNotFound("project membership not found in mock")
+}
+
+// MockKeyContactSObjectReader is a no-op implementation of the
+// service.KeyContactSObjectReader interface for use when REPOSITORY_SOURCE=mock.
+type MockKeyContactSObjectReader struct{}
+
+// NewMockKeyContactSObjectReader returns a MockKeyContactSObjectReader.
+func NewMockKeyContactSObjectReader() *MockKeyContactSObjectReader {
+	return &MockKeyContactSObjectReader{}
+}
+
+// AssembleKeyContact always returns not-implemented.
+func (m *MockKeyContactSObjectReader) AssembleKeyContact(_ context.Context, uid string) (*model.KeyContact, time.Time, error) {
+	return nil, time.Time{}, errors.NewNotImplemented("AssembleKeyContact not implemented in mock")
+}
+
+// MockUserReader provides a no-op mock implementation of port.UserReader
+// for local development when REPOSITORY_SOURCE=mock.
+type MockUserReader struct{}
+
+// NewMockUserReader returns a MockUserReader.
+func NewMockUserReader() *MockUserReader { return &MockUserReader{} }
+
+// SubByEmail always returns an empty string. Satisfies port.UserReader for
+// local development without auth-service.
+func (m *MockUserReader) SubByEmail(_ context.Context, _ string) (string, error) {
+	return "", nil
 }

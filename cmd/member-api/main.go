@@ -16,11 +16,8 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-member-service/cmd/member-api/service"
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
-	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
 	natsinf "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce"
-
-	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 
 	logging "github.com/linuxfoundation/lfx-v2-member-service/pkg/log"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/utils"
@@ -58,18 +55,6 @@ func main() {
 
 	ctx := context.Background()
 
-	// Set up JWT validator needed by the JWTAuth security handler.
-	jwtAuthConfig := auth.JWTAuthConfig{
-		JWKSURL:            os.Getenv("JWKS_URL"),
-		Audience:           os.Getenv("AUDIENCE"),
-		MockLocalPrincipal: os.Getenv("JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL"),
-	}
-	jwtAuth, err := auth.NewJWTAuth(jwtAuthConfig)
-	if err != nil {
-		slog.ErrorContext(ctx, "error setting up JWT authentication", "error", err)
-		os.Exit(1)
-	}
-
 	// Set up OpenTelemetry SDK.
 	otelConfig := utils.OTelConfigFromEnv()
 	if otelConfig.ServiceVersion == "" {
@@ -100,31 +85,61 @@ func main() {
 		"graceful-shutdown-seconds", gracefulShutdownSeconds,
 	)
 
-	// Initialize the repositories based on configuration.
-	memberReader := service.MemberReaderImpl(ctx)
 	defer service.CloseNATSClient()
 
 	// Register the project-id-map NATS RPC handler so external services can
 	// resolve v2 project UIDs to Salesforce Project__c.Id SFIDs.
+	// ProjectResolverImpl returns nil in mock mode; skip registration then.
 	natsClient := service.NATSClientImpl(ctx)
-	resolver := service.ProjectResolverImpl(ctx)
-	projectIDMapSub, err := natsinf.SubscribeProjectIDMap(natsClient.Conn(), resolver)
+	if resolver := service.ProjectResolverImpl(ctx); resolver != nil {
+		projectIDMapSub, err := natsinf.SubscribeProjectIDMap(natsClient.Conn(), resolver)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to subscribe to project-id-map RPC", "error", err)
+			os.Exit(1)
+		}
+		defer func() {
+			if drainErr := projectIDMapSub.Drain(); drainErr != nil {
+				slog.WarnContext(ctx, "error draining project-id-map subscription", "error", drainErr)
+			}
+		}()
+	}
+
+	// Register the sfid-to-uuid and uuid-to-sfid NATS RPC handlers so external
+	// services can resolve Salesforce SFIDs to v2 UUIDs and vice versa.
+	// Resolvers are pure CPU (no Salesforce/NATS deps) and always available.
+	sfidToUUIDSub, err := natsinf.HandleSFIDToUUID(natsClient.Conn(), slog.Default())
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to subscribe to project-id-map RPC", "error", err)
+		slog.ErrorContext(ctx, "failed to subscribe to sfid-to-uuid RPC", "error", err)
 		os.Exit(1)
 	}
 	defer func() {
-		if drainErr := projectIDMapSub.Drain(); drainErr != nil {
-			slog.WarnContext(ctx, "error draining project-id-map subscription", "error", drainErr)
+		if drainErr := sfidToUUIDSub.Drain(); drainErr != nil {
+			slog.WarnContext(ctx, "error draining sfid-to-uuid subscription", "error", drainErr)
 		}
 	}()
 
-	// Initialize the service with use cases.
-	readMemberUseCase := usecaseSvc.NewMemberReaderOrchestrator(
-		usecaseSvc.WithMemberReader(memberReader),
-	)
+	uuidToSFIDSub, err := natsinf.HandleUUIDToSFID(natsClient.Conn(), slog.Default())
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to subscribe to uuid-to-sfid RPC", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if drainErr := uuidToSFIDSub.Drain(); drainErr != nil {
+			slog.WarnContext(ctx, "error draining uuid-to-sfid subscription", "error", drainErr)
+		}
+	}()
 
-	membershipServiceSvc := service.NewMembershipService(readMemberUseCase, memberReader, jwtAuth, service.KeyContactWriterImpl(ctx), service.B2BOrgReaderImpl(ctx))
+	membershipServiceSvc := service.NewMembershipService(
+		service.JWTAuthImpl(ctx),
+		service.MemberReaderImpl(ctx),
+		service.B2BOrgReaderImpl(ctx),
+		service.ProjectMembershipReaderImpl(ctx),
+		service.B2BOrgSettingsReaderImpl(ctx),
+		service.B2BOrgWriterUseCase(ctx),
+		service.KeyContactWriterUseCase(ctx),
+		service.OrgSettingsWriterUseCase(ctx),
+		service.BackfillRunnerImpl(ctx),
+	)
 
 	// Wrap the services in endpoints.
 	membershipServiceEndpoints := membershipservice.NewEndpoints(membershipServiceSvc)

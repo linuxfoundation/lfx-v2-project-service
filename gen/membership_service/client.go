@@ -16,96 +16,143 @@ import (
 
 // Client is the "membership-service" service client.
 type Client struct {
-	ListProjectTiersEndpoint           goa.Endpoint
-	GetProjectTierEndpoint             goa.Endpoint
-	ListProjectMembershipsEndpoint     goa.Endpoint
-	GetProjectMembershipEndpoint       goa.Endpoint
-	ListMembershipKeyContactsEndpoint  goa.Endpoint
-	CreateMembershipKeyContactEndpoint goa.Endpoint
-	UpdateMembershipKeyContactEndpoint goa.Endpoint
-	DeleteMembershipKeyContactEndpoint goa.Endpoint
-	GetMembershipKeyContactEndpoint    goa.Endpoint
-	ListB2bOrgsEndpoint                goa.Endpoint
-	ListB2bOrgMembershipsEndpoint      goa.Endpoint
-	ReadyzEndpoint                     goa.Endpoint
-	LivezEndpoint                      goa.Endpoint
-	DebugVarsEndpoint                  goa.Endpoint
+	GetB2bOrgEndpoint            goa.Endpoint
+	CreateB2bOrgEndpoint         goa.Endpoint
+	UpdateB2bOrgEndpoint         goa.Endpoint
+	GetB2bOrgSettingsEndpoint    goa.Endpoint
+	UpdateB2bOrgSettingsEndpoint goa.Endpoint
+	GetProjectMembershipEndpoint goa.Endpoint
+	GetKeyContactEndpoint        goa.Endpoint
+	CreateKeyContactEndpoint     goa.Endpoint
+	UpdateKeyContactEndpoint     goa.Endpoint
+	DeleteKeyContactEndpoint     goa.Endpoint
+	AdminReindexEndpoint         goa.Endpoint
+	ReadyzEndpoint               goa.Endpoint
+	LivezEndpoint                goa.Endpoint
+	DebugVarsEndpoint            goa.Endpoint
 }
 
 // NewClient initializes a "membership-service" service client given the
 // endpoints.
-func NewClient(listProjectTiers, getProjectTier, listProjectMemberships, getProjectMembership, listMembershipKeyContacts, createMembershipKeyContact, updateMembershipKeyContact, deleteMembershipKeyContact, getMembershipKeyContact, listB2bOrgs, listB2bOrgMemberships, readyz, livez, debugVars goa.Endpoint) *Client {
+func NewClient(getB2bOrg, createB2bOrg, updateB2bOrg, getB2bOrgSettings, updateB2bOrgSettings, getProjectMembership, getKeyContact, createKeyContact, updateKeyContact, deleteKeyContact, adminReindex, readyz, livez, debugVars goa.Endpoint) *Client {
 	return &Client{
-		ListProjectTiersEndpoint:           listProjectTiers,
-		GetProjectTierEndpoint:             getProjectTier,
-		ListProjectMembershipsEndpoint:     listProjectMemberships,
-		GetProjectMembershipEndpoint:       getProjectMembership,
-		ListMembershipKeyContactsEndpoint:  listMembershipKeyContacts,
-		CreateMembershipKeyContactEndpoint: createMembershipKeyContact,
-		UpdateMembershipKeyContactEndpoint: updateMembershipKeyContact,
-		DeleteMembershipKeyContactEndpoint: deleteMembershipKeyContact,
-		GetMembershipKeyContactEndpoint:    getMembershipKeyContact,
-		ListB2bOrgsEndpoint:                listB2bOrgs,
-		ListB2bOrgMembershipsEndpoint:      listB2bOrgMemberships,
-		ReadyzEndpoint:                     readyz,
-		LivezEndpoint:                      livez,
-		DebugVarsEndpoint:                  debugVars,
+		GetB2bOrgEndpoint:            getB2bOrg,
+		CreateB2bOrgEndpoint:         createB2bOrg,
+		UpdateB2bOrgEndpoint:         updateB2bOrg,
+		GetB2bOrgSettingsEndpoint:    getB2bOrgSettings,
+		UpdateB2bOrgSettingsEndpoint: updateB2bOrgSettings,
+		GetProjectMembershipEndpoint: getProjectMembership,
+		GetKeyContactEndpoint:        getKeyContact,
+		CreateKeyContactEndpoint:     createKeyContact,
+		UpdateKeyContactEndpoint:     updateKeyContact,
+		DeleteKeyContactEndpoint:     deleteKeyContact,
+		AdminReindexEndpoint:         adminReindex,
+		ReadyzEndpoint:               readyz,
+		LivezEndpoint:                livez,
+		DebugVarsEndpoint:            debugVars,
 	}
 }
 
-// ListProjectTiers calls the "list-project-tiers" endpoint of the
-// "membership-service" service.
-// ListProjectTiers may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Project not found
+// GetB2bOrg calls the "get-b2b-org" endpoint of the "membership-service"
+// service.
+// GetB2bOrg may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
-func (c *Client) ListProjectTiers(ctx context.Context, p *ListProjectTiersPayload) (res *ListProjectTiersResult, err error) {
+func (c *Client) GetB2bOrg(ctx context.Context, p *GetB2bOrgPayload) (res *GetB2bOrgResult, err error) {
 	var ires any
-	ires, err = c.ListProjectTiersEndpoint(ctx, p)
+	ires, err = c.GetB2bOrgEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*ListProjectTiersResult), nil
+	return ires.(*GetB2bOrgResult), nil
 }
 
-// GetProjectTier calls the "get-project-tier" endpoint of the
-// "membership-service" service.
-// GetProjectTier may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Tier not found
+// CreateB2bOrg calls the "create-b2b-org" endpoint of the "membership-service"
+// service.
+// CreateB2bOrg may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
-func (c *Client) GetProjectTier(ctx context.Context, p *GetProjectTierPayload) (res *GetProjectTierResult, err error) {
+func (c *Client) CreateB2bOrg(ctx context.Context, p *CreateB2bOrgPayload) (res *CreateB2bOrgResult, err error) {
 	var ires any
-	ires, err = c.GetProjectTierEndpoint(ctx, p)
+	ires, err = c.CreateB2bOrgEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*GetProjectTierResult), nil
+	return ires.(*CreateB2bOrgResult), nil
 }
 
-// ListProjectMemberships calls the "list-project-memberships" endpoint of the
+// UpdateB2bOrg calls the "update-b2b-org" endpoint of the "membership-service"
+// service.
+// UpdateB2bOrg may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateB2bOrg(ctx context.Context, p *UpdateB2bOrgPayload) (res *UpdateB2bOrgResult, err error) {
+	var ires any
+	ires, err = c.UpdateB2bOrgEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*UpdateB2bOrgResult), nil
+}
+
+// GetB2bOrgSettings calls the "get-b2b-org-settings" endpoint of the
 // "membership-service" service.
-// ListProjectMemberships may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Project not found
+// GetB2bOrgSettings may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Resource not found
 //   - "BadRequest" (type *goa.ServiceError): Bad request
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
-func (c *Client) ListProjectMemberships(ctx context.Context, p *ListProjectMembershipsPayload) (res *ListProjectMembershipsResult, err error) {
+func (c *Client) GetB2bOrgSettings(ctx context.Context, p *GetB2bOrgSettingsPayload) (res *GetB2bOrgSettingsResult, err error) {
 	var ires any
-	ires, err = c.ListProjectMembershipsEndpoint(ctx, p)
+	ires, err = c.GetB2bOrgSettingsEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*ListProjectMembershipsResult), nil
+	return ires.(*GetB2bOrgSettingsResult), nil
+}
+
+// UpdateB2bOrgSettings calls the "update-b2b-org-settings" endpoint of the
+// "membership-service" service.
+// UpdateB2bOrgSettings may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Concurrent modification — retry with fresh settings
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateB2bOrgSettings(ctx context.Context, p *UpdateB2bOrgSettingsPayload) (res *UpdateB2bOrgSettingsResult, err error) {
+	var ires any
+	ires, err = c.UpdateB2bOrgSettingsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*UpdateB2bOrgSettingsResult), nil
 }
 
 // GetProjectMembership calls the "get-project-membership" endpoint of the
 // "membership-service" service.
 // GetProjectMembership may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Membership not found
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
@@ -118,113 +165,97 @@ func (c *Client) GetProjectMembership(ctx context.Context, p *GetProjectMembersh
 	return ires.(*GetProjectMembershipResult), nil
 }
 
-// ListMembershipKeyContacts calls the "list-membership-key-contacts" endpoint
-// of the "membership-service" service.
-// ListMembershipKeyContacts may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Membership not found
-//   - "InternalServerError" (type *goa.ServiceError): Internal server error
-//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
-//   - error: internal error
-func (c *Client) ListMembershipKeyContacts(ctx context.Context, p *ListMembershipKeyContactsPayload) (res *ListMembershipKeyContactsResult, err error) {
-	var ires any
-	ires, err = c.ListMembershipKeyContactsEndpoint(ctx, p)
-	if err != nil {
-		return
-	}
-	return ires.(*ListMembershipKeyContactsResult), nil
-}
-
-// CreateMembershipKeyContact calls the "create-membership-key-contact"
-// endpoint of the "membership-service" service.
-// CreateMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Membership not found
+// GetKeyContact calls the "get-key-contact" endpoint of the
+// "membership-service" service.
+// GetKeyContact may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
 //   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
-func (c *Client) CreateMembershipKeyContact(ctx context.Context, p *CreateMembershipKeyContactPayload) (res *CreateMembershipKeyContactResult, err error) {
+func (c *Client) GetKeyContact(ctx context.Context, p *GetKeyContactPayload) (res *GetKeyContactResult, err error) {
 	var ires any
-	ires, err = c.CreateMembershipKeyContactEndpoint(ctx, p)
+	ires, err = c.GetKeyContactEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*CreateMembershipKeyContactResult), nil
+	return ires.(*GetKeyContactResult), nil
 }
 
-// UpdateMembershipKeyContact calls the "update-membership-key-contact"
-// endpoint of the "membership-service" service.
-// UpdateMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Key contact not found
+// CreateKeyContact calls the "create-key-contact" endpoint of the
+// "membership-service" service.
+// CreateKeyContact may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
 //   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Capacity limit or duplicate key contact
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
-func (c *Client) UpdateMembershipKeyContact(ctx context.Context, p *UpdateMembershipKeyContactPayload) (res *UpdateMembershipKeyContactResult, err error) {
+func (c *Client) CreateKeyContact(ctx context.Context, p *CreateKeyContactPayload) (res *CreateKeyContactResult, err error) {
 	var ires any
-	ires, err = c.UpdateMembershipKeyContactEndpoint(ctx, p)
+	ires, err = c.CreateKeyContactEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*UpdateMembershipKeyContactResult), nil
+	return ires.(*CreateKeyContactResult), nil
 }
 
-// DeleteMembershipKeyContact calls the "delete-membership-key-contact"
-// endpoint of the "membership-service" service.
-// DeleteMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Key contact not found
+// UpdateKeyContact calls the "update-key-contact" endpoint of the
+// "membership-service" service.
+// UpdateKeyContact may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Capacity limit or duplicate key contact
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
-func (c *Client) DeleteMembershipKeyContact(ctx context.Context, p *DeleteMembershipKeyContactPayload) (err error) {
-	_, err = c.DeleteMembershipKeyContactEndpoint(ctx, p)
+func (c *Client) UpdateKeyContact(ctx context.Context, p *UpdateKeyContactPayload) (res *UpdateKeyContactResult, err error) {
+	var ires any
+	ires, err = c.UpdateKeyContactEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*UpdateKeyContactResult), nil
+}
+
+// DeleteKeyContact calls the "delete-key-contact" endpoint of the
+// "membership-service" service.
+// DeleteKeyContact may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) DeleteKeyContact(ctx context.Context, p *DeleteKeyContactPayload) (err error) {
+	_, err = c.DeleteKeyContactEndpoint(ctx, p)
 	return
 }
 
-// GetMembershipKeyContact calls the "get-membership-key-contact" endpoint of
-// the "membership-service" service.
-// GetMembershipKeyContact may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): Key contact not found
-//   - "InternalServerError" (type *goa.ServiceError): Internal server error
-//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
-//   - error: internal error
-func (c *Client) GetMembershipKeyContact(ctx context.Context, p *GetMembershipKeyContactPayload) (res *GetMembershipKeyContactResult, err error) {
-	var ires any
-	ires, err = c.GetMembershipKeyContactEndpoint(ctx, p)
-	if err != nil {
-		return
-	}
-	return ires.(*GetMembershipKeyContactResult), nil
-}
-
-// ListB2bOrgs calls the "list-b2b-orgs" endpoint of the "membership-service"
+// AdminReindex calls the "admin-reindex" endpoint of the "membership-service"
 // service.
-// ListB2bOrgs may return the following errors:
+// AdminReindex may return the following errors:
+//   - "NotImplemented" (type *goa.ServiceError): Endpoint not implemented
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
-func (c *Client) ListB2bOrgs(ctx context.Context, p *ListB2bOrgsPayload) (res *ListB2bOrgsResult, err error) {
+func (c *Client) AdminReindex(ctx context.Context, p *AdminReindexPayload) (res *AdminReindexResult, err error) {
 	var ires any
-	ires, err = c.ListB2bOrgsEndpoint(ctx, p)
+	ires, err = c.AdminReindexEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(*ListB2bOrgsResult), nil
-}
-
-// ListB2bOrgMemberships calls the "list-b2b-org-memberships" endpoint of the
-// "membership-service" service.
-// ListB2bOrgMemberships may return the following errors:
-//   - "NotFound" (type *goa.ServiceError): B2B organization not found
-//   - "InternalServerError" (type *goa.ServiceError): Internal server error
-//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
-//   - error: internal error
-func (c *Client) ListB2bOrgMemberships(ctx context.Context, p *ListB2bOrgMembershipsPayload) (res *ListB2bOrgMembershipsResult, err error) {
-	var ires any
-	ires, err = c.ListB2bOrgMembershipsEndpoint(ctx, p)
-	if err != nil {
-		return
-	}
-	return ires.(*ListB2bOrgMembershipsResult), nil
+	return ires.(*AdminReindexResult), nil
 }
 
 // Readyz calls the "readyz" endpoint of the "membership-service" service.

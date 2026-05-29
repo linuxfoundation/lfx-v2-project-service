@@ -3,7 +3,10 @@
 
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // ProjectMembership represents a membership (Asset) record scoped to a specific
 // project. Account (company) attributes are denormalized directly onto this
@@ -100,4 +103,24 @@ type ProjectMembership struct {
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Tags returns search tags for this membership. The indexer uses these to make
+// the record discoverable by UID and by parent relationships.
+func (pm *ProjectMembership) Tags() []string {
+	if pm == nil {
+		return nil
+	}
+	var tags []string
+	if pm.UID != "" {
+		tags = append(tags, pm.UID)
+		tags = append(tags, fmt.Sprintf("project_membership_uid:%s", pm.UID))
+	}
+	if pm.ProjectUID != "" {
+		tags = append(tags, fmt.Sprintf("project_uid:%s", pm.ProjectUID))
+	}
+	if pm.B2BOrgUID != "" {
+		tags = append(tags, fmt.Sprintf("b2b_org_uid:%s", pm.B2BOrgUID))
+	}
+	return tags
 }

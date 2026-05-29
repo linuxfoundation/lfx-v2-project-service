@@ -15,35 +15,32 @@ import (
 	"goa.design/goa/v3/security"
 )
 
-// Membership management service — project-scoped drill-down API for tiers,
+// Membership management service — direct resource endpoints for B2B orgs,
 // memberships, and key contacts
 type Service interface {
-	// List membership tiers (Product2 records) for a specific project
-	ListProjectTiers(context.Context, *ListProjectTiersPayload) (res *ListProjectTiersResult, err error)
-	// Get a specific membership tier by UID
-	GetProjectTier(context.Context, *GetProjectTierPayload) (res *GetProjectTierResult, err error)
-	// List memberships (Asset records) for a specific project, with denormalized
-	// company attributes
-	ListProjectMemberships(context.Context, *ListProjectMembershipsPayload) (res *ListProjectMembershipsResult, err error)
-	// Get a specific membership by UID within a project
+	// Get a specific B2B organization by UID
+	GetB2bOrg(context.Context, *GetB2bOrgPayload) (res *GetB2bOrgResult, err error)
+	// Create a new B2B organization
+	CreateB2bOrg(context.Context, *CreateB2bOrgPayload) (res *CreateB2bOrgResult, err error)
+	// Update a B2B organization
+	UpdateB2bOrg(context.Context, *UpdateB2bOrgPayload) (res *UpdateB2bOrgResult, err error)
+	// Get the access-control settings (writers and auditors) for a B2B organization
+	GetB2bOrgSettings(context.Context, *GetB2bOrgSettingsPayload) (res *GetB2bOrgSettingsResult, err error)
+	// Replace the writers and/or auditors list on a B2B organization (full-replace
+	// semantics)
+	UpdateB2bOrgSettings(context.Context, *UpdateB2bOrgSettingsPayload) (res *UpdateB2bOrgSettingsResult, err error)
+	// Get a specific project membership by UID
 	GetProjectMembership(context.Context, *GetProjectMembershipPayload) (res *GetProjectMembershipResult, err error)
-	// List key contacts (Project_Role__c records) for a specific membership, with
-	// denormalized contact and company attributes
-	ListMembershipKeyContacts(context.Context, *ListMembershipKeyContactsPayload) (res *ListMembershipKeyContactsResult, err error)
-	// Create a new key contact (Project_Role__c record) for a specific membership
-	CreateMembershipKeyContact(context.Context, *CreateMembershipKeyContactPayload) (res *CreateMembershipKeyContactResult, err error)
-	// Update a key contact (Project_Role__c record) within a membership
-	UpdateMembershipKeyContact(context.Context, *UpdateMembershipKeyContactPayload) (res *UpdateMembershipKeyContactResult, err error)
-	// Delete a key contact (Project_Role__c record) from a membership
-	DeleteMembershipKeyContact(context.Context, *DeleteMembershipKeyContactPayload) (err error)
-	// Get a specific key contact by UID within a membership
-	GetMembershipKeyContact(context.Context, *GetMembershipKeyContactPayload) (res *GetMembershipKeyContactResult, err error)
-	// Search and list B2B organizations (Salesforce Accounts) by name with
-	// pagination
-	ListB2bOrgs(context.Context, *ListB2bOrgsPayload) (res *ListB2bOrgsResult, err error)
-	// List all memberships (Assets) across all projects for a given B2B
-	// organization UID, with pagination and filters
-	ListB2bOrgMemberships(context.Context, *ListB2bOrgMembershipsPayload) (res *ListB2bOrgMembershipsResult, err error)
+	// Get a specific key contact by UID
+	GetKeyContact(context.Context, *GetKeyContactPayload) (res *GetKeyContactResult, err error)
+	// Create a new key contact
+	CreateKeyContact(context.Context, *CreateKeyContactPayload) (res *CreateKeyContactResult, err error)
+	// Update a key contact
+	UpdateKeyContact(context.Context, *UpdateKeyContactPayload) (res *UpdateKeyContactResult, err error)
+	// Delete a key contact
+	DeleteKeyContact(context.Context, *DeleteKeyContactPayload) (err error)
+	// Trigger a reindex of cached entities
+	AdminReindex(context.Context, *AdminReindexPayload) (res *AdminReindexResult, err error)
 	// Check if the service is able to take inbound requests.
 	Readyz(context.Context) (res []byte, err error)
 	// Check if the service is alive.
@@ -73,7 +70,45 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [14]string{"list-project-tiers", "get-project-tier", "list-project-memberships", "get-project-membership", "list-membership-key-contacts", "create-membership-key-contact", "update-membership-key-contact", "delete-membership-key-contact", "get-membership-key-contact", "list-b2b-orgs", "list-b2b-org-memberships", "readyz", "livez", "debug-vars"}
+var MethodNames = [14]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-b2b-org-settings", "update-b2b-org-settings", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars"}
+
+// A single entity to reindex (targeted mode)
+type AdminReindexItem struct {
+	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
+	Type string
+	// Entity UID (invertible UUID v8)
+	UID string
+}
+
+// AdminReindexPayload is the payload type of the membership-service service
+// admin-reindex method.
+type AdminReindexPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Entity types to reindex (optional; default = all in-scope: b2b_org,
+	// project_membership, key_contact, b2b_org_settings). Mutually exclusive with
+	// items.
+	Types []string
+	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
+	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
+	// Handler normalises to UTC.
+	Since *string
+	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
+	// with types and since. Max 100 items.
+	Items []*AdminReindexItem
+	// When true, walk SOQL/live-path but skip publishing. Final log includes
+	// would_publish_count.
+	DryRun bool
+}
+
+// AdminReindexResult is the result type of the membership-service service
+// admin-reindex method.
+type AdminReindexResult struct {
+	// Correlation ID for the reindex run (for log lookups)
+	RunID string
+}
 
 // A B2B organization
 type B2bOrgResponse struct {
@@ -81,6 +116,10 @@ type B2bOrgResponse struct {
 	UID *string
 	// Organization name
 	Name *string
+	// Organization free-text description (Account.Description)
+	Description *string
+	// Organization contact phone number (Account.Phone)
+	Phone *string
 	// Organization website URL; always has a scheme (http or https)
 	Website *string
 	// Primary domain; bare host only, no scheme or path, e.g. 'example.com'
@@ -88,36 +127,90 @@ type B2bOrgResponse struct {
 	// Additional domains; each item is a bare host with the same normalization as
 	// primary_domain
 	DomainAliases []string
-	// URL of the organization logo
+	// URL of the organization logo (Account.Logo_URL__c)
 	LogoURL *string
+	// Industry classification (Account.Industry, standard Salesforce field)
+	Industry *string
+	// Sector classification (Account.Sector__c, custom Salesforce field)
+	Sector *string
+	// CrunchBase profile URL (Account.CrunchBase_URL__c)
+	CrunchBaseURL *string
+	// Employee count (Account.NumberOfEmployees)
+	NumberOfEmployees *int
+	// LF membership status (Account.LF_Membership_Status__c); read-only, managed
+	// by Salesforce workflows
+	Status *string
+	// Whether the organization is currently an LF member (Account.IsMember__c);
+	// read-only, managed by Salesforce workflows
+	IsMember *bool
+	// URL-friendly organization identifier; populated when Account.Slug__c is
+	// available
+	Slug *string
+	// UID of the parent organization (Account.ParentId); omitted when no parent
+	ParentUID *string
 	// Creation timestamp
 	CreatedAt *string
 	// Last update timestamp
 	UpdatedAt *string
 }
 
-// CreateMembershipKeyContactPayload is the payload type of the
-// membership-service service create-membership-key-contact method.
-type CreateMembershipKeyContactPayload struct {
+// Access-control settings for a b2b_org: writers and auditors
+type B2bOrgSettingsResponse struct {
+	// Org administrators (writer relation in FGA). Full-replace on PUT.
+	Writers []*OrgUser
+	// Read-only principals (auditor relation in FGA). Full-replace on PUT.
+	Auditors []*OrgUser
+	// Settings record creation timestamp
+	CreatedAt *string
+	// Settings record last-update timestamp
+	UpdatedAt *string
+}
+
+// CreateB2bOrgPayload is the payload type of the membership-service service
+// create-b2b-org method.
+type CreateB2bOrgPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Membership UID
-	MembershipUID *string
-	// Contact email address; used to resolve or create the B2B Salesforce Contact
+	// Salesforce Account.Id (15- or 18-character); used to fetch and cache the org
+	// record
+	Sfid string
+}
+
+// CreateB2bOrgResult is the result type of the membership-service service
+// create-b2b-org method.
+type CreateB2bOrgResult struct {
+	// Newly created B2B organization
+	B2bOrg *B2bOrgResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// CreateKeyContactPayload is the payload type of the membership-service
+// service create-key-contact method.
+type CreateKeyContactPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Parent membership UID
+	MembershipUID string
+	// Contact email address; used to resolve or create the Salesforce Contact
 	// record
 	Email string
 	// Contact first name; used when creating a new Contact on miss
 	FirstName string
 	// Contact last name; used when creating a new Contact on miss
 	LastName string
-	// Contact job title; used when creating a new Contact on miss
+	// Contact job title. Only persisted when a new Salesforce Contact is created
+	// (email resolves to an unknown address); ignored if the Contact already
+	// exists.
 	Title *string
-	// Contact role designation, e.g. 'Voting Representative'
-	Role *string
+	// Contact role designation
+	Role string
 	// Role record status, e.g. 'Active'
 	Status *string
 	// Whether this contact holds a board member role
@@ -126,48 +219,106 @@ type CreateMembershipKeyContactPayload struct {
 	PrimaryContact *bool
 }
 
-// CreateMembershipKeyContactResult is the result type of the
-// membership-service service create-membership-key-contact method.
-type CreateMembershipKeyContactResult struct {
+// CreateKeyContactResult is the result type of the membership-service service
+// create-key-contact method.
+type CreateKeyContactResult struct {
 	// Newly created key contact
-	Contact *ProjectKeyContactResponse
+	KeyContact *ProjectKeyContactResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
 }
 
-// DeleteMembershipKeyContactPayload is the payload type of the
-// membership-service service delete-membership-key-contact method.
-type DeleteMembershipKeyContactPayload struct {
+// DeleteKeyContactPayload is the payload type of the membership-service
+// service delete-key-contact method.
+type DeleteKeyContactPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Membership UID
-	MembershipUID *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
-	ContactUID *string
+	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
 }
 
-// GetMembershipKeyContactPayload is the payload type of the membership-service
-// service get-membership-key-contact method.
-type GetMembershipKeyContactPayload struct {
+// GetB2bOrgPayload is the payload type of the membership-service service
+// get-b2b-org method.
+type GetB2bOrgPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Membership UID
-	MembershipUID *string
-	// Key contact UID
-	ContactUID *string
+	// B2B organization UID
+	UID string
+	// If-None-Match header value for conditional requests
+	IfNoneMatch *string
+	// If-Modified-Since header value for conditional requests (HTTP date format)
+	IfModifiedSince *string
 }
 
-// GetMembershipKeyContactResult is the result type of the membership-service
-// service get-membership-key-contact method.
-type GetMembershipKeyContactResult struct {
+// GetB2bOrgResult is the result type of the membership-service service
+// get-b2b-org method.
+type GetB2bOrgResult struct {
+	// B2B organization details
+	B2bOrg *B2bOrgResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// GetB2bOrgSettingsPayload is the payload type of the membership-service
+// service get-b2b-org-settings method.
+type GetB2bOrgSettingsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+}
+
+// GetB2bOrgSettingsResult is the result type of the membership-service service
+// get-b2b-org-settings method.
+type GetB2bOrgSettingsResult struct {
+	// B2B organization access-control settings
+	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// GetKeyContactPayload is the payload type of the membership-service service
+// get-key-contact method.
+type GetKeyContactPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Parent membership UID
+	MembershipUID string
+	// Key contact UID
+	UID string
+	// If-None-Match header value for conditional requests
+	IfNoneMatch *string
+	// If-Modified-Since header value for conditional requests (HTTP date format)
+	IfModifiedSince *string
+}
+
+// GetKeyContactResult is the result type of the membership-service service
+// get-key-contact method.
+type GetKeyContactResult struct {
 	// Key contact details
-	Contact *ProjectKeyContactResponse
+	KeyContact *ProjectKeyContactResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
 }
 
 // GetProjectMembershipPayload is the payload type of the membership-service
@@ -177,209 +328,39 @@ type GetProjectMembershipPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Membership UID
-	MembershipUID *string
+	// Project membership UID
+	UID string
+	// If-None-Match header value for conditional requests
+	IfNoneMatch *string
+	// If-Modified-Since header value for conditional requests (HTTP date format)
+	IfModifiedSince *string
 }
 
 // GetProjectMembershipResult is the result type of the membership-service
 // service get-project-membership method.
 type GetProjectMembershipResult struct {
-	// Membership details
-	Membership *ProjectMembershipResponse
+	// Project membership details
+	ProjectMembership *ProjectMembershipResponse
 	// ETag header value
 	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
 }
 
-// GetProjectTierPayload is the payload type of the membership-service service
-// get-project-tier method.
-type GetProjectTierPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Membership tier UID
-	TierUID *string
-}
-
-// GetProjectTierResult is the result type of the membership-service service
-// get-project-tier method.
-type GetProjectTierResult struct {
-	// Membership tier details
-	Tier *MembershipTierResponse
-}
-
-// ListB2bOrgMembershipsPayload is the payload type of the membership-service
-// service list-b2b-org-memberships method.
-type ListB2bOrgMembershipsPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// B2BOrg UID
-	B2bOrgUID string
-	// Logical page size (1–1000). The server rounds up to the nearest supported
-	// size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a
-	// 200-record Salesforce batch and slice client-side.
-	PageSize int
-	// Opaque continuation cursor returned in a previous list response
-	// metadata.next_page_token. Omit (or pass empty) to start from the first page.
-	// Valid for 15 minutes.
-	PageToken *string
-	// Sort order for results. One of: name (A→Z by company name), newest (default,
-	// CreatedDate DESC), last_modified (LastModifiedDate DESC).
-	Sort string
-	// Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from
-	// ListProjectTiers). All results are restricted to active members.
-	Filter *string
-	// Search memberships by member company name (case-insensitive substring match)
-	SearchName *string
-}
-
-// ListB2bOrgMembershipsResult is the result type of the membership-service
-// service list-b2b-org-memberships method.
-type ListB2bOrgMembershipsResult struct {
-	// List of memberships for the B2B organization
-	Memberships []*ProjectMembershipResponse
-	// Pagination metadata
-	Metadata *ListMetadata
-}
-
-// ListB2bOrgsPayload is the payload type of the membership-service service
-// list-b2b-orgs method.
-type ListB2bOrgsPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// Logical page size (1–1000). The server rounds up to the nearest supported
-	// size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a
-	// 200-record Salesforce batch and slice client-side.
-	PageSize int
-	// Opaque continuation cursor returned in a previous list response
-	// metadata.next_page_token. Omit (or pass empty) to start from the first page.
-	// Valid for 15 minutes.
-	PageToken *string
-	// Sort order for results. One of: name (A→Z by company name), newest (default,
-	// CreatedDate DESC), last_modified (LastModifiedDate DESC).
-	Sort string
-	// Search organizations by name (case-insensitive substring match)
-	SearchName *string
-}
-
-// ListB2bOrgsResult is the result type of the membership-service service
-// list-b2b-orgs method.
-type ListB2bOrgsResult struct {
-	// List of B2B organizations
-	Orgs []*B2bOrgResponse
-	// Pagination metadata
-	Metadata *ListMetadata
-}
-
-// ListMembershipKeyContactsPayload is the payload type of the
-// membership-service service list-membership-key-contacts method.
-type ListMembershipKeyContactsPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Membership UID
-	MembershipUID *string
-}
-
-// ListMembershipKeyContactsResult is the result type of the membership-service
-// service list-membership-key-contacts method.
-type ListMembershipKeyContactsResult struct {
-	// List of key contacts
-	Contacts []*ProjectKeyContactResponse
-}
-
-// Pagination metadata for list responses
-type ListMetadata struct {
-	// Total number of records matching the query. Set on the first page; may be 0
-	// on continuation pages.
-	TotalSize *int
-	// Opaque cursor for the next page. Pass this value as the page_token query
-	// parameter to retrieve the next page. Empty or absent when this is the last
-	// page.
-	NextPageToken *string
-}
-
-// ListProjectMembershipsPayload is the payload type of the membership-service
-// service list-project-memberships method.
-type ListProjectMembershipsPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Logical page size (1–1000). The server rounds up to the nearest supported
-	// size: 10, 50, 100, 200 (default), 500, or 1000. Sub-200 values fetch a
-	// 200-record Salesforce batch and slice client-side.
-	PageSize int
-	// Opaque continuation cursor returned in a previous list response
-	// metadata.next_page_token. Omit (or pass empty) to start from the first page.
-	// Valid for 15 minutes.
-	PageToken *string
-	// Sort order for results. One of: name (A→Z by company name), newest (default,
-	// CreatedDate DESC), last_modified (LastModifiedDate DESC).
-	Sort string
-	// Semicolon-separated key=value filter pairs. Supported: tier_uid (UUID from
-	// ListProjectTiers). All results are restricted to active members.
-	Filter *string
-	// Search memberships by member company name (case-insensitive substring match)
-	SearchName *string
-}
-
-// ListProjectMembershipsResult is the result type of the membership-service
-// service list-project-memberships method.
-type ListProjectMembershipsResult struct {
-	// List of project memberships
-	Memberships []*ProjectMembershipResponse
-	// Pagination metadata
-	Metadata *ListMetadata
-}
-
-// ListProjectTiersPayload is the payload type of the membership-service
-// service list-project-tiers method.
-type ListProjectTiersPayload struct {
-	// JWT token issued by Heimdall
-	BearerToken *string
-	// Version of the API
-	Version *string
-	// V2 project UUID
-	ProjectUID *string
-}
-
-// ListProjectTiersResult is the result type of the membership-service service
-// list-project-tiers method.
-type ListProjectTiersResult struct {
-	// List of membership tiers
-	Tiers []*MembershipTierResponse
-}
-
-// A membership tier (Product2) scoped to a project
-type MembershipTierResponse struct {
-	// Tier UID (invertible UUID v8 from Product2.Id)
-	UID *string
-	// V2 project UUID
-	ProjectUID *string
-	// Product name, e.g. 'Gold Corporate Membership'
+// A writer or auditor principal on a b2b_org settings list
+type OrgUser struct {
+	// User avatar URL
+	Avatar *string
+	// User email address; required to identify the principal
+	Email string
+	// User display name
 	Name *string
-	// Product family, e.g. 'Membership'
-	Family *string
-	// Product type (Type__c)
-	ProductType *string
-	// Creation timestamp
-	CreatedAt *string
-	// Last update timestamp
-	UpdatedAt *string
+	// LFID username (OIDC sub); absent for pending invites
+	Username *string
+	// Relation being granted: writer or auditor
+	InvitedAs string
+	// Invite lifecycle state; returned on GET, derived by service on PUT
+	InviteStatus *string
 }
 
 // A key contact (Project_Role__c) scoped to a membership, with denormalized
@@ -481,20 +462,97 @@ type ProjectMembershipResponse struct {
 	UpdatedAt *string
 }
 
-// UpdateMembershipKeyContactPayload is the payload type of the
-// membership-service service update-membership-key-contact method.
-type UpdateMembershipKeyContactPayload struct {
+// UpdateB2bOrgPayload is the payload type of the membership-service service
+// update-b2b-org method.
+type UpdateB2bOrgPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// V2 project UUID
-	ProjectUID *string
-	// Membership UID
-	MembershipUID *string
+	// B2B organization UID
+	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Organization name
+	Name *string
+	// Organization free-text description
+	Description *string
+	// Organization contact phone number
+	Phone *string
+	// Organization website URL
+	Website *string
+	// Primary domain (bare host)
+	PrimaryDomain *string
+	// URL of the organization logo (Account.Logo_URL__c)
+	LogoURL *string
+	// Industry classification (Account.Industry)
+	Industry *string
+	// Sector classification (Account.Sector__c)
+	Sector *string
+	// CrunchBase profile URL (Account.CrunchBase_URL__c); pass empty string to
+	// explicitly clear
+	CrunchBaseURL *string
+	// Employee count (Account.NumberOfEmployees)
+	NumberOfEmployees *int
+}
+
+// UpdateB2bOrgResult is the result type of the membership-service service
+// update-b2b-org method.
+type UpdateB2bOrgResult struct {
+	// Updated B2B organization
+	B2bOrg *B2bOrgResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// UpdateB2bOrgSettingsPayload is the payload type of the membership-service
+// service update-b2b-org-settings method.
+type UpdateB2bOrgSettingsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Complete replacement list for org writers. Nil = leave unchanged; [] =
+	// remove all.
+	Writers []*OrgUser
+	// Complete replacement list for org auditors. Nil = leave unchanged; [] =
+	// remove all.
+	Auditors []*OrgUser
+}
+
+// UpdateB2bOrgSettingsResult is the result type of the membership-service
+// service update-b2b-org-settings method.
+type UpdateB2bOrgSettingsResult struct {
+	// Updated B2B organization access-control settings
+	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// UpdateKeyContactPayload is the payload type of the membership-service
+// service update-key-contact method.
+type UpdateKeyContactPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Parent membership UID
+	MembershipUID string
 	// Key contact UID
-	ContactUID *string
-	// Contact role designation, e.g. 'Voting Representative'
+	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Contact email address; normalized to lowercase before update
+	Email *string
+	// Contact role designation
 	Role *string
 	// Role record status, e.g. 'Active'
 	Status *string
@@ -502,18 +560,41 @@ type UpdateMembershipKeyContactPayload struct {
 	BoardMember *bool
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool
+	// Contact job title. Only persisted when the email change resolves to an
+	// unknown address and a new Salesforce Contact is created; ignored if the
+	// Contact already exists.
+	Title *string
 }
 
-// UpdateMembershipKeyContactResult is the result type of the
-// membership-service service update-membership-key-contact method.
-type UpdateMembershipKeyContactResult struct {
+// UpdateKeyContactResult is the result type of the membership-service service
+// update-key-contact method.
+type UpdateKeyContactResult struct {
 	// Updated key contact
-	Contact *ProjectKeyContactResponse
+	KeyContact *ProjectKeyContactResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// MakeNotImplemented builds a goa.ServiceError from an error.
+func MakeNotImplemented(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "NotImplemented", false, false, false)
 }
 
 // MakeNotFound builds a goa.ServiceError from an error.
 func MakeNotFound(err error) *goa.ServiceError {
 	return goa.NewServiceError(err, "NotFound", false, false, false)
+}
+
+// MakeBadRequest builds a goa.ServiceError from an error.
+func MakeBadRequest(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "BadRequest", false, false, false)
+}
+
+// MakePreconditionFailed builds a goa.ServiceError from an error.
+func MakePreconditionFailed(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "PreconditionFailed", false, false, false)
 }
 
 // MakeInternalServerError builds a goa.ServiceError from an error.
@@ -526,7 +607,7 @@ func MakeServiceUnavailable(err error) *goa.ServiceError {
 	return goa.NewServiceError(err, "ServiceUnavailable", false, true, false)
 }
 
-// MakeBadRequest builds a goa.ServiceError from an error.
-func MakeBadRequest(err error) *goa.ServiceError {
-	return goa.NewServiceError(err, "BadRequest", false, false, false)
+// MakeConflict builds a goa.ServiceError from an error.
+func MakeConflict(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "Conflict", false, false, false)
 }

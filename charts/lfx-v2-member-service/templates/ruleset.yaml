@@ -30,13 +30,13 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
 
-    - id: "rule:lfx:lfx-v2-member-service:projects:tiers:list"
-      allow_encoded_slashes: "off"
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:get"
+      allow_encoded_slashes: 'off'
       match:
         methods:
           - GET
         routes:
-          - path: /projects/:project_uid/tiers
+          - path: /b2b_orgs/:uid
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -48,7 +48,7 @@ spec:
           config:
             values:
               relation: auditor
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
+              object: "b2b_org:{{ "{{- .Request.URL.Captures.uid -}}" }}"
         {{- else }}
         {{/*
           When OpenFGA is disabled, allow all requests.
@@ -61,259 +61,11 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
 
-    - id: "rule:lfx:lfx-v2-member-service:projects:tiers:get"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /projects/:project_uid/tiers/:tier_uid
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: auditor
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:projects:memberships:list"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /projects/:project_uid/memberships
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: auditor
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:projects:memberships:get"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /projects/:project_uid/memberships/:membership_uid
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: auditor
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:projects:memberships:key-contacts:list"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: auditor
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:projects:memberships:key-contacts:get"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts/:contact_uid
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: auditor
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:projects:memberships:key-contacts:create"
-      allow_encoded_slashes: "off"
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:create"
+      allow_encoded_slashes: 'off'
       match:
         methods:
           - POST
-        routes:
-          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: writer
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:projects:memberships:key-contacts:update"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - PUT
-        routes:
-          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts/:contact_uid
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: writer
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:projects:memberships:key-contacts:delete"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - DELETE
-        routes:
-          - path: /projects/:project_uid/memberships/:membership_uid/key_contacts/:contact_uid
-      execute:
-        - authenticator: oidc
-        - authenticator: anonymous_authenticator
-        {{- if .Values.app.use_oidc_contextualizer }}
-        - contextualizer: oidc_contextualizer
-        {{- end }}
-        {{- if .Values.openfga.enabled }}
-        - authorizer: openfga_check
-          config:
-            values:
-              relation: writer
-              object: "project:{{ "{{- .Request.URL.Captures.project_uid -}}" }}"
-        {{- else }}
-        {{/*
-          When OpenFGA is disabled, allow all requests.
-          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
-        */}}
-        - authorizer: allow_all
-        {{- end }}
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: {{ .Values.app.audience }}
-
-    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:list"
-      allow_encoded_slashes: "off"
-      match:
-        methods:
-          - GET
         routes:
           - path: /b2b_orgs
       execute:
@@ -326,13 +78,8 @@ spec:
         - authorizer: openfga_check
           config:
             values:
-              relation: auditor
-              {{/*
-                Interim workaround: B2B org endpoints are not project-scoped, so
-                we gate them on LF's own project UID until the broader v2 OpenFGA
-                refactor introduces a dedicated resource type for these endpoints.
-              */}}
-              object: "project:{{ .Values.openfga.lfProjectUID }}"
+              relation: member
+              object: "team:{{ .Values.app.globalOrgAdminTeamUID }}"
         {{- else }}
         {{/*
           When OpenFGA is disabled, allow all requests.
@@ -345,13 +92,48 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
 
-    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:memberships:list"
-      allow_encoded_slashes: "off"
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:update"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - PUT
+        routes:
+          - path: /b2b_orgs/:uid
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "b2b_org:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:get-settings"
+      allow_encoded_slashes: 'off'
       match:
         methods:
           - GET
         routes:
-          - path: /b2b_orgs/:b2b_org_uid/memberships
+          - path: /b2b_orgs/:uid/settings
+      # Gated by auditor (not writer) so that existing writers and auditors can see
+      # the full principal list, including pending-invite email addresses. This is
+      # intentional — auditors are trusted principals who need visibility into who
+      # has access in order to manage invitations.
       execute:
         - authenticator: oidc
         - authenticator: anonymous_authenticator
@@ -363,12 +145,225 @@ spec:
           config:
             values:
               relation: auditor
-              {{/*
-                Interim workaround: B2B org endpoints are not project-scoped, so
-                we gate them on LF's own project UID until the broader v2 OpenFGA
-                refactor introduces a dedicated resource type for these endpoints.
-              */}}
-              object: "project:{{ .Values.openfga.lfProjectUID }}"
+              object: "b2b_org:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:update-settings"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - PUT
+        routes:
+          - path: /b2b_orgs/:uid/settings
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "b2b_org:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:project_memberships:get"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /project_memberships/:uid
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: auditor
+              object: "project_membership:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:key_contacts:get"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /project_memberships/:membership_uid/key_contacts/:uid
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: auditor
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:key_contacts:create"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - POST
+        routes:
+          - path: /project_memberships/:membership_uid/key_contacts
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: json_content_type
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:key_contacts:update"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - PUT
+        routes:
+          - path: /project_memberships/:membership_uid/key_contacts/:uid
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:key_contacts:delete"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - DELETE
+        routes:
+          - path: /project_memberships/:membership_uid/key_contacts/:uid
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "project_membership:{{ "{{- .Request.URL.Captures.membership_uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:admin:reindex"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - POST
+        routes:
+          - path: /admin/reindex
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: member
+              object: "team:{{ .Values.app.globalOrgAdminTeamUID }}"
         {{- else }}
         {{/*
           When OpenFGA is disabled, allow all requests.

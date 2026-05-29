@@ -1,0 +1,426 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
+package service
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
+	natspkg "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
+	errs "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+)
+
+// BackfillIterator provides paged SOQL iterators for full and since-filtered
+// backfill modes. Each method calls fn once per page of converted records.
+type BackfillIterator interface {
+	IterB2BOrgs(ctx context.Context, since *time.Time, fn func([]*model.B2BOrg) error) error
+	IterProjectMemberships(ctx context.Context, since *time.Time, fn func([]*model.ProjectMembership) error) error
+	IterKeyContacts(ctx context.Context, since *time.Time, fn func([]*model.KeyContact) error) error
+}
+
+// KeyContactSObjectReader fetches a single KeyContact by UID via the live sObject path.
+// Defined here to avoid a direct service→salesforce dependency while keeping the
+// port package free of infrastructure concerns.
+type KeyContactSObjectReader interface {
+	AssembleKeyContact(ctx context.Context, uid string) (*model.KeyContact, time.Time, error)
+}
+
+const (
+	entityTypeB2BOrg            = "b2b_org"
+	entityTypeProjectMembership = "project_membership"
+	entityTypeKeyContact        = "key_contact"
+	entityTypeB2BOrgSettings    = "b2b_org_settings"
+)
+
+// allBackfillTypes is the canonical ordered list of types the backfill supports.
+var allBackfillTypes = []string{entityTypeB2BOrg, entityTypeProjectMembership, entityTypeKeyContact, entityTypeB2BOrgSettings}
+
+// Runner orchestrates a reindex run. It is safe to call Run concurrently
+// from multiple goroutines (each run is independent). Full-mode runs acquire a
+// per-type NATS KV lock so the same type is not reindexed simultaneously across
+// pods.
+type Runner struct {
+	iter           BackfillIterator
+	b2bReader      port.B2BOrgReader
+	pmReader       port.ProjectMembershipReader
+	kcReader       KeyContactSObjectReader
+	settingsReader port.B2BOrgSettingsReader
+	publisher      port.MemberPublisher
+	natsClient     *natspkg.NATSClient
+}
+
+// NewRunner constructs a Runner.
+func NewRunner(
+	iter BackfillIterator,
+	b2bReader port.B2BOrgReader,
+	pmReader port.ProjectMembershipReader,
+	kcReader KeyContactSObjectReader,
+	settingsReader port.B2BOrgSettingsReader,
+	publisher port.MemberPublisher,
+	natsClient *natspkg.NATSClient,
+) *Runner {
+	return &Runner{
+		iter:           iter,
+		b2bReader:      b2bReader,
+		pmReader:       pmReader,
+		kcReader:       kcReader,
+		settingsReader: settingsReader,
+		publisher:      publisher,
+		natsClient:     natsClient,
+	}
+}
+
+type runMode string
+
+const (
+	modeTargeted runMode = "targeted"
+	modeFiltered runMode = "filtered"
+	modeFull     runMode = "full"
+)
+
+// ClassifyMode returns the run mode for the given request.
+func ClassifyMode(req BackfillRequest) runMode {
+	if len(req.Items) > 0 {
+		return modeTargeted
+	}
+	if req.Since != nil {
+		return modeFiltered
+	}
+	return modeFull
+}
+
+func effectiveTypes(requested []string) []string {
+	if len(requested) == 0 {
+		return allBackfillTypes
+	}
+	return requested
+}
+
+// Run executes the backfill. It is intended to be called in a goroutine with
+// context.WithoutCancel so it outlives the HTTP request.
+func (r *Runner) Run(ctx context.Context, req BackfillRequest) {
+	mode := ClassifyMode(req)
+	log := slog.With(
+		"run_id", req.RunID,
+		"component", "backfill",
+		"mode", string(mode),
+		"dry_run", req.DryRun,
+	)
+	log.InfoContext(ctx, "backfill started")
+	defer log.InfoContext(ctx, "backfill complete")
+
+	if mode == modeTargeted {
+		r.runTargeted(ctx, log, req)
+		return
+	}
+
+	if mode == modeFull {
+		log.WarnContext(ctx, "full reindex started", "full_reindex_started", true)
+	}
+
+	succeeded := make([]string, 0, len(allBackfillTypes))
+	var failed, skipped []string
+
+	for _, t := range effectiveTypes(req.Types) {
+		var err error
+		if mode == modeFull && r.natsClient != nil {
+			release, lockErr := natspkg.AcquireFullRunLock(ctx, r.natsClient, req.RunID, t)
+			if lockErr != nil {
+				log.WarnContext(ctx, "full reindex skipped — lock held",
+					"type", t,
+					"full_reindex_rejected_lock_held", true,
+					"error", lockErr)
+				skipped = append(skipped, t)
+				continue
+			}
+			err = r.runType(ctx, log, req, t)
+			release()
+		} else {
+			err = r.runType(ctx, log, req, t)
+		}
+
+		if err != nil {
+			log.ErrorContext(ctx, "backfill type failed",
+				"type", t,
+				"error", err)
+			failed = append(failed, t)
+		} else {
+			succeeded = append(succeeded, t)
+		}
+	}
+
+	log.InfoContext(ctx, "backfill summary",
+		"succeeded", succeeded,
+		"failed", failed,
+		"skipped_locked", skipped)
+}
+
+func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequest, sfType string) error {
+	var total, published int
+
+	logPage := func(pageLen int) {
+		log.InfoContext(ctx, "backfill page processed",
+			"type", sfType, "page_size", pageLen,
+			"total_so_far", total, "published_so_far", published)
+	}
+
+	switch sfType {
+	case entityTypeB2BOrg:
+		return r.iter.IterB2BOrgs(ctx, req.Since, func(orgs []*model.B2BOrg) error {
+			// Pre-fetch children for every unique org and parent in this page so we
+			// issue one SOQL query per unique UID rather than per org.
+			orgChildrenCache := map[string][]string{}
+			if !req.DryRun {
+				seen := map[string]struct{}{}
+				for _, org := range orgs {
+					if org.UID != "" {
+						seen[org.UID] = struct{}{}
+					}
+					if org.ParentUID != "" {
+						seen[org.ParentUID] = struct{}{}
+					}
+				}
+				for uid := range seen {
+					children, err := r.b2bReader.FetchChildUIDsByParentUID(ctx, uid)
+					if err != nil {
+						log.WarnContext(ctx, "failed to fetch child UIDs for indexer",
+							"parent_uid", uid, "error", err,
+							"publish_failed_for_backfill_repair", true)
+						continue
+					}
+					orgChildrenCache[uid] = children
+				}
+			}
+
+			for _, org := range orgs {
+				total++
+				if !req.DryRun {
+					// Populate children from cache for the indexer document.
+					if children, ok := orgChildrenCache[org.UID]; ok {
+						org.IsParent = len(children) > 0
+					}
+					PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+					if org.ParentUID != "" {
+						if children, ok := orgChildrenCache[org.ParentUID]; ok {
+							PublishB2BOrgParentFGA(ctx, r.publisher, org, children)
+						}
+					}
+					published++
+				}
+			}
+			logPage(len(orgs))
+			return nil
+		})
+	case entityTypeProjectMembership:
+		return r.iter.IterProjectMemberships(ctx, req.Since, func(pms []*model.ProjectMembership) error {
+			for _, pm := range pms {
+				total++
+				if !req.DryRun {
+					PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
+					PublishProjectMembershipFGA(ctx, r.publisher, pm)
+					published++
+				}
+			}
+			logPage(len(pms))
+			return nil
+		})
+	case entityTypeKeyContact:
+		if req.Since != nil {
+			log.WarnContext(ctx, "since filter on key_contact only checks Project_Role__c.LastModifiedDate; Contact/Asset field changes are not captured",
+				"since_filter_misses_joined_fields", true)
+		}
+		return r.iter.IterKeyContacts(ctx, req.Since, func(kcs []*model.KeyContact) error {
+			for _, kc := range kcs {
+				total++
+				if !req.DryRun {
+					PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+					published++
+				}
+			}
+			logPage(len(kcs))
+			return nil
+		})
+	case entityTypeB2BOrgSettings:
+		if r.settingsReader == nil {
+			return fmt.Errorf("b2b_org_settings backfill requires a settingsReader — pass it as the settingsReader argument to NewRunner")
+		}
+		orgUIDs, listErr := r.settingsReader.ListSettingsOrgUIDs(ctx)
+		if listErr != nil {
+			return fmt.Errorf("listing org-settings keys: %w", listErr)
+		}
+		for _, uid := range orgUIDs {
+			if !req.DryRun {
+				org, orgErr := r.b2bReader.GetB2BOrg(ctx, uid)
+				if orgErr != nil {
+					if errs.IsNotFound(orgErr) {
+						log.WarnContext(ctx, "org not found for settings backfill — skipping",
+							"uid", uid, "not_found", true)
+					} else {
+						log.WarnContext(ctx, "failed to fetch org for settings backfill",
+							"uid", uid, "error", orgErr,
+							"publish_failed_for_backfill_repair", true)
+					}
+					continue
+				}
+				settings, _, settingsErr := r.settingsReader.GetSettings(ctx, uid)
+				if settingsErr != nil {
+					log.WarnContext(ctx, "failed to fetch settings for backfill",
+						"uid", uid, "error", settingsErr,
+						"publish_failed_for_backfill_repair", true)
+					continue
+				}
+				if settings == nil {
+					log.DebugContext(ctx, "settings absent for org — skipping (race between list and get)",
+						"uid", uid)
+					continue
+				}
+				PublishB2BOrgSettingsIndexer(ctx, r.publisher, org, settings, indexerConstants.ActionUpdated)
+				published++
+			}
+			total++
+		}
+		logPage(len(orgUIDs))
+		return nil
+
+	default:
+		return fmt.Errorf("unhandled backfill type: %q", sfType)
+	}
+}
+
+func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req BackfillRequest) {
+	var notFound, published int
+	// childUIDsCache memoises FetchChildUIDsByParentUID within this request so
+	// sibling orgs sharing the same parent don't each trigger a separate SOQL call.
+	childUIDsCache := map[string][]string{}
+	fetchChildUIDs := func(uid string) ([]string, error) {
+		if v, ok := childUIDsCache[uid]; ok {
+			return v, nil
+		}
+		uids, err := r.b2bReader.FetchChildUIDsByParentUID(ctx, uid)
+		if err == nil {
+			childUIDsCache[uid] = uids
+		}
+		return uids, err
+	}
+
+	for _, item := range req.Items {
+		if item.Type == entityTypeB2BOrgSettings && r.settingsReader == nil {
+			log.ErrorContext(ctx, "b2b_org_settings targeted backfill requires settingsReader — wiring error",
+				"uid", item.UID, "publish_failed_for_backfill_repair", true)
+			continue
+		}
+		switch item.Type {
+		case entityTypeB2BOrg:
+			org, err := r.b2bReader.GetB2BOrg(ctx, item.UID)
+			if err != nil {
+				if errs.IsNotFound(err) {
+					log.WarnContext(ctx, "targeted item not found", "type", item.Type, "uid", item.UID, "not_found", true)
+					notFound++
+				} else {
+					log.WarnContext(ctx, "targeted item fetch error", "type", item.Type, "uid", item.UID, "error", err,
+						"publish_failed_for_backfill_repair", true)
+				}
+				continue
+			}
+			if !req.DryRun {
+				// Fetch direct children for the indexer document.
+				childUIDs, childErr := fetchChildUIDs(org.UID)
+				if childErr != nil {
+					log.WarnContext(ctx, "failed to fetch child UIDs for indexer",
+						"uid", org.UID, "error", childErr,
+						"publish_failed_for_backfill_repair", true)
+				} else {
+					org.IsParent = len(childUIDs) > 0
+				}
+				PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+				if org.ParentUID != "" {
+					children, childErr := fetchChildUIDs(org.ParentUID)
+					if childErr != nil {
+						log.WarnContext(ctx, "failed to fetch parent children for FGA backfill",
+							"uid", org.UID, "parent_uid", org.ParentUID, "error", childErr,
+							"publish_failed_for_backfill_repair", true)
+					} else {
+						PublishB2BOrgParentFGA(ctx, r.publisher, org, children)
+					}
+				}
+				published++
+			}
+
+		case entityTypeProjectMembership:
+			pm, _, err := r.pmReader.AssembleProjectMembership(ctx, item.UID)
+			if err != nil {
+				if errs.IsNotFound(err) {
+					log.WarnContext(ctx, "targeted item not found", "type", item.Type, "uid", item.UID, "not_found", true)
+					notFound++
+				} else {
+					log.WarnContext(ctx, "targeted item fetch error", "type", item.Type, "uid", item.UID, "error", err,
+						"publish_failed_for_backfill_repair", true)
+				}
+				continue
+			}
+			if !req.DryRun {
+				PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
+				PublishProjectMembershipFGA(ctx, r.publisher, pm)
+				published++
+			}
+
+		case entityTypeKeyContact:
+			kc, _, err := r.kcReader.AssembleKeyContact(ctx, item.UID)
+			if err != nil {
+				if errs.IsNotFound(err) {
+					log.WarnContext(ctx, "targeted item not found", "type", item.Type, "uid", item.UID, "not_found", true)
+					notFound++
+				} else {
+					log.WarnContext(ctx, "targeted item fetch error", "type", item.Type, "uid", item.UID, "error", err,
+						"publish_failed_for_backfill_repair", true)
+				}
+				continue
+			}
+			if !req.DryRun {
+				PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+				published++
+			}
+
+		case entityTypeB2BOrgSettings:
+			org, orgErr := r.b2bReader.GetB2BOrg(ctx, item.UID)
+			if orgErr != nil {
+				if errs.IsNotFound(orgErr) {
+					log.WarnContext(ctx, "targeted item not found", "type", item.Type, "uid", item.UID, "not_found", true)
+					notFound++
+				} else {
+					log.WarnContext(ctx, "targeted item fetch error", "type", item.Type, "uid", item.UID, "error", orgErr,
+						"publish_failed_for_backfill_repair", true)
+				}
+				continue
+			}
+			settings, _, settingsErr := r.settingsReader.GetSettings(ctx, item.UID)
+			if settingsErr != nil {
+				log.WarnContext(ctx, "targeted item fetch error", "type", item.Type, "uid", item.UID, "error", settingsErr,
+					"publish_failed_for_backfill_repair", true)
+				continue
+			}
+			if settings == nil {
+				log.WarnContext(ctx, "targeted item not found", "type", item.Type, "uid", item.UID, "not_found", true)
+				notFound++
+				continue
+			}
+			if !req.DryRun {
+				PublishB2BOrgSettingsIndexer(ctx, r.publisher, org, settings, indexerConstants.ActionUpdated)
+				published++
+			}
+		}
+	}
+
+	log.InfoContext(ctx, "targeted backfill complete",
+		"total_items", len(req.Items),
+		"published", published,
+		"not_found", notFound,
+		"would_publish_count", len(req.Items)-notFound)
+}

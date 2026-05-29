@@ -20,25 +20,25 @@ import (
 
 // Server lists the membership-service service endpoint HTTP handlers.
 type Server struct {
-	Mounts                     []*MountPoint
-	ListProjectTiers           http.Handler
-	GetProjectTier             http.Handler
-	ListProjectMemberships     http.Handler
-	GetProjectMembership       http.Handler
-	ListMembershipKeyContacts  http.Handler
-	CreateMembershipKeyContact http.Handler
-	UpdateMembershipKeyContact http.Handler
-	DeleteMembershipKeyContact http.Handler
-	GetMembershipKeyContact    http.Handler
-	ListB2bOrgs                http.Handler
-	ListB2bOrgMemberships      http.Handler
-	Readyz                     http.Handler
-	Livez                      http.Handler
-	DebugVars                  http.Handler
-	GenHTTPOpenapiJSON         http.Handler
-	GenHTTPOpenapiYaml         http.Handler
-	GenHTTPOpenapi3JSON        http.Handler
-	GenHTTPOpenapi3Yaml        http.Handler
+	Mounts               []*MountPoint
+	GetB2bOrg            http.Handler
+	CreateB2bOrg         http.Handler
+	UpdateB2bOrg         http.Handler
+	GetB2bOrgSettings    http.Handler
+	UpdateB2bOrgSettings http.Handler
+	GetProjectMembership http.Handler
+	GetKeyContact        http.Handler
+	CreateKeyContact     http.Handler
+	UpdateKeyContact     http.Handler
+	DeleteKeyContact     http.Handler
+	AdminReindex         http.Handler
+	Readyz               http.Handler
+	Livez                http.Handler
+	DebugVars            http.Handler
+	GenHTTPOpenapiJSON   http.Handler
+	GenHTTPOpenapiYaml   http.Handler
+	GenHTTPOpenapi3JSON  http.Handler
+	GenHTTPOpenapi3Yaml  http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -88,17 +88,17 @@ func New(
 	fileSystemGenHTTPOpenapi3Yaml = appendPrefix(fileSystemGenHTTPOpenapi3Yaml, "/gen/http")
 	return &Server{
 		Mounts: []*MountPoint{
-			{"ListProjectTiers", "GET", "/projects/{project_uid}/tiers"},
-			{"GetProjectTier", "GET", "/projects/{project_uid}/tiers/{tier_uid}"},
-			{"ListProjectMemberships", "GET", "/projects/{project_uid}/memberships"},
-			{"GetProjectMembership", "GET", "/projects/{project_uid}/memberships/{membership_uid}"},
-			{"ListMembershipKeyContacts", "GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts"},
-			{"CreateMembershipKeyContact", "POST", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts"},
-			{"UpdateMembershipKeyContact", "PUT", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}"},
-			{"DeleteMembershipKeyContact", "DELETE", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}"},
-			{"GetMembershipKeyContact", "GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}"},
-			{"ListB2bOrgs", "GET", "/b2b_orgs"},
-			{"ListB2bOrgMemberships", "GET", "/b2b_orgs/{b2b_org_uid}/memberships"},
+			{"GetB2bOrg", "GET", "/b2b_orgs/{uid}"},
+			{"CreateB2bOrg", "POST", "/b2b_orgs"},
+			{"UpdateB2bOrg", "PUT", "/b2b_orgs/{uid}"},
+			{"GetB2bOrgSettings", "GET", "/b2b_orgs/{uid}/settings"},
+			{"UpdateB2bOrgSettings", "PUT", "/b2b_orgs/{uid}/settings"},
+			{"GetProjectMembership", "GET", "/project_memberships/{uid}"},
+			{"GetKeyContact", "GET", "/project_memberships/{membership_uid}/key_contacts/{uid}"},
+			{"CreateKeyContact", "POST", "/project_memberships/{membership_uid}/key_contacts"},
+			{"UpdateKeyContact", "PUT", "/project_memberships/{membership_uid}/key_contacts/{uid}"},
+			{"DeleteKeyContact", "DELETE", "/project_memberships/{membership_uid}/key_contacts/{uid}"},
+			{"AdminReindex", "POST", "/admin/reindex"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"DebugVars", "GET", "/debug/vars"},
@@ -107,24 +107,24 @@ func New(
 			{"Serve gen/http/openapi3.json", "GET", "/_memberships/openapi3.json"},
 			{"Serve gen/http/openapi3.yaml", "GET", "/_memberships/openapi3.yaml"},
 		},
-		ListProjectTiers:           NewListProjectTiersHandler(e.ListProjectTiers, mux, decoder, encoder, errhandler, formatter),
-		GetProjectTier:             NewGetProjectTierHandler(e.GetProjectTier, mux, decoder, encoder, errhandler, formatter),
-		ListProjectMemberships:     NewListProjectMembershipsHandler(e.ListProjectMemberships, mux, decoder, encoder, errhandler, formatter),
-		GetProjectMembership:       NewGetProjectMembershipHandler(e.GetProjectMembership, mux, decoder, encoder, errhandler, formatter),
-		ListMembershipKeyContacts:  NewListMembershipKeyContactsHandler(e.ListMembershipKeyContacts, mux, decoder, encoder, errhandler, formatter),
-		CreateMembershipKeyContact: NewCreateMembershipKeyContactHandler(e.CreateMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		UpdateMembershipKeyContact: NewUpdateMembershipKeyContactHandler(e.UpdateMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		DeleteMembershipKeyContact: NewDeleteMembershipKeyContactHandler(e.DeleteMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		GetMembershipKeyContact:    NewGetMembershipKeyContactHandler(e.GetMembershipKeyContact, mux, decoder, encoder, errhandler, formatter),
-		ListB2bOrgs:                NewListB2bOrgsHandler(e.ListB2bOrgs, mux, decoder, encoder, errhandler, formatter),
-		ListB2bOrgMemberships:      NewListB2bOrgMembershipsHandler(e.ListB2bOrgMemberships, mux, decoder, encoder, errhandler, formatter),
-		Readyz:                     NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
-		Livez:                      NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
-		DebugVars:                  NewDebugVarsHandler(e.DebugVars, mux, decoder, encoder, errhandler, formatter),
-		GenHTTPOpenapiJSON:         http.FileServer(fileSystemGenHTTPOpenapiJSON),
-		GenHTTPOpenapiYaml:         http.FileServer(fileSystemGenHTTPOpenapiYaml),
-		GenHTTPOpenapi3JSON:        http.FileServer(fileSystemGenHTTPOpenapi3JSON),
-		GenHTTPOpenapi3Yaml:        http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
+		GetB2bOrg:            NewGetB2bOrgHandler(e.GetB2bOrg, mux, decoder, encoder, errhandler, formatter),
+		CreateB2bOrg:         NewCreateB2bOrgHandler(e.CreateB2bOrg, mux, decoder, encoder, errhandler, formatter),
+		UpdateB2bOrg:         NewUpdateB2bOrgHandler(e.UpdateB2bOrg, mux, decoder, encoder, errhandler, formatter),
+		GetB2bOrgSettings:    NewGetB2bOrgSettingsHandler(e.GetB2bOrgSettings, mux, decoder, encoder, errhandler, formatter),
+		UpdateB2bOrgSettings: NewUpdateB2bOrgSettingsHandler(e.UpdateB2bOrgSettings, mux, decoder, encoder, errhandler, formatter),
+		GetProjectMembership: NewGetProjectMembershipHandler(e.GetProjectMembership, mux, decoder, encoder, errhandler, formatter),
+		GetKeyContact:        NewGetKeyContactHandler(e.GetKeyContact, mux, decoder, encoder, errhandler, formatter),
+		CreateKeyContact:     NewCreateKeyContactHandler(e.CreateKeyContact, mux, decoder, encoder, errhandler, formatter),
+		UpdateKeyContact:     NewUpdateKeyContactHandler(e.UpdateKeyContact, mux, decoder, encoder, errhandler, formatter),
+		DeleteKeyContact:     NewDeleteKeyContactHandler(e.DeleteKeyContact, mux, decoder, encoder, errhandler, formatter),
+		AdminReindex:         NewAdminReindexHandler(e.AdminReindex, mux, decoder, encoder, errhandler, formatter),
+		Readyz:               NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
+		Livez:                NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
+		DebugVars:            NewDebugVarsHandler(e.DebugVars, mux, decoder, encoder, errhandler, formatter),
+		GenHTTPOpenapiJSON:   http.FileServer(fileSystemGenHTTPOpenapiJSON),
+		GenHTTPOpenapiYaml:   http.FileServer(fileSystemGenHTTPOpenapiYaml),
+		GenHTTPOpenapi3JSON:  http.FileServer(fileSystemGenHTTPOpenapi3JSON),
+		GenHTTPOpenapi3Yaml:  http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
 	}
 }
 
@@ -133,17 +133,17 @@ func (s *Server) Service() string { return "membership-service" }
 
 // Use wraps the server handlers with the given middleware.
 func (s *Server) Use(m func(http.Handler) http.Handler) {
-	s.ListProjectTiers = m(s.ListProjectTiers)
-	s.GetProjectTier = m(s.GetProjectTier)
-	s.ListProjectMemberships = m(s.ListProjectMemberships)
+	s.GetB2bOrg = m(s.GetB2bOrg)
+	s.CreateB2bOrg = m(s.CreateB2bOrg)
+	s.UpdateB2bOrg = m(s.UpdateB2bOrg)
+	s.GetB2bOrgSettings = m(s.GetB2bOrgSettings)
+	s.UpdateB2bOrgSettings = m(s.UpdateB2bOrgSettings)
 	s.GetProjectMembership = m(s.GetProjectMembership)
-	s.ListMembershipKeyContacts = m(s.ListMembershipKeyContacts)
-	s.CreateMembershipKeyContact = m(s.CreateMembershipKeyContact)
-	s.UpdateMembershipKeyContact = m(s.UpdateMembershipKeyContact)
-	s.DeleteMembershipKeyContact = m(s.DeleteMembershipKeyContact)
-	s.GetMembershipKeyContact = m(s.GetMembershipKeyContact)
-	s.ListB2bOrgs = m(s.ListB2bOrgs)
-	s.ListB2bOrgMemberships = m(s.ListB2bOrgMemberships)
+	s.GetKeyContact = m(s.GetKeyContact)
+	s.CreateKeyContact = m(s.CreateKeyContact)
+	s.UpdateKeyContact = m(s.UpdateKeyContact)
+	s.DeleteKeyContact = m(s.DeleteKeyContact)
+	s.AdminReindex = m(s.AdminReindex)
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
 	s.DebugVars = m(s.DebugVars)
@@ -154,17 +154,17 @@ func (s *Server) MethodNames() []string { return membershipservice.MethodNames[:
 
 // Mount configures the mux to serve the membership-service endpoints.
 func Mount(mux goahttp.Muxer, h *Server) {
-	MountListProjectTiersHandler(mux, h.ListProjectTiers)
-	MountGetProjectTierHandler(mux, h.GetProjectTier)
-	MountListProjectMembershipsHandler(mux, h.ListProjectMemberships)
+	MountGetB2bOrgHandler(mux, h.GetB2bOrg)
+	MountCreateB2bOrgHandler(mux, h.CreateB2bOrg)
+	MountUpdateB2bOrgHandler(mux, h.UpdateB2bOrg)
+	MountGetB2bOrgSettingsHandler(mux, h.GetB2bOrgSettings)
+	MountUpdateB2bOrgSettingsHandler(mux, h.UpdateB2bOrgSettings)
 	MountGetProjectMembershipHandler(mux, h.GetProjectMembership)
-	MountListMembershipKeyContactsHandler(mux, h.ListMembershipKeyContacts)
-	MountCreateMembershipKeyContactHandler(mux, h.CreateMembershipKeyContact)
-	MountUpdateMembershipKeyContactHandler(mux, h.UpdateMembershipKeyContact)
-	MountDeleteMembershipKeyContactHandler(mux, h.DeleteMembershipKeyContact)
-	MountGetMembershipKeyContactHandler(mux, h.GetMembershipKeyContact)
-	MountListB2bOrgsHandler(mux, h.ListB2bOrgs)
-	MountListB2bOrgMembershipsHandler(mux, h.ListB2bOrgMemberships)
+	MountGetKeyContactHandler(mux, h.GetKeyContact)
+	MountCreateKeyContactHandler(mux, h.CreateKeyContact)
+	MountUpdateKeyContactHandler(mux, h.UpdateKeyContact)
+	MountDeleteKeyContactHandler(mux, h.DeleteKeyContact)
+	MountAdminReindexHandler(mux, h.AdminReindex)
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
 	MountDebugVarsHandler(mux, h.DebugVars)
@@ -179,22 +179,181 @@ func (s *Server) Mount(mux goahttp.Muxer) {
 	Mount(mux, s)
 }
 
-// MountListProjectTiersHandler configures the mux to serve the
-// "membership-service" service "list-project-tiers" endpoint.
-func MountListProjectTiersHandler(mux goahttp.Muxer, h http.Handler) {
+// MountGetB2bOrgHandler configures the mux to serve the "membership-service"
+// service "get-b2b-org" endpoint.
+func MountGetB2bOrgHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/tiers", f)
+	mux.Handle("GET", "/b2b_orgs/{uid}", f)
 }
 
-// NewListProjectTiersHandler creates a HTTP handler which loads the HTTP
-// request and calls the "membership-service" service "list-project-tiers"
+// NewGetB2bOrgHandler creates a HTTP handler which loads the HTTP request and
+// calls the "membership-service" service "get-b2b-org" endpoint.
+func NewGetB2bOrgHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeGetB2bOrgRequest(mux, decoder)
+		encodeResponse = EncodeGetB2bOrgResponse(encoder)
+		encodeError    = EncodeGetB2bOrgError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-b2b-org")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountCreateB2bOrgHandler configures the mux to serve the
+// "membership-service" service "create-b2b-org" endpoint.
+func MountCreateB2bOrgHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/b2b_orgs", f)
+}
+
+// NewCreateB2bOrgHandler creates a HTTP handler which loads the HTTP request
+// and calls the "membership-service" service "create-b2b-org" endpoint.
+func NewCreateB2bOrgHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeCreateB2bOrgRequest(mux, decoder)
+		encodeResponse = EncodeCreateB2bOrgResponse(encoder)
+		encodeError    = EncodeCreateB2bOrgError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "create-b2b-org")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountUpdateB2bOrgHandler configures the mux to serve the
+// "membership-service" service "update-b2b-org" endpoint.
+func MountUpdateB2bOrgHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("PUT", "/b2b_orgs/{uid}", f)
+}
+
+// NewUpdateB2bOrgHandler creates a HTTP handler which loads the HTTP request
+// and calls the "membership-service" service "update-b2b-org" endpoint.
+func NewUpdateB2bOrgHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeUpdateB2bOrgRequest(mux, decoder)
+		encodeResponse = EncodeUpdateB2bOrgResponse(encoder)
+		encodeError    = EncodeUpdateB2bOrgError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-b2b-org")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountGetB2bOrgSettingsHandler configures the mux to serve the
+// "membership-service" service "get-b2b-org-settings" endpoint.
+func MountGetB2bOrgSettingsHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/b2b_orgs/{uid}/settings", f)
+}
+
+// NewGetB2bOrgSettingsHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service "get-b2b-org-settings"
 // endpoint.
-func NewListProjectTiersHandler(
+func NewGetB2bOrgSettingsHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -203,13 +362,13 @@ func NewListProjectTiersHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeListProjectTiersRequest(mux, decoder)
-		encodeResponse = EncodeListProjectTiersResponse(encoder)
-		encodeError    = EncodeListProjectTiersError(encoder, formatter)
+		decodeRequest  = DecodeGetB2bOrgSettingsRequest(mux, decoder)
+		encodeResponse = EncodeGetB2bOrgSettingsResponse(encoder)
+		encodeError    = EncodeGetB2bOrgSettingsError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "list-project-tiers")
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-b2b-org-settings")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -233,21 +392,22 @@ func NewListProjectTiersHandler(
 	})
 }
 
-// MountGetProjectTierHandler configures the mux to serve the
-// "membership-service" service "get-project-tier" endpoint.
-func MountGetProjectTierHandler(mux goahttp.Muxer, h http.Handler) {
+// MountUpdateB2bOrgSettingsHandler configures the mux to serve the
+// "membership-service" service "update-b2b-org-settings" endpoint.
+func MountUpdateB2bOrgSettingsHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/tiers/{tier_uid}", f)
+	mux.Handle("PUT", "/b2b_orgs/{uid}/settings", f)
 }
 
-// NewGetProjectTierHandler creates a HTTP handler which loads the HTTP request
-// and calls the "membership-service" service "get-project-tier" endpoint.
-func NewGetProjectTierHandler(
+// NewUpdateB2bOrgSettingsHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service "update-b2b-org-settings"
+// endpoint.
+func NewUpdateB2bOrgSettingsHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -256,67 +416,13 @@ func NewGetProjectTierHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeGetProjectTierRequest(mux, decoder)
-		encodeResponse = EncodeGetProjectTierResponse(encoder)
-		encodeError    = EncodeGetProjectTierError(encoder, formatter)
+		decodeRequest  = DecodeUpdateB2bOrgSettingsRequest(mux, decoder)
+		encodeResponse = EncodeUpdateB2bOrgSettingsResponse(encoder)
+		encodeError    = EncodeUpdateB2bOrgSettingsError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "get-project-tier")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
-// MountListProjectMembershipsHandler configures the mux to serve the
-// "membership-service" service "list-project-memberships" endpoint.
-func MountListProjectMembershipsHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/projects/{project_uid}/memberships", f)
-}
-
-// NewListProjectMembershipsHandler creates a HTTP handler which loads the HTTP
-// request and calls the "membership-service" service
-// "list-project-memberships" endpoint.
-func NewListProjectMembershipsHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeListProjectMembershipsRequest(mux, decoder)
-		encodeResponse = EncodeListProjectMembershipsResponse(encoder)
-		encodeError    = EncodeListProjectMembershipsError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "list-project-memberships")
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-b2b-org-settings")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -349,7 +455,7 @@ func MountGetProjectMembershipHandler(mux goahttp.Muxer, h http.Handler) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/memberships/{membership_uid}", f)
+	mux.Handle("GET", "/project_memberships/{uid}", f)
 }
 
 // NewGetProjectMembershipHandler creates a HTTP handler which loads the HTTP
@@ -394,22 +500,21 @@ func NewGetProjectMembershipHandler(
 	})
 }
 
-// MountListMembershipKeyContactsHandler configures the mux to serve the
-// "membership-service" service "list-membership-key-contacts" endpoint.
-func MountListMembershipKeyContactsHandler(mux goahttp.Muxer, h http.Handler) {
+// MountGetKeyContactHandler configures the mux to serve the
+// "membership-service" service "get-key-contact" endpoint.
+func MountGetKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts", f)
+	mux.Handle("GET", "/project_memberships/{membership_uid}/key_contacts/{uid}", f)
 }
 
-// NewListMembershipKeyContactsHandler creates a HTTP handler which loads the
-// HTTP request and calls the "membership-service" service
-// "list-membership-key-contacts" endpoint.
-func NewListMembershipKeyContactsHandler(
+// NewGetKeyContactHandler creates a HTTP handler which loads the HTTP request
+// and calls the "membership-service" service "get-key-contact" endpoint.
+func NewGetKeyContactHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -418,13 +523,13 @@ func NewListMembershipKeyContactsHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeListMembershipKeyContactsRequest(mux, decoder)
-		encodeResponse = EncodeListMembershipKeyContactsResponse(encoder)
-		encodeError    = EncodeListMembershipKeyContactsError(encoder, formatter)
+		decodeRequest  = DecodeGetKeyContactRequest(mux, decoder)
+		encodeResponse = EncodeGetKeyContactResponse(encoder)
+		encodeError    = EncodeGetKeyContactError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "list-membership-key-contacts")
+		ctx = context.WithValue(ctx, goa.MethodKey, "get-key-contact")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -448,22 +553,22 @@ func NewListMembershipKeyContactsHandler(
 	})
 }
 
-// MountCreateMembershipKeyContactHandler configures the mux to serve the
-// "membership-service" service "create-membership-key-contact" endpoint.
-func MountCreateMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
+// MountCreateKeyContactHandler configures the mux to serve the
+// "membership-service" service "create-key-contact" endpoint.
+func MountCreateKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("POST", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts", f)
+	mux.Handle("POST", "/project_memberships/{membership_uid}/key_contacts", f)
 }
 
-// NewCreateMembershipKeyContactHandler creates a HTTP handler which loads the
-// HTTP request and calls the "membership-service" service
-// "create-membership-key-contact" endpoint.
-func NewCreateMembershipKeyContactHandler(
+// NewCreateKeyContactHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service "create-key-contact"
+// endpoint.
+func NewCreateKeyContactHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -472,13 +577,13 @@ func NewCreateMembershipKeyContactHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeCreateMembershipKeyContactRequest(mux, decoder)
-		encodeResponse = EncodeCreateMembershipKeyContactResponse(encoder)
-		encodeError    = EncodeCreateMembershipKeyContactError(encoder, formatter)
+		decodeRequest  = DecodeCreateKeyContactRequest(mux, decoder)
+		encodeResponse = EncodeCreateKeyContactResponse(encoder)
+		encodeError    = EncodeCreateKeyContactError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "create-membership-key-contact")
+		ctx = context.WithValue(ctx, goa.MethodKey, "create-key-contact")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -502,22 +607,22 @@ func NewCreateMembershipKeyContactHandler(
 	})
 }
 
-// MountUpdateMembershipKeyContactHandler configures the mux to serve the
-// "membership-service" service "update-membership-key-contact" endpoint.
-func MountUpdateMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
+// MountUpdateKeyContactHandler configures the mux to serve the
+// "membership-service" service "update-key-contact" endpoint.
+func MountUpdateKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("PUT", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}", f)
+	mux.Handle("PUT", "/project_memberships/{membership_uid}/key_contacts/{uid}", f)
 }
 
-// NewUpdateMembershipKeyContactHandler creates a HTTP handler which loads the
-// HTTP request and calls the "membership-service" service
-// "update-membership-key-contact" endpoint.
-func NewUpdateMembershipKeyContactHandler(
+// NewUpdateKeyContactHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service "update-key-contact"
+// endpoint.
+func NewUpdateKeyContactHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -526,13 +631,13 @@ func NewUpdateMembershipKeyContactHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeUpdateMembershipKeyContactRequest(mux, decoder)
-		encodeResponse = EncodeUpdateMembershipKeyContactResponse(encoder)
-		encodeError    = EncodeUpdateMembershipKeyContactError(encoder, formatter)
+		decodeRequest  = DecodeUpdateKeyContactRequest(mux, decoder)
+		encodeResponse = EncodeUpdateKeyContactResponse(encoder)
+		encodeError    = EncodeUpdateKeyContactError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "update-membership-key-contact")
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-key-contact")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -556,22 +661,22 @@ func NewUpdateMembershipKeyContactHandler(
 	})
 }
 
-// MountDeleteMembershipKeyContactHandler configures the mux to serve the
-// "membership-service" service "delete-membership-key-contact" endpoint.
-func MountDeleteMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
+// MountDeleteKeyContactHandler configures the mux to serve the
+// "membership-service" service "delete-key-contact" endpoint.
+func MountDeleteKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("DELETE", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}", f)
+	mux.Handle("DELETE", "/project_memberships/{membership_uid}/key_contacts/{uid}", f)
 }
 
-// NewDeleteMembershipKeyContactHandler creates a HTTP handler which loads the
-// HTTP request and calls the "membership-service" service
-// "delete-membership-key-contact" endpoint.
-func NewDeleteMembershipKeyContactHandler(
+// NewDeleteKeyContactHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service "delete-key-contact"
+// endpoint.
+func NewDeleteKeyContactHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -580,13 +685,13 @@ func NewDeleteMembershipKeyContactHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeDeleteMembershipKeyContactRequest(mux, decoder)
-		encodeResponse = EncodeDeleteMembershipKeyContactResponse(encoder)
-		encodeError    = EncodeDeleteMembershipKeyContactError(encoder, formatter)
+		decodeRequest  = DecodeDeleteKeyContactRequest(mux, decoder)
+		encodeResponse = EncodeDeleteKeyContactResponse(encoder)
+		encodeError    = EncodeDeleteKeyContactError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "delete-membership-key-contact")
+		ctx = context.WithValue(ctx, goa.MethodKey, "delete-key-contact")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {
@@ -610,22 +715,21 @@ func NewDeleteMembershipKeyContactHandler(
 	})
 }
 
-// MountGetMembershipKeyContactHandler configures the mux to serve the
-// "membership-service" service "get-membership-key-contact" endpoint.
-func MountGetMembershipKeyContactHandler(mux goahttp.Muxer, h http.Handler) {
+// MountAdminReindexHandler configures the mux to serve the
+// "membership-service" service "admin-reindex" endpoint.
+func MountAdminReindexHandler(mux goahttp.Muxer, h http.Handler) {
 	f, ok := h.(http.HandlerFunc)
 	if !ok {
 		f = func(w http.ResponseWriter, r *http.Request) {
 			h.ServeHTTP(w, r)
 		}
 	}
-	mux.Handle("GET", "/projects/{project_uid}/memberships/{membership_uid}/key_contacts/{contact_uid}", f)
+	mux.Handle("POST", "/admin/reindex", f)
 }
 
-// NewGetMembershipKeyContactHandler creates a HTTP handler which loads the
-// HTTP request and calls the "membership-service" service
-// "get-membership-key-contact" endpoint.
-func NewGetMembershipKeyContactHandler(
+// NewAdminReindexHandler creates a HTTP handler which loads the HTTP request
+// and calls the "membership-service" service "admin-reindex" endpoint.
+func NewAdminReindexHandler(
 	endpoint goa.Endpoint,
 	mux goahttp.Muxer,
 	decoder func(*http.Request) goahttp.Decoder,
@@ -634,120 +738,13 @@ func NewGetMembershipKeyContactHandler(
 	formatter func(ctx context.Context, err error) goahttp.Statuser,
 ) http.Handler {
 	var (
-		decodeRequest  = DecodeGetMembershipKeyContactRequest(mux, decoder)
-		encodeResponse = EncodeGetMembershipKeyContactResponse(encoder)
-		encodeError    = EncodeGetMembershipKeyContactError(encoder, formatter)
+		decodeRequest  = DecodeAdminReindexRequest(mux, decoder)
+		encodeResponse = EncodeAdminReindexResponse(encoder)
+		encodeError    = EncodeAdminReindexError(encoder, formatter)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "get-membership-key-contact")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
-// MountListB2bOrgsHandler configures the mux to serve the "membership-service"
-// service "list-b2b-orgs" endpoint.
-func MountListB2bOrgsHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/b2b_orgs", f)
-}
-
-// NewListB2bOrgsHandler creates a HTTP handler which loads the HTTP request
-// and calls the "membership-service" service "list-b2b-orgs" endpoint.
-func NewListB2bOrgsHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeListB2bOrgsRequest(mux, decoder)
-		encodeResponse = EncodeListB2bOrgsResponse(encoder)
-		encodeError    = EncodeListB2bOrgsError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "list-b2b-orgs")
-		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
-		payload, err := decodeRequest(r)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		res, err := endpoint(ctx, payload)
-		if err != nil {
-			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-			return
-		}
-		if err := encodeResponse(ctx, w, res); err != nil {
-			if errhandler != nil {
-				errhandler(ctx, w, err)
-			}
-		}
-	})
-}
-
-// MountListB2bOrgMembershipsHandler configures the mux to serve the
-// "membership-service" service "list-b2b-org-memberships" endpoint.
-func MountListB2bOrgMembershipsHandler(mux goahttp.Muxer, h http.Handler) {
-	f, ok := h.(http.HandlerFunc)
-	if !ok {
-		f = func(w http.ResponseWriter, r *http.Request) {
-			h.ServeHTTP(w, r)
-		}
-	}
-	mux.Handle("GET", "/b2b_orgs/{b2b_org_uid}/memberships", f)
-}
-
-// NewListB2bOrgMembershipsHandler creates a HTTP handler which loads the HTTP
-// request and calls the "membership-service" service
-// "list-b2b-org-memberships" endpoint.
-func NewListB2bOrgMembershipsHandler(
-	endpoint goa.Endpoint,
-	mux goahttp.Muxer,
-	decoder func(*http.Request) goahttp.Decoder,
-	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
-	errhandler func(context.Context, http.ResponseWriter, error),
-	formatter func(ctx context.Context, err error) goahttp.Statuser,
-) http.Handler {
-	var (
-		decodeRequest  = DecodeListB2bOrgMembershipsRequest(mux, decoder)
-		encodeResponse = EncodeListB2bOrgMembershipsResponse(encoder)
-		encodeError    = EncodeListB2bOrgMembershipsError(encoder, formatter)
-	)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
-		ctx = context.WithValue(ctx, goa.MethodKey, "list-b2b-org-memberships")
+		ctx = context.WithValue(ctx, goa.MethodKey, "admin-reindex")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		payload, err := decodeRequest(r)
 		if err != nil {

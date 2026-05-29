@@ -134,7 +134,7 @@ func TestMemberReaderOrchestrator_GetMembership(t *testing.T) {
 	}{
 		{
 			name:          "get existing membership",
-			membershipUID: "membership-1",
+			membershipUID: "11111111-1111-1111-1111-111111111111",
 			wantErr:       false,
 		},
 		{
@@ -171,7 +171,7 @@ func TestMemberReaderOrchestrator_ListKeyContactsForMembership(t *testing.T) {
 	}{
 		{
 			name:          "list contacts for existing membership",
-			membershipUID: "membership-1",
+			membershipUID: "11111111-1111-1111-1111-111111111111",
 			wantErr:       false,
 			wantCount:     1,
 		},

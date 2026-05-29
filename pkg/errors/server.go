@@ -44,3 +44,54 @@ func NewServiceUnavailable(message string, err ...error) ServiceUnavailable {
 		},
 	}
 }
+
+// NotImplemented represents a not implemented error in the application.
+type NotImplemented struct {
+	base
+}
+
+// Error returns the error message for NotImplemented.
+func (ni NotImplemented) Error() string {
+	return ni.error()
+}
+
+// NewNotImplemented creates a new NotImplemented error with the provided message.
+func NewNotImplemented(message string, err ...error) NotImplemented {
+	return NotImplemented{
+		base: base{
+			message: message,
+			err:     errors.Join(err...),
+		},
+	}
+}
+
+// PreconditionFailed represents a conditional-write failure (HTTP 412). It is
+// returned when an If-Match or If-Unmodified-Since check fails — i.e. the
+// caller's copy of the resource is stale.
+type PreconditionFailed struct {
+	base
+}
+
+// Error returns the error message for PreconditionFailed.
+func (p PreconditionFailed) Error() string {
+	return p.error()
+}
+
+// NewPreconditionFailed creates a new PreconditionFailed error with the provided message.
+func NewPreconditionFailed(message string, err ...error) PreconditionFailed {
+	return PreconditionFailed{
+		base: base{
+			message: message,
+			err:     errors.Join(err...),
+		},
+	}
+}
+
+// IsPreconditionFailed reports whether err is a PreconditionFailed error.
+func IsPreconditionFailed(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pf PreconditionFailed
+	return errors.As(err, &pf)
+}

@@ -5,525 +5,540 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
-
+	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	goa "goa.design/goa/v3/pkg"
 )
 
-func newTestService() membershipservice.Service {
+// ─── configurable stubs ────────────────────────────────────────────────────────
+
+type stubB2BOrgWriterUC struct {
+	org *model.B2BOrg
+	err error
+}
+
+func (s stubB2BOrgWriterUC) Create(_ context.Context, _ string) (*model.B2BOrg, error) {
+	return s.org, s.err
+}
+func (s stubB2BOrgWriterUC) Update(_ context.Context, _ string, _ model.B2BOrgInput, _ string) (*model.B2BOrg, error) {
+	return s.org, s.err
+}
+
+type stubKeyContactWriterUC struct {
+	kc  *model.KeyContact
+	err error
+}
+
+func (s stubKeyContactWriterUC) Create(_ context.Context, _ usecaseSvc.KeyContactCreateInput) (*model.KeyContact, error) {
+	return s.kc, s.err
+}
+func (s stubKeyContactWriterUC) Update(_ context.Context, _ usecaseSvc.KeyContactUpdateInput) (*model.KeyContact, error) {
+	return s.kc, s.err
+}
+func (s stubKeyContactWriterUC) Delete(_ context.Context, _ usecaseSvc.KeyContactDeleteInput) error {
+	return s.err
+}
+
+type stubOrgSettingsWriterUC struct {
+	settings *model.B2BOrgSettings
+	err      error
+}
+
+func (s stubOrgSettingsWriterUC) Update(_ context.Context, _ usecaseSvc.B2BOrgSettingsUpdate) (*model.B2BOrgSettings, error) {
+	return s.settings, s.err
+}
+
+// ─── fixtures ─────────────────────────────────────────────────────────────────
+
+// seededB2BOrgReader returns a fixed org for any UID.
+type seededB2BOrgReader struct{ org *model.B2BOrg }
+
+func (r *seededB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+	if r.org == nil {
+		return nil, pkgerrors.NewNotFound("b2b org not found")
+	}
+	return r.org, nil
+}
+func (r *seededB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
+// sampleB2BOrg is the canonical test fixture returned by seeded mocks.
+var sampleB2BOrg = &model.B2BOrg{
+	UID:       "lf-uid-001",
+	SFID:      "001000000000001AAA",
+	Name:      "Linux Foundation",
+	Website:   "https://linuxfoundation.org",
+	Industry:  "Technology",
+	Status:    "Active",
+	CreatedAt: time.Date(2020, 1, 15, 10, 30, 0, 0, time.UTC),
+	UpdatedAt: time.Date(2024, 6, 1, 8, 0, 0, 0, time.UTC),
+}
+
+// ─── functional-options test builder ──────────────────────────────────────────
+
+type svcBuilder struct {
+	auth         domain.Authenticator
+	storage      port.MemberReader
+	b2bOrgReader port.B2BOrgReader
+	pmReader     port.ProjectMembershipReader
+	settingsR    port.B2BOrgSettingsReader
+	b2bOrgWriter usecaseSvc.B2BOrgWriter
+	kcWriter     usecaseSvc.KeyContactWriter
+	settingsW    usecaseSvc.OrgSettingsWriter
+	runner       *usecaseSvc.Runner
+}
+
+type svcOpt func(*svcBuilder)
+
+func withB2BOrgReader(r port.B2BOrgReader) svcOpt {
+	return func(b *svcBuilder) { b.b2bOrgReader = r }
+}
+func withB2BOrgWriterUC(w usecaseSvc.B2BOrgWriter) svcOpt {
+	return func(b *svcBuilder) { b.b2bOrgWriter = w }
+}
+func withKeyContactWriterUC(w usecaseSvc.KeyContactWriter) svcOpt {
+	return func(b *svcBuilder) { b.kcWriter = w }
+}
+func withPMReader(r port.ProjectMembershipReader) svcOpt {
+	return func(b *svcBuilder) { b.pmReader = r }
+}
+func withOrgSettingsStore(store *mock.MockB2BOrgSettings) svcOpt {
+	return func(b *svcBuilder) {
+		b.settingsR = store
+		b.settingsW = usecaseSvc.NewOrgSettingsWriter(
+			usecaseSvc.WithOrgSettingsReader(store),
+			usecaseSvc.WithOrgSettingsWriter(store),
+			usecaseSvc.WithOrgSettingsB2BOrgReader(&seededB2BOrgReader{org: sampleB2BOrg}),
+			usecaseSvc.WithOrgSettingsPublisher(mock.NewMockMemberPublisher()),
+		)
+	}
+}
+func withBackfillRunner(r *usecaseSvc.Runner) svcOpt {
+	return func(b *svcBuilder) { b.runner = r }
+}
+
+func newTestSvc(opts ...svcOpt) membershipservice.Service {
 	mockRepo := mock.NewMockMembershipRepository()
-	orchestrator := usecaseSvc.NewMemberReaderOrchestrator(
-		usecaseSvc.WithMemberReader(mockRepo),
-	)
-	jwtAuth, _ := auth.NewJWTAuth(auth.JWTAuthConfig{
-		MockLocalPrincipal: "test-user",
+	b := &svcBuilder{
+		auth:         &auth.MockJWTAuth{},
+		storage:      mockRepo,
+		b2bOrgReader: mock.NewMockB2BOrgReader(),
+		pmReader:     mock.NewMockProjectMembershipReader(),
+		settingsR:    mock.NewMockB2BOrgSettings(),
+		b2bOrgWriter: stubB2BOrgWriterUC{org: sampleB2BOrg},
+		kcWriter:     stubKeyContactWriterUC{},
+		settingsW:    stubOrgSettingsWriterUC{settings: &model.B2BOrgSettings{}},
+	}
+	for _, o := range opts {
+		o(b)
+	}
+	return NewMembershipService(b.auth, b.storage, b.b2bOrgReader,
+		b.pmReader, b.settingsR, b.b2bOrgWriter, b.kcWriter, b.settingsW, b.runner)
+}
+
+// ─── B2BOrg handler tests ──────────────────────────────────────────────────────
+
+func TestGetB2bOrg_NotFound(t *testing.T) {
+	svc := newTestSvc()
+
+	_, err := svc.GetB2bOrg(context.Background(), &membershipservice.GetB2bOrgPayload{
+		UID: "nonexistent-uid",
 	})
-	b2bOrgReader := mock.NewMockB2BOrgReader()
-	return NewMembershipService(orchestrator, mockRepo, jwtAuth, nil, b2bOrgReader)
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotFound", serviceErr.Name)
 }
 
-// ── Tiers ─────────────────────────────────────────────────────────────────────
+func TestGetB2bOrg_Happy(t *testing.T) {
+	svc := newTestSvc(withB2BOrgReader(&seededB2BOrgReader{org: sampleB2BOrg}))
 
-func TestListProjectTiers(t *testing.T) {
-	tests := []struct {
-		name      string
-		payload   *membershipservice.ListProjectTiersPayload
-		wantErr   bool
-		wantCount int
-	}{
-		{
-			name: "list tiers for project with sample data",
-			payload: &membershipservice.ListProjectTiersPayload{
-				ProjectUID: strPtr("project-uid-1"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-		},
-		{
-			name: "list tiers for project with no data",
-			payload: &membershipservice.ListProjectTiersPayload{
-				ProjectUID: strPtr("nonexistent-project"),
-			},
-			wantErr:   false,
-			wantCount: 0,
-		},
-	}
+	result, err := svc.GetB2bOrg(context.Background(), &membershipservice.GetB2bOrgPayload{UID: "lf-uid-001"})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService()
-			ctx := context.Background()
-
-			res, err := svc.ListProjectTiers(ctx, tt.payload)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			assert.Len(t, res.Tiers, tt.wantCount)
-		})
-	}
-}
-
-func TestGetProjectTier(t *testing.T) {
-	tests := []struct {
-		name    string
-		payload *membershipservice.GetProjectTierPayload
-		wantErr bool
-	}{
-		{
-			name: "get existing tier",
-			payload: &membershipservice.GetProjectTierPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				TierUID:    strPtr("tier-1"),
-			},
-			wantErr: false,
-		},
-		{
-			name: "get nonexistent tier",
-			payload: &membershipservice.GetProjectTierPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				TierUID:    strPtr("nonexistent-tier"),
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService()
-			ctx := context.Background()
-
-			res, err := svc.GetProjectTier(ctx, tt.payload)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.NotNil(t, res.Tier)
-			assert.Equal(t, "tier-1", *res.Tier.UID)
-		})
-	}
-}
-
-// ── Memberships ───────────────────────────────────────────────────────────────
-
-func TestListProjectMemberships(t *testing.T) {
-	tests := []struct {
-		name      string
-		payload   *membershipservice.ListProjectMembershipsPayload
-		wantErr   bool
-		wantCount int
-		wantTotal int
-	}{
-		{
-			name: "list memberships for project with sample data",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list memberships for project with no data",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("nonexistent-project"),
-				PageSize:   25,
-				Sort:       "newest",
-			},
-			wantErr:   false,
-			wantCount: 0,
-			wantTotal: 0,
-		},
-		{
-			name: "list memberships with status filter matching",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				Filter:     strPtr("status=Active"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list memberships with status filter non-matching",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				Filter:     strPtr("status=Expired"),
-			},
-			wantErr:   false,
-			wantCount: 0,
-			wantTotal: 0,
-		},
-		{
-			name: "list memberships with tier filter matching",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				Filter:     strPtr("tier=Gold"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list memberships with project_slug filter matching",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				Filter:     strPtr("project_slug=linux-foundation"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list memberships with project_slug filter non-matching",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				Filter:     strPtr("project_slug=non-existent"),
-			},
-			wantErr:   false,
-			wantCount: 0,
-			wantTotal: 0,
-		},
-		{
-			name: "list memberships with search_name matching company name",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				SearchName: strPtr("Example"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list memberships with search_name non-matching",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				SearchName: strPtr("NonExistent"),
-			},
-			wantErr:   false,
-			wantCount: 0,
-			wantTotal: 0,
-		},
-		{
-			name: "list memberships sort by name",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "name",
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list memberships sort by last_modified",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "last_modified",
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-		{
-			name: "list memberships with page token (continuation)",
-			payload: &membershipservice.ListProjectMembershipsPayload{
-				ProjectUID: strPtr("project-uid-1"),
-				PageSize:   25,
-				Sort:       "newest",
-				PageToken:  strPtr(""),
-			},
-			wantErr:   false,
-			wantCount: 1,
-			wantTotal: 1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService()
-			ctx := context.Background()
-
-			res, err := svc.ListProjectMemberships(ctx, tt.payload)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			assert.Len(t, res.Memberships, tt.wantCount)
-			if tt.wantTotal > 0 {
-				require.NotNil(t, res.Metadata.TotalSize, "expected non-nil TotalSize")
-				assert.Equal(t, tt.wantTotal, *res.Metadata.TotalSize)
-			}
-		})
-	}
-}
-
-func TestGetProjectMembership(t *testing.T) {
-	tests := []struct {
-		name    string
-		payload *membershipservice.GetProjectMembershipPayload
-		wantErr bool
-	}{
-		{
-			name: "get existing membership for project",
-			payload: &membershipservice.GetProjectMembershipPayload{
-				ProjectUID:    strPtr("project-uid-1"),
-				MembershipUID: strPtr("membership-1"),
-			},
-			wantErr: false,
-		},
-		{
-			name: "get nonexistent membership",
-			payload: &membershipservice.GetProjectMembershipPayload{
-				ProjectUID:    strPtr("project-uid-1"),
-				MembershipUID: strPtr("nonexistent"),
-			},
-			wantErr: true,
-		},
-		{
-			name: "get membership belonging to different project",
-			payload: &membershipservice.GetProjectMembershipPayload{
-				ProjectUID:    strPtr("wrong-project"),
-				MembershipUID: strPtr("membership-1"),
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService()
-			ctx := context.Background()
-
-			res, err := svc.GetProjectMembership(ctx, tt.payload)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.NotNil(t, res.Membership)
-			assert.Equal(t, "membership-1", *res.Membership.UID)
-		})
-	}
-}
-
-// ── Key contacts ──────────────────────────────────────────────────────────────
-
-func TestListMembershipKeyContacts(t *testing.T) {
-	tests := []struct {
-		name      string
-		payload   *membershipservice.ListMembershipKeyContactsPayload
-		wantErr   bool
-		wantCount int
-	}{
-		{
-			name: "list contacts for existing membership",
-			payload: &membershipservice.ListMembershipKeyContactsPayload{
-				ProjectUID:    strPtr("project-uid-1"),
-				MembershipUID: strPtr("membership-1"),
-			},
-			wantErr:   false,
-			wantCount: 1,
-		},
-		{
-			name: "list contacts for membership with no contacts",
-			payload: &membershipservice.ListMembershipKeyContactsPayload{
-				ProjectUID:    strPtr("project-uid-1"),
-				MembershipUID: strPtr("nonexistent-membership"),
-			},
-			wantErr:   false,
-			wantCount: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService()
-			ctx := context.Background()
-
-			res, err := svc.ListMembershipKeyContacts(ctx, tt.payload)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			assert.Len(t, res.Contacts, tt.wantCount)
-		})
-	}
-}
-
-func TestGetMembershipKeyContact(t *testing.T) {
-	tests := []struct {
-		name    string
-		payload *membershipservice.GetMembershipKeyContactPayload
-		wantErr bool
-	}{
-		{
-			name: "get existing key contact",
-			payload: &membershipservice.GetMembershipKeyContactPayload{
-				ProjectUID:    strPtr("project-uid-1"),
-				MembershipUID: strPtr("membership-1"),
-				ContactUID:    strPtr("contact-role-1"),
-			},
-			wantErr: false,
-		},
-		{
-			name: "get nonexistent key contact",
-			payload: &membershipservice.GetMembershipKeyContactPayload{
-				ProjectUID:    strPtr("project-uid-1"),
-				MembershipUID: strPtr("membership-1"),
-				ContactUID:    strPtr("nonexistent-contact"),
-			},
-			wantErr: true,
-		},
-		{
-			name: "get key contact belonging to different membership",
-			payload: &membershipservice.GetMembershipKeyContactPayload{
-				ProjectUID:    strPtr("project-uid-1"),
-				MembershipUID: strPtr("wrong-membership"),
-				ContactUID:    strPtr("contact-role-1"),
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := newTestService()
-			ctx := context.Background()
-
-			res, err := svc.GetMembershipKeyContact(ctx, tt.payload)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.NotNil(t, res)
-			require.NotNil(t, res.Contact)
-			assert.Equal(t, "contact-role-1", *res.Contact.UID)
-		})
-	}
-}
-
-// ── Health probes ─────────────────────────────────────────────────────────────
-
-func TestReadyz(t *testing.T) {
-	svc := newTestService()
-	ctx := context.Background()
-
-	res, err := svc.Readyz(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, []byte("OK\n"), res)
+	require.NotNil(t, result)
+	require.NotNil(t, result.B2bOrg)
+	assert.Equal(t, "lf-uid-001", *result.B2bOrg.UID)
+	assert.Equal(t, "Linux Foundation", *result.B2bOrg.Name)
+	assert.NotNil(t, result.Etag, "ETag must be set")
+	assert.NotNil(t, result.LastModified, "Last-Modified must be set")
 }
 
-func TestLivez(t *testing.T) {
-	svc := newTestService()
-	ctx := context.Background()
+func TestCreateB2bOrg_MockReturnsNotImplemented(t *testing.T) {
+	svc := newTestSvc(withB2BOrgWriterUC(stubB2BOrgWriterUC{err: pkgerrors.NewNotImplemented("not implemented")}))
 
-	res, err := svc.Livez(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, []byte("OK\n"), res)
+	_, err := svc.CreateB2bOrg(context.Background(), &membershipservice.CreateB2bOrgPayload{
+		Sfid: "001000000000001AAA",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotImplemented", serviceErr.Name)
 }
 
-func TestDebugVars(t *testing.T) {
-	svc := newTestService()
-	ctx := context.Background()
+// ─── GetProjectMembership handler tests ───────────────────────────────────────
 
-	res, err := svc.DebugVars(ctx)
-	require.NoError(t, err)
-	require.NotEmpty(t, res)
-
-	// Output must be valid JSON.
-	var parsed map[string]any
-	require.NoError(t, json.Unmarshal(res, &parsed), "DebugVars output must be valid JSON")
-
-	// The default expvar registry always includes cmdline and memstats.
-	assert.Contains(t, parsed, "cmdline")
-	assert.Contains(t, parsed, "memstats")
-}
-
-// ── Utility ───────────────────────────────────────────────────────────────────
-
-func TestParseFilters(t *testing.T) {
-	tests := []struct {
-		name   string
-		filter *string
-		want   map[string]string
-	}{
-		{
-			name:   "nil filter returns empty map",
-			filter: nil,
-			want:   map[string]string{},
-		},
-		{
-			name:   "empty filter returns empty map",
-			filter: strPtr(""),
-			want:   map[string]string{},
-		},
-		{
-			name:   "single key=value pair",
-			filter: strPtr("status=Active"),
-			want:   map[string]string{"status": "Active"},
-		},
-		{
-			name:   "multiple key=value pairs separated by semicolons",
-			filter: strPtr("status=Active;tier=Gold"),
-			want:   map[string]string{"status": "Active", "tier": "Gold"},
-		},
-		{
-			name:   "value with spaces trimmed",
-			filter: strPtr("status = Active ; tier = Gold"),
-			want:   map[string]string{"status": "Active", "tier": "Gold"},
-		},
-		{
-			name:   "pair without equals sign is ignored",
-			filter: strPtr("status=Active;badpair"),
-			want:   map[string]string{"status": "Active"},
-		},
+func TestGetProjectMembership_Happy(t *testing.T) {
+	now := time.Now()
+	sampleMembership := &model.ProjectMembership{
+		UID:             "membership-uid-001",
+		TierUID:         "tier-uid-001",
+		ProjectUID:      "project-uid-001",
+		ProjectSlug:     "linux-foundation",
+		Status:          "Active",
+		Year:            "2025",
+		Tier:            "Gold",
+		AutoRenew:       true,
+		CompanyName:     "Acme Corp",
+		CompanyLogoURL:  "https://acme.com/logo.png",
+		CompanyDomain:   "https://acme.com",
+		TierName:        "Gold Membership",
+		TierFamily:      "Membership",
+		TierProductType: "Corporate",
+		CreatedAt:       now.Add(-24 * time.Hour),
+		UpdatedAt:       now,
 	}
+	pmr := &mockProjectMembershipReader{membership: sampleMembership, lastMod: now}
+	svc := newTestSvc(withPMReader(pmr))
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseFilters(tt.filter)
-			assert.Equal(t, tt.want, result)
-		})
-	}
+	result, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
+		UID: "membership-uid-001",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.ProjectMembership)
+	assert.Equal(t, "membership-uid-001", *result.ProjectMembership.UID)
+	assert.Equal(t, "Acme Corp", *result.ProjectMembership.CompanyName)
+	assert.Equal(t, "Gold Membership", *result.ProjectMembership.TierName)
+	assert.Equal(t, "linux-foundation", *result.ProjectMembership.ProjectSlug)
+	assert.NotNil(t, result.Etag, "ETag must be set")
+	assert.NotNil(t, result.LastModified, "Last-Modified must be set")
 }
+
+func TestGetProjectMembership_NotFound(t *testing.T) {
+	pmr := &mockProjectMembershipReader{err: pkgerrors.NewNotFound("membership not found")}
+	svc := newTestSvc(withPMReader(pmr))
+
+	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
+		UID: "nonexistent-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotFound", serviceErr.Name)
+}
+
+func TestGetProjectMembership_ReaderError(t *testing.T) {
+	pmr := &mockProjectMembershipReader{err: pkgerrors.NewUnexpected("reader failed", fmt.Errorf("salesforce error"))}
+	svc := newTestSvc(withPMReader(pmr))
+
+	_, err := svc.GetProjectMembership(context.Background(), &membershipservice.GetProjectMembershipPayload{
+		UID: "test-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "InternalServerError", serviceErr.Name)
+}
+
+// ─── GetKeyContact handler tests ──────────────────────────────────────────────
+
+func TestGetKeyContact_Happy(t *testing.T) {
+	svc := newTestSvc()
+
+	result, err := svc.GetKeyContact(context.Background(), &membershipservice.GetKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.KeyContact)
+	assert.Equal(t, "contact-role-1", *result.KeyContact.UID)
+	assert.Equal(t, "John", *result.KeyContact.FirstName)
+	assert.Equal(t, "Doe", *result.KeyContact.LastName)
+	assert.NotNil(t, result.Etag, "ETag must be set")
+	assert.NotNil(t, result.LastModified, "Last-Modified must be set")
+}
+
+func TestGetKeyContact_NotFound(t *testing.T) {
+	svc := newTestSvc()
+
+	_, err := svc.GetKeyContact(context.Background(), &membershipservice.GetKeyContactPayload{
+		UID: "nonexistent-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotFound", serviceErr.Name)
+}
+
+// TestGetKeyContact_MembershipMismatch verifies that GetKeyContact returns 404 (not 403)
+// when the contact UID exists but belongs to a different membership than the path supplies.
+func TestGetKeyContact_MembershipMismatch(t *testing.T) {
+	svc := newTestSvc()
+
+	_, err := svc.GetKeyContact(context.Background(), &membershipservice.GetKeyContactPayload{
+		UID:           "contact-role-1",       // exists in membership-1
+		MembershipUID: "wrong-membership-uid", // mismatch → 404
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotFound", serviceErr.Name, "must return 404 (not 403) to avoid leaking existence")
+}
+
+// ─── Key contact write handler smoke tests ────────────────────────────────────
+
+func TestCreateKeyContact_MockReturnsNotImplemented(t *testing.T) {
+	svc := newTestSvc(withKeyContactWriterUC(stubKeyContactWriterUC{err: pkgerrors.NewNotImplemented("not implemented")}))
+
+	_, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+		Email:         "test@example.com",
+		FirstName:     "Test",
+		LastName:      "User",
+		Role:          "Billing Contact",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotImplemented", serviceErr.Name)
+}
+
+func TestUpdateKeyContact_MockReturnsNotImplemented(t *testing.T) {
+	svc := newTestSvc(withKeyContactWriterUC(stubKeyContactWriterUC{err: pkgerrors.NewNotImplemented("not implemented")}))
+
+	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotImplemented", serviceErr.Name)
+}
+
+func TestDeleteKeyContact_MockReturnsNotImplemented(t *testing.T) {
+	svc := newTestSvc(withKeyContactWriterUC(stubKeyContactWriterUC{err: pkgerrors.NewNotImplemented("not implemented")}))
+
+	err := svc.DeleteKeyContact(context.Background(), &membershipservice.DeleteKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "11111111-1111-1111-1111-111111111111",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr), "expected *goa.ServiceError, got %T: %v", err, err)
+	assert.Equal(t, "NotImplemented", serviceErr.Name)
+}
+
+// ─── Membership-alignment 404 tests (cross-membership checks stay in handler) ──
+
+// TestUpdateKeyContact_MembershipMismatch verifies that UpdateKeyContact returns 404
+// when the contact UID does not belong to the supplied membership_uid.
+func TestUpdateKeyContact_MembershipMismatch(t *testing.T) {
+	svc := newTestSvc()
+
+	_, err := svc.UpdateKeyContact(context.Background(), &membershipservice.UpdateKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "wrong-membership-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "NotFound", serviceErr.Name, "must return 404 to avoid leaking existence")
+}
+
+// TestDeleteKeyContact_MembershipMismatch verifies that DeleteKeyContact returns 404
+// when the contact UID does not belong to the supplied membership_uid.
+func TestDeleteKeyContact_MembershipMismatch(t *testing.T) {
+	svc := newTestSvc()
+
+	err := svc.DeleteKeyContact(context.Background(), &membershipservice.DeleteKeyContactPayload{
+		UID:           "contact-role-1",
+		MembershipUID: "wrong-membership-uid",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "NotFound", serviceErr.Name, "must return 404 to avoid leaking existence")
+}
+
+// TestCreateKeyContact_MembershipNotFound verifies that CreateKeyContact returns 404
+// when the orchestrator cannot find the membership.
+func TestCreateKeyContact_MembershipNotFound(t *testing.T) {
+	svc := newTestSvc(withKeyContactWriterUC(stubKeyContactWriterUC{err: pkgerrors.NewNotFound("membership not found")}))
+
+	_, err := svc.CreateKeyContact(context.Background(), &membershipservice.CreateKeyContactPayload{
+		MembershipUID: "nonexistent-membership",
+		Email:         "test@example.com",
+		FirstName:     "Test",
+		LastName:      "User",
+		Role:          "Billing Contact",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "NotFound", serviceErr.Name)
+}
+
+// ─── OrgSettings handler tests ────────────────────────────────────────────────
+
+func TestGetB2bOrgSettings_NoSettingsYet(t *testing.T) {
+	svc := newTestSvc(withOrgSettingsStore(mock.NewMockB2BOrgSettings()))
+
+	result, err := svc.GetB2bOrgSettings(context.Background(), &membershipservice.GetB2bOrgSettingsPayload{
+		UID: "lf-uid-001",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.Settings)
+	assert.Empty(t, result.Settings.Writers, "no settings stored → empty writers")
+	assert.Empty(t, result.Settings.Auditors, "no settings stored → empty auditors")
+}
+
+func TestGetB2bOrgSettings_WithSettings(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed("lf-uid-001", &model.B2BOrgSettings{
+		Writers: []model.B2BOrgUser{
+			{
+				Email:        "alice@example.com",
+				Username:     "alice",
+				InvitedAs:    "writer",
+				InviteStatus: model.InviteStatusAccepted,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+		},
+		Auditors: []model.B2BOrgUser{
+			{
+				Email:        "bob@example.com",
+				InvitedAs:    "auditor",
+				InviteStatus: model.InviteStatusPending,
+				CreatedAt:    now,
+				UpdatedAt:    now,
+			},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, 5)
+
+	svc := newTestSvc(withOrgSettingsStore(store))
+	result, err := svc.GetB2bOrgSettings(context.Background(), &membershipservice.GetB2bOrgSettingsPayload{
+		UID: "lf-uid-001",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result.Settings)
+	require.Len(t, result.Settings.Writers, 1, "must have one writer")
+	assert.Equal(t, "alice@example.com", result.Settings.Writers[0].Email)
+	assert.Equal(t, "alice", *result.Settings.Writers[0].Username)
+	require.NotNil(t, result.Settings.Writers[0].InviteStatus)
+	assert.Equal(t, "accepted", *result.Settings.Writers[0].InviteStatus)
+
+	require.Len(t, result.Settings.Auditors, 1, "must have one auditor")
+	assert.Equal(t, "bob@example.com", result.Settings.Auditors[0].Email)
+	require.NotNil(t, result.Settings.Auditors[0].InviteStatus)
+	assert.Equal(t, "pending", *result.Settings.Auditors[0].InviteStatus)
+}
+
+// TestUpdateB2bOrgSettings_Create verifies that when no prior settings exist a
+// new record is created and returned, and that ETag/Last-Modified headers are set.
+func TestUpdateB2bOrgSettings_Create(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	svc := newTestSvc(withOrgSettingsStore(store))
+
+	username := "alice"
+	result, err := svc.UpdateB2bOrgSettings(context.Background(), &membershipservice.UpdateB2bOrgSettingsPayload{
+		UID: "lf-uid-001",
+		Writers: []*membershipservice.OrgUser{
+			{Email: "alice@example.com", InvitedAs: "writer", Username: &username},
+		},
+		Auditors: []*membershipservice.OrgUser{},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.Settings)
+	require.Len(t, result.Settings.Writers, 1)
+	assert.Equal(t, "alice@example.com", result.Settings.Writers[0].Email)
+	assert.Equal(t, "alice", *result.Settings.Writers[0].Username)
+	require.NotNil(t, result.Settings.Writers[0].InviteStatus)
+	assert.Equal(t, "accepted", *result.Settings.Writers[0].InviteStatus)
+	assert.Empty(t, result.Settings.Auditors)
+}
+
+// TestUpdateB2bOrgSettings_Conflict verifies that a stale revision returns a
+// Goa Conflict error.
+func TestUpdateB2bOrgSettings_Conflict(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.SetPutError(pkgerrors.NewConflict("stale revision"))
+
+	svc := newTestSvc(withOrgSettingsStore(store))
+	_, err := svc.UpdateB2bOrgSettings(context.Background(), &membershipservice.UpdateB2bOrgSettingsPayload{
+		UID:     "lf-uid-001",
+		Writers: []*membershipservice.OrgUser{},
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "Conflict", serviceErr.Name)
+}
+
+// ─── mockProjectMembershipReader ──────────────────────────────────────────────
+
+type mockProjectMembershipReader struct {
+	membership *model.ProjectMembership
+	lastMod    time.Time
+	err        error
+}
+
+func (m *mockProjectMembershipReader) AssembleProjectMembership(_ context.Context, _ string) (*model.ProjectMembership, time.Time, error) {
+	return m.membership, m.lastMod, m.err
+}
+
+// ─── compile-time interface checks ────────────────────────────────────────────
+
+var (
+	_ port.B2BOrgReader            = (*mock.MockB2BOrgReader)(nil)
+	_ port.B2BOrgReader            = (*seededB2BOrgReader)(nil)
+	_ port.B2BOrgWriter            = (*mock.MockB2BOrgWriter)(nil)
+	_ port.MemberReader            = (*mock.MockMembershipRepository)(nil)
+	_ port.ProjectMembershipReader = (*mockProjectMembershipReader)(nil)
+	_ port.MemberPublisher         = (*mock.MockMemberPublisher)(nil)
+	_ port.B2BOrgSettingsReader    = (*mock.MockB2BOrgSettings)(nil)
+	_ port.B2BOrgSettingsWriter    = (*mock.MockB2BOrgSettings)(nil)
+	_ usecaseSvc.B2BOrgWriter      = stubB2BOrgWriterUC{}
+	_ usecaseSvc.KeyContactWriter  = stubKeyContactWriterUC{}
+	_ usecaseSvc.OrgSettingsWriter = stubOrgSettingsWriterUC{}
+)

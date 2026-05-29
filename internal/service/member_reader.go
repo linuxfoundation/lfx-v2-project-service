@@ -26,7 +26,6 @@ type MemberReader interface {
 	GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error)
 	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error)
 	GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error)
-	ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error)
 }
 
 // memberReaderOrchestratorOption defines a functional option for configuring a
@@ -169,35 +168,6 @@ func (rc *memberReaderOrchestrator) GetKeyContact(ctx context.Context, keyContac
 
 	slog.DebugContext(ctx, "key contact retrieved successfully", "key_contact_uid", keyContactUID)
 	return contact, nil
-}
-
-// ListMembershipsForB2BOrg returns a single page of ProjectMembership records
-// for the given B2B org UID across all projects, filtered and ordered by the
-// supplied predicates.
-func (rc *memberReaderOrchestrator) ListMembershipsForB2BOrg(ctx context.Context, b2bOrgUID string, filters model.MembershipFilters, pageSize int) (model.MembershipPage, error) {
-	slog.DebugContext(ctx, "executing list memberships for b2b org use case",
-		"b2b_org_uid", b2bOrgUID,
-		"sort_order", filters.EffectiveSortOrder(),
-		"page_token_set", filters.PageToken != "",
-		"page_size", pageSize,
-	)
-
-	page, err := rc.memberReader.ListMembershipsForB2BOrg(ctx, b2bOrgUID, filters, pageSize)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list memberships for b2b org",
-			"error", err,
-			"b2b_org_uid", b2bOrgUID,
-		)
-		return model.MembershipPage{}, err
-	}
-
-	slog.DebugContext(ctx, "b2b org memberships page retrieved successfully",
-		"b2b_org_uid", b2bOrgUID,
-		"count", len(page.Memberships),
-		"total_size", page.TotalSize,
-		"has_next_page", page.NextPageToken != "",
-	)
-	return page, nil
 }
 
 // NewMemberReaderOrchestrator creates a new memberReaderOrchestrator. The

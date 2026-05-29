@@ -61,9 +61,8 @@ WHERE Id = %s
 `
 
 // membershipsByAccountSOQLBase is the SELECT and fixed WHERE base for
-// FetchMembershipsByAccountSFID and FetchFirstMembershipBatchByAccount. The
-// caller appends additional AND clauses for any active MembershipFilters, then
-// an ORDER BY clause, before executing the query.
+// FetchMembershipsByAccountSFID. The caller appends additional AND clauses for
+// any active MembershipFilters, then an ORDER BY clause, before executing the query.
 const membershipsByAccountSOQLBase = `
 SELECT
     Id, Name, Status, AccountId, Product2Id,
@@ -125,36 +124,6 @@ type MembershipRepo struct {
 // NewMembershipRepo creates a new MembershipRepo backed by the given Salesforce client.
 func NewMembershipRepo(client *sf.Salesforce) *MembershipRepo {
 	return &MembershipRepo{client: client}
-}
-
-// FetchAllMemberships fetches all membership Assets from Salesforce via SOQL
-// and returns them as ProjectMembership domain objects with denormalized Account
-// and Product2 fields.
-func (r *MembershipRepo) FetchAllMemberships(ctx context.Context) ([]*model.ProjectMembership, error) {
-	slog.InfoContext(ctx, "fetching all memberships from Salesforce via SOQL")
-
-	var assets []soqlAsset
-	if err := r.client.Query(membershipSOQL, &assets); err != nil {
-		slog.ErrorContext(ctx, "failed to fetch memberships from Salesforce", "error", err)
-		return nil, fmt.Errorf("fetching memberships via SOQL: %w", err)
-	}
-
-	slog.InfoContext(ctx, "fetched memberships from Salesforce", "count", len(assets))
-
-	memberships := make([]*model.ProjectMembership, 0, len(assets))
-	for _, asset := range assets {
-		m, err := convertSOQLToProjectMembership(asset)
-		if err != nil {
-			slog.WarnContext(ctx, "skipping membership with invalid SFID",
-				"sfid", asset.ID,
-				"error", err,
-			)
-			continue
-		}
-		memberships = append(memberships, m)
-	}
-
-	return memberships, nil
 }
 
 // FetchMembershipBySFID fetches a single membership Asset by its Salesforce ID.
@@ -336,68 +305,6 @@ func (r *MembershipRepo) FetchFirstMembershipBatch(ctx context.Context, projectS
 	}, nil
 }
 
-// buildMembershipsByAccountSOQL assembles the full SOQL query string for
-// FetchMembershipsByAccountSFID and FetchFirstMembershipBatchByAccount,
-// appending optional filter predicates and an ORDER BY clause. All interpolated
-// values are passed through quoteSOQL to prevent injection.
-func buildMembershipsByAccountSOQL(ctx context.Context, accountSFID string, filters model.MembershipFilters) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, membershipsByAccountSOQLBase, quoteSOQL(accountSFID))
-	if filters.TierUID != "" {
-		tierSFID, err := sfuuid.ToSFID(filters.TierUID)
-		if err != nil {
-			slog.WarnContext(ctx, "failed to decode tier UID to SFID; using raw value",
-				"tier_uid", filters.TierUID,
-				"error", err,
-			)
-			tierSFID = filters.TierUID
-		}
-		fmt.Fprintf(&b, "\n    AND Product2Id = %s", quoteSOQL(tierSFID))
-	}
-	if filters.CompanyNameSearch != "" {
-		fmt.Fprintf(&b, "\n    AND Account.Name LIKE %s", quoteLikeSOQL(filters.CompanyNameSearch))
-	}
-	b.WriteString(soqlOrderByClause(filters.EffectiveSortOrder()))
-	return b.String()
-}
-
-// FetchFirstMembershipBatchByAccount issues a single SOQL query for the first
-// sfQueryBatchSize membership records for the given Salesforce Account ID,
-// returning the full batch and the Salesforce locator for any remaining records.
-// The caller is responsible for following the locator in a background goroutine
-// via QueryAllPages if SFLocator is non-empty.
-func (r *MembershipRepo) FetchFirstMembershipBatchByAccount(ctx context.Context, accountSFID string, filters model.MembershipFilters) (FirstBatchResult, error) {
-	slog.DebugContext(ctx, "fetching first membership batch by account from Salesforce",
-		"account_sfid", accountSFID,
-		"sort_order", filters.EffectiveSortOrder(),
-	)
-
-	query := buildMembershipsByAccountSOQL(ctx, accountSFID, filters)
-	sfResult, err := QueryPage[soqlAsset](ctx, r.client, query, "")
-	if err != nil {
-		return FirstBatchResult{}, fmt.Errorf("fetching first membership batch for account %s: %w", accountSFID, err)
-	}
-
-	records := make([]*model.ProjectMembership, 0, len(sfResult.Records))
-	for _, asset := range sfResult.Records {
-		m, convErr := convertSOQLToProjectMembership(asset)
-		if convErr != nil {
-			slog.WarnContext(ctx, "skipping membership with invalid SFID",
-				"sfid", asset.ID,
-				"error", convErr,
-			)
-			continue
-		}
-		records = append(records, m)
-	}
-
-	return FirstBatchResult{
-		Records:   records,
-		SFLocator: sfResult.NextPageToken,
-		TotalSize: sfResult.TotalSize,
-	}, nil
-}
-
 // convertSOQLToProjectMembership converts a Salesforce Asset SOQL result to the
 // domain ProjectMembership model. Account (company) and Product2 (tier) fields
 // are denormalized directly onto the struct — no sub-objects are used.
@@ -475,6 +382,18 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 	}
 
 	return m, nil
+}
+
+// IterProjectMemberships iterates over all memberships from Salesforce, applying
+// an optional LastModifiedDate filter when since is provided. Calls fn for each
+// page of converted records. Conversion errors are logged and skipped.
+func (r *MembershipRepo) IterProjectMemberships(ctx context.Context, since *time.Time, fn func([]*model.ProjectMembership) error) error {
+	query := membershipSOQL
+	if since != nil {
+		iso := since.UTC().Format(time.RFC3339)
+		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+	}
+	return IterPages(ctx, r.client, query, convertSOQLToProjectMembership, fn)
 }
 
 // resolvePurchaseDate mirrors the PostgreSQL COALESCE(PurchaseDate, InstallDate,

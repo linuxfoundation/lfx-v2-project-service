@@ -24,13 +24,13 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"membership-service (list-project-tiers|get-project-tier|list-project-memberships|get-project-membership|list-membership-key-contacts|create-membership-key-contact|update-membership-key-contact|delete-membership-key-contact|get-membership-key-contact|list-b2b-orgs|list-b2b-org-memberships|readyz|livez|debug-vars)",
+		"membership-service (get-b2b-org|create-b2b-org|update-b2b-org|get-b2b-org-settings|update-b2b-org-settings|get-project-membership|get-key-contact|create-key-contact|update-key-contact|delete-key-contact|admin-reindex|readyz|livez|debug-vars)",
 	}
 }
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " " + "membership-service list-project-tiers --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --version \"1\" --bearer-token \"eyJhbGci...\"" + "\n" +
+	return os.Args[0] + " " + "membership-service get-b2b-org --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"" + "\n" +
 		""
 }
 
@@ -46,85 +46,77 @@ func ParseEndpoint(
 	var (
 		membershipServiceFlags = flag.NewFlagSet("membership-service", flag.ContinueOnError)
 
-		membershipServiceListProjectTiersFlags           = flag.NewFlagSet("list-project-tiers", flag.ExitOnError)
-		membershipServiceListProjectTiersProjectUIDFlag  = membershipServiceListProjectTiersFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceListProjectTiersVersionFlag     = membershipServiceListProjectTiersFlags.String("version", "", "")
-		membershipServiceListProjectTiersBearerTokenFlag = membershipServiceListProjectTiersFlags.String("bearer-token", "", "")
+		membershipServiceGetB2bOrgFlags               = flag.NewFlagSet("get-b2b-org", flag.ExitOnError)
+		membershipServiceGetB2bOrgUIDFlag             = membershipServiceGetB2bOrgFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceGetB2bOrgVersionFlag         = membershipServiceGetB2bOrgFlags.String("version", "", "")
+		membershipServiceGetB2bOrgBearerTokenFlag     = membershipServiceGetB2bOrgFlags.String("bearer-token", "", "")
+		membershipServiceGetB2bOrgIfNoneMatchFlag     = membershipServiceGetB2bOrgFlags.String("if-none-match", "", "")
+		membershipServiceGetB2bOrgIfModifiedSinceFlag = membershipServiceGetB2bOrgFlags.String("if-modified-since", "", "")
 
-		membershipServiceGetProjectTierFlags           = flag.NewFlagSet("get-project-tier", flag.ExitOnError)
-		membershipServiceGetProjectTierProjectUIDFlag  = membershipServiceGetProjectTierFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceGetProjectTierTierUIDFlag     = membershipServiceGetProjectTierFlags.String("tier-uid", "REQUIRED", "Membership tier UID")
-		membershipServiceGetProjectTierVersionFlag     = membershipServiceGetProjectTierFlags.String("version", "", "")
-		membershipServiceGetProjectTierBearerTokenFlag = membershipServiceGetProjectTierFlags.String("bearer-token", "", "")
+		membershipServiceCreateB2bOrgFlags           = flag.NewFlagSet("create-b2b-org", flag.ExitOnError)
+		membershipServiceCreateB2bOrgBodyFlag        = membershipServiceCreateB2bOrgFlags.String("body", "REQUIRED", "")
+		membershipServiceCreateB2bOrgVersionFlag     = membershipServiceCreateB2bOrgFlags.String("version", "", "")
+		membershipServiceCreateB2bOrgBearerTokenFlag = membershipServiceCreateB2bOrgFlags.String("bearer-token", "", "")
 
-		membershipServiceListProjectMembershipsFlags           = flag.NewFlagSet("list-project-memberships", flag.ExitOnError)
-		membershipServiceListProjectMembershipsProjectUIDFlag  = membershipServiceListProjectMembershipsFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceListProjectMembershipsVersionFlag     = membershipServiceListProjectMembershipsFlags.String("version", "", "")
-		membershipServiceListProjectMembershipsPageSizeFlag    = membershipServiceListProjectMembershipsFlags.String("page-size", "200", "")
-		membershipServiceListProjectMembershipsPageTokenFlag   = membershipServiceListProjectMembershipsFlags.String("page-token", "", "")
-		membershipServiceListProjectMembershipsSortFlag        = membershipServiceListProjectMembershipsFlags.String("sort", "newest", "")
-		membershipServiceListProjectMembershipsFilterFlag      = membershipServiceListProjectMembershipsFlags.String("filter", "", "")
-		membershipServiceListProjectMembershipsSearchNameFlag  = membershipServiceListProjectMembershipsFlags.String("search-name", "", "")
-		membershipServiceListProjectMembershipsBearerTokenFlag = membershipServiceListProjectMembershipsFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgFlags           = flag.NewFlagSet("update-b2b-org", flag.ExitOnError)
+		membershipServiceUpdateB2bOrgBodyFlag        = membershipServiceUpdateB2bOrgFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateB2bOrgUIDFlag         = membershipServiceUpdateB2bOrgFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceUpdateB2bOrgVersionFlag     = membershipServiceUpdateB2bOrgFlags.String("version", "", "")
+		membershipServiceUpdateB2bOrgBearerTokenFlag = membershipServiceUpdateB2bOrgFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgIfMatchFlag     = membershipServiceUpdateB2bOrgFlags.String("if-match", "", "")
 
-		membershipServiceGetProjectMembershipFlags             = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
-		membershipServiceGetProjectMembershipProjectUIDFlag    = membershipServiceGetProjectMembershipFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceGetProjectMembershipMembershipUIDFlag = membershipServiceGetProjectMembershipFlags.String("membership-uid", "REQUIRED", "Membership UID")
-		membershipServiceGetProjectMembershipVersionFlag       = membershipServiceGetProjectMembershipFlags.String("version", "", "")
-		membershipServiceGetProjectMembershipBearerTokenFlag   = membershipServiceGetProjectMembershipFlags.String("bearer-token", "", "")
+		membershipServiceGetB2bOrgSettingsFlags           = flag.NewFlagSet("get-b2b-org-settings", flag.ExitOnError)
+		membershipServiceGetB2bOrgSettingsUIDFlag         = membershipServiceGetB2bOrgSettingsFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceGetB2bOrgSettingsVersionFlag     = membershipServiceGetB2bOrgSettingsFlags.String("version", "", "")
+		membershipServiceGetB2bOrgSettingsBearerTokenFlag = membershipServiceGetB2bOrgSettingsFlags.String("bearer-token", "", "")
 
-		membershipServiceListMembershipKeyContactsFlags             = flag.NewFlagSet("list-membership-key-contacts", flag.ExitOnError)
-		membershipServiceListMembershipKeyContactsProjectUIDFlag    = membershipServiceListMembershipKeyContactsFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceListMembershipKeyContactsMembershipUIDFlag = membershipServiceListMembershipKeyContactsFlags.String("membership-uid", "REQUIRED", "Membership UID")
-		membershipServiceListMembershipKeyContactsVersionFlag       = membershipServiceListMembershipKeyContactsFlags.String("version", "", "")
-		membershipServiceListMembershipKeyContactsBearerTokenFlag   = membershipServiceListMembershipKeyContactsFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgSettingsFlags           = flag.NewFlagSet("update-b2b-org-settings", flag.ExitOnError)
+		membershipServiceUpdateB2bOrgSettingsBodyFlag        = membershipServiceUpdateB2bOrgSettingsFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateB2bOrgSettingsUIDFlag         = membershipServiceUpdateB2bOrgSettingsFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceUpdateB2bOrgSettingsVersionFlag     = membershipServiceUpdateB2bOrgSettingsFlags.String("version", "", "")
+		membershipServiceUpdateB2bOrgSettingsBearerTokenFlag = membershipServiceUpdateB2bOrgSettingsFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgSettingsIfMatchFlag     = membershipServiceUpdateB2bOrgSettingsFlags.String("if-match", "", "")
 
-		membershipServiceCreateMembershipKeyContactFlags             = flag.NewFlagSet("create-membership-key-contact", flag.ExitOnError)
-		membershipServiceCreateMembershipKeyContactBodyFlag          = membershipServiceCreateMembershipKeyContactFlags.String("body", "REQUIRED", "")
-		membershipServiceCreateMembershipKeyContactProjectUIDFlag    = membershipServiceCreateMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceCreateMembershipKeyContactMembershipUIDFlag = membershipServiceCreateMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
-		membershipServiceCreateMembershipKeyContactVersionFlag       = membershipServiceCreateMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceCreateMembershipKeyContactBearerTokenFlag   = membershipServiceCreateMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceGetProjectMembershipFlags               = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
+		membershipServiceGetProjectMembershipUIDFlag             = membershipServiceGetProjectMembershipFlags.String("uid", "REQUIRED", "Project membership UID")
+		membershipServiceGetProjectMembershipVersionFlag         = membershipServiceGetProjectMembershipFlags.String("version", "", "")
+		membershipServiceGetProjectMembershipBearerTokenFlag     = membershipServiceGetProjectMembershipFlags.String("bearer-token", "", "")
+		membershipServiceGetProjectMembershipIfNoneMatchFlag     = membershipServiceGetProjectMembershipFlags.String("if-none-match", "", "")
+		membershipServiceGetProjectMembershipIfModifiedSinceFlag = membershipServiceGetProjectMembershipFlags.String("if-modified-since", "", "")
 
-		membershipServiceUpdateMembershipKeyContactFlags             = flag.NewFlagSet("update-membership-key-contact", flag.ExitOnError)
-		membershipServiceUpdateMembershipKeyContactBodyFlag          = membershipServiceUpdateMembershipKeyContactFlags.String("body", "REQUIRED", "")
-		membershipServiceUpdateMembershipKeyContactProjectUIDFlag    = membershipServiceUpdateMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceUpdateMembershipKeyContactMembershipUIDFlag = membershipServiceUpdateMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
-		membershipServiceUpdateMembershipKeyContactContactUIDFlag    = membershipServiceUpdateMembershipKeyContactFlags.String("contact-uid", "REQUIRED", "Key contact UID")
-		membershipServiceUpdateMembershipKeyContactVersionFlag       = membershipServiceUpdateMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceUpdateMembershipKeyContactBearerTokenFlag   = membershipServiceUpdateMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceGetKeyContactFlags               = flag.NewFlagSet("get-key-contact", flag.ExitOnError)
+		membershipServiceGetKeyContactMembershipUIDFlag   = membershipServiceGetKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
+		membershipServiceGetKeyContactUIDFlag             = membershipServiceGetKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
+		membershipServiceGetKeyContactVersionFlag         = membershipServiceGetKeyContactFlags.String("version", "", "")
+		membershipServiceGetKeyContactBearerTokenFlag     = membershipServiceGetKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceGetKeyContactIfNoneMatchFlag     = membershipServiceGetKeyContactFlags.String("if-none-match", "", "")
+		membershipServiceGetKeyContactIfModifiedSinceFlag = membershipServiceGetKeyContactFlags.String("if-modified-since", "", "")
 
-		membershipServiceDeleteMembershipKeyContactFlags             = flag.NewFlagSet("delete-membership-key-contact", flag.ExitOnError)
-		membershipServiceDeleteMembershipKeyContactProjectUIDFlag    = membershipServiceDeleteMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceDeleteMembershipKeyContactMembershipUIDFlag = membershipServiceDeleteMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
-		membershipServiceDeleteMembershipKeyContactContactUIDFlag    = membershipServiceDeleteMembershipKeyContactFlags.String("contact-uid", "REQUIRED", "Key contact UID")
-		membershipServiceDeleteMembershipKeyContactVersionFlag       = membershipServiceDeleteMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceDeleteMembershipKeyContactBearerTokenFlag   = membershipServiceDeleteMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceCreateKeyContactFlags             = flag.NewFlagSet("create-key-contact", flag.ExitOnError)
+		membershipServiceCreateKeyContactBodyFlag          = membershipServiceCreateKeyContactFlags.String("body", "REQUIRED", "")
+		membershipServiceCreateKeyContactMembershipUIDFlag = membershipServiceCreateKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
+		membershipServiceCreateKeyContactVersionFlag       = membershipServiceCreateKeyContactFlags.String("version", "", "")
+		membershipServiceCreateKeyContactBearerTokenFlag   = membershipServiceCreateKeyContactFlags.String("bearer-token", "", "")
 
-		membershipServiceGetMembershipKeyContactFlags             = flag.NewFlagSet("get-membership-key-contact", flag.ExitOnError)
-		membershipServiceGetMembershipKeyContactProjectUIDFlag    = membershipServiceGetMembershipKeyContactFlags.String("project-uid", "REQUIRED", "V2 project UUID")
-		membershipServiceGetMembershipKeyContactMembershipUIDFlag = membershipServiceGetMembershipKeyContactFlags.String("membership-uid", "REQUIRED", "Membership UID")
-		membershipServiceGetMembershipKeyContactContactUIDFlag    = membershipServiceGetMembershipKeyContactFlags.String("contact-uid", "REQUIRED", "Key contact UID")
-		membershipServiceGetMembershipKeyContactVersionFlag       = membershipServiceGetMembershipKeyContactFlags.String("version", "", "")
-		membershipServiceGetMembershipKeyContactBearerTokenFlag   = membershipServiceGetMembershipKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceUpdateKeyContactFlags             = flag.NewFlagSet("update-key-contact", flag.ExitOnError)
+		membershipServiceUpdateKeyContactBodyFlag          = membershipServiceUpdateKeyContactFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateKeyContactMembershipUIDFlag = membershipServiceUpdateKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
+		membershipServiceUpdateKeyContactUIDFlag           = membershipServiceUpdateKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
+		membershipServiceUpdateKeyContactVersionFlag       = membershipServiceUpdateKeyContactFlags.String("version", "", "")
+		membershipServiceUpdateKeyContactBearerTokenFlag   = membershipServiceUpdateKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceUpdateKeyContactIfMatchFlag       = membershipServiceUpdateKeyContactFlags.String("if-match", "", "")
 
-		membershipServiceListB2bOrgsFlags           = flag.NewFlagSet("list-b2b-orgs", flag.ExitOnError)
-		membershipServiceListB2bOrgsVersionFlag     = membershipServiceListB2bOrgsFlags.String("version", "", "")
-		membershipServiceListB2bOrgsPageSizeFlag    = membershipServiceListB2bOrgsFlags.String("page-size", "200", "")
-		membershipServiceListB2bOrgsPageTokenFlag   = membershipServiceListB2bOrgsFlags.String("page-token", "", "")
-		membershipServiceListB2bOrgsSortFlag        = membershipServiceListB2bOrgsFlags.String("sort", "newest", "")
-		membershipServiceListB2bOrgsSearchNameFlag  = membershipServiceListB2bOrgsFlags.String("search-name", "", "")
-		membershipServiceListB2bOrgsBearerTokenFlag = membershipServiceListB2bOrgsFlags.String("bearer-token", "", "")
+		membershipServiceDeleteKeyContactFlags             = flag.NewFlagSet("delete-key-contact", flag.ExitOnError)
+		membershipServiceDeleteKeyContactMembershipUIDFlag = membershipServiceDeleteKeyContactFlags.String("membership-uid", "REQUIRED", "Parent membership UID")
+		membershipServiceDeleteKeyContactUIDFlag           = membershipServiceDeleteKeyContactFlags.String("uid", "REQUIRED", "Key contact UID")
+		membershipServiceDeleteKeyContactVersionFlag       = membershipServiceDeleteKeyContactFlags.String("version", "", "")
+		membershipServiceDeleteKeyContactBearerTokenFlag   = membershipServiceDeleteKeyContactFlags.String("bearer-token", "", "")
+		membershipServiceDeleteKeyContactIfMatchFlag       = membershipServiceDeleteKeyContactFlags.String("if-match", "", "")
 
-		membershipServiceListB2bOrgMembershipsFlags           = flag.NewFlagSet("list-b2b-org-memberships", flag.ExitOnError)
-		membershipServiceListB2bOrgMembershipsB2bOrgUIDFlag   = membershipServiceListB2bOrgMembershipsFlags.String("b2b-org-uid", "REQUIRED", "B2BOrg UID")
-		membershipServiceListB2bOrgMembershipsVersionFlag     = membershipServiceListB2bOrgMembershipsFlags.String("version", "", "")
-		membershipServiceListB2bOrgMembershipsPageSizeFlag    = membershipServiceListB2bOrgMembershipsFlags.String("page-size", "200", "")
-		membershipServiceListB2bOrgMembershipsPageTokenFlag   = membershipServiceListB2bOrgMembershipsFlags.String("page-token", "", "")
-		membershipServiceListB2bOrgMembershipsSortFlag        = membershipServiceListB2bOrgMembershipsFlags.String("sort", "newest", "")
-		membershipServiceListB2bOrgMembershipsFilterFlag      = membershipServiceListB2bOrgMembershipsFlags.String("filter", "", "")
-		membershipServiceListB2bOrgMembershipsSearchNameFlag  = membershipServiceListB2bOrgMembershipsFlags.String("search-name", "", "")
-		membershipServiceListB2bOrgMembershipsBearerTokenFlag = membershipServiceListB2bOrgMembershipsFlags.String("bearer-token", "", "")
+		membershipServiceAdminReindexFlags           = flag.NewFlagSet("admin-reindex", flag.ExitOnError)
+		membershipServiceAdminReindexBodyFlag        = membershipServiceAdminReindexFlags.String("body", "REQUIRED", "")
+		membershipServiceAdminReindexVersionFlag     = membershipServiceAdminReindexFlags.String("version", "", "")
+		membershipServiceAdminReindexBearerTokenFlag = membershipServiceAdminReindexFlags.String("bearer-token", "", "")
 
 		membershipServiceReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
 
@@ -133,17 +125,17 @@ func ParseEndpoint(
 		membershipServiceDebugVarsFlags = flag.NewFlagSet("debug-vars", flag.ExitOnError)
 	)
 	membershipServiceFlags.Usage = membershipServiceUsage
-	membershipServiceListProjectTiersFlags.Usage = membershipServiceListProjectTiersUsage
-	membershipServiceGetProjectTierFlags.Usage = membershipServiceGetProjectTierUsage
-	membershipServiceListProjectMembershipsFlags.Usage = membershipServiceListProjectMembershipsUsage
+	membershipServiceGetB2bOrgFlags.Usage = membershipServiceGetB2bOrgUsage
+	membershipServiceCreateB2bOrgFlags.Usage = membershipServiceCreateB2bOrgUsage
+	membershipServiceUpdateB2bOrgFlags.Usage = membershipServiceUpdateB2bOrgUsage
+	membershipServiceGetB2bOrgSettingsFlags.Usage = membershipServiceGetB2bOrgSettingsUsage
+	membershipServiceUpdateB2bOrgSettingsFlags.Usage = membershipServiceUpdateB2bOrgSettingsUsage
 	membershipServiceGetProjectMembershipFlags.Usage = membershipServiceGetProjectMembershipUsage
-	membershipServiceListMembershipKeyContactsFlags.Usage = membershipServiceListMembershipKeyContactsUsage
-	membershipServiceCreateMembershipKeyContactFlags.Usage = membershipServiceCreateMembershipKeyContactUsage
-	membershipServiceUpdateMembershipKeyContactFlags.Usage = membershipServiceUpdateMembershipKeyContactUsage
-	membershipServiceDeleteMembershipKeyContactFlags.Usage = membershipServiceDeleteMembershipKeyContactUsage
-	membershipServiceGetMembershipKeyContactFlags.Usage = membershipServiceGetMembershipKeyContactUsage
-	membershipServiceListB2bOrgsFlags.Usage = membershipServiceListB2bOrgsUsage
-	membershipServiceListB2bOrgMembershipsFlags.Usage = membershipServiceListB2bOrgMembershipsUsage
+	membershipServiceGetKeyContactFlags.Usage = membershipServiceGetKeyContactUsage
+	membershipServiceCreateKeyContactFlags.Usage = membershipServiceCreateKeyContactUsage
+	membershipServiceUpdateKeyContactFlags.Usage = membershipServiceUpdateKeyContactUsage
+	membershipServiceDeleteKeyContactFlags.Usage = membershipServiceDeleteKeyContactUsage
+	membershipServiceAdminReindexFlags.Usage = membershipServiceAdminReindexUsage
 	membershipServiceReadyzFlags.Usage = membershipServiceReadyzUsage
 	membershipServiceLivezFlags.Usage = membershipServiceLivezUsage
 	membershipServiceDebugVarsFlags.Usage = membershipServiceDebugVarsUsage
@@ -182,38 +174,38 @@ func ParseEndpoint(
 		switch svcn {
 		case "membership-service":
 			switch epn {
-			case "list-project-tiers":
-				epf = membershipServiceListProjectTiersFlags
+			case "get-b2b-org":
+				epf = membershipServiceGetB2bOrgFlags
 
-			case "get-project-tier":
-				epf = membershipServiceGetProjectTierFlags
+			case "create-b2b-org":
+				epf = membershipServiceCreateB2bOrgFlags
 
-			case "list-project-memberships":
-				epf = membershipServiceListProjectMembershipsFlags
+			case "update-b2b-org":
+				epf = membershipServiceUpdateB2bOrgFlags
+
+			case "get-b2b-org-settings":
+				epf = membershipServiceGetB2bOrgSettingsFlags
+
+			case "update-b2b-org-settings":
+				epf = membershipServiceUpdateB2bOrgSettingsFlags
 
 			case "get-project-membership":
 				epf = membershipServiceGetProjectMembershipFlags
 
-			case "list-membership-key-contacts":
-				epf = membershipServiceListMembershipKeyContactsFlags
+			case "get-key-contact":
+				epf = membershipServiceGetKeyContactFlags
 
-			case "create-membership-key-contact":
-				epf = membershipServiceCreateMembershipKeyContactFlags
+			case "create-key-contact":
+				epf = membershipServiceCreateKeyContactFlags
 
-			case "update-membership-key-contact":
-				epf = membershipServiceUpdateMembershipKeyContactFlags
+			case "update-key-contact":
+				epf = membershipServiceUpdateKeyContactFlags
 
-			case "delete-membership-key-contact":
-				epf = membershipServiceDeleteMembershipKeyContactFlags
+			case "delete-key-contact":
+				epf = membershipServiceDeleteKeyContactFlags
 
-			case "get-membership-key-contact":
-				epf = membershipServiceGetMembershipKeyContactFlags
-
-			case "list-b2b-orgs":
-				epf = membershipServiceListB2bOrgsFlags
-
-			case "list-b2b-org-memberships":
-				epf = membershipServiceListB2bOrgMembershipsFlags
+			case "admin-reindex":
+				epf = membershipServiceAdminReindexFlags
 
 			case "readyz":
 				epf = membershipServiceReadyzFlags
@@ -249,39 +241,39 @@ func ParseEndpoint(
 		case "membership-service":
 			c := membershipservicec.NewClient(scheme, host, doer, enc, dec, restore)
 			switch epn {
-			case "list-project-tiers":
-				endpoint = c.ListProjectTiers()
-				data, err = membershipservicec.BuildListProjectTiersPayload(*membershipServiceListProjectTiersProjectUIDFlag, *membershipServiceListProjectTiersVersionFlag, *membershipServiceListProjectTiersBearerTokenFlag)
-			case "get-project-tier":
-				endpoint = c.GetProjectTier()
-				data, err = membershipservicec.BuildGetProjectTierPayload(*membershipServiceGetProjectTierProjectUIDFlag, *membershipServiceGetProjectTierTierUIDFlag, *membershipServiceGetProjectTierVersionFlag, *membershipServiceGetProjectTierBearerTokenFlag)
-			case "list-project-memberships":
-				endpoint = c.ListProjectMemberships()
-				data, err = membershipservicec.BuildListProjectMembershipsPayload(*membershipServiceListProjectMembershipsProjectUIDFlag, *membershipServiceListProjectMembershipsVersionFlag, *membershipServiceListProjectMembershipsPageSizeFlag, *membershipServiceListProjectMembershipsPageTokenFlag, *membershipServiceListProjectMembershipsSortFlag, *membershipServiceListProjectMembershipsFilterFlag, *membershipServiceListProjectMembershipsSearchNameFlag, *membershipServiceListProjectMembershipsBearerTokenFlag)
+			case "get-b2b-org":
+				endpoint = c.GetB2bOrg()
+				data, err = membershipservicec.BuildGetB2bOrgPayload(*membershipServiceGetB2bOrgUIDFlag, *membershipServiceGetB2bOrgVersionFlag, *membershipServiceGetB2bOrgBearerTokenFlag, *membershipServiceGetB2bOrgIfNoneMatchFlag, *membershipServiceGetB2bOrgIfModifiedSinceFlag)
+			case "create-b2b-org":
+				endpoint = c.CreateB2bOrg()
+				data, err = membershipservicec.BuildCreateB2bOrgPayload(*membershipServiceCreateB2bOrgBodyFlag, *membershipServiceCreateB2bOrgVersionFlag, *membershipServiceCreateB2bOrgBearerTokenFlag)
+			case "update-b2b-org":
+				endpoint = c.UpdateB2bOrg()
+				data, err = membershipservicec.BuildUpdateB2bOrgPayload(*membershipServiceUpdateB2bOrgBodyFlag, *membershipServiceUpdateB2bOrgUIDFlag, *membershipServiceUpdateB2bOrgVersionFlag, *membershipServiceUpdateB2bOrgBearerTokenFlag, *membershipServiceUpdateB2bOrgIfMatchFlag)
+			case "get-b2b-org-settings":
+				endpoint = c.GetB2bOrgSettings()
+				data, err = membershipservicec.BuildGetB2bOrgSettingsPayload(*membershipServiceGetB2bOrgSettingsUIDFlag, *membershipServiceGetB2bOrgSettingsVersionFlag, *membershipServiceGetB2bOrgSettingsBearerTokenFlag)
+			case "update-b2b-org-settings":
+				endpoint = c.UpdateB2bOrgSettings()
+				data, err = membershipservicec.BuildUpdateB2bOrgSettingsPayload(*membershipServiceUpdateB2bOrgSettingsBodyFlag, *membershipServiceUpdateB2bOrgSettingsUIDFlag, *membershipServiceUpdateB2bOrgSettingsVersionFlag, *membershipServiceUpdateB2bOrgSettingsBearerTokenFlag, *membershipServiceUpdateB2bOrgSettingsIfMatchFlag)
 			case "get-project-membership":
 				endpoint = c.GetProjectMembership()
-				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipProjectUIDFlag, *membershipServiceGetProjectMembershipMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag)
-			case "list-membership-key-contacts":
-				endpoint = c.ListMembershipKeyContacts()
-				data, err = membershipservicec.BuildListMembershipKeyContactsPayload(*membershipServiceListMembershipKeyContactsProjectUIDFlag, *membershipServiceListMembershipKeyContactsMembershipUIDFlag, *membershipServiceListMembershipKeyContactsVersionFlag, *membershipServiceListMembershipKeyContactsBearerTokenFlag)
-			case "create-membership-key-contact":
-				endpoint = c.CreateMembershipKeyContact()
-				data, err = membershipservicec.BuildCreateMembershipKeyContactPayload(*membershipServiceCreateMembershipKeyContactBodyFlag, *membershipServiceCreateMembershipKeyContactProjectUIDFlag, *membershipServiceCreateMembershipKeyContactMembershipUIDFlag, *membershipServiceCreateMembershipKeyContactVersionFlag, *membershipServiceCreateMembershipKeyContactBearerTokenFlag)
-			case "update-membership-key-contact":
-				endpoint = c.UpdateMembershipKeyContact()
-				data, err = membershipservicec.BuildUpdateMembershipKeyContactPayload(*membershipServiceUpdateMembershipKeyContactBodyFlag, *membershipServiceUpdateMembershipKeyContactProjectUIDFlag, *membershipServiceUpdateMembershipKeyContactMembershipUIDFlag, *membershipServiceUpdateMembershipKeyContactContactUIDFlag, *membershipServiceUpdateMembershipKeyContactVersionFlag, *membershipServiceUpdateMembershipKeyContactBearerTokenFlag)
-			case "delete-membership-key-contact":
-				endpoint = c.DeleteMembershipKeyContact()
-				data, err = membershipservicec.BuildDeleteMembershipKeyContactPayload(*membershipServiceDeleteMembershipKeyContactProjectUIDFlag, *membershipServiceDeleteMembershipKeyContactMembershipUIDFlag, *membershipServiceDeleteMembershipKeyContactContactUIDFlag, *membershipServiceDeleteMembershipKeyContactVersionFlag, *membershipServiceDeleteMembershipKeyContactBearerTokenFlag)
-			case "get-membership-key-contact":
-				endpoint = c.GetMembershipKeyContact()
-				data, err = membershipservicec.BuildGetMembershipKeyContactPayload(*membershipServiceGetMembershipKeyContactProjectUIDFlag, *membershipServiceGetMembershipKeyContactMembershipUIDFlag, *membershipServiceGetMembershipKeyContactContactUIDFlag, *membershipServiceGetMembershipKeyContactVersionFlag, *membershipServiceGetMembershipKeyContactBearerTokenFlag)
-			case "list-b2b-orgs":
-				endpoint = c.ListB2bOrgs()
-				data, err = membershipservicec.BuildListB2bOrgsPayload(*membershipServiceListB2bOrgsVersionFlag, *membershipServiceListB2bOrgsPageSizeFlag, *membershipServiceListB2bOrgsPageTokenFlag, *membershipServiceListB2bOrgsSortFlag, *membershipServiceListB2bOrgsSearchNameFlag, *membershipServiceListB2bOrgsBearerTokenFlag)
-			case "list-b2b-org-memberships":
-				endpoint = c.ListB2bOrgMemberships()
-				data, err = membershipservicec.BuildListB2bOrgMembershipsPayload(*membershipServiceListB2bOrgMembershipsB2bOrgUIDFlag, *membershipServiceListB2bOrgMembershipsVersionFlag, *membershipServiceListB2bOrgMembershipsPageSizeFlag, *membershipServiceListB2bOrgMembershipsPageTokenFlag, *membershipServiceListB2bOrgMembershipsSortFlag, *membershipServiceListB2bOrgMembershipsFilterFlag, *membershipServiceListB2bOrgMembershipsSearchNameFlag, *membershipServiceListB2bOrgMembershipsBearerTokenFlag)
+				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag, *membershipServiceGetProjectMembershipIfNoneMatchFlag, *membershipServiceGetProjectMembershipIfModifiedSinceFlag)
+			case "get-key-contact":
+				endpoint = c.GetKeyContact()
+				data, err = membershipservicec.BuildGetKeyContactPayload(*membershipServiceGetKeyContactMembershipUIDFlag, *membershipServiceGetKeyContactUIDFlag, *membershipServiceGetKeyContactVersionFlag, *membershipServiceGetKeyContactBearerTokenFlag, *membershipServiceGetKeyContactIfNoneMatchFlag, *membershipServiceGetKeyContactIfModifiedSinceFlag)
+			case "create-key-contact":
+				endpoint = c.CreateKeyContact()
+				data, err = membershipservicec.BuildCreateKeyContactPayload(*membershipServiceCreateKeyContactBodyFlag, *membershipServiceCreateKeyContactMembershipUIDFlag, *membershipServiceCreateKeyContactVersionFlag, *membershipServiceCreateKeyContactBearerTokenFlag)
+			case "update-key-contact":
+				endpoint = c.UpdateKeyContact()
+				data, err = membershipservicec.BuildUpdateKeyContactPayload(*membershipServiceUpdateKeyContactBodyFlag, *membershipServiceUpdateKeyContactMembershipUIDFlag, *membershipServiceUpdateKeyContactUIDFlag, *membershipServiceUpdateKeyContactVersionFlag, *membershipServiceUpdateKeyContactBearerTokenFlag, *membershipServiceUpdateKeyContactIfMatchFlag)
+			case "delete-key-contact":
+				endpoint = c.DeleteKeyContact()
+				data, err = membershipservicec.BuildDeleteKeyContactPayload(*membershipServiceDeleteKeyContactMembershipUIDFlag, *membershipServiceDeleteKeyContactUIDFlag, *membershipServiceDeleteKeyContactVersionFlag, *membershipServiceDeleteKeyContactBearerTokenFlag, *membershipServiceDeleteKeyContactIfMatchFlag)
+			case "admin-reindex":
+				endpoint = c.AdminReindex()
+				data, err = membershipservicec.BuildAdminReindexPayload(*membershipServiceAdminReindexBodyFlag, *membershipServiceAdminReindexVersionFlag, *membershipServiceAdminReindexBearerTokenFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -301,20 +293,20 @@ func ParseEndpoint(
 // membershipServiceUsage displays the usage of the membership-service command
 // and its subcommands.
 func membershipServiceUsage() {
-	fmt.Fprintln(os.Stderr, `Membership management service — project-scoped drill-down API for tiers, memberships, and key contacts`)
+	fmt.Fprintln(os.Stderr, `Membership management service — direct resource endpoints for B2B orgs, memberships, and key contacts`)
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] membership-service COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
-	fmt.Fprintln(os.Stderr, `    list-project-tiers: List membership tiers (Product2 records) for a specific project`)
-	fmt.Fprintln(os.Stderr, `    get-project-tier: Get a specific membership tier by UID`)
-	fmt.Fprintln(os.Stderr, `    list-project-memberships: List memberships (Asset records) for a specific project, with denormalized company attributes`)
-	fmt.Fprintln(os.Stderr, `    get-project-membership: Get a specific membership by UID within a project`)
-	fmt.Fprintln(os.Stderr, `    list-membership-key-contacts: List key contacts (Project_Role__c records) for a specific membership, with denormalized contact and company attributes`)
-	fmt.Fprintln(os.Stderr, `    create-membership-key-contact: Create a new key contact (Project_Role__c record) for a specific membership`)
-	fmt.Fprintln(os.Stderr, `    update-membership-key-contact: Update a key contact (Project_Role__c record) within a membership`)
-	fmt.Fprintln(os.Stderr, `    delete-membership-key-contact: Delete a key contact (Project_Role__c record) from a membership`)
-	fmt.Fprintln(os.Stderr, `    get-membership-key-contact: Get a specific key contact by UID within a membership`)
-	fmt.Fprintln(os.Stderr, `    list-b2b-orgs: Search and list B2B organizations (Salesforce Accounts) by name with pagination`)
-	fmt.Fprintln(os.Stderr, `    list-b2b-org-memberships: List all memberships (Assets) across all projects for a given B2B organization UID, with pagination and filters`)
+	fmt.Fprintln(os.Stderr, `    get-b2b-org: Get a specific B2B organization by UID`)
+	fmt.Fprintln(os.Stderr, `    create-b2b-org: Create a new B2B organization`)
+	fmt.Fprintln(os.Stderr, `    update-b2b-org: Update a B2B organization`)
+	fmt.Fprintln(os.Stderr, `    get-b2b-org-settings: Get the access-control settings (writers and auditors) for a B2B organization`)
+	fmt.Fprintln(os.Stderr, `    update-b2b-org-settings: Replace the writers and/or auditors list on a B2B organization (full-replace semantics)`)
+	fmt.Fprintln(os.Stderr, `    get-project-membership: Get a specific project membership by UID`)
+	fmt.Fprintln(os.Stderr, `    get-key-contact: Get a specific key contact by UID`)
+	fmt.Fprintln(os.Stderr, `    create-key-contact: Create a new key contact`)
+	fmt.Fprintln(os.Stderr, `    update-key-contact: Update a key contact`)
+	fmt.Fprintln(os.Stderr, `    delete-key-contact: Delete a key contact`)
+	fmt.Fprintln(os.Stderr, `    admin-reindex: Trigger a reindex of cached entities`)
 	fmt.Fprintln(os.Stderr, `    readyz: Check if the service is able to take inbound requests.`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
 	fmt.Fprintln(os.Stderr, `    debug-vars: Expose expvar debug variables as JSON. Accessible via kubectl port-forward; not exposed by ingress.`)
@@ -322,137 +314,186 @@ func membershipServiceUsage() {
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s membership-service COMMAND --help\n", os.Args[0])
 }
-func membershipServiceListProjectTiersUsage() {
+func membershipServiceGetB2bOrgUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service list-project-tiers", os.Args[0])
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-b2b-org", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-none-match STRING")
+	fmt.Fprint(os.Stderr, " -if-modified-since STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `List membership tiers (Product2 records) for a specific project`)
+	fmt.Fprintln(os.Stderr, `Get a specific B2B organization by UID`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-none-match STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-modified-since STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-project-tiers --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-b2b-org --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
-func membershipServiceGetProjectTierUsage() {
+func membershipServiceCreateB2bOrgUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-project-tier", os.Args[0])
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -tier-uid STRING")
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service create-b2b-org", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Get a specific membership tier by UID`)
+	fmt.Fprintln(os.Stderr, `Create a new B2B organization`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -tier-uid STRING: Membership tier UID`)
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-tier --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --tier-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org --body '{\n      \"sfid\": \"001Hs00001AbCdEFAZ\"\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
-func membershipServiceListProjectMembershipsUsage() {
+func membershipServiceUpdateB2bOrgUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service list-project-memberships", os.Args[0])
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-b2b-org", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
-	fmt.Fprint(os.Stderr, " -page-size INT")
-	fmt.Fprint(os.Stderr, " -page-token STRING")
-	fmt.Fprint(os.Stderr, " -sort STRING")
-	fmt.Fprint(os.Stderr, " -filter STRING")
-	fmt.Fprint(os.Stderr, " -search-name STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Update a B2B organization`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceGetB2bOrgSettingsUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-b2b-org-settings", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `List memberships (Asset records) for a specific project, with denormalized company attributes`)
+	fmt.Fprintln(os.Stderr, `Get the access-control settings (writers and auditors) for a B2B organization`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
-	fmt.Fprintln(os.Stderr, `    -page-size INT: `)
-	fmt.Fprintln(os.Stderr, `    -page-token STRING: `)
-	fmt.Fprintln(os.Stderr, `    -sort STRING: `)
-	fmt.Fprintln(os.Stderr, `    -filter STRING: `)
-	fmt.Fprintln(os.Stderr, `    -search-name STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-project-memberships --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --version \"1\" --page-size 200 --page-token \"\" --sort \"newest\" --filter \"tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --search-name \"Linux\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-b2b-org-settings --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+}
+
+func membershipServiceUpdateB2bOrgSettingsUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-b2b-org-settings", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Replace the writers and/or auditors list on a B2B organization (full-replace semantics)`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceGetProjectMembershipUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-project-membership", os.Args[0])
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -membership-uid STRING")
+	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-none-match STRING")
+	fmt.Fprint(os.Stderr, " -if-modified-since STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Get a specific membership by UID within a project`)
+	fmt.Fprintln(os.Stderr, `Get a specific project membership by UID`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project membership UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-none-match STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-modified-since STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-membership --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-membership --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
-func membershipServiceListMembershipKeyContactsUsage() {
+func membershipServiceGetKeyContactUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service list-membership-key-contacts", os.Args[0])
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -membership-uid STRING")
+	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-none-match STRING")
+	fmt.Fprint(os.Stderr, " -if-modified-since STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `List key contacts (Project_Role__c records) for a specific membership, with denormalized contact and company attributes`)
+	fmt.Fprintln(os.Stderr, `Get a specific key contact by UID`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-none-match STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-modified-since STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-membership-key-contacts --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-key-contact --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
-func membershipServiceCreateMembershipKeyContactUsage() {
+func membershipServiceCreateKeyContactUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service create-membership-key-contact", os.Args[0])
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service create-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -body JSON")
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
 	fmt.Fprint(os.Stderr, " -membership-uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
@@ -460,158 +501,93 @@ func membershipServiceCreateMembershipKeyContactUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Create a new key contact (Project_Role__c record) for a specific membership`)
+	fmt.Fprintln(os.Stderr, `Create a new key contact`)
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-membership-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
-func membershipServiceUpdateMembershipKeyContactUsage() {
+func membershipServiceUpdateKeyContactUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-membership-key-contact", os.Args[0])
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -body JSON")
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
 	fmt.Fprint(os.Stderr, " -membership-uid STRING")
-	fmt.Fprint(os.Stderr, " -contact-uid STRING")
+	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Update a key contact (Project_Role__c record) within a membership`)
+	fmt.Fprintln(os.Stderr, `Update a key contact`)
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
-	fmt.Fprintln(os.Stderr, `    -contact-uid STRING: Key contact UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-membership-key-contact --body '{\n      \"board_member\": false,\n      \"primary_contact\": false,\n      \"role\": \"Voting Representative\",\n      \"status\": \"Active\"\n   }' --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --contact-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
-func membershipServiceDeleteMembershipKeyContactUsage() {
+func membershipServiceDeleteKeyContactUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service delete-membership-key-contact", os.Args[0])
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service delete-key-contact", os.Args[0])
 	fmt.Fprint(os.Stderr, " -membership-uid STRING")
-	fmt.Fprint(os.Stderr, " -contact-uid STRING")
+	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Delete a key contact (Project_Role__c record) from a membership`)
+	fmt.Fprintln(os.Stderr, `Delete a key contact`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
-	fmt.Fprintln(os.Stderr, `    -contact-uid STRING: Key contact UID`)
+	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Parent membership UID`)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Key contact UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-membership-key-contact --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --contact-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-key-contact --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
-func membershipServiceGetMembershipKeyContactUsage() {
+func membershipServiceAdminReindexUsage() {
 	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service get-membership-key-contact", os.Args[0])
-	fmt.Fprint(os.Stderr, " -project-uid STRING")
-	fmt.Fprint(os.Stderr, " -membership-uid STRING")
-	fmt.Fprint(os.Stderr, " -contact-uid STRING")
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service admin-reindex", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Get a specific key contact by UID within a membership`)
+	fmt.Fprintln(os.Stderr, `Trigger a reindex of cached entities`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -project-uid STRING: V2 project UUID`)
-	fmt.Fprintln(os.Stderr, `    -membership-uid STRING: Membership UID`)
-	fmt.Fprintln(os.Stderr, `    -contact-uid STRING: Key contact UID`)
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-membership-key-contact --project-uid \"a27394a3-7a6c-4d0f-9e0f-692d8753924f\" --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --contact-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
-}
-
-func membershipServiceListB2bOrgsUsage() {
-	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service list-b2b-orgs", os.Args[0])
-	fmt.Fprint(os.Stderr, " -version STRING")
-	fmt.Fprint(os.Stderr, " -page-size INT")
-	fmt.Fprint(os.Stderr, " -page-token STRING")
-	fmt.Fprint(os.Stderr, " -sort STRING")
-	fmt.Fprint(os.Stderr, " -search-name STRING")
-	fmt.Fprint(os.Stderr, " -bearer-token STRING")
-	fmt.Fprintln(os.Stderr)
-
-	// Description
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Search and list B2B organizations (Salesforce Accounts) by name with pagination`)
-
-	// Flags list
-	fmt.Fprintln(os.Stderr, `    -version STRING: `)
-	fmt.Fprintln(os.Stderr, `    -page-size INT: `)
-	fmt.Fprintln(os.Stderr, `    -page-token STRING: `)
-	fmt.Fprintln(os.Stderr, `    -sort STRING: `)
-	fmt.Fprintln(os.Stderr, `    -search-name STRING: `)
-	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
-
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-b2b-orgs --version \"1\" --page-size 200 --page-token \"\" --sort \"newest\" --search-name \"Linux\" --bearer-token \"eyJhbGci...\"")
-}
-
-func membershipServiceListB2bOrgMembershipsUsage() {
-	// Header with flags
-	fmt.Fprintf(os.Stderr, "%s [flags] membership-service list-b2b-org-memberships", os.Args[0])
-	fmt.Fprint(os.Stderr, " -b2b-org-uid STRING")
-	fmt.Fprint(os.Stderr, " -version STRING")
-	fmt.Fprint(os.Stderr, " -page-size INT")
-	fmt.Fprint(os.Stderr, " -page-token STRING")
-	fmt.Fprint(os.Stderr, " -sort STRING")
-	fmt.Fprint(os.Stderr, " -filter STRING")
-	fmt.Fprint(os.Stderr, " -search-name STRING")
-	fmt.Fprint(os.Stderr, " -bearer-token STRING")
-	fmt.Fprintln(os.Stderr)
-
-	// Description
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `List all memberships (Assets) across all projects for a given B2B organization UID, with pagination and filters`)
-
-	// Flags list
-	fmt.Fprintln(os.Stderr, `    -b2b-org-uid STRING: B2BOrg UID`)
-	fmt.Fprintln(os.Stderr, `    -version STRING: `)
-	fmt.Fprintln(os.Stderr, `    -page-size INT: `)
-	fmt.Fprintln(os.Stderr, `    -page-token STRING: `)
-	fmt.Fprintln(os.Stderr, `    -sort STRING: `)
-	fmt.Fprintln(os.Stderr, `    -filter STRING: `)
-	fmt.Fprintln(os.Stderr, `    -search-name STRING: `)
-	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
-
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service list-b2b-org-memberships --b2b-org-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --page-size 200 --page-token \"\" --sort \"newest\" --filter \"tier_uid=4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --search-name \"Linux\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceReadyzUsage() {
