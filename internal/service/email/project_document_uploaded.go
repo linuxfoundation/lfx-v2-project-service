@@ -54,7 +54,7 @@ func RenderProjectDocumentUploaded(data ProjectDocumentUploadedData) (subject, h
 		docType = "link"
 	}
 	if data.UploaderName != "" {
-		subject = data.UploaderName + " added " + data.DocumentName + " " + docType + " to " + data.ProjectName
+		subject = data.UploaderName + " added a " + docType + " to " + data.ProjectName
 	} else {
 		subject = "A new " + docType + " was added to " + data.ProjectName
 	}
