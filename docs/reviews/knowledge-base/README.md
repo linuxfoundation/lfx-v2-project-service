@@ -58,7 +58,7 @@ the Goa design (`api/project/v1/design/types.go`), and
 | `nats-and-messaging.md` | 4 | `internal/service/*_operations.go`, `project_subscriber.go`, `internal/infrastructure/nats/**`, `internal/domain/message.go`, `pkg/events/**`, or a new publish goroutine |
 | `goa-design-and-validation.md` | 4 | `api/project/v1/design/**`, `api/project/v1/gen/**`, `cmd/project-api/service_endpoint_*.go`, or `charts/.../templates/ruleset.yaml` |
 | `converters-and-errors.md` | 3 | `internal/service/converters.go`, `*_operations.go`, `internal/domain/errors.go`, `internal/domain/message.go`, `internal/infrastructure/nats/repository.go`, `pkg/events/**`, or `service_endpoint_project.go` |
-| `logging-and-pii.md` | 2 | `internal/service/project_subscriber.go`, `internal/service/email/**`, `internal/middleware/**`, or any `slog.*Context` on user/notification data |
+| `logging-and-pii.md` | 2 | `internal/service/project_subscriber.go`, `internal/service/email/**`, `internal/infrastructure/middleware/**`, or any `slog.*Context` on user/notification data |
 | `known-false-positives.md` | (floor filter) | always |
 
 Total: 18 promoted patterns + the false-positive floor.

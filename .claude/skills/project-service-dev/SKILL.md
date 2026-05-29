@@ -25,7 +25,7 @@ Repo-local conventions for writing Go code in `lfx-v2-project-service`. Auto-att
 ## What this skill owns
 
 - Generated-code boundary (Goa).
-- Logging with `log/slog` and the repo's `internal/log` context helper.
+- Logging with `log/slog` and the repo's `internal/infrastructure/log` context helper.
 - Domain errors in `internal/domain/errors.go` and the HTTP mapping in `cmd/project-api/service_endpoint_project.go`.
 - Request context propagation through `pkg/constants` typed keys.
 - Pagination shape for list endpoints.
@@ -51,8 +51,8 @@ internal/domain/               models, ports, errors, mock factories
 internal/service/              business orchestration
 internal/infrastructure/nats/  KV repositories and message publishers
 internal/infrastructure/auth/  JWT auth integration
-internal/middleware/           request_id, request_logger, authorization, body_limit
-internal/log/                  slog context helpers
+internal/infrastructure/middleware/ request_id, request_logger, authorization, body_limit
+internal/infrastructure/log/   slog context helpers
 pkg/constants/                 NATS, HTTP, app, access-control constants
 charts/lfx-v2-project-service/ Helm chart (owned by this repo)
 ```
@@ -73,7 +73,7 @@ Deeper Goa details (project-type shape, ETag/If-Match wiring, design file layout
 
 - Use `log/slog` only. Do not use `fmt.Println`, `fmt.Printf`, `log.Print*`, or `log.Println` for runtime service logging.
 - Always use the `*Context` variants (`slog.InfoContext`, `slog.ErrorContext`, etc.) so the context attributes appended by middleware flow through.
-- Attach request-scoped fields with `log.AppendCtx(ctx, slog.String("key", value))` from `internal/log`. Middleware already appends `method`, `path`, `query`, `host`, `user_agent`, `remote_addr`, and `req_header_etag` when present.
+- Attach request-scoped fields with `log.AppendCtx(ctx, slog.String("key", value))` from `internal/infrastructure/log`. Middleware already appends `method`, `path`, `query`, `host`, `user_agent`, `remote_addr`, and `req_header_etag` when present.
 - Prefer stable structured keys: `principal`, `project_uid`, `object_type`, `object_id`, `action`, `operation`, `subject`, `bucket`, `revision`. Existing request-id middleware logs the key as `X-REQUEST-ID` via `constants.RequestIDHeader`.
 - Never log bearer tokens, raw `Authorization` headers, secrets, or full payloads that may contain PII.
 - Log level is set by `LOG_LEVEL` (`debug`, `info`, `warn`, `error`). Default is `LevelDebug`. Honor it; do not hardcode levels.

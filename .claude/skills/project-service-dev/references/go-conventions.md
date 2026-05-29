@@ -34,5 +34,5 @@ Contents: dependency-injection style and mock layout for lfx-v2-project-service.
 | New HTTP header constant or context key | `pkg/constants/http.go` |
 | New repository method | interface in `internal/domain/repository.go`, implementation in `internal/infrastructure/nats/`, mock in `internal/domain/mock.go` |
 | New endpoint (after design + apigen) | `cmd/project-api/service_endpoint_*.go` plus `internal/service/*_operations.go` |
-| New middleware | `internal/middleware/` with a `*_test.go` alongside |
+| New middleware | `internal/infrastructure/middleware/` with a `*_test.go` alongside |
 | New shared structured-log field | a `log.AppendCtx` call inside the middleware or service that has the value |

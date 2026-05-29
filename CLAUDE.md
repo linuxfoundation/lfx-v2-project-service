@@ -19,7 +19,7 @@ The LFX V2 Project Service is a RESTful API service that manages projects within
 
 ### Key Technologies
 
-- **Language**: Go 1.24+
+- **Language**: Go 1.25+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for event-driven architecture
 - **Storage**: NATS Key-Value stores (no traditional database)
@@ -43,23 +43,29 @@ api/                        # API contracts
 
 charts/                     # Helm charts containing kubernetes template files for deployments
 
-cmd/project-api/            # Presentation Layer (HTTP/NATS entry point)
-├── service*.go            # HTTP and NATS handlers
-└── main.go                # Application entry point
+cmd/project-api/            # Presentation Layer (HTTP entry point, Goa endpoint adapters)
+├── service_endpoint_*.go  # Goa endpoint adapters (project, link, folder, document)
+├── http.go                # HTTP server wiring
+└── main.go                # Application entry point, NATS subscription wiring
 
 internal/                   # Core business logic
-├── domain/                # Domain layer (interfaces, models, errors)
-│   └── models/           # Domain entities
-├── service/               # Service layer (business logic)
+├── domain/                # Domain layer (interfaces, models, errors, mocks)
+│   └── models/           # Domain entities (project, link, folder, document)
+├── service/               # Service layer (business logic, NATS RPC handlers, event subscriber)
+│   ├── *_operations.go   # Per-resource business orchestration
+│   ├── project_handlers.go    # Inbound NATS request/reply RPC handlers
+│   ├── project_subscriber.go  # Inbound NATS event subscribers
+│   ├── converters.go     # Domain ↔ Goa ↔ pkg/events wire-type converters
 │   └── email/            # Email template rendering (one file per email type)
 └── infrastructure/        # Infrastructure layer
     ├── auth/             # JWT authentication
     ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
     ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger)
-    └── nats/             # NATS repository and message builder
+    └── nats/             # NATS repository, object store, message builder, user reader
 
 pkg/                    # Shared packages across services
-└── constants/          # Shared constants
+├── constants/          # Shared constants (NATS subjects, KV buckets, HTTP, access control)
+└── events/             # NATS event wire types consumed by other services
 
 scripts/                # Scripts for services and miscellaneous tasks
 ```
@@ -76,7 +82,7 @@ scripts/                # Scripts for services and miscellaneous tasks
 ### Prerequisites
 
 ```bash
-# Install Go 1.23+
+# Install Go 1.25+
 # Install Goa framework
 go install goa.design/goa/v3/cmd/goa@latest
 
@@ -177,8 +183,8 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 
 1. Update `api/project/v1/design/project.go` with new method
 2. Run `make apigen` (from repository root) to regenerate code
-3. Implement the new method in `cmd/project-api/service_endpoint_project.go`
-4. Add tests in `cmd/project-api/service_endpoint_project_test.go`
+3. Implement the Goa endpoint adapter in `cmd/project-api/service_endpoint_*.go` (translation only); put business logic in `internal/service/*_operations.go`
+4. Add tests alongside the implementation (`internal/service/*_operations_test.go` and the adapter test)
 5. Update Heimdall ruleset in `charts/*/templates/ruleset.yaml`
 
 ## NATS Messaging Patterns
@@ -193,6 +199,12 @@ The service uses NATS for:
 
 - `projects`: Base project information
 - `project-settings`: Project settings (separated for access control)
+- `project-links`: Project link records
+- `project-folders`: Project folder records
+- `project-documents-metadata`: Project document metadata
+- `project-documents`: Project document binaries (NATS object store)
+
+All bucket names live as constants in `pkg/constants/nats.go`.
 
 ### API Endpoints and Message Subjects
 
@@ -213,15 +225,22 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 "lfx.projects-api.get_parent_uid"      // Get parent project UID
 
 // Inbound events — fire-and-forget, no reply expected
-"lfx.projects-api.project_settings.updated" // Sends role notification emails on member additions
+"lfx.projects-api.project_settings.updated" // Self-published; sends role notification emails / invites on member changes
+"lfx.invite.accepted"                  // From self-serve web app; promotes non-LFID user to LFID, clears pending invite
 
 // Outbound events (published by this service)
 "lfx.index.project"                    // Project created/updated/deleted for indexing
-"lfx.index.project_settings"           // Settings created/updated for indexing
+"lfx.index.project_settings"           // Settings created/updated/deleted for indexing
+"lfx.index.project_link"               // Link created/deleted for indexing
+"lfx.index.project_folder"             // Folder created/deleted for indexing
+"lfx.index.project_document"           // Document created/deleted for indexing
 "lfx.projects-api.project_settings.updated" // Settings changed (before/after snapshot)
 "lfx.fga-sync.update_access"           // Generic FGA access control updates
 "lfx.fga-sync.delete_access"           // Generic FGA access control deletion
-"lfx.email-service.send_email"         // Request/reply to email service for role notifications
+
+// Outbound request/reply (published by this service, awaits a response)
+"lfx.email-service.send_email"         // Request to email service for role notifications
+"lfx.invite-service.send_invite"       // Request to invite service for non-LFID users
 ```
 
 ### FGA Sync Message Format
@@ -229,17 +248,18 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 The service uses the generic FGA sync handlers for access control. All messages use the `GenericFGAMessage` envelope:
 
 ```go
-// Update access control (full sync)
+// Update access control (full sync) — fgatypes.GenericAccessData
 GenericFGAMessage{
     ObjectType: "project",
     Operation: "update_access",
-    Data: UpdateAccessData{
+    Data: GenericAccessData{
         UID: "project-uid",
         Public: true,
         Relations: map[string][]string{
             "writer": []string{"username1", "username2"},
             "auditor": []string{"username3"},
             "meeting_coordinator": []string{"username4"},
+            "executive_director": []string{"username5"},
         },
         References: map[string][]string{
             "parent": []string{"project:parent-uid"},
@@ -247,11 +267,11 @@ GenericFGAMessage{
     },
 }
 
-// Delete all access control
+// Delete all access control — fgatypes.GenericDeleteData
 GenericFGAMessage{
     ObjectType: "project",
     Operation: "delete_access",
-    Data: DeleteAccessData{
+    Data: GenericDeleteData{
         UID: "project-uid",
     },
 }
@@ -310,6 +330,8 @@ func TestEndpoint(t *testing.T) {
 | `JWKS_URL` | JWT verification endpoint | - | No |
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | - | No |
+| `SKIP_ETAG_VALIDATION` | Skip If-Match/ETag revision enforcement on writes (`true` to skip; local dev only) | false | No |
+| `LFX_ENVIRONMENT` | Deployment environment (`prod`, `staging`/`stg`, else dev); drives the default self-serve base URL | - | No |
 | `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails | derived from `LFX_ENVIRONMENT` | No |
 | `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
 | `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
@@ -483,12 +505,13 @@ Important context values:
 
 ### 5. Error Handling
 
-Domain errors are mapped to HTTP status codes:
+Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP status codes by `handleError` in `cmd/project-api/service_endpoint_project.go`:
 
-- `ErrNotFound` → 404
-- `ErrConflict` → 409
-- `ErrInvalidParentUID` → 400
-- `ErrInternal` → 500
+- `ErrProjectNotFound` / `ErrDocumentNotFound` / `ErrLinkNotFound` / `ErrFolderNotFound` → 404
+- `ErrProjectSlugExists` / `ErrRevisionMismatch` / `ErrDocumentNameExists` / `ErrFolderNameExists` / `ErrFolderNotEmpty` → 409
+- `ErrValidationFailed` / `ErrInvalidParentProject` / `ErrInvalidContentType` / `ErrFileTooLarge` / `ErrCannotDeleteNonCrowdfundingProject` → 400
+- `ErrInternal` / `ErrUnmarshal` → 500
+- `ErrServiceUnavailable` → 503
 
 ## Debugging Tips
 

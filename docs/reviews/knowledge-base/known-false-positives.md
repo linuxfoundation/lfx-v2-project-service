@@ -67,7 +67,7 @@ directive from the invite-service dependency. Happy to drop the suggestion").
 goroutine captures a shared loop variable and will observe the wrong/last value,
 recommending `x := x` rebinding.
 
-**Why false:** this repo targets Go 1.24 (`go.mod` declares `go 1.24.0`). Since
+**Why false:** this repo targets Go 1.25 (`go.mod` declares `go 1.25.0`). Since
 Go 1.22 the loop variable is re-bound per iteration, so each closure captures its
 own copy. The classic capture hazard does not apply here.
 
@@ -127,7 +127,7 @@ optional nits, not acted on, on this repo.
 
 **Source:** PR #16 `cmd/project-api/main.go:182` ("extract `koDataDir`"), PR #25
 `scripts/root-project-setup/main.go:87` ("extract `parseCommaSeparatedValues`"),
-PR #19 `internal/middleware/request_logger.go:40` ("extract `isHealthCheckPath`").
+PR #19 `internal/infrastructure/middleware/request_logger.go:40` ("extract `isHealthCheckPath`").
 
 ---
 
