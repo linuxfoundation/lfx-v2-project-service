@@ -62,6 +62,11 @@ const (
 
 	// IndexProjectDocumentSubject is the subject for project document indexing.
 	IndexProjectDocumentSubject = "lfx.index.project_document"
+
+	// DocumentUploadedSubject is published when a document (file) or link is added to a project.
+	// Subscribers consume this to fan out notification emails to LFID writers and auditors.
+	// The subject is of the form: lfx.projects-api.document.uploaded
+	DocumentUploadedSubject = "lfx.projects-api.document.uploaded"
 )
 
 // NATS wildcard subjects that the project service handles messages about.

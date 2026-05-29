@@ -38,6 +38,7 @@ func TestProjectsService_CreateLink(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{
@@ -52,6 +53,7 @@ func TestProjectsService_CreateLink(t *testing.T) {
 				mockFolder.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(&models.ProjectFolder{UID: "folder-1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
 				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{

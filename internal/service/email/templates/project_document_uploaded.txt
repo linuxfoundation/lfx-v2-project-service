@@ -1,0 +1,16 @@
+{{- /* Copyright The Linux Foundation and each contributor to LFX. */ -}}
+{{- /* SPDX-License-Identifier: MIT */ -}}
+Hi {{.RecipientName}},
+
+{{if .UploaderName}}{{.UploaderName}} has added a new {{if eq .DocumentType "link"}}link{{else}}document{{end}} to the {{.ProjectName}} project in LFX Self-Serve.{{else}}A new {{if eq .DocumentType "link"}}link{{else}}document{{end}} has been added to the {{.ProjectName}} project in LFX Self-Serve.{{end}}
+
+Name: {{.DocumentName}}
+{{if eq .DocumentType "file"}}File: {{.FileName}}
+{{end}}{{if and (eq .DocumentType "link") .URL}}URL: {{.URL}}
+{{end}}
+You can view the project and its documents here:
+{{.ProjectURL}}
+
+---
+You are receiving this email because you are a member of a project on LFX Self-Serve.
+© The Linux Foundation

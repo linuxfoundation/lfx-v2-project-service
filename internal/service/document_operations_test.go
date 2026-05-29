@@ -42,6 +42,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
 				mockDoc.On("CreateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{
@@ -59,6 +60,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
 				mockDoc.On("CreateDocumentMetadata", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil).Maybe()
 			},
 		},
 		{
