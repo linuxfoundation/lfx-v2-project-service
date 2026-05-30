@@ -371,6 +371,22 @@ func BuildChildListMessage(parentUID string, children []string) fgatypes.Generic
 	}
 }
 
+// PublishB2BOrgGlobalAdminFGA emits the global_org_admin FGA tuple for a B2BOrg.
+// Safe to call during backfill — idempotent (fga-sync diffs before writing).
+// No-op when globalOrgAdminTeamUID is empty.
+func PublishB2BOrgGlobalAdminFGA(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, globalOrgAdminTeamUID string) {
+	if strings.TrimSpace(globalOrgAdminTeamUID) == "" {
+		return
+	}
+	msg := BuildB2BOrgFGAMessage(org, globalOrgAdminTeamUID, nil, nil, nil)
+	if pubErr := p.Access(ctx, constants.FGASyncUpdateAccessSubject, msg, false); pubErr != nil {
+		slog.WarnContext(ctx, "b2b org global admin FGA publish failed",
+			"uid", org.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
 // PublishB2BOrgParentFGA emits FGA parent/child hierarchy tuples for a B2BOrg
 // that has a ParentUID. Safe to call during backfill — idempotent.
 // parentChildren is the full current child-UID list for the parent org.

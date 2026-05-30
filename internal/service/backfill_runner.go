@@ -47,13 +47,14 @@ var allBackfillTypes = []string{entityTypeB2BOrg, entityTypeProjectMembership, e
 // per-type NATS KV lock so the same type is not reindexed simultaneously across
 // pods.
 type Runner struct {
-	iter           BackfillIterator
-	b2bReader      port.B2BOrgReader
-	pmReader       port.ProjectMembershipReader
-	kcReader       KeyContactSObjectReader
-	settingsReader port.B2BOrgSettingsReader
-	publisher      port.MemberPublisher
-	natsClient     *natspkg.NATSClient
+	iter                  BackfillIterator
+	b2bReader             port.B2BOrgReader
+	pmReader              port.ProjectMembershipReader
+	kcReader              KeyContactSObjectReader
+	settingsReader        port.B2BOrgSettingsReader
+	publisher             port.MemberPublisher
+	natsClient            *natspkg.NATSClient
+	globalOrgAdminTeamUID string
 }
 
 // NewRunner constructs a Runner.
@@ -65,15 +66,17 @@ func NewRunner(
 	settingsReader port.B2BOrgSettingsReader,
 	publisher port.MemberPublisher,
 	natsClient *natspkg.NATSClient,
+	globalOrgAdminTeamUID string,
 ) *Runner {
 	return &Runner{
-		iter:           iter,
-		b2bReader:      b2bReader,
-		pmReader:       pmReader,
-		kcReader:       kcReader,
-		settingsReader: settingsReader,
-		publisher:      publisher,
-		natsClient:     natsClient,
+		iter:                  iter,
+		b2bReader:             b2bReader,
+		pmReader:              pmReader,
+		kcReader:              kcReader,
+		settingsReader:        settingsReader,
+		publisher:             publisher,
+		natsClient:            natsClient,
+		globalOrgAdminTeamUID: globalOrgAdminTeamUID,
 	}
 }
 
@@ -207,6 +210,7 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 						org.IsParent = len(children) > 0
 					}
 					PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+					PublishB2BOrgGlobalAdminFGA(ctx, r.publisher, org, r.globalOrgAdminTeamUID)
 					if org.ParentUID != "" {
 						if children, ok := orgChildrenCache[org.ParentUID]; ok {
 							PublishB2BOrgParentFGA(ctx, r.publisher, org, children)
@@ -340,6 +344,7 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 					org.IsParent = len(childUIDs) > 0
 				}
 				PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+				PublishB2BOrgGlobalAdminFGA(ctx, r.publisher, org, r.globalOrgAdminTeamUID)
 				if org.ParentUID != "" {
 					children, childErr := fetchChildUIDs(org.ParentUID)
 					if childErr != nil {
