@@ -364,10 +364,14 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 		m.TierProductType = derefString(asset.Product2.Type)
 	}
 
-	// Populate ProjectSlug (and ProjectUID when available) from the Projects__r
-	// relationship. Both fields are now decoded correctly via salesforce tags.
+	// Populate project fields from the Projects__r relationship.
 	if asset.Project != nil {
 		m.ProjectSlug = derefString(asset.Project.Slug)
+		if asset.Project.ID != "" {
+			if projectUID, uuidErr := sfuuid.ToUUID(asset.Project.ID); uuidErr == nil {
+				m.ProjectUID = projectUID
+			}
+		}
 	}
 
 	// Timestamps.

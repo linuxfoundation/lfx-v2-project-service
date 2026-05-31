@@ -195,6 +195,11 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 				return fmt.Errorf("unmarshal Project__c sObject response: %w", unmarshalErr)
 			}
 			contact.ProjectSlug = derefString(rawProj.Slug)
+			contact.ProjectName = rawProj.Name
+			contact.ProjectLogoURL = derefString(rawProj.LogoURL)
+			if projectUID, uuidErr := sfuuid.ToUUID(projectSFID); uuidErr == nil {
+				contact.ProjectUID = projectUID
+			}
 			projLastMod = parseSOQLTime(rawProj.LastModifiedDate)
 			return nil
 		})

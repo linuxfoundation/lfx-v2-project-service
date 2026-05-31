@@ -13,6 +13,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"time"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
@@ -127,7 +128,7 @@ func BuildB2BOrgSettingsIndexingConfig(org *model.B2BOrg, settings *model.B2BOrg
 func BuildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string, writers, auditors, membershipUIDs []string) fgatypes.GenericFGAMessage {
 	refs := make(map[string][]string)
 	if globalOrgAdminTeamUID != "" {
-		refs["global_org_admin"] = []string{"team:" + globalOrgAdminTeamUID}
+		refs["global_org_admin"] = []string{"team:" + globalOrgAdminTeamUID + "#member"}
 	}
 	if len(membershipUIDs) > 0 {
 		mRefs := make([]string, len(membershipUIDs))
@@ -249,7 +250,7 @@ func BuildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingC
 	}
 
 	var fulltext []string
-	for _, s := range []string{kc.FirstName, kc.LastName, kc.Email, kc.Role, kc.CompanyName} {
+	for _, s := range []string{kc.FirstName, kc.LastName, kc.Email, kc.Role, kc.CompanyName, kc.ProjectName} {
 		if s != "" {
 			fulltext = append(fulltext, s)
 		}
@@ -432,6 +433,74 @@ func PublishB2BOrgIndexer(ctx context.Context, p port.MemberPublisher, org *mode
 	}
 }
 
+// b2bOrgMemberView is the flat per-member wire entry in the indexer doc.
+// Role is "writer" or "auditor"; writer takes precedence when a user holds both.
+// invited_as and per-user created_at are omitted — role carries the role info
+// and created_at is not needed downstream.
+type b2bOrgMemberView struct {
+	Username     string             `json:"username,omitempty"`
+	Email        string             `json:"email"`
+	Name         string             `json:"name,omitempty"`
+	Role         string             `json:"role"`
+	InviteStatus model.InviteStatus `json:"invite_status"`
+	UpdatedAt    string             `json:"updated_at"`
+}
+
+// b2bOrgSettingsIndexerView is the indexer doc shape for b2b_org_settings.
+// Differs from model.B2BOrgSettings (the canonical KV/HTTP shape): single
+// members[] with role field; no writers[]/auditors[]; no invited_as; no per-user created_at.
+type b2bOrgSettingsIndexerView struct {
+	UID       string             `json:"uid"`
+	Members   []b2bOrgMemberView `json:"members"`
+	CreatedAt string             `json:"created_at"`
+	UpdatedAt string             `json:"updated_at"`
+}
+
+// buildB2BOrgSettingsIndexerView maps B2BOrgSettings to the flat indexer wire shape.
+// Writers are processed first so writer role takes precedence over auditor when a
+// user appears in both lists. Accepted entries are deduped by username; pending
+// entries (empty username) are emitted as-is and not deduped. Revoked and expired
+// entries are excluded.
+func buildB2BOrgSettingsIndexerView(settings *model.B2BOrgSettings) b2bOrgSettingsIndexerView {
+	view := b2bOrgSettingsIndexerView{
+		UID:       settings.UID,
+		Members:   []b2bOrgMemberView{},
+		CreatedAt: settings.CreatedAt.UTC().Format(time.RFC3339Nano),
+		UpdatedAt: settings.UpdatedAt.UTC().Format(time.RFC3339Nano),
+	}
+
+	seen := map[string]struct{}{}
+
+	addMember := func(u model.B2BOrgUser, role string) {
+		status := u.EffectiveStatus()
+		if status == model.InviteStatusRevoked || status == model.InviteStatusExpired {
+			return
+		}
+		if u.Username != "" {
+			if _, exists := seen[u.Username]; exists {
+				return
+			}
+			seen[u.Username] = struct{}{}
+		}
+		view.Members = append(view.Members, b2bOrgMemberView{
+			Username:     u.Username,
+			Email:        u.Email,
+			Name:         u.Name,
+			Role:         role,
+			InviteStatus: status,
+			UpdatedAt:    u.UpdatedAt.UTC().Format(time.RFC3339Nano),
+		})
+	}
+
+	for _, u := range settings.Writers {
+		addMember(u, "writer")
+	}
+	for _, u := range settings.Auditors {
+		addMember(u, "auditor")
+	}
+	return view
+}
+
 // PublishB2BOrgSettingsIndexer builds and publishes a MemberIndexerMessage for B2BOrgSettings.
 // Errors are swallowed and logged — /admin/reindex recovers missed records.
 func PublishB2BOrgSettingsIndexer(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, settings *model.B2BOrgSettings, action indexerConstants.MessageAction) {
@@ -440,7 +509,7 @@ func PublishB2BOrgSettingsIndexer(ctx context.Context, p port.MemberPublisher, o
 		Tags:           settings.Tags(),
 		IndexingConfig: BuildB2BOrgSettingsIndexingConfig(org, settings),
 	}
-	builtMsg, err := indexMsg.Build(ctx, settings)
+	builtMsg, err := indexMsg.Build(ctx, buildB2BOrgSettingsIndexerView(settings))
 	if err != nil {
 		slog.WarnContext(ctx, "failed to build b2b org settings indexer message",
 			"uid", org.UID,
