@@ -147,6 +147,9 @@ func BuildB2BOrgFGAMessage(org *model.B2BOrg, globalOrgAdminTeamUID string, writ
 	}
 
 	excludes := []string{"parent", "child"}
+	if globalOrgAdminTeamUID == "" {
+		excludes = append(excludes, "global_org_admin")
+	}
 	if len(membershipUIDs) == 0 {
 		excludes = append(excludes, "membership")
 	}

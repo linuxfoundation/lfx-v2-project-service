@@ -275,6 +275,17 @@ func TestBuildB2BOrgFGAMessage_ExcludesParentChildAndMembership(t *testing.T) {
 	assert.Contains(t, data.ExcludeRelations, "parent")
 	assert.Contains(t, data.ExcludeRelations, "child")
 	assert.Contains(t, data.ExcludeRelations, "membership")
+	assert.Contains(t, data.ExcludeRelations, "global_org_admin",
+		"empty globalOrgAdminTeamUID must exclude global_org_admin to preserve existing tuples")
+}
+
+func TestBuildB2BOrgFGAMessage_GlobalOrgAdminNotExcludedWhenSet(t *testing.T) {
+	msg := BuildB2BOrgFGAMessage(testB2BOrg, "global-admin-uid", nil, nil, nil)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.NotContains(t, data.ExcludeRelations, "global_org_admin",
+		"non-empty globalOrgAdminTeamUID must not exclude global_org_admin — caller is setting it")
 }
 
 func TestBuildB2BOrgFGAMessage_NilWritersAuditorsExcluded(t *testing.T) {

@@ -271,32 +271,12 @@ Per-member entry shape:
 
 | Field | Example value | Notes |
 |---|---|---|
-| `username` | `auth0\|aopeyemi1` | Absent for pending invites |
-| `email` | `aopeyemi@contractor.linuxfoundation.org` | Always present |
-| `name` | `Ahmed Omosanya` | Optional |
+| `username` | `auth0\|<lfid>` | Absent for pending invites |
+| `email` | `user@example.org` | Always present |
+| `name` | `Display Name` | Optional |
 | `role` | `writer` | `"writer"` or `"auditor"`; writer takes precedence if user holds both |
 | `invite_status` | `accepted` | `accepted`, `pending` |
-| `updated_at` | `2026-05-27T12:10:39.082416741Z` | Last modification to this membership row |
-
-Example doc `data`:
-
-```json
-{
-  "uid": "4c46585f-878c-8285-b2e9-2dbfd28c32ee",
-  "members": [
-    {
-      "username": "auth0|aopeyemi1",
-      "email": "aopeyemi@contractor.linuxfoundation.org",
-      "name": "Ahmed Omosanya",
-      "role": "writer",
-      "invite_status": "accepted",
-      "updated_at": "2026-05-27T12:10:39.082416741Z"
-    }
-  ],
-  "created_at": "2026-05-27T12:10:39.425552557Z",
-  "updated_at": "2026-05-27T12:10:39.425552557Z"
-}
-```
+| `updated_at` | `2026-01-15T10:00:00Z` | Last modification to this membership row |
 
 ### Tags
 
