@@ -104,16 +104,18 @@ func TestBuildProjectMembershipIndexingConfig(t *testing.T) {
 
 func TestBuildKeyContactIndexingConfig(t *testing.T) {
 	kc := &model.KeyContact{
-		UID:           "kc-uid-001",
-		B2BOrgUID:     "b2b-org-uid-001",
-		ProjectUID:    "project-uid-001",
-		MembershipUID: "pm-uid-001",
-		FirstName:     "Ada",
-		LastName:      "Lovelace",
-		Email:         "ada@example.com",
-		Emails:        []string{"ada@example.com", "alovelace@example.com"},
-		Role:          "Voting Representative",
-		CompanyName:   "Acme Corp",
+		UID:            "kc-uid-001",
+		B2BOrgUID:      "b2b-org-uid-001",
+		ProjectUID:     "project-uid-001",
+		MembershipUID:  "pm-uid-001",
+		FirstName:      "Ada",
+		LastName:       "Lovelace",
+		Email:          "ada@example.com",
+		Emails:         []string{"ada@example.com", "alovelace@example.com"},
+		Role:           "Voting Representative",
+		CompanyName:    "Acme Corp",
+		ProjectName:    "Kubernetes",
+		ProjectLogoURL: "https://artwork.cncf.io/projects/kubernetes/icon/color/kubernetes-icon-color.svg",
 	}
 	cfg := BuildKeyContactIndexingConfig(kc)
 
@@ -136,11 +138,28 @@ func TestBuildKeyContactIndexingConfig(t *testing.T) {
 	assert.Contains(t, cfg.Fulltext, "ada@example.com")
 	assert.Contains(t, cfg.Fulltext, "Voting Representative")
 	assert.Contains(t, cfg.Fulltext, "Acme Corp")
+	assert.Contains(t, cfg.Fulltext, "Kubernetes")
 	assert.Equal(t, kc.Tags(), cfg.Tags)
 	require.Len(t, cfg.Contacts, 1)
 	assert.Equal(t, "kc-uid-001", cfg.Contacts[0].LfxPrincipal)
 	assert.Equal(t, kc.Name(), cfg.Contacts[0].Name)
 	assert.Equal(t, []string{"ada@example.com", "alovelace@example.com"}, cfg.Contacts[0].Emails)
+}
+
+func TestBuildKeyContactIndexingConfig_ProjectNameInFulltext_ProjectLogoNotInFulltext(t *testing.T) {
+	// project_name is searchable via fulltext; project_logo_url is data-only.
+	kc := &model.KeyContact{
+		UID:            "kc-uid-logo-001",
+		MembershipUID:  "pm-uid-001",
+		FirstName:      "Grace",
+		LastName:       "Hopper",
+		ProjectName:    "OpenTelemetry",
+		ProjectLogoURL: "https://artwork.cncf.io/projects/opentelemetry/icon/color/opentelemetry-icon-color.svg",
+	}
+	cfg := BuildKeyContactIndexingConfig(kc)
+
+	assert.Contains(t, cfg.Fulltext, "OpenTelemetry")
+	assert.NotContains(t, cfg.Fulltext, "artwork.cncf.io")
 }
 
 func TestBuildKeyContactFGAPutMessage(t *testing.T) {
@@ -256,6 +275,17 @@ func TestBuildB2BOrgFGAMessage_ExcludesParentChildAndMembership(t *testing.T) {
 	assert.Contains(t, data.ExcludeRelations, "parent")
 	assert.Contains(t, data.ExcludeRelations, "child")
 	assert.Contains(t, data.ExcludeRelations, "membership")
+	assert.Contains(t, data.ExcludeRelations, "global_org_admin",
+		"empty globalOrgAdminTeamUID must exclude global_org_admin to preserve existing tuples")
+}
+
+func TestBuildB2BOrgFGAMessage_GlobalOrgAdminNotExcludedWhenSet(t *testing.T) {
+	msg := BuildB2BOrgFGAMessage(testB2BOrg, "global-admin-uid", nil, nil, nil)
+
+	data, ok := msg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.NotContains(t, data.ExcludeRelations, "global_org_admin",
+		"non-empty globalOrgAdminTeamUID must not exclude global_org_admin — caller is setting it")
 }
 
 func TestBuildB2BOrgFGAMessage_NilWritersAuditorsExcluded(t *testing.T) {
@@ -292,7 +322,7 @@ func TestBuildB2BOrgFGAMessage_WithWritersAndAuditors(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, []string{"alice", "bob"}, data.Relations["writer"])
 	assert.Equal(t, []string{"viewer1"}, data.Relations["auditor"])
-	assert.Equal(t, []string{"team:global-admin-uid"}, data.References["global_org_admin"])
+	assert.Equal(t, []string{"team:global-admin-uid#member"}, data.References["global_org_admin"])
 }
 
 func TestBuildB2BOrgFGAMessage_WithMembershipUIDs(t *testing.T) {
@@ -318,7 +348,7 @@ func TestBuildB2BOrgFGAMessage_WithGlobalAdmin(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "b2b-org-uid-001", data.UID)
 	require.Contains(t, data.References, "global_org_admin")
-	assert.Equal(t, []string{"team:global-admin-team-uid"}, data.References["global_org_admin"])
+	assert.Equal(t, []string{"team:global-admin-team-uid#member"}, data.References["global_org_admin"])
 }
 
 func TestBuildB2BOrgFGAMessage_NoGlobalAdmin(t *testing.T) {
@@ -464,7 +494,7 @@ func TestBuildB2BOrgSettingsIndexingConfig_Tags(t *testing.T) {
 					{Email: "pending@acme.com", InviteStatus: model.InviteStatusPending},
 				},
 			},
-			wantContains: []string{"has_writers", "has_pending_invites", "writers.username:alice", "member:alice"},
+			wantContains: []string{"has_writers", "has_pending_invites", "writer:alice", "member:alice"},
 			wantAbsent:   []string{"has_auditors"},
 		},
 		{
@@ -475,7 +505,7 @@ func TestBuildB2BOrgSettingsIndexingConfig_Tags(t *testing.T) {
 					{InviteStatus: model.InviteStatusAccepted, Username: "bob"},
 				},
 			},
-			wantContains: []string{"has_auditors", "auditors.username:bob", "member:bob"},
+			wantContains: []string{"has_auditors", "auditor:bob", "member:bob"},
 			wantAbsent:   []string{"has_writers", "has_pending_invites"},
 		},
 		{
@@ -495,7 +525,7 @@ func TestBuildB2BOrgSettingsIndexingConfig_Tags(t *testing.T) {
 				Writers:  []model.B2BOrgUser{{InviteStatus: model.InviteStatusAccepted, Username: "charlie"}},
 				Auditors: []model.B2BOrgUser{{InviteStatus: model.InviteStatusAccepted, Username: "charlie"}},
 			},
-			wantContains: []string{"writers.username:charlie", "auditors.username:charlie", "member:charlie"},
+			wantContains: []string{"writer:charlie", "auditor:charlie", "member:charlie"},
 			wantAbsent:   []string{"has_pending_invites"},
 		},
 	}
@@ -557,7 +587,7 @@ func TestPublishB2BOrgSettingsIndexer_PublishesToCorrectSubject(t *testing.T) {
 	org := &model.B2BOrg{UID: "org-uid-pub-001", Name: "Pub Org"}
 	settings := &model.B2BOrgSettings{
 		UID:     "org-uid-pub-001",
-		Writers: []model.B2BOrgUser{{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}},
+		Writers: []model.B2BOrgUser{{Username: "auth0|alice", Email: "alice@acme.com", InviteStatus: model.InviteStatusAccepted}},
 	}
 
 	PublishB2BOrgSettingsIndexer(context.Background(), pub, org, settings, indexerConstants.ActionCreated)
@@ -571,9 +601,94 @@ func TestPublishB2BOrgSettingsIndexer_PublishError_Swallowed(t *testing.T) {
 	org := &model.B2BOrg{UID: "org-uid-pub-002", Name: "Pub Org 2"}
 	settings := &model.B2BOrgSettings{
 		UID:     "org-uid-pub-002",
-		Writers: []model.B2BOrgUser{{Username: "auth0|bob", Email: "bob@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}},
+		Writers: []model.B2BOrgUser{{Username: "auth0|bob", Email: "bob@acme.com", InviteStatus: model.InviteStatusAccepted}},
 	}
 
 	// Must not panic or return an error — fire-and-forget.
 	PublishB2BOrgSettingsIndexer(context.Background(), pub, org, settings, indexerConstants.ActionUpdated)
+}
+
+// ── buildB2BOrgSettingsIndexerView ───────────────────────────────────────────
+
+func TestBuildB2BOrgSettingsIndexerView_FlatMembersWithRole(t *testing.T) {
+	settings := &model.B2BOrgSettings{
+		UID: "org-view-001",
+		Writers: []model.B2BOrgUser{
+			{Username: "auth0|alice", Email: "alice@acme.com", Name: "Alice A", InviteStatus: model.InviteStatusAccepted},
+		},
+		Auditors: []model.B2BOrgUser{
+			{Username: "auth0|bob", Email: "bob@acme.com", Name: "Bob B", InviteStatus: model.InviteStatusAccepted},
+		},
+	}
+
+	view := buildB2BOrgSettingsIndexerView(settings)
+
+	require.Len(t, view.Members, 2)
+	assert.Equal(t, "auth0|alice", view.Members[0].Username)
+	assert.Equal(t, "writer", view.Members[0].Role)
+	assert.Equal(t, "auth0|bob", view.Members[1].Username)
+	assert.Equal(t, "auditor", view.Members[1].Role)
+	assert.Equal(t, "org-view-001", view.UID)
+}
+
+func TestBuildB2BOrgSettingsIndexerView_WriterPrecedence(t *testing.T) {
+	// User in both writers and auditors must appear once with role "writer".
+	settings := &model.B2BOrgSettings{
+		UID:      "org-view-002",
+		Writers:  []model.B2BOrgUser{{Username: "auth0|charlie", Email: "c@example.com", InviteStatus: model.InviteStatusAccepted}},
+		Auditors: []model.B2BOrgUser{{Username: "auth0|charlie", Email: "c@example.com", InviteStatus: model.InviteStatusAccepted}},
+	}
+
+	view := buildB2BOrgSettingsIndexerView(settings)
+
+	require.Len(t, view.Members, 1, "duplicate user must appear exactly once")
+	assert.Equal(t, "writer", view.Members[0].Role)
+}
+
+func TestBuildB2BOrgSettingsIndexerView_PendingUsersIncluded(t *testing.T) {
+	// Pending users (no username) must appear in members[] but tags must exclude them.
+	settings := &model.B2BOrgSettings{
+		UID: "org-view-003",
+		Writers: []model.B2BOrgUser{
+			{Email: "pending@example.com", InviteStatus: model.InviteStatusPending},
+		},
+	}
+
+	view := buildB2BOrgSettingsIndexerView(settings)
+
+	require.Len(t, view.Members, 1, "pending user must appear in members[]")
+	assert.Equal(t, "writer", view.Members[0].Role)
+	assert.Equal(t, model.InviteStatusPending, view.Members[0].InviteStatus)
+	assert.Empty(t, view.Members[0].Username)
+
+	// Tags must not include writer: or member: for the pending user (no username).
+	for _, tag := range settings.Tags() {
+		assert.NotEqual(t, "writer:"+view.Members[0].Username, tag)
+		assert.NotEqual(t, "member:"+view.Members[0].Username, tag)
+	}
+}
+
+func TestBuildB2BOrgSettingsIndexerView_RevokedExpiredExcluded(t *testing.T) {
+	settings := &model.B2BOrgSettings{
+		UID: "org-view-004",
+		Writers: []model.B2BOrgUser{
+			{Username: "auth0|active", Email: "active@example.com", InviteStatus: model.InviteStatusAccepted},
+			{Username: "auth0|revoked", Email: "revoked@example.com", InviteStatus: model.InviteStatusRevoked},
+			{Username: "auth0|expired", Email: "expired@example.com", InviteStatus: model.InviteStatusExpired},
+		},
+	}
+
+	view := buildB2BOrgSettingsIndexerView(settings)
+
+	require.Len(t, view.Members, 1, "only accepted entry must appear")
+	assert.Equal(t, "auth0|active", view.Members[0].Username)
+}
+
+func TestBuildB2BOrgSettingsIndexerView_EmptySettingsProducesEmptySlice(t *testing.T) {
+	settings := &model.B2BOrgSettings{UID: "org-view-005"}
+
+	view := buildB2BOrgSettingsIndexerView(settings)
+
+	assert.NotNil(t, view.Members, "members must be [] not nil")
+	assert.Empty(t, view.Members)
 }

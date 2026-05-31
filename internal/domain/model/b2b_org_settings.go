@@ -124,13 +124,16 @@ func (s *B2BOrgSettings) FulltextTokens() []string {
 	return tokens
 }
 
-// Tag prefixes for per-user username tags emitted by Tags().
-// Consumed by the query-service as filter keys (e.g. filters_or=writers.username:<sub>).
+// Tag prefixes for per-user tags emitted by Tags().
 const (
-	TagPrefixWritersUsername  = "writers.username:"
-	TagPrefixAuditorsUsername = "auditors.username:"
+	// TagPrefixWriter is emitted once per accepted writer with a known LFID username.
+	// Inverse query: tags=writer:auth0|<username>
+	TagPrefixWriter = "writer:"
+	// TagPrefixAuditor is emitted once per accepted auditor with a known LFID username.
+	// Inverse query: tags=auditor:auth0|<username>
+	TagPrefixAuditor = "auditor:"
 	// TagPrefixMember covers both writers and auditors; use for role-agnostic
-	// "which orgs does user X belong to?" queries.
+	// "which orgs does user X belong to?" queries: tags=member:auth0|<username>
 	TagPrefixMember = "member:"
 )
 
@@ -154,7 +157,7 @@ func (s *B2BOrgSettings) Tags() []string {
 				hasWriters = true
 			}
 			if u.Username != "" {
-				tags = append(tags, TagPrefixWritersUsername+u.Username)
+				tags = append(tags, TagPrefixWriter+u.Username)
 				if _, seen := emittedMemberTags[u.Username]; !seen {
 					tags = append(tags, TagPrefixMember+u.Username)
 					emittedMemberTags[u.Username] = struct{}{}
@@ -173,7 +176,7 @@ func (s *B2BOrgSettings) Tags() []string {
 				hasAuditors = true
 			}
 			if u.Username != "" {
-				tags = append(tags, TagPrefixAuditorsUsername+u.Username)
+				tags = append(tags, TagPrefixAuditor+u.Username)
 				if _, seen := emittedMemberTags[u.Username]; !seen {
 					tags = append(tags, TagPrefixMember+u.Username)
 					emittedMemberTags[u.Username] = struct{}{}

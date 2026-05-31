@@ -180,6 +180,8 @@ This document is the authoritative reference for all data the member service sen
 | `membership_uid` | string | UID of the associated project membership |
 | `tier_uid` | string | UID of the associated membership tier |
 | `project_uid` | string | v2 UUID of the project |
+| `project_name` | string (optional) | Display name of the project — also indexed in `fulltext` for keyword search |
+| `project_logo_url` | string (optional) | Logo image URL for the project |
 | `b2b_org_uid` | string (optional) | UUID of the member company |
 | `role` | string | Contact role, e.g. `Voting Representative` |
 | `status` | string | Role record status, e.g. `Active` |
@@ -224,7 +226,7 @@ This document is the authoritative reference for all data the member service sen
 
 | Field | Value |
 |---|---|
-| `fulltext` | `first_name`, `last_name`, `email`, `role`, `company_name` |
+| `fulltext` | `first_name`, `last_name`, `email`, `role`, `company_name`, `project_name` |
 | `name_and_aliases` | Full name, `email` |
 | `sort_name` | `last_name first_name` (lowercased) |
 | `public` | `false` |
@@ -246,7 +248,7 @@ This document is the authoritative reference for all data the member service sen
 
 **NATS subject:** `lfx.index.b2b_org_settings`
 
-**Source struct:** `internal/domain/model/b2b_org_settings.go` — `B2BOrgSettings`
+**Source struct:** `internal/service/messaging.go` — `b2bOrgSettingsIndexerView` (adapter view; canonical state is `model.B2BOrgSettings` in the `org-settings` KV bucket)
 
 **Trigger:** `PUT /b2b_orgs/{uid}/settings` (online path) or `POST /admin/reindex` with `types=["b2b_org_settings"]` (backfill). The doc exists only when writers/auditors have been explicitly configured via PUT.
 
@@ -256,13 +258,25 @@ This document is the authoritative reference for all data the member service sen
 
 ### Payload Fields
 
+Flat `members[]` array — role is a first-class field on each entry. Both accepted and pending entries are included; revoked and expired are excluded.
+
 | Field | Example value |
 |---|---|
 | `uid` | `cbef1ed5-...` |
-| `writers` | `[{email, name, username, invite_status, ...}]` |
-| `auditors` | `[{email, name, username, invite_status, ...}]` |
+| `members` | `[{username, email, name, role, invite_status, updated_at}]` |
 | `created_at` | `2026-01-15T10:00:00Z` |
 | `updated_at` | `2026-05-20T14:30:00Z` |
+
+Per-member entry shape:
+
+| Field | Example value | Notes |
+|---|---|---|
+| `username` | `auth0\|<lfid>` | Absent for pending invites |
+| `email` | `user@example.org` | Always present |
+| `name` | `Display Name` | Optional |
+| `role` | `writer` | `"writer"` or `"auditor"`; writer takes precedence if user holds both |
+| `invite_status` | `accepted` | `accepted`, `pending` |
+| `updated_at` | `2026-01-15T10:00:00Z` | Last modification to this membership row |
 
 ### Tags
 
@@ -271,11 +285,12 @@ This document is the authoritative reference for all data the member service sen
 | `has_writers` | ≥1 writer with `invite_status=accepted` |
 | `has_auditors` | ≥1 auditor with `invite_status=accepted` |
 | `has_pending_invites` | ≥1 entry (writer or auditor) with `invite_status=pending` |
-| `writers.username:{username}` | One tag per accepted writer with a non-empty LFID username |
-| `auditors.username:{username}` | One tag per accepted auditor with a non-empty LFID username |
-| `member:{username}` | One tag per accepted writer **and** auditor — role-agnostic union |
+| `writer:{username}` | One tag per accepted writer with a non-empty LFID username |
+| `auditor:{username}` | One tag per accepted auditor with a non-empty LFID username |
+| `member:{username}` | One tag per accepted user — role-agnostic union, deduped across writer+auditor |
 
 > Revoked and expired entries do not trigger any tag — they are audit-trail data, not actionable state.
+> Pending users (no username) are included in `members[]` but produce no `writer:`, `auditor:`, or `member:` tags.
 
 ### Query Patterns
 
@@ -283,20 +298,31 @@ This document is the authoritative reference for all data the member service sen
 ```
 GET /query/resources?v=1&type=b2b_org_settings&tags=member:auth0|{username}
 ```
-Returns one doc per org where the user is an accepted writer or auditor. Each doc contains `data.uid` (the org UID) and the full `data.writers` / `data.auditors` arrays. The `member:` tag covers both roles so a single call suffices regardless of whether the user is a writer, an auditor, or both on different orgs.
+Returns one doc per org where the user is an accepted writer or auditor. Each doc contains `data.uid` (the org UID) and the full `data.members[]` array. The `member:` tag covers both roles so a single call suffices.
 
 **"Which orgs is user X a writer on?" (role-specific)**
 ```
-GET /query/resources?v=1&type=b2b_org_settings&tags=writers.username:auth0|{username}
+GET /query/resources?v=1&type=b2b_org_settings&tags=writer:auth0|{username}
 ```
+
+**"Which orgs is user X an auditor on?" (role-specific)**
+```
+GET /query/resources?v=1&type=b2b_org_settings&tags=auditor:auth0|{username}
+```
+
+**"How many orgs does user X belong to?"**
+```
+GET /query/resources/count?type=b2b_org_settings&tags=member:auth0|{username}
+```
+Returns `{"count": N, "has_more": false}`. `has_more` is true when the result exceeds the aggregation bucket limit.
 
 **"Who has access to org Y?"**
 ```
 GET /query/resources?v=1&type=b2b_org_settings&object_id={org_uid}
 ```
-Returns the single settings doc for that org with the full writers and auditors roster.
+Returns the single settings doc for that org with the full `members[]` roster.
 
-> All three queries are enforced by an FGA `auditor` check on `b2b_org:{uid}` — only the calling user's accessible orgs are returned regardless of filter.
+> All queries are enforced by an FGA `auditor` check on `b2b_org:{uid}` — only the calling user's accessible orgs are returned regardless of filter.
 > Tag values containing `:` or `|` must be URL-encoded in query strings: `:` → `%3A`, `|` → `%7C`.
 
 ### Access / History Check

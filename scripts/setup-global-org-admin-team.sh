@@ -16,18 +16,24 @@
 # Required env vars:
 #   OPENFGA_STORE_ID     — OpenFGA store ID for the target environment
 #   TEAM_UID             — the globalOrgAdminTeamUID for the environment
-#   ADMIN_USERS          — comma-separated LFID usernames (e.g. "username1,username2")
+#   ADMIN_USERS          — comma-separated Auth0 usernames (e.g. "auth0|username1,auth0|username2")
 #
 # Optional env vars:
 #   OPENFGA_URL          — default: http://localhost:8080
+#
+# IMPORTANT — user format:
+#   Heimdall passes the OIDC `sub` claim as the FGA subject. In this environment
+#   the `sub` is the Auth0 username prefixed with "auth0|" (e.g. "auth0|username").
+#   ADMIN_USERS entries MUST include the "auth0|" prefix or the Heimdall check will
+#   never match and all callers will receive 403.
 #
 # Usage:
 #   # Port-forward first (local):
 #   kubectl -n lfx port-forward svc/lfx-platform-openfga 8080:8080
 #
-#   OPENFGA_STORE_ID=01K1XF6SXV7JY5HZ25EZGCDNXE \
-#   TEAM_UID=f90e4098-7e43-470e-ba37-944bf0575a42 \
-#   ADMIN_USERS=jmedev,asitha,andrest50dev,audiyoung \
+#   OPENFGA_STORE_ID=<store-id> \
+#   TEAM_UID=<team-uid> \
+#   ADMIN_USERS="auth0|username1,auth0|username2" \
 #   ./scripts/setup-global-org-admin-team.sh [--dry-run]
 #
 

@@ -41,7 +41,7 @@ SELECT
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
     Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
-    Asset__r.Projects__r.Slug__c
+    Asset__r.Projects__r.Slug__c, Asset__r.Projects__r.Project_Logo__c
 FROM Project_Role__c
 WHERE Asset__c = %s
     AND IsDeleted = false
@@ -59,7 +59,7 @@ SELECT
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
     Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
-    Asset__r.Projects__r.Slug__c
+    Asset__r.Projects__r.Slug__c, Asset__r.Projects__r.Project_Logo__c
 FROM Project_Role__c
 WHERE Id = %s
     AND IsDeleted = false
@@ -248,6 +248,13 @@ func convertSOQLToKeyContact(role soqlProjectRole, emailMap map[string]string) (
 		// salesforce tags.
 		if role.Asset.Project != nil {
 			c.ProjectSlug = derefString(role.Asset.Project.Slug)
+			c.ProjectName = role.Asset.Project.Name
+			c.ProjectLogoURL = derefString(role.Asset.Project.LogoURL)
+			if role.Asset.Project.ID != "" {
+				if projectUID, uuidErr := sfuuid.ToUUID(role.Asset.Project.ID); uuidErr == nil {
+					c.ProjectUID = projectUID
+				}
+			}
 		}
 	}
 
@@ -306,7 +313,7 @@ SELECT
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
     Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
-    Asset__r.Projects__r.Slug__c
+    Asset__r.Projects__r.Slug__c, Asset__r.Projects__r.Project_Logo__c
 FROM Project_Role__c
 WHERE IsDeleted = false`
 

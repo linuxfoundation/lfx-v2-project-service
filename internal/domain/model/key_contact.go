@@ -86,6 +86,13 @@ type KeyContact struct {
 	// by the resolver to populate ProjectUID; not included in API responses.
 	ProjectSlug string `json:"-"`
 
+	// ProjectName is the display name of the associated project, embedded so
+	// the indexer doc is self-sufficient without a second hop.
+	ProjectName string `json:"project_name,omitempty"`
+
+	// ProjectLogoURL is the logo image URL for the associated project.
+	ProjectLogoURL string `json:"project_logo_url,omitempty"`
+
 	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce
 	// Account.Id of the membership's company. Populated from AccountId on the
 	// parent Asset's Account relationship; not included in API responses until

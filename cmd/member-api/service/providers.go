@@ -494,6 +494,7 @@ func BackfillRunnerImpl(ctx context.Context) *usecaseSvc.Runner {
 		B2BOrgSettingsReaderImpl(ctx),
 		MemberPublisherImpl(ctx),
 		nc,
+		GlobalOrgAdminTeamUID(),
 	)
 }
 

@@ -119,5 +119,5 @@ func newTestBackfillRunner(iter usecaseSvc.BackfillIterator) *usecaseSvc.Runner 
 	if iter == nil {
 		iter = &mock.MockBackfillIterator{}
 	}
-	return usecaseSvc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, mock.NewMockB2BOrgSettings(), mock.NewMockMemberPublisher(), nil)
+	return usecaseSvc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, mock.NewMockB2BOrgSettings(), mock.NewMockMemberPublisher(), nil, "")
 }

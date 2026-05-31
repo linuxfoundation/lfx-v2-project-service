@@ -18,17 +18,18 @@ import (
 )
 
 // sobjectProjectRecord is the JSON shape of a Salesforce Project__c sObject
-// record used only to populate ProjectUID and ProjectSlug on ProjectMembership.
+// record used to populate project context on ProjectMembership and KeyContact.
 type sobjectProjectRecord struct {
 	ID               string  `json:"Id"`
 	Name             string  `json:"Name"`
 	Slug             *string `json:"Slug__c"`
+	LogoURL          *string `json:"Project_Logo__c"`
 	LastModifiedDate string  `json:"LastModifiedDate"`
 }
 
 // Project__c sObject field list for reads.
 const (
-	projectRecordFields     = "Id,Name,Slug__c,LastModifiedDate"
+	projectRecordFields     = "Id,Name,Slug__c,Project_Logo__c,LastModifiedDate"
 	sobjectKeyPrefixProject = "project"
 )
 
