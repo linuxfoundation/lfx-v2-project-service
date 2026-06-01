@@ -84,7 +84,7 @@ scripts/                # Scripts for services and miscellaneous tasks
 ```bash
 # Install Go 1.25+
 # Install Goa framework
-go install goa.design/goa/v3/cmd/goa@latest
+go install goa.design/goa/v3/cmd/goa@v3.22.6
 
 # Install linting tools
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
