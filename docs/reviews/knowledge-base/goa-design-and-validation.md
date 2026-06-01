@@ -35,9 +35,9 @@ changed, or `charts/lfx-v2-project-service/templates/ruleset.yaml` changed.
 
 **Pattern:** a field that has a known format (a UUID like `parent_uid`, the project slug) is declared as a plain string in the design with no `Format`/`Pattern`, pushing validation into hand-written service code or leaving it unenforced.
 
-**Detect:** in design types, flag UID/slug/identifier string fields that lack `Format(FormatUUID)` or a `Pattern`. The repo enforces `Format(FormatUUID)` for UUIDs and `Pattern(`^[a-z][a-z0-9_\-]*[a-z0-9]$`)` for the project slug.
+**Detect:** in design types, flag UID/slug/identifier string fields that lack `Format(FormatUUID)` or a `Pattern`. The repo enforces `Format(FormatUUID)` for UUIDs and ``Pattern(`^[a-z][a-z0-9_\-]*[a-z0-9]$`)`` for the project slug.
 
-**Empirical citation:** PR #1 `cmd/project-api/design/types.go:16` (jordane) — "Any reason not to [enforce this] as a UUID right now?" and `:41` — "We can enforce a format on this [via regexp]." Acted on; `api/project/v1/design/types.go` now carries `Format(FormatUUID)` and `Pattern(`^[a-z][a-z0-9_\-]*[a-z0-9]$`)`.
+**Empirical citation:** PR #1 `cmd/project-api/design/types.go:16` (jordane) — "Any reason not to [enforce this] as a UUID right now?" and `:41` — "We can enforce a format on this [via regex]." Acted on; `api/project/v1/design/types.go` now carries `Format(FormatUUID)` and ``Pattern(`^[a-z][a-z0-9_\-]*[a-z0-9]$`)``.
 
 **Failure message:** Identifier/slug field declared without `Format`/`Pattern` — validation is left to hand-written code or skipped.
 
