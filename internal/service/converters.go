@@ -668,3 +668,35 @@ func createTestAPIUserInfo(username, name, email, avatar string) *projsvc.UserIn
 		Avatar:   &avatar,
 	}
 }
+
+// DomainDocumentToEvent converts an internal ProjectDocument to the NATS wire type.
+func DomainDocumentToEvent(doc *models.ProjectDocument) events.ProjectDocumentCreatedMessage {
+	folderUID := ""
+	if doc.FolderUID != nil {
+		folderUID = *doc.FolderUID
+	}
+	return events.ProjectDocumentCreatedMessage{
+		ProjectUID:  doc.ProjectUID,
+		DocumentUID: doc.UID,
+		Name:        doc.Name,
+		FileName:    doc.FileName,
+		FolderUID:   folderUID,
+		CreatedBy:   doc.UploadedByUsername,
+	}
+}
+
+// DomainLinkToEvent converts an internal ProjectLink to the NATS wire type.
+func DomainLinkToEvent(link *models.ProjectLink) events.ProjectLinkCreatedMessage {
+	folderUID := ""
+	if link.FolderUID != nil {
+		folderUID = *link.FolderUID
+	}
+	return events.ProjectLinkCreatedMessage{
+		ProjectUID: link.ProjectUID,
+		LinkUID:    link.UID,
+		Name:       link.Name,
+		URL:        link.URL,
+		FolderUID:  folderUID,
+		CreatedBy:  link.CreatedByUsername,
+	}
+}
