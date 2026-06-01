@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"slices"
 	"time"
@@ -99,9 +100,11 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 	}
 
 	// Bound slice length to prevent unbounded NATS KV value growth.
-	const maxPrincipals = 200
+	// Largest prod orgs carry ~300 principals; 700 gives comfortable headroom
+	// while remaining a practical safety bound against runaway callers.
+	const maxPrincipals = 700
 	if len(in.Writers) > maxPrincipals || len(in.Auditors) > maxPrincipals {
-		return nil, pkgerrors.NewValidation("writers and auditors lists must not exceed 200 entries each")
+		return nil, pkgerrors.NewValidation(fmt.Sprintf("writers and auditors lists must not exceed %d entries each", maxPrincipals))
 	}
 
 	now := time.Now().UTC()

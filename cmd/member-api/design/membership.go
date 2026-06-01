@@ -534,7 +534,10 @@ var _ = dsl.Service("membership-service", func() {
 	// ── Admin Actions ────────────────────────────────────────────────────────
 
 	dsl.Method("admin-reindex", func() {
-		dsl.Description("Trigger a reindex of cached entities")
+		dsl.Description("Trigger a reindex of cached entities. " +
+			"Operational note: key_contact is high-volume (~300k records in prod); " +
+			"reindex only the active window by passing a `since` ~2 years back " +
+			"(e.g. since=2024-06-01T00:00:00Z) rather than a full key_contact reindex.")
 
 		dsl.Security(JWTAuth)
 

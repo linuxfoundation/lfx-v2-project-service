@@ -39,7 +39,10 @@ type Service interface {
 	UpdateKeyContact(context.Context, *UpdateKeyContactPayload) (res *UpdateKeyContactResult, err error)
 	// Delete a key contact
 	DeleteKeyContact(context.Context, *DeleteKeyContactPayload) (err error)
-	// Trigger a reindex of cached entities
+	// Trigger a reindex of cached entities. Operational note: key_contact is
+	// high-volume (~300k records in prod); reindex only the active window by
+	// passing a `since` ~2 years back (e.g. since=2024-06-01T00:00:00Z) rather
+	// than a full key_contact reindex.
 	AdminReindex(context.Context, *AdminReindexPayload) (res *AdminReindexResult, err error)
 	// Check if the service is able to take inbound requests.
 	Readyz(context.Context) (res []byte, err error)
@@ -93,7 +96,9 @@ type AdminReindexPayload struct {
 	Types []string
 	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
 	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
-	// Handler normalises to UTC.
+	// Handler normalises to UTC. For key_contact (high-volume), prefer a ~2-year
+	// window (e.g. 2024-06-01T00:00:00Z) to sync only the active set instead of
+	// the full ~300k records.
 	Since *string
 	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
 	// with types and since. Max 100 items.

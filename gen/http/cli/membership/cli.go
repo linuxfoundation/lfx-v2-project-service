@@ -306,7 +306,7 @@ func membershipServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    create-key-contact: Create a new key contact`)
 	fmt.Fprintln(os.Stderr, `    update-key-contact: Update a key contact`)
 	fmt.Fprintln(os.Stderr, `    delete-key-contact: Delete a key contact`)
-	fmt.Fprintln(os.Stderr, `    admin-reindex: Trigger a reindex of cached entities`)
+	fmt.Fprintln(os.Stderr, `    admin-reindex: Trigger a reindex of cached entities. Operational note: key_contact is high-volume (~300k records in prod); reindex only the active window by passing a `+"`"+`since`+"`"+` ~2 years back (e.g. since=2024-06-01T00:00:00Z) rather than a full key_contact reindex.`)
 	fmt.Fprintln(os.Stderr, `    readyz: Check if the service is able to take inbound requests.`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
 	fmt.Fprintln(os.Stderr, `    debug-vars: Expose expvar debug variables as JSON. Accessible via kubectl port-forward; not exposed by ingress.`)
@@ -578,7 +578,7 @@ func membershipServiceAdminReindexUsage() {
 
 	// Description
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Trigger a reindex of cached entities`)
+	fmt.Fprintln(os.Stderr, `Trigger a reindex of cached entities. Operational note: key_contact is high-volume (~300k records in prod); reindex only the active window by passing a `+"`"+`since`+"`"+` ~2 years back (e.g. since=2024-06-01T00:00:00Z) rather than a full key_contact reindex.`)
 
 	// Flags list
 	fmt.Fprintln(os.Stderr, `    -body JSON: `)

@@ -167,6 +167,8 @@ FGA is published before the indexer so access tuples land before the doc is sear
 
 Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
 
+> **Operational note — `key_contact` is high-volume (~300k records in prod).** Reindex only the active window by passing a `since` ~2 years back (e.g. `{"types":["key_contact"],"since":"2024-06-01T00:00:00Z"}`) rather than a full key_contact reindex. A full pass takes hours and is likely to be interrupted by pod eviction. The `key_contact` `since` filter checks `Project_Role__c.LastModifiedDate` only (Contact/Asset field changes are not captured).
+
 ### Utility
 
 | Method | Path | Description | OpenFGA Check |
