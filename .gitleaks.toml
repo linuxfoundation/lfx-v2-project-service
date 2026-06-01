@@ -12,5 +12,8 @@ useDefault = true
     paths = [
         # Exclude test files as they often contain dummy/fake data
         '''.*_test\.go$''',
-        '''(go.mod|go.sum)$'''
+        '''(go.mod|go.sum)$''',
+        # Exclude Goa-generated code (deterministic codegen, no real secrets;
+        # method-assignment lines false-positive the vault-service-token rule)
+        '''^gen/.*'''
     ]
