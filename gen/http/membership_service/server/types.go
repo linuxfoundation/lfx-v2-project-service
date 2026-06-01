@@ -112,7 +112,9 @@ type AdminReindexRequestBody struct {
 	Types []string `form:"types,omitempty" json:"types,omitempty" xml:"types,omitempty"`
 	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
 	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
-	// Handler normalises to UTC.
+	// Handler normalises to UTC. For key_contact (high-volume), prefer a ~2-year
+	// window (e.g. 2024-06-01T00:00:00Z) to sync only the active set instead of
+	// the full ~300k records.
 	Since *string `form:"since,omitempty" json:"since,omitempty" xml:"since,omitempty"`
 	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
 	// with types and since. Max 100 items.

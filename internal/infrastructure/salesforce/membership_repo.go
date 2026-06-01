@@ -394,8 +394,7 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 func (r *MembershipRepo) IterProjectMemberships(ctx context.Context, since *time.Time, fn func([]*model.ProjectMembership) error) error {
 	query := membershipSOQL
 	if since != nil {
-		iso := since.UTC().Format(time.RFC3339)
-		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+		query += "\n    AND LastModifiedDate >= " + soqlDateTime(*since)
 	}
 	return IterPages(ctx, r.client, query, convertSOQLToProjectMembership, fn)
 }

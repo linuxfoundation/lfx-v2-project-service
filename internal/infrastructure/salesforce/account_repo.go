@@ -209,8 +209,7 @@ func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, e
 func (r *AccountRepo) IterB2BOrgs(ctx context.Context, since *time.Time, fn func([]*model.B2BOrg) error) error {
 	query := accountsSOQLBase
 	if since != nil {
-		iso := since.UTC().Format(time.RFC3339)
-		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+		query += "\n    AND LastModifiedDate >= " + soqlDateTime(*since)
 	}
 	return IterPages[soqlAccount, *model.B2BOrg](ctx, r.client, query, func(acc soqlAccount) (*model.B2BOrg, error) {
 		return convertSOQLToB2BOrg(ctx, acc)

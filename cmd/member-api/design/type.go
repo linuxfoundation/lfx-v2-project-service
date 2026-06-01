@@ -529,7 +529,7 @@ var AdminReindexPayload = dsl.Type("admin-reindex-payload", func() {
 	dsl.Attribute("types", dsl.ArrayOf(dsl.String), "Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.", func() {
 		dsl.Example([]string{"b2b_org", "project_membership"})
 	})
-	dsl.Attribute("since", dsl.String, "ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC.", func() {
+	dsl.Attribute("since", dsl.String, "ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC. For key_contact (high-volume), prefer a ~2-year window (e.g. 2024-06-01T00:00:00Z) to sync only the active set instead of the full ~300k records.", func() {
 		dsl.Format(dsl.FormatDateTime)
 		dsl.Example("2026-05-20T00:00:00Z")
 	})

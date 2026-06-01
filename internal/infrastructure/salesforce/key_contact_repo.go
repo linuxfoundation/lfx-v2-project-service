@@ -319,8 +319,7 @@ WHERE IsDeleted = false`
 
 	query := baseSOQL
 	if since != nil {
-		iso := since.UTC().Format(time.RFC3339)
-		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+		query += "\n    AND LastModifiedDate >= " + soqlDateTime(*since)
 	}
 
 	// Drive the paging loop directly so each page's email batch lookup and

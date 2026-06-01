@@ -17,7 +17,7 @@ paths:
             tags:
                 - membership-service
             summary: admin-reindex membership-service
-            description: Trigger a reindex of cached entities
+            description: 'Trigger a reindex of cached entities. Operational note: key_contact is high-volume (~300k records in prod); reindex only the active window by passing a `since` ~2 years back (e.g. since=2024-06-01T00:00:00Z) rather than a full key_contact reindex.'
             operationId: membership-service#admin-reindex
             parameters:
                 - name: v
@@ -1268,7 +1268,7 @@ definitions:
                 maxItems: 100
             since:
                 type: string
-                description: ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC.
+                description: ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC. For key_contact (high-volume), prefer a ~2-year window (e.g. 2024-06-01T00:00:00Z) to sync only the active set instead of the full ~300k records.
                 example: "2026-05-20T00:00:00Z"
                 format: date-time
             types:

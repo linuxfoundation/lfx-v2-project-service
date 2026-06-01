@@ -3,7 +3,10 @@
 
 package salesforce
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // quoteSOQL escapes a string value for safe interpolation into a SOQL query.
 // Per the Salesforce SOQL reserved-character rules, both the backslash (\) and
@@ -67,4 +70,13 @@ func buildSOQLInClause(values []string) string {
 	}
 
 	return strings.Join(parts, ",")
+}
+
+// soqlDateTime formats t as an unquoted RFC3339 literal for use in SOQL
+// dateTime predicates (e.g. WHERE LastModifiedDate >= 2024-06-01T00:00:00Z).
+// Unlike string fields, SOQL dateTime literals must NOT be enclosed in single
+// quotes — passing the result through quoteSOQL would cause Salesforce to
+// reject the query with INVALID_FIELD.
+func soqlDateTime(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
 }
