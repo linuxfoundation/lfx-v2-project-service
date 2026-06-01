@@ -270,6 +270,7 @@ func TestEndpoint(t *testing.T) {
 | `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails | derived from `LFX_ENVIRONMENT` | No |
 | `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
 | `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
+| `EMAIL_ALLOWED_DOMAINS` | Comma-separated allowlist of recipient email domains (e.g. `linuxfoundation.org`). When empty all domains are permitted. Set in non-prod to prevent emails reaching real users. | "" (all domains) | No |
 
 ## Authorization (OpenFGA)
 

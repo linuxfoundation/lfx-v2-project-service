@@ -49,6 +49,8 @@ spec:
               value: {{ .Values.app.emailsEnabled | quote }}
             - name: INVITES_ENABLED
               value: {{ .Values.app.invitesEnabled | quote }}
+            - name: EMAIL_ALLOWED_DOMAINS
+              value: {{ .Values.app.emailAllowedDomains | quote }}
             - name: JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL
               value: {{ .Values.app.jwtAuthDisabledMockLocalPrincipal }}
             {{- with .Values.app.extraEnv }}

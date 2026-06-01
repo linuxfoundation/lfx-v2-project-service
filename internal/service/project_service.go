@@ -46,4 +46,9 @@ type ServiceConfig struct {
 	// InvitesEnabled gates outbound invite requests for non-LFID users via the invite service.
 	// Disabled by default; set INVITES_ENABLED=true to enable.
 	InvitesEnabled bool
+	// EmailAllowedDomains is an allowlist of recipient email domains for outbound emails and invites.
+	// When empty (the default) all domains are permitted. When set, only recipients whose email
+	// domain (case-insensitive, exact match) appears in the list will receive messages.
+	// Set via EMAIL_ALLOWED_DOMAINS (comma-separated, e.g. "linuxfoundation.org").
+	EmailAllowedDomains []string
 }

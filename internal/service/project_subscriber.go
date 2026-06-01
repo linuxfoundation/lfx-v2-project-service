@@ -135,6 +135,11 @@ func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, proj
 			"project_uid", projectUID, "change_kind", change.Kind)
 		return nil
 	}
+	if !s.isRecipientDomainAllowed(change.User.Email) {
+		slog.DebugContext(ctx, "project_subscriber: skipping email — recipient domain not in EMAIL_ALLOWED_DOMAINS",
+			"project_uid", projectUID, "change_kind", change.Kind)
+		return nil
+	}
 	switch change.Kind {
 	case changeAdded:
 		return s.sendRoleNotificationEmail(ctx, projectUID, projectName, change.NewRoles, change.User.Email, recipientName, inviterName, projectURL)
@@ -165,6 +170,11 @@ func (s *ProjectsService) handleLFIDChange(ctx context.Context, projectUID, proj
 func (s *ProjectsService) handleNonLFIDChange(ctx context.Context, projectUID, projectName string, change userChange, recipientName, inviterName, projectURL string) error {
 	if !s.Config.InvitesEnabled {
 		slog.DebugContext(ctx, "project_subscriber: skipping invite — INVITES_ENABLED is false",
+			"project_uid", projectUID, "change_kind", change.Kind)
+		return nil
+	}
+	if !s.isRecipientDomainAllowed(change.User.Email) {
+		slog.DebugContext(ctx, "project_subscriber: skipping invite — recipient domain not in EMAIL_ALLOWED_DOMAINS",
 			"project_uid", projectUID, "change_kind", change.Kind)
 		return nil
 	}
@@ -893,4 +903,26 @@ func rolesForDisplay(roles []string) []string {
 		return []string{"Manage"}
 	}
 	return result
+}
+
+// isRecipientDomainAllowed reports whether an outbound email or invite may be sent to addr.
+// When no allowlist is configured (Config.EmailAllowedDomains is empty) all addresses are
+// permitted. Otherwise the domain portion of addr (the part after the last "@") must match
+// one of the allowed domains (case-insensitive, exact match). Addresses without an "@" are
+// considered malformed and are not allowed.
+func (s *ProjectsService) isRecipientDomainAllowed(addr string) bool {
+	if len(s.Config.EmailAllowedDomains) == 0 {
+		return true
+	}
+	at := strings.LastIndex(addr, "@")
+	if at < 0 {
+		return false
+	}
+	domain := strings.ToLower(addr[at+1:])
+	for _, allowed := range s.Config.EmailAllowedDomains {
+		if domain == allowed {
+			return true
+		}
+	}
+	return false
 }

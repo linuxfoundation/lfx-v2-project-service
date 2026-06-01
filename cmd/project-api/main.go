@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -100,6 +101,7 @@ func main() {
 		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
 		EmailsEnabled:       env.EmailsEnabled,
 		InvitesEnabled:      env.InvitesEnabled,
+		EmailAllowedDomains: env.EmailAllowedDomains,
 	})
 	svc := NewProjectsAPI(service)
 
@@ -167,6 +169,7 @@ type environment struct {
 	LFXSelfServeBaseURL string
 	EmailsEnabled       bool
 	InvitesEnabled      bool
+	EmailAllowedDomains []string
 }
 
 func parseEnv() environment {
@@ -194,6 +197,19 @@ func parseEnv() environment {
 			lfxSelfServeBaseURL = "https://app.dev.lfx.dev"
 		}
 	}
+	// EMAIL_ALLOWED_DOMAINS is a comma-separated list of recipient email domains that are
+	// permitted to receive outbound emails and invites. When empty, all domains are allowed.
+	var emailAllowedDomains []string
+	if raw := os.Getenv("EMAIL_ALLOWED_DOMAINS"); raw != "" {
+		for _, part := range strings.Split(raw, ",") {
+			domain := strings.ToLower(strings.TrimSpace(part))
+			domain = strings.TrimPrefix(domain, "@")
+			if domain != "" {
+				emailAllowedDomains = append(emailAllowedDomains, domain)
+			}
+		}
+	}
+
 	return environment{
 		NatsURL:             natsURL,
 		Port:                port,
@@ -201,6 +217,7 @@ func parseEnv() environment {
 		LFXSelfServeBaseURL: lfxSelfServeBaseURL,
 		EmailsEnabled:       os.Getenv("EMAILS_ENABLED") == "true",
 		InvitesEnabled:      os.Getenv("INVITES_ENABLED") == "true",
+		EmailAllowedDomains: emailAllowedDomains,
 	}
 }
 

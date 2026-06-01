@@ -731,6 +731,74 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 		mockMsg.AssertExpectations(t)
 	})
+
+	t.Run("EmailAllowedDomains set — LFID user with disallowed domain skipped", func(t *testing.T) {
+		mockMsg := &domain.MockMessageBuilder{}
+		mockRepo := &domain.MockProjectRepository{}
+
+		// alice has @example.com — not in the allowlist.
+		event := events.ProjectSettingsUpdatedMessage{
+			ProjectUID:  "proj-flag",
+			OldSettings: events.ProjectSettings{},
+			NewSettings: events.ProjectSettings{
+				Writers: []events.UserInfo{alice},
+			},
+		}
+		mockRepo.On("GetProjectBase", mock.Anything, "proj-flag").
+			Return(makeProjectBase("proj-flag", "Flag Project", "flag-project"), nil)
+
+		svc := &ProjectsService{
+			ProjectRepository: mockRepo,
+			MessageBuilder:    mockMsg,
+			Config: ServiceConfig{
+				LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
+				EmailsEnabled:       true,
+				InvitesEnabled:      true,
+				EmailAllowedDomains: []string{"linuxfoundation.org"},
+			},
+		}
+
+		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
+		assert.NoError(t, err)
+		mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", 0)
+		mockRepo.AssertExpectations(t)
+		mockMsg.AssertExpectations(t)
+	})
+
+	t.Run("EmailAllowedDomains set — non-LFID user with disallowed domain invite skipped", func(t *testing.T) {
+		mockMsg := &domain.MockMessageBuilder{}
+		mockRepo := &domain.MockProjectRepository{}
+
+		// noLFIDWriter has @example.com — not in the allowlist.
+		event := events.ProjectSettingsUpdatedMessage{
+			ProjectUID:  "proj-flag",
+			OldSettings: events.ProjectSettings{},
+			NewSettings: events.ProjectSettings{
+				Writers: []events.UserInfo{noLFIDWriter},
+			},
+		}
+		mockRepo.On("GetProjectBase", mock.Anything, "proj-flag").
+			Return(makeProjectBase("proj-flag", "Flag Project", "flag-project"), nil)
+
+		svc := &ProjectsService{
+			ProjectRepository: mockRepo,
+			MessageBuilder:    mockMsg,
+			Config: ServiceConfig{
+				LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
+				EmailsEnabled:       true,
+				InvitesEnabled:      true,
+				EmailAllowedDomains: []string{"linuxfoundation.org"},
+			},
+		}
+
+		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
+		assert.NoError(t, err)
+		mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", 0)
+		mockRepo.AssertExpectations(t)
+		mockMsg.AssertExpectations(t)
+	})
 }
 
 func TestMapRoleToInviteRole(t *testing.T) {
@@ -1280,6 +1348,82 @@ func TestStoreInviteInfo(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+func TestProjectsService_isRecipientDomainAllowed(t *testing.T) {
+	tests := []struct {
+		name    string
+		domains []string
+		addr    string
+		want    bool
+	}{
+		{
+			name:    "empty allowlist — all addresses allowed",
+			domains: nil,
+			addr:    "user@example.com",
+			want:    true,
+		},
+		{
+			name:    "matching domain — allowed",
+			domains: []string{"linuxfoundation.org"},
+			addr:    "user@linuxfoundation.org",
+			want:    true,
+		},
+		{
+			name:    "non-matching domain — blocked",
+			domains: []string{"linuxfoundation.org"},
+			addr:    "user@gmail.com",
+			want:    false,
+		},
+		{
+			name:    "case-insensitive domain comparison — allowed",
+			domains: []string{"linuxfoundation.org"},
+			addr:    "user@LINUXFOUNDATION.ORG",
+			want:    true,
+		},
+		{
+			name:    "multiple allowed domains — matches second entry",
+			domains: []string{"linuxfoundation.org", "example.org"},
+			addr:    "user@example.org",
+			want:    true,
+		},
+		{
+			name:    "multiple allowed domains — no match",
+			domains: []string{"linuxfoundation.org", "example.org"},
+			addr:    "user@gmail.com",
+			want:    false,
+		},
+		{
+			name:    "malformed address with no @ — blocked",
+			domains: []string{"linuxfoundation.org"},
+			addr:    "notanemail",
+			want:    false,
+		},
+		{
+			name:    "empty address — blocked",
+			domains: []string{"linuxfoundation.org"},
+			addr:    "",
+			want:    false,
+		},
+		{
+			name:    "subdomain not in allowlist — blocked (exact match only)",
+			domains: []string{"linuxfoundation.org"},
+			addr:    "user@sub.linuxfoundation.org",
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &ProjectsService{
+				Config: ServiceConfig{
+					EmailAllowedDomains: tt.domains,
+				},
+			}
+			got := svc.isRecipientDomainAllowed(tt.addr)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

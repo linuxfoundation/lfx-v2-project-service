@@ -69,6 +69,10 @@ app:
   # invitesEnabled gates outbound invite requests for non-LFID users via the invite service.
   # Disabled by default; set to true in environments where invite sending should be active.
   invitesEnabled: false
+  # emailAllowedDomains restricts outbound emails and invites to the listed recipient domains
+  # (comma-separated, e.g. "linuxfoundation.org"). When empty (the default) all domains are
+  # permitted. Set in non-prod environments to prevent accidental email to real users.
+  emailAllowedDomains: ""
   # jwtAuthDisabledMockLocalPrincipal mocks auth for local development to use a set principal
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""
