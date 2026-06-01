@@ -16,7 +16,7 @@ allowed-tools: Bash, Read, Edit, Glob, Grep, AskUserQuestion
 
 You are running the **mechanical pre-PR pipeline** for
 `lfx-v2-project-service`. Every check here is shell-driven or
-repository-contract driven. Do not perform broad code review here; Go coding
+repository-contract-driven. Do not perform broad code review here; Go coding
 conventions are owned by the auto-attached `project-service-dev` skill, and
 central cross-repo architecture questions belong to
 `/lfx-skills:lfx-platform-architecture`.
