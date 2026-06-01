@@ -219,11 +219,14 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	}
 
 	// Bound slice length to prevent unbounded NATS KV value growth (parity with Update).
-	if len(updated.Writers) > maxPrincipals || len(updated.Auditors) > maxPrincipals {
+	// Only the relation being appended to is checked: an add to one list must not be
+	// blocked by legacy over-cap data sitting in the untouched list.
+	if (in.InvitedAs == "writer" && len(updated.Writers) > maxPrincipals) ||
+		(in.InvitedAs == "auditor" && len(updated.Auditors) > maxPrincipals) {
 		return nil, pkgerrors.NewValidation(fmt.Sprintf("writers and auditors lists must not exceed %d entries each", maxPrincipals))
 	}
 
-	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision)
+	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
 }
 
 // ChangePrincipalRole moves one principal between writers and auditors, preserving
@@ -256,6 +259,11 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 	}
 
 	moved := current
+	if moved.InvitedAs == in.InvitedAs {
+		// Role unchanged — no-op. Avoid a needless revision bump and FGA/indexer
+		// republish that could turn a concurrent op's If-Match stale (spurious 409).
+		return updated, nil
+	}
 	moved.InvitedAs = in.InvitedAs
 	moved.UpdatedAt = now
 	updated.Writers = removePrincipalByEmail(updated.Writers, email)
@@ -269,7 +277,7 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 	if err := assertLastAdminInvariant(updated); err != nil {
 		return nil, err
 	}
-	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision)
+	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
 }
 
 // RemovePrincipal removes one principal (revoke accepted grant or cancel pending invite),
@@ -302,11 +310,13 @@ func (o *orgSettingsWriterOrchestrator) RemovePrincipal(ctx context.Context, in 
 	if err := assertLastAdminInvariant(updated); err != nil {
 		return nil, err
 	}
-	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision)
+	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
 }
 
 // persistAndPublish writes the merged settings (optimistic CAS via revision) and fires the
-// FGA + indexer publishes. The writers/auditors slices are forwarded as-is so the nil-vs-empty
+// FGA + indexer publishes. The caller's `now` is reused for the record-level UpdatedAt so it
+// matches the entry-level timestamp stamped on the added/moved member (single consistent
+// write time). The writers/auditors slices are forwarded as-is so the nil-vs-empty
 // distinction is preserved: a relation that was actually touched is non-nil (the FGA full-sync
 // reconciles its tuples — adding new, revoking removed), while an untouched relation may stay
 // nil so the full-sync skips it and leaves its existing tuples in place.
@@ -315,8 +325,9 @@ func (o *orgSettingsWriterOrchestrator) persistAndPublish(
 	orgUID string,
 	existing, updated *model.B2BOrgSettings,
 	revision uint64,
+	now time.Time,
 ) (*model.B2BOrgSettings, error) {
-	updated.UpdatedAt = time.Now().UTC()
+	updated.UpdatedAt = now
 	if err := o.settingsWriter.UpdateSettings(ctx, updated, revision); err != nil {
 		return nil, err
 	}

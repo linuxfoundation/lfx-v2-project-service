@@ -212,6 +212,24 @@ func TestOrgSettingsWriter_ChangeRole_IfMatchMatchSucceeds(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// TestOrgSettingsWriter_ChangeRole_SameRoleIsNoOp verifies that changing a principal to the
+// role it already holds short-circuits without persisting — no revision bump, no republish.
+// A forced Put error proves the write path is never reached.
+func TestOrgSettingsWriter_ChangeRole_SameRoleIsNoOp(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	seedTwoAdmins(store)
+	store.SetPutError(assert.AnError) // any persist attempt would surface as an error
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	result, err := writer.ChangePrincipalRole(context.Background(), svc.B2BOrgSettingsChangeRole{
+		OrgUID: testOrgUID, Email: "bob@example.com", InvitedAs: "writer",
+	})
+	require.NoError(t, err, "same-role change must short-circuit without persisting")
+	bob, ok := findUser(result.Writers, "bob@example.com")
+	require.True(t, ok, "bob must remain a writer")
+	assert.Equal(t, "auth0|bob", bob.Username)
+}
+
 // ── RemovePrincipal ───────────────────────────────────────────────────────────
 
 func TestOrgSettingsWriter_RemovePrincipal_DropsOnlyTarget(t *testing.T) {
