@@ -367,7 +367,13 @@ func findPrincipalByEmail(s *model.B2BOrgSettings, email string) (model.B2BOrgUs
 }
 
 // removePrincipalByEmail returns a new slice with any entry matching email removed.
+// A nil input returns nil (not an empty slice) so the nil-vs-empty contract is preserved:
+// an untouched relation stays nil and the FGA full-sync skips it rather than revoking all
+// of its tuples.
 func removePrincipalByEmail(users []model.B2BOrgUser, email string) []model.B2BOrgUser {
+	if users == nil {
+		return nil
+	}
 	out := make([]model.B2BOrgUser, 0, len(users))
 	for _, u := range users {
 		if normalizeSettingsEmail(u.Email) == email {
