@@ -523,7 +523,7 @@ var OrgUserAddBody = dsl.Type("org-user-add-body", func() {
 		dsl.Example("auditor")
 		dsl.Enum("writer", "auditor")
 	})
-	dsl.Attribute("name", dsl.String, "Optional display name; the service derives it from the user record when omitted", func() {
+	dsl.Attribute("name", dsl.String, "Optional display name; stored as provided and left empty when omitted (no server-side user lookup)", func() {
 		dsl.Example("Alice Smith")
 	})
 	dsl.Required("email", "invited_as")

@@ -67,8 +67,8 @@ type AddB2bOrgSettingsUserRequestBody struct {
 	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
 	// Relation to grant: writer (Admin) or auditor (Viewer)
 	InvitedAs *string `form:"invited_as,omitempty" json:"invited_as,omitempty" xml:"invited_as,omitempty"`
-	// Optional display name; the service derives it from the user record when
-	// omitted
+	// Optional display name; stored as provided and left empty when omitted (no
+	// server-side user lookup)
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 }
 

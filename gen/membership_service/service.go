@@ -100,8 +100,8 @@ type AddB2bOrgSettingsUserPayload struct {
 	Email string
 	// Relation to grant: writer (Admin) or auditor (Viewer)
 	InvitedAs string
-	// Optional display name; the service derives it from the user record when
-	// omitted
+	// Optional display name; stored as provided and left empty when omitted (no
+	// server-side user lookup)
 	Name *string
 }
 

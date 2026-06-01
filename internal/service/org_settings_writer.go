@@ -306,8 +306,10 @@ func (o *orgSettingsWriterOrchestrator) RemovePrincipal(ctx context.Context, in 
 }
 
 // persistAndPublish writes the merged settings (optimistic CAS via revision) and fires the
-// FGA + indexer publishes. Both relation lists are passed non-nil so the FGA full-sync runs
-// for writers and auditors (adding new tuples and revoking removed ones).
+// FGA + indexer publishes. The writers/auditors slices are forwarded as-is so the nil-vs-empty
+// distinction is preserved: a relation that was actually touched is non-nil (the FGA full-sync
+// reconciles its tuples — adding new, revoking removed), while an untouched relation may stay
+// nil so the full-sync skips it and leaves its existing tuples in place.
 func (o *orgSettingsWriterOrchestrator) persistAndPublish(
 	ctx context.Context,
 	orgUID string,
