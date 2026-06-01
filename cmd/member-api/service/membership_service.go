@@ -663,6 +663,87 @@ func (s *membershipServicesrvc) UpdateB2bOrgSettings(ctx context.Context, p *mem
 	return result, nil
 }
 
+// AddB2bOrgSettingsUser adds (invites) a single principal to a b2b_org's writers/auditors.
+// Per-principal merge: existing members are preserved; the new entry lands as a pending invite.
+func (s *membershipServicesrvc) AddB2bOrgSettingsUser(ctx context.Context, p *membershipservice.AddB2bOrgSettingsUserPayload) (*membershipservice.AddB2bOrgSettingsUserResult, error) {
+	in := usecaseSvc.B2BOrgSettingsAddPrincipal{
+		OrgUID:    p.UID,
+		Email:     p.Email,
+		InvitedAs: p.InvitedAs,
+	}
+	if p.Name != nil {
+		in.Name = *p.Name
+	}
+	updated, err := s.orgSettingsWriter.AddPrincipal(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.AddB2bOrgSettingsUserResult{
+		Settings:     orgSettingsToResponse(updated),
+		Etag:         settingsETagHeader(ctx, updated, p.UID),
+		LastModified: settingsLastModifiedHeader(updated),
+	}, nil
+}
+
+// UpdateB2bOrgSettingsUserRole changes one principal's role (writer⇄auditor), preserving
+// its username and invite lifecycle and leaving all other members untouched.
+func (s *membershipServicesrvc) UpdateB2bOrgSettingsUserRole(ctx context.Context, p *membershipservice.UpdateB2bOrgSettingsUserRolePayload) (*membershipservice.UpdateB2bOrgSettingsUserRoleResult, error) {
+	in := usecaseSvc.B2BOrgSettingsChangeRole{
+		OrgUID:    p.UID,
+		Email:     p.Email,
+		InvitedAs: p.InvitedAs,
+		IfMatch:   derefStr(p.IfMatch),
+	}
+	updated, err := s.orgSettingsWriter.ChangePrincipalRole(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.UpdateB2bOrgSettingsUserRoleResult{
+		Settings:     orgSettingsToResponse(updated),
+		Etag:         settingsETagHeader(ctx, updated, p.UID),
+		LastModified: settingsLastModifiedHeader(updated),
+	}, nil
+}
+
+// DeleteB2bOrgSettingsUser removes one principal (revoke accepted grant or cancel pending invite),
+// leaving all other members untouched. The last accepted Admin cannot be removed.
+func (s *membershipServicesrvc) DeleteB2bOrgSettingsUser(ctx context.Context, p *membershipservice.DeleteB2bOrgSettingsUserPayload) (*membershipservice.DeleteB2bOrgSettingsUserResult, error) {
+	in := usecaseSvc.B2BOrgSettingsRemovePrincipal{
+		OrgUID:  p.UID,
+		Email:   p.Email,
+		IfMatch: derefStr(p.IfMatch),
+	}
+	updated, err := s.orgSettingsWriter.RemovePrincipal(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.DeleteB2bOrgSettingsUserResult{
+		Settings:     orgSettingsToResponse(updated),
+		Etag:         settingsETagHeader(ctx, updated, p.UID),
+		LastModified: settingsLastModifiedHeader(updated),
+	}, nil
+}
+
+// settingsETagHeader computes the ETag header value for a settings result, logging and
+// returning nil on failure (the response is still valid without the optional header).
+func settingsETagHeader(ctx context.Context, updated *model.B2BOrgSettings, uid string) *string {
+	etagVal, etagErr := etag.LFXEtag(updated)
+	if etagErr != nil {
+		slog.WarnContext(ctx, "failed to compute etag for b2b org settings", "uid", uid, "error", etagErr)
+		return nil
+	}
+	if etagVal == "" {
+		return nil
+	}
+	return &etagVal
+}
+
+// settingsLastModifiedHeader formats the Last-Modified header value for a settings result.
+func settingsLastModifiedHeader(updated *model.B2BOrgSettings) *string {
+	lastMod := updated.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
+	return &lastMod
+}
+
 // orgSettingsToResponse maps model.B2BOrgSettings to the generated response type.
 // A nil settings pointer is treated as empty (no settings stored yet).
 func orgSettingsToResponse(s *model.B2BOrgSettings) *membershipservice.B2bOrgSettingsResponse {
