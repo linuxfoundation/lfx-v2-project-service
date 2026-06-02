@@ -13,6 +13,8 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -38,6 +40,11 @@ func TestProjectsService_CreateLink(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectLinkCreatedSubject,
+					mock.MatchedBy(func(m any) bool {
+						ev, ok := m.(events.ProjectLinkCreatedMessage)
+						return ok && ev.ProjectUID == "proj-1"
+					})).Return(nil).Maybe()
 			},
 		},
 		{
@@ -52,6 +59,11 @@ func TestProjectsService_CreateLink(t *testing.T) {
 				mockFolder.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(&models.ProjectFolder{UID: "folder-1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
 				mockLink.On("CreateLink", mock.Anything, mock.AnythingOfType("*models.ProjectLink")).Return(nil)
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
+				mockMsg.On("SendProjectEventMessage", mock.Anything, constants.ProjectLinkCreatedSubject,
+					mock.MatchedBy(func(m any) bool {
+						ev, ok := m.(events.ProjectLinkCreatedMessage)
+						return ok && ev.ProjectUID == "proj-1"
+					})).Return(nil).Maybe()
 			},
 		},
 		{

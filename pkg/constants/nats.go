@@ -62,6 +62,16 @@ const (
 
 	// IndexProjectDocumentSubject is the subject for project document indexing.
 	IndexProjectDocumentSubject = "lfx.index.project_document"
+
+	// ProjectDocumentCreatedSubject is emitted after a file document is successfully uploaded to a project.
+	// The payload is the marshalled events.ProjectDocumentCreatedMessage.
+	// The subject is of the form: lfx.projects-api.project_document.created
+	ProjectDocumentCreatedSubject = "lfx.projects-api.project_document.created"
+
+	// ProjectLinkCreatedSubject is emitted after a link is successfully added to a project.
+	// The payload is the marshalled events.ProjectLinkCreatedMessage.
+	// The subject is of the form: lfx.projects-api.project_link.created
+	ProjectLinkCreatedSubject = "lfx.projects-api.project_link.created"
 )
 
 // NATS wildcard subjects that the project service handles messages about.
