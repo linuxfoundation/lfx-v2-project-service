@@ -125,6 +125,12 @@ func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item 
 
 	for _, r := range recipients {
 		g.Go(func() error {
+			if !s.isRecipientDomainAllowed(r.Email) {
+				slog.DebugContext(gctx, "document_subscriber: skipping email — recipient domain not in EMAIL_ALLOWED_DOMAINS",
+					"project_uid", item.projectUID)
+				return nil
+			}
+
 			recipientName := r.Name
 			if recipientName == "" {
 				recipientName = r.Username

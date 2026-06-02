@@ -34,6 +34,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 		wantEmailCount int
 		emailsEnabled  bool
 		folderName     string
+		allowedDomains []string
 	}{
 		{
 			name:           "notifies writer and auditor",
@@ -85,6 +86,22 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			wantEmailCount: 0,
 			emailsEnabled:  false,
 		},
+		{
+			name:           "EmailAllowedDomains set — disallowed domain skipped",
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", FileName: "doc.pdf", CreatedBy: "uploader"},
+			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
+			wantEmailCount: 0,
+			emailsEnabled:  true,
+			allowedDomains: []string{"linuxfoundation.org"},
+		},
+		{
+			name:           "EmailAllowedDomains set — allowed domain sends",
+			event:          events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", FileName: "doc.pdf", CreatedBy: "uploader"},
+			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
+			wantEmailCount: 2,
+			emailsEnabled:  true,
+			allowedDomains: []string{"example.com"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -126,6 +143,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 				Config: ServiceConfig{
 					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 					EmailsEnabled:       tt.emailsEnabled,
+					EmailAllowedDomains: tt.allowedDomains,
 				},
 			}
 
@@ -224,6 +242,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 		settings       *models.ProjectSettings
 		wantEmailCount int
 		emailsEnabled  bool
+		allowedDomains []string
 	}{
 		{
 			name:           "notifies writer and auditor",
@@ -245,6 +264,22 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
 			wantEmailCount: 0,
 			emailsEnabled:  false,
+		},
+		{
+			name:           "EmailAllowedDomains set — disallowed domain skipped",
+			event:          events.ProjectLinkCreatedMessage{ProjectUID: "proj-1", Name: "Spec Link", URL: "https://specs.example.com", CreatedBy: "uploader"},
+			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
+			wantEmailCount: 0,
+			emailsEnabled:  true,
+			allowedDomains: []string{"linuxfoundation.org"},
+		},
+		{
+			name:           "EmailAllowedDomains set — allowed domain sends",
+			event:          events.ProjectLinkCreatedMessage{ProjectUID: "proj-1", Name: "Spec Link", URL: "https://specs.example.com", CreatedBy: "uploader"},
+			settings:       baseSettings([]models.UserInfo{writer}, []models.UserInfo{auditor}),
+			wantEmailCount: 2,
+			emailsEnabled:  true,
+			allowedDomains: []string{"example.com"},
 		},
 	}
 
@@ -276,6 +311,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 				Config: ServiceConfig{
 					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 					EmailsEnabled:       tt.emailsEnabled,
+					EmailAllowedDomains: tt.allowedDomains,
 				},
 			}
 
