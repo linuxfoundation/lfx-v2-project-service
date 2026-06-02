@@ -153,3 +153,63 @@ func TestSalesforce15To18(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalize18(t *testing.T) {
+	cases := []struct {
+		name    string
+		input   string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:  "15-char input expanded to 18-char",
+			input: "001B000000IqhSL",
+			want:  "001B000000IqhSLIAZ",
+		},
+		{
+			name:  "18-char input returned unchanged",
+			input: "001B000000IqhSLIAZ",
+			want:  "001B000000IqhSLIAZ",
+		},
+		{
+			name:  "another 15-char SFID",
+			input: "a0941000002wBz9",
+			want:  "a0941000002wBz9AAE",
+		},
+		{
+			name:    "empty string is an error",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "UUID format rejected",
+			input:   "00000000-0000-0000-0000-000000000001",
+			wantErr: true,
+		},
+		{
+			name:    "17-char string rejected",
+			input:   "001B000000IqhSLIA",
+			wantErr: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Normalize18(tc.input)
+			if tc.wantErr {
+				if err == nil {
+					t.Errorf("Normalize18(%q) expected error, got %q", tc.input, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Normalize18(%q) unexpected error: %v", tc.input, err)
+			}
+			if got != tc.want {
+				t.Errorf("Normalize18(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+			if len(got) != 18 {
+				t.Errorf("Normalize18(%q) returned %d chars, want 18", tc.input, len(got))
+			}
+		})
+	}
+}

@@ -32,7 +32,7 @@ func TestContract_B2BOrg(t *testing.T) {
 	t.Parallel()
 
 	uid, err := sfuuid.Normalize18(contractAccountSFID)
-	require.NoError(t, err, "Normalize15 must succeed for a valid SFID")
+	require.NoError(t, err, "Normalize18 must succeed for a valid SFID")
 
 	website := "https://example.com"
 	domain := "example.com"

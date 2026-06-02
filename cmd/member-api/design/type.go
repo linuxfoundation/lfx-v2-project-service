@@ -329,7 +329,7 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 		dsl.Example("example-corp")
 	})
 	dsl.Attribute("parent_uid", dsl.String, "UID of the parent organization (Account.ParentId); omitted when no parent", func() {
-		dsl.Example("003B0000001ckSlIAI")
+		dsl.Example("001B000000IqhSLIAZ")
 	})
 	dsl.Attribute("created_at", dsl.String, "Creation timestamp", func() {
 		dsl.Format(dsl.FormatDateTime)

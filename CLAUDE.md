@@ -125,30 +125,30 @@ salesforce.MemberReader (implements port.MemberReader)
 
 ### Project membership
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| GET | `/project_memberships/{uid}` | Get a project membership | `auditor` on `project_membership:{uid}` |
+| Method | Path                         | Description              | OpenFGA Check                           |
+|--------|------------------------------|--------------------------|-----------------------------------------|
+| GET    | `/project_memberships/{uid}` | Get a project membership | `auditor` on `project_membership:{uid}` |
 
 ### Key contact endpoints (nested under project_membership)
 
 Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 403) when the fetched contact's `membership_uid` doesn't match the path — avoids leaking record existence.
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact | `auditor` on `project_membership:{membership_uid}` |
-| POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact | `writer` on `project_membership:{membership_uid}` |
-| PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{membership_uid}` |
-| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact | `writer` on `project_membership:{membership_uid}` |
+| Method | Path                                                       | Description          | OpenFGA Check                                      |
+|--------|------------------------------------------------------------|----------------------|----------------------------------------------------|
+| GET    | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact    | `auditor` on `project_membership:{membership_uid}` |
+| POST   | `/project_memberships/{membership_uid}/key_contacts`       | Create a key contact | `writer` on `project_membership:{membership_uid}`  |
+| PUT    | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{membership_uid}`  |
+| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact | `writer` on `project_membership:{membership_uid}`  |
 
 ### B2B org write endpoints
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID | `member` on `team:{globalOrgAdminTeamUID}` |
-| PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org | `writer` on `b2b_org:{uid}` |
-| GET | `/b2b_orgs/{uid}` | Get a B2B org | `auditor` on `b2b_org:{uid}` |
-| GET | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}` |
-| PUT | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors | `writer` on `b2b_org:{uid}` |
+| Method | Path                       | Description                                         | OpenFGA Check                              |
+|--------|----------------------------|-----------------------------------------------------|--------------------------------------------|
+| POST   | `/b2b_orgs`                | Create a B2B org from a Salesforce Account SFID     | `member` on `team:{globalOrgAdminTeamUID}` |
+| PUT    | `/b2b_orgs/{uid}`          | Partial update of a B2B org                         | `writer` on `b2b_org:{uid}`                |
+| GET    | `/b2b_orgs/{uid}`          | Get a B2B org                                       | `auditor` on `b2b_org:{uid}`               |
+| GET    | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}`               |
+| PUT    | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors            | `writer` on `b2b_org:{uid}`                |
 
 **Settings semantics:** `nil` writers/auditors = keep existing; explicit `[]` = clear all. Entries with a `username` are `accepted` (FGA tuple emitted); without username are `pending` (no FGA tuple). The legacy `owner` relation is retired — use `writer` instead. Settings are stored in the `org-settings` NATS KV bucket (authoritative, no MaxAge TTL), separate from the Salesforce-backed `membership-cache` bucket.
 
@@ -160,9 +160,9 @@ FGA is published before the indexer so access tuples land before the doc is sear
 
 ### Admin
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
+| Method | Path             | Description                                                              | OpenFGA Check                              |
+|--------|------------------|--------------------------------------------------------------------------|--------------------------------------------|
+| POST   | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
 
 Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
 
@@ -170,11 +170,11 @@ Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlat
 
 ### Utility
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| GET | `/readyz` | Readiness probe | None |
-| GET | `/livez` | Liveness probe | None |
-| GET | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None |
+| Method | Path                                 | Description        | OpenFGA Check |
+|--------|--------------------------------------|--------------------|---------------|
+| GET    | `/readyz`                            | Readiness probe    | None          |
+| GET    | `/livez`                             | Liveness probe     | None          |
+| GET    | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None          |
 
 > **Note:** The legacy `/members/*` and `/memberships/*` endpoints return `410 Gone`.
 
@@ -187,11 +187,11 @@ GET /projects/{project_id}/memberships?filter=status=Active
 GET /projects/{project_id}/memberships?filter=status=Active;tier=Gold
 ```
 
-| Filter Key | Match Type | Example |
-|------------|------------|---------|
-| `status` | Case-insensitive exact | `status=Active` |
-| `tier` | Case-insensitive exact | `tier=Gold` |
-| `year` | Exact | `year=2026` |
+| Filter Key     | Match Type                | Example             |
+|----------------|---------------------------|---------------------|
+| `status`       | Case-insensitive exact    | `status=Active`     |
+| `tier`         | Case-insensitive exact    | `tier=Gold`         |
+| `year`         | Exact                     | `year=2026`         |
 | `product_name` | Case-insensitive contains | `product_name=Gold` |
 
 ## Development Workflow
@@ -293,13 +293,13 @@ Stores raw Salesforce sObject REST responses as `SObjectCacheEntry` JSON envelop
 
 All records share the `membership-cache` bucket. Keys are namespaced by a type prefix to avoid collisions.
 
-| Key pattern | Contents | Soft TTL |
-|-------------|----------|----------|
-| `tier.{uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire |
-| `membership.{uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire |
-| `key-contacts.{membership_uid}` | `CachedValue[[]*model.ProjectKeyContact]` | 6 h stale / 23 h expire |
-| `project-sfid.{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
-| `project-uid.{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
+| Key pattern                     | Contents                                         | Soft TTL                |
+|---------------------------------|--------------------------------------------------|-------------------------|
+| `tier.{uid}`                    | `CachedValue[*model.MembershipTier]`             | 6 h stale / 23 h expire |
+| `membership.{uid}`              | `CachedValue[*model.ProjectMembership]`          | 6 h stale / 23 h expire |
+| `key-contacts.{membership_uid}` | `CachedValue[[]*model.ProjectKeyContact]`        | 6 h stale / 23 h expire |
+| `project-sfid.{project_uid}`    | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
+| `project-uid.{slug}`            | `CachedValue[string]` (v2 project UUID)          | 6 h stale / 23 h expire |
 
 The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always later than the soft `expires_at` timestamp inside each envelope.
 
@@ -307,12 +307,12 @@ The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always l
 
 Defined in `internal/infrastructure/nats/cache.go`:
 
-| Status | Meaning | Caller behaviour |
-|--------|---------|-----------------|
-| `CacheStatusFresh` | Within stale threshold | Serve immediately. |
-| `CacheStatusStale` | Past stale threshold, not yet expired | Serve immediately; trigger background refresh goroutine. |
-| `CacheStatusExpired` | Past expiry threshold | Do **not** serve; fetch synchronously from Salesforce. |
-| `CacheStatusMiss` | Key not present in bucket | Fetch synchronously from Salesforce. |
+| Status               | Meaning                               | Caller behaviour                                         |
+|----------------------|---------------------------------------|----------------------------------------------------------|
+| `CacheStatusFresh`   | Within stale threshold                | Serve immediately.                                       |
+| `CacheStatusStale`   | Past stale threshold, not yet expired | Serve immediately; trigger background refresh goroutine. |
+| `CacheStatusExpired` | Past expiry threshold                 | Do **not** serve; fetch synchronously from Salesforce.   |
+| `CacheStatusMiss`    | Key not present in bucket             | Fetch synchronously from Salesforce.                     |
 
 ## ProjectResolver
 
@@ -369,10 +369,10 @@ The service handles two inbound NATS request/reply subjects that allow other ser
 
 Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolution chains: KV cache → project-service NATS RPC (get slug) → Salesforce SOQL.
 
-| Field | Value |
-|-------|-------|
-| **Subject** | `lfx.member.project-id-map.lookup` |
-| **Transport** | NATS core request/reply |
+| Field         | Value                              |
+|---------------|------------------------------------|
+| **Subject**   | `lfx.member.project-id-map.lookup` |
+| **Transport** | NATS core request/reply            |
 
 **Request:** `{"project_uid": "<v2 project UUID>"}`
 
@@ -389,11 +389,11 @@ JWT authentication is implemented via `internal/infrastructure/auth/`:
 
 ### Configuration
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `JWKS_URL` | Heimdall JWKS endpoint | `http://heimdall:4457/.well-known/jwks` |
-| `AUDIENCE` | JWT audience | `lfx-v2-member-service` |
-| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock principal for local dev (bypasses JWT) | `""` (disabled) |
+| Variable                                 | Description                                 | Default                                 |
+|------------------------------------------|---------------------------------------------|-----------------------------------------|
+| `JWKS_URL`                               | Heimdall JWKS endpoint                      | `http://heimdall:4457/.well-known/jwks` |
+| `AUDIENCE`                               | JWT audience                                | `lfx-v2-member-service`                 |
+| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock principal for local dev (bypasses JWT) | `""` (disabled)                         |
 
 When `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` is set, the service skips JWT validation entirely and uses that value as the authenticated principal. **Only use for local development.**
 
@@ -476,34 +476,34 @@ func TestEndpoint(t *testing.T) {
 
 ### Service Configuration
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `PORT` | HTTP listen port | `8080` | No |
-| `NATS_URL` | NATS server URL | `nats://localhost:4222` | No |
-| `NATS_TIMEOUT` | NATS connection timeout | `10s` | No |
-| `NATS_MAX_RECONNECT` | Max NATS reconnect attempts | `3` | No |
-| `NATS_RECONNECT_WAIT` | Wait between reconnects | `2s` | No |
-| `LOG_LEVEL` | Log level (debug/info/warn/error) | `info` | No |
-| `LOG_ADD_SOURCE` | Include source location in logs | `true` | No |
-| `JWKS_URL` | Heimdall JWKS endpoint for JWT verification | `http://heimdall:4457/.well-known/jwks` | No |
-| `AUDIENCE` | JWT audience | `lfx-v2-member-service` | No |
-| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | `""` | No |
-| `REPOSITORY_SOURCE` | Storage backend (`salesforce` or `mock`) | `salesforce` | No |
+| Variable                                 | Description                                 | Default                                 | Required |
+|------------------------------------------|---------------------------------------------|-----------------------------------------|----------|
+| `PORT`                                   | HTTP listen port                            | `8080`                                  | No       |
+| `NATS_URL`                               | NATS server URL                             | `nats://localhost:4222`                 | No       |
+| `NATS_TIMEOUT`                           | NATS connection timeout                     | `10s`                                   | No       |
+| `NATS_MAX_RECONNECT`                     | Max NATS reconnect attempts                 | `3`                                     | No       |
+| `NATS_RECONNECT_WAIT`                    | Wait between reconnects                     | `2s`                                    | No       |
+| `LOG_LEVEL`                              | Log level (debug/info/warn/error)           | `info`                                  | No       |
+| `LOG_ADD_SOURCE`                         | Include source location in logs             | `true`                                  | No       |
+| `JWKS_URL`                               | Heimdall JWKS endpoint for JWT verification | `http://heimdall:4457/.well-known/jwks` | No       |
+| `AUDIENCE`                               | JWT audience                                | `lfx-v2-member-service`                 | No       |
+| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev                     | `""`                                    | No       |
+| `REPOSITORY_SOURCE`                      | Storage backend (`salesforce` or `mock`)    | `salesforce`                            | No       |
 
 ### Salesforce Credentials
 
 Credentials are injected from a pre-existing Kubernetes Secret (see Helm chart `values.yaml` `salesforce.secrets` stanza). At least one complete authentication flow must be configured.
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `SF_INSTANCE_URL` | Salesforce instance URL (e.g. `https://linuxfoundation.my.salesforce.com`) | Yes |
-| `SF_CLIENT_ID` | Connected-app consumer key | Yes |
-| `SF_CLIENT_SECRET` | Consumer secret (username/password or client-credentials flow) | Conditional |
-| `SF_USERNAME` | Salesforce username (username/password or JWT bearer flow) | Conditional |
-| `SF_PASSWORD` | Salesforce password (username/password flow) | Conditional |
-| `SF_SECURITY_TOKEN` | Security token appended to password | No |
-| `SF_CONSUMER_RSA_PEM` | PEM-encoded RSA private key (JWT bearer flow) | Conditional |
-| `SF_API_VERSION` | Salesforce REST API version | `v60.0` |
+| Variable              | Description                                                                | Required    |
+|-----------------------|----------------------------------------------------------------------------|-------------|
+| `SF_INSTANCE_URL`     | Salesforce instance URL (e.g. `https://linuxfoundation.my.salesforce.com`) | Yes         |
+| `SF_CLIENT_ID`        | Connected-app consumer key                                                 | Yes         |
+| `SF_CLIENT_SECRET`    | Consumer secret (username/password or client-credentials flow)             | Conditional |
+| `SF_USERNAME`         | Salesforce username (username/password or JWT bearer flow)                 | Conditional |
+| `SF_PASSWORD`         | Salesforce password (username/password flow)                               | Conditional |
+| `SF_SECURITY_TOKEN`   | Security token appended to password                                        | No          |
+| `SF_CONSUMER_RSA_PEM` | PEM-encoded RSA private key (JWT bearer flow)                              | Conditional |
+| `SF_API_VERSION`      | Salesforce REST API version                                                | `v60.0`     |
 
 **Authentication flows (one must be satisfiable):**
 

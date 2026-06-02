@@ -152,7 +152,7 @@ paths:
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
-                                parent_uid: 003B0000001ckSlIAI
+                                parent_uid: 001B000000IqhSLIAZ
                                 phone: +1-555-000-0000
                                 primary_domain: example.com
                                 sector: Software
@@ -279,7 +279,7 @@ paths:
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
-                                parent_uid: 003B0000001ckSlIAI
+                                parent_uid: 001B000000IqhSLIAZ
                                 phone: +1-555-000-0000
                                 primary_domain: example.com
                                 sector: Software
@@ -413,7 +413,7 @@ paths:
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
-                                parent_uid: 003B0000001ckSlIAI
+                                parent_uid: 001B000000IqhSLIAZ
                                 phone: +1-555-000-0000
                                 primary_domain: example.com
                                 sector: Software
@@ -1544,7 +1544,7 @@ components:
                 parent_uid:
                     type: string
                     description: UID of the parent organization (Account.ParentId); omitted when no parent
-                    example: 003B0000001ckSlIAI
+                    example: 001B000000IqhSLIAZ
                 phone:
                     type: string
                     description: Organization contact phone number (Account.Phone)
@@ -1592,7 +1592,7 @@ components:
                 logo_url: https://example.com/logo.png
                 name: Example Corp
                 number_of_employees: 500
-                parent_uid: 003B0000001ckSlIAI
+                parent_uid: 001B000000IqhSLIAZ
                 phone: +1-555-000-0000
                 primary_domain: example.com
                 sector: Software
