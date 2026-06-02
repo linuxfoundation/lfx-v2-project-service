@@ -98,7 +98,7 @@ func TestAssembleKeyContact_HappyPath(t *testing.T) {
 	client := &SObjectClient{sf: fakeSalesforce(t, rt), cache: newMemCache()}
 	reader := NewKeyContactReader(client)
 
-	roleUID, err := sfuuid.ToUUID(roleSFID)
+	roleUID, err := sfuuid.Normalize18(roleSFID)
 	require.NoError(t, err)
 
 	kc, lastMod, err := reader.AssembleKeyContact(context.Background(), roleUID)
@@ -200,7 +200,7 @@ func TestAssembleKeyContact_NoContact(t *testing.T) {
 	client := &SObjectClient{sf: fakeSalesforce(t, rt), cache: newMemCache()}
 	reader := NewKeyContactReader(client)
 
-	roleUID, err := sfuuid.ToUUID(roleSFID)
+	roleUID, err := sfuuid.Normalize18(roleSFID)
 	require.NoError(t, err)
 
 	kc, _, err := reader.AssembleKeyContact(context.Background(), roleUID)
@@ -230,7 +230,7 @@ func TestAssembleKeyContact_RoleNotFound(t *testing.T) {
 	client := &SObjectClient{sf: fakeSalesforce(t, rt), cache: newMemCache()}
 	reader := NewKeyContactReader(client)
 
-	roleUID, err := sfuuid.ToUUID(roleSFID)
+	roleUID, err := sfuuid.Normalize18(roleSFID)
 	require.NoError(t, err)
 
 	kc, _, err := reader.AssembleKeyContact(context.Background(), roleUID)

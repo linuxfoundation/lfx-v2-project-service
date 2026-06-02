@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
 // BackfillRequest carries the validated, normalised parameters for a single run.
@@ -64,9 +63,9 @@ func ValidateAndBuildRequest(p *membershipservice.AdminReindexPayload) (Backfill
 			return BackfillRequest{}, pkgerrors.NewValidation(
 				fmt.Sprintf("unknown item type %q; supported types: b2b_org, project_membership, key_contact, b2b_org_settings", item.Type))
 		}
-		if _, uuidErr := uuid.Parse(item.UID); uuidErr != nil {
+		if !sfuuid.IsSFID(item.UID) {
 			return BackfillRequest{}, pkgerrors.NewValidation(
-				fmt.Sprintf("invalid UUID %q for item type %q", item.UID, item.Type))
+				fmt.Sprintf("invalid Salesforce ID %q for item type %q", item.UID, item.Type))
 		}
 	}
 

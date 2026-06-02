@@ -21,7 +21,13 @@ type ProjectMembership struct {
 	TierUID string `json:"tier_uid"`
 
 	// ProjectUID is the v2 UUID of the project this membership belongs to.
+	// Resolved from the project slug via project-service over NATS.
 	ProjectUID string `json:"project_uid"`
+
+	// ProjectSFID is the 18-char Salesforce Project__c.Id for this membership's
+	// project. Populated directly from the SFDC record. Exposed in API responses
+	// and indexer docs so Salesforce-keyed consumers can correlate the project.
+	ProjectSFID string `json:"project_sfid,omitempty"`
 
 	// ProjectSlug is the URL slug of the associated project (e.g. "kubernetes").
 	// Populated from the Projects__r relationship on the Salesforce Asset record.
@@ -34,10 +40,9 @@ type ProjectMembership struct {
 	// records with the correct Account; not included in API responses.
 	AccountSFID string `json:"-"`
 
-	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce
-	// Account.Id. Populated by the Salesforce infrastructure layer via
-	// sfuuid.ToUUID(AccountSFID). Not included in API responses until the
-	// B2BOrg entity is surfaced through a dedicated endpoint.
+	// B2BOrgUID is the canonical 18-char Salesforce Account.Id used as uid.
+	// Not included in API responses until the B2BOrg entity is surfaced
+	// through a dedicated endpoint.
 	B2BOrgUID string `json:"b2b_org_uid,omitempty"`
 
 	// Status is the membership status, e.g. "Active", "Expired".
@@ -118,6 +123,9 @@ func (pm *ProjectMembership) Tags() []string {
 	}
 	if pm.ProjectUID != "" {
 		tags = append(tags, fmt.Sprintf("project_uid:%s", pm.ProjectUID))
+	}
+	if pm.ProjectSFID != "" {
+		tags = append(tags, fmt.Sprintf("project_sfid:%s", pm.ProjectSFID))
 	}
 	if pm.B2BOrgUID != "" {
 		tags = append(tags, fmt.Sprintf("b2b_org_uid:%s", pm.B2BOrgUID))

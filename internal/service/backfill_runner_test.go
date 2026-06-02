@@ -36,7 +36,7 @@ func TestBackfillRunner_FullMode_PublishesAllTypes(t *testing.T) {
 		KeyContacts: [][]*model.KeyContact{{kc}},
 	}
 
-	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org", "project_membership", "key_contact"}}
 	runner.Run(context.Background(), req)
 
@@ -54,7 +54,7 @@ func TestBackfillRunner_DryRun_DoesNotPublish(t *testing.T) {
 		B2BOrgs: [][]*model.B2BOrg{{org}},
 	}
 
-	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org"}, DryRun: true}
 	runner.Run(context.Background(), req)
 
@@ -73,7 +73,7 @@ func TestBackfillRunner_MidRunError_OtherTypesStillRun(t *testing.T) {
 		Memberships: [][]*model.ProjectMembership{{pm}}, // project_membership succeeds
 	}
 
-	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org", "project_membership"}}
 	runner.Run(context.Background(), req)
 
@@ -86,7 +86,7 @@ func TestBackfillRunner_SinceFilter_PassedThroughToIterator(t *testing.T) {
 	var capturedSince *time.Time
 
 	iter := &capturingSinceIterator{capturedSince: &capturedSince}
-	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, mock.NewMockMemberPublisher(), nil, "")
+	runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, mock.NewMockMemberPublisher(), nil, "", nil)
 	req := svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org"}, Since: &since}
 	runner.Run(context.Background(), req)
 
@@ -102,7 +102,7 @@ func TestBackfillRunner_TargetedMode_FetchesLiveSObjectAndPublishes(t *testing.T
 	var publishCount atomic.Int32
 	pub := &countingPublisher{count: &publishCount}
 
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, b2bReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, b2bReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{
 		RunID: "test-run",
 		Items: []svc.ReindexItem{{Type: "b2b_org", UID: orgUID}},
@@ -119,7 +119,7 @@ func TestBackfillRunner_TargetedMode_NotFoundIsSkipped(t *testing.T) {
 	pub := &countingPublisher{count: &publishCount}
 
 	// MockB2BOrgReader always returns not-found
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{
 		RunID: "test-run",
 		Items: []svc.ReindexItem{{Type: "b2b_org", UID: orgUID}},
@@ -234,7 +234,7 @@ func TestBackfillRunner_B2BOrgs_PopulatesChildrenFromCache(t *testing.T) {
 		B2BOrgs: [][]*model.B2BOrg{{parentOrg, child1Org, child2Org}},
 	}
 
-	runner := svc.NewRunner(iter, childReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(iter, childReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org"}}
 	runner.Run(context.Background(), req)
 
@@ -272,7 +272,7 @@ func TestBackfillRunner_B2BOrgs_MemoizesFetchesPerPage(t *testing.T) {
 		B2BOrgs: [][]*model.B2BOrg{{parentOrg, child1, child2}},
 	}
 
-	runner := svc.NewRunner(iter, childReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(iter, childReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org"}}
 	runner.Run(context.Background(), req)
 
@@ -298,7 +298,7 @@ func TestBackfillRunner_TargetedB2BOrg_PopulatesChildren(t *testing.T) {
 		fetchedUIDs: map[string]bool{},
 	}
 
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, childReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, childReader, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "", nil)
 	req := svc.BackfillRequest{
 		RunID: "test-run",
 		Items: []svc.ReindexItem{{Type: "b2b_org", UID: orgUID}},
@@ -330,7 +330,7 @@ func TestBackfillRunner_Settings_FullMode_PublishesOnePerUID(t *testing.T) {
 	var publishCount atomic.Int32
 	pub := &countingPublisher{count: &publishCount}
 
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, b2bMultiReader, mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, b2bMultiReader, mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "", nil)
 	req := svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org_settings"}}
 	runner.Run(context.Background(), req)
 
@@ -350,7 +350,7 @@ func TestBackfillRunner_Settings_TargetedMode_PublishesOne(t *testing.T) {
 	var publishCount atomic.Int32
 	pub := &countingPublisher{count: &publishCount}
 
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, &seededB2BOrgReaderForBackfill{org: org}, mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, &seededB2BOrgReaderForBackfill{org: org}, mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "", nil)
 	req := svc.BackfillRequest{
 		RunID: "test-run",
 		Items: []svc.ReindexItem{{Type: "b2b_org_settings", UID: uid}},
@@ -370,7 +370,7 @@ func TestBackfillRunner_Settings_TargetedMode_OrgNotFound_Skips(t *testing.T) {
 	pub := &countingPublisher{count: &publishCount}
 
 	// MockB2BOrgReader always returns not-found
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "", nil)
 	req := svc.BackfillRequest{
 		RunID: "test-run",
 		Items: []svc.ReindexItem{{Type: "b2b_org_settings", UID: uid}},
@@ -390,7 +390,7 @@ func TestBackfillRunner_Settings_TargetedMode_SettingsAbsent_Skips(t *testing.T)
 	var publishCount atomic.Int32
 	pub := &countingPublisher{count: &publishCount}
 
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, &seededB2BOrgReaderForBackfill{org: org}, mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, &seededB2BOrgReaderForBackfill{org: org}, mock.NewMockProjectMembershipReader(), nil, settingsStore, pub, nil, "", nil)
 	req := svc.BackfillRequest{
 		RunID: "test-run",
 		Items: []svc.ReindexItem{{Type: "b2b_org_settings", UID: uid}},
@@ -446,7 +446,7 @@ func TestBackfillRunner_B2BOrg_GlobalAdminFGA(t *testing.T) {
 			iter := &mock.MockBackfillIterator{B2BOrgs: [][]*model.B2BOrg{{org}}}
 			var accessCount atomic.Int32
 			pub := &countingAccessPublisher{accessCount: &accessCount}
-			runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, tt.globalOrgAdminTeamUID)
+			runner := svc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, tt.globalOrgAdminTeamUID, nil)
 			runner.Run(context.Background(), svc.BackfillRequest{RunID: "test-run", Types: []string{"b2b_org"}})
 			tt.assertFn(t, accessCount.Load())
 		})
@@ -460,7 +460,7 @@ func TestBackfillRunner_TargetedMode_GlobalAdminFGA_PublishedWhenUIDSet(t *testi
 	var accessCount atomic.Int32
 	pub := &countingAccessPublisher{accessCount: &accessCount}
 
-	runner := svc.NewRunner(&mock.MockBackfillIterator{}, &seededB2BOrgReaderForBackfill{org: org}, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "team-uid-xyz")
+	runner := svc.NewRunner(&mock.MockBackfillIterator{}, &seededB2BOrgReaderForBackfill{org: org}, mock.NewMockProjectMembershipReader(), nil, nil, pub, nil, "team-uid-xyz", nil)
 	runner.Run(context.Background(), svc.BackfillRequest{
 		RunID: "test-run",
 		Items: []svc.ReindexItem{{Type: "b2b_org", UID: orgUID}},

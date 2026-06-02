@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	errs "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
-	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
 func TestResolver_UIDFromSFID(t *testing.T) {
@@ -21,18 +20,18 @@ func TestResolver_UIDFromSFID(t *testing.T) {
 	tests := []struct {
 		name    string
 		sfid    string
-		wantUID string
+		wantUID string // canonical 18-char SFID
 		wantErr bool
 	}{
 		{
-			name:    "valid 18-char SFID returns deterministic UID",
+			name:    "valid 18-char SFID returns same 18-char uid",
 			sfid:    "001B000000IqhSLIAZ",
-			wantUID: "4c46585f-878c-8019-80e2-5632d301d19b",
+			wantUID: "001B000000IqhSLIAZ",
 		},
 		{
-			name:    "valid 15-char SFID returns deterministic UID",
+			name:    "valid 15-char SFID returns canonical 18-char uid",
 			sfid:    "001B000000IqhSL",
-			wantUID: "4c46585f-878c-8019-80e2-5632d301d19b",
+			wantUID: "001B000000IqhSLIAZ",
 		},
 		{
 			name:    "empty string returns not found",
@@ -71,15 +70,17 @@ func TestResolver_UIDFromSFID(t *testing.T) {
 	}
 }
 
+// TestResolver_UIDFromSFID_RoundTrip verifies that the returned uid equals the
+// canonical 18-char SFID (since uid IS the SFID in the current scheme).
 func TestResolver_UIDFromSFID_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 	r := NewResolver()
 
-	sfid := "001B000000IqhSLIAZ"
-	uid, err := r.UIDFromSFID(ctx, sfid)
+	sfid18 := "001B000000IqhSLIAZ"
+	uid, err := r.UIDFromSFID(ctx, sfid18)
 	require.NoError(t, err)
 
-	back, err := sfuuid.ToSFID(uid)
-	require.NoError(t, err)
-	assert.Equal(t, sfid[:15], back, "round-trip SFID must match canonical 15-char form")
+	// uid must be the canonical 18-char SFID.
+	assert.Equal(t, sfid18, uid, "uid must equal the canonical 18-char SFID")
+	assert.Len(t, uid, 18, "uid must be exactly 18 chars")
 }

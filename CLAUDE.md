@@ -56,7 +56,6 @@ internal/
 │   │   ├── client.go        # NATSClient with KV bucket initialisation
 │   │   ├── config.go        # NATS configuration
 │   │   ├── project_id_map_handler.go  # RPC handler for lfx.member.project-id-map.lookup
-│   │   ├── id_map_handler.go          # RPC handlers for lfx.member.sfid-to-uuid.lookup / uuid-to-sfid.lookup
 │   │   ├── project_rpc.go   # NATS RPC calls to the project-service
 │   │   └── storage.go       # KV cache Get/Put helpers for each record type
 │   ├── project/             # ProjectResolver implementation
@@ -106,7 +105,7 @@ salesforce.MemberReader (implements port.MemberReader)
     ├── 2. ProjectResolver.SFIDFromUID (for project-scoped queries)
     │        └── NATS RPC → project-service (get_slug)
     │        └── SOQL query → Salesforce (Project__c WHERE Slug__c = ?)
-    │        └── KV cache write (project-sfid/{uid})
+    │        └── KV cache write (project-sfid.{uid})
     │
     ├── 3. SOQL query → Salesforce REST API
     │
@@ -296,11 +295,11 @@ All records share the `membership-cache` bucket. Keys are namespaced by a type p
 
 | Key pattern | Contents | Soft TTL |
 |-------------|----------|----------|
-| `tier/{uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire |
-| `membership/{uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire |
-| `key-contacts/{membership_uid}` | `CachedValue[[]*model.ProjectKeyContact]` | 6 h stale / 23 h expire |
-| `project-sfid/{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
-| `project-uid/{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
+| `tier.{uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire |
+| `membership.{uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire |
+| `key-contacts.{membership_uid}` | `CachedValue[[]*model.ProjectKeyContact]` | 6 h stale / 23 h expire |
+| `project-sfid.{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
+| `project-uid.{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
 
 The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always later than the soft `expires_at` timestamp inside each envelope.
 
@@ -328,18 +327,18 @@ Every project-scoped SOQL query requires a Salesforce `Project__c.Id` in its `WH
 ```text
 SFIDFromUID(ctx, projectUID)
     │
-    ├── 1. KV cache lookup: project-sfid/{uid}
+    ├── 1. KV cache lookup: project-sfid.{uid}
     │        Fresh/Stale → return cached SFID
     │
     ├── 2. NATS RPC → project-service (lfx.projects-api.get_slug)
     │        returns slug string
     │
-    ├── 3. KV cache write: project-uid/{slug} → uid  (side-effect)
+    ├── 3. KV cache write: project-uid.{slug} → uid  (side-effect)
     │
     ├── 4. SOQL query → Salesforce
     │        SELECT Id FROM Project__c WHERE Slug__c = '<slug>'
     │
-    └── 5. KV cache write: project-sfid/{uid} → sfid
+    └── 5. KV cache write: project-sfid.{uid} → sfid
             return sfid
 ```
 
@@ -348,13 +347,13 @@ SFIDFromUID(ctx, projectUID)
 ```text
 UIDFromSlug(ctx, slug)
     │
-    ├── 1. KV cache lookup: project-uid/{slug}
+    ├── 1. KV cache lookup: project-uid.{slug}
     │        Fresh/Stale → return cached UID
     │
     ├── 2. NATS RPC → project-service (lfx.projects-api.slug_to_uid)
     │        returns uid string
     │
-    └── 3. KV cache write: project-uid/{slug} → uid
+    └── 3. KV cache write: project-uid.{slug} → uid
             return uid
 ```
 
@@ -380,26 +379,6 @@ Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolut
 **Response — success:** `{"project_sfid": "<Salesforce Project__c.Id>"}`
 
 **Response — error:** `{"error": "<human-readable message>"}`
-
-### Generic SFID↔UUID Lookup
-
-Two entity-agnostic request/reply endpoints for translating between Salesforce IDs and v2 UUIDs. Pure CPU — no Salesforce call, no NATS KV. Covers all entity types (b2b_org, project_membership, key_contact, membership_tier).
-
-| Field | Value |
-|-------|-------|
-| **Subject (SFID→UUID)** | `lfx.member.sfid-to-uuid.lookup` |
-| **Subject (UUID→SFID)** | `lfx.member.uuid-to-sfid.lookup` |
-| **Transport** | NATS core request/reply |
-
-**SFID→UUID request:** `{"sfid":"<15 or 18-char Salesforce ID>"}`
-**SFID→UUID response — success:** `{"uuid":"<uuid v8>"}`
-
-**UUID→SFID request:** `{"uuid":"<uuid v8>"}`
-**UUID→SFID response — success:** `{"sfid":"<15-char Salesforce ID>"}`
-
-**Response — error:** `{"error":"<human-readable message>"}`
-
-The reply is always valid JSON. Callers should check for the `"error"` key to detect failure. 15-char SFIDs are normalised to 18 characters internally before translation; both forms are accepted.
 
 ## Authentication (JWT / Heimdall)
 

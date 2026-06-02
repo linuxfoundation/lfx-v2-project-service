@@ -185,12 +185,12 @@ func buildMembershipsByProjectSOQL(ctx context.Context, projectSFID string, filt
 	var b strings.Builder
 	fmt.Fprintf(&b, membershipsByProjectSOQLBase, quoteSOQL(projectSFID))
 	if filters.TierUID != "" {
-		// Decode the v2 tier UUID to its Salesforce Product2Id SFID for an
-		// exact-match filter. If decoding fails the UID is used as-is; it will
-		// return zero results rather than cause a query error.
-		tierSFID, err := sfuuid.ToSFID(filters.TierUID)
+		// Normalize the tier SFID to its canonical 18-char form for an exact-match
+		// filter. If normalization fails the UID is used as-is; it will return zero
+		// results rather than cause a query error.
+		tierSFID, err := sfuuid.Normalize18(filters.TierUID)
 		if err != nil {
-			slog.WarnContext(ctx, "failed to decode tier UID to SFID; using raw value",
+			slog.WarnContext(ctx, "failed to normalize tier UID to SFID; using raw value",
 				"tier_uid", filters.TierUID,
 				"error", err,
 			)
@@ -309,14 +309,14 @@ func (r *MembershipRepo) FetchFirstMembershipBatch(ctx context.Context, projectS
 // domain ProjectMembership model. Account (company) and Product2 (tier) fields
 // are denormalized directly onto the struct — no sub-objects are used.
 func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, error) {
-	membershipUID, err := sfuuid.ToUUID(asset.ID)
+	membershipUID, err := sfuuid.Normalize18(asset.ID)
 	if err != nil {
-		return nil, fmt.Errorf("converting asset SFID %q to UUID: %w", asset.ID, err)
+		return nil, fmt.Errorf("normalizing asset SFID %q: %w", asset.ID, err)
 	}
 
-	tierUID, err := sfuuid.ToUUID(asset.Product2ID)
+	tierUID, err := sfuuid.Normalize18(asset.Product2ID)
 	if err != nil {
-		return nil, fmt.Errorf("converting product2 SFID %q to UUID: %w", asset.Product2ID, err)
+		return nil, fmt.Errorf("normalizing product2 SFID %q: %w", asset.Product2ID, err)
 	}
 
 	m := &model.ProjectMembership{
@@ -341,11 +341,11 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 	// association); it is never serialised to API responses.
 	m.AccountSFID = asset.AccountID
 
-	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce Account.Id.
+	// B2BOrgUID is the 18-char SFID of the Salesforce Account.Id.
 	// Populated here so callers can link this membership to the B2BOrg entity.
 	// Errors are silently ignored because B2BOrgUID is a convenience field.
 	if asset.AccountID != "" {
-		if orgUID, orgErr := sfuuid.ToUUID(asset.AccountID); orgErr == nil {
+		if orgUID, orgErr := sfuuid.Normalize18(asset.AccountID); orgErr == nil {
 			m.B2BOrgUID = orgUID
 		}
 	}
@@ -365,11 +365,14 @@ func convertSOQLToProjectMembership(asset soqlAsset) (*model.ProjectMembership, 
 	}
 
 	// Populate project fields from the Projects__r relationship.
+	// ProjectUID is resolved from the slug via project-service (NATS); see
+	// MemberReader.fetchMembershipFromSalesforce and backfill_runner for the
+	// resolution step. ProjectSFID is the raw Salesforce Project__c.Id.
 	if asset.Project != nil {
 		m.ProjectSlug = derefString(asset.Project.Slug)
 		if asset.Project.ID != "" {
-			if projectUID, uuidErr := sfuuid.ToUUID(asset.Project.ID); uuidErr == nil {
-				m.ProjectUID = projectUID
+			if projectSFID, normErr := sfuuid.Normalize18(asset.Project.ID); normErr == nil {
+				m.ProjectSFID = projectSFID
 			}
 		}
 	}

@@ -495,6 +495,7 @@ func BackfillRunnerImpl(ctx context.Context) *usecaseSvc.Runner {
 		MemberPublisherImpl(ctx),
 		nc,
 		GlobalOrgAdminTeamUID(),
+		ProjectResolverImpl(ctx),
 	)
 }
 

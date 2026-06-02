@@ -353,22 +353,3 @@ Returns the single settings doc for that org with the full `members[]` roster.
 
 ## NATS RPC Endpoints
 
-### Generic SFID↔UUID Lookup
-
-Two entity-agnostic request/reply endpoints for translating between Salesforce IDs and v2 UUIDs. Pure CPU — no Salesforce call, no NATS KV. Covers all entity types (b2b_org, project_membership, key_contact, membership_tier).
-
-| Field | Value |
-|-------|-------|
-| **Subject (SFID→UUID)** | `lfx.member.sfid-to-uuid.lookup` |
-| **Subject (UUID→SFID)** | `lfx.member.uuid-to-sfid.lookup` |
-| **Transport** | NATS core request/reply |
-
-**SFID→UUID request:** `{"sfid":"<15 or 18-char Salesforce ID>"}`
-**SFID→UUID response — success:** `{"uuid":"<uuid v8>"}`
-
-**UUID→SFID request:** `{"uuid":"<uuid v8>"}`
-**UUID→SFID response — success:** `{"sfid":"<15-char Salesforce ID>"}`
-
-**Response — error:** `{"error":"<human-readable message>"}`
-
-The reply is always valid JSON. Callers should check for the `"error"` key to detect failure. 15-char SFIDs are normalised to 18 characters internally before translation; both forms are accepted.
