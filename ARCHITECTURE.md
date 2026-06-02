@@ -214,8 +214,8 @@ per-object access control. They are served from the root of the LFX API path.
 
 #### `b2b_org`
 
-Represents a Salesforce Account (B2B company). The UID is an invertible UUID v8 encoded from the
-Salesforce Account SFID (see `pkg/sfuuid`).
+Represents a Salesforce Account (B2B company). The UID is the canonical 18-char Salesforce Account
+SFID (normalized via `pkg/sfuuid.Normalize18`).
 
 There is no self-service user permission for creating new `b2b_org` objects. They are created
 exclusively by machine users (EasyCLA, LFX Enrollment) whose OAuth client-ID principals are
@@ -297,7 +297,7 @@ type b2b_org
 #### `project_membership`
 
 Represents a Salesforce Asset record: one active (or expired) membership term for a `b2b_org`
-within a `project`. The UID is an invertible UUID v8 encoded from the Asset SFID.
+within a `project`. The UID is the canonical 18-char Salesforce Asset SFID (normalized via `pkg/sfuuid.Normalize18`).
 
 Access is derived from the caller's relationship to the parent `b2b_org` (for org-scoped access)
 and/or to the parent `project` (for project-scoped read access, e.g. LF staff). This service
@@ -377,8 +377,8 @@ type project_membership
 #### `key_contact`
 
 Represents a Salesforce `Project_Role__c` record: a named contact role assigned to a `b2b_org`
-for a specific `project` membership. The UID is an invertible UUID v8 encoded from the
-`Project_Role__c` SFID.
+for a specific `project` membership. The UID is the canonical 18-char Salesforce `Project_Role__c`
+SFID (normalized via `pkg/sfuuid.Normalize18`).
 
 Write access is granted to `b2b_org` writers (owners and the global org-admin team) and to
 project-level writers (LF staff managing contacts on behalf of members).
@@ -863,7 +863,7 @@ New fields required on existing models:
 ```go
 // B2BOrg — the Salesforce Account, new top-level type
 type B2BOrg struct {
-    UID     string    `json:"uid"`         // invertible UUID v8 from Account SFID
+    UID     string    `json:"uid"`         // canonical 18-char Salesforce Account SFID
     SFID    string    `json:"-"`           // raw Salesforce Account.Id (internal only)
     Name    string    `json:"name"`
     Domain  string    `json:"domain,omitempty"`
@@ -885,7 +885,7 @@ type KeyContact struct {
 }
 ```
 
-`B2BOrgUID` is derived deterministically via `sfuuid.FromSFID(accountSFID)` — the SOQL and
+`B2BOrgUID` equals the 18-char Account SFID normalized via `sfuuid.Normalize18(accountSFID)` — the SOQL and
 sObject queries already fetch the Account SFID, so no additional Salesforce round-trips are
 needed.
 
@@ -1040,7 +1040,7 @@ handlers) and LFXV2-1366 (Helm chart).
 - Rename `model.Member` → `model.B2BOrg`; update all callsites.
 - Rename `model.ProjectKeyContact` → `model.KeyContact`; update all callsites.
 - Add `B2BOrgUID` field to `ProjectMembership` and `KeyContact`; populate from `AccountSFID`
-  via `sfuuid.FromSFID` in the Salesforce infrastructure layer.
+  via `sfuuid.Normalize18` in the Salesforce infrastructure layer.
 
 ### Step 4: Root API paths (Goa design) — includes detour cleanup
 
@@ -1127,7 +1127,7 @@ several years. The following patterns and failure modes remain relevant.
 After a successful Salesforce write, the service must immediately update the NATS KV sObject
 cache entry (with the new ETag, Last-Modified, and body returned by the write API) before returning the HTTP
 response to the caller. Because the v2 UID is derived deterministically from the SFDC ID
-returned synchronously by the write API (`sfuuid.FromSFID`), no temporary ID indirection is
+returned synchronously by the write API (`sfuuid.Normalize18`), no temporary ID indirection is
 needed — unlike the v1 `temp_sfdc_id` shadow-row pattern.
 
 ### Write-path race conditions and retry logic

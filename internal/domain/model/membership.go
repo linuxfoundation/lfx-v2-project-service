@@ -14,7 +14,7 @@ import (
 // fan-out problem of maintaining per-project permission tuples on a shared
 // account object.
 type ProjectMembership struct {
-	// UID is the invertible UUID v8 derived from the Salesforce Asset.Id.
+	// UID is the canonical 18-char Salesforce Asset SFID.
 	UID string `json:"uid"`
 
 	// TierUID is the UID of the associated MembershipTier (Product2).

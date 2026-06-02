@@ -83,11 +83,15 @@ func (r *ContactRepo) ResolveOrCreateContact(
 	}
 
 	if len(altEmails) > 0 && altEmails[0].ContactNameID != "" {
+		normalized, normErr := normalizeUID("Contact", altEmails[0].ContactNameID)
+		if normErr != nil {
+			return "", false, normErr
+		}
 		slog.DebugContext(ctx, "contact resolved via Alternate_Email__c",
 			"email", email,
-			"contact_sfid", altEmails[0].ContactNameID,
+			"contact_sfid", normalized,
 		)
-		return altEmails[0].ContactNameID, false, nil
+		return normalized, false, nil
 	}
 
 	// ── Step 2: Contact.Email fallback ───────────────────────────────────────
@@ -97,11 +101,15 @@ func (r *ContactRepo) ResolveOrCreateContact(
 	}
 
 	if len(contacts) > 0 && contacts[0].ID != "" {
+		normalized, normErr := normalizeUID("Contact", contacts[0].ID)
+		if normErr != nil {
+			return "", false, normErr
+		}
 		slog.DebugContext(ctx, "contact resolved via Contact.Email fallback",
 			"email", email,
-			"contact_sfid", contacts[0].ID,
+			"contact_sfid", normalized,
 		)
-		return contacts[0].ID, false, nil
+		return normalized, false, nil
 	}
 
 	// ── Step 3: Create a new Contact ─────────────────────────────────────────
@@ -134,10 +142,15 @@ func (r *ContactRepo) ResolveOrCreateContact(
 		)
 	}
 
+	normalized, normErr := normalizeUID("Contact", result.Id)
+	if normErr != nil {
+		return "", false, normErr
+	}
+
 	slog.InfoContext(ctx, "new Contact created in Salesforce",
 		"email", email,
-		"contact_sfid", result.Id,
+		"contact_sfid", normalized,
 	)
 
-	return result.Id, true, nil
+	return normalized, true, nil
 }

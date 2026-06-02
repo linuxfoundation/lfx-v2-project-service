@@ -70,7 +70,7 @@ type KeyContactInput struct {
 // directly onto this struct — there are no separate Contact or Organization
 // sub-objects. This avoids any dependency on the User Service or Org Service.
 type KeyContact struct {
-	// UID is the invertible UUID v8 derived from the Salesforce Project_Role__c.Id.
+	// UID is the canonical 18-char Salesforce Project_Role__c SFID.
 	UID string `json:"uid"`
 
 	// MembershipUID is the UID of the associated ProjectMembership (Asset).
@@ -99,10 +99,9 @@ type KeyContact struct {
 	// ProjectLogoURL is the logo image URL for the associated project.
 	ProjectLogoURL string `json:"project_logo_url,omitempty"`
 
-	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce
-	// Account.Id of the membership's company. Populated from AccountId on the
-	// parent Asset's Account relationship; not included in API responses until
-	// the B2BOrg entity is surfaced through a dedicated endpoint.
+	// B2BOrgUID is the canonical 18-char Salesforce Account SFID of the
+	// membership's company. Populated from AccountId on the parent Asset's
+	// Account relationship.
 	B2BOrgUID string `json:"b2b_org_uid,omitempty"`
 
 	// Role is the contact's role designation, e.g. "Voting Representative".
