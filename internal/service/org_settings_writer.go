@@ -193,12 +193,19 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	now := time.Now().UTC()
 	updated := cloneSettings(existing, in.OrgUID, now)
 
-	if current, found := findPrincipalByEmail(updated, email); found {
-		status := current.EffectiveStatus()
-		if status != model.InviteStatusRevoked && status != model.InviteStatusExpired {
-			return nil, pkgerrors.NewConflict("this person already has access or a pending invite")
+	// Scan every entry for this email across both relations: the same email can appear in
+	// both writers and auditors (via the bulk PUT path or legacy writes). Re-invite only
+	// when ALL matches are revoked/expired audit entries; if ANY match is still live
+	// (accepted or pending) it's a conflict — otherwise the cleanup below would silently
+	// delete that active grant while re-inviting a separate revoked one.
+	if matches := findPrincipalsByEmail(updated, email); len(matches) > 0 {
+		for _, m := range matches {
+			status := m.EffectiveStatus()
+			if status != model.InviteStatusRevoked && status != model.InviteStatusExpired {
+				return nil, pkgerrors.NewConflict("this person already has access or a pending invite")
+			}
 		}
-		// Revoked/expired audit entry — drop it before re-inviting.
+		// All matches are revoked/expired — drop them before re-inviting.
 		updated.Writers = removePrincipalByEmail(updated.Writers, email)
 		updated.Auditors = removePrincipalByEmail(updated.Auditors, email)
 	}
@@ -375,6 +382,21 @@ func findPrincipalByEmail(s *model.B2BOrgSettings, email string) (model.B2BOrgUs
 		}
 	}
 	return model.B2BOrgUser{}, false
+}
+
+// findPrincipalsByEmail returns every entry matching email across both writers and auditors.
+// AddPrincipal must consider all matches (the same email can appear in both relations via the
+// bulk PUT path) so a live grant is never silently dropped while re-inviting a revoked one.
+func findPrincipalsByEmail(s *model.B2BOrgSettings, email string) []model.B2BOrgUser {
+	var out []model.B2BOrgUser
+	for _, list := range [][]model.B2BOrgUser{s.Writers, s.Auditors} {
+		for _, u := range list {
+			if normalizeSettingsEmail(u.Email) == email {
+				out = append(out, u)
+			}
+		}
+	}
+	return out
 }
 
 // removePrincipalByEmail returns a new slice with any entry matching email removed.

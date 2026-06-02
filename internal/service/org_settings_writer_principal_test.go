@@ -132,6 +132,31 @@ func TestOrgSettingsWriter_AddPrincipal_EnforcesMaxPrincipals(t *testing.T) {
 	assert.True(t, isValidation(err), "exceeding maxPrincipals must be a Validation error, got %T", err)
 }
 
+// TestOrgSettingsWriter_AddPrincipal_DualListLiveMatchIsConflict guards the edge case where
+// the same email appears in BOTH relations (possible via the bulk PUT path): a revoked writer
+// entry plus a still-accepted auditor entry. Re-inviting must be a Conflict, not a silent drop
+// of the live auditor grant.
+func TestOrgSettingsWriter_AddPrincipal_DualListLiveMatchIsConflict(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "dana@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusRevoked},
+		},
+		Auditors: []model.B2BOrgUser{
+			{Email: "dana@example.com", InvitedAs: "auditor", InviteStatus: model.InviteStatusAccepted},
+		},
+	}, 1)
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "dana@example.com", InvitedAs: "writer",
+	})
+	require.Error(t, err)
+	assert.True(t, isConflict(err), "a live grant in either relation must be a Conflict, got %T", err)
+}
+
 // ── ChangePrincipalRole ───────────────────────────────────────────────────────
 
 func TestOrgSettingsWriter_ChangeRole_PreservesUsernameAndOtherMembers(t *testing.T) {
