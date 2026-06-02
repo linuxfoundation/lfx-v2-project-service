@@ -889,7 +889,6 @@ func DecodeAddB2bOrgSettingsUserRequest(mux goahttp.Muxer, decoder func(*http.Re
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -1054,7 +1053,6 @@ func DecodeUpdateB2bOrgSettingsUserRoleRequest(mux goahttp.Muxer, decoder func(*
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		email = params["email"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("email", email, goa.FormatEmail))
 		versionRaw := r.URL.Query().Get("v")
@@ -1219,7 +1217,6 @@ func DecodeDeleteB2bOrgSettingsUserRequest(mux goahttp.Muxer, decoder func(*http
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		email = params["email"]
 		err = goa.MergeErrors(err, goa.ValidateFormat("email", email, goa.FormatEmail))
 		versionRaw := r.URL.Query().Get("v")

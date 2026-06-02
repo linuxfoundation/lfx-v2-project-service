@@ -268,8 +268,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			dsl.Extend(OrgUserAddBody)
 			dsl.Required("uid")
@@ -315,8 +314,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			dsl.Attribute("email", dsl.String, "Email of the principal to modify", func() {
 				dsl.Format(dsl.FormatEmail)
@@ -371,8 +369,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			dsl.Attribute("email", dsl.String, "Email of the principal to remove", func() {
 				dsl.Format(dsl.FormatEmail)

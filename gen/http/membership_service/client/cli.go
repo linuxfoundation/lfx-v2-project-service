@@ -311,10 +311,6 @@ func BuildAddB2bOrgSettingsUserPayload(membershipServiceAddB2bOrgSettingsUserBod
 	var uid string
 	{
 		uid = membershipServiceAddB2bOrgSettingsUserUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -366,10 +362,6 @@ func BuildUpdateB2bOrgSettingsUserRolePayload(membershipServiceUpdateB2bOrgSetti
 	var uid string
 	{
 		uid = membershipServiceUpdateB2bOrgSettingsUserRoleUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var email string
 	{
@@ -422,10 +414,6 @@ func BuildDeleteB2bOrgSettingsUserPayload(membershipServiceDeleteB2bOrgSettingsU
 	var uid string
 	{
 		uid = membershipServiceDeleteB2bOrgSettingsUserUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var email string
 	{

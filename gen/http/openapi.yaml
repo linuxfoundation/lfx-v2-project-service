@@ -439,7 +439,6 @@ paths:
                   description: B2B organization UID
                   required: true
                   type: string
-                  format: uuid
                 - name: Authorization
                   in: header
                   description: JWT token issued by Heimdall
@@ -509,7 +508,6 @@ paths:
                   description: B2B organization UID
                   required: true
                   type: string
-                  format: uuid
                 - name: email
                   in: path
                   description: Email of the principal to modify
@@ -592,7 +590,6 @@ paths:
                   description: B2B organization UID
                   required: true
                   type: string
-                  format: uuid
                 - name: email
                   in: path
                   description: Email of the principal to remove

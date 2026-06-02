@@ -502,7 +502,7 @@ func membershipServiceAddB2bOrgSettingsUserUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service add-b2b-org-settings-user --body '{\n      \"email\": \"alice@example.com\",\n      \"invited_as\": \"auditor\",\n      \"name\": \"Alice Smith\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service add-b2b-org-settings-user --body '{\n      \"email\": \"alice@example.com\",\n      \"invited_as\": \"auditor\",\n      \"name\": \"Alice Smith\"\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateB2bOrgSettingsUserRoleUsage() {
@@ -530,7 +530,7 @@ func membershipServiceUpdateB2bOrgSettingsUserRoleUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings-user-role --body '{\n      \"invited_as\": \"writer\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --email \"alice@example.com\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings-user-role --body '{\n      \"invited_as\": \"writer\"\n   }' --uid \"001B000000IqhSLIAZ\" --email \"alice@example.com\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceDeleteB2bOrgSettingsUserUsage() {
@@ -556,7 +556,7 @@ func membershipServiceDeleteB2bOrgSettingsUserUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-b2b-org-settings-user --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --email \"alice@example.com\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-b2b-org-settings-user --uid \"001B000000IqhSLIAZ\" --email \"alice@example.com\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceGetProjectMembershipUsage() {

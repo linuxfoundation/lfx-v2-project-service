@@ -797,9 +797,8 @@ paths:
                   schema:
                     type: string
                     description: B2B organization UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
             requestBody:
                 required: true
                 content:
@@ -937,9 +936,8 @@ paths:
                   schema:
                     type: string
                     description: B2B organization UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
                 - name: email
                   in: path
                   description: Email of the principal to remove
@@ -1091,9 +1089,8 @@ paths:
                   schema:
                     type: string
                     description: B2B organization UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
                 - name: email
                   in: path
                   description: Email of the principal to modify
