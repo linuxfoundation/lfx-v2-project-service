@@ -101,7 +101,7 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 
 	// Bound slice length to prevent unbounded NATS KV value growth.
 	// Largest prod orgs carry ~300 principals; 700 gives comfortable headroom
-	// while remaining a practical safety bound against runaway callers.
+	// (~2× current p99) while remaining a practical safety bound against runaway callers.
 	const maxPrincipals = 700
 	if len(in.Writers) > maxPrincipals || len(in.Auditors) > maxPrincipals {
 		return nil, pkgerrors.NewValidation(fmt.Sprintf("writers and auditors lists must not exceed %d entries each", maxPrincipals))

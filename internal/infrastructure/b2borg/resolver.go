@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 // Package b2borg provides the B2BOrgResolver infrastructure implementation,
-// which translates Salesforce Account SFIDs to v2 b2b_org UUIDs using a
-// deterministic base-62 transform (no I/O required).
+// which validates and normalises Salesforce Account SFIDs for use as b2b_org
+// uid values. The uid for a b2b_org is its 18-char Salesforce Account.Id.
 package b2borg
 
 import (
@@ -17,8 +17,8 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
-// Resolver implements port.B2BOrgResolver via a deterministic base-62 transform.
-// No I/O is required — the same SFID always maps to the same UID.
+// Resolver implements port.B2BOrgResolver. No I/O is required — the uid for a
+// b2b_org is its canonical 18-char Salesforce Account.Id.
 type Resolver struct{}
 
 // Ensure Resolver satisfies the port at compile time.
@@ -29,21 +29,15 @@ func NewResolver() *Resolver {
 	return &Resolver{}
 }
 
-// UIDFromSFID resolves a Salesforce Account.Id to its v2 b2b_org UUID.
-// The mapping is deterministic and lossless (see pkg/sfuuid). Returns a
-// NotFound error when the input is empty or not a valid Salesforce SFID.
+// UIDFromSFID resolves a Salesforce Account.Id to its b2b_org uid, which is
+// the canonical 18-char SFID itself. Returns a NotFound error when the input is
+// empty or not a valid Salesforce SFID.
 func (r *Resolver) UIDFromSFID(ctx context.Context, sfid string) (string, error) {
 	sfid = strings.TrimSpace(sfid)
 
-	if !sfuuid.IsSFID(sfid) {
-		slog.DebugContext(ctx, "b2b-org resolver: invalid or unknown SFID",
-			"sfid", sfid,
-		)
-		return "", errs.NewNotFound("b2b org not found", fmt.Errorf("sfid: %s", sfid))
-	}
-
-	uid, err := sfuuid.ToUUID(sfid)
+	uid, err := sfuuid.Normalize18(sfid)
 	if err != nil {
+		slog.DebugContext(ctx, "b2b-org resolver: invalid or unknown SFID", "sfid", sfid)
 		return "", errs.NewNotFound("b2b org not found", fmt.Errorf("sfid: %s: %w", sfid, err))
 	}
 

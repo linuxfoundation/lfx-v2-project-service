@@ -66,11 +66,11 @@ func TestAdminReindex_Validation(t *testing.T) {
 			wantErrMsg: "mutually exclusive",
 		},
 		{
-			name: "item with invalid UUID rejected",
+			name: "item with invalid Salesforce ID rejected",
 			payload: &membershipservice.AdminReindexPayload{
-				Items: []*membershipservice.AdminReindexItem{{Type: "b2b_org", UID: "not-a-uuid"}},
+				Items: []*membershipservice.AdminReindexItem{{Type: "b2b_org", UID: "not-a-sfid"}},
 			},
-			wantErrMsg: "invalid UUID",
+			wantErrMsg: "invalid Salesforce ID",
 		},
 		{
 			name: "item with unknown type rejected",
@@ -119,5 +119,5 @@ func newTestBackfillRunner(iter usecaseSvc.BackfillIterator) *usecaseSvc.Runner 
 	if iter == nil {
 		iter = &mock.MockBackfillIterator{}
 	}
-	return usecaseSvc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, mock.NewMockB2BOrgSettings(), mock.NewMockMemberPublisher(), nil, "")
+	return usecaseSvc.NewRunner(iter, mock.NewMockB2BOrgReader(), mock.NewMockProjectMembershipReader(), nil, mock.NewMockB2BOrgSettings(), mock.NewMockMemberPublisher(), nil, "", nil)
 }

@@ -104,31 +104,6 @@ func main() {
 		}()
 	}
 
-	// Register the sfid-to-uuid and uuid-to-sfid NATS RPC handlers so external
-	// services can resolve Salesforce SFIDs to v2 UUIDs and vice versa.
-	// Resolvers are pure CPU (no Salesforce/NATS deps) and always available.
-	sfidToUUIDSub, err := natsinf.HandleSFIDToUUID(natsClient.Conn(), slog.Default())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to subscribe to sfid-to-uuid RPC", "error", err)
-		os.Exit(1)
-	}
-	defer func() {
-		if drainErr := sfidToUUIDSub.Drain(); drainErr != nil {
-			slog.WarnContext(ctx, "error draining sfid-to-uuid subscription", "error", drainErr)
-		}
-	}()
-
-	uuidToSFIDSub, err := natsinf.HandleUUIDToSFID(natsClient.Conn(), slog.Default())
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to subscribe to uuid-to-sfid RPC", "error", err)
-		os.Exit(1)
-	}
-	defer func() {
-		if drainErr := uuidToSFIDSub.Drain(); drainErr != nil {
-			slog.WarnContext(ctx, "error draining uuid-to-sfid subscription", "error", drainErr)
-		}
-	}()
-
 	membershipServiceSvc := service.NewMembershipService(
 		service.JWTAuthImpl(ctx),
 		service.MemberReaderImpl(ctx),

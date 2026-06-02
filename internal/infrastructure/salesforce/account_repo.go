@@ -53,15 +53,16 @@ func NewAccountRepo(client *sf.Salesforce) *AccountRepo {
 	return &AccountRepo{client: client}
 }
 
-// FetchChildUIDsByParentUID returns the v2 UUIDs of member-eligible Salesforce
-// Accounts whose ParentId matches the SFID derived from parentUID. Only accounts
-// with at least one membership Asset are returned — matching the same gate used
-// by accountsSOQLBase so the result contains only UIDs that exist in the index.
-// Returns an empty slice (no error) when the parent has no member-eligible children.
+// FetchChildUIDsByParentUID returns the SFIDs of member-eligible Salesforce
+// Accounts whose ParentId matches the SFID derived from parentUID (uid == SFID).
+// Only accounts with at least one membership Asset are returned — matching the
+// same gate used by accountsSOQLBase so the result contains only UIDs that exist
+// in the index. Returns an empty slice (no error) when the parent has no
+// member-eligible children.
 func (r *AccountRepo) FetchChildUIDsByParentUID(ctx context.Context, parentUID string) ([]string, error) {
-	parentSFID, err := sfuuid.ToSFID(parentUID)
+	parentSFID, err := sfuuid.Normalize18(parentUID)
 	if err != nil {
-		return nil, fmt.Errorf("converting parent uid %q to sfid: %w", parentUID, err)
+		return nil, fmt.Errorf("normalizing parent uid %q to sfid: %w", parentUID, err)
 	}
 	slog.DebugContext(ctx, "fetching child account SFIDs from Salesforce", "parent_sfid", parentSFID)
 
@@ -75,9 +76,9 @@ func (r *AccountRepo) FetchChildUIDsByParentUID(ctx context.Context, parentUID s
 
 	uids := make([]string, 0, len(records))
 	for _, rec := range records {
-		uid, convErr := sfuuid.ToUUID(rec.ID)
+		uid, convErr := sfuuid.Normalize18(rec.ID)
 		if convErr != nil {
-			slog.WarnContext(ctx, "child account SFID could not be converted to UUID, skipping",
+			slog.WarnContext(ctx, "child account SFID could not be normalized, skipping",
 				"parent_sfid", parentSFID, "child_sfid", rec.ID, "error", convErr)
 			continue
 		}
@@ -104,9 +105,9 @@ func (r *AccountRepo) FetchAccountBySFID(ctx context.Context, sfid string) (*mod
 // convertSOQLToB2BOrg converts a Salesforce Account SOQL result to the domain
 // B2BOrg model.
 func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, error) {
-	uid, err := sfuuid.ToUUID(acc.ID)
+	uid, err := sfuuid.Normalize18(acc.ID)
 	if err != nil {
-		return nil, fmt.Errorf("converting account SFID %q to UUID: %w", acc.ID, err)
+		return nil, fmt.Errorf("normalizing account SFID %q: %w", acc.ID, err)
 	}
 
 	org := &model.B2BOrg{
@@ -174,9 +175,9 @@ func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, e
 	}
 
 	if parentSFID := derefString(acc.ParentID); parentSFID != "" {
-		parentUID, convErr := sfuuid.ToUUID(parentSFID)
+		parentUID, convErr := sfuuid.Normalize18(parentSFID)
 		if convErr != nil {
-			slog.WarnContext(ctx, "account parent SFID could not be converted to UUID, omitting",
+			slog.WarnContext(ctx, "account parent SFID could not be normalized, omitting",
 				"sfid", acc.ID, "parent_sfid", parentSFID)
 		} else {
 			org.ParentUID = parentUID

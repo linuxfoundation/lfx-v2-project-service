@@ -5,6 +5,7 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -83,6 +84,34 @@ func TestOrgSettingsWriter_Update_EmptyWriters_ClearsAll(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, result.Writers, "explicit empty slice should clear writers")
+}
+
+func TestOrgSettingsWriter_Update_PrincipalsCap(t *testing.T) {
+	const cap = 700
+	makeUsers := func(n int) []model.B2BOrgUser {
+		users := make([]model.B2BOrgUser, n)
+		for i := range users {
+			users[i] = model.B2BOrgUser{Email: "u@example.com"}
+		}
+		return users
+	}
+
+	t.Run("exactly cap writers succeeds", func(t *testing.T) {
+		writer := newOrgSettingsWriter(mock.NewMockB2BOrgSettings(), mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+		in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: makeUsers(cap)}
+		_, err := writer.Update(context.Background(), in)
+		require.NoError(t, err)
+	})
+
+	t.Run("cap+1 writers returns Validation error mentioning cap", func(t *testing.T) {
+		writer := newOrgSettingsWriter(mock.NewMockB2BOrgSettings(), mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+		in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: makeUsers(cap + 1)}
+		_, err := writer.Update(context.Background(), in)
+		require.Error(t, err)
+		var ve pkgerrors.Validation
+		assert.True(t, errors.As(err, &ve), "expected Validation error, got %T: %v", err, err)
+		assert.Contains(t, err.Error(), "700")
+	})
 }
 
 func TestOrgSettingsWriter_Update_IfMatch_Matches_Succeeds(t *testing.T) {

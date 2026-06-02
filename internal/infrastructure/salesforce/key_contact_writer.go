@@ -115,9 +115,9 @@ func NewKeyContactWriter(
 // read fetches fresh data. The newly created record is re-fetched from
 // Salesforce and returned.
 func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.KeyContactInput) (*model.KeyContact, error) {
-	assetSFID, err := sfuuid.ToSFID(input.MembershipUID)
+	assetSFID, err := sfuuid.Normalize18(input.MembershipUID)
 	if err != nil {
-		// Treat a value that does not decode as an LFX_ UUID as a raw SFID.
+		// Defensive: uid was not a valid SFID — use as-is.
 		assetSFID = input.MembershipUID
 	}
 
@@ -125,9 +125,8 @@ func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.Key
 		return nil, fmt.Errorf("email is required for CreateKeyContact")
 	}
 
-	// Convert B2BOrgUID (v2 UUID) to Salesforce Account.Id for new-Contact creation.
-	// On conversion failure treat the value as an already-valid SFID (same fallback as MembershipUID above).
-	accountSFID, err := sfuuid.ToSFID(input.AccountSFID)
+	// Normalize the Account SFID for new-Contact creation.
+	accountSFID, err := sfuuid.Normalize18(input.AccountSFID)
 	if err != nil {
 		accountSFID = input.AccountSFID
 	}
@@ -233,7 +232,7 @@ func (w *KeyContactWriter) CreateKeyContact(ctx context.Context, input model.Key
 // Note: Title is only applied when a new Salesforce Contact is created during
 // email resolution. If the Contact already exists, Title is not patched.
 func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID string, input model.KeyContactInput) (*model.KeyContact, error) {
-	sfid, err := sfuuid.ToSFID(contactUID)
+	sfid, err := sfuuid.Normalize18(contactUID)
 	if err != nil {
 		sfid = contactUID
 	}
@@ -242,9 +241,7 @@ func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID stri
 
 	// If email is changing, resolve (or create) the new Contact and rewire Contact__c.
 	if input.Email != nil {
-		// Convert v2 B2BOrgUID to SF Account.Id for new-Contact creation.
-		// On conversion failure treat as already-valid SFID (same fallback as MembershipUID).
-		accountSFID, aErr := sfuuid.ToSFID(input.AccountSFID)
+		accountSFID, aErr := sfuuid.Normalize18(input.AccountSFID)
 		if aErr != nil {
 			accountSFID = input.AccountSFID
 		}
@@ -337,7 +334,7 @@ func (w *KeyContactWriter) UpdateKeyContact(ctx context.Context, contactUID stri
 // TODO: extend port signature to accept IfUnmodifiedSince for SF-side conditional
 // delete (follow-up ticket — service-layer ETag check is in place; SF-side guard is the remaining gap).
 func (w *KeyContactWriter) DeleteKeyContact(ctx context.Context, contactUID string, membershipUID string) error {
-	sfid, err := sfuuid.ToSFID(contactUID)
+	sfid, err := sfuuid.Normalize18(contactUID)
 	if err != nil {
 		sfid = contactUID
 	}

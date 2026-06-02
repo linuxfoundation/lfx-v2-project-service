@@ -31,8 +31,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			IfNoneMatchAttribute()
 			IfModifiedSinceAttribute()
@@ -126,8 +125,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			IfMatchAttribute()
 			dsl.Extend(B2BOrgUpdateBody)
@@ -177,8 +175,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			dsl.Required("uid")
 		})
@@ -221,8 +218,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			IfMatchAttribute()
 			dsl.Extend(B2BOrgSettingsUpdateBody)
@@ -274,8 +270,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "Project membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			IfNoneMatchAttribute()
 			IfModifiedSinceAttribute()
@@ -328,12 +323,10 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("a0K2M000000ABCdUAG")
 			})
 			IfNoneMatchAttribute()
 			IfModifiedSinceAttribute()
@@ -385,8 +378,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Extend(KeyContactCreateBody)
 			dsl.Required("membership_uid")
@@ -436,12 +428,10 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("a0K2M000000ABCdUAG")
 			})
 			IfMatchAttribute()
 			dsl.Extend(KeyContactUpdateBody)
@@ -494,12 +484,10 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("a0K2M000000ABCdUAG")
 			})
 			IfMatchAttribute()
 			dsl.Required("membership_uid", "uid")

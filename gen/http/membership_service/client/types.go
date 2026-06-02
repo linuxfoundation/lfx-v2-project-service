@@ -1437,7 +1437,7 @@ type ReadyzServiceUnavailableResponseBody struct {
 
 // B2bOrgResponseResponseBody is used to define fields on response body types.
 type B2bOrgResponseResponseBody struct {
-	// B2BOrg UID (invertible UUID v8)
+	// B2BOrg UID (Salesforce Account.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
@@ -1527,12 +1527,14 @@ type OrgUserRequestBody struct {
 // ProjectMembershipResponseResponseBody is used to define fields on response
 // body types.
 type ProjectMembershipResponseResponseBody struct {
-	// Membership UID (invertible UUID v8 from Asset.Id)
+	// Membership UID (Salesforce Asset.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// UID of the associated membership tier (Product2)
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Salesforce Project__c.Id for the project this membership belongs to
+	ProjectSfid *string `form:"project_sfid,omitempty" json:"project_sfid,omitempty" xml:"project_sfid,omitempty"`
 	// URL slug of the project this membership belongs to
 	ProjectSlug *string `form:"project_slug,omitempty" json:"project_slug,omitempty" xml:"project_slug,omitempty"`
 	// UID of the B2B organization (Account) this membership belongs to
@@ -1584,14 +1586,16 @@ type ProjectMembershipResponseResponseBody struct {
 // ProjectKeyContactResponseResponseBody is used to define fields on response
 // body types.
 type ProjectKeyContactResponseResponseBody struct {
-	// Key contact UID (invertible UUID v8 from Project_Role__c.Id)
+	// Key contact UID (Salesforce Project_Role__c.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// UID of the associated membership (Asset)
 	MembershipUID *string `form:"membership_uid,omitempty" json:"membership_uid,omitempty" xml:"membership_uid,omitempty"`
 	// UID of the associated membership tier (Product2)
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Salesforce Project__c.Id for the project this key contact belongs to
+	ProjectSfid *string `form:"project_sfid,omitempty" json:"project_sfid,omitempty" xml:"project_sfid,omitempty"`
 	// UID of the B2B organization (Account) this key contact's membership belongs
 	// to
 	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
@@ -1627,7 +1631,7 @@ type ProjectKeyContactResponseResponseBody struct {
 type AdminReindexItemRequestBody struct {
 	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
 	Type string `form:"type" json:"type" xml:"type"`
-	// Entity UID (invertible UUID v8)
+	// Entity UID (Salesforce ID)
 	UID string `form:"uid" json:"uid" xml:"uid"`
 }
 
@@ -2358,6 +2362,7 @@ func NewGetProjectMembershipResultOK(body *GetProjectMembershipResponseBody, eta
 		UID:              body.UID,
 		TierUID:          body.TierUID,
 		ProjectUID:       body.ProjectUID,
+		ProjectSfid:      body.ProjectSfid,
 		ProjectSlug:      body.ProjectSlug,
 		B2bOrgUID:        body.B2bOrgUID,
 		Status:           body.Status,
@@ -2489,6 +2494,7 @@ func NewGetKeyContactResultOK(body *GetKeyContactResponseBody, etag *string, las
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		ProjectSfid:    body.ProjectSfid,
 		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
@@ -2611,6 +2617,7 @@ func NewCreateKeyContactResultCreated(body *CreateKeyContactResponseBody, etag *
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		ProjectSfid:    body.ProjectSfid,
 		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
@@ -2748,6 +2755,7 @@ func NewUpdateKeyContactResultOK(body *UpdateKeyContactResponseBody, etag *strin
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		ProjectSfid:    body.ProjectSfid,
 		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
@@ -3085,14 +3093,8 @@ func NewReadyzServiceUnavailable(body *ReadyzServiceUnavailableResponseBody) *go
 // ValidateGetB2bOrgResponseBody runs the validations defined on
 // Get-B2b-OrgResponseBody
 func ValidateGetB2bOrgResponseBody(body *GetB2bOrgResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3106,14 +3108,8 @@ func ValidateGetB2bOrgResponseBody(body *GetB2bOrgResponseBody) (err error) {
 // ValidateCreateB2bOrgResponseBody runs the validations defined on
 // Create-B2b-OrgResponseBody
 func ValidateCreateB2bOrgResponseBody(body *CreateB2bOrgResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3127,14 +3123,8 @@ func ValidateCreateB2bOrgResponseBody(body *CreateB2bOrgResponseBody) (err error
 // ValidateUpdateB2bOrgResponseBody runs the validations defined on
 // Update-B2b-OrgResponseBody
 func ValidateUpdateB2bOrgResponseBody(body *UpdateB2bOrgResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3200,17 +3190,8 @@ func ValidateUpdateB2bOrgSettingsResponseBody(body *UpdateB2bOrgSettingsResponse
 // ValidateGetProjectMembershipResponseBody runs the validations defined on
 // Get-Project-MembershipResponseBody
 func ValidateGetProjectMembershipResponseBody(body *GetProjectMembershipResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3224,20 +3205,8 @@ func ValidateGetProjectMembershipResponseBody(body *GetProjectMembershipResponse
 // ValidateGetKeyContactResponseBody runs the validations defined on
 // Get-Key-ContactResponseBody
 func ValidateGetKeyContactResponseBody(body *GetKeyContactResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3251,20 +3220,8 @@ func ValidateGetKeyContactResponseBody(body *GetKeyContactResponseBody) (err err
 // ValidateCreateKeyContactResponseBody runs the validations defined on
 // Create-Key-ContactResponseBody
 func ValidateCreateKeyContactResponseBody(body *CreateKeyContactResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3278,20 +3235,8 @@ func ValidateCreateKeyContactResponseBody(body *CreateKeyContactResponseBody) (e
 // ValidateUpdateKeyContactResponseBody runs the validations defined on
 // Update-Key-ContactResponseBody
 func ValidateUpdateKeyContactResponseBody(body *UpdateKeyContactResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -4931,14 +4876,8 @@ func ValidateReadyzServiceUnavailableResponseBody(body *ReadyzServiceUnavailable
 // ValidateB2bOrgResponseResponseBody runs the validations defined on
 // b2b-org-responseResponseBody
 func ValidateB2bOrgResponseResponseBody(body *B2bOrgResponseResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -5018,17 +4957,8 @@ func ValidateOrgUserRequestBody(body *OrgUserRequestBody) (err error) {
 // ValidateProjectMembershipResponseResponseBody runs the validations defined
 // on project-membership-responseResponseBody
 func ValidateProjectMembershipResponseResponseBody(body *ProjectMembershipResponseResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -5042,20 +4972,8 @@ func ValidateProjectMembershipResponseResponseBody(body *ProjectMembershipRespon
 // ValidateProjectKeyContactResponseResponseBody runs the validations defined
 // on project-key-contact-responseResponseBody
 func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactResponseResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -5063,12 +4981,5 @@ func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactRespon
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
-	return
-}
-
-// ValidateAdminReindexItemRequestBody runs the validations defined on
-// admin-reindex-itemRequestBody
-func ValidateAdminReindexItemRequestBody(body *AdminReindexItemRequestBody) (err error) {
-	err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", body.UID, goa.FormatUUID))
 	return
 }

@@ -62,7 +62,7 @@ var _ port.ProjectMembershipReader = (*ProjectMembershipReader)(nil)
 // Step 3: Track the oldest LastModified timestamp across all fetches.
 func (r *ProjectMembershipReader) AssembleProjectMembership(ctx context.Context, uid string) (*model.ProjectMembership, time.Time, error) {
 	// Step 1: Fetch Asset and unmarshal to base ProjectMembership.
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := sfuuid.Normalize18(uid)
 	if err != nil {
 		return nil, time.Time{}, errs.NewValidation(fmt.Sprintf("invalid Asset UID %q: %v", uid, err))
 	}
@@ -78,7 +78,7 @@ func (r *ProjectMembershipReader) AssembleProjectMembership(ctx context.Context,
 		return nil, time.Time{}, fmt.Errorf("unmarshal Asset sObject response: %w", unmarshalErr)
 	}
 
-	membership, err := sobjectAssetToModel(&rawAsset, uid)
+	membership, err := sobjectAssetToModel(&rawAsset, sfid)
 	if err != nil {
 		return nil, time.Time{}, err
 	}
@@ -99,9 +99,9 @@ func (r *ProjectMembershipReader) AssembleProjectMembership(ctx context.Context,
 	// Fetch Account (B2BOrg) if AccountID is present.
 	if rawAsset.AccountID != "" {
 		g.Go(func() error {
-			accountUID, err := sfuuid.ToUUID(rawAsset.AccountID)
+			accountUID, err := sfuuid.Normalize18(rawAsset.AccountID)
 			if err != nil {
-				return fmt.Errorf("convert Asset.AccountId %q to UUID: %w", rawAsset.AccountID, err)
+				return fmt.Errorf("normalize Asset.AccountId %q: %w", rawAsset.AccountID, err)
 			}
 
 			org, _, err := r.client.FetchB2BOrg(gCtx, accountUID)
@@ -160,11 +160,14 @@ func (r *ProjectMembershipReader) AssembleProjectMembership(ctx context.Context,
 			}
 
 			// Populate project-related fields.
-			projectUID, err := sfuuid.ToUUID(rawProj.ID)
-			if err != nil && rawProj.ID != "" {
-				return fmt.Errorf("convert Project__c.Id %q to UUID: %w", rawProj.ID, err)
+			// ProjectUID is resolved from the slug via project-service (NATS); see
+			// MemberReader and backfill_runner for the resolution step.
+			// ProjectSFID is the raw Salesforce Project__c.Id.
+			if rawProj.ID != "" {
+				if projectSFID, normErr := sfuuid.Normalize18(rawProj.ID); normErr == nil {
+					membership.ProjectSFID = projectSFID
+				}
 			}
-			membership.ProjectUID = projectUID
 			membership.ProjectSlug = derefString(rawProj.Slug)
 
 			// Track timestamp for oldest calculation.

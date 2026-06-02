@@ -21,6 +21,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 	"goa.design/goa/v3/security"
 )
 
@@ -83,6 +84,7 @@ func (s *membershipServicesrvc) DebugVars(_ context.Context) ([]byte, error) {
 
 // GetB2bOrg retrieves a single B2B organization by UID.
 func (s *membershipServicesrvc) GetB2bOrg(ctx context.Context, p *membershipservice.GetB2bOrgPayload) (*membershipservice.GetB2bOrgResult, error) {
+	p.UID = normalizeSFID(p.UID)
 	org, err := s.b2bOrgReader.GetB2BOrg(ctx, p.UID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
@@ -133,6 +135,7 @@ func (s *membershipServicesrvc) CreateB2bOrg(ctx context.Context, p *memberships
 // If-Match is absent the update is unconditional; when present and stale, 412
 // is returned. A no-op (no payload changes) returns the current record as-is.
 func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *membershipservice.UpdateB2bOrgPayload) (*membershipservice.UpdateB2bOrgResult, error) {
+	p.UID = normalizeSFID(p.UID)
 	input := payloadToB2BOrgInput(p)
 	ifMatch := ""
 	if p.IfMatch != nil {
@@ -164,6 +167,7 @@ func (s *membershipServicesrvc) UpdateB2bOrg(ctx context.Context, p *memberships
 // GetProjectMembership retrieves a single membership by UID and assembles the
 // fully denormalised record from its constituent Salesforce objects.
 func (s *membershipServicesrvc) GetProjectMembership(ctx context.Context, p *membershipservice.GetProjectMembershipPayload) (*membershipservice.GetProjectMembershipResult, error) {
+	p.UID = normalizeSFID(p.UID)
 	membership, lastMod, err := s.projectMembershipReader.AssembleProjectMembership(ctx, p.UID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
@@ -189,6 +193,9 @@ func (s *membershipServicesrvc) GetProjectMembership(ctx context.Context, p *mem
 
 // GetKeyContact retrieves a single key contact by UID.
 func (s *membershipServicesrvc) GetKeyContact(ctx context.Context, p *membershipservice.GetKeyContactPayload) (*membershipservice.GetKeyContactResult, error) {
+	p.UID = normalizeSFID(p.UID)
+	p.MembershipUID = normalizeSFID(p.MembershipUID)
+
 	kc, err := s.storage.GetKeyContact(ctx, p.UID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
@@ -218,6 +225,7 @@ func (s *membershipServicesrvc) GetKeyContact(ctx context.Context, p *membership
 
 // CreateKeyContact creates a new key contact.
 func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *membershipservice.CreateKeyContactPayload) (*membershipservice.CreateKeyContactResult, error) {
+	p.MembershipUID = normalizeSFID(p.MembershipUID)
 	in := usecaseSvc.KeyContactCreateInput{
 		MembershipUID:  p.MembershipUID,
 		FirstName:      p.FirstName,
@@ -255,6 +263,9 @@ func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *members
 // Cross-membership 404 check is performed here before delegating to the
 // orchestrator — avoids leaking record existence across membership boundaries.
 func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *membershipservice.UpdateKeyContactPayload) (*membershipservice.UpdateKeyContactResult, error) {
+	p.UID = normalizeSFID(p.UID)
+	p.MembershipUID = normalizeSFID(p.MembershipUID)
+
 	// 404 (not 403) to avoid leaking existence of contacts in other memberships.
 	current, err := s.storage.GetKeyContact(ctx, p.UID)
 	if err != nil {
@@ -302,6 +313,9 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 // Cross-membership 404 check is performed here before delegating to the
 // orchestrator — avoids leaking record existence across membership boundaries.
 func (s *membershipServicesrvc) DeleteKeyContact(ctx context.Context, p *membershipservice.DeleteKeyContactPayload) error {
+	p.UID = normalizeSFID(p.UID)
+	p.MembershipUID = normalizeSFID(p.MembershipUID)
+
 	kc, err := s.storage.GetKeyContact(ctx, p.UID)
 	if err != nil {
 		return wrapError(ctx, err)
@@ -426,6 +440,9 @@ func projectMembershipToResponse(m *model.ProjectMembership) *membershipservice.
 	if m.ProjectUID != "" {
 		resp.ProjectUID = &m.ProjectUID
 	}
+	if m.ProjectSFID != "" {
+		resp.ProjectSfid = &m.ProjectSFID
+	}
 	if m.ProjectSlug != "" {
 		resp.ProjectSlug = &m.ProjectSlug
 	}
@@ -513,6 +530,9 @@ func keyContactToResponse(kc *model.KeyContact) *membershipservice.ProjectKeyCon
 	if kc.ProjectUID != "" {
 		resp.ProjectUID = &kc.ProjectUID
 	}
+	if kc.ProjectSFID != "" {
+		resp.ProjectSfid = &kc.ProjectSFID
+	}
 	if kc.B2BOrgUID != "" {
 		resp.B2bOrgUID = &kc.B2BOrgUID
 	}
@@ -566,6 +586,16 @@ func derefStr(s *string) string {
 	return *s
 }
 
+// normalizeSFID normalizes s to its canonical 18-char Salesforce ID form.
+// If s is not a valid SFID (e.g. a UUID from tests or an arbitrary string),
+// it is returned unchanged so comparisons against mock data still work.
+func normalizeSFID(s string) string {
+	if normalized, err := sfuuid.Normalize18(s); err == nil {
+		return normalized
+	}
+	return s
+}
+
 // payloadToB2BOrgInput maps an UpdateB2bOrgPayload to a model.B2BOrgInput.
 func payloadToB2BOrgInput(p *membershipservice.UpdateB2bOrgPayload) model.B2BOrgInput {
 	input := model.B2BOrgInput{}
@@ -608,6 +638,7 @@ func payloadToB2BOrgInput(p *membershipservice.UpdateB2bOrgPayload) model.B2BOrg
 // GetB2bOrgSettings returns the current access-control settings for a b2b_org.
 // When no settings record exists yet it returns empty arrays — not a 404.
 func (s *membershipServicesrvc) GetB2bOrgSettings(ctx context.Context, p *membershipservice.GetB2bOrgSettingsPayload) (*membershipservice.GetB2bOrgSettingsResult, error) {
+	p.UID = normalizeSFID(p.UID)
 	settings, _, err := s.b2bOrgSettingsReader.GetSettings(ctx, p.UID)
 	if err != nil {
 		return nil, wrapError(ctx, err)
@@ -632,6 +663,7 @@ func (s *membershipServicesrvc) GetB2bOrgSettings(ctx context.Context, p *member
 // UpdateB2bOrgSettings fully replaces the writers and/or auditors for a b2b_org.
 // Nil writers/auditors = leave existing unchanged; explicit empty slice = clear.
 func (s *membershipServicesrvc) UpdateB2bOrgSettings(ctx context.Context, p *membershipservice.UpdateB2bOrgSettingsPayload) (*membershipservice.UpdateB2bOrgSettingsResult, error) {
+	p.UID = normalizeSFID(p.UID)
 	now := time.Now().UTC()
 	in := usecaseSvc.B2BOrgSettingsUpdate{
 		OrgUID:  p.UID,

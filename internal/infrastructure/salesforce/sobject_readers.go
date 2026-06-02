@@ -35,6 +35,16 @@ func sobjectCacheKey(prefix, uid string) string {
 	return prefix + "." + uid
 }
 
+// normalizeUID normalizes uid to its canonical 18-char SFID form, returning a
+// validation error that names the Salesforce entity type on failure.
+func normalizeUID(entityType, uid string) (string, error) {
+	sfid, err := sfuuid.Normalize18(uid)
+	if err != nil {
+		return "", errs.NewValidation(fmt.Sprintf("invalid %s UID %q: %v", entityType, uid, err))
+	}
+	return sfid, nil
+}
+
 // ─── sObject REST API JSON types ──────────────────────────────────────────────
 
 // These types mirror the Salesforce sObject REST API JSON field names. They are
@@ -194,12 +204,12 @@ type AccountRecord struct {
 // JSON (relationship fields require SOQL sub-selects), the returned AccountRecord
 // carries only the flat Account fields.
 func (c *SObjectClient) FetchAccount(ctx context.Context, uid string) (*AccountRecord, error) {
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := normalizeUID("Account", uid)
 	if err != nil {
-		return nil, errs.NewValidation(fmt.Sprintf("invalid Account UID %q: %v", uid, err))
+		return nil, err
 	}
 
-	cacheKey := sobjectCacheKey(sobjectKeyPrefixB2BOrg, uid)
+	cacheKey := sobjectCacheKey(sobjectKeyPrefixB2BOrg, sfid)
 	result, err := c.FetchSObject(ctx, "Account", sfid, cacheKey, accountFields)
 	if err != nil {
 		return nil, err
@@ -210,7 +220,7 @@ func (c *SObjectClient) FetchAccount(ctx context.Context, uid string) (*AccountR
 		return nil, fmt.Errorf("unmarshal Account sObject response: %w", unmarshalErr)
 	}
 
-	return sobjectAccountToRecord(&raw, uid), nil
+	return sobjectAccountToRecord(&raw, sfid), nil
 }
 
 // sobjectAccountToRecord converts a raw sobjectAccount to an AccountRecord.
@@ -231,12 +241,12 @@ func sobjectAccountToRecord(raw *sobjectAccount, uid string) *AccountRecord {
 // The cache key is "b2b_org.{uid}"; the FetchResult carries ETag and Last-Modified
 // for use by callers that need to set response headers.
 func (c *SObjectClient) FetchB2BOrg(ctx context.Context, uid string) (*model.B2BOrg, *FetchResult, error) {
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := normalizeUID("Account", uid)
 	if err != nil {
-		return nil, nil, errs.NewValidation(fmt.Sprintf("invalid Account UID %q: %v", uid, err))
+		return nil, nil, err
 	}
 
-	cacheKey := sobjectCacheKey(sobjectKeyPrefixB2BOrg, uid)
+	cacheKey := sobjectCacheKey(sobjectKeyPrefixB2BOrg, sfid)
 	result, err := c.FetchSObject(ctx, "Account", sfid, cacheKey, b2bOrgFields)
 	if err != nil {
 		return nil, nil, err
@@ -253,13 +263,13 @@ func (c *SObjectClient) FetchB2BOrg(ctx context.Context, uid string) (*model.B2B
 		parentDetail, fetchErr := c.fetchParentAccountDetail(ctx, parentSFID)
 		if fetchErr != nil {
 			slog.WarnContext(ctx, "failed to fetch parent account detail, proceeding without it",
-				"uid", uid, "parent_sfid", parentSFID, "error", fetchErr)
+				"uid", sfid, "parent_sfid", parentSFID, "error", fetchErr)
 		} else {
 			raw.Parent = parentDetail
 		}
 	}
 
-	org, err := sobjectAccountToB2BOrg(ctx, &raw, uid)
+	org, err := sobjectAccountToB2BOrg(ctx, &raw, sfid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -270,7 +280,7 @@ func (c *SObjectClient) FetchB2BOrg(ctx context.Context, uid string) (*model.B2B
 // for the parent Account identified by parentSFID. Failures are non-fatal to the
 // caller; the parent detail is best-effort.
 func (c *SObjectClient) fetchParentAccountDetail(ctx context.Context, parentSFID string) (*sobjectAccountParent, error) {
-	parentUID, err := sfuuid.ToUUID(parentSFID)
+	parentUID, err := sfuuid.Normalize18(parentSFID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid parent Account SFID %q: %w", parentSFID, err)
 	}
@@ -353,9 +363,9 @@ func sobjectAccountToB2BOrg(ctx context.Context, raw *sobjectAccount, uid string
 	org.Slug = derefString(raw.Slug)
 
 	if parentSFID := derefString(raw.ParentID); parentSFID != "" {
-		parentUID, convErr := sfuuid.ToUUID(parentSFID)
+		parentUID, convErr := sfuuid.Normalize18(parentSFID)
 		if convErr != nil {
-			slog.WarnContext(ctx, "account parent SFID could not be converted to UUID, omitting",
+			slog.WarnContext(ctx, "account parent SFID could not be normalized, omitting",
 				"uid", uid, "parent_sfid", parentSFID)
 		} else {
 			org.ParentUID = parentUID
@@ -393,12 +403,12 @@ func sobjectAccountToB2BOrg(ctx context.Context, raw *sobjectAccount, uid string
 // has the denormalized data and only needs to check whether the record has
 // changed.
 func (c *SObjectClient) FetchAsset(ctx context.Context, uid string) (*model.ProjectMembership, error) {
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := normalizeUID("Asset", uid)
 	if err != nil {
-		return nil, errs.NewValidation(fmt.Sprintf("invalid Asset UID %q: %v", uid, err))
+		return nil, err
 	}
 
-	cacheKey := sobjectCacheKey(sobjectKeyPrefixProjectMembership, uid)
+	cacheKey := sobjectCacheKey(sobjectKeyPrefixProjectMembership, sfid)
 	result, err := c.FetchSObject(ctx, "Asset", sfid, cacheKey, assetFields)
 	if err != nil {
 		return nil, err
@@ -409,7 +419,7 @@ func (c *SObjectClient) FetchAsset(ctx context.Context, uid string) (*model.Proj
 		return nil, fmt.Errorf("unmarshal Asset sObject response: %w", unmarshalErr)
 	}
 
-	return sobjectAssetToModel(&raw, uid)
+	return sobjectAssetToModel(&raw, sfid)
 }
 
 // sobjectAssetToModel converts a raw sobjectAsset to a minimal
@@ -417,9 +427,9 @@ func (c *SObjectClient) FetchAsset(ctx context.Context, uid string) (*model.Proj
 // ProjectUID, etc.) are left at their zero values; the caller is responsible
 // for enriching the record if needed.
 func sobjectAssetToModel(raw *sobjectAsset, uid string) (*model.ProjectMembership, error) {
-	tierUID, err := sfuuid.ToUUID(raw.Product2ID)
+	tierUID, err := sfuuid.Normalize18(raw.Product2ID)
 	if err != nil && raw.Product2ID != "" {
-		return nil, fmt.Errorf("convert Asset.Product2Id %q to UUID: %w", raw.Product2ID, err)
+		return nil, fmt.Errorf("normalize Asset.Product2Id %q: %w", raw.Product2ID, err)
 	}
 
 	purchaseDate := coalesceDate(raw.PurchaseDate, raw.InstallDate, &raw.CreatedDate)
@@ -463,12 +473,12 @@ func coalesceDate(candidates ...*string) string {
 // Product2 sObject has no project relationship field accessible without a SOQL
 // join.
 func (c *SObjectClient) FetchProduct2(ctx context.Context, uid string) (*model.MembershipTier, error) {
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := normalizeUID("Product2", uid)
 	if err != nil {
-		return nil, errs.NewValidation(fmt.Sprintf("invalid Product2 UID %q: %v", uid, err))
+		return nil, err
 	}
 
-	cacheKey := sobjectCacheKey(sobjectKeyPrefixMembershipTier, uid)
+	cacheKey := sobjectCacheKey(sobjectKeyPrefixMembershipTier, sfid)
 	result, err := c.FetchSObject(ctx, "Product2", sfid, cacheKey, product2Fields)
 	if err != nil {
 		return nil, err
@@ -479,7 +489,7 @@ func (c *SObjectClient) FetchProduct2(ctx context.Context, uid string) (*model.M
 		return nil, fmt.Errorf("unmarshal Product2 sObject response: %w", unmarshalErr)
 	}
 
-	return sobjectProduct2ToModel(&raw, uid), nil
+	return sobjectProduct2ToModel(&raw, sfid), nil
 }
 
 // sobjectProduct2ToModel converts a raw sobjectProduct2 to a model.MembershipTier.
@@ -502,12 +512,12 @@ func sobjectProduct2ToModel(raw *sobjectProduct2, uid string) *model.MembershipT
 // (name, email, company) are not populated because they require SOQL joins;
 // the returned model carries only the Project_Role__c record's own fields.
 func (c *SObjectClient) FetchProjectRole(ctx context.Context, uid string) (*model.KeyContact, error) {
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := normalizeUID("Project_Role__c", uid)
 	if err != nil {
-		return nil, errs.NewValidation(fmt.Sprintf("invalid Project_Role__c UID %q: %v", uid, err))
+		return nil, err
 	}
 
-	cacheKey := sobjectCacheKey(sobjectKeyPrefixKeyContact, uid)
+	cacheKey := sobjectCacheKey(sobjectKeyPrefixKeyContact, sfid)
 	result, err := c.FetchSObject(ctx, "Project_Role__c", sfid, cacheKey, projectRoleFields)
 	if err != nil {
 		return nil, err
@@ -518,16 +528,16 @@ func (c *SObjectClient) FetchProjectRole(ctx context.Context, uid string) (*mode
 		return nil, fmt.Errorf("unmarshal Project_Role__c sObject response: %w", unmarshalErr)
 	}
 
-	return sobjectProjectRoleToModel(&raw, uid)
+	return sobjectProjectRoleToModel(&raw, sfid)
 }
 
 // sobjectProjectRoleToModel converts a raw sobjectProjectRole to a minimal
 // model.KeyContact. Contact-sourced fields (FirstName, LastName, Email,
 // Title, CompanyName, etc.) are left at their zero values.
 func sobjectProjectRoleToModel(raw *sobjectProjectRole, uid string) (*model.KeyContact, error) {
-	membershipUID, err := sfuuid.ToUUID(raw.AssetID)
+	membershipUID, err := sfuuid.Normalize18(raw.AssetID)
 	if err != nil && raw.AssetID != "" {
-		return nil, fmt.Errorf("convert Project_Role__c.Asset__c %q to UUID: %w", raw.AssetID, err)
+		return nil, fmt.Errorf("normalize Project_Role__c.Asset__c %q: %w", raw.AssetID, err)
 	}
 
 	return &model.KeyContact{
