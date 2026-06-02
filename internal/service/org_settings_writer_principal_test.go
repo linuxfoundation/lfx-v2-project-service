@@ -307,6 +307,7 @@ func TestOrgSettingsWriter_ChangeRole_NotFound(t *testing.T) {
 		OrgUID: testOrgUID, Email: "ghost@example.com", InvitedAs: "auditor",
 	})
 	require.Error(t, err)
+	assert.True(t, pkgerrors.IsNotFound(err), "changing the role of a ghost principal must be NotFound, got %T", err)
 }
 
 func TestOrgSettingsWriter_ChangeRole_IfMatchMismatch(t *testing.T) {
@@ -318,6 +319,7 @@ func TestOrgSettingsWriter_ChangeRole_IfMatchMismatch(t *testing.T) {
 		OrgUID: testOrgUID, Email: "bob@example.com", InvitedAs: "auditor", IfMatch: "stale-etag",
 	})
 	require.Error(t, err)
+	assert.True(t, pkgerrors.IsPreconditionFailed(err), "stale If-Match must be PreconditionFailed, got %T", err)
 }
 
 func TestOrgSettingsWriter_ChangeRole_IfMatchMatchSucceeds(t *testing.T) {
@@ -542,6 +544,7 @@ func TestOrgSettingsWriter_RemovePrincipal_NotFound(t *testing.T) {
 		OrgUID: testOrgUID, Email: "ghost@example.com",
 	})
 	require.Error(t, err)
+	assert.True(t, pkgerrors.IsNotFound(err), "removing a ghost principal must be NotFound, got %T", err)
 }
 
 func TestOrgSettingsWriter_RemovePrincipal_PutConflictPropagates(t *testing.T) {
