@@ -1413,6 +1413,12 @@ func TestProjectsService_isRecipientDomainAllowed(t *testing.T) {
 			addr:    "user@sub.linuxfoundation.org",
 			want:    false,
 		},
+		{
+			name:    "mixed-case allowlist entry — allowed",
+			domains: []string{"LinuxFoundation.ORG"},
+			addr:    "user@linuxfoundation.org",
+			want:    true,
+		},
 	}
 
 	for _, tt := range tests {

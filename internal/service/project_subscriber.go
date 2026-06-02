@@ -920,7 +920,7 @@ func (s *ProjectsService) isRecipientDomainAllowed(addr string) bool {
 	}
 	domain := strings.ToLower(addr[at+1:])
 	for _, allowed := range s.Config.EmailAllowedDomains {
-		if domain == allowed {
+		if domain == strings.ToLower(allowed) {
 			return true
 		}
 	}
