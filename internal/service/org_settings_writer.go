@@ -212,6 +212,7 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	// when ALL matches are revoked/expired audit entries; if ANY match is still live
 	// (accepted or pending) it's a conflict — otherwise the cleanup below would silently
 	// delete that active grant while re-inviting a separate revoked one.
+	cleanupRan := false
 	if matches := findPrincipalsByEmail(updated, email); len(matches) > 0 {
 		for _, m := range matches {
 			status := m.EffectiveStatus()
@@ -222,6 +223,7 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 		// All matches are revoked/expired — drop them before re-inviting.
 		updated.Writers = removePrincipalByEmail(updated.Writers, email)
 		updated.Auditors = removePrincipalByEmail(updated.Auditors, email)
+		cleanupRan = true
 	}
 
 	entry := model.B2BOrgUser{
@@ -247,7 +249,9 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 		return nil, pkgerrors.NewValidation(fmt.Sprintf("writers and auditors lists must not exceed %d entries each", maxPrincipals))
 	}
 
-	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
+	// Only the target relation changed (plus the other one if a revoked-entry cleanup ran).
+	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now,
+		in.InvitedAs == "writer" || cleanupRan, in.InvitedAs == "auditor" || cleanupRan)
 }
 
 // ChangePrincipalRole moves one principal between writers and auditors, preserving
@@ -310,7 +314,8 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 	if err := assertNotRemovingLastAdmin(existing, updated); err != nil {
 		return nil, err
 	}
-	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
+	// A role move always changes both relations (source loses the entry, target gains it).
+	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now, true, true)
 }
 
 // RemovePrincipal removes one principal (revoke accepted grant or cancel pending invite),
@@ -334,11 +339,14 @@ func (o *orgSettingsWriterOrchestrator) RemovePrincipal(ctx context.Context, in 
 
 	now := time.Now().UTC()
 	updated := cloneSettings(existing, in.OrgUID, now)
-	// findPrincipalByEmail (writers-first, single match) is sufficient here: we only need to
-	// confirm the principal exists. Unlike AddPrincipal/ChangePrincipalRole — which inspect
-	// every match's status — removal doesn't care which entry matched, and the two
-	// removePrincipalByEmail calls below clean up any dual-list (bulk-PUT) duplicates.
-	if _, found := findPrincipalByEmail(updated, email); !found {
+	// Determine which relation(s) actually contain the principal. This drives both the
+	// existence check (must be in at least one) and the FGA sync flags: only a relation that
+	// actually changed is reconciled, so removing an auditor never re-syncs writers. The same
+	// email can appear in both lists (a bulk-PUT artifact); removePrincipalByEmail below cleans
+	// up every copy regardless.
+	inWriters := relationHasEmail(updated.Writers, email)
+	inAuditors := relationHasEmail(updated.Auditors, email)
+	if !inWriters && !inAuditors {
 		return nil, pkgerrors.NewNotFound("principal not found for this organization")
 	}
 	updated.Writers = removePrincipalByEmail(updated.Writers, email)
@@ -347,22 +355,26 @@ func (o *orgSettingsWriterOrchestrator) RemovePrincipal(ctx context.Context, in 
 	if err := assertNotRemovingLastAdmin(existing, updated); err != nil {
 		return nil, err
 	}
-	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
+	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now, inWriters, inAuditors)
 }
 
 // persistAndPublish writes the merged settings (optimistic CAS via revision) and fires the
 // FGA + indexer publishes. The caller's `now` is reused for the record-level UpdatedAt so it
 // matches the entry-level timestamp stamped on the added/moved member (single consistent
-// write time). The writers/auditors slices are forwarded as-is so the nil-vs-empty
-// distinction is preserved: a relation that was actually touched is non-nil (the FGA full-sync
-// reconciles its tuples — adding new, revoking removed), while an untouched relation may stay
-// nil so the full-sync skips it and leaves its existing tuples in place.
+// write time).
+//
+// syncWriters/syncAuditors declare which relations this operation actually changed. Only those
+// are forwarded (non-nil) to the FGA full-sync so it reconciles just the touched relation(s) —
+// adding new tuples and revoking removed ones. An untouched relation is passed nil and skipped,
+// preserving its existing tuples and avoiding needless FGA churn (e.g. inviting an auditor must
+// not re-reconcile every writer). The indexer always publishes the full settings doc regardless.
 func (o *orgSettingsWriterOrchestrator) persistAndPublish(
 	ctx context.Context,
 	orgUID string,
 	existing, updated *model.B2BOrgSettings,
 	revision uint64,
 	now time.Time,
+	syncWriters, syncAuditors bool,
 ) (*model.B2BOrgSettings, error) {
 	updated.UpdatedAt = now
 	if err := o.settingsWriter.UpdateSettings(ctx, updated, revision); err != nil {
@@ -372,11 +384,20 @@ func (o *orgSettingsWriterOrchestrator) persistAndPublish(
 	if existing == nil {
 		action = indexerConstants.ActionCreated
 	}
-	// Non-nil slices signal "replace this relation" so the FGA full-sync reconciles tuples.
-	in := B2BOrgSettingsUpdate{
-		OrgUID:   orgUID,
-		Writers:  updated.Writers,
-		Auditors: updated.Auditors,
+	// A touched relation is coerced to a non-nil slice (empty if it was cleared) so the
+	// full-sync runs and revokes removed tuples; an untouched relation stays nil and is skipped.
+	in := B2BOrgSettingsUpdate{OrgUID: orgUID}
+	if syncWriters {
+		in.Writers = updated.Writers
+		if in.Writers == nil {
+			in.Writers = []model.B2BOrgUser{}
+		}
+	}
+	if syncAuditors {
+		in.Auditors = updated.Auditors
+		if in.Auditors == nil {
+			in.Auditors = []model.B2BOrgUser{}
+		}
 	}
 	o.publishAll(ctx, in, updated, action)
 	return updated, nil
@@ -405,16 +426,14 @@ func cloneSettings(s *model.B2BOrgSettings, orgUID string, now time.Time) *model
 	}
 }
 
-// findPrincipalByEmail returns a copy of the matching entry (writers checked first) and whether it was found.
-func findPrincipalByEmail(s *model.B2BOrgSettings, email string) (model.B2BOrgUser, bool) {
-	for _, list := range [][]model.B2BOrgUser{s.Writers, s.Auditors} {
-		for _, u := range list {
-			if normalizeSettingsEmail(u.Email) == email {
-				return u, true
-			}
+// relationHasEmail reports whether any entry in a single relation list matches email.
+func relationHasEmail(users []model.B2BOrgUser, email string) bool {
+	for _, u := range users {
+		if normalizeSettingsEmail(u.Email) == email {
+			return true
 		}
 	}
-	return model.B2BOrgUser{}, false
+	return false
 }
 
 // findPrincipalsByEmail returns every entry matching email across both writers and auditors.
