@@ -334,6 +334,10 @@ func (o *orgSettingsWriterOrchestrator) RemovePrincipal(ctx context.Context, in 
 
 	now := time.Now().UTC()
 	updated := cloneSettings(existing, in.OrgUID, now)
+	// findPrincipalByEmail (writers-first, single match) is sufficient here: we only need to
+	// confirm the principal exists. Unlike AddPrincipal/ChangePrincipalRole — which inspect
+	// every match's status — removal doesn't care which entry matched, and the two
+	// removePrincipalByEmail calls below clean up any dual-list (bulk-PUT) duplicates.
 	if _, found := findPrincipalByEmail(updated, email); !found {
 		return nil, pkgerrors.NewNotFound("principal not found for this organization")
 	}
@@ -389,8 +393,11 @@ func cloneSettings(s *model.B2BOrgSettings, orgUID string, now time.Time) *model
 	if s == nil {
 		return &model.B2BOrgSettings{UID: orgUID, CreatedAt: now, UpdatedAt: now}
 	}
+	// UID is set from the requested orgUID (the KV key), not the stored payload's UID, so a
+	// corrupted or migrated record whose internal UID drifted from its key can never be
+	// persisted back under the wrong key (UpdateSettings derives its key from settings.UID).
 	return &model.B2BOrgSettings{
-		UID:       s.UID,
+		UID:       orgUID,
 		Writers:   slices.Clone(s.Writers),
 		Auditors:  slices.Clone(s.Auditors),
 		CreatedAt: s.CreatedAt,

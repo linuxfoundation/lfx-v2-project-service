@@ -222,6 +222,20 @@ func TestOrgSettingsWriter_AddPrincipal_IfMatchMismatch(t *testing.T) {
 	assert.True(t, pkgerrors.IsPreconditionFailed(err), "stale If-Match must be a PreconditionFailed, got %T", err)
 }
 
+// TestOrgSettingsWriter_AddPrincipal_IfMatchOnNilSettingsReturnsPreconditionFailed verifies that
+// supplying If-Match when no settings record exists yet is a PreconditionFailed (you cannot match
+// against a record that does not exist). The If-Match check runs before the org-existence check.
+func TestOrgSettingsWriter_AddPrincipal_IfMatchOnNilSettingsReturnsPreconditionFailed(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings() // no settings seeded -> existing == nil
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor", IfMatch: "stale-etag",
+	})
+	require.Error(t, err)
+	assert.True(t, pkgerrors.IsPreconditionFailed(err), "If-Match against nil settings must be PreconditionFailed, got %T", err)
+}
+
 // TestOrgSettingsWriter_AddPrincipal_IfMatchMatchSucceeds verifies a matching If-Match ETag is
 // accepted and the add proceeds.
 func TestOrgSettingsWriter_AddPrincipal_IfMatchMatchSucceeds(t *testing.T) {
