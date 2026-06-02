@@ -50,12 +50,12 @@ This document is the authoritative reference for all data the member service sen
 
 ### Tags
 
-| Tag Format                 | Example                      | Purpose                           |
-|----------------------------|------------------------------|-----------------------------------|
-| `{uid}`                    | `cbef1ed5-...`               | Direct lookup by UID              |
-| `b2b_org_uid:{uid}`        | `b2b_org_uid:cbef1ed5-...`   | Find orgs by UID                  |
-| `parent_b2b_org_uid:{uid}` | `parent_b2b_org_uid:abc-...` | Find all children of a parent org |
-| `is_member:{true\|false}`  | `is_member:true`             | Filter by LF member status        |
+| Tag Format                 | Example                           | Purpose                           |
+|----------------------------|-----------------------------------|-----------------------------------|
+| `{uid}`                    | `0012M00002qnukOQAQ`              | Direct lookup by UID              |
+| `b2b_org_uid:{uid}`        | `b2b_org_uid:0012M00002qnukOQAQ`  | Find orgs by UID                  |
+| `parent_b2b_org_uid:{uid}` | `parent_b2b_org_uid:0014100000Te2ovAAB` | Find all children of a parent org |
+| `is_member:{true\|false}`  | `is_member:true`                  | Filter by LF member status        |
 
 > `parent_b2b_org_uid` tag is only emitted when `parent_uid` is non-empty.
 
@@ -101,9 +101,9 @@ This document is the authoritative reference for all data the member service sen
 |---------------------|--------------------|------------------------------------------------|
 | `uid`               | string             | Membership unique identifier                   |
 | `tier_uid`          | string             | UID of the associated membership tier          |
-| `project_uid`       | string             | v2 UUID of the project                         |
+| `project_uid`       | string             | v2 project UUID (NATS slug-resolved)           |
 | `project_slug`      | string (optional)  | URL slug of the project                        |
-| `b2b_org_uid`       | string (optional)  | UUID of the member company                     |
+| `b2b_org_uid`       | string (optional)  | 18-char Salesforce Account SFID of the member company |
 | `status`            | string             | Membership status, e.g. `Active`               |
 | `year`              | string (optional)  | Membership year, e.g. `2025`                   |
 | `tier`              | string (optional)  | Tier label, e.g. `Gold`                        |
@@ -128,12 +128,13 @@ This document is the authoritative reference for all data the member service sen
 
 ### Tags
 
-| Tag Format                     | Example                               | Purpose                            |
-|--------------------------------|---------------------------------------|------------------------------------|
-| `{uid}`                        | `cbef1ed5-...`                        | Direct lookup by UID               |
-| `project_membership_uid:{uid}` | `project_membership_uid:cbef1ed5-...` | Find memberships by UID            |
-| `project_uid:{uid}`            | `project_uid:abc-...`                 | Find all memberships for a project |
-| `b2b_org_uid:{uid}`            | `b2b_org_uid:def-...`                 | Find all memberships for an org    |
+| Tag Format                     | Example                                          | Purpose                            |
+|--------------------------------|--------------------------------------------------|------------------------------------|
+| `{uid}`                        | `02iB0000009ABCdIAM`                             | Direct lookup by UID               |
+| `project_membership_uid:{uid}` | `project_membership_uid:02iB0000009ABCdIAM`      | Find memberships by UID            |
+| `project_uid:{uid}`            | `project_uid:abc-...`                            | Find all memberships for a project |
+| `project_sfid:{sfid}`          | `project_sfid:a2T2M000000ABCdUAG`                | Find memberships by Salesforce project SFID |
+| `b2b_org_uid:{uid}`            | `b2b_org_uid:0012M00002qnukOQAQ`                 | Find all memberships for an org    |
 
 ### Access Control (IndexingConfig)
 
@@ -179,10 +180,10 @@ This document is the authoritative reference for all data the member service sen
 | `uid`              | string              | Key contact unique identifier                                               |
 | `membership_uid`   | string              | UID of the associated project membership                                    |
 | `tier_uid`         | string              | UID of the associated membership tier                                       |
-| `project_uid`      | string              | v2 UUID of the project                                                      |
+| `project_uid`      | string              | v2 project UUID (NATS slug-resolved)                                        |
 | `project_name`     | string (optional)   | Display name of the project — also indexed in `fulltext` for keyword search |
 | `project_logo_url` | string (optional)   | Logo image URL for the project                                              |
-| `b2b_org_uid`      | string (optional)   | UUID of the member company                                                  |
+| `b2b_org_uid`      | string (optional)   | 18-char Salesforce Account SFID of the member company                       |
 | `role`             | string              | Contact role, e.g. `Voting Representative`                                  |
 | `status`           | string              | Role record status, e.g. `Active`                                           |
 | `board_member`     | bool                | Whether this contact holds a board member role                              |
@@ -201,17 +202,18 @@ This document is the authoritative reference for all data the member service sen
 
 ### Tags
 
-| Tag Format                     | Example                          | Purpose                            |
-|--------------------------------|----------------------------------|------------------------------------|
-| `{uid}`                        | `cbef1ed5-...`                   | Direct lookup by UID               |
-| `key_contact_uid:{uid}`        | `key_contact_uid:cbef1ed5-...`   | Find contacts by UID               |
-| `project_membership_uid:{uid}` | `project_membership_uid:abc-...` | Find all contacts for a membership |
-| `project_uid:{uid}`            | `project_uid:def-...`            | Find all contacts for a project    |
-| `b2b_org_uid:{uid}`            | `b2b_org_uid:ghi-...`            | Find all contacts for an org       |
-| `role:{value}`                 | `role:Voting Representative`     | Filter contacts by role            |
-| `status:{value}`               | `status:Active`                  | Filter contacts by status          |
+| Tag Format                     | Example                                     | Purpose                            |
+|--------------------------------|---------------------------------------------|------------------------------------|
+| `{uid}`                        | `a0K2M000000ABCdUAG`                        | Direct lookup by UID               |
+| `key_contact_uid:{uid}`        | `key_contact_uid:a0K2M000000ABCdUAG`        | Find contacts by UID               |
+| `project_membership_uid:{uid}` | `project_membership_uid:02iB0000009ABCdIAM` | Find all contacts for a membership |
+| `project_uid:{uid}`            | `project_uid:abc-...`                       | Find all contacts for a project    |
+| `project_sfid:{sfid}`          | `project_sfid:a2T2M000000ABCdUAG`           | Find contacts by Salesforce project SFID |
+| `b2b_org_uid:{uid}`            | `b2b_org_uid:0012M00002qnukOQAQ`            | Find all contacts for an org       |
+| `role:{value}`                 | `role:Voting Representative`                | Filter contacts by role            |
+| `status:{value}`               | `status:Active`                             | Filter contacts by status          |
 
-> `role` and `status` tags are only emitted when non-empty.
+> `project_sfid`, `role`, and `status` tags are only emitted when non-empty.
 
 ### Access Control (IndexingConfig)
 
@@ -262,7 +264,7 @@ Flat `members[]` array — role is a first-class field on each entry. Both accep
 
 | Field        | Example value                                                |
 |--------------|--------------------------------------------------------------|
-| `uid`        | `cbef1ed5-...`                                               |
+| `uid`        | `0012M00002qnukOQAQ`                                         |
 | `members`    | `[{username, email, name, role, invite_status, updated_at}]` |
 | `created_at` | `2026-01-15T10:00:00Z`                                       |
 | `updated_at` | `2026-05-20T14:30:00Z`                                       |

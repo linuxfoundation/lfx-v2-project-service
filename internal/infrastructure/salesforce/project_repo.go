@@ -71,7 +71,7 @@ func (r *ProjectRepo) FetchSFIDBySlug(ctx context.Context, slug string) (string,
 	case 0:
 		return "", nil
 	case 1:
-		return projects[0].ID, nil
+		return normalizeUID("Project__c", projects[0].ID)
 	default:
 		return "", fmt.Errorf("slug %q matched %d Project__c records; expected at most 1", slug, len(projects))
 	}
