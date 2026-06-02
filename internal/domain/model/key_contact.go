@@ -40,10 +40,10 @@ type KeyContactInput struct {
 	// resolver round-trip.
 	ProjectUID string
 
-	// AccountSFID holds the v2 UUID of the membership's company (B2BOrgUID from the
-	// service layer). The writer converts it to a Salesforce Account.Id via sfuuid.ToSFID
-	// before passing it to ResolveOrCreateContact. Optional; only needed when a new
-	// Salesforce Contact may be created (i.e. the email resolves to an unknown address).
+	// AccountSFID holds the canonical 18-char Salesforce Account.Id (B2BOrgUID from the
+	// service layer, which is already the SFID). Passed directly to ResolveOrCreateContact.
+	// Optional; only needed when a new Salesforce Contact may be created (i.e. the
+	// email resolves to an unknown address).
 	AccountSFID string
 
 	// Role is the contact's role designation, e.g. "Voting Representative".
@@ -70,7 +70,7 @@ type KeyContactInput struct {
 // directly onto this struct — there are no separate Contact or Organization
 // sub-objects. This avoids any dependency on the User Service or Org Service.
 type KeyContact struct {
-	// UID is the invertible UUID v8 derived from the Salesforce Project_Role__c.Id.
+	// UID is the canonical 18-char Salesforce Project_Role__c SFID.
 	UID string `json:"uid"`
 
 	// MembershipUID is the UID of the associated ProjectMembership (Asset).
@@ -80,7 +80,13 @@ type KeyContact struct {
 	TierUID string `json:"tier_uid"`
 
 	// ProjectUID is the v2 UUID of the project this key contact belongs to.
+	// Resolved from the project slug via project-service over NATS.
 	ProjectUID string `json:"project_uid"`
+
+	// ProjectSFID is the 18-char Salesforce Project__c.Id for this key contact's
+	// project. Populated directly from the SFDC record. Exposed in API responses
+	// and indexer docs so Salesforce-keyed consumers can correlate the project.
+	ProjectSFID string `json:"project_sfid,omitempty"`
 
 	// ProjectSlug is the URL slug of the associated project. Used internally
 	// by the resolver to populate ProjectUID; not included in API responses.
@@ -93,10 +99,9 @@ type KeyContact struct {
 	// ProjectLogoURL is the logo image URL for the associated project.
 	ProjectLogoURL string `json:"project_logo_url,omitempty"`
 
-	// B2BOrgUID is the invertible UUID v8 derived from the Salesforce
-	// Account.Id of the membership's company. Populated from AccountId on the
-	// parent Asset's Account relationship; not included in API responses until
-	// the B2BOrg entity is surfaced through a dedicated endpoint.
+	// B2BOrgUID is the canonical 18-char Salesforce Account SFID of the
+	// membership's company. Populated from AccountId on the parent Asset's
+	// Account relationship.
 	B2BOrgUID string `json:"b2b_org_uid,omitempty"`
 
 	// Role is the contact's role designation, e.g. "Voting Representative".
@@ -171,6 +176,9 @@ func (kc *KeyContact) Tags() []string {
 	}
 	if kc.ProjectUID != "" {
 		tags = append(tags, fmt.Sprintf("project_uid:%s", kc.ProjectUID))
+	}
+	if kc.ProjectSFID != "" {
+		tags = append(tags, fmt.Sprintf("project_sfid:%s", kc.ProjectSFID))
 	}
 	if kc.B2BOrgUID != "" {
 		tags = append(tags, fmt.Sprintf("b2b_org_uid:%s", kc.B2BOrgUID))

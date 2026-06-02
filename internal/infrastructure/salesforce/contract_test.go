@@ -31,8 +31,8 @@ const (
 func TestContract_B2BOrg(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(contractAccountSFID)
-	require.NoError(t, err, "ToUUID must succeed for a valid SFID")
+	uid, err := sfuuid.Normalize18(contractAccountSFID)
+	require.NoError(t, err, "Normalize18 must succeed for a valid SFID")
 
 	website := "https://example.com"
 	domain := "example.com"
@@ -62,7 +62,7 @@ func TestContract_B2BOrg(t *testing.T) {
 	fromSObject, err := sobjectAccountToB2BOrg(ctx, &sobjectRec, uid)
 	require.NoError(t, err)
 
-	assert.Equal(t, uid, fromSOQL.UID, "UID: SOQL path should match sfuuid.ToUUID(sfid)")
+	assert.Equal(t, uid, fromSOQL.UID, "UID: SOQL path should equal canonical 18-char SFID")
 	assert.Equal(t, fromSOQL.UID, fromSObject.UID, "UID: both paths must agree")
 	assert.Equal(t, fromSOQL.SFID, fromSObject.SFID, "SFID: both paths must agree")
 	assert.Equal(t, fromSOQL.Name, fromSObject.Name, "Name: both paths must agree")
@@ -76,9 +76,9 @@ func TestContract_B2BOrg(t *testing.T) {
 func TestContract_ProjectMembership(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(contractAssetSFID)
+	uid, err := sfuuid.Normalize18(contractAssetSFID)
 	require.NoError(t, err)
-	tierUID, err := sfuuid.ToUUID(contractProduct2SFID)
+	tierUID, err := sfuuid.Normalize18(contractProduct2SFID)
 	require.NoError(t, err)
 
 	status := "Active"
@@ -131,9 +131,9 @@ func TestContract_ProjectMembership(t *testing.T) {
 	fromSObject, err := sobjectAssetToModel(&sobjectRec, uid)
 	require.NoError(t, err)
 
-	assert.Equal(t, uid, fromSOQL.UID, "UID: SOQL path should match sfuuid.ToUUID(sfid)")
+	assert.Equal(t, uid, fromSOQL.UID, "UID: SOQL path should equal canonical 18-char SFID")
 	assert.Equal(t, fromSOQL.UID, fromSObject.UID, "UID: both paths must agree")
-	assert.Equal(t, tierUID, fromSOQL.TierUID, "TierUID: SOQL path should match sfuuid.ToUUID(product2SFID)")
+	assert.Equal(t, tierUID, fromSOQL.TierUID, "TierUID: SOQL path should equal canonical 18-char SFID")
 	assert.Equal(t, fromSOQL.TierUID, fromSObject.TierUID, "TierUID: both paths must agree")
 	assert.Equal(t, fromSOQL.Status, fromSObject.Status, "Status: both paths must agree")
 	assert.Equal(t, fromSOQL.Year, fromSObject.Year, "Year: both paths must agree")
@@ -156,9 +156,9 @@ func TestContract_ProjectMembership(t *testing.T) {
 func TestContract_KeyContact(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(contractRoleSFID)
+	uid, err := sfuuid.Normalize18(contractRoleSFID)
 	require.NoError(t, err)
-	membershipUID, err := sfuuid.ToUUID(contractAssetSFID)
+	membershipUID, err := sfuuid.Normalize18(contractAssetSFID)
 	require.NoError(t, err)
 
 	role := "Technical Advisory Board"
@@ -192,9 +192,9 @@ func TestContract_KeyContact(t *testing.T) {
 	fromSObject, err := sobjectProjectRoleToModel(&sobjectRec, uid)
 	require.NoError(t, err)
 
-	assert.Equal(t, uid, fromSOQL.UID, "UID: SOQL path should match sfuuid.ToUUID(sfid)")
+	assert.Equal(t, uid, fromSOQL.UID, "UID: SOQL path should equal canonical 18-char SFID")
 	assert.Equal(t, fromSOQL.UID, fromSObject.UID, "UID: both paths must agree")
-	assert.Equal(t, membershipUID, fromSOQL.MembershipUID, "MembershipUID: SOQL should match sfuuid.ToUUID(assetSFID)")
+	assert.Equal(t, membershipUID, fromSOQL.MembershipUID, "MembershipUID: SOQL should equal canonical 18-char SFID")
 	assert.Equal(t, fromSOQL.MembershipUID, fromSObject.MembershipUID, "MembershipUID: both paths must agree")
 	assert.Equal(t, fromSOQL.Role, fromSObject.Role, "Role: both paths must agree")
 	assert.Equal(t, fromSOQL.Status, fromSObject.Status, "Status: both paths must agree")

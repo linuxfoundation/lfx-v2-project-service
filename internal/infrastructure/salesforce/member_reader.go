@@ -153,9 +153,9 @@ func (r *MemberReader) GetTier(ctx context.Context, tierUID string) (*model.Memb
 // UID to a SFID, writes the result to the KV cache, and returns it. ProjectUID
 // is resolved from the tier's ProjectSlug via the resolver.
 func (r *MemberReader) fetchTierFromSalesforce(ctx context.Context, tierUID string) (*model.MembershipTier, error) {
-	sfid, err := sfuuid.ToSFID(tierUID)
+	sfid, err := sfuuid.Normalize18(tierUID)
 	if err != nil {
-		// The UID is not an LFX_ UUID v8 — treat as a raw SFID passed directly.
+		// Defensive: uid was not a valid SFID — use as-is and let Salesforce reject.
 		sfid = tierUID
 	}
 
@@ -412,7 +412,7 @@ func (r *MemberReader) fetchAndCacheAllBatches(
 func (r *MemberReader) membershipBatchKeyParams(projectSFID string, filters model.MembershipFilters) []string {
 	params := []string{projectSFID, string(filters.EffectiveSortOrder())}
 	if filters.TierUID != "" {
-		tierSFID, err := sfuuid.ToSFID(filters.TierUID)
+		tierSFID, err := sfuuid.Normalize18(filters.TierUID)
 		if err != nil {
 			tierSFID = filters.TierUID
 		}
@@ -575,9 +575,9 @@ func (r *MemberReader) GetMembership(ctx context.Context, membershipUID string) 
 // decoding the UID to a SFID, writes the result to the KV cache, and returns it.
 // ProjectUID is resolved from the membership's ProjectSlug via the resolver.
 func (r *MemberReader) fetchMembershipFromSalesforce(ctx context.Context, membershipUID string) (*model.ProjectMembership, error) {
-	sfid, err := sfuuid.ToSFID(membershipUID)
+	sfid, err := sfuuid.Normalize18(membershipUID)
 	if err != nil {
-		// The UID is not an LFX_ UUID v8 — treat as a raw SFID passed directly.
+		// Defensive: uid was not a valid SFID — use as-is and let Salesforce reject.
 		sfid = membershipUID
 	}
 
@@ -658,9 +658,9 @@ func (r *MemberReader) ListKeyContactsForMembership(ctx context.Context, members
 // to the KV cache, and returns it. ProjectUID is resolved from each contact's
 // ProjectSlug via the resolver.
 func (r *MemberReader) fetchKeyContactsFromSalesforce(ctx context.Context, membershipUID string) ([]*model.KeyContact, error) {
-	sfid, err := sfuuid.ToSFID(membershipUID)
+	sfid, err := sfuuid.Normalize18(membershipUID)
 	if err != nil {
-		// The UID is not an LFX_ UUID v8 — treat as a raw SFID passed directly.
+		// Defensive: uid was not a valid SFID — use as-is and let Salesforce reject.
 		sfid = membershipUID
 	}
 

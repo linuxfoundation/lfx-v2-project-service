@@ -54,7 +54,6 @@ func DecodeGetB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) goaht
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -404,7 +403,6 @@ func DecodeUpdateB2bOrgRequest(mux goahttp.Muxer, decoder func(*http.Request) go
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -564,7 +562,6 @@ func DecodeGetB2bOrgSettingsRequest(mux goahttp.Muxer, decoder func(*http.Reques
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -714,7 +711,6 @@ func DecodeUpdateB2bOrgSettingsRequest(mux goahttp.Muxer, decoder func(*http.Req
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -1387,7 +1383,6 @@ func DecodeGetProjectMembershipRequest(mux goahttp.Muxer, decoder func(*http.Req
 			params = mux.Vars(r)
 		)
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -1554,9 +1549,7 @@ func DecodeGetKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request) g
 			params = mux.Vars(r)
 		)
 		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -1739,7 +1732,6 @@ func DecodeCreateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 			params = mux.Vars(r)
 		)
 		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -1929,9 +1921,7 @@ func DecodeUpdateKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 			params = mux.Vars(r)
 		)
 		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw
@@ -2097,9 +2087,7 @@ func DecodeDeleteKeyContactRequest(mux goahttp.Muxer, decoder func(*http.Request
 			params = mux.Vars(r)
 		)
 		membershipUID = params["membership_uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
 		uid = params["uid"]
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw

@@ -1795,7 +1795,7 @@ type ReadyzServiceUnavailableResponseBody struct {
 
 // B2bOrgResponseResponseBody is used to define fields on response body types.
 type B2bOrgResponseResponseBody struct {
-	// B2BOrg UID (invertible UUID v8)
+	// B2BOrg UID (Salesforce Account.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
@@ -1869,12 +1869,14 @@ type OrgUserResponseBody struct {
 // ProjectMembershipResponseResponseBody is used to define fields on response
 // body types.
 type ProjectMembershipResponseResponseBody struct {
-	// Membership UID (invertible UUID v8 from Asset.Id)
+	// Membership UID (Salesforce Asset.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// UID of the associated membership tier (Product2)
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Salesforce Project__c.Id for the project this membership belongs to
+	ProjectSfid *string `form:"project_sfid,omitempty" json:"project_sfid,omitempty" xml:"project_sfid,omitempty"`
 	// URL slug of the project this membership belongs to
 	ProjectSlug *string `form:"project_slug,omitempty" json:"project_slug,omitempty" xml:"project_slug,omitempty"`
 	// UID of the B2B organization (Account) this membership belongs to
@@ -1926,14 +1928,16 @@ type ProjectMembershipResponseResponseBody struct {
 // ProjectKeyContactResponseResponseBody is used to define fields on response
 // body types.
 type ProjectKeyContactResponseResponseBody struct {
-	// Key contact UID (invertible UUID v8 from Project_Role__c.Id)
+	// Key contact UID (Salesforce Project_Role__c.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// UID of the associated membership (Asset)
 	MembershipUID *string `form:"membership_uid,omitempty" json:"membership_uid,omitempty" xml:"membership_uid,omitempty"`
 	// UID of the associated membership tier (Product2)
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Salesforce Project__c.Id for the project this key contact belongs to
+	ProjectSfid *string `form:"project_sfid,omitempty" json:"project_sfid,omitempty" xml:"project_sfid,omitempty"`
 	// UID of the B2B organization (Account) this key contact's membership belongs
 	// to
 	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
@@ -1985,7 +1989,7 @@ type OrgUserRequestBody struct {
 type AdminReindexItemRequestBody struct {
 	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
 	Type *string `form:"type,omitempty" json:"type,omitempty" xml:"type,omitempty"`
-	// Entity UID (invertible UUID v8)
+	// Entity UID (Salesforce ID)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 }
 
@@ -2245,6 +2249,7 @@ func NewGetProjectMembershipResponseBody(res *membershipservice.GetProjectMember
 		UID:              res.ProjectMembership.UID,
 		TierUID:          res.ProjectMembership.TierUID,
 		ProjectUID:       res.ProjectMembership.ProjectUID,
+		ProjectSfid:      res.ProjectMembership.ProjectSfid,
 		ProjectSlug:      res.ProjectMembership.ProjectSlug,
 		B2bOrgUID:        res.ProjectMembership.B2bOrgUID,
 		Status:           res.ProjectMembership.Status,
@@ -2280,6 +2285,7 @@ func NewGetKeyContactResponseBody(res *membershipservice.GetKeyContactResult) *G
 		MembershipUID:  res.KeyContact.MembershipUID,
 		TierUID:        res.KeyContact.TierUID,
 		ProjectUID:     res.KeyContact.ProjectUID,
+		ProjectSfid:    res.KeyContact.ProjectSfid,
 		B2bOrgUID:      res.KeyContact.B2bOrgUID,
 		Role:           res.KeyContact.Role,
 		Status:         res.KeyContact.Status,
@@ -2307,6 +2313,7 @@ func NewCreateKeyContactResponseBody(res *membershipservice.CreateKeyContactResu
 		MembershipUID:  res.KeyContact.MembershipUID,
 		TierUID:        res.KeyContact.TierUID,
 		ProjectUID:     res.KeyContact.ProjectUID,
+		ProjectSfid:    res.KeyContact.ProjectSfid,
 		B2bOrgUID:      res.KeyContact.B2bOrgUID,
 		Role:           res.KeyContact.Role,
 		Status:         res.KeyContact.Status,
@@ -2334,6 +2341,7 @@ func NewUpdateKeyContactResponseBody(res *membershipservice.UpdateKeyContactResu
 		MembershipUID:  res.KeyContact.MembershipUID,
 		TierUID:        res.KeyContact.TierUID,
 		ProjectUID:     res.KeyContact.ProjectUID,
+		ProjectSfid:    res.KeyContact.ProjectSfid,
 		B2bOrgUID:      res.KeyContact.B2bOrgUID,
 		Role:           res.KeyContact.Role,
 		Status:         res.KeyContact.Status,
@@ -4036,9 +4044,6 @@ func ValidateAdminReindexItemRequestBody(body *AdminReindexItemRequestBody) (err
 	}
 	if body.UID == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("uid", "body"))
-	}
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
 	}
 	return
 }

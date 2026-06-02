@@ -35,7 +35,7 @@ var _ port.B2BOrgWriter = (*B2BOrgWriter)(nil)
 // Salesforce (created by EasyCLA or Enrollment); this method is idempotent —
 // a repeated call with the same SFID has no side-effects and returns the same record.
 func (w *B2BOrgWriter) CreateB2BOrg(ctx context.Context, sfid string, input model.B2BOrgInput) (*model.B2BOrg, error) {
-	uid, err := sfuuid.ToUUID(sfid)
+	uid, err := sfuuid.Normalize18(sfid)
 	if err != nil {
 		return nil, errs.NewValidation(fmt.Sprintf("invalid Account SFID %q: %v", sfid, err))
 	}
@@ -62,7 +62,7 @@ func (w *B2BOrgWriter) CreateB2BOrg(ctx context.Context, sfid string, input mode
 // After a successful update the sObject cache entry is invalidated and the
 // record is re-fetched from Salesforce.
 func (w *B2BOrgWriter) UpdateB2BOrg(ctx context.Context, uid string, input model.B2BOrgInput) (*model.B2BOrg, error) {
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := sfuuid.Normalize18(uid)
 	if err != nil {
 		return nil, errs.NewValidation(fmt.Sprintf("invalid Account UID %q: %v", uid, err))
 	}

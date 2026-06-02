@@ -120,7 +120,7 @@ type AddB2bOrgSettingsUserResult struct {
 type AdminReindexItem struct {
 	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
 	Type string
-	// Entity UID (invertible UUID v8)
+	// Entity UID (Salesforce ID)
 	UID string
 }
 
@@ -158,7 +158,7 @@ type AdminReindexResult struct {
 
 // A B2B organization
 type B2bOrgResponse struct {
-	// B2BOrg UID (invertible UUID v8)
+	// B2BOrg UID (Salesforce Account.Id)
 	UID *string
 	// Organization name
 	Name *string
@@ -438,14 +438,16 @@ type OrgUser struct {
 // A key contact (Project_Role__c) scoped to a membership, with denormalized
 // contact and company attributes
 type ProjectKeyContactResponse struct {
-	// Key contact UID (invertible UUID v8 from Project_Role__c.Id)
+	// Key contact UID (Salesforce Project_Role__c.Id)
 	UID *string
 	// UID of the associated membership (Asset)
 	MembershipUID *string
 	// UID of the associated membership tier (Product2)
 	TierUID *string
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string
+	// Salesforce Project__c.Id for the project this key contact belongs to
+	ProjectSfid *string
 	// UID of the B2B organization (Account) this key contact's membership belongs
 	// to
 	B2bOrgUID *string
@@ -480,12 +482,14 @@ type ProjectKeyContactResponse struct {
 // A membership (Asset) scoped to a project, with denormalized company
 // attributes
 type ProjectMembershipResponse struct {
-	// Membership UID (invertible UUID v8 from Asset.Id)
+	// Membership UID (Salesforce Asset.Id)
 	UID *string
 	// UID of the associated membership tier (Product2)
 	TierUID *string
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string
+	// Salesforce Project__c.Id for the project this membership belongs to
+	ProjectSfid *string
 	// URL slug of the project this membership belongs to
 	ProjectSlug *string
 	// UID of the B2B organization (Account) this membership belongs to

@@ -35,11 +35,11 @@ paths:
                             dry_run: false
                             items:
                                 - type: b2b_org
-                                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                  uid: 001B000000IqhSLIAZ
                                 - type: b2b_org
-                                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                  uid: 001B000000IqhSLIAZ
                                 - type: b2b_org
-                                  uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                  uid: 001B000000IqhSLIAZ
                             since: "2026-05-20T00:00:00Z"
                             types:
                                 - b2b_org
@@ -152,13 +152,13 @@ paths:
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
-                                parent_uid: 5c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                parent_uid: 001B000000IqhSLIAZ
                                 phone: +1-555-000-0000
                                 primary_domain: example.com
                                 sector: Software
                                 slug: example-corp
                                 status: Active
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                uid: 001B000000IqhSLIAZ
                                 updated_at: "2025-06-01T12:00:00Z"
                                 website: https://example.com
                 "400":
@@ -225,9 +225,8 @@ paths:
                   schema:
                     type: string
                     description: B2B organization UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
                 - name: If-None-Match
                   in: header
                   description: If-None-Match header value for conditional requests
@@ -280,13 +279,13 @@ paths:
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
-                                parent_uid: 5c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                parent_uid: 001B000000IqhSLIAZ
                                 phone: +1-555-000-0000
                                 primary_domain: example.com
                                 sector: Software
                                 slug: example-corp
                                 status: Active
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                uid: 001B000000IqhSLIAZ
                                 updated_at: "2025-06-01T12:00:00Z"
                                 website: https://example.com
                 "400":
@@ -352,9 +351,8 @@ paths:
                   schema:
                     type: string
                     description: B2B organization UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
                 - name: If-Match
                   in: header
                   description: If-Match header value for conditional requests
@@ -415,13 +413,13 @@ paths:
                                 logo_url: https://example.com/logo.png
                                 name: Example Corp
                                 number_of_employees: 500
-                                parent_uid: 5c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                parent_uid: 001B000000IqhSLIAZ
                                 phone: +1-555-000-0000
                                 primary_domain: example.com
                                 sector: Software
                                 slug: example-corp
                                 status: Active
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                uid: 001B000000IqhSLIAZ
                                 updated_at: "2025-06-01T12:00:00Z"
                                 website: https://example.com
                 "400":
@@ -488,9 +486,8 @@ paths:
                   schema:
                     type: string
                     description: B2B organization UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
             responses:
                 "200":
                     description: OK response.
@@ -611,9 +608,8 @@ paths:
                   schema:
                     type: string
                     description: B2B organization UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
                 - name: If-Match
                   in: header
                   description: If-Match header value for conditional requests
@@ -1258,9 +1254,8 @@ paths:
                   schema:
                     type: string
                     description: Parent membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 02i2M000009ABCdIAM
+                  example: 02i2M000009ABCdIAM
             requestBody:
                 required: true
                 content:
@@ -1299,7 +1294,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ProjectKeyContactResponse'
                             example:
-                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                b2b_org_uid: 001B000000IqhSLIAZ
                                 board_member: false
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
@@ -1308,14 +1303,15 @@ paths:
                                 email: john.doe@example.com
                                 first_name: John
                                 last_name: Doe
-                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                membership_uid: 02i2M000009ABCdIAM
                                 primary_contact: true
+                                project_sfid: a0941000002wBz9AAE
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                 role: Technical Contact
                                 status: Active
-                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                tier_uid: 01t2M000009ABCdIAM
                                 title: CTO
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                uid: a0K2M000000ABCdUAG
                                 updated_at: "2025-06-01T12:00:00Z"
                 "400":
                     description: 'BadRequest: Bad request'
@@ -1387,9 +1383,8 @@ paths:
                   schema:
                     type: string
                     description: Parent membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 02i2M000009ABCdIAM
+                  example: 02i2M000009ABCdIAM
                 - name: uid
                   in: path
                   description: Key contact UID
@@ -1397,9 +1392,8 @@ paths:
                   schema:
                     type: string
                     description: Key contact UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: a0K2M000000ABCdUAG
+                  example: a0K2M000000ABCdUAG
                 - name: If-Match
                   in: header
                   description: If-Match header value for conditional requests
@@ -1475,9 +1469,8 @@ paths:
                   schema:
                     type: string
                     description: Parent membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 02i2M000009ABCdIAM
+                  example: 02i2M000009ABCdIAM
                 - name: uid
                   in: path
                   description: Key contact UID
@@ -1485,9 +1478,8 @@ paths:
                   schema:
                     type: string
                     description: Key contact UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: a0K2M000000ABCdUAG
+                  example: a0K2M000000ABCdUAG
                 - name: If-None-Match
                   in: header
                   description: If-None-Match header value for conditional requests
@@ -1529,7 +1521,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ProjectKeyContactResponse'
                             example:
-                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                b2b_org_uid: 001B000000IqhSLIAZ
                                 board_member: false
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
@@ -1538,14 +1530,15 @@ paths:
                                 email: john.doe@example.com
                                 first_name: John
                                 last_name: Doe
-                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                membership_uid: 02i2M000009ABCdIAM
                                 primary_contact: true
+                                project_sfid: a0941000002wBz9AAE
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                 role: Technical Contact
                                 status: Active
-                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                tier_uid: 01t2M000009ABCdIAM
                                 title: CTO
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                uid: a0K2M000000ABCdUAG
                                 updated_at: "2025-06-01T12:00:00Z"
                 "400":
                     description: 'BadRequest: Bad request'
@@ -1610,9 +1603,8 @@ paths:
                   schema:
                     type: string
                     description: Parent membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 02i2M000009ABCdIAM
+                  example: 02i2M000009ABCdIAM
                 - name: uid
                   in: path
                   description: Key contact UID
@@ -1620,9 +1612,8 @@ paths:
                   schema:
                     type: string
                     description: Key contact UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: a0K2M000000ABCdUAG
+                  example: a0K2M000000ABCdUAG
                 - name: If-Match
                   in: header
                   description: If-Match header value for conditional requests
@@ -1668,7 +1659,7 @@ paths:
                             schema:
                                 $ref: '#/components/schemas/ProjectKeyContactResponse'
                             example:
-                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                b2b_org_uid: 001B000000IqhSLIAZ
                                 board_member: false
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
@@ -1677,14 +1668,15 @@ paths:
                                 email: john.doe@example.com
                                 first_name: John
                                 last_name: Doe
-                                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                membership_uid: 02i2M000009ABCdIAM
                                 primary_contact: true
+                                project_sfid: a0941000002wBz9AAE
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                 role: Technical Contact
                                 status: Active
-                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                tier_uid: 01t2M000009ABCdIAM
                                 title: CTO
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                uid: a0K2M000000ABCdUAG
                                 updated_at: "2025-06-01T12:00:00Z"
                 "400":
                     description: 'BadRequest: Bad request'
@@ -1756,9 +1748,8 @@ paths:
                   schema:
                     type: string
                     description: Project membership UID
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
-                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    example: 02i2M000009ABCdIAM
+                  example: 02i2M000009ABCdIAM
                 - name: If-None-Match
                   in: header
                   description: If-None-Match header value for conditional requests
@@ -1803,7 +1794,7 @@ paths:
                                 agreement_date: "2025-01-01T00:00:00Z"
                                 annual_full_price: 50000
                                 auto_renew: true
-                                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                b2b_org_uid: 001B000000IqhSLIAZ
                                 company_domain: https://example.com
                                 company_logo_url: https://example.com/logo.png
                                 company_name: Example Corp
@@ -1812,6 +1803,7 @@ paths:
                                 payment_frequency: Annual
                                 payment_terms: Net 30
                                 price: 50000
+                                project_sfid: a0941000002wBz9AAE
                                 project_slug: kubernetes
                                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                                 purchase_date: "2025-01-15T00:00:00Z"
@@ -1822,8 +1814,8 @@ paths:
                                 tier_family: Membership
                                 tier_name: Gold Corporate Membership
                                 tier_product_type: Corporate
-                                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                tier_uid: 01t2M000009ABCdIAM
+                                uid: 02i2M000009ABCdIAM
                                 updated_at: "2025-06-01T12:00:00Z"
                                 year: "2025"
                 "400":
@@ -1875,13 +1867,12 @@ components:
                     example: b2b_org
                 uid:
                     type: string
-                    description: Entity UID (invertible UUID v8)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    description: Entity UID (Salesforce ID)
+                    example: 001B000000IqhSLIAZ
             description: A single entity to reindex (targeted mode)
             example:
                 type: b2b_org
-                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                uid: 001B000000IqhSLIAZ
             required:
                 - type
                 - uid
@@ -1900,11 +1891,11 @@ components:
                     description: Targeted list of entities to reindex (surgical mode). Mutually exclusive with types and since. Max 100 items.
                     example:
                         - type: b2b_org
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 001B000000IqhSLIAZ
                         - type: b2b_org
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 001B000000IqhSLIAZ
                         - type: b2b_org
-                          uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                          uid: 001B000000IqhSLIAZ
                     maxItems: 100
                 since:
                     type: string
@@ -1925,11 +1916,11 @@ components:
                 dry_run: false
                 items:
                     - type: b2b_org
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 001B000000IqhSLIAZ
                     - type: b2b_org
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 001B000000IqhSLIAZ
                     - type: b2b_org
-                      uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                      uid: 001B000000IqhSLIAZ
                 since: "2026-05-20T00:00:00Z"
                 types:
                     - b2b_org
@@ -2010,8 +2001,7 @@ components:
                 parent_uid:
                     type: string
                     description: UID of the parent organization (Account.ParentId); omitted when no parent
-                    example: 5c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    example: 001B000000IqhSLIAZ
                 phone:
                     type: string
                     description: Organization contact phone number (Account.Phone)
@@ -2034,9 +2024,8 @@ components:
                     example: Active
                 uid:
                     type: string
-                    description: B2BOrg UID (invertible UUID v8)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    description: B2BOrg UID (Salesforce Account.Id)
+                    example: 001B000000IqhSLIAZ
                 updated_at:
                     type: string
                     description: Last update timestamp
@@ -2060,13 +2049,13 @@ components:
                 logo_url: https://example.com/logo.png
                 name: Example Corp
                 number_of_employees: 500
-                parent_uid: 5c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                parent_uid: 001B000000IqhSLIAZ
                 phone: +1-555-000-0000
                 primary_domain: example.com
                 sector: Software
                 slug: example-corp
                 status: Active
-                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                uid: 001B000000IqhSLIAZ
                 updated_at: "2025-06-01T12:00:00Z"
                 website: https://example.com
         B2bOrgSettingsResponse:
@@ -2511,9 +2500,8 @@ components:
                     format: uuid
                 uid:
                     type: string
-                    description: Tier UID (invertible UUID v8 from Product2.Id)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    description: Tier UID (Salesforce Product2.Id)
+                    example: 01t2M000009ABCdIAM
                 updated_at:
                     type: string
                     description: Last update timestamp
@@ -2526,7 +2514,7 @@ components:
                 name: Gold Corporate Membership
                 product_type: Corporate
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
-                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                uid: 01t2M000009ABCdIAM
                 updated_at: "2025-06-01T12:00:00Z"
         OrgUser:
             type: object
@@ -2623,8 +2611,7 @@ components:
                 b2b_org_uid:
                     type: string
                     description: UID of the B2B organization (Account) this key contact's membership belongs to
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    example: 001B000000IqhSLIAZ
                 board_member:
                     type: boolean
                     description: Whether this contact holds a board member role
@@ -2661,15 +2648,18 @@ components:
                 membership_uid:
                     type: string
                     description: UID of the associated membership (Asset)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    example: 02i2M000009ABCdIAM
                 primary_contact:
                     type: boolean
                     description: Whether this is the primary contact for the membership
                     example: true
+                project_sfid:
+                    type: string
+                    description: Salesforce Project__c.Id for the project this key contact belongs to
+                    example: a0941000002wBz9AAE
                 project_uid:
                     type: string
-                    description: V2 project UUID
+                    description: V2 project UUID resolved from the project slug via project-service
                     example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                     format: uuid
                 role:
@@ -2683,17 +2673,15 @@ components:
                 tier_uid:
                     type: string
                     description: UID of the associated membership tier (Product2)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    example: 01t2M000009ABCdIAM
                 title:
                     type: string
                     description: Contact job title (denormalized from Contact)
                     example: CTO
                 uid:
                     type: string
-                    description: Key contact UID (invertible UUID v8 from Project_Role__c.Id)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    description: Key contact UID (Salesforce Project_Role__c.Id)
+                    example: a0K2M000000ABCdUAG
                 updated_at:
                     type: string
                     description: Last update timestamp
@@ -2701,7 +2689,7 @@ components:
                     format: date-time
             description: A key contact (Project_Role__c) scoped to a membership, with denormalized contact and company attributes
             example:
-                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                b2b_org_uid: 001B000000IqhSLIAZ
                 board_member: false
                 company_domain: https://example.com
                 company_logo_url: https://example.com/logo.png
@@ -2710,14 +2698,15 @@ components:
                 email: john.doe@example.com
                 first_name: John
                 last_name: Doe
-                membership_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                membership_uid: 02i2M000009ABCdIAM
                 primary_contact: true
+                project_sfid: a0941000002wBz9AAE
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                 role: Technical Contact
                 status: Active
-                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                tier_uid: 01t2M000009ABCdIAM
                 title: CTO
-                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                uid: a0K2M000000ABCdUAG
                 updated_at: "2025-06-01T12:00:00Z"
         ProjectMembershipResponse:
             type: object
@@ -2738,8 +2727,7 @@ components:
                 b2b_org_uid:
                     type: string
                     description: UID of the B2B organization (Account) this membership belongs to
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    example: 001B000000IqhSLIAZ
                 company_domain:
                     type: string
                     description: Member company website/domain (denormalized from Account.Website)
@@ -2774,13 +2762,17 @@ components:
                     description: Current membership price
                     example: 50000
                     format: double
+                project_sfid:
+                    type: string
+                    description: Salesforce Project__c.Id for the project this membership belongs to
+                    example: a0941000002wBz9AAE
                 project_slug:
                     type: string
                     description: URL slug of the project this membership belongs to
                     example: kubernetes
                 project_uid:
                     type: string
-                    description: V2 project UUID
+                    description: V2 project UUID resolved from the project slug via project-service
                     example: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                     format: uuid
                 purchase_date:
@@ -2818,13 +2810,11 @@ components:
                 tier_uid:
                     type: string
                     description: UID of the associated membership tier (Product2)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    example: 01t2M000009ABCdIAM
                 uid:
                     type: string
-                    description: Membership UID (invertible UUID v8 from Asset.Id)
-                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                    format: uuid
+                    description: Membership UID (Salesforce Asset.Id)
+                    example: 02i2M000009ABCdIAM
                 updated_at:
                     type: string
                     description: Last update timestamp
@@ -2839,7 +2829,7 @@ components:
                 agreement_date: "2025-01-01T00:00:00Z"
                 annual_full_price: 50000
                 auto_renew: true
-                b2b_org_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                b2b_org_uid: 001B000000IqhSLIAZ
                 company_domain: https://example.com
                 company_logo_url: https://example.com/logo.png
                 company_name: Example Corp
@@ -2848,6 +2838,7 @@ components:
                 payment_frequency: Annual
                 payment_terms: Net 30
                 price: 50000
+                project_sfid: a0941000002wBz9AAE
                 project_slug: kubernetes
                 project_uid: a27394a3-7a6c-4d0f-9e0f-692d8753924f
                 purchase_date: "2025-01-15T00:00:00Z"
@@ -2858,8 +2849,8 @@ components:
                 tier_family: Membership
                 tier_name: Gold Corporate Membership
                 tier_product_type: Corporate
-                tier_uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
-                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                tier_uid: 01t2M000009ABCdIAM
+                uid: 02i2M000009ABCdIAM
                 updated_at: "2025-06-01T12:00:00Z"
                 year: "2025"
         UpdateB2bOrgRequestBody:

@@ -24,10 +24,6 @@ func BuildGetB2bOrgPayload(membershipServiceGetB2bOrgUID string, membershipServi
 	var uid string
 	{
 		uid = membershipServiceGetB2bOrgUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -130,10 +126,6 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 	var uid string
 	{
 		uid = membershipServiceUpdateB2bOrgUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -186,10 +178,6 @@ func BuildGetB2bOrgSettingsPayload(membershipServiceGetB2bOrgSettingsUID string,
 	var uid string
 	{
 		uid = membershipServiceGetB2bOrgSettingsUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -248,10 +236,6 @@ func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody 
 	var uid string
 	{
 		uid = membershipServiceUpdateB2bOrgSettingsUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -492,10 +476,6 @@ func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipUID s
 	var uid string
 	{
 		uid = membershipServiceGetProjectMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -544,18 +524,10 @@ func BuildGetKeyContactPayload(membershipServiceGetKeyContactMembershipUID strin
 	var membershipUID string
 	{
 		membershipUID = membershipServiceGetKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var uid string
 	{
 		uid = membershipServiceGetKeyContactUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -624,10 +596,6 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 	var membershipUID string
 	{
 		membershipUID = membershipServiceCreateKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -694,18 +662,10 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	var membershipUID string
 	{
 		membershipUID = membershipServiceUpdateKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var uid string
 	{
 		uid = membershipServiceUpdateKeyContactUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -755,18 +715,10 @@ func BuildDeleteKeyContactPayload(membershipServiceDeleteKeyContactMembershipUID
 	var membershipUID string
 	{
 		membershipUID = membershipServiceDeleteKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var uid string
 	{
 		uid = membershipServiceDeleteKeyContactUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -810,7 +762,7 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceAdminReindexBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
 		}
 	}
 	var version *string

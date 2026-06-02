@@ -23,11 +23,10 @@ func TestAssembleProjectMembership_HappyPath(t *testing.T) {
 
 	// Fixture data matching the specification.
 	const (
-		assetUID     = "aa112233-4455-8877-8899-aabbccddeeff"
-		assetSFID    = "02iB0000009ABCD"
-		accountSFID  = "0012M00002FyYww"
-		product2SFID = "01t2M000009ABCD"
-		projectSFID  = "a092M000001XYZA"
+		assetSFID    = "02iB0000009ABCDIA4"
+		accountSFID  = "0012M00002FyYwwQAF"
+		product2SFID = "01t2M000009ABCDQA4"
+		projectSFID  = "a092M000001XYZAQA4"
 	)
 
 	assetJSON := `{
@@ -104,7 +103,7 @@ func TestAssembleProjectMembership_HappyPath(t *testing.T) {
 	client := &SObjectClient{sf: fakeSalesforce(t, rt), cache: newMemCache()}
 	reader := NewProjectMembershipReader(client)
 
-	derivedUID, err := sfuuid.ToUUID(assetSFID)
+	derivedUID, err := sfuuid.Normalize18(assetSFID)
 	require.NoError(t, err)
 
 	membership, lastMod, err := reader.AssembleProjectMembership(context.Background(), derivedUID)
@@ -131,7 +130,9 @@ func TestAssembleProjectMembership_HappyPath(t *testing.T) {
 	assert.Equal(t, "Corporate", membership.TierProductType)
 
 	// Verify denormalised fields from Project__c.
-	assert.NotEmpty(t, membership.ProjectUID, "ProjectUID must be populated from Projects__c")
+	// ProjectUID is resolved at the MemberReader layer (NATS RPC); AssembleProjectMembership only sets ProjectSFID and ProjectSlug.
+	assert.Equal(t, projectSFID, membership.ProjectSFID, "ProjectSFID must be populated from Projects__c")
+	assert.Empty(t, membership.ProjectUID, "ProjectUID is resolved by MemberReader, not AssembleProjectMembership")
 	assert.Equal(t, "linux-foundation", membership.ProjectSlug)
 
 	// Verify lastMod is the oldest (Product2's: 2023-06-01).
@@ -140,7 +141,7 @@ func TestAssembleProjectMembership_HappyPath(t *testing.T) {
 }
 
 // TestAssembleProjectMembership_NoProject verifies that when Projects__c is nil,
-// ProjectUID and ProjectSlug remain empty, but all other denormalisations work.
+// ProjectSFID, ProjectUID, and ProjectSlug remain empty, but all other denormalisations work.
 func TestAssembleProjectMembership_NoProject(t *testing.T) {
 	t.Parallel()
 
@@ -207,7 +208,7 @@ func TestAssembleProjectMembership_NoProject(t *testing.T) {
 	client := &SObjectClient{sf: fakeSalesforce(t, rt), cache: newMemCache()}
 	reader := NewProjectMembershipReader(client)
 
-	assetUID, err := sfuuid.ToUUID(assetSFID)
+	assetUID, err := sfuuid.Normalize18(assetSFID)
 	require.NoError(t, err)
 
 	membership, _, err := reader.AssembleProjectMembership(context.Background(), assetUID)
@@ -216,6 +217,7 @@ func TestAssembleProjectMembership_NoProject(t *testing.T) {
 	require.NotNil(t, membership)
 
 	// Project fields should be empty.
+	assert.Empty(t, membership.ProjectSFID)
 	assert.Empty(t, membership.ProjectUID)
 	assert.Empty(t, membership.ProjectSlug)
 
@@ -238,7 +240,7 @@ func TestAssembleProjectMembership_AssetNotFound(t *testing.T) {
 	client := &SObjectClient{sf: fakeSalesforce(t, rt), cache: newMemCache()}
 	reader := NewProjectMembershipReader(client)
 
-	assetUID, err := sfuuid.ToUUID(assetSFID)
+	assetUID, err := sfuuid.Normalize18(assetSFID)
 	require.NoError(t, err)
 
 	membership, _, err := reader.AssembleProjectMembership(context.Background(), assetUID)
@@ -282,7 +284,7 @@ func TestAssembleProjectMembership_B2BOrgNotFound(t *testing.T) {
 	client := &SObjectClient{sf: fakeSalesforce(t, rt), cache: newMemCache()}
 	reader := NewProjectMembershipReader(client)
 
-	assetUID, err := sfuuid.ToUUID(assetSFID)
+	assetUID, err := sfuuid.Normalize18(assetSFID)
 	require.NoError(t, err)
 
 	membership, _, err := reader.AssembleProjectMembership(context.Background(), assetUID)

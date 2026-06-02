@@ -30,7 +30,7 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " " + "membership-service get-b2b-org --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"" + "\n" +
+	return os.Args[0] + " " + "membership-service get-b2b-org --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"" + "\n" +
 		""
 }
 
@@ -382,7 +382,7 @@ func membershipServiceGetB2bOrgUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-b2b-org --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-b2b-org --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceCreateB2bOrgUsage() {
@@ -430,7 +430,7 @@ func membershipServiceUpdateB2bOrgUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org --body '{\n      \"crunch_base_url\": \"https://www.crunchbase.com/organization/example-corp\",\n      \"description\": \"A leading technology company\",\n      \"industry\": \"Technology\",\n      \"logo_url\": \"https://example.com/logo.png\",\n      \"name\": \"Example Corp\",\n      \"number_of_employees\": 500,\n      \"phone\": \"+1-555-000-0000\",\n      \"primary_domain\": \"example.com\",\n      \"sector\": \"Software\",\n      \"website\": \"https://example.com\"\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceGetB2bOrgSettingsUsage() {
@@ -452,7 +452,7 @@ func membershipServiceGetB2bOrgSettingsUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-b2b-org-settings --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-b2b-org-settings --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateB2bOrgSettingsUsage() {
@@ -478,7 +478,7 @@ func membershipServiceUpdateB2bOrgSettingsUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceAddB2bOrgSettingsUserUsage() {
@@ -582,7 +582,7 @@ func membershipServiceGetProjectMembershipUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-membership --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-project-membership --uid \"02i2M000009ABCdIAM\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceGetKeyContactUsage() {
@@ -610,7 +610,7 @@ func membershipServiceGetKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-key-contact --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service get-key-contact --membership-uid \"02i2M000009ABCdIAM\" --uid \"a0K2M000000ABCdUAG\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-none-match \"123\" --if-modified-since \"Wed, 21 Oct 2025 07:28:00 GMT\"")
 }
 
 func membershipServiceCreateKeyContactUsage() {
@@ -634,7 +634,7 @@ func membershipServiceCreateKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"first_name\": \"John\",\n      \"last_name\": \"Doe\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"02i2M000009ABCdIAM\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceUpdateKeyContactUsage() {
@@ -662,7 +662,7 @@ func membershipServiceUpdateKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"02i2M000009ABCdIAM\" --uid \"a0K2M000000ABCdUAG\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceDeleteKeyContactUsage() {
@@ -688,7 +688,7 @@ func membershipServiceDeleteKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-key-contact --membership-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-key-contact --membership-uid \"02i2M000009ABCdIAM\" --uid \"a0K2M000000ABCdUAG\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceAdminReindexUsage() {
@@ -710,7 +710,7 @@ func membershipServiceAdminReindexUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceReadyzUsage() {

@@ -152,49 +152,11 @@ Salesforce SOQL query.
 The reply is always valid JSON. Check for the presence of the `"error"` key to
 detect failure.
 
-### B2B Org ID Map Lookup
+### B2B Org UID Resolution
 
-Resolves a Salesforce Account SFID to its v2 b2b_org UUID. The mapping is
-deterministic (pure base-62 transform via `pkg/sfuuid`) — no Salesforce or KV
-round-trip is required.
-
-| Field | Value |
-|-------|-------|
-| **Subject** | `lfx.member.b2b-org-id-map.lookup` |
-| **Transport** | NATS core request/reply |
-
-**Request body (JSON):**
-
-```json
-{"b2b_org_sfid": "<Salesforce Account.Id>"}
-```
-
-**Response — success:**
-
-```json
-{"b2b_org_uid": "<v2 b2b_org UUID>"}
-```
-
-**Response — not found / invalid SFID:**
-
-```json
-{"error": "b2b org not found"}
-```
-
-**Response — bad request:**
-
-```json
-{"error": "b2b_org_sfid is required"}
-```
-
-**Response — malformed JSON:**
-
-```json
-{"error": "invalid request body"}
-```
-
-The reply is always valid JSON. Check for the presence of the `"error"` key to
-detect failure.
+As of the SFID-as-uid change, `b2b_org.uid` equals the canonical 18-char Salesforce Account
+SFID directly — no NATS RPC lookup is required. Callers that have the Account SFID can use
+it as the `b2b_org` UID without any further resolution.
 
 ## Development
 

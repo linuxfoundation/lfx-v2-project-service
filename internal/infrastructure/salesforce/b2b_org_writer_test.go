@@ -177,7 +177,7 @@ func TestBuildAccountPatch(t *testing.T) {
 func TestB2BOrgWriter_CreateB2BOrg(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
 	t.Run("happy path: fetches org by SFID and returns it", func(t *testing.T) {
@@ -280,7 +280,7 @@ const updatedAccountJSON = `{
 func TestB2BOrgWriter_UpdateB2BOrg(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
 	t.Run("empty input refetches and returns unchanged org", func(t *testing.T) {
