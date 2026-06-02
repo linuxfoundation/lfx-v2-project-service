@@ -52,6 +52,22 @@ func findUser(users []model.B2BOrgUser, email string) (model.B2BOrgUser, bool) {
 	return model.B2BOrgUser{}, false
 }
 
+// stubB2BOrgReader is a configurable port.B2BOrgReader test double: GetB2BOrg returns org when
+// set, otherwise NotFound. Used to exercise the AddPrincipal org-existence check on first add
+// (the production MockB2BOrgReader always returns NotFound).
+type stubB2BOrgReader struct{ org *model.B2BOrg }
+
+func (s stubB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+	if s.org == nil {
+		return nil, pkgerrors.NewNotFound("b2b org not found")
+	}
+	return s.org, nil
+}
+
+func (s stubB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+
 // ── AddPrincipal ──────────────────────────────────────────────────────────────
 
 func TestOrgSettingsWriter_AddPrincipal_PreservesExistingMembers(t *testing.T) {
@@ -155,6 +171,41 @@ func TestOrgSettingsWriter_AddPrincipal_DualListLiveMatchIsConflict(t *testing.T
 	})
 	require.Error(t, err)
 	assert.True(t, isConflict(err), "a live grant in either relation must be a Conflict, got %T", err)
+}
+
+// TestOrgSettingsWriter_AddPrincipal_NonexistentOrgIsNotFound verifies that a first add (no
+// settings record yet) to an org that does not exist is rejected with NotFound rather than
+// silently creating an orphan settings record.
+func TestOrgSettingsWriter_AddPrincipal_NonexistentOrgIsNotFound(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings() // no settings seeded -> create path
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor",
+	})
+	require.Error(t, err)
+	assert.True(t, pkgerrors.IsNotFound(err), "adding to a nonexistent org must be NotFound, got %T", err)
+}
+
+// TestOrgSettingsWriter_AddPrincipal_FirstAddCreatesSettingsWhenOrgExists verifies the happy
+// first-add path: when no settings exist yet but the parent org does, the add succeeds and
+// creates the settings record.
+func TestOrgSettingsWriter_AddPrincipal_FirstAddCreatesSettingsWhenOrgExists(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings() // no settings yet
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(stubB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID, Name: "Acme"}}),
+		svc.WithOrgSettingsPublisher(mock.NewMockMemberPublisher()),
+	)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor", Name: "Carol",
+	})
+	require.NoError(t, err)
+	carol, ok := findUser(result.Auditors, "carol@example.com")
+	require.True(t, ok, "carol must be added on first add")
+	assert.Equal(t, model.InviteStatusPending, carol.EffectiveStatus())
 }
 
 // TestOrgSettingsWriter_AddPrincipal_IfMatchMismatch verifies the optional If-Match precondition
@@ -393,6 +444,36 @@ func TestOrgSettingsWriter_ChangeRole_OnboardingWindowAllowed(t *testing.T) {
 	carol, ok := findUser(result.Writers, "carol@example.com")
 	require.True(t, ok, "carol must now be a writer")
 	assert.Equal(t, "writer", carol.InvitedAs)
+}
+
+// TestOrgSettingsWriter_ChangeRole_EnforcesMaxPrincipalsOnTarget verifies a role move cannot
+// push the destination relation past the per-list cap (a move grows the target list by one).
+func TestOrgSettingsWriter_ChangeRole_EnforcesMaxPrincipalsOnTarget(t *testing.T) {
+	const maxPrincipals = 700
+	writers := make([]model.B2BOrgUser, 0, maxPrincipals)
+	for i := 0; i < maxPrincipals; i++ {
+		writers = append(writers, model.B2BOrgUser{
+			Email:        fmt.Sprintf("w%d@example.com", i),
+			Username:     fmt.Sprintf("auth0|w%d", i),
+			InvitedAs:    "writer",
+			InviteStatus: model.InviteStatusAccepted,
+		})
+	}
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID:     testOrgUID,
+		Writers: writers, // already at the cap
+		Auditors: []model.B2BOrgUser{
+			{Email: "carol@example.com", InvitedAs: "auditor", InviteStatus: model.InviteStatusPending},
+		},
+	}, 1)
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	_, err := writer.ChangePrincipalRole(context.Background(), svc.B2BOrgSettingsChangeRole{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "writer",
+	})
+	require.Error(t, err)
+	assert.True(t, isValidation(err), "moving into a full writers list must be a Validation error, got %T", err)
 }
 
 // ── RemovePrincipal ───────────────────────────────────────────────────────────

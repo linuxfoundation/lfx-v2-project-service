@@ -194,6 +194,16 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 		return nil, err
 	}
 
+	// When no settings record exists yet this add would create one. Verify the parent org
+	// actually exists first so we never create an orphan settings record for a nonexistent
+	// org (and so the advertised NotFound is reachable). Skipped once settings exist (the org
+	// was validated at creation) and when no org reader is wired (e.g. minimal local setups).
+	if existing == nil && o.b2bOrgReader != nil {
+		if _, orgErr := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID); orgErr != nil {
+			return nil, orgErr
+		}
+	}
+
 	now := time.Now().UTC()
 	updated := cloneSettings(existing, in.OrgUID, now)
 
@@ -288,6 +298,13 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 		updated.Writers = append(updated.Writers, moved)
 	} else {
 		updated.Auditors = append(updated.Auditors, moved)
+	}
+
+	// Bound the destination relation (parity with Update/AddPrincipal): a role move grows the
+	// target list by one, so repeated moves must not push it past the per-list cap.
+	if (in.InvitedAs == "writer" && len(updated.Writers) > maxPrincipals) ||
+		(in.InvitedAs == "auditor" && len(updated.Auditors) > maxPrincipals) {
+		return nil, pkgerrors.NewValidation(fmt.Sprintf("writers and auditors lists must not exceed %d entries each", maxPrincipals))
 	}
 
 	if err := assertNotRemovingLastAdmin(existing, updated); err != nil {
