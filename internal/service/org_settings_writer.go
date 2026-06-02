@@ -260,15 +260,20 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 
 	now := time.Now().UTC()
 	updated := cloneSettings(existing, in.OrgUID, now)
-	current, found := findPrincipalByEmail(updated, email)
-	if !found {
+	matches := findPrincipalsByEmail(updated, email)
+	if len(matches) == 0 {
 		return nil, pkgerrors.NewNotFound("principal not found for this organization")
 	}
 
-	moved := current
-	if moved.InvitedAs == in.InvitedAs {
-		// Role unchanged — no-op. Avoid a needless revision bump and FGA/indexer
-		// republish that could turn a concurrent op's If-Match stale (spurious 409).
+	// The same email can appear in both relations (via the bulk PUT path). Move the entry
+	// that confers the most access (accepted-with-username > accepted > pending > revoked >
+	// expired) so a role change never promotes a stale duplicate while dropping a live grant.
+	// The remove-from-both + single re-append below collapses any duplicates to one entry.
+	moved := mostLivePrincipal(matches)
+	if len(matches) == 1 && moved.InvitedAs == in.InvitedAs {
+		// True no-op: a single entry already in the target role — nothing to move and no
+		// duplicates to collapse. Skip the revision bump and FGA/indexer republish that
+		// could turn a concurrent op's If-Match stale (spurious 409).
 		return updated, nil
 	}
 	moved.InvitedAs = in.InvitedAs
@@ -399,6 +404,37 @@ func findPrincipalsByEmail(s *model.B2BOrgSettings, email string) []model.B2BOrg
 	return out
 }
 
+// mostLivePrincipal returns the entry that confers the most access among matches, used to
+// resolve duplicate-email entries when moving a principal between relations. matches must
+// be non-empty.
+func mostLivePrincipal(matches []model.B2BOrgUser) model.B2BOrgUser {
+	best := matches[0]
+	for _, u := range matches[1:] {
+		if principalLiveness(u) > principalLiveness(best) {
+			best = u
+		}
+	}
+	return best
+}
+
+// principalLiveness ranks an entry by how much access it confers (higher = more live).
+// Accepted-with-username (the only state that emits an FGA tuple) ranks highest.
+func principalLiveness(u model.B2BOrgUser) int {
+	switch u.EffectiveStatus() {
+	case model.InviteStatusAccepted:
+		if u.Username != "" {
+			return 4
+		}
+		return 3
+	case model.InviteStatusPending:
+		return 2
+	case model.InviteStatusRevoked:
+		return 1
+	default: // expired
+		return 0
+	}
+}
+
 // removePrincipalByEmail returns a new slice with any entry matching email removed.
 // A nil input returns nil (not an empty slice) so the nil-vs-empty contract is preserved:
 // an untouched relation stays nil and the FGA full-sync skips it rather than revoking all
@@ -417,18 +453,19 @@ func removePrincipalByEmail(users []model.B2BOrgUser, email string) []model.B2BO
 	return out
 }
 
-// assertLastAdminInvariant rejects a mutation that would leave the org with zero accepted writers.
+// assertLastAdminInvariant rejects a mutation that would leave the org with zero functional
+// admins. A "functional" admin is an accepted writer with a non-empty username — the exact
+// condition under which an FGA writer tuple (real access) is emitted (see
+// model.activeUsernames). An accepted-but-username-less writer grants no access, so it must
+// not satisfy the invariant; otherwise the last real admin could be removed/demoted while
+// only a non-functional accepted entry remains.
 func assertLastAdminInvariant(s *model.B2BOrgSettings) error {
-	accepted := 0
 	for _, u := range s.Writers {
-		if u.EffectiveStatus() == model.InviteStatusAccepted {
-			accepted++
+		if u.EffectiveStatus() == model.InviteStatusAccepted && u.Username != "" {
+			return nil
 		}
 	}
-	if accepted == 0 {
-		return pkgerrors.NewConflict("organization must keep at least one Admin")
-	}
-	return nil
+	return pkgerrors.NewConflict("organization must keep at least one Admin")
 }
 
 // checkSettingsIfMatch validates the optional If-Match precondition against the current settings ETag.

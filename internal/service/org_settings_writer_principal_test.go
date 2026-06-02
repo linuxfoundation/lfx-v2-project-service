@@ -255,6 +255,60 @@ func TestOrgSettingsWriter_ChangeRole_SameRoleIsNoOp(t *testing.T) {
 	assert.Equal(t, "auth0|bob", bob.Username)
 }
 
+// TestOrgSettingsWriter_ChangeRole_DualListMovesMostLiveEntry guards the duplicate-email case
+// for role changes: a revoked writer + an accepted auditor for the same email. Changing the
+// role to writer must promote the live (accepted, username-bearing) entry — not the revoked
+// one — and collapse the duplicate, so access is preserved rather than revoked.
+func TestOrgSettingsWriter_ChangeRole_DualListMovesMostLiveEntry(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "dana@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusRevoked},
+		},
+		Auditors: []model.B2BOrgUser{
+			{Email: "dana@example.com", Username: "auth0|dana", InvitedAs: "auditor", InviteStatus: model.InviteStatusAccepted},
+		},
+	}, 1)
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	result, err := writer.ChangePrincipalRole(context.Background(), svc.B2BOrgSettingsChangeRole{
+		OrgUID: testOrgUID, Email: "dana@example.com", InvitedAs: "writer",
+	})
+	require.NoError(t, err)
+	// Dana is now a single accepted writer carrying her username (access preserved/promoted).
+	dana, ok := findUser(result.Writers, "dana@example.com")
+	require.True(t, ok, "dana must be present as a writer")
+	assert.Equal(t, model.InviteStatusAccepted, dana.EffectiveStatus())
+	assert.Equal(t, "auth0|dana", dana.Username)
+	// No leftover dana entry in auditors (duplicate collapsed).
+	_, stillAuditor := findUser(result.Auditors, "dana@example.com")
+	assert.False(t, stillAuditor, "dana's duplicate auditor entry must be collapsed")
+}
+
+// TestOrgSettingsWriter_RemovePrincipal_UsernamelessAcceptedIsNotAdmin verifies the last-Admin
+// invariant counts only accepted writers with a non-empty username (the FGA-tuple condition).
+// Removing the only real admin must be blocked even when a non-functional accepted writer
+// (no username) would remain.
+func TestOrgSettingsWriter_RemovePrincipal_UsernamelessAcceptedIsNotAdmin(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "ghost@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}, // accepted but no username
+		},
+	}, 1)
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	_, err := writer.RemovePrincipal(context.Background(), svc.B2BOrgSettingsRemovePrincipal{
+		OrgUID: testOrgUID, Email: "alice@example.com",
+	})
+	require.Error(t, err)
+	assert.True(t, isConflict(err), "removing the only username-bearing admin must be a Conflict, got %T", err)
+}
+
 // ── RemovePrincipal ───────────────────────────────────────────────────────────
 
 func TestOrgSettingsWriter_RemovePrincipal_DropsOnlyTarget(t *testing.T) {
