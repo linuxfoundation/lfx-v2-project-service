@@ -1022,6 +1022,10 @@ func EncodeAddB2bOrgSettingsUserRequest(encoder func(*http.Request) goahttp.Enco
 				req.Header.Set("Authorization", head)
 			}
 		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
 		values := req.URL.Query()
 		if p.Version != nil {
 			values.Add("v", *p.Version)
@@ -1042,6 +1046,7 @@ func EncodeAddB2bOrgSettingsUserRequest(encoder func(*http.Request) goahttp.Enco
 //   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
 //   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
 //   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
 //   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
 //   - error: internal error
@@ -1129,6 +1134,20 @@ func DecodeAddB2bOrgSettingsUserResponse(decoder func(*http.Response) goahttp.De
 				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-settings-user", err)
 			}
 			return nil, NewAddB2bOrgSettingsUserConflict(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body AddB2bOrgSettingsUserPreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-settings-user", err)
+			}
+			err = ValidateAddB2bOrgSettingsUserPreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-settings-user", err)
+			}
+			return nil, NewAddB2bOrgSettingsUserPreconditionFailed(&body)
 		case http.StatusInternalServerError:
 			var (
 				body AddB2bOrgSettingsUserInternalServerErrorResponseBody

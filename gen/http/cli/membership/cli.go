@@ -82,6 +82,7 @@ func ParseEndpoint(
 		membershipServiceAddB2bOrgSettingsUserUIDFlag         = membershipServiceAddB2bOrgSettingsUserFlags.String("uid", "REQUIRED", "B2B organization UID")
 		membershipServiceAddB2bOrgSettingsUserVersionFlag     = membershipServiceAddB2bOrgSettingsUserFlags.String("version", "", "")
 		membershipServiceAddB2bOrgSettingsUserBearerTokenFlag = membershipServiceAddB2bOrgSettingsUserFlags.String("bearer-token", "", "")
+		membershipServiceAddB2bOrgSettingsUserIfMatchFlag     = membershipServiceAddB2bOrgSettingsUserFlags.String("if-match", "", "")
 
 		membershipServiceUpdateB2bOrgSettingsUserRoleFlags           = flag.NewFlagSet("update-b2b-org-settings-user-role", flag.ExitOnError)
 		membershipServiceUpdateB2bOrgSettingsUserRoleBodyFlag        = membershipServiceUpdateB2bOrgSettingsUserRoleFlags.String("body", "REQUIRED", "")
@@ -291,7 +292,7 @@ func ParseEndpoint(
 				data, err = membershipservicec.BuildUpdateB2bOrgSettingsPayload(*membershipServiceUpdateB2bOrgSettingsBodyFlag, *membershipServiceUpdateB2bOrgSettingsUIDFlag, *membershipServiceUpdateB2bOrgSettingsVersionFlag, *membershipServiceUpdateB2bOrgSettingsBearerTokenFlag, *membershipServiceUpdateB2bOrgSettingsIfMatchFlag)
 			case "add-b2b-org-settings-user":
 				endpoint = c.AddB2bOrgSettingsUser()
-				data, err = membershipservicec.BuildAddB2bOrgSettingsUserPayload(*membershipServiceAddB2bOrgSettingsUserBodyFlag, *membershipServiceAddB2bOrgSettingsUserUIDFlag, *membershipServiceAddB2bOrgSettingsUserVersionFlag, *membershipServiceAddB2bOrgSettingsUserBearerTokenFlag)
+				data, err = membershipservicec.BuildAddB2bOrgSettingsUserPayload(*membershipServiceAddB2bOrgSettingsUserBodyFlag, *membershipServiceAddB2bOrgSettingsUserUIDFlag, *membershipServiceAddB2bOrgSettingsUserVersionFlag, *membershipServiceAddB2bOrgSettingsUserBearerTokenFlag, *membershipServiceAddB2bOrgSettingsUserIfMatchFlag)
 			case "update-b2b-org-settings-user-role":
 				endpoint = c.UpdateB2bOrgSettingsUserRole()
 				data, err = membershipservicec.BuildUpdateB2bOrgSettingsUserRolePayload(*membershipServiceUpdateB2bOrgSettingsUserRoleBodyFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleUIDFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleEmailFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleVersionFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleBearerTokenFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleIfMatchFlag)
@@ -488,6 +489,7 @@ func membershipServiceAddB2bOrgSettingsUserUsage() {
 	fmt.Fprint(os.Stderr, " -uid STRING")
 	fmt.Fprint(os.Stderr, " -version STRING")
 	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
 	fmt.Fprintln(os.Stderr)
 
 	// Description
@@ -499,10 +501,11 @@ func membershipServiceAddB2bOrgSettingsUserUsage() {
 	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service add-b2b-org-settings-user --body '{\n      \"email\": \"alice@example.com\",\n      \"invited_as\": \"auditor\",\n      \"name\": \"Alice Smith\"\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service add-b2b-org-settings-user --body '{\n      \"email\": \"alice@example.com\",\n      \"invited_as\": \"auditor\",\n      \"name\": \"Alice Smith\"\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceUpdateB2bOrgSettingsUserRoleUsage() {
@@ -710,7 +713,7 @@ func membershipServiceAdminReindexUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceReadyzUsage() {

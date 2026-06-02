@@ -158,6 +158,7 @@ func (c *Client) UpdateB2bOrgSettings(ctx context.Context, p *UpdateB2bOrgSettin
 //   - "NotFound" (type *goa.ServiceError): Resource not found
 //   - "BadRequest" (type *goa.ServiceError): Bad request
 //   - "Conflict" (type *goa.ServiceError): Principal already present, or concurrent modification — retry with fresh settings
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
 //   - "InternalServerError" (type *goa.ServiceError): Internal server error
 //   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error

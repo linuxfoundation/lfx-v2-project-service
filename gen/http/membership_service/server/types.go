@@ -787,6 +787,25 @@ type AddB2bOrgSettingsUserConflictResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
+// AddB2bOrgSettingsUserPreconditionFailedResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type AddB2bOrgSettingsUserPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
 // AddB2bOrgSettingsUserInternalServerErrorResponseBody is the type of the
 // "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
 // response body for the "InternalServerError" error.
@@ -2827,6 +2846,21 @@ func NewAddB2bOrgSettingsUserConflictResponseBody(res *goa.ServiceError) *AddB2b
 	return body
 }
 
+// NewAddB2bOrgSettingsUserPreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "add-b2b-org-settings-user" endpoint of
+// the "membership-service" service.
+func NewAddB2bOrgSettingsUserPreconditionFailedResponseBody(res *goa.ServiceError) *AddB2bOrgSettingsUserPreconditionFailedResponseBody {
+	body := &AddB2bOrgSettingsUserPreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
 // NewAddB2bOrgSettingsUserInternalServerErrorResponseBody builds the HTTP
 // response body from the result of the "add-b2b-org-settings-user" endpoint of
 // the "membership-service" service.
@@ -3714,7 +3748,7 @@ func NewUpdateB2bOrgSettingsPayload(body *UpdateB2bOrgSettingsRequestBody, uid s
 
 // NewAddB2bOrgSettingsUserPayload builds a membership-service service
 // add-b2b-org-settings-user endpoint payload.
-func NewAddB2bOrgSettingsUserPayload(body *AddB2bOrgSettingsUserRequestBody, uid string, version *string, bearerToken *string) *membershipservice.AddB2bOrgSettingsUserPayload {
+func NewAddB2bOrgSettingsUserPayload(body *AddB2bOrgSettingsUserRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.AddB2bOrgSettingsUserPayload {
 	v := &membershipservice.AddB2bOrgSettingsUserPayload{
 		Email:     *body.Email,
 		InvitedAs: *body.InvitedAs,
@@ -3723,6 +3757,7 @@ func NewAddB2bOrgSettingsUserPayload(body *AddB2bOrgSettingsUserRequestBody, uid
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
 
 	return v
 }

@@ -270,6 +270,7 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
 				dsl.Example("001B000000IqhSLIAZ")
 			})
+			IfMatchAttribute()
 			dsl.Extend(OrgUserAddBody)
 			dsl.Required("uid")
 		})
@@ -284,6 +285,7 @@ var _ = dsl.Service("membership-service", func() {
 		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
 		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
 		dsl.Error("Conflict", dsl.ErrorResult, "Principal already present, or concurrent modification — retry with fresh settings")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
 		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
 		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
 
@@ -292,6 +294,7 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Header("bearer_token:Authorization")
 			dsl.Param("version:v")
 			dsl.Param("uid")
+			dsl.Header("if_match:If-Match")
 			dsl.Response(dsl.StatusOK, func() {
 				dsl.Body("settings")
 				dsl.Header("etag:ETag")
@@ -300,6 +303,7 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Response("NotFound", dsl.StatusNotFound)
 			dsl.Response("BadRequest", dsl.StatusBadRequest)
 			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
 			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
 			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
 		})

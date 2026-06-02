@@ -703,6 +703,7 @@ func (s *membershipServicesrvc) AddB2bOrgSettingsUser(ctx context.Context, p *me
 		OrgUID:    p.UID,
 		Email:     p.Email,
 		InvitedAs: p.InvitedAs,
+		IfMatch:   derefStr(p.IfMatch),
 	}
 	if p.Name != nil {
 		in.Name = *p.Name

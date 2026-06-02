@@ -157,6 +157,39 @@ func TestOrgSettingsWriter_AddPrincipal_DualListLiveMatchIsConflict(t *testing.T
 	assert.True(t, isConflict(err), "a live grant in either relation must be a Conflict, got %T", err)
 }
 
+// TestOrgSettingsWriter_AddPrincipal_IfMatchMismatch verifies the optional If-Match precondition
+// is enforced on add: a stale ETag is rejected with PreconditionFailed before any write.
+func TestOrgSettingsWriter_AddPrincipal_IfMatchMismatch(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	seedTwoAdmins(store)
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor", IfMatch: "stale-etag",
+	})
+	require.Error(t, err)
+	assert.True(t, pkgerrors.IsPreconditionFailed(err), "stale If-Match must be a PreconditionFailed, got %T", err)
+}
+
+// TestOrgSettingsWriter_AddPrincipal_IfMatchMatchSucceeds verifies a matching If-Match ETag is
+// accepted and the add proceeds.
+func TestOrgSettingsWriter_AddPrincipal_IfMatchMatchSucceeds(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	seedTwoAdmins(store)
+	seeded, _, err := store.GetSettings(context.Background(), testOrgUID)
+	require.NoError(t, err)
+	etagVal, err := etag.LFXEtag(seeded)
+	require.NoError(t, err)
+
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor", IfMatch: etagVal,
+	})
+	require.NoError(t, err)
+	_, ok := findUser(result.Auditors, "carol@example.com")
+	assert.True(t, ok, "carol must be added when If-Match matches")
+}
+
 // ── ChangePrincipalRole ───────────────────────────────────────────────────────
 
 func TestOrgSettingsWriter_ChangeRole_PreservesUsernameAndOtherMembers(t *testing.T) {
@@ -307,6 +340,59 @@ func TestOrgSettingsWriter_RemovePrincipal_UsernamelessAcceptedIsNotAdmin(t *tes
 	})
 	require.Error(t, err)
 	assert.True(t, isConflict(err), "removing the only username-bearing admin must be a Conflict, got %T", err)
+}
+
+// TestOrgSettingsWriter_RemovePrincipal_OnboardingWindowAllowed verifies the differential
+// last-Admin check does not freeze the org during onboarding: when the only writer is still a
+// pending invite (no username, so zero functional admins), removing an unrelated pending
+// auditor is allowed rather than rejected with a spurious "must keep at least one Admin".
+func TestOrgSettingsWriter_RemovePrincipal_OnboardingWindowAllowed(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusPending}, // invited, not yet accepted
+		},
+		Auditors: []model.B2BOrgUser{
+			{Email: "carol@example.com", InvitedAs: "auditor", InviteStatus: model.InviteStatusPending},
+		},
+	}, 1)
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	result, err := writer.RemovePrincipal(context.Background(), svc.B2BOrgSettingsRemovePrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com",
+	})
+	require.NoError(t, err, "removing a non-admin during onboarding must not be blocked")
+	_, gone := findUser(result.Auditors, "carol@example.com")
+	assert.False(t, gone, "carol must be removed")
+	// The pending admin invite is left untouched.
+	_, aliceStays := findUser(result.Writers, "alice@example.com")
+	assert.True(t, aliceStays, "the pending admin invite must remain")
+}
+
+// TestOrgSettingsWriter_ChangeRole_OnboardingWindowAllowed verifies a benign role change is not
+// frozen during the onboarding window (zero functional admins): promoting a pending auditor to
+// writer succeeds.
+func TestOrgSettingsWriter_ChangeRole_OnboardingWindowAllowed(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusPending},
+		},
+		Auditors: []model.B2BOrgUser{
+			{Email: "carol@example.com", InvitedAs: "auditor", InviteStatus: model.InviteStatusPending},
+		},
+	}, 1)
+	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+
+	result, err := writer.ChangePrincipalRole(context.Background(), svc.B2BOrgSettingsChangeRole{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "writer",
+	})
+	require.NoError(t, err, "a role change during onboarding must not be blocked")
+	carol, ok := findUser(result.Writers, "carol@example.com")
+	require.True(t, ok, "carol must now be a writer")
+	assert.Equal(t, "writer", carol.InvitedAs)
 }
 
 // ── RemovePrincipal ───────────────────────────────────────────────────────────

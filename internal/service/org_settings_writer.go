@@ -52,6 +52,7 @@ type B2BOrgSettingsAddPrincipal struct {
 	Email     string
 	InvitedAs string // "writer" or "auditor"
 	Name      string
+	IfMatch   string // optional ETag precondition; "" = first-write-wins (no check)
 }
 
 // B2BOrgSettingsChangeRole carries the validated parameters for a per-principal role change.
@@ -189,6 +190,9 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	if err != nil {
 		return nil, err
 	}
+	if err := checkSettingsIfMatch(existing, in.IfMatch); err != nil {
+		return nil, err
+	}
 
 	now := time.Now().UTC()
 	updated := cloneSettings(existing, in.OrgUID, now)
@@ -286,7 +290,7 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 		updated.Auditors = append(updated.Auditors, moved)
 	}
 
-	if err := assertLastAdminInvariant(updated); err != nil {
+	if err := assertNotRemovingLastAdmin(existing, updated); err != nil {
 		return nil, err
 	}
 	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
@@ -319,7 +323,7 @@ func (o *orgSettingsWriterOrchestrator) RemovePrincipal(ctx context.Context, in 
 	updated.Writers = removePrincipalByEmail(updated.Writers, email)
 	updated.Auditors = removePrincipalByEmail(updated.Auditors, email)
 
-	if err := assertLastAdminInvariant(updated); err != nil {
+	if err := assertNotRemovingLastAdmin(existing, updated); err != nil {
 		return nil, err
 	}
 	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now)
@@ -453,19 +457,30 @@ func removePrincipalByEmail(users []model.B2BOrgUser, email string) []model.B2BO
 	return out
 }
 
-// assertLastAdminInvariant rejects a mutation that would leave the org with zero functional
-// admins. A "functional" admin is an accepted writer with a non-empty username — the exact
-// condition under which an FGA writer tuple (real access) is emitted (see
-// model.activeUsernames). An accepted-but-username-less writer grants no access, so it must
-// not satisfy the invariant; otherwise the last real admin could be removed/demoted while
-// only a non-functional accepted entry remains.
-func assertLastAdminInvariant(s *model.B2BOrgSettings) error {
+// countFunctionalAdmins counts writers that confer real admin access: accepted entries with a
+// non-empty username — the exact condition under which an FGA writer tuple is emitted (see
+// model.activeUsernames). An accepted-but-username-less writer grants no access and is not
+// counted.
+func countFunctionalAdmins(s *model.B2BOrgSettings) int {
+	n := 0
 	for _, u := range s.Writers {
 		if u.EffectiveStatus() == model.InviteStatusAccepted && u.Username != "" {
-			return nil
+			n++
 		}
 	}
-	return pkgerrors.NewConflict("organization must keep at least one Admin")
+	return n
+}
+
+// assertNotRemovingLastAdmin rejects a mutation that drops the count of functional admins from
+// >=1 to 0. It is a differential (before/after) check, not an absolute post-state one: an org
+// that already has zero functional admins — e.g. during the onboarding window before the first
+// invited admin accepts and gets a username — is not frozen. Only a transition that removes or
+// demotes the last real admin is blocked.
+func assertNotRemovingLastAdmin(before, after *model.B2BOrgSettings) error {
+	if countFunctionalAdmins(before) >= 1 && countFunctionalAdmins(after) == 0 {
+		return pkgerrors.NewConflict("organization must keep at least one Admin")
+	}
+	return nil
 }
 
 // checkSettingsIfMatch validates the optional If-Match precondition against the current settings ETag.

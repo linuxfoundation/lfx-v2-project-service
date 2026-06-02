@@ -292,7 +292,7 @@ func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody 
 
 // BuildAddB2bOrgSettingsUserPayload builds the payload for the
 // membership-service add-b2b-org-settings-user endpoint from CLI flags.
-func BuildAddB2bOrgSettingsUserPayload(membershipServiceAddB2bOrgSettingsUserBody string, membershipServiceAddB2bOrgSettingsUserUID string, membershipServiceAddB2bOrgSettingsUserVersion string, membershipServiceAddB2bOrgSettingsUserBearerToken string) (*membershipservice.AddB2bOrgSettingsUserPayload, error) {
+func BuildAddB2bOrgSettingsUserPayload(membershipServiceAddB2bOrgSettingsUserBody string, membershipServiceAddB2bOrgSettingsUserUID string, membershipServiceAddB2bOrgSettingsUserVersion string, membershipServiceAddB2bOrgSettingsUserBearerToken string, membershipServiceAddB2bOrgSettingsUserIfMatch string) (*membershipservice.AddB2bOrgSettingsUserPayload, error) {
 	var err error
 	var body AddB2bOrgSettingsUserRequestBody
 	{
@@ -330,6 +330,12 @@ func BuildAddB2bOrgSettingsUserPayload(membershipServiceAddB2bOrgSettingsUserBod
 			bearerToken = &membershipServiceAddB2bOrgSettingsUserBearerToken
 		}
 	}
+	var ifMatch *string
+	{
+		if membershipServiceAddB2bOrgSettingsUserIfMatch != "" {
+			ifMatch = &membershipServiceAddB2bOrgSettingsUserIfMatch
+		}
+	}
 	v := &membershipservice.AddB2bOrgSettingsUserPayload{
 		Email:     body.Email,
 		InvitedAs: body.InvitedAs,
@@ -338,6 +344,7 @@ func BuildAddB2bOrgSettingsUserPayload(membershipServiceAddB2bOrgSettingsUserBod
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
 
 	return v, nil
 }
@@ -750,7 +757,7 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceAdminReindexBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
 		}
 	}
 	var version *string

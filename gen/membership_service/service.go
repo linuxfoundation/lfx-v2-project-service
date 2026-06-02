@@ -96,6 +96,8 @@ type AddB2bOrgSettingsUserPayload struct {
 	Version *string
 	// B2B organization UID
 	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
 	// Invitee email; identity key for the grant
 	Email string
 	// Relation to grant: writer (Admin) or auditor (Viewer)

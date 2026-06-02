@@ -885,6 +885,7 @@ func DecodeAddB2bOrgSettingsUserRequest(mux goahttp.Muxer, decoder func(*http.Re
 			uid         string
 			version     *string
 			bearerToken *string
+			ifMatch     *string
 
 			params = mux.Vars(r)
 		)
@@ -902,10 +903,14 @@ func DecodeAddB2bOrgSettingsUserRequest(mux goahttp.Muxer, decoder func(*http.Re
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
+		ifMatchRaw := r.Header.Get("If-Match")
+		if ifMatchRaw != "" {
+			ifMatch = &ifMatchRaw
+		}
 		if err != nil {
 			return payload, err
 		}
-		payload = NewAddB2bOrgSettingsUserPayload(&body, uid, version, bearerToken)
+		payload = NewAddB2bOrgSettingsUserPayload(&body, uid, version, bearerToken, ifMatch)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -966,6 +971,19 @@ func EncodeAddB2bOrgSettingsUserError(encoder func(context.Context, http.Respons
 			}
 			w.Header().Set("goa-error", res.GoaErrorName())
 			w.WriteHeader(http.StatusConflict)
+			return enc.Encode(body)
+		case "PreconditionFailed":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewAddB2bOrgSettingsUserPreconditionFailedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusPreconditionFailed)
 			return enc.Encode(body)
 		case "InternalServerError":
 			var res *goa.ServiceError

@@ -32,7 +32,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/AdminReindexPayload'
                         example:
-                            dry_run: false
+                            dry_run: true
                             items:
                                 - type: b2b_org
                                   uid: 001B000000IqhSLIAZ
@@ -799,6 +799,15 @@ paths:
                     description: B2B organization UID
                     example: 001B000000IqhSLIAZ
                   example: 001B000000IqhSLIAZ
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
             requestBody:
                 required: true
                 content:
@@ -892,6 +901,12 @@ paths:
                                 $ref: '#/components/schemas/Error'
                 "409":
                     description: 'Conflict: Principal already present, or concurrent modification — retry with fresh settings'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -1903,7 +1918,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Consequuntur asperiores aut consectetur.
+                        example: Deserunt sunt nesciunt.
                     description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.'
                     example:
                         - b2b_org
@@ -1969,7 +1984,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Voluptas atque et.
+                        example: Animi nobis.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -2125,27 +2140,9 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
                 created_at: "2025-01-01T00:00:00Z"
                 updated_at: "2025-06-01T12:00:00Z"
                 writers:
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -2203,6 +2200,12 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
             description: 'Request body for replacing the writers and/or auditors list on a b2b_org. Full-replace: nil = keep existing; [] = remove all.'
             example:
                 auditors:
@@ -2218,19 +2221,19 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                 writers:
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -2305,7 +2308,7 @@ components:
                 fault:
                     type: boolean
                     description: Is the error a server-side fault?
-                    example: true
+                    example: false
                 id:
                     type: string
                     description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2321,7 +2324,7 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: false
+                    example: true
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
@@ -2926,24 +2929,24 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
                 writers:
                     type: array
                     items:
                         $ref: '#/components/schemas/OrgUser'
                     description: Complete replacement list for org writers. Nil = leave unchanged; [] = remove all.
                     example:
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
                         - avatar: https://avatars.githubusercontent.com/u/12345
                           email: alice@example.com
                           invite_status: accepted
@@ -2970,13 +2973,13 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
+                writers:
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
                       invited_as: writer
                       name: Alice Smith
                       username: alice
-                writers:
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
