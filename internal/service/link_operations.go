@@ -97,6 +97,15 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		}()
 	}
 
+	bgCtx := context.WithoutCancel(ctx)
+	go func() {
+		sendCtx, cancel := context.WithTimeout(bgCtx, notificationTimeout)
+		defer cancel()
+		if err := s.MessageBuilder.SendProjectEventMessage(sendCtx, constants.ProjectLinkCreatedSubject, DomainLinkToEvent(link)); err != nil {
+			slog.WarnContext(sendCtx, "error sending link created event", constants.ErrKey, err)
+		}
+	}()
+
 	return link, nil
 }
 

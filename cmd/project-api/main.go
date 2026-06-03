@@ -482,6 +482,8 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 	for _, eh := range []eventHandler{
 		{constants.ProjectSettingsUpdatedSubject, svc.service.HandleProjectSettingsUpdated},
 		{inviteapi.InviteAcceptedSubject, svc.service.HandleInviteAccepted},
+		{constants.ProjectDocumentCreatedSubject, svc.service.HandleProjectDocumentCreated},
+		{constants.ProjectLinkCreatedSubject, svc.service.HandleProjectLinkCreated},
 	} {
 		slog.With("subject", eh.subject, "queue", queueName).Debug("subscribing to NATS subject")
 		_, err := natsConn.QueueSubscribe(eh.subject, queueName, func(msg *nats.Msg) {
