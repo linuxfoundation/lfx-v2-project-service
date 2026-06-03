@@ -16,40 +16,46 @@ import (
 
 // Client is the "membership-service" service client.
 type Client struct {
-	GetB2bOrgEndpoint            goa.Endpoint
-	CreateB2bOrgEndpoint         goa.Endpoint
-	UpdateB2bOrgEndpoint         goa.Endpoint
-	GetB2bOrgSettingsEndpoint    goa.Endpoint
-	UpdateB2bOrgSettingsEndpoint goa.Endpoint
-	GetProjectMembershipEndpoint goa.Endpoint
-	GetKeyContactEndpoint        goa.Endpoint
-	CreateKeyContactEndpoint     goa.Endpoint
-	UpdateKeyContactEndpoint     goa.Endpoint
-	DeleteKeyContactEndpoint     goa.Endpoint
-	AdminReindexEndpoint         goa.Endpoint
-	ReadyzEndpoint               goa.Endpoint
-	LivezEndpoint                goa.Endpoint
-	DebugVarsEndpoint            goa.Endpoint
+	GetB2bOrgEndpoint                    goa.Endpoint
+	CreateB2bOrgEndpoint                 goa.Endpoint
+	UpdateB2bOrgEndpoint                 goa.Endpoint
+	GetB2bOrgSettingsEndpoint            goa.Endpoint
+	UpdateB2bOrgSettingsEndpoint         goa.Endpoint
+	AddB2bOrgSettingsUserEndpoint        goa.Endpoint
+	UpdateB2bOrgSettingsUserRoleEndpoint goa.Endpoint
+	DeleteB2bOrgSettingsUserEndpoint     goa.Endpoint
+	GetProjectMembershipEndpoint         goa.Endpoint
+	GetKeyContactEndpoint                goa.Endpoint
+	CreateKeyContactEndpoint             goa.Endpoint
+	UpdateKeyContactEndpoint             goa.Endpoint
+	DeleteKeyContactEndpoint             goa.Endpoint
+	AdminReindexEndpoint                 goa.Endpoint
+	ReadyzEndpoint                       goa.Endpoint
+	LivezEndpoint                        goa.Endpoint
+	DebugVarsEndpoint                    goa.Endpoint
 }
 
 // NewClient initializes a "membership-service" service client given the
 // endpoints.
-func NewClient(getB2bOrg, createB2bOrg, updateB2bOrg, getB2bOrgSettings, updateB2bOrgSettings, getProjectMembership, getKeyContact, createKeyContact, updateKeyContact, deleteKeyContact, adminReindex, readyz, livez, debugVars goa.Endpoint) *Client {
+func NewClient(getB2bOrg, createB2bOrg, updateB2bOrg, getB2bOrgSettings, updateB2bOrgSettings, addB2bOrgSettingsUser, updateB2bOrgSettingsUserRole, deleteB2bOrgSettingsUser, getProjectMembership, getKeyContact, createKeyContact, updateKeyContact, deleteKeyContact, adminReindex, readyz, livez, debugVars goa.Endpoint) *Client {
 	return &Client{
-		GetB2bOrgEndpoint:            getB2bOrg,
-		CreateB2bOrgEndpoint:         createB2bOrg,
-		UpdateB2bOrgEndpoint:         updateB2bOrg,
-		GetB2bOrgSettingsEndpoint:    getB2bOrgSettings,
-		UpdateB2bOrgSettingsEndpoint: updateB2bOrgSettings,
-		GetProjectMembershipEndpoint: getProjectMembership,
-		GetKeyContactEndpoint:        getKeyContact,
-		CreateKeyContactEndpoint:     createKeyContact,
-		UpdateKeyContactEndpoint:     updateKeyContact,
-		DeleteKeyContactEndpoint:     deleteKeyContact,
-		AdminReindexEndpoint:         adminReindex,
-		ReadyzEndpoint:               readyz,
-		LivezEndpoint:                livez,
-		DebugVarsEndpoint:            debugVars,
+		GetB2bOrgEndpoint:                    getB2bOrg,
+		CreateB2bOrgEndpoint:                 createB2bOrg,
+		UpdateB2bOrgEndpoint:                 updateB2bOrg,
+		GetB2bOrgSettingsEndpoint:            getB2bOrgSettings,
+		UpdateB2bOrgSettingsEndpoint:         updateB2bOrgSettings,
+		AddB2bOrgSettingsUserEndpoint:        addB2bOrgSettingsUser,
+		UpdateB2bOrgSettingsUserRoleEndpoint: updateB2bOrgSettingsUserRole,
+		DeleteB2bOrgSettingsUserEndpoint:     deleteB2bOrgSettingsUser,
+		GetProjectMembershipEndpoint:         getProjectMembership,
+		GetKeyContactEndpoint:                getKeyContact,
+		CreateKeyContactEndpoint:             createKeyContact,
+		UpdateKeyContactEndpoint:             updateKeyContact,
+		DeleteKeyContactEndpoint:             deleteKeyContact,
+		AdminReindexEndpoint:                 adminReindex,
+		ReadyzEndpoint:                       readyz,
+		LivezEndpoint:                        livez,
+		DebugVarsEndpoint:                    debugVars,
 	}
 }
 
@@ -144,6 +150,63 @@ func (c *Client) UpdateB2bOrgSettings(ctx context.Context, p *UpdateB2bOrgSettin
 		return
 	}
 	return ires.(*UpdateB2bOrgSettingsResult), nil
+}
+
+// AddB2bOrgSettingsUser calls the "add-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+// AddB2bOrgSettingsUser may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Resource not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Principal already present, or concurrent modification — retry with fresh settings
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) AddB2bOrgSettingsUser(ctx context.Context, p *AddB2bOrgSettingsUserPayload) (res *AddB2bOrgSettingsUserResult, err error) {
+	var ires any
+	ires, err = c.AddB2bOrgSettingsUserEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*AddB2bOrgSettingsUserResult), nil
+}
+
+// UpdateB2bOrgSettingsUserRole calls the "update-b2b-org-settings-user-role"
+// endpoint of the "membership-service" service.
+// UpdateB2bOrgSettingsUserRole may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Organization or principal not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Concurrent modification, or last-Admin invariant — retry with fresh settings
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) UpdateB2bOrgSettingsUserRole(ctx context.Context, p *UpdateB2bOrgSettingsUserRolePayload) (res *UpdateB2bOrgSettingsUserRoleResult, err error) {
+	var ires any
+	ires, err = c.UpdateB2bOrgSettingsUserRoleEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*UpdateB2bOrgSettingsUserRoleResult), nil
+}
+
+// DeleteB2bOrgSettingsUser calls the "delete-b2b-org-settings-user" endpoint
+// of the "membership-service" service.
+// DeleteB2bOrgSettingsUser may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): Organization or principal not found
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Conflict" (type *goa.ServiceError): Concurrent modification, or last-Admin invariant — retry with fresh settings
+//   - "PreconditionFailed" (type *goa.ServiceError): Precondition failed
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
+//   - error: internal error
+func (c *Client) DeleteB2bOrgSettingsUser(ctx context.Context, p *DeleteB2bOrgSettingsUserPayload) (res *DeleteB2bOrgSettingsUserResult, err error) {
+	var ires any
+	ires, err = c.DeleteB2bOrgSettingsUserEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*DeleteB2bOrgSettingsUserResult), nil
 }
 
 // GetProjectMembership calls the "get-project-membership" endpoint of the

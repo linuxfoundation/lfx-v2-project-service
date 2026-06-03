@@ -24,7 +24,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"membership-service (get-b2b-org|create-b2b-org|update-b2b-org|get-b2b-org-settings|update-b2b-org-settings|get-project-membership|get-key-contact|create-key-contact|update-key-contact|delete-key-contact|admin-reindex|readyz|livez|debug-vars)",
+		"membership-service (get-b2b-org|create-b2b-org|update-b2b-org|get-b2b-org-settings|update-b2b-org-settings|add-b2b-org-settings-user|update-b2b-org-settings-user-role|delete-b2b-org-settings-user|get-project-membership|get-key-contact|create-key-contact|update-key-contact|delete-key-contact|admin-reindex|readyz|livez|debug-vars)",
 	}
 }
 
@@ -76,6 +76,28 @@ func ParseEndpoint(
 		membershipServiceUpdateB2bOrgSettingsVersionFlag     = membershipServiceUpdateB2bOrgSettingsFlags.String("version", "", "")
 		membershipServiceUpdateB2bOrgSettingsBearerTokenFlag = membershipServiceUpdateB2bOrgSettingsFlags.String("bearer-token", "", "")
 		membershipServiceUpdateB2bOrgSettingsIfMatchFlag     = membershipServiceUpdateB2bOrgSettingsFlags.String("if-match", "", "")
+
+		membershipServiceAddB2bOrgSettingsUserFlags           = flag.NewFlagSet("add-b2b-org-settings-user", flag.ExitOnError)
+		membershipServiceAddB2bOrgSettingsUserBodyFlag        = membershipServiceAddB2bOrgSettingsUserFlags.String("body", "REQUIRED", "")
+		membershipServiceAddB2bOrgSettingsUserUIDFlag         = membershipServiceAddB2bOrgSettingsUserFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceAddB2bOrgSettingsUserVersionFlag     = membershipServiceAddB2bOrgSettingsUserFlags.String("version", "", "")
+		membershipServiceAddB2bOrgSettingsUserBearerTokenFlag = membershipServiceAddB2bOrgSettingsUserFlags.String("bearer-token", "", "")
+		membershipServiceAddB2bOrgSettingsUserIfMatchFlag     = membershipServiceAddB2bOrgSettingsUserFlags.String("if-match", "", "")
+
+		membershipServiceUpdateB2bOrgSettingsUserRoleFlags           = flag.NewFlagSet("update-b2b-org-settings-user-role", flag.ExitOnError)
+		membershipServiceUpdateB2bOrgSettingsUserRoleBodyFlag        = membershipServiceUpdateB2bOrgSettingsUserRoleFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateB2bOrgSettingsUserRoleUIDFlag         = membershipServiceUpdateB2bOrgSettingsUserRoleFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceUpdateB2bOrgSettingsUserRoleEmailFlag       = membershipServiceUpdateB2bOrgSettingsUserRoleFlags.String("email", "REQUIRED", "Email of the principal to modify")
+		membershipServiceUpdateB2bOrgSettingsUserRoleVersionFlag     = membershipServiceUpdateB2bOrgSettingsUserRoleFlags.String("version", "", "")
+		membershipServiceUpdateB2bOrgSettingsUserRoleBearerTokenFlag = membershipServiceUpdateB2bOrgSettingsUserRoleFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgSettingsUserRoleIfMatchFlag     = membershipServiceUpdateB2bOrgSettingsUserRoleFlags.String("if-match", "", "")
+
+		membershipServiceDeleteB2bOrgSettingsUserFlags           = flag.NewFlagSet("delete-b2b-org-settings-user", flag.ExitOnError)
+		membershipServiceDeleteB2bOrgSettingsUserUIDFlag         = membershipServiceDeleteB2bOrgSettingsUserFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceDeleteB2bOrgSettingsUserEmailFlag       = membershipServiceDeleteB2bOrgSettingsUserFlags.String("email", "REQUIRED", "Email of the principal to remove")
+		membershipServiceDeleteB2bOrgSettingsUserVersionFlag     = membershipServiceDeleteB2bOrgSettingsUserFlags.String("version", "", "")
+		membershipServiceDeleteB2bOrgSettingsUserBearerTokenFlag = membershipServiceDeleteB2bOrgSettingsUserFlags.String("bearer-token", "", "")
+		membershipServiceDeleteB2bOrgSettingsUserIfMatchFlag     = membershipServiceDeleteB2bOrgSettingsUserFlags.String("if-match", "", "")
 
 		membershipServiceGetProjectMembershipFlags               = flag.NewFlagSet("get-project-membership", flag.ExitOnError)
 		membershipServiceGetProjectMembershipUIDFlag             = membershipServiceGetProjectMembershipFlags.String("uid", "REQUIRED", "Project membership UID")
@@ -130,6 +152,9 @@ func ParseEndpoint(
 	membershipServiceUpdateB2bOrgFlags.Usage = membershipServiceUpdateB2bOrgUsage
 	membershipServiceGetB2bOrgSettingsFlags.Usage = membershipServiceGetB2bOrgSettingsUsage
 	membershipServiceUpdateB2bOrgSettingsFlags.Usage = membershipServiceUpdateB2bOrgSettingsUsage
+	membershipServiceAddB2bOrgSettingsUserFlags.Usage = membershipServiceAddB2bOrgSettingsUserUsage
+	membershipServiceUpdateB2bOrgSettingsUserRoleFlags.Usage = membershipServiceUpdateB2bOrgSettingsUserRoleUsage
+	membershipServiceDeleteB2bOrgSettingsUserFlags.Usage = membershipServiceDeleteB2bOrgSettingsUserUsage
 	membershipServiceGetProjectMembershipFlags.Usage = membershipServiceGetProjectMembershipUsage
 	membershipServiceGetKeyContactFlags.Usage = membershipServiceGetKeyContactUsage
 	membershipServiceCreateKeyContactFlags.Usage = membershipServiceCreateKeyContactUsage
@@ -188,6 +213,15 @@ func ParseEndpoint(
 
 			case "update-b2b-org-settings":
 				epf = membershipServiceUpdateB2bOrgSettingsFlags
+
+			case "add-b2b-org-settings-user":
+				epf = membershipServiceAddB2bOrgSettingsUserFlags
+
+			case "update-b2b-org-settings-user-role":
+				epf = membershipServiceUpdateB2bOrgSettingsUserRoleFlags
+
+			case "delete-b2b-org-settings-user":
+				epf = membershipServiceDeleteB2bOrgSettingsUserFlags
 
 			case "get-project-membership":
 				epf = membershipServiceGetProjectMembershipFlags
@@ -256,6 +290,15 @@ func ParseEndpoint(
 			case "update-b2b-org-settings":
 				endpoint = c.UpdateB2bOrgSettings()
 				data, err = membershipservicec.BuildUpdateB2bOrgSettingsPayload(*membershipServiceUpdateB2bOrgSettingsBodyFlag, *membershipServiceUpdateB2bOrgSettingsUIDFlag, *membershipServiceUpdateB2bOrgSettingsVersionFlag, *membershipServiceUpdateB2bOrgSettingsBearerTokenFlag, *membershipServiceUpdateB2bOrgSettingsIfMatchFlag)
+			case "add-b2b-org-settings-user":
+				endpoint = c.AddB2bOrgSettingsUser()
+				data, err = membershipservicec.BuildAddB2bOrgSettingsUserPayload(*membershipServiceAddB2bOrgSettingsUserBodyFlag, *membershipServiceAddB2bOrgSettingsUserUIDFlag, *membershipServiceAddB2bOrgSettingsUserVersionFlag, *membershipServiceAddB2bOrgSettingsUserBearerTokenFlag, *membershipServiceAddB2bOrgSettingsUserIfMatchFlag)
+			case "update-b2b-org-settings-user-role":
+				endpoint = c.UpdateB2bOrgSettingsUserRole()
+				data, err = membershipservicec.BuildUpdateB2bOrgSettingsUserRolePayload(*membershipServiceUpdateB2bOrgSettingsUserRoleBodyFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleUIDFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleEmailFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleVersionFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleBearerTokenFlag, *membershipServiceUpdateB2bOrgSettingsUserRoleIfMatchFlag)
+			case "delete-b2b-org-settings-user":
+				endpoint = c.DeleteB2bOrgSettingsUser()
+				data, err = membershipservicec.BuildDeleteB2bOrgSettingsUserPayload(*membershipServiceDeleteB2bOrgSettingsUserUIDFlag, *membershipServiceDeleteB2bOrgSettingsUserEmailFlag, *membershipServiceDeleteB2bOrgSettingsUserVersionFlag, *membershipServiceDeleteB2bOrgSettingsUserBearerTokenFlag, *membershipServiceDeleteB2bOrgSettingsUserIfMatchFlag)
 			case "get-project-membership":
 				endpoint = c.GetProjectMembership()
 				data, err = membershipservicec.BuildGetProjectMembershipPayload(*membershipServiceGetProjectMembershipUIDFlag, *membershipServiceGetProjectMembershipVersionFlag, *membershipServiceGetProjectMembershipBearerTokenFlag, *membershipServiceGetProjectMembershipIfNoneMatchFlag, *membershipServiceGetProjectMembershipIfModifiedSinceFlag)
@@ -301,6 +344,9 @@ func membershipServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    update-b2b-org: Update a B2B organization`)
 	fmt.Fprintln(os.Stderr, `    get-b2b-org-settings: Get the access-control settings (writers and auditors) for a B2B organization`)
 	fmt.Fprintln(os.Stderr, `    update-b2b-org-settings: Replace the writers and/or auditors list on a B2B organization (full-replace semantics)`)
+	fmt.Fprintln(os.Stderr, `    add-b2b-org-settings-user: Add (invite) a single principal to a B2B organization's writers or auditors. Per-principal merge: existing members are preserved; the new entry lands as a pending invite (no username yet).`)
+	fmt.Fprintln(os.Stderr, `    update-b2b-org-settings-user-role: Change a single principal's role (writer⇄auditor) on a B2B organization. Per-principal merge: the principal's username and invite lifecycle are preserved; all other members are untouched.`)
+	fmt.Fprintln(os.Stderr, `    delete-b2b-org-settings-user: Remove a single principal's access (revoke an accepted grant or cancel a pending invite) from a B2B organization. Per-principal merge: all other members are untouched.`)
 	fmt.Fprintln(os.Stderr, `    get-project-membership: Get a specific project membership by UID`)
 	fmt.Fprintln(os.Stderr, `    get-key-contact: Get a specific key contact by UID`)
 	fmt.Fprintln(os.Stderr, `    create-key-contact: Create a new key contact`)
@@ -434,6 +480,86 @@ func membershipServiceUpdateB2bOrgSettingsUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceAddB2bOrgSettingsUserUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service add-b2b-org-settings-user", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Add (invite) a single principal to a B2B organization's writers or auditors. Per-principal merge: existing members are preserved; the new entry lands as a pending invite (no username yet).`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service add-b2b-org-settings-user --body '{\n      \"email\": \"alice@example.com\",\n      \"invited_as\": \"auditor\",\n      \"name\": \"Alice Smith\"\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceUpdateB2bOrgSettingsUserRoleUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-b2b-org-settings-user-role", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -email STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Change a single principal's role (writer⇄auditor) on a B2B organization. Per-principal merge: the principal's username and invite lifecycle are preserved; all other members are untouched.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -email STRING: Email of the principal to modify`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings-user-role --body '{\n      \"invited_as\": \"writer\"\n   }' --uid \"001B000000IqhSLIAZ\" --email \"alice@example.com\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceDeleteB2bOrgSettingsUserUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service delete-b2b-org-settings-user", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -email STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Remove a single principal's access (revoke an accepted grant or cancel a pending invite) from a B2B organization. Per-principal merge: all other members are untouched.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -email STRING: Email of the principal to remove`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-b2b-org-settings-user --uid \"001B000000IqhSLIAZ\" --email \"alice@example.com\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceGetProjectMembershipUsage() {

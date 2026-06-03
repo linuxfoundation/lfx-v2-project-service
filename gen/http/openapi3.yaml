@@ -771,6 +771,475 @@ paths:
                                 $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/settings/users:
+        post:
+            tags:
+                - membership-service
+            summary: add-b2b-org-settings-user membership-service
+            description: 'Add (invite) a single principal to a B2B organization''s writers or auditors. Per-principal merge: existing members are preserved; the new entry lands as a pending invite (no username yet).'
+            operationId: membership-service#add-b2b-org-settings-user
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/OrgUserAddBody'
+                        example:
+                            email: alice@example.com
+                            invited_as: auditor
+                            name: Alice Smith
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgSettingsResponse'
+                            example:
+                                auditors:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                created_at: "2025-01-01T00:00:00Z"
+                                updated_at: "2025-06-01T12:00:00Z"
+                                writers:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Resource not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Principal already present, or concurrent modification — retry with fresh settings'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/settings/users/{email}:
+        delete:
+            tags:
+                - membership-service
+            summary: delete-b2b-org-settings-user membership-service
+            description: 'Remove a single principal''s access (revoke an accepted grant or cancel a pending invite) from a B2B organization. Per-principal merge: all other members are untouched.'
+            operationId: membership-service#delete-b2b-org-settings-user
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: email
+                  in: path
+                  description: Email of the principal to remove
+                  required: true
+                  schema:
+                    type: string
+                    description: Email of the principal to remove
+                    example: alice@example.com
+                    format: email
+                  example: alice@example.com
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgSettingsResponse'
+                            example:
+                                auditors:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                created_at: "2025-01-01T00:00:00Z"
+                                updated_at: "2025-06-01T12:00:00Z"
+                                writers:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Organization or principal not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Concurrent modification, or last-Admin invariant — retry with fresh settings'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        put:
+            tags:
+                - membership-service
+            summary: update-b2b-org-settings-user-role membership-service
+            description: 'Change a single principal''s role (writer⇄auditor) on a B2B organization. Per-principal merge: the principal''s username and invite lifecycle are preserved; all other members are untouched.'
+            operationId: membership-service#update-b2b-org-settings-user-role
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: email
+                  in: path
+                  description: Email of the principal to modify
+                  required: true
+                  schema:
+                    type: string
+                    description: Email of the principal to modify
+                    example: alice@example.com
+                    format: email
+                  example: alice@example.com
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/OrgUserRoleBody'
+                        example:
+                            invited_as: writer
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/B2bOrgSettingsResponse'
+                            example:
+                                auditors:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                created_at: "2025-01-01T00:00:00Z"
+                                updated_at: "2025-06-01T12:00:00Z"
+                                writers:
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Organization or principal not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Concurrent modification, or last-Admin invariant — retry with fresh settings'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
     /project_memberships/{membership_uid}/key_contacts:
         post:
             tags:
@@ -1426,7 +1895,7 @@ components:
                     type: boolean
                     description: When true, walk SOQL/live-path but skip publishing. Final log includes would_publish_count.
                     default: false
-                    example: true
+                    example: false
                 items:
                     type: array
                     items:
@@ -1449,14 +1918,14 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Est dolore qui repellendus animi asperiores facilis.
+                        example: Deserunt sunt nesciunt.
                     description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.'
                     example:
                         - b2b_org
                         - project_membership
             description: Request payload for triggering a reindex operation
             example:
-                dry_run: true
+                dry_run: false
                 items:
                     - type: b2b_org
                       uid: 001B000000IqhSLIAZ
@@ -1515,7 +1984,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Dolores aperiam et.
+                        example: Animi nobis.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -1628,12 +2097,6 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
                 created_at:
                     type: string
                     description: Settings record creation timestamp
@@ -1650,18 +2113,6 @@ components:
                         $ref: '#/components/schemas/OrgUser'
                     description: Org administrators (writer relation in FGA). Full-replace on PUT.
                     example:
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
                         - avatar: https://avatars.githubusercontent.com/u/12345
                           email: alice@example.com
                           invite_status: accepted
@@ -1704,12 +2155,6 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
         B2bOrgSettingsUpdateBody:
             type: object
             properties:
@@ -1719,12 +2164,6 @@ components:
                         $ref: '#/components/schemas/OrgUser'
                     description: Complete replacement list for org auditors. Nil = leave unchanged; [] = remove all.
                     example:
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
                         - avatar: https://avatars.githubusercontent.com/u/12345
                           email: alice@example.com
                           invite_status: accepted
@@ -1770,6 +2209,18 @@ components:
             description: 'Request body for replacing the writers and/or auditors list on a b2b_org. Full-replace: nil = keep existing; [] = remove all.'
             example:
                 auditors:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -1857,7 +2308,7 @@ components:
                 fault:
                     type: boolean
                     description: Is the error a server-side fault?
-                    example: true
+                    example: false
                 id:
                     type: string
                     description: ID is a unique identifier for this particular occurrence of the problem.
@@ -1873,7 +2324,7 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: false
+                    example: true
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
@@ -1884,7 +2335,7 @@ components:
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: true
+                temporary: false
                 timeout: true
             required:
                 - name
@@ -2111,6 +2562,48 @@ components:
                 username: alice
             required:
                 - email
+                - invited_as
+        OrgUserAddBody:
+            type: object
+            properties:
+                email:
+                    type: string
+                    description: Invitee email; identity key for the grant
+                    example: alice@example.com
+                    format: email
+                invited_as:
+                    type: string
+                    description: 'Relation to grant: writer (Admin) or auditor (Viewer)'
+                    example: auditor
+                    enum:
+                        - writer
+                        - auditor
+                name:
+                    type: string
+                    description: Optional display name; stored as provided and left empty when omitted (no server-side user lookup)
+                    example: Alice Smith
+            description: Request body to add (invite) a single principal to a b2b_org's writers or auditors
+            example:
+                email: alice@example.com
+                invited_as: auditor
+                name: Alice Smith
+            required:
+                - email
+                - invited_as
+        OrgUserRoleBody:
+            type: object
+            properties:
+                invited_as:
+                    type: string
+                    description: 'Target relation: writer (Admin) or auditor (Viewer)'
+                    example: writer
+                    enum:
+                        - writer
+                        - auditor
+            description: Request body to change a single principal's role on a b2b_org
+            example:
+                invited_as: writer
+            required:
                 - invited_as
         ProjectKeyContactResponse:
             type: object
@@ -2442,18 +2935,18 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
-                writers:
-                    type: array
-                    items:
-                        $ref: '#/components/schemas/OrgUser'
-                    description: Complete replacement list for org writers. Nil = leave unchanged; [] = remove all.
-                    example:
                         - avatar: https://avatars.githubusercontent.com/u/12345
                           email: alice@example.com
                           invite_status: accepted
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                writers:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/OrgUser'
+                    description: Complete replacement list for org writers. Nil = leave unchanged; [] = remove all.
+                    example:
                         - avatar: https://avatars.githubusercontent.com/u/12345
                           email: alice@example.com
                           invite_status: accepted
@@ -2480,13 +2973,13 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
+                writers:
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
                       invited_as: writer
                       name: Alice Smith
                       username: alice
-                writers:
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted

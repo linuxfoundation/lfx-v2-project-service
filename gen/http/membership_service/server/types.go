@@ -60,6 +60,26 @@ type UpdateB2bOrgSettingsRequestBody struct {
 	Auditors []*OrgUserRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
+// AddB2bOrgSettingsUserRequestBody is the type of the "membership-service"
+// service "add-b2b-org-settings-user" endpoint HTTP request body.
+type AddB2bOrgSettingsUserRequestBody struct {
+	// Invitee email; identity key for the grant
+	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
+	// Relation to grant: writer (Admin) or auditor (Viewer)
+	InvitedAs *string `form:"invited_as,omitempty" json:"invited_as,omitempty" xml:"invited_as,omitempty"`
+	// Optional display name; stored as provided and left empty when omitted (no
+	// server-side user lookup)
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRoleRequestBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP request body.
+type UpdateB2bOrgSettingsUserRoleRequestBody struct {
+	// Target relation: writer (Admin) or auditor (Viewer)
+	InvitedAs *string `form:"invited_as,omitempty" json:"invited_as,omitempty" xml:"invited_as,omitempty"`
+}
+
 // CreateKeyContactRequestBody is the type of the "membership-service" service
 // "create-key-contact" endpoint HTTP request body.
 type CreateKeyContactRequestBody struct {
@@ -143,6 +163,19 @@ type GetB2bOrgSettingsResponseBody B2bOrgSettingsResponseResponseBody
 // UpdateB2bOrgSettingsResponseBody is the type of the "membership-service"
 // service "update-b2b-org-settings" endpoint HTTP response body.
 type UpdateB2bOrgSettingsResponseBody B2bOrgSettingsResponseResponseBody
+
+// AddB2bOrgSettingsUserResponseBody is the type of the "membership-service"
+// service "add-b2b-org-settings-user" endpoint HTTP response body.
+type AddB2bOrgSettingsUserResponseBody B2bOrgSettingsResponseResponseBody
+
+// UpdateB2bOrgSettingsUserRoleResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body.
+type UpdateB2bOrgSettingsUserRoleResponseBody B2bOrgSettingsResponseResponseBody
+
+// DeleteB2bOrgSettingsUserResponseBody is the type of the "membership-service"
+// service "delete-b2b-org-settings-user" endpoint HTTP response body.
+type DeleteB2bOrgSettingsUserResponseBody B2bOrgSettingsResponseResponseBody
 
 // GetProjectMembershipResponseBody is the type of the "membership-service"
 // service "get-project-membership" endpoint HTTP response body.
@@ -682,6 +715,348 @@ type UpdateB2bOrgSettingsInternalServerErrorResponseBody struct {
 // "membership-service" service "update-b2b-org-settings" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type UpdateB2bOrgSettingsServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgSettingsUserNotFoundResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "NotFound" error.
+type AddB2bOrgSettingsUserNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgSettingsUserBadRequestResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "BadRequest" error.
+type AddB2bOrgSettingsUserBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgSettingsUserConflictResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "Conflict" error.
+type AddB2bOrgSettingsUserConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgSettingsUserPreconditionFailedResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type AddB2bOrgSettingsUserPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgSettingsUserInternalServerErrorResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "InternalServerError" error.
+type AddB2bOrgSettingsUserInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgSettingsUserServiceUnavailableResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type AddB2bOrgSettingsUserServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgSettingsUserRoleNotFoundResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body for the "NotFound" error.
+type UpdateB2bOrgSettingsUserRoleNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgSettingsUserRoleBadRequestResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body for the "BadRequest" error.
+type UpdateB2bOrgSettingsUserRoleBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgSettingsUserRoleConflictResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body for the "Conflict" error.
+type UpdateB2bOrgSettingsUserRoleConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody is the type of
+// the "membership-service" service "update-b2b-org-settings-user-role"
+// endpoint HTTP response body for the "PreconditionFailed" error.
+type UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody is the type of
+// the "membership-service" service "update-b2b-org-settings-user-role"
+// endpoint HTTP response body for the "InternalServerError" error.
+type UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody is the type of
+// the "membership-service" service "update-b2b-org-settings-user-role"
+// endpoint HTTP response body for the "ServiceUnavailable" error.
+type UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgSettingsUserNotFoundResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "NotFound" error.
+type DeleteB2bOrgSettingsUserNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgSettingsUserBadRequestResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "BadRequest" error.
+type DeleteB2bOrgSettingsUserBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgSettingsUserConflictResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "Conflict" error.
+type DeleteB2bOrgSettingsUserConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgSettingsUserPreconditionFailedResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type DeleteB2bOrgSettingsUserPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgSettingsUserInternalServerErrorResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "InternalServerError" error.
+type DeleteB2bOrgSettingsUserInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgSettingsUserServiceUnavailableResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type DeleteB2bOrgSettingsUserServiceUnavailableResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -1792,6 +2167,99 @@ func NewUpdateB2bOrgSettingsResponseBody(res *membershipservice.UpdateB2bOrgSett
 	return body
 }
 
+// NewAddB2bOrgSettingsUserResponseBody builds the HTTP response body from the
+// result of the "add-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgSettingsUserResponseBody(res *membershipservice.AddB2bOrgSettingsUserResult) *AddB2bOrgSettingsUserResponseBody {
+	body := &AddB2bOrgSettingsUserResponseBody{
+		CreatedAt: res.Settings.CreatedAt,
+		UpdatedAt: res.Settings.UpdatedAt,
+	}
+	if res.Settings.Writers != nil {
+		body.Writers = make([]*OrgUserResponseBody, len(res.Settings.Writers))
+		for i, val := range res.Settings.Writers {
+			if val == nil {
+				body.Writers[i] = nil
+				continue
+			}
+			body.Writers[i] = marshalMembershipserviceOrgUserToOrgUserResponseBody(val)
+		}
+	}
+	if res.Settings.Auditors != nil {
+		body.Auditors = make([]*OrgUserResponseBody, len(res.Settings.Auditors))
+		for i, val := range res.Settings.Auditors {
+			if val == nil {
+				body.Auditors[i] = nil
+				continue
+			}
+			body.Auditors[i] = marshalMembershipserviceOrgUserToOrgUserResponseBody(val)
+		}
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRoleResponseBody builds the HTTP response body
+// from the result of the "update-b2b-org-settings-user-role" endpoint of the
+// "membership-service" service.
+func NewUpdateB2bOrgSettingsUserRoleResponseBody(res *membershipservice.UpdateB2bOrgSettingsUserRoleResult) *UpdateB2bOrgSettingsUserRoleResponseBody {
+	body := &UpdateB2bOrgSettingsUserRoleResponseBody{
+		CreatedAt: res.Settings.CreatedAt,
+		UpdatedAt: res.Settings.UpdatedAt,
+	}
+	if res.Settings.Writers != nil {
+		body.Writers = make([]*OrgUserResponseBody, len(res.Settings.Writers))
+		for i, val := range res.Settings.Writers {
+			if val == nil {
+				body.Writers[i] = nil
+				continue
+			}
+			body.Writers[i] = marshalMembershipserviceOrgUserToOrgUserResponseBody(val)
+		}
+	}
+	if res.Settings.Auditors != nil {
+		body.Auditors = make([]*OrgUserResponseBody, len(res.Settings.Auditors))
+		for i, val := range res.Settings.Auditors {
+			if val == nil {
+				body.Auditors[i] = nil
+				continue
+			}
+			body.Auditors[i] = marshalMembershipserviceOrgUserToOrgUserResponseBody(val)
+		}
+	}
+	return body
+}
+
+// NewDeleteB2bOrgSettingsUserResponseBody builds the HTTP response body from
+// the result of the "delete-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewDeleteB2bOrgSettingsUserResponseBody(res *membershipservice.DeleteB2bOrgSettingsUserResult) *DeleteB2bOrgSettingsUserResponseBody {
+	body := &DeleteB2bOrgSettingsUserResponseBody{
+		CreatedAt: res.Settings.CreatedAt,
+		UpdatedAt: res.Settings.UpdatedAt,
+	}
+	if res.Settings.Writers != nil {
+		body.Writers = make([]*OrgUserResponseBody, len(res.Settings.Writers))
+		for i, val := range res.Settings.Writers {
+			if val == nil {
+				body.Writers[i] = nil
+				continue
+			}
+			body.Writers[i] = marshalMembershipserviceOrgUserToOrgUserResponseBody(val)
+		}
+	}
+	if res.Settings.Auditors != nil {
+		body.Auditors = make([]*OrgUserResponseBody, len(res.Settings.Auditors))
+		for i, val := range res.Settings.Auditors {
+			if val == nil {
+				body.Auditors[i] = nil
+				continue
+			}
+			body.Auditors[i] = marshalMembershipserviceOrgUserToOrgUserResponseBody(val)
+		}
+	}
+	return body
+}
+
 // NewGetProjectMembershipResponseBody builds the HTTP response body from the
 // result of the "get-project-membership" endpoint of the "membership-service"
 // service.
@@ -2323,6 +2791,279 @@ func NewUpdateB2bOrgSettingsInternalServerErrorResponseBody(res *goa.ServiceErro
 // the "membership-service" service.
 func NewUpdateB2bOrgSettingsServiceUnavailableResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsServiceUnavailableResponseBody {
 	body := &UpdateB2bOrgSettingsServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgSettingsUserNotFoundResponseBody builds the HTTP response body
+// from the result of the "add-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgSettingsUserNotFoundResponseBody(res *goa.ServiceError) *AddB2bOrgSettingsUserNotFoundResponseBody {
+	body := &AddB2bOrgSettingsUserNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgSettingsUserBadRequestResponseBody builds the HTTP response body
+// from the result of the "add-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgSettingsUserBadRequestResponseBody(res *goa.ServiceError) *AddB2bOrgSettingsUserBadRequestResponseBody {
+	body := &AddB2bOrgSettingsUserBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgSettingsUserConflictResponseBody builds the HTTP response body
+// from the result of the "add-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgSettingsUserConflictResponseBody(res *goa.ServiceError) *AddB2bOrgSettingsUserConflictResponseBody {
+	body := &AddB2bOrgSettingsUserConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgSettingsUserPreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "add-b2b-org-settings-user" endpoint of
+// the "membership-service" service.
+func NewAddB2bOrgSettingsUserPreconditionFailedResponseBody(res *goa.ServiceError) *AddB2bOrgSettingsUserPreconditionFailedResponseBody {
+	body := &AddB2bOrgSettingsUserPreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgSettingsUserInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "add-b2b-org-settings-user" endpoint of
+// the "membership-service" service.
+func NewAddB2bOrgSettingsUserInternalServerErrorResponseBody(res *goa.ServiceError) *AddB2bOrgSettingsUserInternalServerErrorResponseBody {
+	body := &AddB2bOrgSettingsUserInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgSettingsUserServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "add-b2b-org-settings-user" endpoint of
+// the "membership-service" service.
+func NewAddB2bOrgSettingsUserServiceUnavailableResponseBody(res *goa.ServiceError) *AddB2bOrgSettingsUserServiceUnavailableResponseBody {
+	body := &AddB2bOrgSettingsUserServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRoleNotFoundResponseBody builds the HTTP response
+// body from the result of the "update-b2b-org-settings-user-role" endpoint of
+// the "membership-service" service.
+func NewUpdateB2bOrgSettingsUserRoleNotFoundResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsUserRoleNotFoundResponseBody {
+	body := &UpdateB2bOrgSettingsUserRoleNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRoleBadRequestResponseBody builds the HTTP
+// response body from the result of the "update-b2b-org-settings-user-role"
+// endpoint of the "membership-service" service.
+func NewUpdateB2bOrgSettingsUserRoleBadRequestResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsUserRoleBadRequestResponseBody {
+	body := &UpdateB2bOrgSettingsUserRoleBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRoleConflictResponseBody builds the HTTP response
+// body from the result of the "update-b2b-org-settings-user-role" endpoint of
+// the "membership-service" service.
+func NewUpdateB2bOrgSettingsUserRoleConflictResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsUserRoleConflictResponseBody {
+	body := &UpdateB2bOrgSettingsUserRoleConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody builds the
+// HTTP response body from the result of the
+// "update-b2b-org-settings-user-role" endpoint of the "membership-service"
+// service.
+func NewUpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody {
+	body := &UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody builds the
+// HTTP response body from the result of the
+// "update-b2b-org-settings-user-role" endpoint of the "membership-service"
+// service.
+func NewUpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody {
+	body := &UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody builds the
+// HTTP response body from the result of the
+// "update-b2b-org-settings-user-role" endpoint of the "membership-service"
+// service.
+func NewUpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody(res *goa.ServiceError) *UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody {
+	body := &UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgSettingsUserNotFoundResponseBody builds the HTTP response
+// body from the result of the "delete-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewDeleteB2bOrgSettingsUserNotFoundResponseBody(res *goa.ServiceError) *DeleteB2bOrgSettingsUserNotFoundResponseBody {
+	body := &DeleteB2bOrgSettingsUserNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgSettingsUserBadRequestResponseBody builds the HTTP response
+// body from the result of the "delete-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewDeleteB2bOrgSettingsUserBadRequestResponseBody(res *goa.ServiceError) *DeleteB2bOrgSettingsUserBadRequestResponseBody {
+	body := &DeleteB2bOrgSettingsUserBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgSettingsUserConflictResponseBody builds the HTTP response
+// body from the result of the "delete-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewDeleteB2bOrgSettingsUserConflictResponseBody(res *goa.ServiceError) *DeleteB2bOrgSettingsUserConflictResponseBody {
+	body := &DeleteB2bOrgSettingsUserConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgSettingsUserPreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "delete-b2b-org-settings-user" endpoint
+// of the "membership-service" service.
+func NewDeleteB2bOrgSettingsUserPreconditionFailedResponseBody(res *goa.ServiceError) *DeleteB2bOrgSettingsUserPreconditionFailedResponseBody {
+	body := &DeleteB2bOrgSettingsUserPreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgSettingsUserInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "delete-b2b-org-settings-user" endpoint
+// of the "membership-service" service.
+func NewDeleteB2bOrgSettingsUserInternalServerErrorResponseBody(res *goa.ServiceError) *DeleteB2bOrgSettingsUserInternalServerErrorResponseBody {
+	body := &DeleteB2bOrgSettingsUserInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgSettingsUserServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "delete-b2b-org-settings-user" endpoint
+// of the "membership-service" service.
+func NewDeleteB2bOrgSettingsUserServiceUnavailableResponseBody(res *goa.ServiceError) *DeleteB2bOrgSettingsUserServiceUnavailableResponseBody {
+	body := &DeleteB2bOrgSettingsUserServiceUnavailableResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,
@@ -3005,6 +3746,50 @@ func NewUpdateB2bOrgSettingsPayload(body *UpdateB2bOrgSettingsRequestBody, uid s
 	return v
 }
 
+// NewAddB2bOrgSettingsUserPayload builds a membership-service service
+// add-b2b-org-settings-user endpoint payload.
+func NewAddB2bOrgSettingsUserPayload(body *AddB2bOrgSettingsUserRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.AddB2bOrgSettingsUserPayload {
+	v := &membershipservice.AddB2bOrgSettingsUserPayload{
+		Email:     *body.Email,
+		InvitedAs: *body.InvitedAs,
+		Name:      body.Name,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewUpdateB2bOrgSettingsUserRolePayload builds a membership-service service
+// update-b2b-org-settings-user-role endpoint payload.
+func NewUpdateB2bOrgSettingsUserRolePayload(body *UpdateB2bOrgSettingsUserRoleRequestBody, uid string, email string, version *string, bearerToken *string, ifMatch *string) *membershipservice.UpdateB2bOrgSettingsUserRolePayload {
+	v := &membershipservice.UpdateB2bOrgSettingsUserRolePayload{
+		InvitedAs: *body.InvitedAs,
+	}
+	v.UID = uid
+	v.Email = email
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewDeleteB2bOrgSettingsUserPayload builds a membership-service service
+// delete-b2b-org-settings-user endpoint payload.
+func NewDeleteB2bOrgSettingsUserPayload(uid string, email string, version *string, bearerToken *string, ifMatch *string) *membershipservice.DeleteB2bOrgSettingsUserPayload {
+	v := &membershipservice.DeleteB2bOrgSettingsUserPayload{}
+	v.UID = uid
+	v.Email = email
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
 // NewGetProjectMembershipPayload builds a membership-service service
 // get-project-membership endpoint payload.
 func NewGetProjectMembershipPayload(uid string, version *string, bearerToken *string, ifNoneMatch *string, ifModifiedSince *string) *membershipservice.GetProjectMembershipPayload {
@@ -3153,6 +3938,40 @@ func ValidateUpdateB2bOrgSettingsRequestBody(body *UpdateB2bOrgSettingsRequestBo
 			if err2 := ValidateOrgUserRequestBody(e); err2 != nil {
 				err = goa.MergeErrors(err, err2)
 			}
+		}
+	}
+	return
+}
+
+// ValidateAddB2bOrgSettingsUserRequestBody runs the validations defined on
+// Add-B2b-Org-Settings-UserRequestBody
+func ValidateAddB2bOrgSettingsUserRequestBody(body *AddB2bOrgSettingsUserRequestBody) (err error) {
+	if body.Email == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("email", "body"))
+	}
+	if body.InvitedAs == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("invited_as", "body"))
+	}
+	if body.Email != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
+	}
+	if body.InvitedAs != nil {
+		if !(*body.InvitedAs == "writer" || *body.InvitedAs == "auditor") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.invited_as", *body.InvitedAs, []any{"writer", "auditor"}))
+		}
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRoleRequestBody runs the validations defined
+// on Update-B2b-Org-Settings-User-RoleRequestBody
+func ValidateUpdateB2bOrgSettingsUserRoleRequestBody(body *UpdateB2bOrgSettingsUserRoleRequestBody) (err error) {
+	if body.InvitedAs == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("invited_as", "body"))
+	}
+	if body.InvitedAs != nil {
+		if !(*body.InvitedAs == "writer" || *body.InvitedAs == "auditor") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.invited_as", *body.InvitedAs, []any{"writer", "auditor"}))
 		}
 	}
 	return

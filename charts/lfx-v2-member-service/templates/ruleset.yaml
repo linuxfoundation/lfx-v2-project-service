@@ -189,6 +189,99 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
 
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:add-settings-user"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - POST
+        routes:
+          - path: /b2b_orgs/:uid/settings/users
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "b2b_org:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:update-settings-user-role"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - PUT
+        routes:
+          - path: /b2b_orgs/:uid/settings/users/:email
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "b2b_org:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
+    - id: "rule:lfx:lfx-v2-member-service:b2b_orgs:delete-settings-user"
+      allow_encoded_slashes: 'off'
+      match:
+        methods:
+          - DELETE
+        routes:
+          - path: /b2b_orgs/:uid/settings/users/:email
+      execute:
+        - authenticator: oidc
+        - authenticator: anonymous_authenticator
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: openfga_check
+          config:
+            values:
+              relation: writer
+              object: "b2b_org:{{ "{{- .Request.URL.Captures.uid -}}" }}"
+        {{- else }}
+        {{/*
+          When OpenFGA is disabled, allow all requests.
+          (Only meant for *local development* because OpenFGA should be enabled when deployed.)
+        */}}
+        - authorizer: allow_all
+        {{- end }}
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
     - id: "rule:lfx:lfx-v2-member-service:project_memberships:get"
       allow_encoded_slashes: 'off'
       match:

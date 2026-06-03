@@ -38,6 +38,18 @@ type Client struct {
 	// update-b2b-org-settings endpoint.
 	UpdateB2bOrgSettingsDoer goahttp.Doer
 
+	// AddB2bOrgSettingsUser Doer is the HTTP client used to make requests to the
+	// add-b2b-org-settings-user endpoint.
+	AddB2bOrgSettingsUserDoer goahttp.Doer
+
+	// UpdateB2bOrgSettingsUserRole Doer is the HTTP client used to make requests
+	// to the update-b2b-org-settings-user-role endpoint.
+	UpdateB2bOrgSettingsUserRoleDoer goahttp.Doer
+
+	// DeleteB2bOrgSettingsUser Doer is the HTTP client used to make requests to
+	// the delete-b2b-org-settings-user endpoint.
+	DeleteB2bOrgSettingsUserDoer goahttp.Doer
+
 	// GetProjectMembership Doer is the HTTP client used to make requests to the
 	// get-project-membership endpoint.
 	GetProjectMembershipDoer goahttp.Doer
@@ -93,25 +105,28 @@ func NewClient(
 	restoreBody bool,
 ) *Client {
 	return &Client{
-		GetB2bOrgDoer:            doer,
-		CreateB2bOrgDoer:         doer,
-		UpdateB2bOrgDoer:         doer,
-		GetB2bOrgSettingsDoer:    doer,
-		UpdateB2bOrgSettingsDoer: doer,
-		GetProjectMembershipDoer: doer,
-		GetKeyContactDoer:        doer,
-		CreateKeyContactDoer:     doer,
-		UpdateKeyContactDoer:     doer,
-		DeleteKeyContactDoer:     doer,
-		AdminReindexDoer:         doer,
-		ReadyzDoer:               doer,
-		LivezDoer:                doer,
-		DebugVarsDoer:            doer,
-		RestoreResponseBody:      restoreBody,
-		scheme:                   scheme,
-		host:                     host,
-		decoder:                  dec,
-		encoder:                  enc,
+		GetB2bOrgDoer:                    doer,
+		CreateB2bOrgDoer:                 doer,
+		UpdateB2bOrgDoer:                 doer,
+		GetB2bOrgSettingsDoer:            doer,
+		UpdateB2bOrgSettingsDoer:         doer,
+		AddB2bOrgSettingsUserDoer:        doer,
+		UpdateB2bOrgSettingsUserRoleDoer: doer,
+		DeleteB2bOrgSettingsUserDoer:     doer,
+		GetProjectMembershipDoer:         doer,
+		GetKeyContactDoer:                doer,
+		CreateKeyContactDoer:             doer,
+		UpdateKeyContactDoer:             doer,
+		DeleteKeyContactDoer:             doer,
+		AdminReindexDoer:                 doer,
+		ReadyzDoer:                       doer,
+		LivezDoer:                        doer,
+		DebugVarsDoer:                    doer,
+		RestoreResponseBody:              restoreBody,
+		scheme:                           scheme,
+		host:                             host,
+		decoder:                          dec,
+		encoder:                          enc,
 	}
 }
 
@@ -230,6 +245,78 @@ func (c *Client) UpdateB2bOrgSettings() goa.Endpoint {
 		resp, err := c.UpdateB2bOrgSettingsDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("membership-service", "update-b2b-org-settings", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// AddB2bOrgSettingsUser returns an endpoint that makes HTTP requests to the
+// membership-service service add-b2b-org-settings-user server.
+func (c *Client) AddB2bOrgSettingsUser() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeAddB2bOrgSettingsUserRequest(c.encoder)
+		decodeResponse = DecodeAddB2bOrgSettingsUserResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildAddB2bOrgSettingsUserRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.AddB2bOrgSettingsUserDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "add-b2b-org-settings-user", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UpdateB2bOrgSettingsUserRole returns an endpoint that makes HTTP requests to
+// the membership-service service update-b2b-org-settings-user-role server.
+func (c *Client) UpdateB2bOrgSettingsUserRole() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateB2bOrgSettingsUserRoleRequest(c.encoder)
+		decodeResponse = DecodeUpdateB2bOrgSettingsUserRoleResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateB2bOrgSettingsUserRoleRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateB2bOrgSettingsUserRoleDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "update-b2b-org-settings-user-role", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// DeleteB2bOrgSettingsUser returns an endpoint that makes HTTP requests to the
+// membership-service service delete-b2b-org-settings-user server.
+func (c *Client) DeleteB2bOrgSettingsUser() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeDeleteB2bOrgSettingsUserRequest(c.encoder)
+		decodeResponse = DecodeDeleteB2bOrgSettingsUserResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildDeleteB2bOrgSettingsUserRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.DeleteB2bOrgSettingsUserDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "delete-b2b-org-settings-user", err)
 		}
 		return decodeResponse(resp)
 	}

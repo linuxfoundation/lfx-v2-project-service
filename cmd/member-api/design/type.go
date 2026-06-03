@@ -505,6 +505,37 @@ var B2BOrgSettingsUpdateBody = dsl.Type("b2b-org-settings-update-body", func() {
 	dsl.Attribute("auditors", dsl.ArrayOf(OrgUserType), "Complete replacement list for org auditors. Nil = leave unchanged; [] = remove all.")
 })
 
+// OrgUserAddBody is the request body for POST /b2b_orgs/{uid}/settings/users
+// (per-principal add/invite). The service derives invite_status from username
+// (absent here ⇒ pending) and merges the new entry without touching existing members.
+var OrgUserAddBody = dsl.Type("org-user-add-body", func() {
+	dsl.Description("Request body to add (invite) a single principal to a b2b_org's writers or auditors")
+	dsl.Attribute("email", dsl.String, "Invitee email; identity key for the grant", func() {
+		dsl.Format(dsl.FormatEmail)
+		dsl.Example("alice@example.com")
+	})
+	dsl.Attribute("invited_as", dsl.String, "Relation to grant: writer (Admin) or auditor (Viewer)", func() {
+		dsl.Example("auditor")
+		dsl.Enum("writer", "auditor")
+	})
+	dsl.Attribute("name", dsl.String, "Optional display name; stored as provided and left empty when omitted (no server-side user lookup)", func() {
+		dsl.Example("Alice Smith")
+	})
+	dsl.Required("email", "invited_as")
+})
+
+// OrgUserRoleBody is the request body for PUT /b2b_orgs/{uid}/settings/users/{email}
+// (per-principal role change). Moves the principal between writers and auditors,
+// preserving its username/invite lifecycle so an accepted grant stays accepted.
+var OrgUserRoleBody = dsl.Type("org-user-role-body", func() {
+	dsl.Description("Request body to change a single principal's role on a b2b_org")
+	dsl.Attribute("invited_as", dsl.String, "Target relation: writer (Admin) or auditor (Viewer)", func() {
+		dsl.Example("writer")
+		dsl.Enum("writer", "auditor")
+	})
+	dsl.Required("invited_as")
+})
+
 // AdminReindexItem identifies a single entity to reindex in targeted mode.
 var AdminReindexItem = dsl.Type("admin-reindex-item", func() {
 	dsl.Description("A single entity to reindex (targeted mode)")

@@ -358,6 +358,40 @@ func TestOrgSettingsWriter_Update_SubsequentWrite_EmitsActionUpdated(t *testing.
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 // seedB2BOrgReader returns a fixed org for any UID.
+// TestOrgSettingsWriter_AddPrincipal_OnlySyncsTouchedRelation verifies the per-principal FGA
+// sync reconciles only the relation that changed: inviting an auditor must exclude "writer"
+// from the full-sync (untouched, tuples preserved) while syncing "auditor".
+func TestOrgSettingsWriter_AddPrincipal_OnlySyncsTouchedRelation(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		},
+	}, 1)
+	pub := mock.NewMockMemberPublisher()
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}}),
+		svc.WithOrgSettingsPublisher(pub),
+	)
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, pub.LastAccessData, "FGA message must be published")
+	fgaMsg, ok := pub.LastAccessData.(fgatypes.GenericFGAMessage)
+	require.True(t, ok, "expected GenericFGAMessage, got %T", pub.LastAccessData)
+	data, ok := fgaMsg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Contains(t, data.ExcludeRelations, "writer",
+		"inviting an auditor must not re-sync the untouched writers relation")
+	assert.NotContains(t, data.ExcludeRelations, "auditor",
+		"the touched auditors relation must be synced so the new invite reconciles")
+}
+
 type seedB2BOrgReader struct{ org *model.B2BOrg }
 
 func (r *seedB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
