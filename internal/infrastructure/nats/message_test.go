@@ -632,9 +632,9 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 		{
 			name: "invite service returns error in response body — error returned",
 			req: inviteapi.SendInviteRequest{
-				RecipientEmail: "user@example.com",
-				ResourceUID:    "proj-123",
-				Role:           string(inviteapi.InviteRoleView),
+				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
+				Resource:  &inviteapi.Resource{UID: "proj-123"},
+				Role:      string(inviteapi.InviteRoleView),
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{Error: "recipient not found"})
@@ -646,9 +646,9 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 		{
 			name: "NATS request error — error returned",
 			req: inviteapi.SendInviteRequest{
-				RecipientEmail: "user@example.com",
-				ResourceUID:    "proj-123",
-				Role:           string(inviteapi.InviteRoleView),
+				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
+				Resource:  &inviteapi.Resource{UID: "proj-123"},
+				Role:      string(inviteapi.InviteRoleView),
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).

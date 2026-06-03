@@ -917,10 +917,11 @@ func TestHandleInviteAccepted(t *testing.T) {
 
 	const writerEmail = "writer@example.com"
 
-	makeEvent := func(invUID, acceptedBy string) inviteapi.InviteServiceAcceptedEvent {
+	makeEvent := func(invUID, acceptedBy, role string) inviteapi.InviteServiceAcceptedEvent {
 		return inviteapi.InviteServiceAcceptedEvent{Invite: inviteapi.Invite{
 			UID:        invUID,
 			AcceptedBy: acceptedBy,
+			Role:       role,
 			Resource:   inviteapi.Resource{UID: "committee-1", Type: "group"},
 			Recipient:  inviteapi.Recipient{Email: writerEmail},
 		}}
@@ -963,15 +964,15 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "missing uid — discarded",
-			payload: makeEvent("", username),
+			payload: makeEvent("", username, string(inviteapi.InviteRoleManage)),
 		},
 		{
 			name:    "missing accepted_by — discarded",
-			payload: makeEvent(inviteUID, ""),
+			payload: makeEvent(inviteUID, "", string(inviteapi.InviteRoleManage)),
 		},
 		{
 			name:    "happy path — user promoted across all matching projects, indexer called per project",
-			payload: makeEvent(inviteUID, username),
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
 			setupRepo: func(r *domain.MockProjectRepository) {
 				// Two projects both have the invited email; both should be promoted.
 				settings1 := makeSettings()
@@ -992,7 +993,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "ErrRevisionMismatch on UPDATE — succeeds on attempt 2",
-			payload: makeEvent(inviteUID, username),
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
 			setupRepo: func(r *domain.MockProjectRepository) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
 				// First GET + UPDATE fails with revision mismatch; second GET + UPDATE succeeds.
@@ -1012,7 +1013,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "user in Writer + MC slices — both entries promoted on acceptance",
-			payload: makeEvent(inviteUID, username),
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
 			setupRepo: func(r *domain.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:                 projectUID,
@@ -1033,12 +1034,35 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "no matching email in any project — no update called",
-			payload: makeEvent(inviteUID, username),
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
 			setupRepo: func(r *domain.MockProjectRepository) {
 				// Scan returns settings with a different email — no promotion.
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{
 					{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}},
 				}, nil)
+			},
+		},
+		{
+			name:    "View role — only Auditors promoted, Writers untouched",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleView)),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				// Project has both a pending Writer and a pending Auditor entry for the same email.
+				// Accepting a View invite must promote only the Auditor entry.
+				settings := &models.ProjectSettings{
+					UID:      projectUID,
+					Writers:  []models.UserInfo{{Email: writerEmail}},
+					Auditors: []models.UserInfo{{Email: writerEmail}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					auditorPromoted := len(s.Auditors) > 0 && s.Auditors[0].Username == username
+					writerUnchanged := len(s.Writers) > 0 && s.Writers[0].Username == ""
+					return auditorPromoted && writerUnchanged
+				}), uint64(1)).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
 			},
 		},
 	}

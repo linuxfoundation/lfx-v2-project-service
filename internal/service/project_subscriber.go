@@ -409,21 +409,21 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	}
 
 	for _, candidate := range allSettings {
-		if !projectSettingsHasEmailOnlyEntry(candidate, normalizedEmail) {
+		if !projectSettingsHasEmailOnlyEntry(candidate, normalizedEmail, event.Role) {
 			continue
 		}
 		projectUID := candidate.UID
-		s.promoteInvitedUserInProjectSettings(ctx, projectUID, normalizedEmail, event.AcceptedBy, event.UID)
+		s.promoteInvitedUserInProjectSettings(ctx, projectUID, normalizedEmail, event.AcceptedBy, event.UID, event.Role)
 	}
 
 	return nil
 }
 
 // projectSettingsHasEmailOnlyEntry reports whether settings contain at least one
-// email-only (non-LFID) entry whose email matches normalizedEmail.
-func projectSettingsHasEmailOnlyEntry(s *models.ProjectSettings, normalizedEmail string) bool {
-	allSlices := [][]models.UserInfo{s.Writers, s.Auditors, s.MeetingCoordinators}
-	for _, slice := range allSlices {
+// email-only (non-LFID) entry whose email matches normalizedEmail, considering only
+// the role-appropriate slices.
+func projectSettingsHasEmailOnlyEntry(s *models.ProjectSettings, normalizedEmail, role string) bool {
+	for _, slice := range projectRoleSlices(s, role) {
 		for _, u := range slice {
 			if u.Username == "" && strings.ToLower(strings.TrimSpace(u.Email)) == normalizedEmail {
 				return true
@@ -433,9 +433,34 @@ func projectSettingsHasEmailOnlyEntry(s *models.ProjectSettings, normalizedEmail
 	return false
 }
 
+// projectRoleSlices returns the settings slices to scan/update for a given invite role.
+// "Manage" → Writers + MeetingCoordinators; "View" → Auditors only; unknown → all three.
+func projectRoleSlices(s *models.ProjectSettings, role string) [][]models.UserInfo {
+	switch role {
+	case string(inviteapi.InviteRoleManage):
+		return [][]models.UserInfo{s.Writers, s.MeetingCoordinators}
+	case string(inviteapi.InviteRoleView):
+		return [][]models.UserInfo{s.Auditors}
+	default:
+		return [][]models.UserInfo{s.Writers, s.Auditors, s.MeetingCoordinators}
+	}
+}
+
+// projectRoleSlicePtrs returns pointer-to-slice refs matching projectRoleSlices, for mutation.
+func projectRoleSlicePtrs(s *models.ProjectSettings, role string) []*[]models.UserInfo {
+	switch role {
+	case string(inviteapi.InviteRoleManage):
+		return []*[]models.UserInfo{&s.Writers, &s.MeetingCoordinators}
+	case string(inviteapi.InviteRoleView):
+		return []*[]models.UserInfo{&s.Auditors}
+	default:
+		return []*[]models.UserInfo{&s.Writers, &s.Auditors, &s.MeetingCoordinators}
+	}
+}
+
 // promoteInvitedUserInProjectSettings promotes all email-only entries matching normalizedEmail
 // in the given project's settings to full LFID users. It retries on revision conflicts.
-func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Context, projectUID, normalizedEmail, username, inviteUID string) {
+func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Context, projectUID, normalizedEmail, username, inviteUID, role string) {
 	const maxRetries = 3
 	for attempt := range maxRetries {
 		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
@@ -446,8 +471,7 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 		}
 
 		promoted := false
-		allSlices := []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators}
-		for _, slice := range allSlices {
+		for _, slice := range projectRoleSlicePtrs(settings, role) {
 			for i := range *slice {
 				if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == normalizedEmail {
 					(*slice)[i].Username = username
