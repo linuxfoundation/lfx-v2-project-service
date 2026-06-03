@@ -594,9 +594,11 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				inviteReturnUID := tt.inviteUID
 				inviteReturnErr := tt.msgBuilderErr
 				mockMsg.On("SendInviteRequest", mock.Anything, mock.MatchedBy(func(req inviteapi.SendInviteRequest) bool {
-					return req.ResourceUID == wantProjectUID &&
+					return req.Resource != nil &&
+						req.Resource.UID == wantProjectUID &&
 						(wantRole == "" || req.Role == wantRole) &&
-						req.RecipientEmail != "" &&
+						req.Recipient != nil &&
+						req.Recipient.Email != "" &&
 						req.ReturnURL != ""
 				})).Return(domain.InviteResult{
 					InviteUID:      inviteReturnUID,

@@ -224,12 +224,18 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 	defer cancel()
 
 	result, err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
-		RecipientEmail: recipientEmail,
-		RecipientName:  recipientName,
-		InviterName:    inviterName,
-		ResourceUID:    projectUID,
-		ResourceName:   projectName,
-		ResourceType:   "project",
+		Recipient: &inviteapi.Recipient{
+			Email: recipientEmail,
+			Name:  recipientName,
+		},
+		Inviter: &inviteapi.Inviter{
+			Name: inviterName,
+		},
+		Resource: &inviteapi.Resource{
+			UID:  projectUID,
+			Name: projectName,
+			Type: "project",
+		},
 		Role:           inviteRole,
 		ReturnURL:      deepLinkURL,
 		ExpirationDays: 30,
