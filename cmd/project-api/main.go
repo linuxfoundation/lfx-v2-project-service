@@ -19,7 +19,10 @@ import (
 
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
+	"go.opentelemetry.io/otel/trace"
 	goahttp "goa.design/goa/v3/http"
 
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
@@ -245,6 +248,29 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 		koDataDir,
 		koDataDir,
 	)
+
+	// Register route-tagging middleware inside chi's routing chain so that
+	// http.route is set on the OTel span after chi has matched the route pattern.
+	// The span name is also updated here to avoid high-cardinality names from
+	// using raw URL paths (which contain actual path parameter values).
+	// Must be registered before Mount calls per chi convention.
+	// Reads RoutePattern after next.ServeHTTP because chi populates the pattern
+	// during routing (inside ServeHTTP), not before.
+	mux.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+			rctx := chi.RouteContext(r.Context())
+			if rctx != nil {
+				routePattern := rctx.RoutePattern()
+				if routePattern != "" {
+					if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
+						labeler.Add(semconv.HTTPRoute(routePattern))
+					}
+					trace.SpanFromContext(r.Context()).SetName(r.Method + " " + routePattern)
+				}
+			}
+		})
+	})
 
 	// Mount the handler on the mux
 	genhttp.Mount(mux, genHttpServer)
