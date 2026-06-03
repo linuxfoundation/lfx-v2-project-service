@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 	"go.opentelemetry.io/otel/trace"
@@ -258,17 +258,19 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 	// during routing (inside ServeHTTP), not before.
 	mux.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-			rctx := chi.RouteContext(r.Context())
-			if rctx != nil {
-				routePattern := rctx.RoutePattern()
-				if routePattern != "" {
-					if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
-						labeler.Add(semconv.HTTPRoute(routePattern))
+			defer func() {
+				rctx := chi.RouteContext(r.Context())
+				if rctx != nil {
+					routePattern := rctx.RoutePattern()
+					if routePattern != "" {
+						if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
+							labeler.Add(semconv.HTTPRoute(routePattern))
+						}
+						trace.SpanFromContext(r.Context()).SetName(r.Method + " " + routePattern)
 					}
-					trace.SpanFromContext(r.Context()).SetName(r.Method + " " + routePattern)
 				}
-			}
+			}()
+			next.ServeHTTP(w, r)
 		})
 	})
 
