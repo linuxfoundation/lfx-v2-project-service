@@ -151,7 +151,6 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) > 0 && s.Writers[0].Invite.UID == "invite-writer-uid"
 				}), uint64(1)).Return(nil)
-				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
 			},
 		},
 		{
@@ -173,7 +172,6 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) > 0 && s.Auditors[0].Invite.UID == "invite-auditor-uid"
 				}), uint64(1)).Return(nil)
-				r.On("CreateInviteMapping", mock.Anything, "invite-auditor-uid", "proj-1").Return(nil)
 			},
 		},
 		{
@@ -195,7 +193,6 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Invite.UID == "invite-mc-uid"
 				}), uint64(1)).Return(nil)
-				r.On("CreateInviteMapping", mock.Anything, "invite-mc-uid", "proj-1").Return(nil)
 			},
 		},
 		{
@@ -332,7 +329,6 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					}
 					return true
 				}), uint64(1)).Return(nil)
-				r.On("CreateInviteMapping", mock.Anything, "invite-writer-uid", "proj-1").Return(nil)
 			},
 		},
 		// ── Error & edge-case cases ───────────────────────────────────────────────────
@@ -1008,6 +1004,14 @@ func TestHandleInviteAccepted(t *testing.T) {
 	const username = "newuser"
 	const projectUID = "proj-1"
 
+	makeEvent := func(invUID, acceptedBy, resourceUID, resourceType string) inviteapi.InviteServiceAcceptedEvent {
+		return inviteapi.InviteServiceAcceptedEvent{Invite: inviteapi.Invite{
+			UID:        invUID,
+			AcceptedBy: acceptedBy,
+			Resource:   inviteapi.Resource{UID: resourceUID, Type: resourceType},
+		}}
+	}
+
 	makeSettings := func() *models.ProjectSettings {
 		return &models.ProjectSettings{
 			UID:     projectUID,
@@ -1044,39 +1048,25 @@ func TestHandleInviteAccepted(t *testing.T) {
 			payload: []byte("not json"),
 		},
 		{
-			name:    "missing invite_uid — discarded",
-			payload: events.InviteAccepted{InviteUID: "", Username: username},
+			name:    "missing uid — discarded",
+			payload: makeEvent("", username, projectUID, "project"),
 		},
 		{
-			name:    "missing username — discarded",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: ""},
+			name:    "missing accepted_by — discarded",
+			payload: makeEvent(inviteUID, "", projectUID, "project"),
 		},
 		{
-			name:    "ErrInviteMappingNotFound — silently ignored (debug log, no warn)",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			name:    "wrong resource type — silently ignored",
+			payload: makeEvent(inviteUID, username, "committee-1", "group"),
+		},
+		{
+			name:    "happy path — user promoted, indexer called",
+			payload: makeEvent(inviteUID, username, projectUID, "project"),
 			setupRepo: func(r *domain.MockProjectRepository) {
-				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).
-					Return("", domain.ErrInviteMappingNotFound)
-			},
-		},
-		{
-			name:    "KV error on GetProjectUIDByInviteUID — warn logged, nil returned",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
-			setupRepo: func(r *domain.MockProjectRepository) {
-				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).
-					Return("", assert.AnError)
-			},
-		},
-		{
-			name:    "happy path — user promoted, mapping deleted, indexer called",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
-			setupRepo: func(r *domain.MockProjectRepository) {
-				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
 				}), uint64(1)).Return(nil)
-				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
@@ -1084,9 +1074,8 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "ErrRevisionMismatch on UPDATE — succeeds on attempt 2",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			payload: makeEvent(inviteUID, username, projectUID, "project"),
 			setupRepo: func(r *domain.MockProjectRepository) {
-				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
 				// First GET + UPDATE fails with revision mismatch; second GET + UPDATE succeeds.
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
 					Return(makeSettings(), uint64(1), nil).Once()
@@ -1097,7 +1086,6 @@ func TestHandleInviteAccepted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) > 0 && s.Writers[0].Username == username && s.Writers[0].Invite == nil
 				}), uint64(2)).Return(nil).Once()
-				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
@@ -1105,9 +1093,8 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "user in Writer + MC slices — both entries promoted on acceptance",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			payload: makeEvent(inviteUID, username, projectUID, "project"),
 			setupRepo: func(r *domain.MockProjectRepository) {
-				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
 				// Writer has the invite UID; MC is the same user but was deduped (no UID).
 				settings := &models.ProjectSettings{
 					UID:                 projectUID,
@@ -1120,34 +1107,18 @@ func TestHandleInviteAccepted(t *testing.T) {
 					mcOK := len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Username == username
 					return writerOK && mcOK
 				}), uint64(1)).Return(nil)
-				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
 			},
 		},
 		{
-			name:    "promoted == false (stale mapping) — mapping deleted, nil returned",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
+			name:    "promoted == false (invite already promoted) — warn logged, nil returned",
+			payload: makeEvent(inviteUID, username, projectUID, "project"),
 			setupRepo: func(r *domain.MockProjectRepository) {
-				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
 				// Settings contain no entry with the invite UID.
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
 					Return(&models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}}, uint64(1), nil)
-				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(nil)
-			},
-		},
-		{
-			name:    "mapping-delete failure after acceptance — warn logged, not fatal",
-			payload: events.InviteAccepted{InviteUID: inviteUID, Username: username},
-			setupRepo: func(r *domain.MockProjectRepository) {
-				r.On("GetProjectUIDByInviteUID", mock.Anything, inviteUID).Return(projectUID, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
-				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
-				r.On("DeleteInviteMapping", mock.Anything, inviteUID).Return(assert.AnError)
-			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
 			},
 		},
 	}
@@ -1210,12 +1181,11 @@ func TestStoreInviteInfo(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "happy path — invite info stamped and mapping created",
+			name: "happy path — invite info stamped",
 			setupRepo: func(r *domain.MockProjectRepository) {
 				s, rev := makeSettings(1)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s, rev, nil)
 				r.On("UpdateProjectSettings", mock.Anything, inviteMatcher, rev).Return(nil)
-				r.On("CreateInviteMapping", mock.Anything, inviteUID, projectUID).Return(nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
@@ -1233,7 +1203,6 @@ func TestStoreInviteInfo(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(2)).Return(domain.ErrRevisionMismatch).Once()
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(s3, uint64(3), nil).Once()
 				r.On("UpdateProjectSettings", mock.Anything, inviteMatcher, uint64(3)).Return(nil).Once()
-				r.On("CreateInviteMapping", mock.Anything, inviteUID, projectUID).Return(nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)

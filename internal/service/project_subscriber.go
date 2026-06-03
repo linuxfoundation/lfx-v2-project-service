@@ -348,13 +348,6 @@ func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, ro
 	slog.InfoContext(ctx, "project_subscriber: stored invite info on member record",
 		"project_uid", projectUID, "role", role, "invite_uid", inviteUID, "expires_at", expiresAt)
 
-	// Write the invite UID → project UID mapping so HandleInviteAccepted can route the
-	// acceptance event without scanning all project settings.
-	if mappingErr := s.ProjectRepository.CreateInviteMapping(ctx, inviteUID, projectUID); mappingErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to create invite mapping — acceptance routing will not work",
-			constants.ErrKey, mappingErr, "project_uid", projectUID, "invite_uid", inviteUID)
-	}
-
 	indexMsg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionUpdated,
 		Data:           *settings,
@@ -490,24 +483,31 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 	return "A project administrator"
 }
 
-// HandleInviteAccepted processes an invite acceptance event from the LFX self-serve web app.
-// It locates the project settings that own the invite via the mapping written at invite-send time,
-// promotes the user from non-LFID (email-only) to LFID (username set, invite cleared), persists
-// the update, deletes the consumed mapping, and re-indexes.
+// HandleInviteAccepted processes an invite acceptance event published by the invite service.
+// It locates the project settings that own the invite via the resource UID carried in the
+// enriched payload, promotes the user from non-LFID (email-only) to LFID (username set,
+// invite cleared), persists the update, and re-indexes.
 //
 // Note: a single notificationTimeout deadline covers the entire handler body including all retry
 // attempts. If KV contention causes all retries to exhaust the budget, the promotion is lost and
 // the user must re-accept the invite link to trigger a new acceptance event.
 func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.Message) error {
-	var event events.InviteAccepted
+	var event inviteapi.InviteServiceAcceptedEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal invite_accepted event", constants.ErrKey, err)
 		return nil
 	}
 
-	if event.InviteUID == "" || event.Username == "" {
-		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing invite_uid or username — discarding",
-			"invite_uid", event.InviteUID, "username", event.Username)
+	if event.UID == "" || event.AcceptedBy == "" {
+		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing uid or accepted_by — discarding",
+			"invite_uid", event.UID, "accepted_by", event.AcceptedBy)
+		return nil
+	}
+
+	// The invite service publishes this event for all resource types; only process project invites.
+	if event.Resource.Type != "project" {
+		slog.DebugContext(ctx, "project_subscriber: invite not for a project resource — ignoring",
+			"resource_type", event.Resource.Type, "invite_uid", event.UID)
 		return nil
 	}
 
@@ -515,19 +515,7 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	defer acceptCancel()
 	ctx = acceptCtx
 
-	// Look up the project UID from the mapping.
-	projectUID, err := s.ProjectRepository.GetProjectUIDByInviteUID(ctx, event.InviteUID)
-	if err != nil {
-		if errors.Is(err, domain.ErrInviteMappingNotFound) {
-			// No mapping means this invite belongs to another service — silently ignore.
-			slog.DebugContext(ctx, "project_subscriber: invite not tracked by this service — ignoring",
-				"invite_uid", event.InviteUID)
-			return nil
-		}
-		slog.WarnContext(ctx, "project_subscriber: KV error looking up invite mapping",
-			constants.ErrKey, err, "invite_uid", event.InviteUID)
-		return nil
-	}
+	projectUID := event.Resource.UID
 
 	const maxPromoteRetries = 3
 	var (
@@ -541,11 +529,11 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		if settingsErr != nil {
 			if attempt < maxPromoteRetries-1 {
 				slog.DebugContext(ctx, "project_subscriber: transient error reading settings for invite acceptance — retrying",
-					constants.ErrKey, settingsErr, "attempt", attempt+1, "project_uid", projectUID, "invite_uid", event.InviteUID)
+					constants.ErrKey, settingsErr, "attempt", attempt+1, "project_uid", projectUID, "invite_uid", event.UID)
 				continue
 			}
 			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite acceptance",
-				constants.ErrKey, settingsErr, "project_uid", projectUID, "invite_uid", event.InviteUID)
+				constants.ErrKey, settingsErr, "project_uid", projectUID, "invite_uid", event.UID)
 			return nil
 		}
 
@@ -558,9 +546,9 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		allSlices := []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators}
 		for _, slice := range allSlices {
 			for i := range *slice {
-				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
+				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.UID {
 					promotedEmail = strings.ToLower(strings.TrimSpace((*slice)[i].Email))
-					(*slice)[i].Username = event.Username
+					(*slice)[i].Username = event.AcceptedBy
 					(*slice)[i].Invite = nil
 					promoted = true
 					break
@@ -577,7 +565,7 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			for _, slice := range allSlices {
 				for i := range *slice {
 					if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == promotedEmail {
-						(*slice)[i].Username = event.Username
+						(*slice)[i].Username = event.AcceptedBy
 						(*slice)[i].Invite = nil
 					}
 				}
@@ -585,11 +573,8 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		}
 
 		if !promoted {
-			slog.WarnContext(ctx, "project_subscriber: invite UID not found in any role slice — stale mapping, cleaning up",
-				"invite_uid", event.InviteUID, "project_uid", projectUID)
-			if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
-				slog.WarnContext(ctx, "project_subscriber: failed to delete stale invite mapping", constants.ErrKey, delErr, "invite_uid", event.InviteUID)
-			}
+			slog.WarnContext(ctx, "project_subscriber: invite UID not found in any role slice — may have already been promoted",
+				"invite_uid", event.UID, "project_uid", projectUID)
 			return nil
 		}
 
@@ -599,20 +584,15 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		}
 		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxPromoteRetries-1 {
 			slog.WarnContext(ctx, "project_subscriber: failed to update settings after invite acceptance",
-				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", event.InviteUID)
+				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", event.UID)
 			return nil
 		}
 		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting invite — retrying",
-			"attempt", attempt+1, "invite_uid", event.InviteUID)
-	}
-
-	if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to delete invite mapping after acceptance",
-			constants.ErrKey, delErr, "invite_uid", event.InviteUID)
+			"attempt", attempt+1, "invite_uid", event.UID)
 	}
 
 	slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
-		"project_uid", projectUID, "invite_uid", event.InviteUID, "username", event.Username)
+		"project_uid", projectUID, "invite_uid", event.UID, "username", event.AcceptedBy)
 
 	indexMsg := indexerTypes.IndexerMessageEnvelope{
 		Action:         indexerConstants.ActionUpdated,
