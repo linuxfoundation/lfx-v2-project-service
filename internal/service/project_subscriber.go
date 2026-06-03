@@ -245,118 +245,9 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 			constants.ErrKey, err, "role", role, "project_uid", projectUID)
 		return nil
 	}
-	if result.InviteUID == "" {
-		// Defensive: infra-layer SendInviteRequest validates this, but guard here too.
-		slog.WarnContext(ctx, "project_subscriber: invite service responded without an invite UID — skipping write-back",
-			"role", role, "project_uid", projectUID)
-		return nil
-	}
+	slog.InfoContext(ctx, "project_subscriber: invite sent",
+		"role", role, "project_uid", projectUID, "invite_uid", result.InviteUID)
 
-	slog.InfoContext(ctx, "project_subscriber: invite service responded with invite UID — storing on member record",
-		"role", role, "project_uid", projectUID, "invite_uid", result.InviteUID, "expires_at", result.ExpiresAt)
-
-	if storeErr := s.storeInviteInfo(ctx, projectUID, role, recipientEmail, result.InviteUID, result.RecipientEmail, result.ExpiresAt); storeErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to store invite info on user",
-			constants.ErrKey, storeErr, "role", role, "project_uid", projectUID, "invite_uid", result.InviteUID)
-	}
-	return nil
-}
-
-// storeInviteInfo reads project settings, locates the user by email in the given role's
-// slice, stamps their InviteUID, InviteEmail, and InviteExpiresAt, and writes the settings
-// back using optimistic concurrency. It retries up to 3 times on ErrRevisionMismatch,
-// which can occur when multiple non-LFID users are added in the same event and concurrent
-// write-backs race on the same KV revision.
-func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
-	const maxRetries = 3
-	for attempt := range maxRetries {
-		storeCtx, storeCancel := context.WithTimeout(ctx, notificationTimeout)
-		err := s.tryStoreInviteInfo(storeCtx, projectUID, role, recipientEmail, inviteUID, inviteEmail, expiresAt)
-		storeCancel()
-		if err == nil {
-			return nil
-		}
-		if !errors.Is(err, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
-			return err
-		}
-		slog.DebugContext(ctx, "project_subscriber: revision mismatch storing invite info — retrying",
-			"attempt", attempt+1, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-	}
-	return nil
-}
-
-// roleSlice returns a pointer to the settings slice for the given role,
-// or nil for an unrecognised role.
-func roleSlice(s *models.ProjectSettings, role string) *[]models.UserInfo {
-	switch role {
-	case roleWriter:
-		return &s.Writers
-	case roleAuditor:
-		return &s.Auditors
-	case roleMeetingCoordinator:
-		return &s.MeetingCoordinators
-	}
-	return nil
-}
-
-func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
-	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite info",
-		"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-
-	settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
-	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to read project settings for invite info write-back",
-			constants.ErrKey, err, "project_uid", projectUID)
-		return err
-	}
-
-	slicePtr := roleSlice(settings, role)
-	if slicePtr == nil {
-		return nil
-	}
-
-	normalizedRecipient := strings.ToLower(strings.TrimSpace(recipientEmail))
-	updated := false
-	for i := range *slicePtr {
-		if strings.ToLower(strings.TrimSpace((*slicePtr)[i].Email)) == normalizedRecipient {
-			inv := &models.InviteInfo{UID: inviteUID, Email: inviteEmail}
-			if !expiresAt.IsZero() {
-				inv.ExpiresAt = &expiresAt
-			}
-			(*slicePtr)[i].Invite = inv
-			updated = true
-			break
-		}
-	}
-	if !updated {
-		slog.WarnContext(ctx, "project_subscriber: user not found in role slice — invite info not stored (user may have been removed)",
-			"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-		return nil
-	}
-
-	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
-		if errors.Is(err, domain.ErrRevisionMismatch) {
-			slog.DebugContext(ctx, "project_subscriber: revision mismatch writing invite info — will retry",
-				"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-		} else {
-			slog.WarnContext(ctx, "project_subscriber: failed to write invite info back to project settings",
-				constants.ErrKey, err, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-		}
-		return err
-	}
-
-	slog.InfoContext(ctx, "project_subscriber: stored invite info on member record",
-		"project_uid", projectUID, "role", role, "invite_uid", inviteUID, "expires_at", expiresAt)
-
-	indexMsg := indexerTypes.IndexerMessageEnvelope{
-		Action:         indexerConstants.ActionUpdated,
-		Data:           *settings,
-		IndexingConfig: settings.IndexingConfig(projectUID),
-	}
-	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after storing invite info",
-			constants.ErrKey, indexErr, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-	}
 	return nil
 }
 
@@ -537,44 +428,25 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			return nil
 		}
 
-		// Pass 1: find the entry that owns the invite UID and promote it.
-		// Record the normalised email so sibling entries for the same user can be
-		// promoted in pass 2 (they share an email but were deduplicated and never
-		// received their own invite UID).
+		// Promote all email-only entries that match the recipient email. The invite
+		// service carries the email in the enriched payload so we no longer rely on
+		// a stored invite UID for matching.
 		promoted = false
-		var promotedEmail string
+		normalizedEmail := strings.ToLower(strings.TrimSpace(event.Recipient.Email))
 		allSlices := []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators}
 		for _, slice := range allSlices {
 			for i := range *slice {
-				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.UID {
-					promotedEmail = strings.ToLower(strings.TrimSpace((*slice)[i].Email))
+				if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == normalizedEmail {
 					(*slice)[i].Username = event.AcceptedBy
-					(*slice)[i].Invite = nil
+					(*slice)[i].Invite = nil // clear any residual invite metadata
 					promoted = true
-					break
-				}
-			}
-			if promoted {
-				break
-			}
-		}
-
-		// Pass 2: promote any sibling entries for the same email that were skipped
-		// during invite deduplication and therefore have no invite UID of their own.
-		if promoted && promotedEmail != "" {
-			for _, slice := range allSlices {
-				for i := range *slice {
-					if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == promotedEmail {
-						(*slice)[i].Username = event.AcceptedBy
-						(*slice)[i].Invite = nil
-					}
 				}
 			}
 		}
 
 		if !promoted {
-			slog.WarnContext(ctx, "project_subscriber: invite UID not found in any role slice — may have already been promoted",
-				"invite_uid", event.UID, "project_uid", projectUID)
+			slog.WarnContext(ctx, "project_subscriber: no email-only entry found for recipient — may have already been promoted",
+				"project_uid", projectUID, "invite_uid", event.UID)
 			return nil
 		}
 
