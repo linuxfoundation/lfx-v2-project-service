@@ -375,13 +375,12 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 }
 
 // HandleInviteAccepted processes an invite acceptance event published by the invite service.
-// It locates the project settings that own the invite via the resource UID carried in the
-// enriched payload, promotes the user from non-LFID (email-only) to LFID (username set,
-// invite cleared), persists the update, and re-indexes.
+// It scans all project settings for email-only user entries matching the recipient email and
+// promotes them to full LFID users (username set, invite cleared). This reconciles every
+// project the accepted user was invited to, regardless of which resource triggered the event.
 //
-// Note: a single notificationTimeout deadline covers the entire handler body including all retry
-// attempts. If KV contention causes all retries to exhaust the budget, the promotion is lost and
-// the user must re-accept the invite link to trigger a new acceptance event.
+// TODO: replace the full-scan with an email → [project_uid] index lookup so we avoid reading
+// every project's settings on each acceptance event.
 func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.Message) error {
 	var event inviteapi.InviteServiceAcceptedEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
@@ -389,16 +388,9 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		return nil
 	}
 
-	if event.UID == "" || event.AcceptedBy == "" {
-		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing uid or accepted_by — discarding",
-			"invite_uid", event.UID, "accepted_by", event.AcceptedBy)
-		return nil
-	}
-
-	// The invite service publishes this event for all resource types; only process project invites.
-	if event.Resource.Type != "project" {
-		slog.DebugContext(ctx, "project_subscriber: invite not for a project resource — ignoring",
-			"resource_type", event.Resource.Type, "invite_uid", event.UID)
+	if event.UID == "" || event.AcceptedBy == "" || event.Recipient.Email == "" {
+		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing required fields — discarding",
+			"invite_uid", event.UID, "accepted_by", event.AcceptedBy, "recipient_email", event.Recipient.Email)
 		return nil
 	}
 
@@ -406,77 +398,95 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	defer acceptCancel()
 	ctx = acceptCtx
 
-	projectUID := event.Resource.UID
+	normalizedEmail := strings.ToLower(strings.TrimSpace(event.Recipient.Email))
 
-	const maxPromoteRetries = 3
-	var (
-		settings *models.ProjectSettings
-		promoted bool
-	)
-	for attempt := range maxPromoteRetries {
-		var revision uint64
-		var settingsErr error
-		settings, revision, settingsErr = s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
-		if settingsErr != nil {
-			if attempt < maxPromoteRetries-1 {
-				slog.DebugContext(ctx, "project_subscriber: transient error reading settings for invite acceptance — retrying",
-					constants.ErrKey, settingsErr, "attempt", attempt+1, "project_uid", projectUID, "invite_uid", event.UID)
-				continue
+	// Scan all project settings for email-only entries that match the recipient.
+	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(ctx)
+	if listErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for invite reconciliation",
+			constants.ErrKey, listErr, "invite_uid", event.UID)
+		return nil
+	}
+
+	for _, candidate := range allSettings {
+		if !projectSettingsHasEmailOnlyEntry(candidate, normalizedEmail) {
+			continue
+		}
+		projectUID := candidate.UID
+		s.promoteInvitedUserInProjectSettings(ctx, projectUID, normalizedEmail, event.AcceptedBy, event.UID)
+	}
+
+	return nil
+}
+
+// projectSettingsHasEmailOnlyEntry reports whether settings contain at least one
+// email-only (non-LFID) entry whose email matches normalizedEmail.
+func projectSettingsHasEmailOnlyEntry(s *models.ProjectSettings, normalizedEmail string) bool {
+	allSlices := [][]models.UserInfo{s.Writers, s.Auditors, s.MeetingCoordinators}
+	for _, slice := range allSlices {
+		for _, u := range slice {
+			if u.Username == "" && strings.ToLower(strings.TrimSpace(u.Email)) == normalizedEmail {
+				return true
 			}
-			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite acceptance",
-				constants.ErrKey, settingsErr, "project_uid", projectUID, "invite_uid", event.UID)
-			return nil
+		}
+	}
+	return false
+}
+
+// promoteInvitedUserInProjectSettings promotes all email-only entries matching normalizedEmail
+// in the given project's settings to full LFID users. It retries on revision conflicts.
+func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Context, projectUID, normalizedEmail, username, inviteUID string) {
+	const maxRetries = 3
+	for attempt := range maxRetries {
+		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if err != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite promotion",
+				constants.ErrKey, err, "project_uid", projectUID, "invite_uid", inviteUID)
+			return
 		}
 
-		// Promote all email-only entries that match the recipient email. The invite
-		// service carries the email in the enriched payload so we no longer rely on
-		// a stored invite UID for matching.
-		promoted = false
-		normalizedEmail := strings.ToLower(strings.TrimSpace(event.Recipient.Email))
+		promoted := false
 		allSlices := []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators}
 		for _, slice := range allSlices {
 			for i := range *slice {
 				if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == normalizedEmail {
-					(*slice)[i].Username = event.AcceptedBy
-					(*slice)[i].Invite = nil // clear any residual invite metadata
+					(*slice)[i].Username = username
+					(*slice)[i].Invite = nil
 					promoted = true
 				}
 			}
 		}
 
 		if !promoted {
-			slog.WarnContext(ctx, "project_subscriber: no email-only entry found for recipient — may have already been promoted",
-				"project_uid", projectUID, "invite_uid", event.UID)
-			return nil
+			// Race: another handler already promoted this entry between the scan and now.
+			slog.DebugContext(ctx, "project_subscriber: email-only entry already promoted — skipping",
+				"project_uid", projectUID, "invite_uid", inviteUID)
+			return
 		}
 
 		updateErr := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision)
 		if updateErr == nil {
-			break
+			slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
+				"project_uid", projectUID, "invite_uid", inviteUID, "username", username)
+			indexMsg := indexerTypes.IndexerMessageEnvelope{
+				Action:         indexerConstants.ActionUpdated,
+				Data:           *settings,
+				IndexingConfig: settings.IndexingConfig(projectUID),
+			}
+			if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
+					constants.ErrKey, indexErr, "project_uid", projectUID)
+			}
+			return
 		}
-		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxPromoteRetries-1 {
+		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
 			slog.WarnContext(ctx, "project_subscriber: failed to update settings after invite acceptance",
-				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", event.UID)
-			return nil
+				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", inviteUID)
+			return
 		}
 		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting invite — retrying",
-			"attempt", attempt+1, "invite_uid", event.UID)
+			"attempt", attempt+1, "project_uid", projectUID, "invite_uid", inviteUID)
 	}
-
-	slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
-		"project_uid", projectUID, "invite_uid", event.UID, "username", event.AcceptedBy)
-
-	indexMsg := indexerTypes.IndexerMessageEnvelope{
-		Action:         indexerConstants.ActionUpdated,
-		Data:           *settings,
-		IndexingConfig: settings.IndexingConfig(projectUID),
-	}
-	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
-			constants.ErrKey, indexErr, "project_uid", projectUID)
-	}
-
-	return nil
 }
 
 // buildProjectURL constructs the deep-link URL for a project's overview page.

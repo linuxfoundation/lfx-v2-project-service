@@ -913,14 +913,15 @@ func TestHandleInviteAccepted(t *testing.T) {
 	const inviteUID = "inv-abc"
 	const username = "newuser"
 	const projectUID = "proj-1"
+	const project2UID = "proj-2"
 
 	const writerEmail = "writer@example.com"
 
-	makeEvent := func(invUID, acceptedBy, resourceUID, resourceType string) inviteapi.InviteServiceAcceptedEvent {
+	makeEvent := func(invUID, acceptedBy string) inviteapi.InviteServiceAcceptedEvent {
 		return inviteapi.InviteServiceAcceptedEvent{Invite: inviteapi.Invite{
 			UID:        invUID,
 			AcceptedBy: acceptedBy,
-			Resource:   inviteapi.Resource{UID: resourceUID, Type: resourceType},
+			Resource:   inviteapi.Resource{UID: "committee-1", Type: "group"},
 			Recipient:  inviteapi.Recipient{Email: writerEmail},
 		}}
 	}
@@ -962,33 +963,38 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "missing uid — discarded",
-			payload: makeEvent("", username, projectUID, "project"),
+			payload: makeEvent("", username),
 		},
 		{
 			name:    "missing accepted_by — discarded",
-			payload: makeEvent(inviteUID, "", projectUID, "project"),
+			payload: makeEvent(inviteUID, ""),
 		},
 		{
-			name:    "wrong resource type — silently ignored",
-			payload: makeEvent(inviteUID, username, "committee-1", "group"),
-		},
-		{
-			name:    "happy path — user promoted by email, indexer called",
-			payload: makeEvent(inviteUID, username, projectUID, "project"),
+			name:    "happy path — user promoted across all matching projects, indexer called per project",
+			payload: makeEvent(inviteUID, username),
 			setupRepo: func(r *domain.MockProjectRepository) {
+				// Two projects both have the invited email; both should be promoted.
+				settings1 := makeSettings()
+				settings2 := &models.ProjectSettings{UID: project2UID, Writers: []models.UserInfo{{Email: writerEmail}}}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings1, settings2}, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == username
+				}), uint64(1)).Return(nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, project2UID).Return(settings2, uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) > 0 && s.Writers[0].Username == username
 				}), uint64(1)).Return(nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil).Times(2)
 			},
 		},
 		{
 			name:    "ErrRevisionMismatch on UPDATE — succeeds on attempt 2",
-			payload: makeEvent(inviteUID, username, projectUID, "project"),
+			payload: makeEvent(inviteUID, username),
 			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
 				// First GET + UPDATE fails with revision mismatch; second GET + UPDATE succeeds.
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
 					Return(makeSettings(), uint64(1), nil).Once()
@@ -1006,13 +1012,14 @@ func TestHandleInviteAccepted(t *testing.T) {
 		},
 		{
 			name:    "user in Writer + MC slices — both entries promoted on acceptance",
-			payload: makeEvent(inviteUID, username, projectUID, "project"),
+			payload: makeEvent(inviteUID, username),
 			setupRepo: func(r *domain.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:                 projectUID,
 					Writers:             []models.UserInfo{{Email: writerEmail}},
 					MeetingCoordinators: []models.UserInfo{{Email: writerEmail}},
 				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					writerOK := len(s.Writers) > 0 && s.Writers[0].Username == username
@@ -1025,12 +1032,13 @@ func TestHandleInviteAccepted(t *testing.T) {
 			},
 		},
 		{
-			name:    "promoted == false (invite already promoted) — warn logged, nil returned",
-			payload: makeEvent(inviteUID, username, projectUID, "project"),
+			name:    "no matching email in any project — no update called",
+			payload: makeEvent(inviteUID, username),
 			setupRepo: func(r *domain.MockProjectRepository) {
-				// Settings contain no entry with the invite UID.
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
-					Return(&models.ProjectSettings{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}}, uint64(1), nil)
+				// Scan returns settings with a different email — no promotion.
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{
+					{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}},
+				}, nil)
 			},
 		},
 	}
