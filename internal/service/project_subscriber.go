@@ -393,10 +393,11 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	}
 
 	normalizedEmail := strings.ToLower(strings.TrimSpace(event.Recipient.Email))
-	if event.UID == "" || event.AcceptedBy == "" || normalizedEmail == "" {
-		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing required fields — discarding",
+	validRole := event.Role == string(inviteapi.InviteRoleManage) || event.Role == string(inviteapi.InviteRoleView)
+	if event.UID == "" || event.AcceptedBy == "" || normalizedEmail == "" || !validRole {
+		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing or unrecognized required fields — discarding",
 			"invite_uid", event.UID, "has_accepted_by", event.AcceptedBy != "",
-			"has_recipient_email", normalizedEmail != "")
+			"has_recipient_email", normalizedEmail != "", "role", event.Role)
 		return nil
 	}
 

@@ -1084,19 +1084,10 @@ func TestHandleInviteAccepted(t *testing.T) {
 			},
 		},
 		{
-			name:    "unknown role — fail closed, no promotion in any slice",
+			name:    "unknown role — discarded at guard, no repo calls",
 			payload: makeEvent(inviteUID, username, "unknown-role"),
-			setupRepo: func(r *domain.MockProjectRepository) {
-				// Settings has email in all three slices — none should be promoted.
-				settings := &models.ProjectSettings{
-					UID:                 projectUID,
-					Writers:             []models.UserInfo{{Email: writerEmail}},
-					Auditors:            []models.UserInfo{{Email: writerEmail}},
-					MeetingCoordinators: []models.UserInfo{{Email: writerEmail}},
-				}
-				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				// GetProjectSettingsWithRevision and UpdateProjectSettings must NOT be called.
-			},
+			// No setupRepo: ListAllProjectsSettings, GetProjectSettingsWithRevision, and
+			// UpdateProjectSettings must NOT be called — the event is rejected at the guard.
 		},
 		{
 			name:    "multi-project cross-role isolation — View acceptance promotes Auditors in A, leaves Writers in B untouched",
