@@ -388,17 +388,17 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		return nil
 	}
 
-	if event.UID == "" || event.AcceptedBy == "" || event.Recipient.Email == "" {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(event.Recipient.Email))
+	if event.UID == "" || event.AcceptedBy == "" || normalizedEmail == "" {
 		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing required fields — discarding",
-			"invite_uid", event.UID, "accepted_by", event.AcceptedBy, "recipient_email", event.Recipient.Email)
+			"invite_uid", event.UID, "has_accepted_by", event.AcceptedBy != "",
+			"has_recipient_email", normalizedEmail != "")
 		return nil
 	}
 
 	acceptCtx, acceptCancel := context.WithTimeout(ctx, notificationTimeout)
 	defer acceptCancel()
 	ctx = acceptCtx
-
-	normalizedEmail := strings.ToLower(strings.TrimSpace(event.Recipient.Email))
 
 	// Scan all project settings for email-only entries that match the recipient.
 	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(ctx)
