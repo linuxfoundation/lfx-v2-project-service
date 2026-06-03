@@ -178,6 +178,9 @@ func (s *NatsRepository) ListAllProjectsSettings(ctx context.Context) ([]*models
 
 	projectsSettings := []*models.ProjectSettings{}
 	for key := range keysLister.Keys() {
+		if strings.HasPrefix(key, "lookup/") {
+			continue
+		}
 		entry, err := s.ProjectSettings.Get(ctx, key)
 		if err != nil {
 			slog.ErrorContext(ctx, "error getting project settings from NATS KV store", constants.ErrKey, err, "project_uid", key)

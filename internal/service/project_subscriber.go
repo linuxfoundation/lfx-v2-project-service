@@ -396,12 +396,10 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 		return nil
 	}
 
-	acceptCtx, acceptCancel := context.WithTimeout(ctx, notificationTimeout)
-	defer acceptCancel()
-	ctx = acceptCtx
-
 	// Scan all project settings for email-only entries that match the recipient.
-	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(ctx)
+	listCtx, listCancel := context.WithTimeout(ctx, notificationTimeout)
+	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
+	listCancel()
 	if listErr != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for invite reconciliation",
 			constants.ErrKey, listErr, "invite_uid", event.UID)
@@ -413,7 +411,9 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			continue
 		}
 		projectUID := candidate.UID
-		s.promoteInvitedUserInProjectSettings(ctx, projectUID, normalizedEmail, event.AcceptedBy, event.UID, event.Role)
+		promoteCtx, promoteCancel := context.WithTimeout(ctx, notificationTimeout)
+		s.promoteInvitedUserInProjectSettings(promoteCtx, projectUID, normalizedEmail, event.AcceptedBy, event.UID, event.Role)
+		promoteCancel()
 	}
 
 	return nil
