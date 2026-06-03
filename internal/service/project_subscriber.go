@@ -379,6 +379,10 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 // promotes them to full LFID users (username set, invite cleared). This reconciles every
 // project the accepted user was invited to, regardless of which resource triggered the event.
 //
+// Note: accepting a single invite reconciles every project where the same email has a
+// pending email-only entry for the same role, not only the project that issued the invite.
+// This is intentional and idempotent.
+//
 // TODO: replace the full-scan with an email → [project_uid] index lookup so we avoid reading
 // every project's settings on each acceptance event.
 func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.Message) error {
@@ -433,20 +437,8 @@ func projectSettingsHasEmailOnlyEntry(s *models.ProjectSettings, normalizedEmail
 	return false
 }
 
-// projectRoleSlices returns the settings slices to scan/update for a given invite role.
-// "Manage" → Writers + MeetingCoordinators; "View" → Auditors only; unknown → all three.
-func projectRoleSlices(s *models.ProjectSettings, role string) [][]models.UserInfo {
-	switch role {
-	case string(inviteapi.InviteRoleManage):
-		return [][]models.UserInfo{s.Writers, s.MeetingCoordinators}
-	case string(inviteapi.InviteRoleView):
-		return [][]models.UserInfo{s.Auditors}
-	default:
-		return [][]models.UserInfo{s.Writers, s.Auditors, s.MeetingCoordinators}
-	}
-}
-
-// projectRoleSlicePtrs returns pointer-to-slice refs matching projectRoleSlices, for mutation.
+// projectRoleSlicePtrs returns pointer-to-slice refs for mutation for a given invite role.
+// "Manage" → Writers + MeetingCoordinators; "View" → Auditors only; unknown → nil (fail closed).
 func projectRoleSlicePtrs(s *models.ProjectSettings, role string) []*[]models.UserInfo {
 	switch role {
 	case string(inviteapi.InviteRoleManage):
@@ -454,8 +446,22 @@ func projectRoleSlicePtrs(s *models.ProjectSettings, role string) []*[]models.Us
 	case string(inviteapi.InviteRoleView):
 		return []*[]models.UserInfo{&s.Auditors}
 	default:
-		return []*[]models.UserInfo{&s.Writers, &s.Auditors, &s.MeetingCoordinators}
+		return nil // unknown/unrecognized role — fail closed, do not promote into any slice
 	}
+}
+
+// projectRoleSlices returns the settings slices to scan for a given invite role.
+// Derived from projectRoleSlicePtrs so role mappings cannot drift between the two.
+func projectRoleSlices(s *models.ProjectSettings, role string) [][]models.UserInfo {
+	ptrs := projectRoleSlicePtrs(s, role)
+	if ptrs == nil {
+		return nil
+	}
+	slices := make([][]models.UserInfo, len(ptrs))
+	for i, p := range ptrs {
+		slices[i] = *p
+	}
+	return slices
 }
 
 // promoteInvitedUserInProjectSettings promotes all email-only entries matching normalizedEmail

@@ -32,11 +32,6 @@ const (
 	// KVLookupLinkKey is the per-project link index key.
 	// Format: lookup/project-links/<projectUID>/<linkUID>
 	KVLookupLinkKey = "lookup/project-links/%s/%s"
-
-	// KVLookupInviteMappingPrefix is the mapping key prefix that resolves an invite UID to the
-	// project UID whose settings contain that invite.
-	// Key: "lookup/project-settings-invite/<invite_uid>", Value: <project_uid>
-	KVLookupInviteMappingPrefix = "lookup/project-settings-invite/%s"
 )
 
 // NATS subjects that the project service sends messages about.

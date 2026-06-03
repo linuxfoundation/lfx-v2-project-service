@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -1063,6 +1064,63 @@ func TestHandleInviteAccepted(t *testing.T) {
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name:    "ListAllProjectsSettings error — early return, no promotion",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return(nil, errors.New("kv unavailable"))
+				// GetProjectSettingsWithRevision and UpdateProjectSettings must NOT be called.
+			},
+		},
+		{
+			name:    "GetProjectSettingsWithRevision error — promotion skipped for that project",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(nil, uint64(0), errors.New("read failure"))
+				// UpdateProjectSettings must NOT be called.
+			},
+		},
+		{
+			name:    "unknown role — fail closed, no promotion in any slice",
+			payload: makeEvent(inviteUID, username, "unknown-role"),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				// Settings has email in all three slices — none should be promoted.
+				settings := &models.ProjectSettings{
+					UID:                 projectUID,
+					Writers:             []models.UserInfo{{Email: writerEmail}},
+					Auditors:            []models.UserInfo{{Email: writerEmail}},
+					MeetingCoordinators: []models.UserInfo{{Email: writerEmail}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				// GetProjectSettingsWithRevision and UpdateProjectSettings must NOT be called.
+			},
+		},
+		{
+			name:    "multi-project cross-role isolation — View acceptance promotes Auditors in A, leaves Writers in B untouched",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleView)),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				// Project A: email is in Auditors (matches View role).
+				settingsA := &models.ProjectSettings{
+					UID:      projectUID,
+					Auditors: []models.UserInfo{{Email: writerEmail}},
+				}
+				// Project B: email is only in Writers (does not match View role — must not be promoted).
+				settingsB := &models.ProjectSettings{
+					UID:     project2UID,
+					Writers: []models.UserInfo{{Email: writerEmail}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settingsA, settingsB}, nil)
+				// Only project A's settings should be read and updated.
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settingsA, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Auditors) > 0 && s.Auditors[0].Username == username
+				}), uint64(1)).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Once()
 			},
 		},
 	}
