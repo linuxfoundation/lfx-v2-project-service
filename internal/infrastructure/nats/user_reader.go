@@ -62,6 +62,7 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	defer span.End()
 
 	msg := natsgo.NewMsg(constants.AuthUserMetadataReadSubject)
+	msg.Header = make(natsgo.Header)
 	msg.Data = []byte(principal)
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
 
@@ -146,6 +147,7 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 	defer span.End()
 
 	emailMsg := natsgo.NewMsg(constants.AuthEmailToSubSubject)
+	emailMsg.Header = make(natsgo.Header)
 	emailMsg.Data = []byte(email)
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(emailMsg.Header))
 

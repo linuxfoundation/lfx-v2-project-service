@@ -67,6 +67,7 @@ func (m *MessageBuilder) publishMessage(ctx context.Context, subject string, dat
 	defer span.End()
 
 	msg := nats.NewMsg(subject)
+	msg.Header = make(nats.Header)
 	msg.Data = data
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
 
@@ -98,6 +99,7 @@ func (m *MessageBuilder) requestMessage(ctx context.Context, subject string, dat
 	defer span.End()
 
 	msg := nats.NewMsg(subject)
+	msg.Header = make(nats.Header)
 	msg.Data = data
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
 
@@ -272,6 +274,7 @@ func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.Se
 	defer span.End()
 
 	inviteMsg := nats.NewMsg(inviteapi.SendInviteSubject)
+	inviteMsg.Header = make(nats.Header)
 	inviteMsg.Data = data
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(inviteMsg.Header))
 
@@ -326,6 +329,7 @@ func (m *MessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.Send
 	defer emailSpan.End()
 
 	emailMsg := nats.NewMsg(emailapi.SendEmailSubject)
+	emailMsg.Header = make(nats.Header)
 	emailMsg.Data = data
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(emailMsg.Header))
 
