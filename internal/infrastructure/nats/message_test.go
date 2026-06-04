@@ -577,19 +577,25 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 		{
 			name: "successful request — correct subject, payload, and invite result returned",
 			req: inviteapi.SendInviteRequest{
-				RecipientEmail: "user@example.com",
-				RecipientName:  "Jane Doe",
-				InviterName:    "Admin",
-				ResourceUID:    "proj-123",
-				ResourceName:   "Demo Project",
-				ResourceType:   "project",
-				Role:           string(inviteapi.InviteRoleManage),
-				ReturnURL:      "https://app.lfx.dev/project/overview?project=demo",
+				Recipient: &inviteapi.Recipient{
+					Email: "user@example.com",
+					Name:  "Jane Doe",
+				},
+				Inviter: &inviteapi.Inviter{
+					Name: "Admin",
+				},
+				Resource: &inviteapi.Resource{
+					UID:  "proj-123",
+					Name: "Demo Project",
+					Type: "project",
+				},
+				Role:      string(inviteapi.InviteRoleManage),
+				ReturnURL: "https://app.lfx.dev/project/overview?project=demo",
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				expiresAt := now.Add(7 * 24 * time.Hour)
 				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{
-					Invite: &inviteapi.InviteData{
+					InviteData: &inviteapi.InviteData{
 						UID:       "invite-abc-123",
 						Email:     "user@example.com",
 						ExpiresAt: expiresAt,
@@ -603,12 +609,15 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 					if err := json.Unmarshal(msg.Data, &got); err != nil {
 						return false
 					}
-					return got.RecipientEmail == "user@example.com" &&
-						got.RecipientName == "Jane Doe" &&
-						got.InviterName == "Admin" &&
-						got.ResourceUID == "proj-123" &&
-						got.ResourceName == "Demo Project" &&
-						got.ResourceType == "project" &&
+					return got.Recipient != nil &&
+						got.Recipient.Email == "user@example.com" &&
+						got.Recipient.Name == "Jane Doe" &&
+						got.Inviter != nil &&
+						got.Inviter.Name == "Admin" &&
+						got.Resource != nil &&
+						got.Resource.UID == "proj-123" &&
+						got.Resource.Name == "Demo Project" &&
+						got.Resource.Type == "project" &&
 						got.Role == string(inviteapi.InviteRoleManage) &&
 						got.ReturnURL == "https://app.lfx.dev/project/overview?project=demo"
 				})).Return(&nats.Msg{Data: replyData}, nil)
@@ -623,9 +632,9 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 		{
 			name: "invite service returns error in response body — error returned",
 			req: inviteapi.SendInviteRequest{
-				RecipientEmail: "user@example.com",
-				ResourceUID:    "proj-123",
-				Role:           string(inviteapi.InviteRoleView),
+				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
+				Resource:  &inviteapi.Resource{UID: "proj-123"},
+				Role:      string(inviteapi.InviteRoleView),
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				replyData, _ := json.Marshal(inviteapi.SendInviteResponse{Error: "recipient not found"})
@@ -637,9 +646,9 @@ func TestMessageBuilder_SendInviteRequest(t *testing.T) {
 		{
 			name: "NATS request error — error returned",
 			req: inviteapi.SendInviteRequest{
-				RecipientEmail: "user@example.com",
-				ResourceUID:    "proj-123",
-				Role:           string(inviteapi.InviteRoleView),
+				Recipient: &inviteapi.Recipient{Email: "user@example.com"},
+				Resource:  &inviteapi.Resource{UID: "proj-123"},
+				Role:      string(inviteapi.InviteRoleView),
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).

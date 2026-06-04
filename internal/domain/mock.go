@@ -104,21 +104,6 @@ func (m *MockProjectRepository) CreateProject(ctx context.Context, projectBase *
 	return args.Error(0)
 }
 
-func (m *MockProjectRepository) CreateInviteMapping(ctx context.Context, inviteUID, projectUID string) error {
-	args := m.Called(ctx, inviteUID, projectUID)
-	return args.Error(0)
-}
-
-func (m *MockProjectRepository) GetProjectUIDByInviteUID(ctx context.Context, inviteUID string) (string, error) {
-	args := m.Called(ctx, inviteUID)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockProjectRepository) DeleteInviteMapping(ctx context.Context, inviteUID string) error {
-	args := m.Called(ctx, inviteUID)
-	return args.Error(0)
-}
-
 func (m *MockProjectRepository) DeleteProject(ctx context.Context, projectUID string, revision uint64) error {
 	args := m.Called(ctx, projectUID, revision)
 	return args.Error(0)

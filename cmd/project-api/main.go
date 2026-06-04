@@ -483,7 +483,7 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 	}
 	for _, eh := range []eventHandler{
 		{constants.ProjectSettingsUpdatedSubject, svc.service.HandleProjectSettingsUpdated},
-		{inviteapi.InviteAcceptedSubject, svc.service.HandleInviteAccepted},
+		{inviteapi.InviteServiceAcceptedSubject, svc.service.HandleInviteAccepted},
 		{constants.ProjectDocumentCreatedSubject, svc.service.HandleProjectDocumentCreated},
 		{constants.ProjectLinkCreatedSubject, svc.service.HandleProjectLinkCreated},
 	} {
