@@ -747,8 +747,10 @@ func isCrowdfundingOnly(fundingModels []string) bool {
 // enrichAllRoleFields overwrites Username, Name, and Avatar on every UserInfo across all supplied
 // slices and singles with authoritative values from the auth service.
 // Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
-// Username misses (unknown email, empty email) write an explicit empty-string pointer so the
-// settings converter always overwrites any previously-stored username in the database.
+// Unknown email (ErrUserNotFound) writes an explicit empty-string username so stale LFIDs cannot
+// survive. Missing/empty email skips the auth lookup entirely; the username is cleared to "" only
+// when no username is already present — entries that carry a username but no email (e.g. M2M
+// client principals) are left untouched.
 // Username transport errors fail the request — stale LFIDs must never be silently kept.
 // Metadata (name/avatar) errors only log a warning; display fields do not block the write.
 func (s *ProjectsService) enrichAllRoleFields(
@@ -761,7 +763,8 @@ func (s *ProjectsService) enrichAllRoleFields(
 		return domain.ErrInternal
 	}
 
-	// Gather all entries grouped by email; clear username immediately for entries without an email.
+	// Gather all entries grouped by email; entries without an email skip the lookup — username is
+	// cleared only when none is already set (see function comment for M2M client edge case).
 	type group struct{ users []*projsvc.UserInfo }
 	byEmail := make(map[string]*group)
 
@@ -771,7 +774,10 @@ func (s *ProjectsService) enrichAllRoleFields(
 		}
 		// Treat nil, empty, or whitespace-only emails as missing.
 		if u.Email == nil || strings.TrimSpace(*u.Email) == "" {
-			u.Username = misc.StringPtr("")
+			// No email present — if a username is already set, keep it as-is.
+			if u.Username == nil || strings.TrimSpace(*u.Username) == "" {
+				u.Username = misc.StringPtr("")
+			}
 			return
 		}
 		normEmail := strings.ToLower(strings.TrimSpace(*u.Email))
