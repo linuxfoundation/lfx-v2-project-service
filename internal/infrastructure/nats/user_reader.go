@@ -10,6 +10,10 @@ import (
 	"strings"
 
 	natsgo "github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -47,13 +51,27 @@ type UserReaderNATS struct {
 
 // UserMetadataByPrincipal retrieves profile metadata for a user from the auth service by principal.
 func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal string) (*domain.UserMetadata, error) {
-	reply, err := u.NatsConn.RequestMsgWithContext(ctx, &natsgo.Msg{
-		Subject: constants.AuthUserMetadataReadSubject,
-		Data:    []byte(principal),
-	})
+	ctx, span := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", constants.AuthUserMetadataReadSubject),
+			attribute.Int("messaging.message.body.size", len(principal)),
+		),
+	)
+	defer span.End()
+
+	msg := natsgo.NewMsg(constants.AuthUserMetadataReadSubject)
+	msg.Data = []byte(principal)
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
+
+	reply, err := u.NatsConn.RequestMsgWithContext(ctx, msg)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
+	span.SetStatus(codes.Ok, "")
 
 	var response userMetadataNATSResponse
 	if err := json.Unmarshal(reply.Data, &response); err != nil {
@@ -117,13 +135,27 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 // SubByEmail resolves the subject identifier for the given primary email address.
 // The auth service replies with a plain-text subject on success, or a JSON error envelope on miss.
 func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, error) {
-	reply, err := u.NatsConn.RequestMsgWithContext(ctx, &natsgo.Msg{
-		Subject: constants.AuthEmailToSubSubject,
-		Data:    []byte(email),
-	})
+	ctx, span := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", constants.AuthEmailToSubSubject),
+			attribute.Int("messaging.message.body.size", len(email)),
+		),
+	)
+	defer span.End()
+
+	emailMsg := natsgo.NewMsg(constants.AuthEmailToSubSubject)
+	emailMsg.Data = []byte(email)
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(emailMsg.Header))
+
+	reply, err := u.NatsConn.RequestMsgWithContext(ctx, emailMsg)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("email_to_sub request failed: %w", err)
 	}
+	span.SetStatus(codes.Ok, "")
 
 	// The auth service sends a plain-text subject on success and a JSON error envelope on miss.
 	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing

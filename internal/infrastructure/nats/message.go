@@ -19,6 +19,10 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const defaultRequestTimeout = time.Second * 10
@@ -31,7 +35,7 @@ type MessageBuilder struct {
 // sendMessage sends the message to the NATS server.
 func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data []byte, sync bool) error {
 	if sync {
-		_, err := m.requestMessage(subject, data, defaultRequestTimeout)
+		_, err := m.requestMessage(ctx, subject, data, defaultRequestTimeout)
 		if err != nil {
 			slog.ErrorContext(ctx, "error requesting message from NATS", constants.ErrKey, err, "subject", subject)
 			return err
@@ -41,7 +45,7 @@ func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data [
 	}
 
 	// Send message asynchronously.
-	err := m.publishMessage(subject, data)
+	err := m.publishMessage(ctx, subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending message to NATS", constants.ErrKey, err, "subject", subject)
 		return err
@@ -50,14 +54,61 @@ func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data [
 	return nil
 }
 
-// publishMessage publishes a message to NATS asynchronously.
-func (m *MessageBuilder) publishMessage(subject string, data []byte) error {
-	return m.NatsConn.Publish(subject, data)
+// publishMessage publishes a message to NATS asynchronously with an OTel producer span.
+func (m *MessageBuilder) publishMessage(ctx context.Context, subject string, data []byte) error {
+	ctx, span := tracer.Start(ctx, "nats.publish",
+		trace.WithSpanKind(trace.SpanKindProducer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", subject),
+			attribute.Int("messaging.message.body.size", len(data)),
+		),
+	)
+	defer span.End()
+
+	msg := nats.NewMsg(subject)
+	msg.Data = data
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
+
+	if err := m.NatsConn.PublishMsg(msg); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	span.SetStatus(codes.Ok, "")
+	return nil
 }
 
-// requestMessage requests a message from NATS synchronously.
-func (m *MessageBuilder) requestMessage(subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-	return m.NatsConn.Request(subject, data, timeout)
+// requestMessage requests a message from NATS synchronously with an OTel client span.
+func (m *MessageBuilder) requestMessage(ctx context.Context, subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
+	if timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
+	}
+
+	ctx, span := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", subject),
+			attribute.Int("messaging.message.body.size", len(data)),
+		),
+	)
+	defer span.End()
+
+	msg := nats.NewMsg(subject)
+	msg.Data = data
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
+
+	reply, err := m.NatsConn.RequestMsgWithContext(ctx, msg)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	span.SetStatus(codes.Ok, "")
+	return reply, nil
 }
 
 // sendIndexerMessage sends the message to the NATS server for the indexer.
@@ -191,7 +242,7 @@ func (m *MessageBuilder) SendProjectEventMessage(ctx context.Context, subject st
 		return err
 	}
 
-	err = m.publishMessage(subject, messageBytes)
+	err = m.publishMessage(ctx, subject, messageBytes)
 	if err != nil {
 		slog.ErrorContext(ctx, "error publishing project event message to NATS", constants.ErrKey, err, "subject", subject)
 		return err
@@ -210,14 +261,28 @@ func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.Se
 		return domain.InviteResult{}, err
 	}
 
-	reply, err := m.NatsConn.RequestMsgWithContext(ctx, &nats.Msg{
-		Subject: inviteapi.SendInviteSubject,
-		Data:    data,
-	})
+	ctx, span := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", inviteapi.SendInviteSubject),
+			attribute.Int("messaging.message.body.size", len(data)),
+		),
+	)
+	defer span.End()
+
+	inviteMsg := nats.NewMsg(inviteapi.SendInviteSubject)
+	inviteMsg.Data = data
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(inviteMsg.Header))
+
+	reply, err := m.NatsConn.RequestMsgWithContext(ctx, inviteMsg)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "invite service request failed", constants.ErrKey, err)
 		return domain.InviteResult{}, fmt.Errorf("invite service request: %w", err)
 	}
+	span.SetStatus(codes.Ok, "")
 
 	var resp inviteapi.SendInviteResponse
 	if len(reply.Data) > 0 {
@@ -250,14 +315,28 @@ func (m *MessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.Send
 		return err
 	}
 
-	reply, err := m.NatsConn.RequestMsgWithContext(ctx, &nats.Msg{
-		Subject: emailapi.SendEmailSubject,
-		Data:    data,
-	})
+	ctx, emailSpan := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", emailapi.SendEmailSubject),
+			attribute.Int("messaging.message.body.size", len(data)),
+		),
+	)
+	defer emailSpan.End()
+
+	emailMsg := nats.NewMsg(emailapi.SendEmailSubject)
+	emailMsg.Data = data
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(emailMsg.Header))
+
+	reply, err := m.NatsConn.RequestMsgWithContext(ctx, emailMsg)
 	if err != nil {
+		emailSpan.RecordError(err)
+		emailSpan.SetStatus(codes.Error, err.Error())
 		slog.ErrorContext(ctx, "email service request failed", constants.ErrKey, err)
 		return fmt.Errorf("email service request: %w", err)
 	}
+	emailSpan.SetStatus(codes.Ok, "")
 
 	if len(reply.Data) > 0 {
 		var errResp emailapi.SendEmailErrorResponse

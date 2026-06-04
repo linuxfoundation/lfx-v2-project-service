@@ -19,6 +19,7 @@ import (
 type INatsConn interface {
 	IsConnected() bool
 	Publish(subj string, data []byte) error
+	PublishMsg(msg *nats.Msg) error
 	Request(subj string, data []byte, timeout time.Duration) (*nats.Msg, error)
 	RequestMsgWithContext(ctx context.Context, msg *nats.Msg) (*nats.Msg, error)
 }
@@ -37,6 +38,12 @@ func (m *MockNATSConn) IsConnected() bool {
 // Publish is a mock method for the [INatsConn] interface.
 func (m *MockNATSConn) Publish(subj string, data []byte) error {
 	args := m.Called(subj, data)
+	return args.Error(0)
+}
+
+// PublishMsg is a mock method for the [INatsConn] interface.
+func (m *MockNATSConn) PublishMsg(msg *nats.Msg) error {
+	args := m.Called(msg)
 	return args.Error(0)
 }
 
