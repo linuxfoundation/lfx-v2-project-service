@@ -171,6 +171,7 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 	// newline or leading space don't corrupt the subject or bypass JSON detection.
 	body := strings.TrimSpace(string(reply.Data))
 	if body == "" {
+		span.RecordError(domain.ErrUserNotFound)
 		span.SetStatus(codes.Error, domain.ErrUserNotFound.Error())
 		return "", domain.ErrUserNotFound
 	}
@@ -196,6 +197,7 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 			return "", err
 		}
 		if !*envelope.Success {
+			span.RecordError(domain.ErrUserNotFound)
 			span.SetStatus(codes.Error, domain.ErrUserNotFound.Error())
 			return "", domain.ErrUserNotFound
 		}
