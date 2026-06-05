@@ -199,7 +199,8 @@ func cancelOnSignal(ctx context.Context, cancel context.CancelFunc) {
 // for the Run loop to finish committing its last replay cursor before exiting.
 //
 // GET /livez on :8080 (same port + path as the API Deployment) serves as the
-// K8s liveness probe. Returns 200 while running, 503 after context cancelled.
+// K8s liveness probe. Always returns 200 while the process is alive; the probe
+// is not used to signal shutdown (see handler comment for rationale).
 // Recreate + replicas:1 in the Deployment ensures at most one active consumer.
 func runConsumer(ctx context.Context) {
 	slog.InfoContext(ctx, "Starting membership service (consumer mode)",
@@ -246,10 +247,14 @@ func runConsumer(ctx context.Context) {
 	}()
 
 	// Run the consumer loop; it returns when ctx is cancelled or on error.
+	// defer cancel() ensures that if Run exits early (e.g. unrecoverable gRPC
+	// stream failure) the <-ctx.Done() gate below unblocks so the process exits
+	// and Kubernetes restarts the pod.
 	var runWg sync.WaitGroup
 	runWg.Add(1)
 	go func() {
 		defer runWg.Done()
+		defer cancel()
 		if err := consumer.Run(ctx, channel, replayStore); err != nil {
 			slog.InfoContext(ctx, "CDC consumer stopped", "reason", err)
 		}

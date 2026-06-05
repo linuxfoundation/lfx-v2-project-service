@@ -22,7 +22,7 @@ This document is the authoritative reference for all data the member service sen
 
 **Source struct:** `internal/domain/model/b2b_org.go` — `B2BOrg`
 
-**Indexed on:** create, update, delete of a B2B org.
+**Indexed on:** create, update, delete of a B2B org — via HTTP write endpoints, CDC (`AccountChangeEvent`), and `/admin/reindex`.
 
 ### Data Schema
 
@@ -93,7 +93,7 @@ This document is the authoritative reference for all data the member service sen
 
 **Source struct:** `internal/domain/model/membership.go` — `ProjectMembership`
 
-**Indexed on:** create via `/admin/reindex` (memberships are Salesforce-managed).
+**Indexed on:** CDC (`AssetChangeEvent`) and `/admin/reindex`.
 
 ### Data Schema
 
@@ -171,7 +171,7 @@ This document is the authoritative reference for all data the member service sen
 
 **Source struct:** `internal/domain/model/key_contact.go` — `KeyContact`
 
-**Indexed on:** create, update, delete via `/project_memberships/{uid}/key_contacts` and by `/admin/reindex`.
+**Indexed on:** create, update, delete via `/project_memberships/{uid}/key_contacts`, CDC (`Project_Role__ChangeEvent`), and `/admin/reindex`.
 
 ### Data Schema
 
@@ -284,6 +284,8 @@ Per-member entry shape:
 
 | Tag                   | Condition                                                                      |
 |-----------------------|--------------------------------------------------------------------------------|
+| `{uid}`               | Always — bare org UID for direct lookup                                        |
+| `b2b_org_uid:{uid}`   | Always — prefixed org UID; same tag as the `b2b_org` doc for cross-type lookup |
 | `has_writers`         | ≥1 writer with `invite_status=accepted`                                        |
 | `has_auditors`        | ≥1 auditor with `invite_status=accepted`                                       |
 | `has_pending_invites` | ≥1 entry (writer or auditor) with `invite_status=pending`                      |

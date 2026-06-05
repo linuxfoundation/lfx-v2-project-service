@@ -6,13 +6,16 @@ This guide provides essential information for Claude instances working with the 
 
 The LFX V2 Member Service is a RESTful API service that provides membership data for the Linux Foundation's LFX platform. It exposes endpoints for querying project-scoped tiers, memberships, and key contacts, as well as write endpoints (POST/PUT/DELETE) for managing key contacts. Data is sourced directly from Salesforce via SOQL queries, with a per-record NATS Key-Value cache to minimise round-trips.
 
+The same binary also runs as a **CDC consumer** (`RUN_MODE=consumer`) that subscribes to Salesforce Change Data Capture events via the Pub/Sub gRPC API and keeps the OpenSearch index and FGA tuples in sync in near-real-time. The consumer runs as a separate Kubernetes Deployment (replicas:1, Recreate strategy) so at most one pod processes CDC events at any time.
+
 ### Key Technologies
 
 - **Language**: Go 1.24+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for KV caching and RPC
-- **Storage**: Single NATS Key-Value bucket (`membership-cache`) acting as a TTL cache in front of Salesforce
+- **Storage**: Four NATS Key-Value buckets — `membership-cache` (Salesforce cache), `org-settings` (b2b_org ACL), `member-service-cache` (sObject cache), `pubsub-state` (CDC replay cursors)
 - **Primary data source**: Salesforce REST API (SOQL queries via `github.com/k-capehart/go-salesforce/v3`)
+- **CDC**: Salesforce Pub/Sub gRPC API + Apache Avro decoding (`github.com/linkedin/goavro/v2`)
 - **Authentication**: JWT with Heimdall middleware
 - **Authorization**: OpenFGA for fine-grained access control
 - **Container**: Chainguard distroless images
@@ -44,10 +47,13 @@ internal/
 │   ├── auth.go              # Authenticator interface
 │   ├── model/               # Domain entities
 │   │   ├── membership.go    # MembershipTier, ProjectMembership, ProjectKeyContact
-│   │   └── list_params.go   # ListParams with filter support
-│   └── port/                # Repository interfaces
+│   │   ├── list_params.go   # ListParams with filter support
+│   │   └── cdc_event.go     # CDCEvent, CDCChangeType (transport-agnostic CDC types)
+│   └── port/                # Repository interfaces (driven ports)
 │       ├── member_reader.go  # MemberReader interface (main read port)
-│       └── project_resolver.go  # ProjectResolver interface (UID ↔ slug ↔ SFID)
+│       ├── project_resolver.go  # ProjectResolver interface (UID ↔ slug ↔ SFID)
+│       ├── cache_invalidator.go # CacheInvalidator port (evict sObject cache entries)
+│       └── cdc.go           # CDCSubscriber, ReplayStore (CDC driven ports)
 ├── infrastructure/          # Infrastructure layer
 │   ├── auth/                # JWT authentication (Heimdall)
 │   ├── mock/                # Mock repository for testing
@@ -63,18 +69,25 @@ internal/
 │   └── salesforce/          # Salesforce SOQL client and repositories
 │       ├── config.go        # Config struct and ConfigFromEnv()
 │       ├── helpers.go       # parseSOQLTime, parseSOQLDateTime, quoteSOQL
+│       ├── cache_invalidator.go # CacheInvalidator: evicts sObject cache entries (CDC use)
 │       ├── key_contact_repo.go  # FetchKeyContactsByAssetSFID, FetchKeyContactBySFID
 │       ├── member_reader.go # MemberReader: Salesforce-first + KV cache
 │       ├── member_repo.go   # FetchAllMembers, FetchMemberBySFID
 │       ├── membership_repo.go  # FetchMembershipsByProjectSFID, etc.
 │       ├── models.go        # Salesforce SOQL result types
 │       ├── project_repo.go  # FetchSFIDBySlug, FetchProjectByPCCID, etc.
-│       └── soql.go          # QueryInto[T], QuerySingle[T], QueryOptional[T]
+│       ├── soql.go          # QueryInto[T], QuerySingle[T], QueryOptional[T]
+│       └── pubsub/          # Salesforce Pub/Sub gRPC + Avro CDC adapter
+│           ├── pubsub_client.go   # Client: satisfies port.CDCSubscriber; manages gRPC stream
+│           ├── pubsub_events.go   # Avro decoding → model.CDCEvent normalisation
+│           ├── pubsub_replay.go   # ReplayStore: NATS KV cursor persistence (port.ReplayStore)
+│           └── proto/             # Generated gRPC stubs (DO NOT EDIT — use make protoc-gen)
 ├── middleware/              # HTTP middleware
 │   ├── authorization.go     # Extracts Authorization header to context
 │   └── request_id.go        # Request ID propagation
 └── service/                 # Business logic / use case orchestration
-    └── member_reader.go     # MemberReaderOrchestrator
+    ├── member_reader.go     # MemberReaderOrchestrator
+    └── cdc_consumer.go      # CDCConsumer: dispatches CDCEvents to entity handlers
 
 pkg/
 └── constants/               # Shared constants (HTTP headers, NATS buckets, etc.)
@@ -279,7 +292,11 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 
 ## NATS Storage
 
-The service uses three NATS KV buckets.
+The service uses four NATS KV buckets.
+
+### `pubsub-state` Bucket
+
+Stores the Salesforce Pub/Sub replay cursor (opaque `[]byte`) per CDC channel. **Authoritative state** — no MaxAge TTL. Key pattern: `pubsub-replay.<channel>` with slashes replaced by underscores (e.g. `pubsub-replay._data_ChangeEvents`).
 
 ### `org-settings` Bucket
 
@@ -379,6 +396,18 @@ Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolut
 **Response — success:** `{"project_sfid": "<Salesforce Project__c.Id>"}`
 
 **Response — error:** `{"error": "<human-readable message>"}`
+
+## CDC Consumer
+
+Set `RUN_MODE=consumer` to run as a CDC consumer instead of the HTTP API. The consumer subscribes to Salesforce Pub/Sub gRPC, decodes Avro payloads → `model.CDCEvent`, and dispatches to per-entity handlers that invalidate the sObject cache, re-fetch from Salesforce, and publish indexer + FGA messages.
+
+**Non-obvious invariants:**
+- **GAP_DELETE**: uses `strings.HasSuffix(changeType, "DELETE")` — Salesforce emits `GAP_DELETE` (not `DELETE`) when a record is deleted during an overflow gap.
+- **Replay cursor**: written on a fresh `context.Background()` after each event so a SIGTERM does not skip the final commit. Cursor survives pod restarts via `pubsub-state` NATS KV.
+- **Early exit → pod restart**: `defer cancel()` in the Run goroutine ensures that if the gRPC stream dies unrecoverably, `<-ctx.Done()` unblocks and the pod exits so Kubernetes restarts it.
+- **Liveness probe**: always returns 200 — K8s handles shutdown via SIGTERM, not probe failures.
+- **Single active consumer**: `replicas:1` + `strategy:Recreate` in the Deployment — no app-level lease.
+- **Proto stubs**: committed to `internal/infrastructure/salesforce/pubsub/proto/` — normal builds never need `protoc`. Use `make protoc-install && make protoc-gen` only when updating the Salesforce proto schema.
 
 ## Authentication (JWT / Heimdall)
 
@@ -489,6 +518,16 @@ func TestEndpoint(t *testing.T) {
 | `AUDIENCE`                               | JWT audience                                | `lfx-v2-member-service`                 | No       |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev                     | `""`                                    | No       |
 | `REPOSITORY_SOURCE`                      | Storage backend (`salesforce` or `mock`)    | `salesforce`                            | No       |
+| `RUN_MODE`                               | `consumer` to run CDC consumer; omit for API | `""` (API mode)                        | No       |
+
+### Consumer Mode Variables (only read when `RUN_MODE=consumer`)
+
+| Variable              | Description                                                                 | Default                              | Required |
+|-----------------------|-----------------------------------------------------------------------------|--------------------------------------|----------|
+| `SF_PUBSUB_ENDPOINT`  | Salesforce Pub/Sub gRPC endpoint                                            | — (fatal if empty)                   | Yes      |
+| `SF_ORG_ID`           | Salesforce 18-char Org ID injected as `tenantid` gRPC metadata header      | — (fatal if empty)                   | Yes      |
+| `SF_CDC_CHANNEL`      | CDC channel to subscribe to                                                 | `/data/ChangeEvents`                 | No       |
+| `GLOBAL_ORG_ADMIN_TEAM_UID` | v2 UID of the platform org-admin team (same as API mode)            | `_null`                              | No       |
 
 ### Salesforce Credentials
 
@@ -503,7 +542,7 @@ Credentials are injected from a pre-existing Kubernetes Secret (see Helm chart `
 | `SF_PASSWORD`         | Salesforce password (username/password flow)                               | Conditional |
 | `SF_SECURITY_TOKEN`   | Security token appended to password                                        | No          |
 | `SF_CONSUMER_RSA_PEM` | PEM-encoded RSA private key (JWT bearer flow)                              | Conditional |
-| `SF_API_VERSION`      | Salesforce REST API version                                                | `v60.0`     |
+| `SF_API_VERSION`      | Salesforce REST API version                                                | `v63.0`     |
 
 **Authentication flows (one must be satisfiable):**
 

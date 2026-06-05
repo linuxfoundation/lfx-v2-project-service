@@ -10,6 +10,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/k-capehart/go-salesforce/v3 v3.1.2
+	github.com/linkedin/goavro/v2 v2.15.0
 	github.com/linuxfoundation/lfx-v2-fga-sync v0.2.17
 	github.com/linuxfoundation/lfx-v2-indexer-service v0.4.16
 	github.com/nats-io/nats.go v1.49.0
@@ -32,6 +33,8 @@ require (
 	goa.design/clue v1.2.5
 	goa.design/goa/v3 v3.25.3
 	golang.org/x/sync v0.20.0
+	google.golang.org/grpc v1.80.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -52,7 +55,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/jszwec/csvutil v1.10.0 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
-	github.com/linkedin/goavro/v2 v2.15.0 // indirect
 	github.com/manveru/faker v0.0.0-20171103152722-9fbc68a78c4d // indirect
 	github.com/nats-io/nkeys v0.4.15 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
@@ -72,8 +74,6 @@ require (
 	golang.org/x/tools v0.43.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
-	google.golang.org/grpc v1.80.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

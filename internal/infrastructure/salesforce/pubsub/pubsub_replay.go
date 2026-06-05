@@ -18,7 +18,7 @@ import (
 const (
 	// replayKeyPrefix is the NATS KV key prefix for per-channel replay cursors.
 	// Full key: "pubsub-replay.<channel>" where channel is the CDC topic name
-	// (e.g. "/data/AccountChangeEvent"). Dots in the channel name are replaced
+	// (e.g. "/data/AccountChangeEvent"). Slashes in the channel name are replaced
 	// with underscores to keep NATS key segments clean.
 	replayKeyPrefix = "pubsub-replay."
 )
