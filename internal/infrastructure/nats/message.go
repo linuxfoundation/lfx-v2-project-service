@@ -285,22 +285,30 @@ func (m *MessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.Se
 		slog.ErrorContext(ctx, "invite service request failed", constants.ErrKey, err)
 		return domain.InviteResult{}, fmt.Errorf("invite service request: %w", err)
 	}
-	span.SetStatus(codes.Ok, "")
 
 	var resp inviteapi.SendInviteResponse
 	if len(reply.Data) > 0 {
 		if jsonErr := json.Unmarshal(reply.Data, &resp); jsonErr != nil {
+			span.RecordError(jsonErr)
+			span.SetStatus(codes.Error, jsonErr.Error())
 			slog.ErrorContext(ctx, "error unmarshalling invite response", constants.ErrKey, jsonErr)
 			return domain.InviteResult{}, fmt.Errorf("invite service response: %w", jsonErr)
 		}
 		if resp.Error != "" {
-			return domain.InviteResult{}, fmt.Errorf("invite service error: %s", resp.Error)
+			err := fmt.Errorf("invite service error: %s", resp.Error)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return domain.InviteResult{}, err
 		}
 	}
 
 	if resp.Invite == nil || resp.Invite.UID == "" {
-		return domain.InviteResult{}, fmt.Errorf("invite service returned success but invite_uid is empty")
+		err := fmt.Errorf("invite service returned success but invite_uid is empty")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return domain.InviteResult{}, err
 	}
+	span.SetStatus(codes.Ok, "")
 	result := domain.InviteResult{
 		InviteUID:      resp.Invite.UID,
 		RecipientEmail: resp.Invite.Email,
@@ -340,14 +348,17 @@ func (m *MessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.Send
 		slog.ErrorContext(ctx, "email service request failed", constants.ErrKey, err)
 		return fmt.Errorf("email service request: %w", err)
 	}
-	emailSpan.SetStatus(codes.Ok, "")
 
 	if len(reply.Data) > 0 {
 		var errResp emailapi.SendEmailErrorResponse
 		if jsonErr := json.Unmarshal(reply.Data, &errResp); jsonErr == nil && errResp.Error != "" {
-			return fmt.Errorf("email service error: %s", errResp.Error)
+			err := fmt.Errorf("email service error: %s", errResp.Error)
+			emailSpan.RecordError(err)
+			emailSpan.SetStatus(codes.Error, err.Error())
+			return err
 		}
 	}
 
+	emailSpan.SetStatus(codes.Ok, "")
 	return nil
 }

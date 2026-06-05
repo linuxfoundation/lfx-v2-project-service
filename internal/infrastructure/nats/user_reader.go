@@ -72,19 +72,27 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	span.SetStatus(codes.Ok, "")
 
 	var response userMetadataNATSResponse
 	if err := json.Unmarshal(reply.Data, &response); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("failed to parse user_metadata response: %w", err)
 	}
 
 	if !response.Success || response.Data == nil {
 		if response.Error != "" {
-			return nil, fmt.Errorf("user metadata not found: %s", response.Error)
+			err := fmt.Errorf("user metadata not found: %s", response.Error)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
 		}
-		return nil, fmt.Errorf("user metadata not found")
+		err := fmt.Errorf("user metadata not found")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
+	span.SetStatus(codes.Ok, "")
 
 	d := response.Data
 	result := &domain.UserMetadata{}
@@ -157,13 +165,13 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 		span.SetStatus(codes.Error, err.Error())
 		return "", fmt.Errorf("email_to_sub request failed: %w", err)
 	}
-	span.SetStatus(codes.Ok, "")
 
 	// The auth service sends a plain-text subject on success and a JSON error envelope on miss.
 	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing
 	// newline or leading space don't corrupt the subject or bypass JSON detection.
 	body := strings.TrimSpace(string(reply.Data))
 	if body == "" {
+		span.SetStatus(codes.Error, domain.ErrUserNotFound.Error())
 		return "", domain.ErrUserNotFound
 	}
 
@@ -177,16 +185,26 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 			Error   string `json:"error,omitempty"`
 		}
 		if err := json.Unmarshal(reply.Data, &envelope); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return "", fmt.Errorf("failed to parse email_to_sub response: %w", err)
 		}
 		if envelope.Success == nil {
-			return "", fmt.Errorf("email_to_sub response missing success field")
+			err := fmt.Errorf("email_to_sub response missing success field")
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+			return "", err
 		}
 		if !*envelope.Success {
+			span.SetStatus(codes.Error, domain.ErrUserNotFound.Error())
 			return "", domain.ErrUserNotFound
 		}
-		return "", fmt.Errorf("unexpected email_to_sub success envelope")
+		err := fmt.Errorf("unexpected email_to_sub success envelope")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return "", err
 	}
 
+	span.SetStatus(codes.Ok, "")
 	return body, nil
 }
