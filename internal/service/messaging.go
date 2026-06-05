@@ -565,8 +565,6 @@ func PublishProjectMembershipFGA(ctx context.Context, p port.MemberPublisher, pm
 	}
 }
 
-// PublishKeyContactIndexer builds and publishes a MemberIndexerMessage for a KeyContact.
-// Errors are swallowed and logged — /admin/reindex recovers missed records.
 // PublishKeyContactFGA emits an FGA member_put for accepted key contacts
 // (non-empty username + membershipUID). Pending contacts have no FGA tuple.
 // Used by the CDC consumer, the key_contact writer, and the backfill runner.
@@ -582,6 +580,8 @@ func PublishKeyContactFGA(ctx context.Context, p port.MemberPublisher, kc *model
 	}
 }
 
+// PublishKeyContactIndexer builds and publishes a MemberIndexerMessage for a KeyContact.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
 func PublishKeyContactIndexer(ctx context.Context, p port.MemberPublisher, kc *model.KeyContact, action indexerConstants.MessageAction) {
 	indexMsg := &model.MemberIndexerMessage{
 		Action:         action,

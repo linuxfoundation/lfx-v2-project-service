@@ -402,7 +402,7 @@ Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolut
 Set `RUN_MODE=consumer` to run as a CDC consumer instead of the HTTP API. The consumer subscribes to Salesforce Pub/Sub gRPC, decodes Avro payloads → `model.CDCEvent`, and dispatches to per-entity handlers that invalidate the sObject cache, re-fetch from Salesforce, and publish indexer + FGA messages.
 
 **Non-obvious invariants:**
-- **GAP_DELETE**: uses `strings.HasSuffix(changeType, "DELETE")` — Salesforce emits `GAP_DELETE` (not `DELETE`) when a record is deleted during an overflow gap.
+- **GAP_DELETE**: `dispatchRecordIDs` checks `changeType == CDCChangeDelete || changeType == CDCChangeGapDelete` explicitly — `HasSuffix` was avoided because `UNDELETE` also ends with `"DELETE"` and would incorrectly route to the delete path.
 - **Replay cursor**: written on a fresh `context.Background()` after each event so a SIGTERM does not skip the final commit. Cursor survives pod restarts via `pubsub-state` NATS KV.
 - **Early exit → pod restart**: `defer cancel()` in the Run goroutine ensures that if the gRPC stream dies unrecoverably, `<-ctx.Done()` unblocks and the pod exits so Kubernetes restarts it.
 - **Liveness probe**: always returns 200 — K8s handles shutdown via SIGTERM, not probe failures.

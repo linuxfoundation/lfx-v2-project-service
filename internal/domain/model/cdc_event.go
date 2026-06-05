@@ -12,6 +12,9 @@ const (
 	CDCChangeUpdate   CDCChangeType = "UPDATE"
 	CDCChangeDelete   CDCChangeType = "DELETE"
 	CDCChangeUndelete CDCChangeType = "UNDELETE"
+	// CDCChangeGapDelete is emitted by Salesforce when a record is deleted
+	// during a CDC overflow gap (granular DELETE was not delivered).
+	CDCChangeGapDelete CDCChangeType = "GAP_DELETE"
 	// CDCChangeGapOverflow and other GAP_* types signal that granular delivery
 	// was not possible. They are handled by the default re-fetch+upsert path.
 	CDCChangeGapOverflow CDCChangeType = "GAP_OVERFLOW"

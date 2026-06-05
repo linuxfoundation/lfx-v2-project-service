@@ -67,8 +67,8 @@ func (c *Client) getOrCreateCodec(schemaID, schemaJSON string) (*goavro.Codec, e
 // a CDCEvent by extracting the ChangeEventHeader fields we care about.
 //
 // Salesforce CDC events always have a top-level "ChangeEventHeader" union field
-// whose value is a map containing: changeType, changedFields, entityName,
-// recordIds (array), and replayId.
+// whose value is a map. entityName and changeType may be absent or empty for
+// gap/overflow events; missing values become empty string (caller filters by entity).
 func normalizeRecord(record map[string]interface{}, replayID []byte) (model.CDCEvent, error) {
 	headerRaw, ok := record["ChangeEventHeader"]
 	if !ok {

@@ -168,10 +168,9 @@ func (o *CDCConsumer) dispatchRecordIDs(
 ) error {
 	for _, id := range event.RecordIDs {
 		var err error
-		// Match both "DELETE" and "GAP_DELETE": Salesforce emits GAP_DELETE when
-		// a record is deleted during a CDC overflow gap. Checking the suffix means
-		// both the granular and gap-delivery variants route to the delete path.
-		if strings.HasSuffix(string(event.ChangeType), "DELETE") {
+		// Match both DELETE and GAP_DELETE. HasSuffix would also match UNDELETE
+		// (which ends with "DELETE") and route it to the wrong path.
+		if event.ChangeType == model.CDCChangeDelete || event.ChangeType == model.CDCChangeGapDelete {
 			err = deleteFn(ctx, id)
 		} else {
 			err = upsertFn(ctx, id)

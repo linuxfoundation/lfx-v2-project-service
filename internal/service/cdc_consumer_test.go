@@ -718,6 +718,7 @@ func TestCDCConsumer_Asset_Undelete_TreatedAsUpsert(t *testing.T) {
 	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
 
 	assert.NotEmpty(t, pub.indexer, "UNDELETE must re-publish indexer (treated as upsert)")
+	assert.NotEmpty(t, pub.access, "UNDELETE must publish FGA access (upsert path, not delete path)")
 	assert.Equal(t, 1, invalidator.MembershipCalls, "cache must be invalidated on UNDELETE")
 }
 
