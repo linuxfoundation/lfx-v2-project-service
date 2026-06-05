@@ -182,6 +182,73 @@ nats:
     # ttl is the bucket-level hard eviction TTL for all entries (7 days)
     ttl: 168h
 
+  # kv_bucket_pubsub_state is the configuration for the pubsub-state KV bucket.
+  # Stores the Salesforce Pub/Sub replay ID (opaque cursor) so the CDC consumer
+  # can resume from its last processed event after a restart or pod eviction.
+  # No MaxAge TTL — replay cursors must survive indefinitely. Pattern mirrors
+  # kv_bucket_org_settings (another authoritative-state bucket with no TTL).
+  kv_bucket_pubsub_state:
+    # creation is a boolean to determine if the KV bucket should be created via the helm chart.
+    # set it to false if you want to use an existing KV bucket.
+    creation: true
+    # keep is a boolean to determine if the KV bucket should be preserved during helm uninstall.
+    # set it to false if you want the bucket to be deleted when the chart is uninstalled.
+    # WARNING: losing this bucket forces a full replay from the earliest retained
+    # Salesforce event, which can generate a large indexer/FGA backlog.
+    keep: true
+    # name is the name of the KV bucket
+    name: pubsub-state
+    # replicas is the number of replicas for the KV bucket
+    replicas: 1
+    # history is the number of historical values to keep per key (one key per CDC channel)
+    history: 5
+    # storage is the storage type for the KV bucket
+    storage: file
+    # maxValueSize is the maximum size of a value in the KV bucket (64 KB — replay IDs are small blobs)
+    maxValueSize: 65536
+    # maxBytes is the maximum total size of the KV bucket (10 MB)
+    maxBytes: 10485760
+    # compression is a boolean to determine if the KV bucket should be compressed
+    compression: true
+
+# consumer is the configuration for the CDC consumer Deployment.
+# The consumer runs as a separate single-replica Deployment (RUN_MODE=consumer)
+# using the same container image as the API. Kubernetes is the single-active
+# mechanism: replicas=1 + strategy=Recreate ensures at most one pod processes
+# CDC events at any time with no application-level lease needed.
+consumer:
+  # enabled controls whether the consumer Deployment is created.
+  enabled: false
+  # replicaCount must stay 1 — CDC replay-ID cursor is not sharded.
+  replicaCount: 1
+  # resources for the consumer pod (CDC is I/O-bound, not CPU-bound).
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  # pubsubEndpoint is the Salesforce Pub/Sub gRPC endpoint.
+  # This is Salesforce's single global endpoint — the same for all orgs and
+  # environments (sandbox, dev, staging, prod). Never needs a per-env override.
+  pubsubEndpoint: "api.pubsub.salesforce.com:7443"
+  # cdcChannel is the Salesforce CDC channel to subscribe to.
+  # Use "/data/ChangeEvents" (all CDC-enabled objects) or a specific channel
+  # like "/data/AccountChangeEvent" to narrow the subscription.
+  # Set explicitly per environment in ArgoCD values rather than relying on
+  # this default so that a future default change does not silently affect prod.
+  cdcChannel: "/data/ChangeEvents"
+  # orgID is the 18-character Salesforce Org ID injected as the "tenantid"
+  # gRPC metadata header for Pub/Sub API authentication. This is a public
+  # tenant identifier, not a credential — set it in plain text per environment
+  # in ArgoCD values. Must be overridden; the empty default disables the
+  # consumer (CDCConsumerImpl calls log.Fatalf when SF_ORG_ID is empty).
+  orgID: ""
+  # extraEnv allows injecting additional environment variables into the
+  # consumer pod (same semantics as app.extraEnv for the API pod).
+  extraEnv: []
+
 # openfga is the configuration for the OpenFGA server
 openfga:
   # enabled is a boolean to determine if the OpenFGA server should be enabled for authorization

@@ -74,3 +74,28 @@ spec:
   compression: {{ .Values.nats.kv_bucket_sobject_cache.compression }}
   ttl: {{ .Values.nats.kv_bucket_sobject_cache.ttl }}
 {{- end }}
+---
+{{- if .Values.nats.kv_bucket_pubsub_state.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_pubsub_state.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_pubsub_state.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_pubsub_state.name }}
+  replicas: {{ .Values.nats.kv_bucket_pubsub_state.replicas }}
+  history: {{ .Values.nats.kv_bucket_pubsub_state.history }}
+  storage: {{ .Values.nats.kv_bucket_pubsub_state.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_pubsub_state.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_pubsub_state.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_pubsub_state.compression }}
+  # IMPORTANT: no ttl — replay cursors must survive indefinitely so the
+  # consumer resumes from where it left off after a restart or pod eviction.
+  # Losing this entry forces a full replay from the earliest retained event.
+{{- end }}

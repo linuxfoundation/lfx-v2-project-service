@@ -57,6 +57,11 @@ type Config struct {
 
 	// APIVersion is the Salesforce REST API version (e.g. "v63.0").
 	APIVersion string
+
+	// PubSubEndpoint is the Salesforce Pub/Sub API gRPC endpoint
+	// (e.g. "api.pubsub.salesforce.com:7443"). Empty disables the CDC consumer
+	// entirely (no-op), so existing deployments without the var are unaffected.
+	PubSubEndpoint string
 }
 
 // ConfigFromEnv builds a Config from environment variables. It returns an error
@@ -85,7 +90,8 @@ type Config struct {
 //
 // Optional:
 //
-//	SF_API_VERSION — API version (default: "v63.0").
+//	SF_API_VERSION     — API version (default: "v63.0").
+//	SF_PUBSUB_ENDPOINT — Salesforce Pub/Sub gRPC endpoint; empty disables the CDC consumer.
 func ConfigFromEnv() (Config, error) {
 	domain := os.Getenv("SF_INSTANCE_URL")
 	if domain == "" {
@@ -107,6 +113,8 @@ func ConfigFromEnv() (Config, error) {
 	if apiVersion == "" {
 		apiVersion = defaultAPIVersion
 	}
+
+	pubSubEndpoint := os.Getenv("SF_PUBSUB_ENDPOINT")
 
 	// Validate that at least one auth flow is satisfiable.
 	hasJWT := username != "" && consumerRSAPem != ""
@@ -130,6 +138,7 @@ func ConfigFromEnv() (Config, error) {
 		SecurityToken:  securityToken,
 		ConsumerRSAPem: consumerRSAPem,
 		APIVersion:     apiVersion,
+		PubSubEndpoint: pubSubEndpoint,
 	}, nil
 }
 

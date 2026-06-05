@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -22,7 +23,7 @@ import (
 	logging "github.com/linuxfoundation/lfx-v2-member-service/pkg/log"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/utils"
 
-	"goa.design/clue/debug"
+	clueDebug "goa.design/clue/debug"
 )
 
 // Build-time variables set via ldflags.
@@ -79,13 +80,28 @@ func main() {
 		slog.WarnContext(ctx, "failed to register Salesforce OTEL metrics", "error", err)
 	}
 
-	slog.InfoContext(ctx, "Starting membership service",
-		"bind", *bind,
-		"http-port", *port,
+	defer service.CloseNATSClient()
+
+	// RUN_MODE selects between the HTTP API server (default) and the CDC
+	// consumer. A single binary runs both roles; the Kubernetes Deployment
+	// for the consumer sets RUN_MODE=consumer with replicas:1 + Recreate
+	// strategy so only one replica processes CDC events at any time.
+	runMode := os.Getenv("RUN_MODE")
+	if runMode == "consumer" {
+		runConsumer(ctx)
+		return
+	}
+
+	runAPI(ctx, *bind, *port, *dbgF)
+}
+
+// runAPI starts the HTTP membership API server. This is the default run mode.
+func runAPI(ctx context.Context, bind, port string, debug bool) {
+	slog.InfoContext(ctx, "Starting membership service (api mode)",
+		"bind", bind,
+		"http-port", port,
 		"graceful-shutdown-seconds", gracefulShutdownSeconds,
 	)
-
-	defer service.CloseNATSClient()
 
 	// Register the project-id-map NATS RPC handler so external services can
 	// resolve v2 project UIDs to Salesforce Project__c.Id SFIDs.
@@ -118,14 +134,12 @@ func main() {
 
 	// Wrap the services in endpoints.
 	membershipServiceEndpoints := membershipservice.NewEndpoints(membershipServiceSvc)
-	if *dbgF {
-		membershipServiceEndpoints.Use(debug.LogPayloads())
+	if debug {
+		membershipServiceEndpoints.Use(clueDebug.LogPayloads())
 	}
 
 	// Create channel for error handling.
 	errc := make(chan error, 1)
-
-	// Setup interrupt handler.
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
@@ -135,22 +149,19 @@ func main() {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(ctx)
 
-	// Start the HTTP server.
-	addr := ":" + *port
-	if *bind != "*" {
-		addr = *bind + ":" + *port
+	addr := ":" + port
+	if bind != "*" {
+		addr = bind + ":" + port
 	}
 
-	handleHTTPServer(ctx, addr, membershipServiceEndpoints, &wg, errc, *dbgF)
+	handleHTTPServer(ctx, addr, membershipServiceEndpoints, &wg, errc, debug)
 
-	// Wait for signal.
 	slog.InfoContext(ctx, "received shutdown signal, stopping servers",
 		"signal", <-errc,
 	)
 
 	cancel()
 
-	// Create a timeout context for graceful shutdown.
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), gracefulShutdownSeconds*time.Second)
 	defer shutdownCancel()
 
@@ -168,4 +179,110 @@ func main() {
 	}
 
 	slog.InfoContext(ctx, "exited")
+}
+
+// cancelOnSignal cancels ctx when SIGINT or SIGTERM is received. Intended to
+// run in a goroutine; returns after the first signal.
+func cancelOnSignal(ctx context.Context, cancel context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case sig := <-c:
+		slog.InfoContext(ctx, "received shutdown signal", "signal", sig.String())
+		cancel()
+	case <-ctx.Done():
+	}
+}
+
+// runConsumer starts the CDC event consumer. It blocks until a signal is
+// received, then cancels the subscription and waits up to gracefulShutdownSeconds
+// for the Run loop to finish committing its last replay cursor before exiting.
+//
+// GET /livez on :8080 (same port + path as the API Deployment) serves as the
+// K8s liveness probe. Returns 200 while running, 503 after context cancelled.
+// Recreate + replicas:1 in the Deployment ensures at most one active consumer.
+func runConsumer(ctx context.Context) {
+	slog.InfoContext(ctx, "Starting membership service (consumer mode)",
+		"graceful-shutdown-seconds", gracefulShutdownSeconds,
+	)
+
+	consumer, replayStore, pubsubClient := service.CDCConsumerImpl(ctx)
+	defer func() {
+		if err := pubsubClient.Close(); err != nil {
+			slog.WarnContext(ctx, "CDC Pub/Sub gRPC client close failed", "error", err)
+		}
+	}()
+	channel := service.CDCChannelFromEnv()
+	slog.InfoContext(ctx, "CDC consumer initialised", "channel", channel)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	go cancelOnSignal(ctx, cancel)
+
+	healthServer := &http.Server{
+		Addr:        ":" + defaultPort,
+		ReadTimeout: 5 * time.Second,
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/livez", func(w http.ResponseWriter, _ *http.Request) {
+		// Always 200 while the process is alive. Kubernetes handles graceful
+		// shutdown via SIGTERM + terminationGracePeriodSeconds; checking ctx here
+		// would return 503 immediately after SIGTERM and can cause the liveness
+		// probe to restart the pod before the replay cursor is committed.
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	healthServer.Handler = mux
+
+	var healthWg sync.WaitGroup
+	healthWg.Add(1)
+	go func() {
+		defer healthWg.Done()
+		slog.InfoContext(ctx, "CDC consumer health server listening", "port", defaultPort)
+		if err := healthServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.ErrorContext(ctx, "CDC consumer health server failed, stopping consumer", "error", err)
+			cancel()
+		}
+	}()
+
+	// Run the consumer loop; it returns when ctx is cancelled or on error.
+	var runWg sync.WaitGroup
+	runWg.Add(1)
+	go func() {
+		defer runWg.Done()
+		if err := consumer.Run(ctx, channel, replayStore); err != nil {
+			slog.InfoContext(ctx, "CDC consumer stopped", "reason", err)
+		}
+	}()
+
+	// Block here until a SIGINT/SIGTERM cancels ctx (via cancelOnSignal).
+	// Only then start the bounded graceful-shutdown window so a long-running
+	// consumer is not evicted 25 s after launch.
+	<-ctx.Done()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), gracefulShutdownSeconds*time.Second)
+	defer shutdownCancel()
+
+	done := make(chan struct{})
+	go func() {
+		runWg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		slog.InfoContext(ctx, "CDC consumer Run loop exited cleanly")
+	case <-shutdownCtx.Done():
+		slog.WarnContext(ctx, "CDC consumer graceful shutdown timed out")
+	}
+
+	// Stop the health server.
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer stopCancel()
+	if err := healthServer.Shutdown(stopCtx); err != nil {
+		slog.WarnContext(ctx, "CDC consumer health server shutdown error", "error", err)
+	}
+	healthWg.Wait()
+
+	slog.InfoContext(ctx, "CDC consumer exited")
 }

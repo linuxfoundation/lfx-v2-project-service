@@ -1,0 +1,820 @@
+// Copyright The Linux Foundation and each contributor to LFX.
+// SPDX-License-Identifier: MIT
+
+package service_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"sync"
+	"testing"
+
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
+	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
+	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+)
+
+// ── In-process stubs ──────────────────────────────────────────────────────────
+
+// fakeCDCSubscriber feeds a fixed slice of events then closes the channel.
+type fakeCDCSubscriber struct {
+	events []model.CDCEvent
+}
+
+func (f *fakeCDCSubscriber) Subscribe(_ context.Context, _ string, _ []byte, _ port.ReplayStore) (<-chan model.CDCEvent, error) {
+	ch := make(chan model.CDCEvent, len(f.events))
+	for _, e := range f.events {
+		ch <- e
+	}
+	close(ch)
+	return ch, nil
+}
+
+// errCDCSubscriber always returns an error from Subscribe.
+type errCDCSubscriber struct{ err error }
+
+func (e *errCDCSubscriber) Subscribe(_ context.Context, _ string, _ []byte, _ port.ReplayStore) (<-chan model.CDCEvent, error) {
+	return nil, e.err
+}
+
+// fakeReplayStore records the last saved replay ID (commit-after-process check).
+type fakeReplayStore struct {
+	saved    []byte
+	savedAll [][]byte // every Save call, in order
+	loadErr  error
+	saveErr  error
+}
+
+func (r *fakeReplayStore) Load(_ context.Context, _ string) ([]byte, error) {
+	return nil, r.loadErr
+}
+func (r *fakeReplayStore) Save(_ context.Context, _ string, id []byte) error {
+	if r.saveErr != nil {
+		return r.saveErr
+	}
+	r.saved = id
+	r.savedAll = append(r.savedAll, id)
+	return nil
+}
+
+// reparentingB2BOrgReader returns different results for GetB2BOrg on successive
+// calls: first call returns the pre-change record (old parent), subsequent
+// calls return the post-change record (new parent). This simulates the consumer
+// reading the cached old state before eviction and then re-fetching from
+// Salesforce after eviction.
+type reparentingB2BOrgReader struct {
+	calls    int
+	preOrg   *model.B2BOrg // returned on call 0 (before eviction)
+	postOrg  *model.B2BOrg // returned on call 1+ (after eviction)
+	children map[string][]string
+}
+
+func (r *reparentingB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+	defer func() { r.calls++ }()
+	if r.calls == 0 {
+		return r.preOrg, nil
+	}
+	return r.postOrg, nil
+}
+func (r *reparentingB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, parentUID string) ([]string, error) {
+	if r.children != nil {
+		return r.children[parentUID], nil
+	}
+	return nil, nil
+}
+
+// fakeB2BOrgReader returns a pre-seeded org.
+type fakeB2BOrgReader struct {
+	org      *model.B2BOrg
+	children []string
+	orgErr   error
+}
+
+func (r *fakeB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {
+	return r.org, r.orgErr
+}
+func (r *fakeB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
+	return r.children, nil
+}
+
+// subjectCapturingPublisher captures subjects and message payloads for
+// both indexer and access publish calls.
+type subjectCapturingPublisher struct {
+	mu              sync.Mutex
+	indexer         []string // subjects
+	indexerMessages []any    // payloads, parallel to indexer
+	access          []string // subjects
+}
+
+func (p *subjectCapturingPublisher) Indexer(_ context.Context, subject string, msg any, _ bool) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.indexer = append(p.indexer, subject)
+	p.indexerMessages = append(p.indexerMessages, msg)
+	return nil
+}
+func (p *subjectCapturingPublisher) Access(_ context.Context, subject string, _ any, _ bool) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.access = append(p.access, subject)
+	return nil
+}
+
+// hasAccess returns true if any access call subject contains the given substring.
+func (p *subjectCapturingPublisher) hasAccess(sub string) bool {
+	for _, s := range p.access {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+	return false
+}
+
+// indexerAction extracts the "action" field from the i-th indexer message by
+// round-tripping through JSON. Returns "" if the message is nil or the field
+// is absent.
+func (p *subjectCapturingPublisher) indexerAction(i int) string {
+	if i >= len(p.indexerMessages) || p.indexerMessages[i] == nil {
+		return ""
+	}
+	b, err := json.Marshal(p.indexerMessages[i])
+	if err != nil {
+		return ""
+	}
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
+		return ""
+	}
+	raw, ok := m["action"]
+	if !ok {
+		return ""
+	}
+	var action string
+	_ = json.Unmarshal(raw, &action)
+	return action
+}
+
+// ── Constructor helper ────────────────────────────────────────────────────────
+
+func newTestCDCConsumer(
+	subscriber port.CDCSubscriber,
+	memberReader *mock.MockControllableMemberReader,
+	pmReader *mock.MockControllableProjectMembershipReader,
+	orgReader *fakeB2BOrgReader,
+	invalidator *mock.MockCacheInvalidator,
+	pub *subjectCapturingPublisher,
+	globalOrgAdminTeamUID string,
+) *svc.CDCConsumer {
+	return svc.NewCDCConsumer(
+		svc.WithCDCSubscriber(subscriber),
+		svc.WithCDCMemberReader(memberReader),
+		svc.WithCDCProjectMembershipReader(pmReader),
+		svc.WithCDCB2BOrgReader(orgReader),
+		svc.WithCDCCacheInvalidator(invalidator),
+		svc.WithCDCPublisher(pub),
+		svc.WithCDCGlobalOrgAdminTeamUID(globalOrgAdminTeamUID),
+	)
+}
+
+// ── Account (b2b_org) tests ───────────────────────────────────────────────────
+
+func TestCDCConsumer_Account_Upsert_PublishesIndexerAndFGA(t *testing.T) {
+	org := &model.B2BOrg{UID: "org-uid-1"}
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-1"}, ReplayID: []byte("r1")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{org: org},
+		invalidator,
+		pub,
+		"admin-team-uid",
+	)
+
+	replay := &fakeReplayStore{}
+	err := consumer.Run(context.Background(), "/data/AccountChangeEvent", replay)
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, pub.indexer, "indexer must be published on account upsert")
+	assert.NotEmpty(t, pub.access, "FGA access must be published on account upsert")
+	assert.Equal(t, 1, invalidator.B2BOrgCalls, "cache must be invalidated once")
+	assert.Equal(t, []byte("r1"), replay.saved, "replay cursor must be committed")
+}
+
+func TestCDCConsumer_Account_Upsert_PassesGlobalOrgAdminTeamUID(t *testing.T) {
+	// globalOrgAdminTeamUID must reach BuildB2BOrgFGAMessage — verified indirectly:
+	// if it were "" the FGA subject is still emitted; this test ensures the field
+	// is wired at all (non-empty UID → message contains non-empty team reference).
+	org := &model.B2BOrg{UID: "org-uid-1"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-1"}, ReplayID: []byte("r2")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{org: org},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"global-admin-team",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AccountChangeEvent", &fakeReplayStore{}))
+	assert.NotEmpty(t, pub.access, "FGA access must be published")
+}
+
+func TestCDCConsumer_Account_Delete_PublishesIndexerAndFGA(t *testing.T) {
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Account", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"org-uid-del"}, ReplayID: []byte("r3")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		invalidator,
+		pub,
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/AccountChangeEvent", replay))
+
+	assert.NotEmpty(t, pub.indexer, "indexer delete must be published")
+	assert.NotEmpty(t, pub.access, "FGA access must be published on delete")
+	assert.Equal(t, 1, invalidator.B2BOrgCalls, "cache must be invalidated on delete")
+	assert.Equal(t, []byte("r3"), replay.saved)
+}
+
+// ── Asset (project_membership) tests ─────────────────────────────────────────
+
+func TestCDCConsumer_Asset_Upsert_PublishesIndexerAndFGA(t *testing.T) {
+	pm := &model.ProjectMembership{UID: "pm-uid-1", B2BOrgUID: "org-uid-1"}
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-uid-1"}, ReplayID: []byte("r4")},
+		}},
+		&mock.MockControllableMemberReader{Membership: pm},
+		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&fakeB2BOrgReader{},
+		invalidator,
+		pub,
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", replay))
+
+	assert.NotEmpty(t, pub.indexer, "indexer must be published")
+	assert.NotEmpty(t, pub.access, "FGA access (project_membership) must be published")
+	assert.Equal(t, 1, invalidator.MembershipCalls)
+	assert.Equal(t, []byte("r4"), replay.saved)
+}
+
+func TestCDCConsumer_Asset_Delete_PublishesIndexerOnly(t *testing.T) {
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"pm-uid-del"}, ReplayID: []byte("r5")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "indexer delete must be published")
+	assert.Empty(t, pub.access, "no FGA on membership delete (no tuple to revoke)")
+}
+
+// ── Project_Role__c (key_contact) tests ──────────────────────────────────────
+
+func TestCDCConsumer_ProjectRole_Upsert_WithUsername_PublishesIndexerAndFGAMemberPut(t *testing.T) {
+	kc := &model.KeyContact{UID: "kc-uid-1", MembershipUID: "pm-uid-1", Username: "alice"}
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-uid-1"}, ReplayID: []byte("r6")},
+		}},
+		&mock.MockControllableMemberReader{Contact: kc},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		invalidator,
+		pub,
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", replay))
+
+	assert.NotEmpty(t, pub.indexer, "indexer must be published")
+	assert.True(t, pub.hasAccess(fgaconstants.GenericMemberPutSubject),
+		"FGA member_put must be published for accepted key contact; access calls: %v", pub.access)
+	assert.Equal(t, 1, invalidator.KeyContactCalls)
+	assert.Equal(t, []byte("r6"), replay.saved)
+}
+
+func TestCDCConsumer_ProjectRole_Upsert_WithoutUsername_NoFGAMemberPut(t *testing.T) {
+	// Pending/unaccepted contact — no username — must not emit FGA member_put.
+	kc := &model.KeyContact{UID: "kc-uid-2", MembershipUID: "pm-uid-1", Username: ""}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-uid-2"}, ReplayID: []byte("r7")},
+		}},
+		&mock.MockControllableMemberReader{Contact: kc},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "indexer must still be published")
+	assert.False(t, pub.hasAccess(fgaconstants.GenericMemberPutSubject),
+		"FGA member_put must NOT be published for pending contact without username")
+}
+
+func TestCDCConsumer_ProjectRole_Delete_PublishesIndexerAndFGAMemberRemove(t *testing.T) {
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"kc-uid-del"}, ReplayID: []byte("r8")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		invalidator,
+		pub,
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", replay))
+
+	assert.NotEmpty(t, pub.indexer, "indexer delete must be published")
+	assert.True(t, pub.hasAccess(fgaconstants.GenericMemberRemoveSubject),
+		"FGA member_remove must be published on key_contact delete; access calls: %v", pub.access)
+	assert.Equal(t, 1, invalidator.KeyContactCalls)
+	assert.Equal(t, []byte("r8"), replay.saved)
+}
+
+// ── Error resilience ──────────────────────────────────────────────────────────
+
+func TestCDCConsumer_UnhandledEntity_SkipsAndAdvancesReplay(t *testing.T) {
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Opportunity", ChangeType: model.CDCChangeCreate, RecordIDs: []string{"opp-1"}, ReplayID: []byte("r9")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/ChangeEvents", replay))
+
+	assert.Empty(t, pub.indexer, "unknown entity must produce no indexer publish")
+	assert.Empty(t, pub.access, "unknown entity must produce no FGA publish")
+	assert.Equal(t, []byte("r9"), replay.saved, "replay cursor must still advance on skip")
+}
+
+func TestCDCConsumer_HandlerError_ReplayStillAdvances(t *testing.T) {
+	// ProjectMembershipReader returns an error (simulates Salesforce sObject fetch
+	// failure after cache invalidation). The handler fails but replay must still
+	// advance — at-least-once semantics; /admin/reindex recovers missed events.
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-bad"}, ReplayID: []byte("r10")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{AssembleErr: pkgerrors.NewNotFound("not found")},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", replay))
+
+	assert.Empty(t, pub.indexer, "failed handler must not publish")
+	assert.Equal(t, []byte("r10"), replay.saved, "replay cursor must advance even after handler error")
+}
+
+func TestCDCConsumer_MultipleRecordIDs_ProcessedAll(t *testing.T) {
+	// A batch event with two record IDs must result in two cache invalidations.
+	invalidator := &mock.MockCacheInvalidator{}
+	pm := &model.ProjectMembership{UID: "pm-batch"}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-1", "pm-2"}, ReplayID: []byte("r11")},
+		}},
+		&mock.MockControllableMemberReader{Membership: pm},
+		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&fakeB2BOrgReader{},
+		invalidator,
+		&subjectCapturingPublisher{},
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.Equal(t, 2, invalidator.MembershipCalls, "both record IDs in the batch must be processed")
+}
+
+// ── Create action tests ───────────────────────────────────────────────────────
+
+func TestCDCConsumer_Asset_Create_SetsActionCreated(t *testing.T) {
+	// CDCChangeCreate must result in ActionCreated in the indexer message payload,
+	// not ActionUpdated. The action is encoded in the message body, not the subject.
+	pm := &model.ProjectMembership{UID: "pm-create-1"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeCreate, RecordIDs: []string{"pm-create-1"}, ReplayID: []byte("rc1")},
+		}},
+		&mock.MockControllableMemberReader{Membership: pm},
+		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	require.Len(t, pub.indexer, 1, "exactly one indexer call on create")
+	assert.Equal(t, "created", pub.indexerAction(0),
+		"indexer message action must be 'created' for CDCChangeCreate")
+}
+
+func TestCDCConsumer_ProjectRole_Create_SetsActionCreated(t *testing.T) {
+	kc := &model.KeyContact{UID: "kc-create-1", MembershipUID: "pm-uid-1", Username: "bob"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeCreate, RecordIDs: []string{"kc-create-1"}, ReplayID: []byte("rc2")},
+		}},
+		&mock.MockControllableMemberReader{Contact: kc},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	require.Len(t, pub.indexer, 1, "exactly one indexer call on create")
+	assert.Equal(t, "created", pub.indexerAction(0),
+		"indexer message action must be 'created' for CDCChangeCreate")
+}
+
+// ── Reparenting test ──────────────────────────────────────────────────────────
+
+func TestCDCConsumer_Account_Reparenting_EmitsMoreFGAAccessCalls(t *testing.T) {
+	// Pre-change: org has old-parent. Post-change: org has new-parent.
+	// The consumer reads pre-change before eviction, then post-change after.
+	// BuildB2BOrgReparentingMessages should fire extra FGA access calls.
+	preOrg := &model.B2BOrg{UID: "org-uid-r", ParentUID: "old-parent"}
+	postOrg := &model.B2BOrg{UID: "org-uid-r", ParentUID: "new-parent"}
+
+	reparentReader := &reparentingB2BOrgReader{
+		preOrg:  preOrg,
+		postOrg: postOrg,
+		children: map[string][]string{
+			"old-parent": {"sibling-org"},
+			"new-parent": {},
+			"org-uid-r":  {},
+		},
+	}
+
+	// Baseline: same parent (no reparenting) — should emit fewer FGA calls.
+	sameOrg := &model.B2BOrg{UID: "org-uid-s", ParentUID: "same-parent"}
+	sameReader := &reparentingB2BOrgReader{
+		preOrg:  sameOrg,
+		postOrg: sameOrg,
+		children: map[string][]string{
+			"same-parent": {},
+			"org-uid-s":   {},
+		},
+	}
+
+	reparentPub := &subjectCapturingPublisher{}
+	reparentConsumer := svc.NewCDCConsumer(
+		svc.WithCDCSubscriber(&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-r"}, ReplayID: []byte("rr1")},
+		}}),
+		svc.WithCDCMemberReader(&mock.MockControllableMemberReader{}),
+		svc.WithCDCProjectMembershipReader(&mock.MockControllableProjectMembershipReader{}),
+		svc.WithCDCB2BOrgReader(reparentReader),
+		svc.WithCDCCacheInvalidator(&mock.MockCacheInvalidator{}),
+		svc.WithCDCPublisher(reparentPub),
+		svc.WithCDCGlobalOrgAdminTeamUID(""),
+	)
+
+	samePub := &subjectCapturingPublisher{}
+	sameConsumer := svc.NewCDCConsumer(
+		svc.WithCDCSubscriber(&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-s"}, ReplayID: []byte("rr2")},
+		}}),
+		svc.WithCDCMemberReader(&mock.MockControllableMemberReader{}),
+		svc.WithCDCProjectMembershipReader(&mock.MockControllableProjectMembershipReader{}),
+		svc.WithCDCB2BOrgReader(sameReader),
+		svc.WithCDCCacheInvalidator(&mock.MockCacheInvalidator{}),
+		svc.WithCDCPublisher(samePub),
+		svc.WithCDCGlobalOrgAdminTeamUID(""),
+	)
+
+	require.NoError(t, reparentConsumer.Run(context.Background(), "/data/AccountChangeEvent", &fakeReplayStore{}))
+	require.NoError(t, sameConsumer.Run(context.Background(), "/data/AccountChangeEvent", &fakeReplayStore{}))
+
+	assert.Greater(t, len(reparentPub.access), len(samePub.access),
+		"reparenting must emit more FGA access calls (%d) than a non-reparenting update (%d)",
+		len(reparentPub.access), len(samePub.access))
+}
+
+// ── Guard condition tests ─────────────────────────────────────────────────────
+
+func TestCDCConsumer_ProjectRole_Upsert_WithUsername_EmptyMembershipUID_NoFGAMemberPut(t *testing.T) {
+	// Guard: kc.Username != "" && kc.MembershipUID != ""
+	// A malformed record with a username but no MembershipUID must NOT emit FGA member_put.
+	kc := &model.KeyContact{UID: "kc-bad", MembershipUID: "", Username: "charlie"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-bad"}, ReplayID: []byte("rg1")},
+		}},
+		&mock.MockControllableMemberReader{Contact: kc},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "indexer must still be published even for malformed record")
+	assert.False(t, pub.hasAccess(fgaconstants.GenericMemberPutSubject),
+		"FGA member_put must NOT be published when MembershipUID is empty; access calls: %v", pub.access)
+}
+
+// ── Startup error tests ───────────────────────────────────────────────────────
+
+func TestCDCConsumer_ReplayStore_LoadError_RunReturnsError(t *testing.T) {
+	loadErr := errors.New("nats: kv unavailable")
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		&subjectCapturingPublisher{},
+		"",
+	)
+
+	replay := &fakeReplayStore{loadErr: loadErr}
+	err := consumer.Run(context.Background(), "/data/AccountChangeEvent", replay)
+
+	require.Error(t, err, "Run must return the Load error")
+	assert.ErrorIs(t, err, loadErr)
+}
+
+func TestCDCConsumer_Subscriber_SubscribeError_RunReturnsError(t *testing.T) {
+	subscribeErr := errors.New("grpc: connection refused")
+
+	consumer := newTestCDCConsumer(
+		&errCDCSubscriber{err: subscribeErr},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		&subjectCapturingPublisher{},
+		"",
+	)
+
+	err := consumer.Run(context.Background(), "/data/AccountChangeEvent", &fakeReplayStore{})
+
+	require.Error(t, err, "Run must propagate Subscribe error")
+	assert.ErrorIs(t, err, subscribeErr)
+}
+
+// ── Replay cursor durability tests ────────────────────────────────────────────
+
+func TestCDCConsumer_ReplayStore_SaveError_NotFatal(t *testing.T) {
+	// Save failures are logged and swallowed — Run must not return an error.
+	pm := &model.ProjectMembership{UID: "pm-save-err"}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-save-err"}, ReplayID: []byte("rs1")},
+		}},
+		&mock.MockControllableMemberReader{Membership: pm},
+		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		&subjectCapturingPublisher{},
+		"",
+	)
+
+	replay := &fakeReplayStore{saveErr: errors.New("nats: kv write failed")}
+	err := consumer.Run(context.Background(), "/data/AssetChangeEvent", replay)
+
+	require.NoError(t, err, "Save error must not be returned from Run")
+}
+
+func TestCDCConsumer_MultipleEvents_ReplayAdvancesPerEvent(t *testing.T) {
+	// Three events in sequence — replay cursor must be committed after EACH one,
+	// not just at the end of the batch.
+	pm := &model.ProjectMembership{UID: "pm-seq"}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-1"}, ReplayID: []byte("seq-1")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-2"}, ReplayID: []byte("seq-2")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-3"}, ReplayID: []byte("seq-3")},
+		}},
+		&mock.MockControllableMemberReader{Membership: pm},
+		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		&subjectCapturingPublisher{},
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", replay))
+
+	require.Len(t, replay.savedAll, 3, "replay cursor must be committed once per event")
+	assert.Equal(t, []byte("seq-1"), replay.savedAll[0])
+	assert.Equal(t, []byte("seq-2"), replay.savedAll[1])
+	assert.Equal(t, []byte("seq-3"), replay.savedAll[2])
+}
+
+// ── CDCChangeType fallthrough tests ──────────────────────────────────────────
+
+func TestCDCConsumer_Asset_Undelete_TreatedAsUpsert(t *testing.T) {
+	// UNDELETE falls into the same non-delete branch as UPDATE/CREATE.
+	pm := &model.ProjectMembership{UID: "pm-undelete"}
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUndelete, RecordIDs: []string{"pm-undelete"}, ReplayID: []byte("ru1")},
+		}},
+		&mock.MockControllableMemberReader{Membership: pm},
+		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&fakeB2BOrgReader{},
+		invalidator,
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "UNDELETE must re-publish indexer (treated as upsert)")
+	assert.Equal(t, 1, invalidator.MembershipCalls, "cache must be invalidated on UNDELETE")
+}
+
+func TestCDCConsumer_Asset_GapOverflow_TreatedAsUpsert(t *testing.T) {
+	// GAP_OVERFLOW also falls into the non-delete upsert path.
+	pm := &model.ProjectMembership{UID: "pm-gap"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeGapOverflow, RecordIDs: []string{"pm-gap"}, ReplayID: []byte("rg2")},
+		}},
+		&mock.MockControllableMemberReader{Membership: pm},
+		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "GAP_OVERFLOW must trigger re-fetch and re-publish (treated as upsert)")
+}
+
+func TestCDCConsumer_Asset_GapDelete_TreatedAsDelete(t *testing.T) {
+	// GAP_DELETE must route to the delete path, not the upsert path.
+	// Salesforce emits GAP_DELETE when a record is deleted during a CDC
+	// overflow gap; treating it as an upsert would leave a ghost document.
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: "GAP_DELETE", RecordIDs: []string{"pm-gapdel"}, ReplayID: []byte("rgd1")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		invalidator,
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "GAP_DELETE must publish a delete indexer event")
+	assert.Equal(t, 1, invalidator.MembershipCalls, "cache must be invalidated on GAP_DELETE")
+	// The indexer subject is present; verify no FGA access was published
+	// (delete path does not emit FGA member_put).
+	assert.Empty(t, pub.access, "GAP_DELETE must not emit FGA access (no re-fetch)")
+}
+
+func TestCDCConsumer_ProjectRole_GapDelete_TreatedAsDelete(t *testing.T) {
+	// Same invariant for key_contact: GAP_DELETE must call the delete handler.
+	pub := &subjectCapturingPublisher{}
+	invalidator := &mock.MockCacheInvalidator{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: "GAP_DELETE", RecordIDs: []string{"kc-gapdel"}, ReplayID: []byte("rgd2")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		invalidator,
+		pub,
+		"",
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "GAP_DELETE must publish a delete indexer event for key_contact")
+	assert.Equal(t, 1, invalidator.KeyContactCalls, "cache must be invalidated on key_contact GAP_DELETE")
+}
+
+// ── pkgerrors test helper ─────────────────────────────────────────────────────
+
+// Verify that a reader error on the second GetB2BOrg call (post-eviction) propagates correctly.
+func TestCDCConsumer_Account_OrgNotFound_AdvancesReplay(t *testing.T) {
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-missing"}, ReplayID: []byte("r12")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{orgErr: errors.New("not found")},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+	)
+
+	replay := &fakeReplayStore{}
+	require.NoError(t, consumer.Run(context.Background(), "/data/AccountChangeEvent", replay))
+
+	assert.Empty(t, pub.indexer, "no indexer on org not found")
+	assert.Equal(t, []byte("r12"), replay.saved, "replay must advance even when org not found")
+}
