@@ -106,8 +106,28 @@ func (o *b2bOrgWriterOrchestrator) Update(ctx context.Context, uid string, input
 // (update_access + reparenting child-list messages). Publish failures are
 // swallowed and logged — /admin/reindex recovers missed records.
 func (o *b2bOrgWriterOrchestrator) publishEvents(ctx context.Context, current, org *model.B2BOrg, action indexerConstants.MessageAction) {
-	// Fetch direct children for the indexer document.
-	childUIDs, err := o.b2bOrgReader.FetchChildUIDsByParentUID(ctx, org.UID)
+	orgAdminTeamUID := ""
+	if action == indexerConstants.ActionCreated {
+		orgAdminTeamUID = o.globalOrgAdminTeamUID
+	}
+	publishB2BOrgUpsertEvents(ctx, o.b2bOrgReader, o.memberPublisher, current, org, action, orgAdminTeamUID)
+}
+
+// publishB2BOrgUpsertEvents fans out an indexer message (sequential) then an
+// FGA errgroup (update_access + reparenting child-list messages). It is shared
+// by the writer orchestrator and the CDC consumer. orgAdminTeamUID controls
+// whether the global org-admin team relation is included in the FGA message
+// (writers pass it only on ActionCreated; CDC always passes it for ActionUpdated).
+// Publish failures are swallowed — /admin/reindex recovers missed records.
+func publishB2BOrgUpsertEvents(
+	ctx context.Context,
+	reader port.B2BOrgReader,
+	publisher port.MemberPublisher,
+	current, org *model.B2BOrg,
+	action indexerConstants.MessageAction,
+	orgAdminTeamUID string,
+) {
+	childUIDs, err := reader.FetchChildUIDsByParentUID(ctx, org.UID)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to fetch child UIDs for indexer", "org_uid", org.UID, "err", err)
 	} else {
@@ -115,25 +135,21 @@ func (o *b2bOrgWriterOrchestrator) publishEvents(ctx context.Context, current, o
 	}
 
 	// Indexer first — must be sequential (before the errgroup).
-	PublishB2BOrgIndexer(ctx, o.memberPublisher, org, action)
+	PublishB2BOrgIndexer(ctx, publisher, org, action)
 
-	orgAdminTeamUID := ""
-	if action == indexerConstants.ActionCreated {
-		orgAdminTeamUID = o.globalOrgAdminTeamUID
-	}
 	fgaMsg := BuildB2BOrgFGAMessage(org, orgAdminTeamUID, nil, nil, nil)
 
 	// Pre-fetch child lists before starting the errgroup (immutable inputs).
-	oldParentChildren, newParentChildren := o.fetchChildListsForReparent(ctx, current, org)
+	oldParentChildren, newParentChildren := fetchChildListsForReparent(ctx, reader, current, org)
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return o.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, fgaMsg, false)
+		return publisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, fgaMsg, false)
 	})
 	for _, reparentMsg := range BuildB2BOrgReparentingMessages(current, org, oldParentChildren, newParentChildren) {
 		msg := reparentMsg
 		g.Go(func() error {
-			return o.memberPublisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, msg, false)
+			return publisher.Access(gCtx, constants.FGASyncUpdateAccessSubject, msg, false)
 		})
 	}
 
@@ -146,7 +162,8 @@ func (o *b2bOrgWriterOrchestrator) publishEvents(ctx context.Context, current, o
 // fetchChildListsForReparent computes post-move child-UID slices for the old
 // and new parent when a b2b_org's ParentUID changes. Returns (nil, nil) when
 // the parent is unchanged — BuildB2BOrgReparentingMessages treats nil as "skip".
-func (o *b2bOrgWriterOrchestrator) fetchChildListsForReparent(ctx context.Context, current, org *model.B2BOrg) (oldChildren, newChildren []string) {
+// Shared by the writer orchestrator and the CDC consumer.
+func fetchChildListsForReparent(ctx context.Context, reader port.B2BOrgReader, current, org *model.B2BOrg) (oldChildren, newChildren []string) {
 	oldParent := ""
 	if current != nil {
 		oldParent = current.ParentUID
@@ -160,7 +177,7 @@ func (o *b2bOrgWriterOrchestrator) fetchChildListsForReparent(ctx context.Contex
 
 	if oldParent != "" {
 		g.Go(func() error {
-			uids, err := o.b2bOrgReader.FetchChildUIDsByParentUID(gCtx, oldParent)
+			uids, err := reader.FetchChildUIDsByParentUID(gCtx, oldParent)
 			if err != nil {
 				slog.WarnContext(ctx, "failed to fetch children of old parent for FGA child-list update",
 					"old_parent_uid", oldParent, "org_uid", org.UID, "error", err,
@@ -181,7 +198,7 @@ func (o *b2bOrgWriterOrchestrator) fetchChildListsForReparent(ctx context.Contex
 
 	if newParent != "" {
 		g.Go(func() error {
-			uids, err := o.b2bOrgReader.FetchChildUIDsByParentUID(gCtx, newParent)
+			uids, err := reader.FetchChildUIDsByParentUID(gCtx, newParent)
 			if err != nil {
 				slog.WarnContext(ctx, "failed to fetch children of new parent for FGA child-list update",
 					"new_parent_uid", newParent, "org_uid", org.UID, "error", err,

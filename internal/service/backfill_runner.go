@@ -250,6 +250,7 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 				if !req.DryRun {
 					kc.ProjectUID = r.resolveProjectUID(ctx, kc.ProjectSlug, kc.ProjectUID)
 					PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+					PublishKeyContactFGA(ctx, r.publisher, kc)
 					published++
 				}
 			}
@@ -412,6 +413,7 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 			if !req.DryRun {
 				kc.ProjectUID = r.resolveProjectUID(ctx, kc.ProjectSlug, kc.ProjectUID)
 				PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+				PublishKeyContactFGA(ctx, r.publisher, kc)
 				published++
 			}
 

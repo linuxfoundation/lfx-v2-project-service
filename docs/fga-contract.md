@@ -63,15 +63,34 @@ On delete, only `uid` is sent — all FGA tuples for `b2b_org:{uid}` are removed
 
 ## Project Membership
 
+The member service issues two kinds of FGA messages for `project_membership`:
+
+### 1. Membership references (`update_access`)
+
+**Source struct:** `internal/domain/model/membership.go` — `ProjectMembership`
+
+**Subject:** `lfx.fga-sync.update_access`
+
+Sets the parent object references. `key_contact` is always excluded from this message — it is managed separately by the key-contact write path.
+
+| Relation | Value | Condition |
+|---|---|---|
+| `b2b_org` | `"b2b_org:{B2BOrgUID}"` | When `B2BOrgUID` is non-empty |
+| `project` | `"project:{ProjectUID}"` | When `ProjectUID` is non-empty |
+
+> `ExcludeRelations: ["key_contact"]` — the fga-sync service will not touch the `key_contact` tuples for this membership.
+
+### 2. Key contact relation (`member_put` / `member_remove`)
+
 **Source struct:** `internal/domain/model/key_contact.go` — `KeyContact`
 
-The member service manages the `key_contact` relation on `project_membership` objects when key contacts are created or removed. It does not issue `update_access` or `delete_access` for `project_membership` directly.
-
-### Relations
+Manages the `key_contact` relation on `project_membership` objects.
 
 | Relation | Value | Condition |
 |---|---|---|
 | `key_contact` | Contact's Authelia OIDC sub | On create/update via `member_put`; on delete/sub-change via `member_remove` |
+
+> **CDC delete path:** when a `Project_Role__c` DELETE event arrives, `sub` is empty (not available from the CDC payload). The fga-sync service performs cleanup by object-id when `sub` is empty.
 
 ---
 
@@ -81,9 +100,15 @@ The member service manages the `key_contact` relation on `project_membership` ob
 |---|---|---|---|
 | Create B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Sets `global_org_admin` tuple |
 | Update B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Always sent |
+| CDC `AccountChangeEvent` | `b2b_org` | `lfx.fga-sync.update_access` | Same as update; `globalOrgAdminTeamUID` always set (not create-only) |
 | Reparent B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Up to 3 messages: org's own `parent`, old parent's `child` list, new parent's `child` list |
-| Delete B2B org | `b2b_org` | `lfx.fga-sync.delete_access` | Always sent |
+| Delete B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Stub org (uid only); fga-sync handles cleanup |
+| CDC `AccountChangeEvent` (delete) | `b2b_org` | `lfx.fga-sync.update_access` | Same as delete |
 | Update org settings | `b2b_org` | `lfx.fga-sync.update_access` | `writer`/`auditor` relations; nil param = preserve existing tuples, explicit (even `[]`) = replace |
+| Update project membership | `project_membership` | `lfx.fga-sync.update_access` | Sets `b2b_org` + `project` refs; excludes `key_contact` |
+| CDC `AssetChangeEvent` | `project_membership` | `lfx.fga-sync.update_access` | Same as update |
 | Create key contact | `project_membership` | `lfx.fga-sync.member_put` | Only when contact has a resolved OIDC sub |
 | Update key contact (sub change) | `project_membership` | `lfx.fga-sync.member_remove` + `lfx.fga-sync.member_put` | Revokes old sub, grants new sub |
+| CDC `Project_Role__ChangeEvent` | `project_membership` | `lfx.fga-sync.member_put` | Only when contact has a resolved OIDC sub |
 | Delete key contact | `project_membership` | `lfx.fga-sync.member_remove` | Always sent when sub is known |
+| CDC `Project_Role__ChangeEvent` (delete) | `project_membership` | `lfx.fga-sync.member_remove` | `sub` is empty — fga-sync cleans up by object-id |

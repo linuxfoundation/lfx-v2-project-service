@@ -23,4 +23,13 @@ const (
 	// b2b_org settings (writers, auditors, pending invites).
 	// No MaxAge TTL — entries are never silently evicted.
 	KVBucketNameOrgSettings = "org-settings"
+
+	// KVBucketNamePubSubState is the name of the KV bucket holding Salesforce
+	// Pub/Sub CDC consumer state: per-channel replay cursors keyed by
+	// "pubsub-replay.<channel>". No MaxAge TTL — a quiet channel must never lose
+	// its replay cursor to hard eviction (which would force a silent fallback to
+	// LATEST and a gap in delivered events).
+	// Single-active-consumer enforcement is handled at the Kubernetes level
+	// (replicas: 1, Recreate strategy) — no lease key is stored here.
+	KVBucketNamePubSubState = "pubsub-state"
 )

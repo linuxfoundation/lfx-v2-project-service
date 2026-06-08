@@ -21,6 +21,8 @@ GO_VERSION := 1.24.5
 GOOS := linux
 GOARCH := amd64
 GOA_VERSION := v3.25.3
+PROTOC_VERSION := 35.0
+PROTOC_OS := osx-aarch_64
 
 # Linting
 GOLANGCI_LINT_VERSION := v2.2.2
@@ -50,6 +52,51 @@ deps: ## Install dependencies
 .PHONY: apigen
 apigen: deps #@ Generate API code using Goa
 	goa gen github.com/linuxfoundation/lfx-v2-member-service/cmd/member-api/design
+
+# PROTO_GEN: one-time regeneration of Salesforce Pub/Sub API gRPC stubs.
+# Only needed when api/salesforce/pubsub/pubsub_api.proto is updated.
+# The generated files (internal/infrastructure/salesforce/pubsub/proto/*.pb.go)
+# are committed to git so normal builds never require protoc.
+#
+# Usage:
+#   make protoc-install   # download protoc binary to /tmp (macOS ARM)
+#   make protoc-gen       # regenerate pb.go stubs from the vendored .proto
+#
+# To use on macOS x86_64 override: make protoc-install PROTOC_OS=osx-x86_64
+# To use on Linux x86_64 override:  make protoc-install PROTOC_OS=linux-x86_64
+
+PROTOC_BIN := /tmp/protoc-$(PROTOC_VERSION)-bin/bin/protoc
+PROTO_SRC   := api/salesforce/pubsub/pubsub_api.proto
+PROTO_OUT   := internal/infrastructure/salesforce/pubsub/proto
+PROTO_PKG   := github.com/linuxfoundation/lfx-v2-member-service/$(PROTO_OUT)
+
+.PHONY: protoc-install
+protoc-install: ## Download protoc $(PROTOC_VERSION) binary (no root / brew required)
+	@echo "==> Downloading protoc $(PROTOC_VERSION) for $(PROTOC_OS)..."
+	@curl -fsSL "https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-$(PROTOC_OS).zip" \
+		-o /tmp/protoc-$(PROTOC_VERSION).zip
+	@unzip -qo /tmp/protoc-$(PROTOC_VERSION).zip -d /tmp/protoc-$(PROTOC_VERSION)-bin
+	@$(PROTOC_BIN) --version
+
+.PHONY: protoc-gen
+protoc-gen: ## Regenerate pb.go stubs from api/salesforce/pubsub/pubsub_api.proto
+	@echo "==> Installing Go protoc plugins..."
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@echo "==> Generating stubs → $(PROTO_OUT)/"
+	@mkdir -p $(PROTO_OUT)
+	$(PROTOC_BIN) \
+		--proto_path=api/salesforce/pubsub \
+		--go_out=$(PROTO_OUT) \
+		--go_opt=paths=source_relative \
+		--go_opt=M$(notdir $(PROTO_SRC))=$(PROTO_PKG) \
+		--go-grpc_out=$(PROTO_OUT) \
+		--go-grpc_opt=paths=source_relative \
+		--go-grpc_opt=M$(notdir $(PROTO_SRC))=$(PROTO_PKG) \
+		--plugin=protoc-gen-go=$(shell go env GOPATH)/bin/protoc-gen-go \
+		--plugin=protoc-gen-go-grpc=$(shell go env GOPATH)/bin/protoc-gen-go-grpc \
+		$(PROTO_SRC)
+	@echo "==> Done. Commit the updated files in $(PROTO_OUT)/"
 
 .PHONY: lint
 lint: ## Run golangci-lint (local Go linting)
