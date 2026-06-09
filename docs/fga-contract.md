@@ -48,7 +48,7 @@ Each message carries `object_type`, `operation`, and a `data` map. The sections 
 | `auditor` | Usernames from `ProjectSettings.Auditors` | Only when `Auditors` is non-empty |
 | `meeting_coordinator` | Usernames from `ProjectSettings.MeetingCoordinators` | Only when `MeetingCoordinators` is non-empty |
 
-> Usernames are the `Username` field of each `UserInfo` entry (LFX usernames). If a `UserInfo` entry lacks a pre-resolved username, the service resolves it by email via `lfx.auth-service.email_to_username` before publishing.
+> Usernames are the `Username` field of each `UserInfo` entry (LFX usernames). Before publishing, `enrichAllRoleFields` overwrites `Username` on every entry that includes an email address with the value returned by `lfx.auth-service.email_to_username`; unknown emails clear `Username` to an empty string. Entries with a username but no email are left untouched.
 
 ### References
 
