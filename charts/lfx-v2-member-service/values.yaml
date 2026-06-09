@@ -42,6 +42,9 @@ app:
   # call POST /b2b_orgs and POST /admin/reindex. The placeholder _null
   # never matches a real team UID; override per-environment.
   globalOrgAdminTeamUID: "_null"
+  # lfxSelfServeBaseURL is the base URL injected as ReturnURL in org-settings invite emails.
+  # Leave empty to omit the return link from the invite email.
+  lfxSelfServeBaseURL: ""
   # extraEnv is a list of additional environment variables to set in the container.
   # Supports both simple key-value pairs and Kubernetes field references.
   extraEnv: []

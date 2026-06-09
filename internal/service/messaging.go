@@ -496,10 +496,10 @@ func buildB2BOrgSettingsIndexerView(settings *model.B2BOrgSettings) b2bOrgSettin
 	}
 
 	for _, u := range settings.Writers {
-		addMember(u, "writer")
+		addMember(u, model.B2BOrgRoleWriter)
 	}
 	for _, u := range settings.Auditors {
-		addMember(u, "auditor")
+		addMember(u, model.B2BOrgRoleAuditor)
 	}
 	return view
 }

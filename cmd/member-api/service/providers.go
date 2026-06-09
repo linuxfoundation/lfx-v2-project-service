@@ -7,6 +7,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -46,6 +47,11 @@ var (
 	// Reader and writer must point at the same instance so writes are visible to reads.
 	mockSettings     *mock.MockB2BOrgSettings
 	mockSettingsOnce sync.Once
+
+	// apiSubs holds the drain callbacks for all NATS subscriptions registered by
+	// QueueSubscriptions. Stored as func() error so the raw nats package does not
+	// need to be imported here; each element is the Drain method of a *nats.Subscription.
+	apiSubs []func() error
 )
 
 // natsTimeoutFromEnv reads the NATS_TIMEOUT environment variable and returns it
@@ -327,6 +333,15 @@ func ProjectMembershipReaderImpl(ctx context.Context) port.ProjectMembershipRead
 	}
 }
 
+// messagingSource returns the MESSAGING_SOURCE env var, defaulting to "nats".
+// Used by all messaging-backed provider functions to select their implementation.
+func messagingSource() string {
+	if s := os.Getenv("MESSAGING_SOURCE"); s != "" {
+		return s
+	}
+	return "nats"
+}
+
 // MemberPublisherImpl initialises and returns the port.MemberPublisher
 // implementation selected by the MESSAGING_SOURCE environment variable:
 //
@@ -336,12 +351,7 @@ func ProjectMembershipReaderImpl(ctx context.Context) port.ProjectMembershipRead
 // When MESSAGING_SOURCE=mock and GLOBAL_ORG_ADMIN_TEAM_UID is empty, the
 // service still starts successfully — useful for local development.
 func MemberPublisherImpl(ctx context.Context) port.MemberPublisher {
-	msgSource := os.Getenv("MESSAGING_SOURCE")
-	if msgSource == "" {
-		msgSource = "nats"
-	}
-
-	switch msgSource {
+	switch messagingSource() {
 	case "mock":
 		slog.InfoContext(ctx, "initialising mock member publisher")
 		return mock.NewMockMemberPublisher()
@@ -352,7 +362,7 @@ func MemberPublisherImpl(ctx context.Context) port.MemberPublisher {
 		return nats.NewMessagePublisher(natsClient)
 
 	default:
-		log.Fatalf("unsupported MESSAGING_SOURCE value: %q", msgSource)
+		log.Fatalf("unsupported MESSAGING_SOURCE value: %q", messagingSource())
 		return nil
 	}
 }
@@ -547,6 +557,50 @@ func KeyContactWriterUseCase(ctx context.Context) usecaseSvc.KeyContactWriter {
 	)
 }
 
+// InviteSenderImpl returns the port.InviteSender implementation selected by the
+// MESSAGING_SOURCE environment variable:
+//
+//   - "nats" (default) — NATS request/reply to the invite service.
+//   - "mock"           — No-op that always succeeds; for local development.
+func InviteSenderImpl(ctx context.Context) port.InviteSender {
+	switch messagingSource() {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock invite sender")
+		return mock.NewNoopInviteSender()
+
+	case "nats":
+		slog.InfoContext(ctx, "initialising NATS invite sender")
+		natsInit(ctx)
+		return nats.NewInviteSender(natsClient)
+
+	default:
+		log.Fatalf("unsupported MESSAGING_SOURCE value: %q", messagingSource())
+		return nil
+	}
+}
+
+// OrgRoleNotifierImpl returns the port.OrgRoleNotifier implementation selected
+// by the MESSAGING_SOURCE environment variable:
+//
+//   - "nats" (default) — NATS request/reply to the email service.
+//   - "mock"           — No-op that always succeeds; for local development.
+func OrgRoleNotifierImpl(ctx context.Context) port.OrgRoleNotifier {
+	switch messagingSource() {
+	case "mock":
+		slog.InfoContext(ctx, "initialising mock org role notifier")
+		return mock.NewNoopOrgRoleNotifier()
+
+	case "nats":
+		slog.InfoContext(ctx, "initialising NATS org role notifier")
+		natsInit(ctx)
+		return nats.NewOrgRoleNotifier(natsClient, os.Getenv("LFX_SELF_SERVE_BASE_URL"))
+
+	default:
+		log.Fatalf("unsupported MESSAGING_SOURCE value: %q", messagingSource())
+		return nil
+	}
+}
+
 // OrgSettingsWriterUseCase constructs the OrgSettingsWriter use-case orchestrator.
 func OrgSettingsWriterUseCase(ctx context.Context) usecaseSvc.OrgSettingsWriter {
 	return usecaseSvc.NewOrgSettingsWriter(
@@ -554,7 +608,57 @@ func OrgSettingsWriterUseCase(ctx context.Context) usecaseSvc.OrgSettingsWriter 
 		usecaseSvc.WithOrgSettingsWriter(B2BOrgSettingsWriterImpl(ctx)),
 		usecaseSvc.WithOrgSettingsB2BOrgReader(B2BOrgReaderImpl(ctx)),
 		usecaseSvc.WithOrgSettingsPublisher(MemberPublisherImpl(ctx)),
+		usecaseSvc.WithOrgSettingsUserReader(UserReaderImpl(ctx)),
+		usecaseSvc.WithOrgSettingsInviteSender(InviteSenderImpl(ctx)),
+		usecaseSvc.WithOrgSettingsRoleNotifier(OrgRoleNotifierImpl(ctx)),
+		usecaseSvc.WithOrgSettingsSelfServeBaseURL(os.Getenv("LFX_SELF_SERVE_BASE_URL")),
 	)
+}
+
+// InviteAcceptedServiceImpl constructs the InviteAcceptedService wired with all
+// production (or mock) dependencies. The returned service is used by runAPI to
+// handle lfx.invite-service.invite_accepted NATS events.
+func InviteAcceptedServiceImpl(ctx context.Context) *usecaseSvc.InviteAcceptedService {
+	return usecaseSvc.NewInviteAcceptedService(
+		usecaseSvc.WithInviteAcceptedSettingsReader(B2BOrgSettingsReaderImpl(ctx)),
+		usecaseSvc.WithInviteAcceptedOrgSettingsWriter(OrgSettingsWriterUseCase(ctx)),
+	)
+}
+
+// QueueSubscriptions registers all runAPI NATS subscriptions. It initialises
+// NATS, conditionally registers the project-id-map RPC handler (skipped in mock
+// mode), and always registers the invite_accepted handler. Drain callbacks are
+// collected in apiSubs; call DrainAPISubscriptions on shutdown.
+func QueueSubscriptions(ctx context.Context) error {
+	natsInit(ctx)
+
+	// project-id-map: only registered when a real resolver is wired (nil in mock mode).
+	if resolver := ProjectResolverImpl(ctx); resolver != nil {
+		sub, err := nats.SubscribeProjectIDMap(natsClient.Conn(), resolver)
+		if err != nil {
+			return fmt.Errorf("subscribe project-id-map: %w", err)
+		}
+		apiSubs = append(apiSubs, sub.Drain)
+	}
+
+	// invite_accepted: always registered; mock mode wires a no-op invite sender.
+	invSub, err := nats.SubscribeInviteAccepted(natsClient.Conn(), InviteAcceptedServiceImpl(ctx).Handle)
+	if err != nil {
+		return fmt.Errorf("subscribe invite_accepted: %w", err)
+	}
+	apiSubs = append(apiSubs, invSub.Drain)
+
+	return nil
+}
+
+// DrainAPISubscriptions drains all NATS subscriptions registered by QueueSubscriptions.
+// Errors are logged and not returned — shutdown should proceed regardless.
+func DrainAPISubscriptions(ctx context.Context) {
+	for _, drain := range apiSubs {
+		if err := drain(); err != nil {
+			slog.WarnContext(ctx, "error draining NATS subscription", "error", err)
+		}
+	}
 }
 
 // B2BOrgResolverImpl returns a B2BOrgResolver that translates Salesforce Account

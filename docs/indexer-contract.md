@@ -252,7 +252,7 @@ This document is the authoritative reference for all data the member service sen
 
 **Source struct:** `internal/service/messaging.go` — `b2bOrgSettingsIndexerView` (adapter view; canonical state is `model.B2BOrgSettings` in the `org-settings` KV bucket)
 
-**Trigger:** `PUT /b2b_orgs/{uid}/settings` (online path) or `POST /admin/reindex` with `types=["b2b_org_settings"]` (backfill). The doc exists only when writers/auditors have been explicitly configured via PUT.
+**Trigger:** Any write that mutates org settings — `PUT /b2b_orgs/{uid}/settings`, `POST/PUT/DELETE /b2b_orgs/{uid}/settings/users`, or `invite_accepted` promotion — or `POST /admin/reindex` with `types=["b2b_org_settings"]` (backfill). The doc exists only when at least one principal has been written.
 
 **Action mapping:** `ActionCreated` on first write (when no prior KV record exists); `ActionUpdated` on all subsequent writes.
 

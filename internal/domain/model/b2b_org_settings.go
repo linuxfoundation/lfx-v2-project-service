@@ -22,6 +22,18 @@ const (
 	InviteStatusExpired InviteStatus = "expired"
 )
 
+// B2BOrgRole is the relation a B2BOrgUser entry grants (the InvitedAs value).
+// A type alias (= string) is used so callers can assign literals without casting:
+// InvitedAs is a plain string field and all comparison sites use untyped constants.
+type B2BOrgRole = string
+
+const (
+	// B2BOrgRoleWriter is the relation for org administrators.
+	B2BOrgRoleWriter B2BOrgRole = "writer"
+	// B2BOrgRoleAuditor is the relation for read-only principals.
+	B2BOrgRoleAuditor B2BOrgRole = "auditor"
+)
+
 // B2BOrgUser is a member of a b2b_org settings list (writers or auditors).
 // Invite fields extend the base principal to support pre-LFID invitations.
 //
@@ -223,4 +235,24 @@ func activeUsernames(users []B2BOrgUser) []string {
 		}
 	}
 	return out
+}
+
+// FindByInviteUUID searches all writers and auditors in s for an entry whose
+// InviteUUID matches uid. Returns the index within its list, which list it is
+// in ("writer" or "auditor"), and whether it was found.
+func FindByInviteUUID(s *B2BOrgSettings, uid string) (idx int, list string, found bool) {
+	if s == nil || uid == "" {
+		return 0, "", false
+	}
+	for i, u := range s.Writers {
+		if u.InviteUUID == uid {
+			return i, B2BOrgRoleWriter, true
+		}
+	}
+	for i, u := range s.Auditors {
+		if u.InviteUUID == uid {
+			return i, B2BOrgRoleAuditor, true
+		}
+	}
+	return 0, "", false
 }

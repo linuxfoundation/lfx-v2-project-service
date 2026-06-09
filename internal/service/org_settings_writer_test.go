@@ -11,7 +11,9 @@ import (
 
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
@@ -400,4 +402,322 @@ func (r *seedB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg
 
 func (r *seedB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ string) ([]string, error) {
 	return nil, nil
+}
+
+// ── AddPrincipal (invite flow) ─────────────────────────────────────────────
+
+// stubInviteSender is a controllable stub for port.InviteSender.
+type stubInviteSender struct {
+	result port.InviteResult
+	err    error
+	calls  []inviteapi.SendInviteRequest
+}
+
+func (s *stubInviteSender) SendInvite(_ context.Context, req inviteapi.SendInviteRequest) (port.InviteResult, error) {
+	s.calls = append(s.calls, req)
+	return s.result, s.err
+}
+
+func TestOrgSettingsWriter_AddPrincipal_LFIDFound_AcceptsImmediately(t *testing.T) {
+	// When SubByEmail returns a sub, the entry should be InviteStatusAccepted with no invite sent.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	sender := &stubInviteSender{result: port.InviteResult{InviteUID: "unused"}}
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "auth0|bob", nil
+	})
+
+	writer := newOrgSettingsWriterWithNotifier(store, &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(), userReader, sender, nil)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "bob@example.com", InvitedAs: "writer",
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Writers, 1)
+	w := result.Writers[0]
+	assert.Equal(t, "auth0|bob", w.Username, "LFID sub must be stamped immediately")
+	assert.Equal(t, model.InviteStatusAccepted, w.InviteStatus)
+	assert.NotNil(t, w.AcceptedAt)
+	assert.Empty(t, w.InviteUUID, "no invite UUID when LFID found")
+	assert.Empty(t, sender.calls, "invite service must not be called when LFID is found")
+}
+
+func TestOrgSettingsWriter_AddPrincipal_NoLFID_SendsInvite(t *testing.T) {
+	// When SubByEmail returns empty, invite service is called and entry is pending.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	sender := &stubInviteSender{result: port.InviteResult{InviteUID: "invite-uuid-123"}}
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "", nil
+	})
+
+	writer := newOrgSettingsWriterWithNotifier(store, &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(), userReader, sender, nil)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor",
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Auditors, 1)
+	a := result.Auditors[0]
+	assert.Equal(t, model.InviteStatusPending, a.InviteStatus)
+	assert.Empty(t, a.Username, "no username until invite accepted")
+	assert.Equal(t, "invite-uuid-123", a.InviteUUID, "InviteUUID must be set from invite service response")
+	require.Len(t, sender.calls, 1, "invite service must be called once")
+	assert.Equal(t, "carol@example.com", sender.calls[0].Recipient.Email)
+}
+
+func TestOrgSettingsWriter_AddPrincipal_PendingResendInPlace(t *testing.T) {
+	// An existing pending entry for the same email and same role must be refreshed in-place
+	// (InviteUUID updated, CreatedAt preserved) rather than returning Conflict.
+	now := time.Now().UTC().Add(-time.Hour)
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{{
+			Email:        "dave@example.com",
+			InvitedAs:    "writer",
+			InviteStatus: model.InviteStatusPending,
+			InviteUUID:   "old-uuid",
+			CreatedAt:    now,
+			UpdatedAt:    now,
+		}},
+	}, 1)
+
+	sender := &stubInviteSender{result: port.InviteResult{InviteUID: "new-uuid"}}
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) { return "", nil })
+
+	writer := newOrgSettingsWriterWithNotifier(store, &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(), userReader, sender, nil)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "dave@example.com", InvitedAs: "writer",
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Writers, 1, "must not create a duplicate entry")
+	w := result.Writers[0]
+	assert.Equal(t, "new-uuid", w.InviteUUID, "InviteUUID must be refreshed")
+	assert.Equal(t, now.UTC().Truncate(time.Second), w.CreatedAt.UTC().Truncate(time.Second),
+		"CreatedAt must be preserved from the original entry")
+	require.Len(t, sender.calls, 1, "invite must be re-sent")
+}
+
+func TestOrgSettingsWriter_AddPrincipal_PendingDifferentRole_ReturnsConflict(t *testing.T) {
+	// An existing pending entry for the same email but a different role must return Conflict.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{{
+			Email:        "eve@example.com",
+			InvitedAs:    "writer",
+			InviteStatus: model.InviteStatusPending,
+		}},
+	}, 1)
+
+	sender := &stubInviteSender{}
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) { return "", nil })
+
+	writer := newOrgSettingsWriterWithNotifier(store, &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(), userReader, sender, nil)
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "eve@example.com", InvitedAs: "auditor",
+	})
+
+	require.Error(t, err)
+	assert.True(t, pkgerrors.IsConflict(err), "pending entry with different role must return Conflict, got: %v", err)
+	assert.Empty(t, sender.calls, "invite service must not be called on conflict")
+}
+
+func TestOrgSettingsWriter_AddPrincipal_InviteSendFails_EntryStillPersisted(t *testing.T) {
+	// Invite send failure must not block the entry from being persisted (best-effort).
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	sender := &stubInviteSender{err: errors.New("invite service unavailable")}
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) { return "", nil })
+
+	writer := newOrgSettingsWriterWithNotifier(store, &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(), userReader, sender, nil)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "frank@example.com", InvitedAs: "writer",
+	})
+
+	require.NoError(t, err, "invite send failure must not propagate to caller")
+	require.Len(t, result.Writers, 1, "entry must still be persisted")
+	assert.Equal(t, model.InviteStatusPending, result.Writers[0].InviteStatus)
+	assert.Empty(t, result.Writers[0].InviteUUID, "InviteUUID is empty when send failed")
+}
+
+// ── AddPrincipal (role-assignment notification) ────────────────────────────
+
+// capturingRoleNotifier records all NotifyRoleAssigned calls for assertions.
+type capturingRoleNotifier struct {
+	calls []port.OrgRoleAssignedNotification
+	err   error
+}
+
+func (n *capturingRoleNotifier) NotifyRoleAssigned(_ context.Context, notif port.OrgRoleAssignedNotification) error {
+	n.calls = append(n.calls, notif)
+	return n.err
+}
+
+func newOrgSettingsWriterWithNotifier(
+	store *mock.MockB2BOrgSettings,
+	orgReader port.B2BOrgReader,
+	pub *mock.MockMemberPublisher,
+	userReader port.UserReader,
+	inviteSender port.InviteSender,
+	notifier port.OrgRoleNotifier,
+) svc.OrgSettingsWriter {
+	return svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(orgReader),
+		svc.WithOrgSettingsPublisher(pub),
+		svc.WithOrgSettingsUserReader(userReader),
+		svc.WithOrgSettingsInviteSender(inviteSender),
+		svc.WithOrgSettingsRoleNotifier(notifier),
+	)
+}
+
+func TestOrgSettingsWriter_AddPrincipal_LFIDFound_NotifiesRoleAssigned(t *testing.T) {
+	// On the existing-LFID path, NotifyRoleAssigned must be called once with the
+	// correct email, orgName, and role after a successful write.
+	store := mock.NewMockB2BOrgSettings()
+	const orgName = "Acme Corp"
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "auth0|bob", nil
+	})
+	notifier := &capturingRoleNotifier{}
+
+	writer := newOrgSettingsWriterWithNotifier(
+		store,
+		&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID, Name: orgName}},
+		mock.NewMockMemberPublisher(),
+		userReader,
+		&stubInviteSender{},
+		notifier,
+	)
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "bob@example.com", InvitedAs: model.B2BOrgRoleWriter,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, notifier.calls, 1, "NotifyRoleAssigned must be called exactly once")
+	got := notifier.calls[0]
+	assert.Equal(t, "bob@example.com", got.RecipientEmail)
+	assert.Equal(t, orgName, got.OrgName)
+	assert.Equal(t, model.B2BOrgRoleWriter, got.Role)
+}
+
+func TestOrgSettingsWriter_AddPrincipal_NoLFID_DoesNotNotify(t *testing.T) {
+	// On the no-LFID path, NotifyRoleAssigned must NOT be called (invite is sent instead).
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "", nil // no LFID
+	})
+	notifier := &capturingRoleNotifier{}
+
+	writer := newOrgSettingsWriterWithNotifier(
+		store,
+		&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(),
+		userReader,
+		&stubInviteSender{result: port.InviteResult{InviteUID: "inv-1"}},
+		notifier,
+	)
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: model.B2BOrgRoleAuditor,
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, notifier.calls, "NotifyRoleAssigned must not be called when no LFID")
+}
+
+func TestOrgSettingsWriter_AddPrincipal_NotifyFails_WriteStillSucceeds(t *testing.T) {
+	// A notification failure must not propagate to the caller — email is best-effort.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "auth0|dan", nil
+	})
+	notifier := &capturingRoleNotifier{err: errors.New("email service down")}
+
+	writer := newOrgSettingsWriterWithNotifier(
+		store,
+		&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(),
+		userReader,
+		&stubInviteSender{},
+		notifier,
+	)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "dan@example.com", InvitedAs: model.B2BOrgRoleWriter,
+	})
+
+	require.NoError(t, err, "notification failure must not propagate to caller")
+	require.Len(t, result.Writers, 1, "entry must still be persisted")
+	assert.Equal(t, model.InviteStatusAccepted, result.Writers[0].InviteStatus)
+}
+
+// countingOrgReader wraps seedB2BOrgReader and records how many times GetB2BOrg
+// was called. Used to verify that AddPrincipal does not issue redundant fetches.
+type countingOrgReader struct {
+	inner *seedB2BOrgReader
+	calls int
+}
+
+func (r *countingOrgReader) GetB2BOrg(ctx context.Context, uid string) (*model.B2BOrg, error) {
+	r.calls++
+	return r.inner.GetB2BOrg(ctx, uid)
+}
+
+func (r *countingOrgReader) FetchChildUIDsByParentUID(ctx context.Context, uid string) ([]string, error) {
+	return r.inner.FetchChildUIDsByParentUID(ctx, uid)
+}
+
+func TestOrgSettingsWriter_AddPrincipal_FirstPrincipal_SingleOrgFetch(t *testing.T) {
+	// On the first-principal + existing-LFID path (existing == nil), GetB2BOrg must
+	// be called exactly twice: once for the existence guard, once by publishAll.
+	// Before this optimisation it was three calls (guard + publishAll + fetchOrgName
+	// for the notification). The guard result is now passed directly to notifyRoleAssigned
+	// so fetchOrgName is not invoked a third time.
+	store := mock.NewMockB2BOrgSettings() // no seed → existing == nil
+	const orgName = "First Org"
+
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "auth0|eve", nil
+	})
+	notifier := &capturingRoleNotifier{}
+	orgReader := &countingOrgReader{inner: &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID, Name: orgName}}}
+
+	writer := newOrgSettingsWriterWithNotifier(
+		store, orgReader, mock.NewMockMemberPublisher(),
+		userReader, &stubInviteSender{}, notifier,
+	)
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "eve@example.com", InvitedAs: model.B2BOrgRoleWriter,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 2, orgReader.calls, "GetB2BOrg must be called exactly twice (guard + publishAll); notify reuses the guard result")
+	require.Len(t, notifier.calls, 1)
+	assert.Equal(t, orgName, notifier.calls[0].OrgName, "org name must come from the guard fetch, not a third read")
 }

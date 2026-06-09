@@ -12,6 +12,7 @@ import (
 	"time"
 
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
@@ -71,10 +72,14 @@ type B2BOrgSettingsRemovePrincipal struct {
 }
 
 type orgSettingsWriterOrchestrator struct {
-	settingsReader port.B2BOrgSettingsReader
-	settingsWriter port.B2BOrgSettingsWriter
-	b2bOrgReader   port.B2BOrgReader
-	publisher      port.MemberPublisher
+	settingsReader      port.B2BOrgSettingsReader
+	settingsWriter      port.B2BOrgSettingsWriter
+	b2bOrgReader        port.B2BOrgReader
+	publisher           port.MemberPublisher
+	userReader          port.UserReader
+	inviteSender        port.InviteSender
+	roleNotifier        port.OrgRoleNotifier
+	lfxSelfServeBaseURL string
 }
 
 // OrgSettingsWriterOption configures an orgSettingsWriterOrchestrator.
@@ -94,6 +99,22 @@ func WithOrgSettingsB2BOrgReader(r port.B2BOrgReader) OrgSettingsWriterOption {
 
 func WithOrgSettingsPublisher(p port.MemberPublisher) OrgSettingsWriterOption {
 	return func(o *orgSettingsWriterOrchestrator) { o.publisher = p }
+}
+
+func WithOrgSettingsUserReader(r port.UserReader) OrgSettingsWriterOption {
+	return func(o *orgSettingsWriterOrchestrator) { o.userReader = r }
+}
+
+func WithOrgSettingsInviteSender(s port.InviteSender) OrgSettingsWriterOption {
+	return func(o *orgSettingsWriterOrchestrator) { o.inviteSender = s }
+}
+
+func WithOrgSettingsRoleNotifier(n port.OrgRoleNotifier) OrgSettingsWriterOption {
+	return func(o *orgSettingsWriterOrchestrator) { o.roleNotifier = n }
+}
+
+func WithOrgSettingsSelfServeBaseURL(u string) OrgSettingsWriterOption {
+	return func(o *orgSettingsWriterOrchestrator) { o.lfxSelfServeBaseURL = u }
 }
 
 // NewOrgSettingsWriter constructs an OrgSettingsWriter.
@@ -164,6 +185,9 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 		return nil, err
 	}
 
+	// Sync the secondary invite index after a successful write.
+	o.reconcileInviteIndex(ctx, in.OrgUID, existing, updated)
+
 	// Fetch org once; share across both publish helpers.
 	action := indexerConstants.ActionUpdated
 	if existing == nil {
@@ -182,7 +206,7 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	if email == "" {
 		return nil, pkgerrors.NewValidation("email is required")
 	}
-	if in.InvitedAs != "writer" && in.InvitedAs != "auditor" {
+	if in.InvitedAs != model.B2BOrgRoleWriter && in.InvitedAs != model.B2BOrgRoleAuditor {
 		return nil, pkgerrors.NewValidation("invited_as must be writer or auditor")
 	}
 
@@ -198,9 +222,16 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	// actually exists first so we never create an orphan settings record for a nonexistent
 	// org (and so the advertised NotFound is reachable). Skipped once settings exist (the org
 	// was validated at creation) and when no org reader is wired (e.g. minimal local setups).
+	// guardOrgName captures the name from this fetch so notifyRoleAssigned can reuse it on
+	// the first-principal path instead of issuing a second GetB2BOrg round-trip.
+	var guardOrgName string
 	if existing == nil && o.b2bOrgReader != nil {
-		if _, orgErr := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID); orgErr != nil {
+		org, orgErr := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID)
+		if orgErr != nil {
 			return nil, orgErr
+		}
+		if org != nil {
+			guardOrgName = org.Name
 		}
 	}
 
@@ -214,6 +245,15 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	// delete that active grant while re-inviting a separate revoked one.
 	cleanupRan := false
 	if matches := findPrincipalsByEmail(updated, email); len(matches) > 0 {
+		// Resend-in-place: the only live match is a pending entry for the same role.
+		// Instead of Conflict, re-send the invite and refresh the existing entry.
+		if existing != nil {
+			if resent, ok := o.tryResendInPlace(ctx, in.OrgUID, in.InvitedAs, email, matches, updated, now); ok {
+				// No bounds check needed: resend updates an existing entry in-place and never appends.
+				return o.persistAndPublish(ctx, in.OrgUID, existing, resent, revision, now,
+					in.InvitedAs == model.B2BOrgRoleWriter, in.InvitedAs == model.B2BOrgRoleAuditor)
+			}
+		}
 		for _, m := range matches {
 			status := m.EffectiveStatus()
 			if status != model.InviteStatusRevoked && status != model.InviteStatusExpired {
@@ -227,15 +267,32 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	}
 
 	entry := model.B2BOrgUser{
-		Email:        email,
-		Name:         strings.TrimSpace(in.Name),
-		InvitedAs:    in.InvitedAs,
-		InviteStatus: model.InviteStatusPending,
-		InvitedAt:    &now,
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		Email:     email,
+		Name:      strings.TrimSpace(in.Name),
+		InvitedAs: in.InvitedAs,
+		InvitedAt: &now,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
-	if in.InvitedAs == "writer" {
+
+	// Branch on LFID lookup. If userReader is wired, check whether the email
+	// already has an LFID; if so, add them as accepted immediately (no invite needed).
+	// Errors from SubByEmail are treated as "no LFID" so a transient auth-service
+	// outage falls back to the pending-invite path rather than blocking the caller.
+	var sub string
+	if o.userReader != nil {
+		sub, _ = o.userReader.SubByEmail(ctx, email)
+	}
+	if sub != "" {
+		entry.Username = sub
+		entry.InviteStatus = model.InviteStatusAccepted
+		entry.AcceptedAt = &now
+	} else {
+		entry.InviteStatus = model.InviteStatusPending
+		entry.InviteUUID = o.sendOrgInvite(ctx, in.OrgUID, email, entry.Name, in.InvitedAs)
+	}
+
+	if in.InvitedAs == model.B2BOrgRoleWriter {
 		updated.Writers = append(updated.Writers, entry)
 	} else {
 		updated.Auditors = append(updated.Auditors, entry)
@@ -244,14 +301,20 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	// Bound slice length to prevent unbounded NATS KV value growth (parity with Update).
 	// Only the relation being appended to is checked: an add to one list must not be
 	// blocked by legacy over-cap data sitting in the untouched list.
-	if (in.InvitedAs == "writer" && len(updated.Writers) > maxPrincipals) ||
-		(in.InvitedAs == "auditor" && len(updated.Auditors) > maxPrincipals) {
+	if (in.InvitedAs == model.B2BOrgRoleWriter && len(updated.Writers) > maxPrincipals) ||
+		(in.InvitedAs == model.B2BOrgRoleAuditor && len(updated.Auditors) > maxPrincipals) {
 		return nil, pkgerrors.NewValidation(fmt.Sprintf("writers and auditors lists must not exceed %d entries each", maxPrincipals))
 	}
 
 	// Only the target relation changed (plus the other one if a revoked-entry cleanup ran).
-	return o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now,
-		in.InvitedAs == "writer" || cleanupRan, in.InvitedAs == "auditor" || cleanupRan)
+	res, err := o.persistAndPublish(ctx, in.OrgUID, existing, updated, revision, now,
+		in.InvitedAs == model.B2BOrgRoleWriter || cleanupRan, in.InvitedAs == model.B2BOrgRoleAuditor || cleanupRan)
+	// On the existing-LFID path, send a role-assignment notification email
+	// best-effort — a transient email failure must never block the caller.
+	if err == nil && sub != "" {
+		o.notifyRoleAssigned(ctx, email, in.InvitedAs, in.OrgUID, guardOrgName)
+	}
+	return res, err
 }
 
 // ChangePrincipalRole moves one principal between writers and auditors, preserving
@@ -261,7 +324,7 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 	if email == "" {
 		return nil, pkgerrors.NewValidation("email is required")
 	}
-	if in.InvitedAs != "writer" && in.InvitedAs != "auditor" {
+	if in.InvitedAs != model.B2BOrgRoleWriter && in.InvitedAs != model.B2BOrgRoleAuditor {
 		return nil, pkgerrors.NewValidation("invited_as must be writer or auditor")
 	}
 
@@ -298,7 +361,7 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 	moved.UpdatedAt = now
 	updated.Writers = removePrincipalByEmail(updated.Writers, email)
 	updated.Auditors = removePrincipalByEmail(updated.Auditors, email)
-	if in.InvitedAs == "writer" {
+	if in.InvitedAs == model.B2BOrgRoleWriter {
 		updated.Writers = append(updated.Writers, moved)
 	} else {
 		updated.Auditors = append(updated.Auditors, moved)
@@ -306,8 +369,8 @@ func (o *orgSettingsWriterOrchestrator) ChangePrincipalRole(ctx context.Context,
 
 	// Bound the destination relation (parity with Update/AddPrincipal): a role move grows the
 	// target list by one, so repeated moves must not push it past the per-list cap.
-	if (in.InvitedAs == "writer" && len(updated.Writers) > maxPrincipals) ||
-		(in.InvitedAs == "auditor" && len(updated.Auditors) > maxPrincipals) {
+	if (in.InvitedAs == model.B2BOrgRoleWriter && len(updated.Writers) > maxPrincipals) ||
+		(in.InvitedAs == model.B2BOrgRoleAuditor && len(updated.Auditors) > maxPrincipals) {
 		return nil, pkgerrors.NewValidation(fmt.Sprintf("writers and auditors lists must not exceed %d entries each", maxPrincipals))
 	}
 
@@ -380,6 +443,10 @@ func (o *orgSettingsWriterOrchestrator) persistAndPublish(
 	if err := o.settingsWriter.UpdateSettings(ctx, updated, revision); err != nil {
 		return nil, err
 	}
+
+	// Sync the secondary invite index after a successful write.
+	o.reconcileInviteIndex(ctx, orgUID, existing, updated)
+
 	action := indexerConstants.ActionUpdated
 	if existing == nil {
 		action = indexerConstants.ActionCreated
@@ -594,4 +661,190 @@ func fgaUsernames(input []model.B2BOrgUser, active []string) []string {
 		return []string{} // non-nil empty: signal "replace with nothing"
 	}
 	return active
+}
+
+// tryResendInPlace checks whether the only live match is a pending entry for the
+// same role. If so it re-sends the invite and updates that entry in-place (refreshing
+// InvitedAt, UpdatedAt, InviteUUID) without changing any other field. Returns (updated,
+// true) on the resend path; (nil, false) otherwise so the caller falls through to the
+// normal conflict / cleanup path.
+func (o *orgSettingsWriterOrchestrator) tryResendInPlace(
+	ctx context.Context,
+	orgUID, invitedAs, email string,
+	matches []model.B2BOrgUser,
+	updated *model.B2BOrgSettings,
+	now time.Time,
+) (*model.B2BOrgSettings, bool) {
+	// Collect live (non-revoked, non-expired) matches.
+	var live []model.B2BOrgUser
+	for _, m := range matches {
+		s := m.EffectiveStatus()
+		if s != model.InviteStatusRevoked && s != model.InviteStatusExpired {
+			live = append(live, m)
+		}
+	}
+	// Resend only when the single live match is pending with the same role.
+	if len(live) != 1 || live[0].EffectiveStatus() != model.InviteStatusPending || live[0].InvitedAs != invitedAs {
+		return nil, false
+	}
+	// Re-send best-effort (errors are logged and ignored).
+	inviteUID := o.sendOrgInvite(ctx, orgUID, email, live[0].Name, invitedAs)
+	// Update in-place: only the list that holds the match needs refreshing.
+	if invitedAs == model.B2BOrgRoleWriter {
+		updated.Writers = refreshPendingEntry(updated.Writers, email, inviteUID, now)
+	} else {
+		updated.Auditors = refreshPendingEntry(updated.Auditors, email, inviteUID, now)
+	}
+	return updated, true
+}
+
+// sendOrgInvite calls the invite service and returns the invite UID (empty on error).
+// Errors are logged and swallowed — invite sending is best-effort.
+func (o *orgSettingsWriterOrchestrator) sendOrgInvite(
+	ctx context.Context,
+	orgUID, email, name, invitedAs string,
+) string {
+	if o.inviteSender == nil {
+		return ""
+	}
+	role := string(inviteapi.InviteRoleManage)
+	if invitedAs == model.B2BOrgRoleAuditor {
+		role = string(inviteapi.InviteRoleView)
+	}
+	orgName := o.fetchOrgName(ctx, orgUID)
+	req := inviteapi.SendInviteRequest{
+		Recipient: &inviteapi.Recipient{Email: email, Name: name},
+		Inviter:   &inviteapi.Inviter{Name: "An organization administrator"},
+		Resource:  &inviteapi.Resource{UID: orgUID, Type: "b2b_org", Name: orgName},
+		Role:      role,
+		OrgName:   orgName,
+		ReturnURL: o.lfxSelfServeBaseURL,
+	}
+	result, err := o.inviteSender.SendInvite(ctx, req)
+	if err != nil {
+		slog.WarnContext(ctx, "org settings invite send failed (best-effort, entry still persisted)",
+			"org_uid", orgUID, "email", email, "error", err)
+		return ""
+	}
+	return result.InviteUID
+}
+
+// fetchOrgName returns the org display name for orgUID, or "" on any error.
+// Both sendOrgInvite and notifyRoleAssigned use this for best-effort template data.
+func (o *orgSettingsWriterOrchestrator) fetchOrgName(ctx context.Context, orgUID string) string {
+	if o.b2bOrgReader == nil {
+		return ""
+	}
+	if org, err := o.b2bOrgReader.GetB2BOrg(ctx, orgUID); err == nil && org != nil {
+		return org.Name
+	}
+	return ""
+}
+
+// notifyRoleAssigned sends a role-assignment notification email best-effort.
+// Errors are logged and swallowed so a transient email-service outage never
+// blocks the primary write. Only called on the existing-LFID path.
+// orgName may be pre-resolved by the caller (e.g. from an earlier GetB2BOrg
+// guard fetch); when empty, fetchOrgName is called to avoid returning a blank
+// org name in the email body without adding a redundant round-trip.
+func (o *orgSettingsWriterOrchestrator) notifyRoleAssigned(ctx context.Context, email, role, orgUID, orgName string) {
+	if o.roleNotifier == nil {
+		return
+	}
+	if orgName == "" {
+		orgName = o.fetchOrgName(ctx, orgUID)
+	}
+	if err := o.roleNotifier.NotifyRoleAssigned(ctx, port.OrgRoleAssignedNotification{
+		RecipientEmail: email,
+		OrgName:        orgName,
+		Role:           role,
+	}); err != nil {
+		slog.WarnContext(ctx, "role-assignment email failed (best-effort, grant still persisted)",
+			"org_uid", orgUID, "email", email, "role", role, "error", err)
+	}
+}
+
+// refreshPendingEntry finds the first pending entry matching email in the slice and
+// refreshes its InviteUUID, InvitedAt and UpdatedAt. All other fields are preserved.
+func refreshPendingEntry(users []model.B2BOrgUser, email, inviteUID string, now time.Time) []model.B2BOrgUser {
+	for i, u := range users {
+		if normalizeSettingsEmail(u.Email) == email && u.EffectiveStatus() == model.InviteStatusPending {
+			users[i].InviteUUID = inviteUID
+			users[i].InvitedAt = &now
+			users[i].UpdatedAt = now
+			return users
+		}
+	}
+	return users
+}
+
+// hasPendingInvite reports whether s has at least one pending entry with a non-empty
+// InviteUUID. Used as a cheap short-circuit before building the full UUID sets.
+func hasPendingInvite(s *model.B2BOrgSettings) bool {
+	if s == nil {
+		return false
+	}
+	for _, list := range [][]model.B2BOrgUser{s.Writers, s.Auditors} {
+		for _, u := range list {
+			if u.EffectiveStatus() == model.InviteStatusPending && u.InviteUUID != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// pendingInviteUUIDs returns the set of InviteUUIDs held by pending entries across
+// writers and auditors. Only non-empty UUIDs (entries that went through the invite
+// flow) are included; entries without a UUID (admin backfills, immediately-accepted
+// adds) are skipped because there is no index key to manage for them.
+func pendingInviteUUIDs(s *model.B2BOrgSettings) map[string]struct{} {
+	if s == nil {
+		return nil
+	}
+	out := make(map[string]struct{})
+	for _, list := range [][]model.B2BOrgUser{s.Writers, s.Auditors} {
+		for _, u := range list {
+			if u.EffectiveStatus() == model.InviteStatusPending && u.InviteUUID != "" {
+				out[u.InviteUUID] = struct{}{}
+			}
+		}
+	}
+	return out
+}
+
+// reconcileInviteIndex diffs the pending InviteUUIDs in existing vs updated and
+// syncs the secondary index: new UUIDs get a Put, removed UUIDs get a Delete.
+// This single chokepoint handles every lifecycle transition (invite / resend /
+// accept / remove / revoke-cleanup) without scattering index calls across mutation
+// paths. Best-effort: errors are logged and never block the caller.
+func (o *orgSettingsWriterOrchestrator) reconcileInviteIndex(ctx context.Context, orgUID string, existing, updated *model.B2BOrgSettings) {
+	if o.settingsWriter == nil {
+		return
+	}
+	// Fast-exit: no pending invites on either side means no index keys to add or remove.
+	if !hasPendingInvite(existing) && !hasPendingInvite(updated) {
+		return
+	}
+	old := pendingInviteUUIDs(existing)
+	cur := pendingInviteUUIDs(updated)
+
+	// New UUIDs (new invite or resend with fresh UUID) → Put.
+	for uid := range cur {
+		if _, wasPresent := old[uid]; !wasPresent {
+			if err := o.settingsWriter.PutInviteIndex(ctx, uid, orgUID); err != nil {
+				slog.WarnContext(ctx, "invite index: put failed (best-effort)",
+					"invite_uuid", uid, "org_uid", orgUID, "error", err)
+			}
+		}
+	}
+	// Removed UUIDs (accept clears UUID, resend replaces UUID, remove/revoke drops entry) → Delete.
+	for uid := range old {
+		if _, stillPresent := cur[uid]; !stillPresent {
+			if err := o.settingsWriter.DeleteInviteIndex(ctx, uid); err != nil {
+				slog.WarnContext(ctx, "invite index: delete failed (best-effort)",
+					"invite_uuid", uid, "org_uid", orgUID, "error", err)
+			}
+		}
+	}
 }

@@ -17,4 +17,12 @@ type B2BOrgSettingsWriter interface {
 	// when revision == 0, uses an exclusive create (fails with Conflict if a
 	// concurrent first-write already landed). Returns Conflict on any revision mismatch.
 	UpdateSettings(ctx context.Context, settings *model.B2BOrgSettings, revision uint64) error
+
+	// PutInviteIndex writes (or overwrites) the InviteUUID→orgUID secondary-index entry.
+	// Best-effort: callers log and continue on error.
+	PutInviteIndex(ctx context.Context, inviteUUID, orgUID string) error
+
+	// DeleteInviteIndex removes the InviteUUID→orgUID secondary-index entry.
+	// Not-found is tolerated (idempotent). Best-effort: callers log and continue on error.
+	DeleteInviteIndex(ctx context.Context, inviteUUID string) error
 }
