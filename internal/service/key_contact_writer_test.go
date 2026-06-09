@@ -11,6 +11,7 @@ import (
 	"time"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
@@ -52,6 +53,23 @@ func (p *trackingPublisher) calls() []string {
 	out := make([]string, len(p.log))
 	copy(out, p.log)
 	return out
+}
+
+// accessPayloadPublisher records FGA Access payloads for username assertions.
+type accessPayloadPublisher struct {
+	trackingPublisher
+	accessMsgs []any
+}
+
+func (p *accessPayloadPublisher) Access(_ context.Context, subject string, msg any, _ bool) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.log = append(p.log, "access:"+subject)
+	if strings.Contains(subject, fgaconstants.GenericMemberRemoveSubject) ||
+		strings.Contains(subject, fgaconstants.GenericMemberPutSubject) {
+		p.accessMsgs = append(p.accessMsgs, msg)
+	}
+	return nil
 }
 
 // errorPublisher returns an error from Access (FGA remove) to test error propagation.
@@ -299,6 +317,33 @@ func TestKeyContactWriter_Update_IfMatch_Mismatch_PreconditionFailed(t *testing.
 }
 
 // ── Delete tests ──────────────────────────────────────────────────────────
+
+func TestKeyContactWriter_Delete_LegacyAuth0Username_ResolvesToLFID(t *testing.T) {
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID,
+		Email: "alice@example.com", Username: "auth0|alice",
+	}
+	storage := newSeededStorage(kc)
+	pub := &accessPayloadPublisher{}
+
+	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, email string) (string, error) {
+		if strings.EqualFold(email, "alice@example.com") {
+			return "alice", nil
+		}
+		return "", nil
+	}))
+
+	in := svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID}
+	err := w.Delete(context.Background(), in)
+
+	require.NoError(t, err)
+	require.Len(t, pub.accessMsgs, 1)
+	msg, ok := pub.accessMsgs[0].(fgatypes.GenericFGAMessage)
+	require.True(t, ok)
+	data, ok := msg.Data.(fgatypes.GenericMemberData)
+	require.True(t, ok)
+	assert.Equal(t, "alice", data.Username)
+}
 
 func TestKeyContactWriter_Delete_OrderingInvariant_DeleteThenIndexerThenFGARemove(t *testing.T) {
 	kc := &model.KeyContact{

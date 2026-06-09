@@ -267,20 +267,26 @@ func (o *keyContactWriterOrchestrator) Delete(ctx context.Context, in KeyContact
 	return nil
 }
 
+const legacyAuth0UsernamePrefix = "auth0|"
+
 func (o *keyContactWriterOrchestrator) resolveUsernameForContact(ctx context.Context, currentUsername, email string) string {
-	if currentUsername != "" {
+	if currentUsername != "" && !strings.HasPrefix(currentUsername, legacyAuth0UsernamePrefix) {
 		return currentUsername
 	}
-	if email == "" {
-		return ""
+	if email != "" {
+		username, err := o.userReader.UsernameByEmail(ctx, email)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to resolve LFID username for key contact FGA",
+				"email", email, "error", err)
+		} else if username != "" {
+			return username
+		}
 	}
-	username, err := o.userReader.UsernameByEmail(ctx, email)
-	if err != nil {
-		slog.WarnContext(ctx, "failed to resolve LFID username for key contact FGA",
-			"email", email, "error", err)
-		return ""
+	// Fallback when lookup is unavailable: strip the legacy auth0| prefix from safe-slug identifiers.
+	if strings.HasPrefix(currentUsername, legacyAuth0UsernamePrefix) {
+		return strings.TrimPrefix(currentUsername, legacyAuth0UsernamePrefix)
 	}
-	return username
+	return ""
 }
 
 func (o *keyContactWriterOrchestrator) publishFGAPut(ctx context.Context, membershipUID, username string) {

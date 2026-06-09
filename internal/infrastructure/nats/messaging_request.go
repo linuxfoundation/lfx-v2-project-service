@@ -29,12 +29,12 @@ func NewUserReader(client *NATSClient) port.UserReader {
 func (u *userReader) UsernameByEmail(ctx context.Context, email string) (string, error) {
 	msg, err := u.client.Conn().RequestWithContext(ctx, constants.AuthEmailToUsernameLookupSubject, []byte(email))
 	if err != nil {
-		return "", errors.NewNotFound(fmt.Sprintf("user username not found for email: %s", email), err)
+		return "", errors.NewNotFound(fmt.Sprintf("username not found for email: %s", email), err)
 	}
 
 	body := strings.TrimSpace(string(msg.Data))
 	if body == "" {
-		return "", errors.NewNotFound(fmt.Sprintf("user username not found for email: %s", email))
+		return "", errors.NewNotFound(fmt.Sprintf("username not found for email: %s", email))
 	}
 
 	// Auth-service error responses are JSON objects; success replies are plain-text usernames.
@@ -43,7 +43,7 @@ func (u *userReader) UsernameByEmail(ctx context.Context, email string) (string,
 		if err := errorMessage.CheckError(body); err != nil {
 			return "", err
 		}
-		return "", errors.NewUnexpected("unexpected email_to_username success envelope")
+		return "", errors.NewUnexpected(fmt.Sprintf("unexpected email_to_username success envelope: %s", body))
 	}
 
 	return body, nil
