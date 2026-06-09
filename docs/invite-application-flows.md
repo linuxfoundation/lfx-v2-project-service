@@ -154,8 +154,8 @@ All errors per org are logged and not returned — the handler is best-effort be
 | `pending` | Resend (`AddPrincipal`, same role) | `pending` (refreshed) |
 | `pending` | `invite_accepted` event | `accepted` |
 | `pending` | TTL passes | `expired` |
-| `accepted` / `pending` | `RemovePrincipal` | `revoked` |
-| `revoked` / `expired` | `AddPrincipal` | old entry removed, new entry created from scratch |
+| `accepted` / `pending` | `RemovePrincipal` | _(entry deleted entirely)_ |
+| `expired` | `AddPrincipal` | old entry removed, new entry created from scratch |
 | `accepted` / `pending` | `ChangePrincipalRole` | entry moves to target list (status preserved) |
 
 ---

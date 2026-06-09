@@ -301,9 +301,9 @@ The service uses four NATS KV buckets.
 
 Stores the Salesforce Pub/Sub replay cursor (opaque `[]byte`) per CDC channel. **Authoritative state** — no MaxAge TTL. Key pattern: `pubsub-replay.<channel>` with slashes replaced by underscores (e.g. `pubsub-replay._data_ChangeEvents`).
 
-### `invites` Bucket
+### Invite secondary index (inside `org-settings` bucket)
 
-Secondary index mapping invite UUID → org UID. Written by `AddPrincipal` when an invite is sent; deleted by `InviteAcceptedService` after promotion. Key pattern: `{inviteUUID}` → JSON `{uid, org_uid, ...}`. Enables O(1) org lookup on `invite_accepted` events without a full `org-settings` scan.
+The invite UUID → org UID secondary index lives in the **same `org-settings` KV bucket** under a `lookup/` prefix so it never collides with primary `org-settings.{uid}` keys. Key pattern: `lookup/org-settings-invite/{inviteUUID}` → plain `orgUID` string. Written by `AddPrincipal`; deleted by `InviteAcceptedService` after promotion. Enables O(1) org lookup on `invite_accepted` events without a full bucket scan.
 
 ### `org-settings` Bucket
 

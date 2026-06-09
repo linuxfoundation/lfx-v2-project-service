@@ -237,20 +237,20 @@ func activeUsernames(users []B2BOrgUser) []string {
 	return out
 }
 
-// FindByInviteUUID searches all writers and auditors in s for an entry whose
-// InviteUUID matches uid. Returns the index within its list, which list it is
-// in ("writer" or "auditor"), and whether it was found.
+// FindByInviteUUID searches all writers and auditors in s for a *pending* entry
+// (no resolved username) whose InviteUUID matches uid. Accepted/revoked/expired
+// entries are skipped so a late duplicate event cannot re-grant access.
 func FindByInviteUUID(s *B2BOrgSettings, uid string) (idx int, list string, found bool) {
 	if s == nil || uid == "" {
 		return 0, "", false
 	}
 	for i, u := range s.Writers {
-		if u.InviteUUID == uid {
+		if u.InviteUUID == uid && u.EffectiveStatus() == InviteStatusPending && u.Username == "" {
 			return i, B2BOrgRoleWriter, true
 		}
 	}
 	for i, u := range s.Auditors {
-		if u.InviteUUID == uid {
+		if u.InviteUUID == uid && u.EffectiveStatus() == InviteStatusPending && u.Username == "" {
 			return i, B2BOrgRoleAuditor, true
 		}
 	}

@@ -179,13 +179,13 @@ func (s *InviteAcceptedService) findMatchingEntry(settings *model.B2BOrgSettings
 		return 0, "", false
 	}
 	for i, u := range settings.Writers {
-		if u.EffectiveStatus() == model.InviteStatusPending && u.Username == "" &&
+		if u.EffectiveStatus() == model.InviteStatusPending && u.Username == "" && u.InviteUUID == "" &&
 			normalizeSettingsEmail(u.Email) == normalizeSettingsEmail(ev.Recipient.Email) {
 			return i, model.B2BOrgRoleWriter, true
 		}
 	}
 	for i, u := range settings.Auditors {
-		if u.EffectiveStatus() == model.InviteStatusPending && u.Username == "" &&
+		if u.EffectiveStatus() == model.InviteStatusPending && u.Username == "" && u.InviteUUID == "" &&
 			normalizeSettingsEmail(u.Email) == normalizeSettingsEmail(ev.Recipient.Email) {
 			return i, model.B2BOrgRoleAuditor, true
 		}

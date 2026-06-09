@@ -30,6 +30,9 @@ func (s *inviteSender) SendInvite(ctx context.Context, req inviteapi.SendInviteR
 		return port.InviteResult{}, errors.NewUnexpected("context cancelled before sending invite", err)
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, defaultPublishTimeout)
+	defer cancel()
+
 	data, err := json.Marshal(req)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal invite request", "error", err)
