@@ -150,11 +150,11 @@ func (o *keyContactWriterOrchestrator) Create(ctx context.Context, in KeyContact
 			"membership_uid", pm.UID, "error", pubErr, "publish_failed_for_backfill_repair", true)
 	}
 
-	// Resolve sub, publish indexer, then FGA put.
-	sub := o.resolveSubForContact(ctx, "", kc.Email)
-	kc.Username = sub
+	// Resolve username, publish indexer, then FGA put.
+	username := o.resolveUsernameForContact(ctx, "", kc.Email)
+	kc.Username = username
 	PublishKeyContactIndexer(ctx, o.memberPublisher, kc, indexerConstants.ActionCreated)
-	o.publishFGAPut(ctx, kc.MembershipUID, sub)
+	o.publishFGAPut(ctx, kc.MembershipUID, username)
 
 	return kc, nil
 }
@@ -209,13 +209,13 @@ func (o *keyContactWriterOrchestrator) Update(ctx context.Context, in KeyContact
 	}
 
 	if emailChanging {
-		// Paired FGA: put new sub first (avoid no-access window), then remove old.
-		newSub := o.resolveSubForContact(ctx, "", newKC.Email)
-		newKC.Username = newSub
-		o.publishFGAPut(ctx, newKC.MembershipUID, newSub)
-		oldSub := o.resolveSubForContact(ctx, current.Username, current.Email)
-		if oldSub != newSub {
-			if pubErr := o.publishFGARemove(ctx, newKC.MembershipUID, oldSub); pubErr != nil {
+		// Paired FGA: put new username first (avoid no-access window), then remove old.
+		newUsername := o.resolveUsernameForContact(ctx, "", newKC.Email)
+		newKC.Username = newUsername
+		o.publishFGAPut(ctx, newKC.MembershipUID, newUsername)
+		oldUsername := o.resolveUsernameForContact(ctx, current.Username, current.Email)
+		if oldUsername != newUsername {
+			if pubErr := o.publishFGARemove(ctx, newKC.MembershipUID, oldUsername); pubErr != nil {
 				// Log at error severity (dangling permission), but do not propagate — the
 				// SF update already succeeded and returning an error would mislead callers.
 				slog.ErrorContext(ctx, "key contact FGA remove failed on email change — dangling permission",
@@ -223,9 +223,9 @@ func (o *keyContactWriterOrchestrator) Update(ctx context.Context, in KeyContact
 			}
 		}
 	} else {
-		sub := o.resolveSubForContact(ctx, current.Username, newKC.Email)
-		newKC.Username = sub
-		o.publishFGAPut(ctx, newKC.MembershipUID, sub)
+		username := o.resolveUsernameForContact(ctx, current.Username, newKC.Email)
+		newKC.Username = username
+		o.publishFGAPut(ctx, newKC.MembershipUID, username)
 	}
 	PublishKeyContactIndexer(ctx, o.memberPublisher, newKC, indexerConstants.ActionUpdated)
 
@@ -257,8 +257,8 @@ func (o *keyContactWriterOrchestrator) Delete(ctx context.Context, in KeyContact
 	PublishKeyContactIndexer(ctx, o.memberPublisher, kc, indexerConstants.ActionDeleted)
 
 	// FGA remove: propagate — dangling permissions are not auto-repairable.
-	sub := o.resolveSubForContact(ctx, kc.Username, kc.Email)
-	if pubErr := o.publishFGARemove(ctx, kc.MembershipUID, sub); pubErr != nil {
+	username := o.resolveUsernameForContact(ctx, kc.Username, kc.Email)
+	if pubErr := o.publishFGARemove(ctx, kc.MembershipUID, username); pubErr != nil {
 		slog.ErrorContext(ctx, "key contact FGA remove failed on delete — dangling permission",
 			"uid", in.UID, "error", pubErr)
 		return pkgerrors.NewUnexpected("failed to revoke FGA access for deleted key contact", pubErr)
@@ -267,38 +267,38 @@ func (o *keyContactWriterOrchestrator) Delete(ctx context.Context, in KeyContact
 	return nil
 }
 
-func (o *keyContactWriterOrchestrator) resolveSubForContact(ctx context.Context, currentSub, email string) string {
-	if currentSub != "" {
-		return currentSub
+func (o *keyContactWriterOrchestrator) resolveUsernameForContact(ctx context.Context, currentUsername, email string) string {
+	if currentUsername != "" {
+		return currentUsername
 	}
 	if email == "" {
 		return ""
 	}
-	sub, err := o.userReader.SubByEmail(ctx, email)
+	username, err := o.userReader.UsernameByEmail(ctx, email)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to resolve user sub for key contact FGA",
+		slog.WarnContext(ctx, "failed to resolve LFID username for key contact FGA",
 			"email", email, "error", err)
 		return ""
 	}
-	return sub
+	return username
 }
 
-func (o *keyContactWriterOrchestrator) publishFGAPut(ctx context.Context, membershipUID, sub string) {
-	if sub == "" {
+func (o *keyContactWriterOrchestrator) publishFGAPut(ctx context.Context, membershipUID, username string) {
+	if username == "" {
 		return
 	}
-	msg := BuildKeyContactFGAPutMessage(membershipUID, sub)
+	msg := BuildKeyContactFGAPutMessage(membershipUID, username)
 	if pubErr := o.memberPublisher.Access(ctx, fgaconstants.GenericMemberPutSubject, msg, false); pubErr != nil {
 		slog.WarnContext(ctx, "key contact FGA put publish failed",
 			"membership_uid", membershipUID, "error", pubErr, "publish_failed_for_backfill_repair", true)
 	}
 }
 
-func (o *keyContactWriterOrchestrator) publishFGARemove(ctx context.Context, membershipUID, sub string) error {
-	if sub == "" {
+func (o *keyContactWriterOrchestrator) publishFGARemove(ctx context.Context, membershipUID, username string) error {
+	if username == "" {
 		return nil
 	}
-	msg := BuildKeyContactFGARemoveMessage(membershipUID, sub)
+	msg := BuildKeyContactFGARemoveMessage(membershipUID, username)
 	return o.memberPublisher.Access(ctx, fgaconstants.GenericMemberRemoveSubject, msg, true)
 }
 

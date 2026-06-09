@@ -536,8 +536,8 @@ type MockUserReader struct{}
 // NewMockUserReader returns a MockUserReader.
 func NewMockUserReader() *MockUserReader { return &MockUserReader{} }
 
-// SubByEmail always returns an empty string. Satisfies port.UserReader for
+// UsernameByEmail always returns an empty string. Satisfies port.UserReader for
 // local development without auth-service.
-func (m *MockUserReader) SubByEmail(_ context.Context, _ string) (string, error) {
+func (m *MockUserReader) UsernameByEmail(_ context.Context, _ string) (string, error) {
 	return "", nil
 }

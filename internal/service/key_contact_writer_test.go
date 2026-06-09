@@ -104,7 +104,7 @@ func (r *seededPMReader) AssembleProjectMembership(_ context.Context, _ string) 
 // userReaderFunc implements port.UserReader with a function.
 type userReaderFunc func(ctx context.Context, email string) (string, error)
 
-func (f userReaderFunc) SubByEmail(ctx context.Context, email string) (string, error) {
+func (f userReaderFunc) UsernameByEmail(ctx context.Context, email string) (string, error) {
 	return f(ctx, email)
 }
 
@@ -127,7 +127,7 @@ func TestKeyContactWriter_Create_NormalPath_PublishesInOrder(t *testing.T) {
 	storage := newSeededStorage() // empty — no self-heal
 
 	w := newKCWriter(storage, pmReader, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	in := svc.KeyContactCreateInput{
@@ -203,7 +203,7 @@ func TestKeyContactWriter_Update_NoOpETag_SkipsPublish(t *testing.T) {
 	pub := &trackingPublisher{}
 
 	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	// UpdateKeyContact with same data → writer returns identical kc → ETag unchanged → skip publish
@@ -303,13 +303,13 @@ func TestKeyContactWriter_Update_IfMatch_Mismatch_PreconditionFailed(t *testing.
 func TestKeyContactWriter_Delete_OrderingInvariant_DeleteThenIndexerThenFGARemove(t *testing.T) {
 	kc := &model.KeyContact{
 		UID: testKCUID, MembershipUID: testMembershipUID,
-		Email: "alice@example.com", Username: "alice-sub",
+		Email: "alice@example.com", Username: "alice",
 	}
 	storage := newSeededStorage(kc)
 	pub := &trackingPublisher{}
 
 	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	in := svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID}
@@ -335,13 +335,13 @@ func TestKeyContactWriter_Delete_OrderingInvariant_DeleteThenIndexerThenFGARemov
 func TestKeyContactWriter_Delete_FGARemoveError_Propagated(t *testing.T) {
 	kc := &model.KeyContact{
 		UID: testKCUID, MembershipUID: testMembershipUID,
-		Email: "alice@example.com", Username: "alice-sub",
+		Email: "alice@example.com", Username: "alice",
 	}
 	storage := newSeededStorage(kc)
 	pub := &errorFGARemovePublisher{}
 
 	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	in := svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID}

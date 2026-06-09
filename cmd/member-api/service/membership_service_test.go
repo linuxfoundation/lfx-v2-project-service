@@ -534,7 +534,7 @@ func TestAddB2bOrgSettingsUser_PreservesExistingMembers(t *testing.T) {
 	store.Seed("lf-uid-001", &model.B2BOrgSettings{
 		UID: "lf-uid-001",
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 	svc := newTestSvc(withOrgSettingsStore(store))
@@ -546,7 +546,7 @@ func TestAddB2bOrgSettingsUser_PreservesExistingMembers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result.Settings)
 	require.Len(t, result.Settings.Writers, 1)
-	assert.Equal(t, "auth0|alice", *result.Settings.Writers[0].Username, "existing admin username must survive")
+	assert.Equal(t, "alice", *result.Settings.Writers[0].Username, "existing admin username must survive")
 	assert.Equal(t, "accepted", *result.Settings.Writers[0].InviteStatus)
 	require.Len(t, result.Settings.Auditors, 1)
 	assert.Equal(t, "carol@example.com", result.Settings.Auditors[0].Email)
@@ -561,7 +561,7 @@ func TestUpdateB2bOrgSettingsUserRole_LastAdminBlocked(t *testing.T) {
 	store.Seed("lf-uid-001", &model.B2BOrgSettings{
 		UID: "lf-uid-001",
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 	svc := newTestSvc(withOrgSettingsStore(store))
@@ -582,7 +582,7 @@ func TestDeleteB2bOrgSettingsUser_NotFound(t *testing.T) {
 	store.Seed("lf-uid-001", &model.B2BOrgSettings{
 		UID: "lf-uid-001",
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 	svc := newTestSvc(withOrgSettingsStore(store))

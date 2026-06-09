@@ -257,7 +257,7 @@ func TestOrgSettingsWriter_Update_PublishesIndexerAfterFGA(t *testing.T) {
 	)
 
 	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
-		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		{Username: "alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 	}}
 	_, err := writer.Update(context.Background(), in)
 
@@ -278,7 +278,7 @@ func TestOrgSettingsWriter_Update_IndexerSubjectIsSettingsSubject(t *testing.T) 
 	)
 
 	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
-		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		{Username: "alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 	}}
 	_, err := writer.Update(context.Background(), in)
 
@@ -316,7 +316,7 @@ func TestOrgSettingsWriter_Update_FirstWrite_EmitsActionCreated(t *testing.T) {
 	)
 
 	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
-		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		{Username: "alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 	}}
 	_, err := writer.Update(context.Background(), in)
 
@@ -343,7 +343,7 @@ func TestOrgSettingsWriter_Update_SubsequentWrite_EmitsActionUpdated(t *testing.
 	)
 
 	in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: []model.B2BOrgUser{
-		{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		{Username: "alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 	}}
 	_, err := writer.Update(context.Background(), in)
 
@@ -366,7 +366,7 @@ func TestOrgSettingsWriter_AddPrincipal_OnlySyncsTouchedRelation(t *testing.T) {
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 	pub := mock.NewMockMemberPublisher()

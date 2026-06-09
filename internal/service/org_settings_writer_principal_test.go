@@ -37,8 +37,8 @@ func seedTwoAdmins(store *mock.MockB2BOrgSettings) {
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Name: "Alice", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
-			{Email: "bob@example.com", Name: "Bob", Username: "auth0|bob", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Name: "Alice", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "bob@example.com", Name: "Bob", Username: "bob", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 }
@@ -84,10 +84,10 @@ func TestOrgSettingsWriter_AddPrincipal_PreservesExistingMembers(t *testing.T) {
 	alice, ok := findUser(result.Writers, "alice@example.com")
 	require.True(t, ok)
 	assert.Equal(t, model.InviteStatusAccepted, alice.EffectiveStatus())
-	assert.Equal(t, "auth0|alice", alice.Username)
+	assert.Equal(t, "alice", alice.Username)
 	bob, ok := findUser(result.Writers, "bob@example.com")
 	require.True(t, ok)
-	assert.Equal(t, "auth0|bob", bob.Username)
+	assert.Equal(t, "bob", bob.Username)
 	// New invitee lands as a pending auditor (email lowercased, no username).
 	carol, ok := findUser(result.Auditors, "carol@example.com")
 	require.True(t, ok)
@@ -135,7 +135,7 @@ func TestOrgSettingsWriter_AddPrincipal_EnforcesMaxPrincipals(t *testing.T) {
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 		Auditors: auditors,
 	}, 1)
@@ -157,7 +157,7 @@ func TestOrgSettingsWriter_AddPrincipal_DualListLiveMatchIsConflict(t *testing.T
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 			{Email: "dana@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusRevoked},
 		},
 		Auditors: []model.B2BOrgUser{
@@ -271,12 +271,12 @@ func TestOrgSettingsWriter_ChangeRole_PreservesUsernameAndOtherMembers(t *testin
 	bob, ok := findUser(result.Auditors, "bob@example.com")
 	require.True(t, ok)
 	assert.Equal(t, model.InviteStatusAccepted, bob.EffectiveStatus())
-	assert.Equal(t, "auth0|bob", bob.Username)
+	assert.Equal(t, "bob", bob.Username)
 	assert.Equal(t, "auditor", bob.InvitedAs)
 	// Alice untouched and still an accepted writer.
 	alice, ok := findUser(result.Writers, "alice@example.com")
 	require.True(t, ok)
-	assert.Equal(t, "auth0|alice", alice.Username)
+	assert.Equal(t, "alice", alice.Username)
 	_, stillWriter := findUser(result.Writers, "bob@example.com")
 	assert.False(t, stillWriter, "bob must no longer be a writer")
 }
@@ -286,7 +286,7 @@ func TestOrgSettingsWriter_ChangeRole_LastAdminDemotionBlocked(t *testing.T) {
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
@@ -352,7 +352,7 @@ func TestOrgSettingsWriter_ChangeRole_SameRoleIsNoOp(t *testing.T) {
 	require.NoError(t, err, "same-role change must short-circuit without persisting")
 	bob, ok := findUser(result.Writers, "bob@example.com")
 	require.True(t, ok, "bob must remain a writer")
-	assert.Equal(t, "auth0|bob", bob.Username)
+	assert.Equal(t, "bob", bob.Username)
 }
 
 // TestOrgSettingsWriter_ChangeRole_DualListMovesMostLiveEntry guards the duplicate-email case
@@ -364,11 +364,11 @@ func TestOrgSettingsWriter_ChangeRole_DualListMovesMostLiveEntry(t *testing.T) {
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 			{Email: "dana@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusRevoked},
 		},
 		Auditors: []model.B2BOrgUser{
-			{Email: "dana@example.com", Username: "auth0|dana", InvitedAs: "auditor", InviteStatus: model.InviteStatusAccepted},
+			{Email: "dana@example.com", Username: "dana", InvitedAs: "auditor", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
@@ -381,7 +381,7 @@ func TestOrgSettingsWriter_ChangeRole_DualListMovesMostLiveEntry(t *testing.T) {
 	dana, ok := findUser(result.Writers, "dana@example.com")
 	require.True(t, ok, "dana must be present as a writer")
 	assert.Equal(t, model.InviteStatusAccepted, dana.EffectiveStatus())
-	assert.Equal(t, "auth0|dana", dana.Username)
+	assert.Equal(t, "dana", dana.Username)
 	// No leftover dana entry in auditors (duplicate collapsed).
 	_, stillAuditor := findUser(result.Auditors, "dana@example.com")
 	assert.False(t, stillAuditor, "dana's duplicate auditor entry must be collapsed")
@@ -396,7 +396,7 @@ func TestOrgSettingsWriter_RemovePrincipal_UsernamelessAcceptedIsNotAdmin(t *tes
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 			{Email: "ghost@example.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}, // accepted but no username
 		},
 	}, 1)
@@ -470,7 +470,7 @@ func TestOrgSettingsWriter_ChangeRole_EnforcesMaxPrincipalsOnTarget(t *testing.T
 	for i := 0; i < maxPrincipals; i++ {
 		writers = append(writers, model.B2BOrgUser{
 			Email:        fmt.Sprintf("w%d@example.com", i),
-			Username:     fmt.Sprintf("auth0|w%d", i),
+			Username:     fmt.Sprintf("w%d", i),
 			InvitedAs:    "writer",
 			InviteStatus: model.InviteStatusAccepted,
 		})
@@ -499,7 +499,7 @@ func TestOrgSettingsWriter_RemovePrincipal_DropsOnlyTarget(t *testing.T) {
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 		Auditors: []model.B2BOrgUser{
 			{Email: "carol@example.com", InvitedAs: "auditor", InviteStatus: model.InviteStatusPending},
@@ -515,7 +515,7 @@ func TestOrgSettingsWriter_RemovePrincipal_DropsOnlyTarget(t *testing.T) {
 	assert.False(t, gone, "carol must be removed")
 	alice, ok := findUser(result.Writers, "alice@example.com")
 	require.True(t, ok, "alice must remain")
-	assert.Equal(t, "auth0|alice", alice.Username)
+	assert.Equal(t, "alice", alice.Username)
 }
 
 func TestOrgSettingsWriter_RemovePrincipal_LastAdminBlocked(t *testing.T) {
@@ -523,7 +523,7 @@ func TestOrgSettingsWriter_RemovePrincipal_LastAdminBlocked(t *testing.T) {
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{
-			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+			{Email: "alice@example.com", Username: "alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
 		},
 	}, 1)
 	writer := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
