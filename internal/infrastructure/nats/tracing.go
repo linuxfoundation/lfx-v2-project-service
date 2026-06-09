@@ -4,9 +4,14 @@
 package nats
 
 import (
+	"context"
+
 	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // tracer is safe to initialize at package level — otel.Tracer() returns a
@@ -39,3 +44,27 @@ func (c natsHeaderCarrier) Keys() []string {
 }
 
 var _ propagation.TextMapCarrier = natsHeaderCarrier{}
+
+// ExtractMsgContext extracts OTel trace context from an incoming NATS message
+// header and starts a Consumer span. Call the returned function (typically via
+// defer) to end the span.
+func ExtractMsgContext(ctx context.Context, msg *nats.Msg, subject string) (context.Context, func()) {
+	var hdr nats.Header
+	if msg.Header != nil {
+		hdr = msg.Header
+	}
+	msgCtx := otel.GetTextMapPropagator().Extract(ctx, natsHeaderCarrier(hdr))
+	msgCtx, span := tracer.Start(msgCtx, "nats.process",
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.operation.type", "process"),
+			attribute.String("messaging.destination.name", subject),
+			attribute.Int("messaging.message.body.size", len(msg.Data)),
+		),
+	)
+	return msgCtx, func() {
+		span.SetStatus(codes.Ok, "")
+		span.End()
+	}
+}
