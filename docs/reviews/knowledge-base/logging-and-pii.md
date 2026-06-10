@@ -10,7 +10,8 @@ notification flow, which logs per-recipient detail; it is a data-handling
 pattern with a high cost of miss.
 
 **Read when:** any `internal/service/project_subscriber.go`,
-`internal/service/email/**`, `internal/infrastructure/middleware/**`, or any Go file that calls
+`internal/service/document_subscriber.go`, `internal/service/email/**`,
+`internal/infrastructure/middleware/**`, or any Go file that calls
 `slog.*Context` while handling user/notification data changed.
 
 ---
@@ -21,7 +22,7 @@ pattern with a high cost of miss.
 
 **Detect:** in `project_subscriber.go`, the email package, or any per-recipient handler, scan `slog.InfoContext` / `WarnContext` / `ErrorContext` key/value lists for `"username"`, `"to"`, `"email"`, or an LFID/email value (`add.User.Username`, `recipientEmail`). The acceptable correlates are `project_uid` and `role` (plus a non-identifying index/hash if per-recipient debugging is truly needed).
 
-**Empirical citation:** PR #70 `internal/service/project_subscriber.go:66` (CodeRabbit) — "These new log fields write LFID/email values (`username`, `to`) into application logs. That is avoidable PII retention for a flow that is already traceable by `project_uid` and `role`; please omit them". Escalated by maintainer dealako (`internal/service/project_subscriber.go:66`): "**[blocking]** PII still in logs ... This line still emits `"username", add.User.Username`. The same applies to `"to", recipientEmail`". Fixed for the info/warn paths; current `project_subscriber.go` logs `project_uid` and `change_count`/`role` on the normal flow. The only place that still emits raw `username`/`email` is a per-change detail block gated behind `slog.Default().Enabled(ctx, slog.LevelDebug)` (the `user change detail` line) — so info-level logs stay PII-free, but a new raw identifier on an info/warn line is still a finding.
+**Empirical citation:** PR #70 `internal/service/project_subscriber.go:66` (CodeRabbit) — "These new log fields write LFID/email values (`username`, `to`) into application logs. That is avoidable PII retention for a flow that is already traceable by `project_uid` and `role`; please omit them". Escalated by maintainer dealako (`internal/service/project_subscriber.go:66`): "**[blocking]** PII still in logs ... This line still emits `"username", add.User.Username`. The same applies to `"to", recipientEmail`". Fixed for the info/warn paths; current `project_subscriber.go` logs `project_uid` and `change_count`/`role` on the normal flow. Raw `username`/`email` still appears in two existing places: a per-change detail block gated behind `slog.Default().Enabled(ctx, slog.LevelDebug)` (the `user change detail` line), and one maintainer-merged info-level line in the invite-acceptance promotion path (`"invite accepted — promoted user from non-LFID to LFID"`, PR #81) that logs the new LFID `username`. Do not re-flag those two lines, but a new raw identifier on an info/warn line is still a finding.
 
 **Failure message:** Raw user identifier (LFID `username` / recipient `email`) written to logs — avoidable PII retention.
 

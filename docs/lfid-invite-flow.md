@@ -13,52 +13,50 @@ When a user is added to a project's role list via `PUT /projects/{uid}/settings`
 | Has LFID | non-empty | Send a direct role-notification email via the email service |
 | No LFID | empty | Send an invite request to the invite service; store returned invite metadata |
 
-The invite service handles rendering and delivering the invite email to the recipient, and issues a unique invite UID that the project service uses to track the invite and route the subsequent acceptance event.
+The invite service handles rendering and delivering the invite email to the recipient. The project service does not store any invite state: when the invite is later accepted, the invite service publishes an enriched acceptance event that carries the recipient email, and the project service reconciles by email.
 
 ---
 
 ## Sending an Invite
 
-**Triggered by:** `HandleProjectSettingsUpdated` — called when a `lfx.projects-api.project_settings.updated` event arrives and the diff contains newly added non-LFID users.
+**Triggered by:** `HandleProjectSettingsUpdated` — called when a `lfx.projects-api.project_settings.updated` event arrives and the diff contains non-LFID users who gained roles (newly added users, or new roles on a role change; removals are silently skipped). Invites are deduplicated by mapped invite role, so a user gaining both Writer and Meeting Coordinator receives a single `Manage` invite.
 
 **NATS subject used:** `lfx.invite-service.send_invite` (request/reply)
 
-**Request payload** (`inviteapi.SendInviteRequest`):
+**Request payload** (`inviteapi.SendInviteRequest`, structured fields):
 
 | Field | Value |
 |---|---|
-| `recipient_email` | User's email address |
-| `recipient_name` | User's display name (falls back to email) |
-| `inviter_name` | Actor's display name (resolved via auth-service); falls back to `"A project administrator"` |
-| `resource_uid` | Project UID |
-| `resource_name` | Project name |
-| `resource_type` | `"project"` |
+| `recipient.email` | User's email address |
+| `recipient.name` | User's display name (falls back to username, then email) |
+| `inviter.name` | Actor's display name (resolved via auth-service); falls back to `"A project administrator"` |
+| `resource.uid` | Project UID |
+| `resource.name` | Project name |
+| `resource.type` | `"project"` |
 | `role` | `"Manage"` (Writers / Meeting Coordinators) or `"View"` (Auditors) |
 | `return_url` | Deep link to the project page |
 | `expiration_days` | `30` |
 
-**On success**, the invite service returns an invite UID, the delivery email, and an expiry timestamp. The project service:
+**On success**, the invite service returns an invite UID, the delivery email, and an expiry timestamp. The project service only logs the invite UID — it does not write invite metadata into the settings record or any lookup key. (Legacy settings records may still carry a read-only `invite` object on user entries from the earlier design; it survives PUT round-trips and is cleared on promotion.)
 
-1. Writes the invite metadata (`uid`, `email`, `expires_at`) onto the matching user entry in the settings record (stored in the `project-settings` NATS KV bucket under key `{project_uid}`).
-2. Writes a secondary mapping entry: KV key `lookup/project-settings-invite/{invite_uid}` → value `{project_uid}`. This is used by `HandleInviteAccepted` to route the acceptance event without scanning all project settings.
-3. Re-indexes the project settings so the `invite` object is queryable.
-
-All steps are best-effort: a failure at any step is logged with `slog.WarnContext` and does not block further processing.
+The send is best-effort: a failure is logged with `slog.WarnContext` and does not block further processing.
 
 ---
 
 ## Invite Acceptance
 
-**Triggered by:** a `lfx.invite.accepted` event published by the LFX self-serve web app when a user completes LFID account creation and accepts their invite.
+**Triggered by:** a `lfx.invite-service.invite_accepted` event (`inviteapi.InviteServiceAcceptedSubject`) published by the invite service after it has processed an acceptance. The event (`inviteapi.InviteServiceAcceptedEvent`) embeds the full invite, so subscribers get enriched context without a separate lookup.
 
 **NATS subscription:** queue-subscribed in `cmd/project-api/main.go` under the `ProjectsAPIQueue` consumer group.
 
-**Message payload:**
+**Message payload** (relevant fields of the embedded invite):
 
 ```json
 {
-  "invite_uid": "<invite UID>",
-  "username":   "<new LFID username>"
+  "uid":         "<invite UID>",
+  "recipient":   { "email": "<recipient email>", "name": "..." },
+  "role":        "Manage | View",
+  "accepted_by": "<new LFID username>"
 }
 ```
 
@@ -66,38 +64,29 @@ All steps are best-effort: a failure at any step is logged with `slog.WarnContex
 
 **Processing steps:**
 
-1. Look up the project UID from the secondary KV mapping using `invite_uid`. If not found, the invite belongs to another service — silently ignored.
-2. Load project settings with revision (optimistic concurrency).
-3. Scan Writers, Auditors, and MeetingCoordinators for a user whose `invite.uid` matches `invite_uid`.
-4. Set `username = <new username>`, clear the `invite` field.
-5. Write the updated settings back (using the loaded revision).
-6. Delete the secondary mapping entry (`lookup/project-settings-invite/{invite_uid}`).
-7. Re-index project settings so the promoted user appears as an LFID user.
+1. Unmarshal and guard: discard (log + return `nil`) unless `uid`, `accepted_by`, a non-empty normalized `recipient.email`, and a recognized `role` (`Manage` or `View`) are all present.
+2. List **all** project settings (`ListAllProjectsSettings`; `lookup/` keys are skipped).
+3. For each project whose role-appropriate slices (`Manage` → Writers + Meeting Coordinators, `View` → Auditors) contain an email-only entry (`username == ""`) matching the normalized recipient email, promote that project via `promoteInvitedUserInProjectSettings`:
+   - Re-read settings with revision (optimistic concurrency).
+   - Set `username = accepted_by` and clear any legacy `invite` field on every matching email-only entry.
+   - Write back with the loaded revision; retry up to 3 times on `ErrRevisionMismatch`.
+   - Re-index the project settings so the promoted user appears as an LFID user.
 
-The `project_settings.updated` event fired by step 5 goes through `HandleProjectSettingsUpdated` again. The service skips re-sending a notification to users who were previously present as an email-only invited entry (`wasInvitedInOldSettings` check), preventing a duplicate email.
+Accepting a single invite intentionally reconciles **every** project where the same email has a pending email-only entry for the same role, not only the project that issued the invite. The operation is idempotent: entries already promoted are skipped.
 
----
-
-## KV Mapping Lifecycle
-
-| Event | KV key | Action |
-|---|---|---|
-| Invite sent | `lookup/project-settings-invite/{invite_uid}` | Created |
-| Invite accepted | `lookup/project-settings-invite/{invite_uid}` | Deleted |
-
-The mapping is written in `storeInviteInfo` and read + deleted in `HandleInviteAccepted`. If the mapping is lost (e.g., service restart between send and accept), `HandleInviteAccepted` will not find the invite and will silently discard the event. The user's settings entry will still carry the pending `invite` object until a future manual correction.
+> A full-scan of all project settings runs on each acceptance event. Replacing it with an email → `[project_uid]` index lookup is a known TODO in `HandleInviteAccepted`.
 
 ---
 
 ## Timeout and Retry Behavior
 
-- All outbound calls (invite service request/reply, KV read/write, indexer publish) run under `notificationTimeout` (5 seconds).
-- `storeInviteInfo` retries up to 3 times on `ErrRevisionMismatch`. Each attempt gets a fresh 5-second window. This handles the case where multiple non-LFID users are added in the same settings update and their concurrent write-backs race on the same KV revision.
-- `HandleInviteAccepted` applies a **single** `notificationTimeout` deadline to its entire body, including all 3 retry attempts. Under KV contention, if all retries exhaust the 5-second budget before a successful write, the promotion is lost. The invite mapping is left intact, so the user can recover by clicking the invite link again to generate a new `lfx.invite.accepted` event.
+- Blocking outbound calls run under `notificationTimeout` (5 seconds), scoped **per operation**: the invite-service request/reply, the auth-service actor lookup, the settings list in `HandleInviteAccepted`, and each per-project promotion get their own 5-second window.
+- `promoteInvitedUserInProjectSettings` retries up to 3 times on `ErrRevisionMismatch` within its project's window. This handles concurrent writers racing on the same KV revision.
+- If a promotion fails (timeout or exhausted retries), the email-only entry remains pending until another acceptance event for the same email/role arrives or the settings are corrected manually.
 - Errors from individual sends are logged but never propagated — the handler is entirely best-effort and always returns `nil`.
 
 ---
 
 ## Notification Suppression on Promotion
 
-When a user is promoted from non-LFID (email-only) to LFID via invite acceptance, `HandleProjectSettingsUpdated` fires again because `UpdateProjectSettings` publishes a new `project_settings.updated` event. The diff logic sees the user as "new" (identity key changed from email-only to username). The service checks whether the user's email was present in the old settings as an email-only invited entry (`wasInvitedInOldSettings`); if so, the notification is suppressed. The user already received the invite email and does not need a second "you were added" email.
+When a user is promoted from non-LFID (email-only) to LFID via invite acceptance, `HandleProjectSettingsUpdated` fires again because `UpdateProjectSettings` publishes a new `project_settings.updated` event. The diff logic in `diffUserChanges` resolves user identity across shapes by keying on **both** username and normalized email (`memberKeys`), so the promoted entry (email-only → username + same email) maps to the same user. Since the role set is unchanged, the diff reports no change and no duplicate "you were added" email is sent.

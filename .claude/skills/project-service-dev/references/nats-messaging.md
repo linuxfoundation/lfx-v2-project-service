@@ -27,11 +27,13 @@ All five live as `Project*Subject` constants in `pkg/constants/nats.go`.
 "lfx.index.project_folder"
 "lfx.index.project_document"
 "lfx.projects-api.project_settings.updated"
+"lfx.projects-api.project_document.created"
+"lfx.projects-api.project_link.created"
 "lfx.fga-sync.update_access"
 "lfx.fga-sync.delete_access"
 ```
 
-`lfx.index.*` envelopes are owned by `lfx-v2-indexer-service`. `lfx.fga-sync.*` envelopes are owned by `lfx-v2-fga-sync`. For per-resource fields, see `docs/indexer-contract.md` and `docs/fga-contract.md`.
+`lfx.index.*` envelopes are owned by `lfx-v2-indexer-service`. `lfx.fga-sync.*` envelopes are owned by `lfx-v2-fga-sync`. For per-resource fields, see `docs/indexer-contract.md` and `docs/fga-contract.md`. The `lfx.projects-api.*.created` payloads are `events.ProjectDocumentCreatedMessage` and `events.ProjectLinkCreatedMessage` in `pkg/events/`; this service also subscribes to them itself (`internal/service/document_subscriber.go`) to send upload-notification emails.
 
 ## Owned KV buckets
 
@@ -69,7 +71,7 @@ Every successful write performs storage first, then publish. Project base/settin
 3. Write to the owning KV bucket. Bail on error; no message is published.
 4. Publish indexer message (`lfx.index.<resource>`) for resources that participate in search.
 5. Publish FGA access message (`lfx.fga-sync.update_access` on create/update, `lfx.fga-sync.delete_access` on delete) for resources with their own access model.
-6. Publish local notification subjects where documented (currently only `lfx.projects-api.project_settings.updated`).
+6. Publish local notification subjects where documented (`lfx.projects-api.project_settings.updated`, `lfx.projects-api.project_document.created`, `lfx.projects-api.project_link.created`).
 
 Storage is not rolled back for publish failures. Project base/settings publish failures return `domain.ErrInternal` from the request after the storage write. Link/folder/document publish failures return an error when `X-Sync: true`; when `X-Sync` is omitted or false, they are logged with `slog.WarnContext` in the background. The `MessageBuilder` also logs NATS send failures with the `subject`.
 

@@ -124,7 +124,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 
 #### Invite Object
 
-When a user in `writers`, `auditors`, or `meeting_coordinators` has no LFID yet (their `username` is empty), a pending invite is tracked in a nested `invite` object. The invite is cleared and `username` is populated when the user accepts the invite.
+A legacy nested `invite` object may appear on a user in `writers`, `auditors`, or `meeting_coordinators` who has no LFID yet (their `username` is empty). The service no longer writes this object when sending invites (acceptance events are now routed by recipient email, not stored invite UID — see `docs/lfid-invite-flow.md`), but existing records may still carry it: it survives PUT round-trips and is cleared, with `username` populated, when the user accepts their invite.
 
 | Field | Type | Description |
 |---|---|---|

@@ -54,7 +54,8 @@ internal/                   # Core business logic
 ├── service/               # Service layer (business logic, NATS RPC handlers, event subscriber)
 │   ├── *_operations.go   # Per-resource business orchestration
 │   ├── project_handlers.go    # Inbound NATS request/reply RPC handlers
-│   ├── project_subscriber.go  # Inbound NATS event subscribers
+│   ├── project_subscriber.go  # Inbound NATS event subscribers (settings updates, invite acceptance)
+│   ├── document_subscriber.go # Inbound NATS event subscribers (document/link created notifications)
 │   ├── converters.go     # Domain ↔ Goa ↔ pkg/events wire-type converters
 │   └── email/            # Email template rendering (one file per email type)
 └── infrastructure/        # Infrastructure layer
@@ -111,7 +112,6 @@ make build
 make test              # Run unit tests
 make test-verbose      # Verbose output
 make test-coverage     # Generate coverage report
-make test-integration  # Run integration tests (requires -tags=integration)
 ```
 
 #### 4. Run the Service Locally
@@ -214,7 +214,7 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 
 **Request/reply RPC** (`internal/service/project_handlers.go`): another service sends a request and blocks waiting for a response. The handler calls `msg.Respond(data)` to return data to the caller.
 
-**Event subscriptions** (`internal/service/project_subscriber.go`): the service reacts to events that were already published (including by itself). No caller is waiting — the handler is fire-and-forget and never calls `msg.Respond`.
+**Event subscriptions** (`internal/service/project_subscriber.go` and `internal/service/document_subscriber.go`): the service reacts to events that were already published (including by itself). No caller is waiting — the handler is fire-and-forget and never calls `msg.Respond`.
 
 ```go
 // Inbound RPC — request/reply, caller blocks waiting for response
@@ -226,7 +226,9 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 
 // Inbound events — fire-and-forget, no reply expected
 "lfx.projects-api.project_settings.updated" // Self-published; sends role notification emails / invites on member changes
-"lfx.invite.accepted"                  // From self-serve web app; promotes non-LFID user to LFID, clears pending invite
+"lfx.invite-service.invite_accepted"   // From invite-service (enriched event); promotes matching email-only users to LFID across all projects
+"lfx.projects-api.project_document.created" // Self-published; emails project writers/auditors about the new document
+"lfx.projects-api.project_link.created"     // Self-published; emails project writers/auditors about the new link
 
 // Outbound events (published by this service)
 "lfx.index.project"                    // Project created/updated/deleted for indexing
@@ -235,6 +237,8 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 "lfx.index.project_folder"             // Folder created/deleted for indexing
 "lfx.index.project_document"           // Document created/deleted for indexing
 "lfx.projects-api.project_settings.updated" // Settings changed (before/after snapshot)
+"lfx.projects-api.project_document.created" // File document uploaded (events.ProjectDocumentCreatedMessage)
+"lfx.projects-api.project_link.created"     // Link added (events.ProjectLinkCreatedMessage)
 "lfx.fga-sync.update_access"           // Generic FGA access control updates
 "lfx.fga-sync.delete_access"           // Generic FGA access control deletion
 
