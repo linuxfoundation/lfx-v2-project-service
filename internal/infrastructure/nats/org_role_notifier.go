@@ -15,6 +15,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	infraemail "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/email"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/redaction"
 )
 
 type orgRoleNotifier struct {
@@ -67,7 +68,7 @@ func (n *orgRoleNotifier) NotifyRoleAssigned(ctx context.Context, notif port.Org
 	if len(reply.Data) > 0 {
 		if jsonErr := json.Unmarshal(reply.Data, &errResp); jsonErr == nil && errResp.Error != "" {
 			slog.WarnContext(ctx, "email service returned error for role-assignment email",
-				"recipient", notif.RecipientEmail, "error", errResp.Error)
+				"recipient", redaction.RedactEmail(notif.RecipientEmail), "error", errResp.Error)
 			return pkgerrors.NewUnexpected("email service rejected role-assignment email", fmt.Errorf("%s", errResp.Error))
 		}
 	}

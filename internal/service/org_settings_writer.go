@@ -718,7 +718,7 @@ func (o *orgSettingsWriterOrchestrator) sendOrgInvite(
 		Resource:  &inviteapi.Resource{UID: orgUID, Type: "b2b_org", Name: orgName},
 		Role:      role,
 		OrgName:   orgName,
-		ReturnURL: strings.TrimRight(o.lfxSelfServeBaseURL, "/") + "/org",
+		ReturnURL: returnURL(o.lfxSelfServeBaseURL),
 	}
 	result, err := o.inviteSender.SendInvite(ctx, req)
 	if err != nil {
@@ -762,6 +762,16 @@ func (o *orgSettingsWriterOrchestrator) notifyRoleAssigned(ctx context.Context, 
 		slog.WarnContext(ctx, "role-assignment email failed (best-effort, grant still persisted)",
 			"org_uid", orgUID, "email", redaction.RedactEmail(email), "role", role, "error", err)
 	}
+}
+
+// returnURL builds the invite ReturnURL from the base URL. Returns an empty string
+// when the base is unset so the invite service omits the return link entirely.
+func returnURL(base string) string {
+	base = strings.TrimRight(base, "/")
+	if base == "" {
+		return ""
+	}
+	return base + "/org"
 }
 
 // refreshPendingEntry finds the first pending entry matching email in the slice and
