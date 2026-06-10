@@ -107,9 +107,9 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `uid` | string | Project UID (same as the parent project) |
 | `mission_statement` | string (optional) | Project mission statement |
 | `announcement_date` | timestamp (optional) | Project announcement date (RFC3339) |
-| `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
-| `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
-| `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 

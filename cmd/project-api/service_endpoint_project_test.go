@@ -152,14 +152,14 @@ func TestCreateProject(t *testing.T) {
 				},
 			},
 			setupUserReader: func(mockUserReader *domain.MockUserReader) {
-				mockUserReader.On("SubByEmail", mock.Anything, "user1@example.com").Return("auth0|user1", nil)
-				mockUserReader.On("SubByEmail", mock.Anything, "user2@example.com").Return("auth0|user2", nil)
-				mockUserReader.On("SubByEmail", mock.Anything, "user3@example.com").Return("auth0|user3", nil)
-				mockUserReader.On("SubByEmail", mock.Anything, "user4@example.com").Return("auth0|user4", nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|user1").Return((*domain.UserMetadata)(nil), nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|user2").Return((*domain.UserMetadata)(nil), nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|user3").Return((*domain.UserMetadata)(nil), nil)
-				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "auth0|user4").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user1@example.com").Return("user1", nil)
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user2@example.com").Return("user2", nil)
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user3@example.com").Return("user3", nil)
+				mockUserReader.On("UsernameByEmail", mock.Anything, "user4@example.com").Return("user4", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user1").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user2").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user3").Return((*domain.UserMetadata)(nil), nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "user4").Return((*domain.UserMetadata)(nil), nil)
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
 				// Mock parent project exists (for ParentUID validation)
@@ -169,8 +169,8 @@ func TestCreateProject(t *testing.T) {
 				// Mock successful project creation — MatchedBy validates enriched LFIDs were persisted.
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"),
 					mock.MatchedBy(func(s *models.ProjectSettings) bool {
-						return len(s.Writers) == 2 && s.Writers[0].Username == "auth0|user1" && s.Writers[1].Username == "auth0|user2" &&
-							len(s.Auditors) == 2 && s.Auditors[0].Username == "auth0|user3" && s.Auditors[1].Username == "auth0|user4"
+						return len(s.Writers) == 2 && s.Writers[0].Username == "user1" && s.Writers[1].Username == "user2" &&
+							len(s.Auditors) == 2 && s.Auditors[0].Username == "user3" && s.Auditors[1].Username == "user4"
 					})).Return(nil)
 				// Mock message sending
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil).Times(2)

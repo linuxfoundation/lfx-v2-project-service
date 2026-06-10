@@ -114,20 +114,20 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	return result, nil
 }
 
-// SubByEmail resolves the subject identifier for the given primary email address.
-// The auth service replies with a plain-text subject on success, or a JSON error envelope on miss.
-func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, error) {
+// UsernameByEmail resolves the registered LFID username for the given primary email address.
+// The auth service replies with a plain-text username on success, or a JSON error envelope on miss.
+func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (string, error) {
 	reply, err := u.NatsConn.RequestMsgWithContext(ctx, &natsgo.Msg{
-		Subject: constants.AuthEmailToSubSubject,
+		Subject: constants.AuthEmailToUsernameSubject,
 		Data:    []byte(email),
 	})
 	if err != nil {
-		return "", fmt.Errorf("email_to_sub request failed: %w", err)
+		return "", fmt.Errorf("email_to_username request failed: %w", err)
 	}
 
-	// The auth service sends a plain-text subject on success and a JSON error envelope on miss.
+	// The auth service sends a plain-text username on success and a JSON error envelope on miss.
 	// Trim leading/trailing whitespace before inspection so intermediaries that add a trailing
-	// newline or leading space don't corrupt the subject or bypass JSON detection.
+	// newline or leading space don't corrupt the username or bypass JSON detection.
 	body := strings.TrimSpace(string(reply.Data))
 	if body == "" {
 		return "", domain.ErrUserNotFound
@@ -135,7 +135,7 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 
 	// Any object-shaped response is an envelope — parse it to distinguish an explicit
 	// not-found from a malformed or unexpected reply. Returning ErrUserNotFound for
-	// non-404 cases would silently clear stored principals in callers that treat
+	// non-404 cases would silently clear stored usernames in callers that treat
 	// ErrUserNotFound as "member disappeared".
 	if body[0] == '{' {
 		var envelope struct {
@@ -143,15 +143,15 @@ func (u *UserReaderNATS) SubByEmail(ctx context.Context, email string) (string, 
 			Error   string `json:"error,omitempty"`
 		}
 		if err := json.Unmarshal(reply.Data, &envelope); err != nil {
-			return "", fmt.Errorf("failed to parse email_to_sub response: %w", err)
+			return "", fmt.Errorf("failed to parse email_to_username response: %w", err)
 		}
 		if envelope.Success == nil {
-			return "", fmt.Errorf("email_to_sub response missing success field")
+			return "", fmt.Errorf("email_to_username response missing success field")
 		}
 		if !*envelope.Success {
 			return "", domain.ErrUserNotFound
 		}
-		return "", fmt.Errorf("unexpected email_to_sub success envelope")
+		return "", fmt.Errorf("unexpected email_to_username success envelope")
 	}
 
 	return body, nil
