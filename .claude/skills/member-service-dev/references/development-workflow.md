@@ -78,14 +78,18 @@ this code path activate in production.
 
 ## OpenFGA model and ruleset
 
-The `b2b_org`, `project_membership`, and `key_contact` types are defined in
-the platform OpenFGA model in `lfx-v2-helm`. Heimdall ruleset checks for this
+The `b2b_org` and `project_membership` types are defined in the platform
+OpenFGA model in `lfx-v2-helm` (`key_contact` is a relation on
+`project_membership`, not a type). Heimdall ruleset checks for this
 service (authoritative source: `charts/lfx-v2-member-service/templates/ruleset.yaml`):
 
 - `GET /b2b_orgs/{uid}` and `GET /b2b_orgs/{uid}/settings`: `auditor` on
   `b2b_org:{uid}`.
 - `PUT /b2b_orgs/{uid}` and `PUT /b2b_orgs/{uid}/settings`: `writer` on
   `b2b_org:{uid}`.
+- `POST /b2b_orgs/{uid}/settings/users` and PUT/DELETE
+  `/b2b_orgs/{uid}/settings/users/{email}` (per-principal settings users):
+  `writer` on `b2b_org:{uid}`.
 - `POST /b2b_orgs`: `member` on `team:{globalOrgAdminTeamUID}` (machine
   callers only; the team UID is `.Values.app.globalOrgAdminTeamUID`).
 - `GET /project_memberships/{uid}`: `auditor` on `project_membership:{uid}`.
@@ -114,7 +118,7 @@ GitHub Actions workflows:
 
 - `mega-linter.yml`: Go, YAML, Docker linting.
 - `member-api-build.yml`: build and test on PRs.
-- `ko-build-main.yml`, `ko-build-branch.yml`, `ko-build-tag.yml`: image
+- `ko-build-main.yaml`, `ko-build-branch.yaml`, `ko-build-tag.yaml`: image
   build workflows.
 - `license-header-check.yml`: license header enforcement.
 

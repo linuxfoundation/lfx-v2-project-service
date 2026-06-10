@@ -13,8 +13,8 @@ The relation-clobbering race is Critical (drops just-added FGA tuples); the rest
 Important.
 
 **Read when:** any file under `internal/service/**` or `internal/domain/model/**`
-touching FGA / indexer message building (`message_builders.go`, `b2b_org_settings.go`,
-`*_writer.go`, `member_message.go`), `pkg/constants/subjects.go`, or
+touching FGA / indexer message building (`messaging.go`, `b2b_org_settings.go`,
+`*_writer.go`, `cdc_consumer.go`, `member_message.go`), `pkg/constants/subjects.go`, or
 `docs/fga-contract.md`. Cross-checked in Steps 3-4 of the learnings-review playbook.
 
 ---
@@ -67,9 +67,10 @@ most once; keep role-specific tags per role. Add a dedup test.
 sub) is resolved, so the indexed document is missing the resolved username on the
 update/email-change path even though the create path includes it.
 
-**Detect:** in `cmd/member-api/service/membership_service.go`, confirm the
-`publishKeyContactIndexer` call is ordered AFTER the username-resolution block on both the
-email-change and role-only paths. Flag a publish that precedes
+**Detect:** on the key-contact write path (today
+`internal/service/key_contact_writer.go`; `membership_service.go` in the cited era),
+confirm the key-contact indexer publish is ordered AFTER the username-resolution block
+on both the email-change and role-only paths. Flag a publish that precedes
 `resolveSubForContact`/username assignment.
 
 **Empirical citation:** PR #39 `cmd/member-api/service/membership_service.go:529` — Copilot — "The update indexer event is published before `kc.Username` is populated, so updated key-contact documents (including email-change updates) are indexed without the resolved username even though create indexes it." Acted on: prabodhcs — "moved `publishKeyContactIndexer` to after the username resolution block (both email-change and role-only paths). The indexed document now always carries the resolved sub."
@@ -87,9 +88,10 @@ update path, so the indexed document always carries the sub.
 reference, including on update events, even though that reference is intended for the
 create path only (it establishes the admin team for a newly-created org).
 
-**Detect:** in the FGA message builder / `publishB2BOrgEvents`, verify
+**Detect:** in the FGA message builder / publish helpers, verify
 `globalOrgAdminTeamUID` is passed only when `action == ActionCreated` and is empty on
-updates.
+HTTP updates. Exception: the CDC consumer intentionally always passes it (see
+`internal/service/cdc_consumer.go` and `docs/fga-contract.md`); do not flag that path.
 
 **Empirical citation:** PR #36 `cmd/member-api/service/membership_service.go:222` — Copilot — "publishB2BOrgEvents always passes s.globalOrgAdminTeamUID into buildB2BOrgFGAMessage, which means the global_org_admin reference will also be included on updates ... The builder comment indicates the global admin reference is intended for create only". Acted on: prabodhcs — "`globalOrgAdminTeamUID` is now passed only when `action == ActionCreated`; update events receive an empty string."
 

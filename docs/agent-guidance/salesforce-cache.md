@@ -34,12 +34,15 @@ Prefixes are defined as the dot-delimited `keyPrefix*` constants in
 
 This bucket stores raw Salesforce sObject REST API responses with HTTP
 conditional request metadata. It is initialized by the NATS client and chart,
-and is used by `SObjectClient`; the current live HTTP provider wiring still
-uses SOQL-backed `MemberReader` and `B2BOrgReader` implementations. It does
+and is used by `SObjectClient`. The live `B2BOrgReader` is built on
+`SObjectClient` (so `GET /b2b_orgs/{uid}` reads through this cache); the
+membership read path still uses the SOQL-backed `MemberReader`. It does
 not use `CachedValue` soft TTLs; freshness is governed by Salesforce `ETag`
 and `Last-Modified` revalidation. The bucket TTL is a 7-day backstop for quiet
 records, and the client rewrites unchanged entries after `304 Not Modified` to
-reset that TTL.
+reset that TTL. The Salesforce Pub/Sub CDC consumer invalidates entries here
+(`port.CacheInvalidator`) when a change event arrives, before re-fetching and
+re-publishing.
 
 | Key pattern | Contents |
 | --- | --- |
@@ -57,6 +60,14 @@ There is no MaxAge eviction; every PUT uses the KV revision for optimistic
 concurrency (compare-and-set), so a concurrent modification returns `409
 Conflict`. Read and write helpers live in
 `internal/infrastructure/nats/b2b_org_settings.go`.
+
+### `pubsub-state` bucket
+
+Holds Salesforce Pub/Sub CDC consumer state — not a cache. Per-channel replay
+cursors are keyed `pubsub-replay.<channel>` (see
+`internal/infrastructure/salesforce/pubsub/pubsub_replay.go`). No MaxAge: a
+quiet channel must never lose its cursor to eviction, which would force a
+silent fallback to LATEST and a gap in delivered events.
 
 ### Cache freshness states
 

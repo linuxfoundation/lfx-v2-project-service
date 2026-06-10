@@ -16,8 +16,15 @@ ExternalSecret, IRSA role, region, and chart pins live in `lfx-v2-argocd`.
   `/debug/vars`, `/livez`, and `/readyz` are mounted by the binary but are
   not exposed by this HTTPRoute.
 - **NATS KV buckets**: `membership-cache`, `member-service-cache`,
-  `org-settings`. `org-settings` is authoritative access-control state and
-  must not carry a production TTL.
+  `org-settings`, `pubsub-state`. `org-settings` is authoritative
+  access-control state and `pubsub-state` holds the CDC consumer's replay
+  cursors; neither must carry a production TTL.
+- **CDC consumer Deployment** (`templates/deployment-consumer.yaml`, gated by
+  `consumer.enabled`): a separate single-replica Deployment running
+  `RUN_MODE=consumer` with the Recreate strategy so at most one Salesforce
+  Pub/Sub CDC consumer is active. Endpoint comes from
+  `consumer.pubsubEndpoint`; `SF_ORG_ID` must be set or the consumer
+  fails fast at startup.
 - **Heimdall auth** (`templates/ruleset.yaml`): per-object `auditor`/`writer`
   checks on `b2b_org:{uid}` and `project_membership:{membership_uid}`;
   `POST /b2b_orgs` and `POST /admin/reindex` check `member` on

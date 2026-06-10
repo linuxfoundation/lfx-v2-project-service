@@ -26,7 +26,7 @@ For the broader development reference (Makefile targets, JWT/Heimdall flow, Open
 
    This writes to `gen/`. Never hand-edit `gen/`; those files are overwritten on every regen.
 
-3. **Implement the method** on the `membershipServicesrvc` struct in `cmd/member-api/service/membership_service.go`. The struct holds `storage` (a `port.MemberReader`, also used for the readyz check and key-contact reads), `auth`, `b2bOrgReader`, `projectMembershipReader`, `b2bOrgSettingsReader`, `b2bOrgWriter`, `keyContactWriter`, and `orgSettingsWriter`. Route reads through the matching reader port and writes through the matching writer use-case; do not put business logic in the handler. Return early on validation errors with `pkg/errors` domain types so `cmd/member-api/service/error.go` can map them. Mutating handlers run the `If-Match` → LFX-ETag guard before writing (mirror `UpdateKeyContact`), and publish indexer/FGA events via the writer/orchestrator after a successful write.
+3. **Implement the method** on the `membershipServicesrvc` struct in `cmd/member-api/service/membership_service.go`. The struct holds `storage` (a `port.MemberReader`, also used for the readyz check and key-contact reads), `auth`, `b2bOrgReader`, `projectMembershipReader`, `b2bOrgSettingsReader`, `b2bOrgWriter`, `keyContactWriter`, `orgSettingsWriter`, and `backfillRunner`. Route reads through the matching reader port and writes through the matching writer use-case; do not put business logic in the handler. Return early on validation errors with `pkg/errors` domain types so `cmd/member-api/service/error.go` can map them. Mutating handlers run the `If-Match` → LFX-ETag guard before writing (mirror `UpdateKeyContact`), and publish indexer/FGA events via the writer/orchestrator after a successful write.
 
 4. **Add unit tests** in `cmd/member-api/service/membership_service_test.go` following the table-driven shape already used:
 
@@ -53,6 +53,7 @@ For the broader development reference (Makefile targets, JWT/Heimdall flow, Open
 
    - `GET /b2b_orgs/{uid}` and `GET /b2b_orgs/{uid}/settings` require `auditor` on `b2b_org:{uid}`.
    - `PUT /b2b_orgs/{uid}` and `PUT /b2b_orgs/{uid}/settings` require `writer` on `b2b_org:{uid}`.
+   - `POST /b2b_orgs/{uid}/settings/users` and PUT/DELETE `/b2b_orgs/{uid}/settings/users/{email}` (per-principal settings users) require `writer` on `b2b_org:{uid}`.
    - `POST /b2b_orgs` and `POST /admin/reindex` require `member` on `team:{{ .Values.app.globalOrgAdminTeamUID }}` (machine callers).
    - `GET /project_memberships/{uid}` requires `auditor` on `project_membership:{uid}`.
    - `GET/POST/PUT/DELETE /project_memberships/{membership_uid}/key_contacts[/{uid}]` require `auditor` (reads) / `writer` (mutations) on `project_membership:{membership_uid}`; the POST rule also runs the `json_content_type` platform authorizer.

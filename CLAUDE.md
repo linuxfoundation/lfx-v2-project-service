@@ -138,7 +138,7 @@ salesforce.MemberReader (implements port.MemberReader)
 ### Key Design Principles
 
 1. **Salesforce as source of truth**: No PostgreSQL, no sync job. Every record is fetched from Salesforce on cache miss.
-2. **Single KV bucket**: All cached data lives in `membership-cache` with type-prefixed keys (e.g., `tier.`, `membership.`, `key-contacts.`, `project-sfid.`, `project-uid.`).
+2. **Type-prefixed KV keys**: All SOQL-cached data lives in `membership-cache` with type-prefixed keys (e.g., `tier.`, `membership.`, `key-contacts.`, `project-sfid.`, `project-uid.`); sObject conditional-GET entries live in `member-service-cache`.
 3. **Stale-while-revalidate**: `CachedValue[T]` envelopes carry `stale_at` and `expires_at` timestamps. Stale entries are served immediately while a background goroutine refreshes from Salesforce.
 4. **Database Independence**: Repository interfaces allow switching storage backends.
 5. **Testability**: Each layer can be tested in isolation using mocks.
@@ -172,6 +172,9 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 | GET    | `/b2b_orgs/{uid}`          | Get a B2B org                                       | `auditor` on `b2b_org:{uid}`               |
 | GET    | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}`               |
 | PUT    | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors            | `writer` on `b2b_org:{uid}`                |
+| POST   | `/b2b_orgs/{uid}/settings/users` | Add a single settings user (per-principal)    | `writer` on `b2b_org:{uid}`                |
+| PUT    | `/b2b_orgs/{uid}/settings/users/{email}` | Change a settings user's role         | `writer` on `b2b_org:{uid}`                |
+| DELETE | `/b2b_orgs/{uid}/settings/users/{email}` | Remove a settings user                | `writer` on `b2b_org:{uid}`                |
 
 **Settings semantics:** `nil` writers/auditors = keep existing; explicit `[]` = clear all. Entries with a `username` are `accepted` (FGA tuple emitted); without username are `pending` (no FGA tuple). The legacy `owner` relation is retired — use `writer` instead. Settings are stored in the `org-settings` NATS KV bucket (authoritative, no MaxAge TTL), separate from the Salesforce-backed `membership-cache` bucket.
 
@@ -201,7 +204,7 @@ Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlat
 
 > **Note:** The surface is resource-rooted (`/b2b_orgs/...`, `/project_memberships/...`, `/admin/reindex`). There are no `/projects/{project_id}/...` drill-down routes and no `/members/*` or `/memberships/*` routes — requests to those paths are unmatched and return `404`.
 
-> **Optimistic concurrency:** every mutation (`PUT /b2b_orgs/{uid}`, `PUT /b2b_orgs/{uid}/settings`, `POST`/`PUT`/`DELETE` key contacts) takes an `If-Match` header carrying the current resource version. A stale value returns `412 Precondition Failed`.
+> **Optimistic concurrency:** mutations (`PUT /b2b_orgs/{uid}`, `PUT /b2b_orgs/{uid}/settings`, the per-principal `POST`/`PUT`/`DELETE` settings-user endpoints, and `PUT`/`DELETE` key contacts) take an `If-Match` header carrying the current resource version (`POST` key-contact creates do not). A stale value returns `412 Precondition Failed`.
 
 > **Internal filtering:** SOQL-level membership filtering (`MembershipFilters` in `internal/domain/model/list_params.go`, e.g. tier UID / product) is applied internally on the Salesforce read path. It is not exposed as an HTTP `filter` query parameter on the current resource-rooted surface.
 
@@ -498,6 +501,7 @@ Authorization checks in Heimdall ruleset (`charts/lfx-v2-member-service/template
 - **PUT `/b2b_orgs/:uid`** — `writer` on `b2b_org:{uid}`
 - **GET `/b2b_orgs/:uid/settings`** — `auditor` on `b2b_org:{uid}` (auditor, not writer, so trusted principals can see the pending-invite list)
 - **PUT `/b2b_orgs/:uid/settings`** — `writer` on `b2b_org:{uid}`
+- **POST `/b2b_orgs/:uid/settings/users` and PUT/DELETE `/b2b_orgs/:uid/settings/users/:email`** — `writer` on `b2b_org:{uid}`
 - **GET `/project_memberships/:uid`** — `auditor` on `project_membership:{uid}`
 - **GET `/project_memberships/:membership_uid/key_contacts/:uid`** — `auditor` on `project_membership:{membership_uid}`
 - **POST/PUT/DELETE `/project_memberships/:membership_uid/key_contacts...`** — `writer` on `project_membership:{membership_uid}` (POST also runs `json_content_type`)

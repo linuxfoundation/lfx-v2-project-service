@@ -44,9 +44,9 @@ closed, and/or add a Helm-time `required`/fail-fast under the `openfga.enabled` 
 without `| quote`. If the value is supplied as a non-string (e.g. `--set
 app.x=123`), the rendered manifest has a non-string `env.value`, which Kubernetes rejects.
 
-**Detect:** in `charts/lfx-v2-member-service/templates/deployment.yaml`, find `value:`
-lines templated from a chart value that lack `| quote`; flag any string env var without
-it.
+**Detect:** in `charts/lfx-v2-member-service/templates/deployment.yaml` and
+`deployment-consumer.yaml`, find `value:` lines templated from a chart value that lack
+`| quote`; flag any string env var without it.
 
 **Empirical citation:** PR #38 `charts/lfx-v2-member-service/templates/deployment.yaml:42` — Copilot — "`GLOBAL_ORG_ADMIN_TEAM_UID` is rendered without `| quote`. If this value is set via `--set app.globalOrgAdminTeamUID=123` ... the rendered manifest will contain a non-string `env.value`, which Kubernetes rejects." Acted on: prabodhcs — "added `| quote` to force string rendering. Consistent with all other string env vars in the file."
 

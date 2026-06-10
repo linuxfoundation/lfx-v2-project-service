@@ -74,9 +74,10 @@ supplied `If-Match`.
 picklist label is admin-configurable, so a rename to `"INACTIVE"`/`"inactive"` would
 silently miscount.
 
-**Detect:** in `internal/service/key_contact_validation.go` and `salesforce/writer.go`,
-grep for `Status` comparisons using `==`/`!=` against `constants.RoleStatus*`; flag any
-that are not `strings.EqualFold`.
+**Detect:** in `internal/service/key_contact_validation.go` and
+`internal/infrastructure/salesforce/key_contact_writer.go` (`writer.go` in the cited
+era), grep for `Status` comparisons using `==`/`!=` against `constants.RoleStatus*`;
+flag any that are not `strings.EqualFold`.
 
 **Empirical citation:** PR #37 `cmd/member-api/service/key_contact_validation.go:46` — dealako (maintainer, `[minor]` M2) — "`kc.Status != constants.RoleStatusInactive` is a byte-for-byte comparison. SF `Status__c` is an admin-configurable picklist, and the same file already uses `strings.EqualFold` for role/email comparisons". Acted on: prabodhcs — "all three sites now use `strings.EqualFold`".
 

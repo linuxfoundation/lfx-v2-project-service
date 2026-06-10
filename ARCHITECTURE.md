@@ -21,16 +21,22 @@ replica dependency from the v1 platform has been fully removed. The service now:
 2. Caches SOQL responses in `membership-cache` (stale-while-revalidate) and sObject responses in
    `member-service-cache` (HTTP conditional-GET), to reduce Salesforce round-trips.
 3. Exposes single-object reads, write endpoints for `b2b_org` (create/update) and key contacts
-   (create/update/delete), and full-replace b2b_org access-control settings — with `If-Match`
+   (create/update/delete), full-replace b2b_org access-control settings, and per-principal
+   settings-user endpoints (`/b2b_orgs/{uid}/settings/users[/{email}]`) — with `If-Match`
    optimistic concurrency on mutations.
 4. Publishes indexer (`lfx.index.*`) and FGA-sync (`lfx.fga-sync.*`) messages on writes, and
    exposes `POST /admin/reindex` to backfill those downstream indexes from Salesforce.
 5. Stores authoritative b2b_org access-control state (writers, auditors, pending invites) in the
    `org-settings` KV bucket.
 6. Handles inbound NATS RPC to resolve a v2 project UID to its Salesforce `Project__c.Id`
-   (`lfx.member.project-id-map.lookup`) and to translate SFID ↔ UUID
-   (`lfx.member.sfid-to-uuid.lookup`, `lfx.member.uuid-to-sfid.lookup`).
+   (`lfx.member.project-id-map.lookup`). The earlier SFID ↔ UUID translation RPCs were removed
+   in LFXV2-2049: the canonical `uid` for Salesforce-backed entities is now the 18-char SFID
+   itself (`pkg/sfuuid` only normalizes 15↔18-char forms).
 7. Resolves project UIDs ↔ slugs via NATS RPC calls to the project-service.
+8. Runs a Salesforce Pub/Sub CDC consumer (`RUN_MODE=consumer`, single replica) that
+   invalidates the sObject cache and re-publishes indexer + FGA-sync messages on
+   `Account`/`Asset`/`Project_Role__c` change events, persisting its replay cursor in the
+   `pubsub-state` KV bucket.
 
 ### Current API layout
 
@@ -45,6 +51,9 @@ The service exposes resource-rooted endpoints. The authoritative surface is the 
 | PUT | `/b2b_orgs/{uid}` | Update a b2b_org | `writer` on `b2b_org:{uid}` |
 | GET | `/b2b_orgs/{uid}/settings` | Get org access-control settings | `auditor` on `b2b_org:{uid}` |
 | PUT | `/b2b_orgs/{uid}/settings` | Full-replace org writers/auditors | `writer` on `b2b_org:{uid}` |
+| POST | `/b2b_orgs/{uid}/settings/users` | Add a single settings user (per-principal) | `writer` on `b2b_org:{uid}` |
+| PUT | `/b2b_orgs/{uid}/settings/users/{email}` | Change a settings user's role | `writer` on `b2b_org:{uid}` |
+| DELETE | `/b2b_orgs/{uid}/settings/users/{email}` | Remove a settings user | `writer` on `b2b_org:{uid}` |
 | GET | `/project_memberships/{uid}` | Get a membership | `auditor` on `project_membership:{uid}` |
 | GET | `/project_memberships/{m_uid}/key_contacts/{uid}` | Get a key contact | `auditor` on `project_membership:{m_uid}` |
 | POST | `/project_memberships/{m_uid}/key_contacts` | Create a key contact | `writer` on `project_membership:{m_uid}` |
@@ -88,6 +97,9 @@ SOQL-backed readers above.
 The chart and client also initialize `org-settings`, an authoritative (no-TTL) NATS KV bucket that
 holds b2b_org access-control state (`org-settings.{uid}` → `model.B2BOrgSettings` JSON). Every
 settings PUT uses the KV revision for optimistic concurrency (compare-and-set).
+
+A fourth bucket, `pubsub-state` (no TTL), holds the Salesforce Pub/Sub CDC consumer's replay
+cursors (`pubsub-replay.<channel>`); a quiet channel must never lose its cursor to eviction.
 
 ### Current domain model (post-detour)
 
@@ -1081,8 +1093,9 @@ been removed. Primary owners were LFXV2-1359 (API + handlers) and LFXV2-1366 (He
 > **Status:** Implemented. The service publishes `lfx.fga-sync.update_access` /
 > `lfx.fga-sync.delete_access` for `b2b_org`, b2b_org settings, and key contacts via
 > `port.MemberPublisher`. The b2b_org create message includes the `global_org_admin` reference;
-> updates omit it. Publishes are fire-and-forget on the write path (recoverable via
-> `POST /admin/reindex`); deletes propagate publish errors.
+> HTTP updates omit it (the CDC consumer always sets it — see `docs/fga-contract.md`). Publishes
+> are fire-and-forget on the write path (recoverable via `POST /admin/reindex`); deletes
+> propagate publish errors.
 
 - On every create / update / delete of a `b2b_org` or `key_contact` (via the HTTP API), and on
   every `project_membership` change received via PubSub CDC or backfill, publish a FGA Sync
@@ -1092,23 +1105,29 @@ been removed. Primary owners were LFXV2-1359 (API + handlers) and LFXV2-1366 (He
   reference (team UID loaded from config at startup).
 - On delete, publish a `delete_access` message to remove all FGA tuples for the object.
 
-### Step 6: Indexer integration — *Done (write path)*
+### Step 6: Indexer integration — *Done*
 
-> **Status:** Implemented for the HTTP write path and backfill. The service publishes indexer
-> messages via `port.MemberPublisher`. PubSub CDC (Step 7) is not yet wired, so CDC-driven
-> indexing does not exist yet.
+> **Status:** Implemented for the HTTP write path, backfill, and PubSub CDC (Step 7).
+> The service publishes indexer messages via `port.MemberPublisher`.
 
-- On every create / update / delete (and, once Step 7 lands, on every PubSub CDC event), publish
+- On every create / update / delete and on every PubSub CDC event, publish
   an Indexer message via the publisher port.
 - NATS subjects (`pkg/constants/subjects.go`): `lfx.index.b2b_org`,
   `lfx.index.b2b_org_settings`, `lfx.index.project_membership`, `lfx.index.key_contact`.
 
-### Step 7: PubSub CDC consumer
+### Step 7: PubSub CDC consumer — *Done*
+
+> **Status:** Implemented. `internal/service/cdc_consumer.go` consumes normalized CDC events
+> from the Salesforce Pub/Sub gRPC adapter (`internal/infrastructure/salesforce/pubsub/`),
+> running as a separate single-replica Deployment (`RUN_MODE=consumer`, Recreate strategy).
+> Replay cursors persist in the `pubsub-state` KV bucket. The channel defaults to
+> `/data/ChangeEvents` and is overridable via `SF_CDC_CHANNEL`.
 
 - Subscribe to `AccountChangeEvent`, `AssetChangeEvent`, and `Project_Role__cChangeEvent` CDC
   channels.
-- On each event: unconditionally re-fetch the affected sObject, refresh the NATS KV cache
-  entry, and publish Indexer + FGA Sync messages.
+- On each event: invalidate the sObject cache, re-fetch the affected record,
+  and publish Indexer + FGA Sync messages (deletes publish a delete indexer event without
+  re-fetching).
 
 ### Step 8: Indexer backfill endpoint — *Done*
 
@@ -1151,10 +1170,12 @@ been removed. Primary owners were LFXV2-1359 (API + handlers) and LFXV2-1366 (He
 | `SF_CLIENT_ID` | Salesforce connected app client ID | Yes |
 | `SF_CLIENT_SECRET` | Salesforce connected app client secret | Conditional (not required for JWT bearer flow) |
 | `SF_API_VERSION` | Salesforce API version (default: `v63.0`) | No |
-| `SF_PUBSUB_ENDPOINT` | Salesforce PubSub gRPC endpoint (future Step 7) | Future (Step 7) |
+| `SF_PUBSUB_ENDPOINT` | Salesforce PubSub gRPC endpoint (e.g. `api.pubsub.salesforce.com:7443`) | Consumer mode only |
+| `SF_ORG_ID` | Salesforce org ID for the Pub/Sub tenant | Consumer mode only |
+| `SF_CDC_CHANNEL` | CDC channel to subscribe to (default `/data/ChangeEvents`) | No |
+| `RUN_MODE` | `server` (default, HTTP API) or `consumer` (CDC consumer) | No |
 | `GLOBAL_ORG_ADMIN_TEAM_UID` | v2 UID of the global org-admin team; written as `global_org_admin` on every `b2b_org` at creation | Yes |
 | `NATS_URL` | NATS server URL | Yes |
-| `PROJECT_RPC_TIMEOUT` | Timeout for project-service NATS RPC calls (default: `5s`) | No |
 
 ---
 

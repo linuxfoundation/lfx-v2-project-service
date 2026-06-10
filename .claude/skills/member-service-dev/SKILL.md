@@ -43,7 +43,9 @@ Subjects live in `pkg/constants/subjects.go`:
 
 - Indexer: `lfx.index.b2b_org`, `lfx.index.b2b_org_settings`,
   `lfx.index.project_membership`, `lfx.index.key_contact`.
-- FGA-sync: `lfx.fga-sync.update_access`, `lfx.fga-sync.delete_access`.
+- FGA-sync: `lfx.fga-sync.update_access`, `lfx.fga-sync.delete_access`; the
+  key-contact relation grants/revokes also publish `lfx.fga-sync.member_put` /
+  `lfx.fga-sync.member_remove` via the `lfx-v2-fga-sync` package constants.
 
 Publishing goes through the `port.MemberPublisher` port
 (`internal/domain/port/event_publisher.go`), implemented by
@@ -52,7 +54,10 @@ updates publish fire-and-forget (`sync=false`) and swallow publish errors,
 logging at warn with `publish_failed_for_backfill_repair=true` so the
 `POST /admin/reindex` backfill can recover; deletes propagate publish errors.
 When a settings PUT publishes, FGA-sync is sent before the indexer so access
-tuples land before the doc is searchable. The canonical contracts live in
+tuples land before the doc is searchable. The same publish helpers are reused
+by the Salesforce Pub/Sub CDC consumer (`internal/service/cdc_consumer.go`,
+run as a separate single-replica Deployment with `RUN_MODE=consumer`) and the
+`POST /admin/reindex` backfill runner. The canonical contracts live in
 `docs/fga-contract.md` and `docs/indexer-contract.md` (and upstream in
 `lfx-v2-fga-sync` and `lfx-v2-indexer-service`); update those in the same
 change when message shapes change. For the current-vs-target architecture and
@@ -107,10 +112,14 @@ the graduation plan, see `ARCHITECTURE.md` at the repo root.
 
 ## Pagination
 
+The current resource-rooted HTTP surface has no list endpoints; pagination
+lives on the internal membership read path (`ListMembershipsForProject` and
+the SOQL batch cache) and in the design's `ListMetadata` type. If a list
+endpoint is (re)added:
+
 - HTTP query params are Goa camelCase: `pageSize` plus opaque `pageToken`.
   Responses expose `metadata.next_page_token`.
-- Default `pageSize` is 200. The server normalizes to supported Salesforce
-  batch/page sizes and caps at 1000.
+- Normalize `pageSize` to supported Salesforce batch/page sizes.
 - Return `metadata.next_page_token` only when another page exists.
 - Treat `pageToken` as opaque and service-owned. Clients must not parse it.
 
@@ -119,16 +128,17 @@ the graduation plan, see `ARCHITECTURE.md` at the repo root.
 - Keep subject strings in repo-owned constants (see `pkg/constants` and
   `internal/infrastructure/nats/`). Do not hardcode subject strings at call
   sites.
-- Inbound RPC handlers are registered with plain NATS `Subscribe` and drained
-  during shutdown: the project-id-map lookup
-  (`lfx.member.project-id-map.lookup`) and the entity-agnostic SFID/UUID
-  lookups (`lfx.member.sfid-to-uuid.lookup`, `lfx.member.uuid-to-sfid.lookup`).
-  Do not document any of them as queue-group handlers unless the code is
+- The single inbound RPC handler is registered with plain NATS `Subscribe`
+  and drained during shutdown: the project-id-map lookup
+  (`lfx.member.project-id-map.lookup`). The earlier SFID/UUID lookup subjects
+  were removed in LFXV2-2049 (the canonical uid is now the 18-char SFID). Do
+  not document the handler as a queue-group handler unless the code is
   changed.
 - If adding another horizontally scaled request/reply handler, choose an
   explicit queue group and document it in `references/nats-messaging.md`.
 - Do not write directly to another service's KV bucket. This repo owns
-  `membership-cache`, `member-service-cache`, and `org-settings`.
+  `membership-cache`, `member-service-cache`, `org-settings`, and
+  `pubsub-state` (CDC replay cursors).
 - The existing shutdown path drains the inbound RPC subscriptions and closes
   the shared NATS client; match that pattern unless you are deliberately
   changing shutdown semantics.
@@ -141,15 +151,19 @@ the graduation plan, see `ARCHITECTURE.md` at the repo root.
 - Resource-rooted API surface. Single-object reads, writes, and an admin
   reindex action:
   - `b2b_org`: GET/POST/PUT `/b2b_orgs[/{uid}]`, plus GET/PUT
-    `/b2b_orgs/{uid}/settings`.
+    `/b2b_orgs/{uid}/settings` and the per-principal settings-user endpoints
+    POST `/b2b_orgs/{uid}/settings/users` and PUT/DELETE
+    `/b2b_orgs/{uid}/settings/users/{email}`.
   - `project_membership`: GET `/project_memberships/{uid}` only (membership
     lifecycle is owned by Salesforce, not this HTTP API).
   - `key_contact`: GET/POST/PUT/DELETE nested under
     `/project_memberships/{membership_uid}/key_contacts[/{uid}]`.
   - `POST /admin/reindex` triggers an indexer/FGA backfill.
-- UID and SFID translation (slug-to-UID, UID-to-SFID, and the invertible
-  `sfuuid` UUID v8 encode/decode) is done in the infrastructure layer via NATS
-  RPC, Salesforce, and `pkg/sfuuid`, never inside Goa generated code.
+- The canonical `uid` for Salesforce-backed entities is the 18-char SFID
+  (LFXV2-2049); `pkg/sfuuid` only normalizes 15↔18-char SFID forms
+  (`Normalize18`/`Normalize15`). Project UIDs remain real v2 UUIDs. UID, slug,
+  and SFID translation is done in the infrastructure layer via NATS RPC,
+  Salesforce, and `pkg/sfuuid`, never inside Goa generated code.
 - Mutating endpoints implement optimistic concurrency. PUT/DELETE accept an
   `If-Match` header carrying the LFX ETag from a prior GET; a stale ETag
   returns `412 Precondition Failed`. GET responses carry an `ETag` (a hash of
@@ -167,8 +181,9 @@ Salesforce REST is the source of truth for tiers, memberships, and key
 contacts. Two concrete rules sit on top of the general Go conventions:
 
 1. **Always go through the resolver and cache.** Project-scoped SOQL queries
-   require a Salesforce `Project__c.Id`. The HTTP API only carries v2 UUIDs.
-   Use `ProjectResolver.SFIDFromUID` (which in turn checks the
+   require a Salesforce `Project__c.Id`. Project identifiers on the HTTP API
+   are v2 UUIDs (entity `uid`s are 18-char SFIDs since LFXV2-2049). Use
+   `ProjectResolver.SFIDFromUID` (which in turn checks the
    `membership-cache` KV bucket, then NATS RPC to project-service, then
    SOQL). Never issue SOQL keyed on a v2 UUID directly.
 2. **Respect the cache freshness contract.** `CacheStatusFresh` serves

@@ -53,7 +53,7 @@ only findings it can quote (KB-match gate), then drops anything matching
 
 | File | Patterns | Read when |
 | --- | --- | --- |
-| [`salesforce-and-uuid.md`](salesforce-and-uuid.md) | 5 | `internal/infrastructure/salesforce/**`, `pkg/sfuuid/**`, `internal/infrastructure/project/**`, or any `.go` calling `sfuuid.To*` / building SOQL / resolving project UID↔SFID |
+| [`salesforce-and-uuid.md`](salesforce-and-uuid.md) | 5 | `internal/infrastructure/salesforce/**`, `pkg/sfuuid/**`, `internal/infrastructure/project/**`, or any `.go` calling the `sfuuid` helpers / building SOQL / resolving project UID↔SFID |
 | [`cache-and-kv.md`](cache-and-kv.md) | 5 | `internal/infrastructure/nats/**`, `pkg/constants/storage.go`, `pkg/constants/nats.go`, or a write handler that mutates cached resources |
 | [`endpoint-and-goa.md`](endpoint-and-goa.md) | 6 | `cmd/member-api/design/**`, `cmd/member-api/service/**`, `internal/service/**`, or `gen/**` |
 | [`fga-and-indexer.md`](fga-and-indexer.md) | 5 | `internal/service/**` or `internal/domain/model/**` building FGA/indexer messages, `pkg/constants/subjects.go`, `docs/fga-contract.md` |
@@ -67,7 +67,7 @@ only findings it can quote (KB-match gate), then drops anything matching
 ## Highest-value patterns
 
 - `salesforce-and-uuid/swallowed-sfid-conversion-error` (Critical) — recurred across PRs
-  #23, #37, #40; a swallowed `sfuuid.To*` error silently zeroes a foreign key.
+  #23, #37, #40; a swallowed SFID-conversion error silently zeroes a foreign key.
 - `endpoint-and-goa/status-flip-bypasses-capacity` and `.../missing-ifmatch-guard-parity`
   (Critical) — maintainer `[blocking]` findings (dealako, PR #37); data-integrity / lost-update.
 - `cache-and-kv/write-without-cache-invalidation` (Critical) — PR #39; writes that don't
@@ -84,10 +84,10 @@ only findings it can quote (KB-match gate), then drops anything matching
 - `observability-and-resilience/4xx-logged-at-error` is only *partially* live: `origin/main`
   already routes NotImplemented→Debug and Conflict/Precondition→Warn, but Validation/NotFound
   still log at Error. Kept as a Nit; a maintainer should decide whether to lower them.
-- The `lfx-skills:lfx-member-service-code-reviewer` agent's "Known False Positives" still
-  states the service does NOT publish FGA/indexer and that key-contact mutations do not accept
-  `If-Match`. Both are now stale on `origin/main` (publishing exists; `If-Match` guards exist).
-  This KB treats the current code as authoritative; the code-reviewer KFP list should be
-  refreshed by a maintainer.
+- The `lfx-skills:lfx-member-service-code-reviewer` agent's "Known False Positives"
+  previously stated the service does NOT publish FGA/indexer and that key-contact mutations
+  do not accept `If-Match`. Both became stale on `origin/main` (publishing exists; `If-Match`
+  guards exist) and the agent's KFP list has been refreshed against `origin/main` to remove
+  them. This KB treats the current code as authoritative.
 
 _Built 2026-05-29 against `origin/main` @ `7f6ca55` (PR #44 merged)._

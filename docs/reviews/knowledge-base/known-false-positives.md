@@ -61,10 +61,11 @@ read/write proxy with NATS KV caches — no Postgres, no sync job. (Reads served
 **Pattern matched:** a finding asserting the service must NOT publish FGA-sync or indexer
 messages, citing CLAUDE.md's "does NOT publish FGA or indexer messages" line.
 
-**Why false (now):** that statement was true for the read-only proxy era and the
-`lfx-member-service-code-reviewer`'s KFP list still reflects it. As of `origin/main`
-(PRs #36-#44) the service DOES publish `update_access` FGA-sync and indexer messages for
-b2b-org settings and key-contacts (see `internal/service/**`, `pkg/constants/subjects.go`,
+**Why false (now):** that statement was true for the read-only proxy era only (the
+`lfx-member-service-code-reviewer`'s KFP list has since been refreshed to drop it). As
+of `origin/main` (PRs #36-#44, plus the CDC consumer) the service DOES publish FGA-sync
+and indexer messages for b2b-org, b2b-org settings, and key-contacts (see
+`internal/service/**`, `pkg/constants/subjects.go`,
 `docs/fga-contract.md`). Findings about FGA/indexer message *construction* are valid (see
 `fga-and-indexer.md`). Only drop a finding that says publishing should not exist at all.
 

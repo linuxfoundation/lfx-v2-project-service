@@ -3,9 +3,9 @@
 
 # NATS KV cache and bucket behavior
 
-Patterns specific to this service's two-bucket cache model (`membership-cache` soft-TTL
+Patterns specific to this service's KV bucket model (`membership-cache` soft-TTL
 envelope cache; `member-service-cache` sObject conditional-GET cache; `org-settings`
-authoritative access-control bucket). Recurring flags: serving stale entries because the
+authoritative access-control bucket; `pubsub-state` CDC replay-cursor bucket). Recurring flags: serving stale entries because the
 TTL is only checked by a background sweep, write paths that don't invalidate the relevant
 cache entry, KV key prefix comment/code drift (dot vs slash), and reliance on the
 unspecified NATS KV iteration order for pagination. Stale-serve and missing-invalidation
