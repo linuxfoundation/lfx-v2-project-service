@@ -32,11 +32,6 @@ const (
 	// KVLookupLinkKey is the per-project link index key.
 	// Format: lookup/project-links/<projectUID>/<linkUID>
 	KVLookupLinkKey = "lookup/project-links/%s/%s"
-
-	// KVLookupInviteMappingPrefix is the mapping key prefix that resolves an invite UID to the
-	// project UID whose settings contain that invite.
-	// Key: "lookup/project-settings-invite/<invite_uid>", Value: <project_uid>
-	KVLookupInviteMappingPrefix = "lookup/project-settings-invite/%s"
 )
 
 // NATS subjects that the project service sends messages about.
@@ -62,6 +57,16 @@ const (
 
 	// IndexProjectDocumentSubject is the subject for project document indexing.
 	IndexProjectDocumentSubject = "lfx.index.project_document"
+
+	// ProjectDocumentCreatedSubject is emitted after a file document is successfully uploaded to a project.
+	// The payload is the marshalled events.ProjectDocumentCreatedMessage.
+	// The subject is of the form: lfx.projects-api.project_document.created
+	ProjectDocumentCreatedSubject = "lfx.projects-api.project_document.created"
+
+	// ProjectLinkCreatedSubject is emitted after a link is successfully added to a project.
+	// The payload is the marshalled events.ProjectLinkCreatedMessage.
+	// The subject is of the form: lfx.projects-api.project_link.created
+	ProjectLinkCreatedSubject = "lfx.projects-api.project_link.created"
 )
 
 // NATS wildcard subjects that the project service handles messages about.

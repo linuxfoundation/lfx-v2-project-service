@@ -224,12 +224,18 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 	defer cancel()
 
 	result, err := s.MessageBuilder.SendInviteRequest(sendCtx, inviteapi.SendInviteRequest{
-		RecipientEmail: recipientEmail,
-		RecipientName:  recipientName,
-		InviterName:    inviterName,
-		ResourceUID:    projectUID,
-		ResourceName:   projectName,
-		ResourceType:   "project",
+		Recipient: &inviteapi.Recipient{
+			Email: recipientEmail,
+			Name:  recipientName,
+		},
+		Inviter: &inviteapi.Inviter{
+			Name: inviterName,
+		},
+		Resource: &inviteapi.Resource{
+			UID:  projectUID,
+			Name: projectName,
+			Type: "project",
+		},
 		Role:           inviteRole,
 		ReturnURL:      deepLinkURL,
 		ExpirationDays: 30,
@@ -239,125 +245,9 @@ func (s *ProjectsService) sendInvite(ctx context.Context, projectUID, projectNam
 			constants.ErrKey, err, "role", role, "project_uid", projectUID)
 		return nil
 	}
-	if result.InviteUID == "" {
-		// Defensive: infra-layer SendInviteRequest validates this, but guard here too.
-		slog.WarnContext(ctx, "project_subscriber: invite service responded without an invite UID — skipping write-back",
-			"role", role, "project_uid", projectUID)
-		return nil
-	}
+	slog.InfoContext(ctx, "project_subscriber: invite sent",
+		"role", role, "project_uid", projectUID, "invite_uid", result.InviteUID)
 
-	slog.InfoContext(ctx, "project_subscriber: invite service responded with invite UID — storing on member record",
-		"role", role, "project_uid", projectUID, "invite_uid", result.InviteUID, "expires_at", result.ExpiresAt)
-
-	if storeErr := s.storeInviteInfo(ctx, projectUID, role, recipientEmail, result.InviteUID, result.RecipientEmail, result.ExpiresAt); storeErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to store invite info on user",
-			constants.ErrKey, storeErr, "role", role, "project_uid", projectUID, "invite_uid", result.InviteUID)
-	}
-	return nil
-}
-
-// storeInviteInfo reads project settings, locates the user by email in the given role's
-// slice, stamps their InviteUID, InviteEmail, and InviteExpiresAt, and writes the settings
-// back using optimistic concurrency. It retries up to 3 times on ErrRevisionMismatch,
-// which can occur when multiple non-LFID users are added in the same event and concurrent
-// write-backs race on the same KV revision.
-func (s *ProjectsService) storeInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
-	const maxRetries = 3
-	for attempt := range maxRetries {
-		storeCtx, storeCancel := context.WithTimeout(ctx, notificationTimeout)
-		err := s.tryStoreInviteInfo(storeCtx, projectUID, role, recipientEmail, inviteUID, inviteEmail, expiresAt)
-		storeCancel()
-		if err == nil {
-			return nil
-		}
-		if !errors.Is(err, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
-			return err
-		}
-		slog.DebugContext(ctx, "project_subscriber: revision mismatch storing invite info — retrying",
-			"attempt", attempt+1, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-	}
-	return nil
-}
-
-// roleSlice returns a pointer to the settings slice for the given role,
-// or nil for an unrecognised role.
-func roleSlice(s *models.ProjectSettings, role string) *[]models.UserInfo {
-	switch role {
-	case roleWriter:
-		return &s.Writers
-	case roleAuditor:
-		return &s.Auditors
-	case roleMeetingCoordinator:
-		return &s.MeetingCoordinators
-	}
-	return nil
-}
-
-func (s *ProjectsService) tryStoreInviteInfo(ctx context.Context, projectUID, role, recipientEmail, inviteUID, inviteEmail string, expiresAt time.Time) error {
-	slog.DebugContext(ctx, "project_subscriber: reading project settings to store invite info",
-		"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-
-	settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
-	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to read project settings for invite info write-back",
-			constants.ErrKey, err, "project_uid", projectUID)
-		return err
-	}
-
-	slicePtr := roleSlice(settings, role)
-	if slicePtr == nil {
-		return nil
-	}
-
-	normalizedRecipient := strings.ToLower(strings.TrimSpace(recipientEmail))
-	updated := false
-	for i := range *slicePtr {
-		if strings.ToLower(strings.TrimSpace((*slicePtr)[i].Email)) == normalizedRecipient {
-			inv := &models.InviteInfo{UID: inviteUID, Email: inviteEmail}
-			if !expiresAt.IsZero() {
-				inv.ExpiresAt = &expiresAt
-			}
-			(*slicePtr)[i].Invite = inv
-			updated = true
-			break
-		}
-	}
-	if !updated {
-		slog.WarnContext(ctx, "project_subscriber: user not found in role slice — invite info not stored (user may have been removed)",
-			"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-		return nil
-	}
-
-	if err := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision); err != nil {
-		if errors.Is(err, domain.ErrRevisionMismatch) {
-			slog.DebugContext(ctx, "project_subscriber: revision mismatch writing invite info — will retry",
-				"project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-		} else {
-			slog.WarnContext(ctx, "project_subscriber: failed to write invite info back to project settings",
-				constants.ErrKey, err, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-		}
-		return err
-	}
-
-	slog.InfoContext(ctx, "project_subscriber: stored invite info on member record",
-		"project_uid", projectUID, "role", role, "invite_uid", inviteUID, "expires_at", expiresAt)
-
-	// Write the invite UID → project UID mapping so HandleInviteAccepted can route the
-	// acceptance event without scanning all project settings.
-	if mappingErr := s.ProjectRepository.CreateInviteMapping(ctx, inviteUID, projectUID); mappingErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to create invite mapping — acceptance routing will not work",
-			constants.ErrKey, mappingErr, "project_uid", projectUID, "invite_uid", inviteUID)
-	}
-
-	indexMsg := indexerTypes.IndexerMessageEnvelope{
-		Action:         indexerConstants.ActionUpdated,
-		Data:           *settings,
-		IndexingConfig: settings.IndexingConfig(projectUID),
-	}
-	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after storing invite info",
-			constants.ErrKey, indexErr, "project_uid", projectUID, "role", role, "invite_uid", inviteUID)
-	}
 	return nil
 }
 
@@ -484,141 +374,150 @@ func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor eve
 	return "A project administrator"
 }
 
-// HandleInviteAccepted processes an invite acceptance event from the LFX self-serve web app.
-// It locates the project settings that own the invite via the mapping written at invite-send time,
-// promotes the user from non-LFID (email-only) to LFID (username set, invite cleared), persists
-// the update, deletes the consumed mapping, and re-indexes.
+// HandleInviteAccepted processes an invite acceptance event published by the invite service.
+// It scans all project settings for email-only user entries matching the recipient email and
+// promotes them to full LFID users (username set, invite cleared). This reconciles every
+// project the accepted user was invited to, regardless of which resource triggered the event.
 //
-// Note: a single notificationTimeout deadline covers the entire handler body including all retry
-// attempts. If KV contention causes all retries to exhaust the budget, the promotion is lost and
-// the user must re-accept the invite link to trigger a new acceptance event.
+// Note: accepting a single invite reconciles every project where the same email has a
+// pending email-only entry for the same role, not only the project that issued the invite.
+// This is intentional and idempotent.
+//
+// TODO: replace the full-scan with an email → [project_uid] index lookup so we avoid reading
+// every project's settings on each acceptance event.
 func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.Message) error {
-	var event events.InviteAccepted
+	var event inviteapi.InviteServiceAcceptedEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal invite_accepted event", constants.ErrKey, err)
 		return nil
 	}
 
-	if event.InviteUID == "" || event.Username == "" {
-		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing invite_uid or username — discarding",
-			"invite_uid", event.InviteUID, "username", event.Username)
+	normalizedEmail := strings.ToLower(strings.TrimSpace(event.Recipient.Email))
+	validRole := event.Role == string(inviteapi.InviteRoleManage) || event.Role == string(inviteapi.InviteRoleView)
+	if event.UID == "" || event.AcceptedBy == "" || normalizedEmail == "" || !validRole {
+		slog.WarnContext(ctx, "project_subscriber: invite_accepted event missing or unrecognized required fields — discarding",
+			"invite_uid", event.UID, "has_accepted_by", event.AcceptedBy != "",
+			"has_recipient_email", normalizedEmail != "", "role", event.Role)
 		return nil
 	}
 
-	acceptCtx, acceptCancel := context.WithTimeout(ctx, notificationTimeout)
-	defer acceptCancel()
-	ctx = acceptCtx
+	// Scan all project settings for email-only entries that match the recipient.
+	listCtx, listCancel := context.WithTimeout(ctx, notificationTimeout)
+	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
+	listCancel()
+	if listErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for invite reconciliation",
+			constants.ErrKey, listErr, "invite_uid", event.UID)
+		return nil
+	}
 
-	// Look up the project UID from the mapping.
-	projectUID, err := s.ProjectRepository.GetProjectUIDByInviteUID(ctx, event.InviteUID)
-	if err != nil {
-		if errors.Is(err, domain.ErrInviteMappingNotFound) {
-			// No mapping means this invite belongs to another service — silently ignore.
-			slog.DebugContext(ctx, "project_subscriber: invite not tracked by this service — ignoring",
-				"invite_uid", event.InviteUID)
-			return nil
+	for _, candidate := range allSettings {
+		if !projectSettingsHasEmailOnlyEntry(candidate, normalizedEmail, event.Role) {
+			continue
 		}
-		slog.WarnContext(ctx, "project_subscriber: KV error looking up invite mapping",
-			constants.ErrKey, err, "invite_uid", event.InviteUID)
-		return nil
+		projectUID := candidate.UID
+		promoteCtx, promoteCancel := context.WithTimeout(ctx, notificationTimeout)
+		s.promoteInvitedUserInProjectSettings(promoteCtx, projectUID, normalizedEmail, event.AcceptedBy, event.UID, event.Role)
+		promoteCancel()
 	}
 
-	const maxPromoteRetries = 3
-	var (
-		settings *models.ProjectSettings
-		promoted bool
-	)
-	for attempt := range maxPromoteRetries {
-		var revision uint64
-		var settingsErr error
-		settings, revision, settingsErr = s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
-		if settingsErr != nil {
-			if attempt < maxPromoteRetries-1 {
-				slog.DebugContext(ctx, "project_subscriber: transient error reading settings for invite acceptance — retrying",
-					constants.ErrKey, settingsErr, "attempt", attempt+1, "project_uid", projectUID, "invite_uid", event.InviteUID)
-				continue
+	return nil
+}
+
+// projectSettingsHasEmailOnlyEntry reports whether settings contain at least one
+// email-only (non-LFID) entry whose email matches normalizedEmail, considering only
+// the role-appropriate slices.
+func projectSettingsHasEmailOnlyEntry(s *models.ProjectSettings, normalizedEmail, role string) bool {
+	for _, slice := range projectRoleSlices(s, role) {
+		for _, u := range slice {
+			if u.Username == "" && strings.ToLower(strings.TrimSpace(u.Email)) == normalizedEmail {
+				return true
 			}
-			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite acceptance",
-				constants.ErrKey, settingsErr, "project_uid", projectUID, "invite_uid", event.InviteUID)
-			return nil
+		}
+	}
+	return false
+}
+
+// projectRoleSlicePtrs returns pointer-to-slice refs for mutation for a given invite role.
+// "Manage" → Writers + MeetingCoordinators; "View" → Auditors only; unknown → nil (fail closed).
+func projectRoleSlicePtrs(s *models.ProjectSettings, role string) []*[]models.UserInfo {
+	switch role {
+	case string(inviteapi.InviteRoleManage):
+		return []*[]models.UserInfo{&s.Writers, &s.MeetingCoordinators}
+	case string(inviteapi.InviteRoleView):
+		return []*[]models.UserInfo{&s.Auditors}
+	default:
+		return nil // unknown/unrecognized role — fail closed, do not promote into any slice
+	}
+}
+
+// projectRoleSlices returns the settings slices to scan for a given invite role.
+// Derived from projectRoleSlicePtrs so role mappings cannot drift between the two.
+func projectRoleSlices(s *models.ProjectSettings, role string) [][]models.UserInfo {
+	ptrs := projectRoleSlicePtrs(s, role)
+	if ptrs == nil {
+		return nil
+	}
+	slices := make([][]models.UserInfo, len(ptrs))
+	for i, p := range ptrs {
+		slices[i] = *p
+	}
+	return slices
+}
+
+// promoteInvitedUserInProjectSettings promotes all email-only entries matching normalizedEmail
+// in the given project's settings to full LFID users. It retries on revision conflicts.
+func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Context, projectUID, normalizedEmail, username, inviteUID, role string) {
+	const maxRetries = 3
+	for attempt := range maxRetries {
+		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if err != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to read settings for invite promotion",
+				constants.ErrKey, err, "project_uid", projectUID, "invite_uid", inviteUID)
+			return
 		}
 
-		// Pass 1: find the entry that owns the invite UID and promote it.
-		// Record the normalised email so sibling entries for the same user can be
-		// promoted in pass 2 (they share an email but were deduplicated and never
-		// received their own invite UID).
-		promoted = false
-		var promotedEmail string
-		allSlices := []*[]models.UserInfo{&settings.Writers, &settings.Auditors, &settings.MeetingCoordinators}
-		for _, slice := range allSlices {
+		promoted := false
+		for _, slice := range projectRoleSlicePtrs(settings, role) {
 			for i := range *slice {
-				if (*slice)[i].Invite != nil && (*slice)[i].Invite.UID == event.InviteUID {
-					promotedEmail = strings.ToLower(strings.TrimSpace((*slice)[i].Email))
-					(*slice)[i].Username = event.Username
+				if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == normalizedEmail {
+					(*slice)[i].Username = username
 					(*slice)[i].Invite = nil
 					promoted = true
-					break
-				}
-			}
-			if promoted {
-				break
-			}
-		}
-
-		// Pass 2: promote any sibling entries for the same email that were skipped
-		// during invite deduplication and therefore have no invite UID of their own.
-		if promoted && promotedEmail != "" {
-			for _, slice := range allSlices {
-				for i := range *slice {
-					if (*slice)[i].Username == "" && strings.ToLower(strings.TrimSpace((*slice)[i].Email)) == promotedEmail {
-						(*slice)[i].Username = event.Username
-						(*slice)[i].Invite = nil
-					}
 				}
 			}
 		}
 
 		if !promoted {
-			slog.WarnContext(ctx, "project_subscriber: invite UID not found in any role slice — stale mapping, cleaning up",
-				"invite_uid", event.InviteUID, "project_uid", projectUID)
-			if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
-				slog.WarnContext(ctx, "project_subscriber: failed to delete stale invite mapping", constants.ErrKey, delErr, "invite_uid", event.InviteUID)
-			}
-			return nil
+			// Race: another handler already promoted this entry between the scan and now.
+			slog.DebugContext(ctx, "project_subscriber: email-only entry already promoted — skipping",
+				"project_uid", projectUID, "invite_uid", inviteUID)
+			return
 		}
 
 		updateErr := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision)
 		if updateErr == nil {
-			break
+			slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
+				"project_uid", projectUID, "invite_uid", inviteUID, "username", username)
+			indexMsg := indexerTypes.IndexerMessageEnvelope{
+				Action:         indexerConstants.ActionUpdated,
+				Data:           *settings,
+				IndexingConfig: settings.IndexingConfig(projectUID),
+			}
+			if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
+					constants.ErrKey, indexErr, "project_uid", projectUID)
+			}
+			return
 		}
-		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxPromoteRetries-1 {
+		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
 			slog.WarnContext(ctx, "project_subscriber: failed to update settings after invite acceptance",
-				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", event.InviteUID)
-			return nil
+				constants.ErrKey, updateErr, "project_uid", projectUID, "invite_uid", inviteUID)
+			return
 		}
 		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting invite — retrying",
-			"attempt", attempt+1, "invite_uid", event.InviteUID)
+			"attempt", attempt+1, "project_uid", projectUID, "invite_uid", inviteUID)
 	}
-
-	if delErr := s.ProjectRepository.DeleteInviteMapping(ctx, event.InviteUID); delErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to delete invite mapping after acceptance",
-			constants.ErrKey, delErr, "invite_uid", event.InviteUID)
-	}
-
-	slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
-		"project_uid", projectUID, "invite_uid", event.InviteUID, "username", event.Username)
-
-	indexMsg := indexerTypes.IndexerMessageEnvelope{
-		Action:         indexerConstants.ActionUpdated,
-		Data:           *settings,
-		IndexingConfig: settings.IndexingConfig(projectUID),
-	}
-	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
-			constants.ErrKey, indexErr, "project_uid", projectUID)
-	}
-
-	return nil
 }
 
 // buildProjectURL constructs the deep-link URL for a project's overview page.

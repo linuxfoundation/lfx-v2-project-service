@@ -60,6 +60,28 @@ type ProjectSettingsUpdatedMessage struct {
 	Actor       Actor           `json:"actor"`
 }
 
+// ProjectDocumentCreatedMessage is published on lfx.projects-api.project_document.created
+// when a file document is uploaded to a project.
+type ProjectDocumentCreatedMessage struct {
+	ProjectUID  string `json:"project_uid"`
+	DocumentUID string `json:"document_uid"`
+	Name        string `json:"name"`
+	FileName    string `json:"file_name"`
+	FolderUID   string `json:"folder_uid,omitempty"`
+	CreatedBy   string `json:"created_by"`
+}
+
+// ProjectLinkCreatedMessage is published on lfx.projects-api.project_link.created
+// when a link is added to a project.
+type ProjectLinkCreatedMessage struct {
+	ProjectUID string `json:"project_uid"`
+	LinkUID    string `json:"link_uid"`
+	Name       string `json:"name"`
+	URL        string `json:"url"`
+	FolderUID  string `json:"folder_uid,omitempty"`
+	CreatedBy  string `json:"created_by"`
+}
+
 // InviteAccepted is the NATS event payload published by the LFX self-serve web app
 // on lfx.invite.accepted when a user completes LFID account creation and accepts
 // their invite. Resource services subscribe to this subject to promote the user from

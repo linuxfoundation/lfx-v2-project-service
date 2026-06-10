@@ -619,3 +619,149 @@ func TestDomainSettingsToEvent(t *testing.T) {
 		})
 	}
 }
+
+func TestDomainDocumentToEvent(t *testing.T) {
+	folderUID := "folder-1"
+	tests := []struct {
+		name     string
+		input    *models.ProjectDocument
+		expected events.ProjectDocumentCreatedMessage
+	}{
+		{
+			name: "all fields mapped — no folder",
+			input: &models.ProjectDocument{
+				UID:                "doc-1",
+				ProjectUID:         "proj-1",
+				Name:               "Charter",
+				FileName:           "charter.pdf",
+				UploadedByUsername: "alice",
+			},
+			expected: events.ProjectDocumentCreatedMessage{
+				DocumentUID: "doc-1",
+				ProjectUID:  "proj-1",
+				Name:        "Charter",
+				FileName:    "charter.pdf",
+				FolderUID:   "",
+				CreatedBy:   "alice",
+			},
+		},
+		{
+			name: "nil FolderUID coerced to empty string",
+			input: &models.ProjectDocument{
+				UID:                "doc-2",
+				ProjectUID:         "proj-2",
+				Name:               "Spec",
+				FileName:           "spec.pdf",
+				FolderUID:          nil,
+				UploadedByUsername: "bob",
+			},
+			expected: events.ProjectDocumentCreatedMessage{
+				DocumentUID: "doc-2",
+				ProjectUID:  "proj-2",
+				Name:        "Spec",
+				FileName:    "spec.pdf",
+				FolderUID:   "",
+				CreatedBy:   "bob",
+			},
+		},
+		{
+			name: "non-nil FolderUID passed through",
+			input: &models.ProjectDocument{
+				UID:                "doc-3",
+				ProjectUID:         "proj-3",
+				Name:               "Report",
+				FileName:           "report.pdf",
+				FolderUID:          &folderUID,
+				UploadedByUsername: "carol",
+			},
+			expected: events.ProjectDocumentCreatedMessage{
+				DocumentUID: "doc-3",
+				ProjectUID:  "proj-3",
+				Name:        "Report",
+				FileName:    "report.pdf",
+				FolderUID:   "folder-1",
+				CreatedBy:   "carol",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := DomainDocumentToEvent(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestDomainLinkToEvent(t *testing.T) {
+	folderUID := "folder-1"
+	tests := []struct {
+		name     string
+		input    *models.ProjectLink
+		expected events.ProjectLinkCreatedMessage
+	}{
+		{
+			name: "all fields mapped — no folder",
+			input: &models.ProjectLink{
+				UID:               "link-1",
+				ProjectUID:        "proj-1",
+				Name:              "Governance",
+				URL:               "https://example.com/governance",
+				CreatedByUsername: "alice",
+			},
+			expected: events.ProjectLinkCreatedMessage{
+				LinkUID:    "link-1",
+				ProjectUID: "proj-1",
+				Name:       "Governance",
+				URL:        "https://example.com/governance",
+				FolderUID:  "",
+				CreatedBy:  "alice",
+			},
+		},
+		{
+			name: "nil FolderUID coerced to empty string",
+			input: &models.ProjectLink{
+				UID:               "link-2",
+				ProjectUID:        "proj-2",
+				Name:              "Spec",
+				URL:               "https://example.com/spec",
+				FolderUID:         nil,
+				CreatedByUsername: "bob",
+			},
+			expected: events.ProjectLinkCreatedMessage{
+				LinkUID:    "link-2",
+				ProjectUID: "proj-2",
+				Name:       "Spec",
+				URL:        "https://example.com/spec",
+				FolderUID:  "",
+				CreatedBy:  "bob",
+			},
+		},
+		{
+			name: "non-nil FolderUID passed through",
+			input: &models.ProjectLink{
+				UID:               "link-3",
+				ProjectUID:        "proj-3",
+				Name:              "RFC",
+				URL:               "https://example.com/rfc",
+				FolderUID:         &folderUID,
+				CreatedByUsername: "carol",
+			},
+			expected: events.ProjectLinkCreatedMessage{
+				LinkUID:    "link-3",
+				ProjectUID: "proj-3",
+				Name:       "RFC",
+				URL:        "https://example.com/rfc",
+				FolderUID:  "folder-1",
+				CreatedBy:  "carol",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := DomainLinkToEvent(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

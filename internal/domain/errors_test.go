@@ -186,7 +186,6 @@ func TestErrorTypes(t *testing.T) {
 		ErrUnmarshal,
 		ErrServiceUnavailable,
 		ErrValidationFailed,
-		ErrInviteMappingNotFound,
 	}
 
 	for i, err := range domainErrors {
