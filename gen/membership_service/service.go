@@ -29,6 +29,18 @@ type Service interface {
 	// Replace the writers and/or auditors list on a B2B organization (full-replace
 	// semantics)
 	UpdateB2bOrgSettings(context.Context, *UpdateB2bOrgSettingsPayload) (res *UpdateB2bOrgSettingsResult, err error)
+	// Add (invite) a single principal to a B2B organization's writers or auditors.
+	// Per-principal merge: existing members are preserved; the new entry lands as
+	// a pending invite (no username yet).
+	AddB2bOrgSettingsUser(context.Context, *AddB2bOrgSettingsUserPayload) (res *AddB2bOrgSettingsUserResult, err error)
+	// Change a single principal's role (writer⇄auditor) on a B2B organization.
+	// Per-principal merge: the principal's username and invite lifecycle are
+	// preserved; all other members are untouched.
+	UpdateB2bOrgSettingsUserRole(context.Context, *UpdateB2bOrgSettingsUserRolePayload) (res *UpdateB2bOrgSettingsUserRoleResult, err error)
+	// Remove a single principal's access (revoke an accepted grant or cancel a
+	// pending invite) from a B2B organization. Per-principal merge: all other
+	// members are untouched.
+	DeleteB2bOrgSettingsUser(context.Context, *DeleteB2bOrgSettingsUserPayload) (res *DeleteB2bOrgSettingsUserResult, err error)
 	// Get a specific project membership by UID
 	GetProjectMembership(context.Context, *GetProjectMembershipPayload) (res *GetProjectMembershipResult, err error)
 	// Get a specific key contact by UID
@@ -39,7 +51,10 @@ type Service interface {
 	UpdateKeyContact(context.Context, *UpdateKeyContactPayload) (res *UpdateKeyContactResult, err error)
 	// Delete a key contact
 	DeleteKeyContact(context.Context, *DeleteKeyContactPayload) (err error)
-	// Trigger a reindex of cached entities
+	// Trigger a reindex of cached entities. Operational note: key_contact is
+	// high-volume (~300k records in prod); reindex only the active window by
+	// passing a `since` ~2 years back (e.g. since=2024-06-01T00:00:00Z) rather
+	// than a full key_contact reindex.
 	AdminReindex(context.Context, *AdminReindexPayload) (res *AdminReindexResult, err error)
 	// Check if the service is able to take inbound requests.
 	Readyz(context.Context) (res []byte, err error)
@@ -70,13 +85,44 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [14]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-b2b-org-settings", "update-b2b-org-settings", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars"}
+var MethodNames = [17]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-b2b-org-settings", "update-b2b-org-settings", "add-b2b-org-settings-user", "update-b2b-org-settings-user-role", "delete-b2b-org-settings-user", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars"}
+
+// AddB2bOrgSettingsUserPayload is the payload type of the membership-service
+// service add-b2b-org-settings-user method.
+type AddB2bOrgSettingsUserPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Invitee email; identity key for the grant
+	Email string
+	// Relation to grant: writer (Admin) or auditor (Viewer)
+	InvitedAs string
+	// Optional display name; stored as provided and left empty when omitted (no
+	// server-side user lookup)
+	Name *string
+}
+
+// AddB2bOrgSettingsUserResult is the result type of the membership-service
+// service add-b2b-org-settings-user method.
+type AddB2bOrgSettingsUserResult struct {
+	// Updated B2B organization access-control settings
+	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
 
 // A single entity to reindex (targeted mode)
 type AdminReindexItem struct {
 	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
 	Type string
-	// Entity UID (invertible UUID v8)
+	// Entity UID (Salesforce ID)
 	UID string
 }
 
@@ -93,7 +139,9 @@ type AdminReindexPayload struct {
 	Types []string
 	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
 	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
-	// Handler normalises to UTC.
+	// Handler normalises to UTC. For key_contact (high-volume), prefer a ~2-year
+	// window (e.g. 2024-06-01T00:00:00Z) to sync only the active set instead of
+	// the full ~300k records.
 	Since *string
 	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
 	// with types and since. Max 100 items.
@@ -112,7 +160,7 @@ type AdminReindexResult struct {
 
 // A B2B organization
 type B2bOrgResponse struct {
-	// B2BOrg UID (invertible UUID v8)
+	// B2BOrg UID (Salesforce Account.Id)
 	UID *string
 	// Organization name
 	Name *string
@@ -224,6 +272,32 @@ type CreateKeyContactPayload struct {
 type CreateKeyContactResult struct {
 	// Newly created key contact
 	KeyContact *ProjectKeyContactResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// DeleteB2bOrgSettingsUserPayload is the payload type of the
+// membership-service service delete-b2b-org-settings-user method.
+type DeleteB2bOrgSettingsUserPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// Email of the principal to remove
+	Email string
+	// If-Match header value for conditional requests
+	IfMatch *string
+}
+
+// DeleteB2bOrgSettingsUserResult is the result type of the membership-service
+// service delete-b2b-org-settings-user method.
+type DeleteB2bOrgSettingsUserResult struct {
+	// Updated B2B organization access-control settings
+	Settings *B2bOrgSettingsResponse
 	// ETag header value
 	Etag *string
 	// Last-Modified header value (HTTP date format)
@@ -366,14 +440,16 @@ type OrgUser struct {
 // A key contact (Project_Role__c) scoped to a membership, with denormalized
 // contact and company attributes
 type ProjectKeyContactResponse struct {
-	// Key contact UID (invertible UUID v8 from Project_Role__c.Id)
+	// Key contact UID (Salesforce Project_Role__c.Id)
 	UID *string
 	// UID of the associated membership (Asset)
 	MembershipUID *string
 	// UID of the associated membership tier (Product2)
 	TierUID *string
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string
+	// Salesforce Project__c.Id for the project this key contact belongs to
+	ProjectSfid *string
 	// UID of the B2B organization (Account) this key contact's membership belongs
 	// to
 	B2bOrgUID *string
@@ -408,12 +484,14 @@ type ProjectKeyContactResponse struct {
 // A membership (Asset) scoped to a project, with denormalized company
 // attributes
 type ProjectMembershipResponse struct {
-	// Membership UID (invertible UUID v8 from Asset.Id)
+	// Membership UID (Salesforce Asset.Id)
 	UID *string
 	// UID of the associated membership tier (Product2)
 	TierUID *string
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string
+	// Salesforce Project__c.Id for the project this membership belongs to
+	ProjectSfid *string
 	// URL slug of the project this membership belongs to
 	ProjectSlug *string
 	// UID of the B2B organization (Account) this membership belongs to
@@ -529,6 +607,34 @@ type UpdateB2bOrgSettingsPayload struct {
 // UpdateB2bOrgSettingsResult is the result type of the membership-service
 // service update-b2b-org-settings method.
 type UpdateB2bOrgSettingsResult struct {
+	// Updated B2B organization access-control settings
+	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// UpdateB2bOrgSettingsUserRolePayload is the payload type of the
+// membership-service service update-b2b-org-settings-user-role method.
+type UpdateB2bOrgSettingsUserRolePayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// Email of the principal to modify
+	Email string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Target relation: writer (Admin) or auditor (Viewer)
+	InvitedAs string
+}
+
+// UpdateB2bOrgSettingsUserRoleResult is the result type of the
+// membership-service service update-b2b-org-settings-user-role method.
+type UpdateB2bOrgSettingsUserRoleResult struct {
 	// Updated B2B organization access-control settings
 	Settings *B2bOrgSettingsResponse
 	// ETag header value

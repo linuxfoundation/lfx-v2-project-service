@@ -41,7 +41,7 @@ SELECT
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
     Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
-    Asset__r.Projects__r.Slug__c
+    Asset__r.Projects__r.Slug__c, Asset__r.Projects__r.Project_Logo__c
 FROM Project_Role__c
 WHERE Asset__c = %s
     AND IsDeleted = false
@@ -59,7 +59,7 @@ SELECT
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
     Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
-    Asset__r.Projects__r.Slug__c
+    Asset__r.Projects__r.Slug__c, Asset__r.Projects__r.Project_Logo__c
 FROM Project_Role__c
 WHERE Id = %s
     AND IsDeleted = false
@@ -196,14 +196,14 @@ func (r *KeyContactRepo) fetchPrimaryEmails(ctx context.Context, contactIDs []st
 // Company data is sourced from the Asset's Account (Asset__r.Account) so that
 // it is consistent with the associated ProjectMembership record.
 func convertSOQLToKeyContact(role soqlProjectRole, emailMap map[string]string) (*model.KeyContact, error) {
-	contactUID, err := sfuuid.ToUUID(role.ID)
+	contactUID, err := sfuuid.Normalize18(role.ID)
 	if err != nil {
-		return nil, fmt.Errorf("converting project role SFID %q to UUID: %w", role.ID, err)
+		return nil, fmt.Errorf("normalizing project role SFID %q: %w", role.ID, err)
 	}
 
-	membershipUID, err := sfuuid.ToUUID(role.AssetID)
+	membershipUID, err := sfuuid.Normalize18(role.AssetID)
 	if err != nil {
-		return nil, fmt.Errorf("converting asset SFID %q to UUID: %w", role.AssetID, err)
+		return nil, fmt.Errorf("normalizing asset SFID %q: %w", role.AssetID, err)
 	}
 
 	c := &model.KeyContact{
@@ -221,7 +221,7 @@ func convertSOQLToKeyContact(role soqlProjectRole, emailMap map[string]string) (
 	// can be populated by a caller that cross-references the membership record.
 	if role.Asset != nil {
 		if role.Asset.Product2ID != "" {
-			tierUID, tierErr := sfuuid.ToUUID(role.Asset.Product2ID)
+			tierUID, tierErr := sfuuid.Normalize18(role.Asset.Product2ID)
 			if tierErr == nil {
 				c.TierUID = tierUID
 			}
@@ -238,16 +238,23 @@ func convertSOQLToKeyContact(role soqlProjectRole, emailMap map[string]string) (
 		// Derive B2BOrgUID from the Asset's AccountId so callers can link this
 		// contact to the B2BOrg entity without an extra resolver round-trip.
 		if role.Asset.AccountID != "" {
-			if orgUID, orgErr := sfuuid.ToUUID(role.Asset.AccountID); orgErr == nil {
+			if orgUID, orgErr := sfuuid.Normalize18(role.Asset.AccountID); orgErr == nil {
 				c.B2BOrgUID = orgUID
 			}
 		}
 
-		// Populate ProjectSlug (and ProjectUID when available) from the
-		// Projects__r relationship. Both fields are now decoded correctly via
-		// salesforce tags.
+		// Populate ProjectSlug (and ProjectSFID) from the Projects__r relationship.
+		// ProjectUID is resolved from the slug via project-service (NATS); see
+		// MemberReader and backfill_runner for the resolution step.
 		if role.Asset.Project != nil {
 			c.ProjectSlug = derefString(role.Asset.Project.Slug)
+			c.ProjectName = role.Asset.Project.Name
+			c.ProjectLogoURL = derefString(role.Asset.Project.LogoURL)
+			if role.Asset.Project.ID != "" {
+				if projectSFID, normErr := sfuuid.Normalize18(role.Asset.Project.ID); normErr == nil {
+					c.ProjectSFID = projectSFID
+				}
+			}
 		}
 	}
 
@@ -306,14 +313,13 @@ SELECT
     Asset__r.Account.Id, Asset__r.Account.Name,
     Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
     Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
-    Asset__r.Projects__r.Slug__c
+    Asset__r.Projects__r.Slug__c, Asset__r.Projects__r.Project_Logo__c
 FROM Project_Role__c
 WHERE IsDeleted = false`
 
 	query := baseSOQL
 	if since != nil {
-		iso := since.UTC().Format(time.RFC3339)
-		query += "\n    AND LastModifiedDate >= " + quoteSOQL(iso)
+		query += "\n    AND LastModifiedDate >= " + soqlDateTime(*since)
 	}
 
 	// Drive the paging loop directly so each page's email batch lookup and

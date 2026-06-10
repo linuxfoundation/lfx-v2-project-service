@@ -47,13 +47,15 @@ var allBackfillTypes = []string{entityTypeB2BOrg, entityTypeProjectMembership, e
 // per-type NATS KV lock so the same type is not reindexed simultaneously across
 // pods.
 type Runner struct {
-	iter           BackfillIterator
-	b2bReader      port.B2BOrgReader
-	pmReader       port.ProjectMembershipReader
-	kcReader       KeyContactSObjectReader
-	settingsReader port.B2BOrgSettingsReader
-	publisher      port.MemberPublisher
-	natsClient     *natspkg.NATSClient
+	iter                  BackfillIterator
+	b2bReader             port.B2BOrgReader
+	pmReader              port.ProjectMembershipReader
+	kcReader              KeyContactSObjectReader
+	settingsReader        port.B2BOrgSettingsReader
+	publisher             port.MemberPublisher
+	natsClient            *natspkg.NATSClient
+	globalOrgAdminTeamUID string
+	resolver              port.ProjectResolver
 }
 
 // NewRunner constructs a Runner.
@@ -65,15 +67,19 @@ func NewRunner(
 	settingsReader port.B2BOrgSettingsReader,
 	publisher port.MemberPublisher,
 	natsClient *natspkg.NATSClient,
+	globalOrgAdminTeamUID string,
+	resolver port.ProjectResolver,
 ) *Runner {
 	return &Runner{
-		iter:           iter,
-		b2bReader:      b2bReader,
-		pmReader:       pmReader,
-		kcReader:       kcReader,
-		settingsReader: settingsReader,
-		publisher:      publisher,
-		natsClient:     natsClient,
+		iter:                  iter,
+		b2bReader:             b2bReader,
+		pmReader:              pmReader,
+		kcReader:              kcReader,
+		settingsReader:        settingsReader,
+		publisher:             publisher,
+		natsClient:            natsClient,
+		globalOrgAdminTeamUID: globalOrgAdminTeamUID,
+		resolver:              resolver,
 	}
 }
 
@@ -207,6 +213,7 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 						org.IsParent = len(children) > 0
 					}
 					PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+					PublishB2BOrgGlobalAdminFGA(ctx, r.publisher, org, r.globalOrgAdminTeamUID)
 					if org.ParentUID != "" {
 						if children, ok := orgChildrenCache[org.ParentUID]; ok {
 							PublishB2BOrgParentFGA(ctx, r.publisher, org, children)
@@ -223,6 +230,7 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 			for _, pm := range pms {
 				total++
 				if !req.DryRun {
+					pm.ProjectUID = r.resolveProjectUID(ctx, pm.ProjectSlug, pm.ProjectUID)
 					PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
 					PublishProjectMembershipFGA(ctx, r.publisher, pm)
 					published++
@@ -240,7 +248,9 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 			for _, kc := range kcs {
 				total++
 				if !req.DryRun {
+					kc.ProjectUID = r.resolveProjectUID(ctx, kc.ProjectSlug, kc.ProjectUID)
 					PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+					PublishKeyContactFGA(ctx, r.publisher, kc)
 					published++
 				}
 			}
@@ -294,6 +304,21 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 	}
 }
 
+// resolveProjectUID resolves the project UID from its slug via the resolver,
+// logging a warning on failure. Returns the resolved UID, or current if it is
+// already set, the slug is empty, or the resolver is nil.
+func (r *Runner) resolveProjectUID(ctx context.Context, slug, current string) string {
+	if current != "" || slug == "" || r.resolver == nil {
+		return current
+	}
+	uid, err := r.resolver.UIDFromSlug(ctx, slug)
+	if err != nil {
+		slog.WarnContext(ctx, "backfill: failed to resolve project UID", "slug", slug, "error", err)
+		return ""
+	}
+	return uid
+}
+
 func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req BackfillRequest) {
 	var notFound, published int
 	// childUIDsCache memoises FetchChildUIDsByParentUID within this request so
@@ -340,6 +365,7 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 					org.IsParent = len(childUIDs) > 0
 				}
 				PublishB2BOrgIndexer(ctx, r.publisher, org, indexerConstants.ActionUpdated)
+				PublishB2BOrgGlobalAdminFGA(ctx, r.publisher, org, r.globalOrgAdminTeamUID)
 				if org.ParentUID != "" {
 					children, childErr := fetchChildUIDs(org.ParentUID)
 					if childErr != nil {
@@ -366,6 +392,7 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 				continue
 			}
 			if !req.DryRun {
+				pm.ProjectUID = r.resolveProjectUID(ctx, pm.ProjectSlug, pm.ProjectUID)
 				PublishProjectMembershipIndexer(ctx, r.publisher, pm, indexerConstants.ActionUpdated)
 				PublishProjectMembershipFGA(ctx, r.publisher, pm)
 				published++
@@ -384,7 +411,9 @@ func (r *Runner) runTargeted(ctx context.Context, log *slog.Logger, req Backfill
 				continue
 			}
 			if !req.DryRun {
+				kc.ProjectUID = r.resolveProjectUID(ctx, kc.ProjectSlug, kc.ProjectUID)
 				PublishKeyContactIndexer(ctx, r.publisher, kc, indexerConstants.ActionUpdated)
+				PublishKeyContactFGA(ctx, r.publisher, kc)
 				published++
 			}
 

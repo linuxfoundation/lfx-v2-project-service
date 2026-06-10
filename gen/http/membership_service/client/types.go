@@ -58,6 +58,26 @@ type UpdateB2bOrgSettingsRequestBody struct {
 	Auditors []*OrgUserRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 }
 
+// AddB2bOrgSettingsUserRequestBody is the type of the "membership-service"
+// service "add-b2b-org-settings-user" endpoint HTTP request body.
+type AddB2bOrgSettingsUserRequestBody struct {
+	// Invitee email; identity key for the grant
+	Email string `form:"email" json:"email" xml:"email"`
+	// Relation to grant: writer (Admin) or auditor (Viewer)
+	InvitedAs string `form:"invited_as" json:"invited_as" xml:"invited_as"`
+	// Optional display name; stored as provided and left empty when omitted (no
+	// server-side user lookup)
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRoleRequestBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP request body.
+type UpdateB2bOrgSettingsUserRoleRequestBody struct {
+	// Target relation: writer (Admin) or auditor (Viewer)
+	InvitedAs string `form:"invited_as" json:"invited_as" xml:"invited_as"`
+}
+
 // CreateKeyContactRequestBody is the type of the "membership-service" service
 // "create-key-contact" endpoint HTTP request body.
 type CreateKeyContactRequestBody struct {
@@ -110,7 +130,9 @@ type AdminReindexRequestBody struct {
 	Types []string `form:"types,omitempty" json:"types,omitempty" xml:"types,omitempty"`
 	// ISO 8601 / RFC 3339 timestamp with explicit zone; only records with
 	// LastModifiedDate >= since are reindexed. Mutually exclusive with items.
-	// Handler normalises to UTC.
+	// Handler normalises to UTC. For key_contact (high-volume), prefer a ~2-year
+	// window (e.g. 2024-06-01T00:00:00Z) to sync only the active set instead of
+	// the full ~300k records.
 	Since *string `form:"since,omitempty" json:"since,omitempty" xml:"since,omitempty"`
 	// Targeted list of entities to reindex (surgical mode). Mutually exclusive
 	// with types and since. Max 100 items.
@@ -139,6 +161,19 @@ type GetB2bOrgSettingsResponseBody B2bOrgSettingsResponseResponseBody
 // UpdateB2bOrgSettingsResponseBody is the type of the "membership-service"
 // service "update-b2b-org-settings" endpoint HTTP response body.
 type UpdateB2bOrgSettingsResponseBody B2bOrgSettingsResponseResponseBody
+
+// AddB2bOrgSettingsUserResponseBody is the type of the "membership-service"
+// service "add-b2b-org-settings-user" endpoint HTTP response body.
+type AddB2bOrgSettingsUserResponseBody B2bOrgSettingsResponseResponseBody
+
+// UpdateB2bOrgSettingsUserRoleResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body.
+type UpdateB2bOrgSettingsUserRoleResponseBody B2bOrgSettingsResponseResponseBody
+
+// DeleteB2bOrgSettingsUserResponseBody is the type of the "membership-service"
+// service "delete-b2b-org-settings-user" endpoint HTTP response body.
+type DeleteB2bOrgSettingsUserResponseBody B2bOrgSettingsResponseResponseBody
 
 // GetProjectMembershipResponseBody is the type of the "membership-service"
 // service "get-project-membership" endpoint HTTP response body.
@@ -678,6 +713,348 @@ type UpdateB2bOrgSettingsInternalServerErrorResponseBody struct {
 // "membership-service" service "update-b2b-org-settings" endpoint HTTP
 // response body for the "ServiceUnavailable" error.
 type UpdateB2bOrgSettingsServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AddB2bOrgSettingsUserNotFoundResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "NotFound" error.
+type AddB2bOrgSettingsUserNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AddB2bOrgSettingsUserBadRequestResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "BadRequest" error.
+type AddB2bOrgSettingsUserBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AddB2bOrgSettingsUserConflictResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "Conflict" error.
+type AddB2bOrgSettingsUserConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AddB2bOrgSettingsUserPreconditionFailedResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type AddB2bOrgSettingsUserPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AddB2bOrgSettingsUserInternalServerErrorResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "InternalServerError" error.
+type AddB2bOrgSettingsUserInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// AddB2bOrgSettingsUserServiceUnavailableResponseBody is the type of the
+// "membership-service" service "add-b2b-org-settings-user" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type AddB2bOrgSettingsUserServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRoleNotFoundResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body for the "NotFound" error.
+type UpdateB2bOrgSettingsUserRoleNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRoleBadRequestResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body for the "BadRequest" error.
+type UpdateB2bOrgSettingsUserRoleBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRoleConflictResponseBody is the type of the
+// "membership-service" service "update-b2b-org-settings-user-role" endpoint
+// HTTP response body for the "Conflict" error.
+type UpdateB2bOrgSettingsUserRoleConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody is the type of
+// the "membership-service" service "update-b2b-org-settings-user-role"
+// endpoint HTTP response body for the "PreconditionFailed" error.
+type UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody is the type of
+// the "membership-service" service "update-b2b-org-settings-user-role"
+// endpoint HTTP response body for the "InternalServerError" error.
+type UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody is the type of
+// the "membership-service" service "update-b2b-org-settings-user-role"
+// endpoint HTTP response body for the "ServiceUnavailable" error.
+type UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteB2bOrgSettingsUserNotFoundResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "NotFound" error.
+type DeleteB2bOrgSettingsUserNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteB2bOrgSettingsUserBadRequestResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "BadRequest" error.
+type DeleteB2bOrgSettingsUserBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteB2bOrgSettingsUserConflictResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "Conflict" error.
+type DeleteB2bOrgSettingsUserConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteB2bOrgSettingsUserPreconditionFailedResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type DeleteB2bOrgSettingsUserPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteB2bOrgSettingsUserInternalServerErrorResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "InternalServerError" error.
+type DeleteB2bOrgSettingsUserInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// DeleteB2bOrgSettingsUserServiceUnavailableResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-settings-user" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type DeleteB2bOrgSettingsUserServiceUnavailableResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -1435,7 +1812,7 @@ type ReadyzServiceUnavailableResponseBody struct {
 
 // B2bOrgResponseResponseBody is used to define fields on response body types.
 type B2bOrgResponseResponseBody struct {
-	// B2BOrg UID (invertible UUID v8)
+	// B2BOrg UID (Salesforce Account.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// Organization name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
@@ -1525,12 +1902,14 @@ type OrgUserRequestBody struct {
 // ProjectMembershipResponseResponseBody is used to define fields on response
 // body types.
 type ProjectMembershipResponseResponseBody struct {
-	// Membership UID (invertible UUID v8 from Asset.Id)
+	// Membership UID (Salesforce Asset.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// UID of the associated membership tier (Product2)
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Salesforce Project__c.Id for the project this membership belongs to
+	ProjectSfid *string `form:"project_sfid,omitempty" json:"project_sfid,omitempty" xml:"project_sfid,omitempty"`
 	// URL slug of the project this membership belongs to
 	ProjectSlug *string `form:"project_slug,omitempty" json:"project_slug,omitempty" xml:"project_slug,omitempty"`
 	// UID of the B2B organization (Account) this membership belongs to
@@ -1582,14 +1961,16 @@ type ProjectMembershipResponseResponseBody struct {
 // ProjectKeyContactResponseResponseBody is used to define fields on response
 // body types.
 type ProjectKeyContactResponseResponseBody struct {
-	// Key contact UID (invertible UUID v8 from Project_Role__c.Id)
+	// Key contact UID (Salesforce Project_Role__c.Id)
 	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
 	// UID of the associated membership (Asset)
 	MembershipUID *string `form:"membership_uid,omitempty" json:"membership_uid,omitempty" xml:"membership_uid,omitempty"`
 	// UID of the associated membership tier (Product2)
 	TierUID *string `form:"tier_uid,omitempty" json:"tier_uid,omitempty" xml:"tier_uid,omitempty"`
-	// V2 project UUID
+	// V2 project UUID resolved from the project slug via project-service
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
+	// Salesforce Project__c.Id for the project this key contact belongs to
+	ProjectSfid *string `form:"project_sfid,omitempty" json:"project_sfid,omitempty" xml:"project_sfid,omitempty"`
 	// UID of the B2B organization (Account) this key contact's membership belongs
 	// to
 	B2bOrgUID *string `form:"b2b_org_uid,omitempty" json:"b2b_org_uid,omitempty" xml:"b2b_org_uid,omitempty"`
@@ -1625,7 +2006,7 @@ type ProjectKeyContactResponseResponseBody struct {
 type AdminReindexItemRequestBody struct {
 	// Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings
 	Type string `form:"type" json:"type" xml:"type"`
-	// Entity UID (invertible UUID v8)
+	// Entity UID (Salesforce ID)
 	UID string `form:"uid" json:"uid" xml:"uid"`
 }
 
@@ -1680,6 +2061,28 @@ func NewUpdateB2bOrgSettingsRequestBody(p *membershipservice.UpdateB2bOrgSetting
 			}
 			body.Auditors[i] = marshalMembershipserviceOrgUserToOrgUserRequestBody(val)
 		}
+	}
+	return body
+}
+
+// NewAddB2bOrgSettingsUserRequestBody builds the HTTP request body from the
+// payload of the "add-b2b-org-settings-user" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgSettingsUserRequestBody(p *membershipservice.AddB2bOrgSettingsUserPayload) *AddB2bOrgSettingsUserRequestBody {
+	body := &AddB2bOrgSettingsUserRequestBody{
+		Email:     p.Email,
+		InvitedAs: p.InvitedAs,
+		Name:      p.Name,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgSettingsUserRoleRequestBody builds the HTTP request body from
+// the payload of the "update-b2b-org-settings-user-role" endpoint of the
+// "membership-service" service.
+func NewUpdateB2bOrgSettingsUserRoleRequestBody(p *membershipservice.UpdateB2bOrgSettingsUserRolePayload) *UpdateB2bOrgSettingsUserRoleRequestBody {
+	body := &UpdateB2bOrgSettingsUserRoleRequestBody{
+		InvitedAs: p.InvitedAs,
 	}
 	return body
 }
@@ -2349,6 +2752,388 @@ func NewUpdateB2bOrgSettingsServiceUnavailable(body *UpdateB2bOrgSettingsService
 	return v
 }
 
+// NewAddB2bOrgSettingsUserResultOK builds a "membership-service" service
+// "add-b2b-org-settings-user" endpoint result from a HTTP "OK" response.
+func NewAddB2bOrgSettingsUserResultOK(body *AddB2bOrgSettingsUserResponseBody, etag *string, lastModified *string) *membershipservice.AddB2bOrgSettingsUserResult {
+	v := &membershipservice.B2bOrgSettingsResponse{
+		CreatedAt: body.CreatedAt,
+		UpdatedAt: body.UpdatedAt,
+	}
+	if body.Writers != nil {
+		v.Writers = make([]*membershipservice.OrgUser, len(body.Writers))
+		for i, val := range body.Writers {
+			if val == nil {
+				v.Writers[i] = nil
+				continue
+			}
+			v.Writers[i] = unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	if body.Auditors != nil {
+		v.Auditors = make([]*membershipservice.OrgUser, len(body.Auditors))
+		for i, val := range body.Auditors {
+			if val == nil {
+				v.Auditors[i] = nil
+				continue
+			}
+			v.Auditors[i] = unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	res := &membershipservice.AddB2bOrgSettingsUserResult{
+		Settings: v,
+	}
+	res.Etag = etag
+	res.LastModified = lastModified
+
+	return res
+}
+
+// NewAddB2bOrgSettingsUserNotFound builds a membership-service service
+// add-b2b-org-settings-user endpoint NotFound error.
+func NewAddB2bOrgSettingsUserNotFound(body *AddB2bOrgSettingsUserNotFoundResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAddB2bOrgSettingsUserBadRequest builds a membership-service service
+// add-b2b-org-settings-user endpoint BadRequest error.
+func NewAddB2bOrgSettingsUserBadRequest(body *AddB2bOrgSettingsUserBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAddB2bOrgSettingsUserConflict builds a membership-service service
+// add-b2b-org-settings-user endpoint Conflict error.
+func NewAddB2bOrgSettingsUserConflict(body *AddB2bOrgSettingsUserConflictResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAddB2bOrgSettingsUserPreconditionFailed builds a membership-service
+// service add-b2b-org-settings-user endpoint PreconditionFailed error.
+func NewAddB2bOrgSettingsUserPreconditionFailed(body *AddB2bOrgSettingsUserPreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAddB2bOrgSettingsUserInternalServerError builds a membership-service
+// service add-b2b-org-settings-user endpoint InternalServerError error.
+func NewAddB2bOrgSettingsUserInternalServerError(body *AddB2bOrgSettingsUserInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewAddB2bOrgSettingsUserServiceUnavailable builds a membership-service
+// service add-b2b-org-settings-user endpoint ServiceUnavailable error.
+func NewAddB2bOrgSettingsUserServiceUnavailable(body *AddB2bOrgSettingsUserServiceUnavailableResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgSettingsUserRoleResultOK builds a "membership-service"
+// service "update-b2b-org-settings-user-role" endpoint result from a HTTP "OK"
+// response.
+func NewUpdateB2bOrgSettingsUserRoleResultOK(body *UpdateB2bOrgSettingsUserRoleResponseBody, etag *string, lastModified *string) *membershipservice.UpdateB2bOrgSettingsUserRoleResult {
+	v := &membershipservice.B2bOrgSettingsResponse{
+		CreatedAt: body.CreatedAt,
+		UpdatedAt: body.UpdatedAt,
+	}
+	if body.Writers != nil {
+		v.Writers = make([]*membershipservice.OrgUser, len(body.Writers))
+		for i, val := range body.Writers {
+			if val == nil {
+				v.Writers[i] = nil
+				continue
+			}
+			v.Writers[i] = unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	if body.Auditors != nil {
+		v.Auditors = make([]*membershipservice.OrgUser, len(body.Auditors))
+		for i, val := range body.Auditors {
+			if val == nil {
+				v.Auditors[i] = nil
+				continue
+			}
+			v.Auditors[i] = unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	res := &membershipservice.UpdateB2bOrgSettingsUserRoleResult{
+		Settings: v,
+	}
+	res.Etag = etag
+	res.LastModified = lastModified
+
+	return res
+}
+
+// NewUpdateB2bOrgSettingsUserRoleNotFound builds a membership-service service
+// update-b2b-org-settings-user-role endpoint NotFound error.
+func NewUpdateB2bOrgSettingsUserRoleNotFound(body *UpdateB2bOrgSettingsUserRoleNotFoundResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgSettingsUserRoleBadRequest builds a membership-service
+// service update-b2b-org-settings-user-role endpoint BadRequest error.
+func NewUpdateB2bOrgSettingsUserRoleBadRequest(body *UpdateB2bOrgSettingsUserRoleBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgSettingsUserRoleConflict builds a membership-service service
+// update-b2b-org-settings-user-role endpoint Conflict error.
+func NewUpdateB2bOrgSettingsUserRoleConflict(body *UpdateB2bOrgSettingsUserRoleConflictResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgSettingsUserRolePreconditionFailed builds a
+// membership-service service update-b2b-org-settings-user-role endpoint
+// PreconditionFailed error.
+func NewUpdateB2bOrgSettingsUserRolePreconditionFailed(body *UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgSettingsUserRoleInternalServerError builds a
+// membership-service service update-b2b-org-settings-user-role endpoint
+// InternalServerError error.
+func NewUpdateB2bOrgSettingsUserRoleInternalServerError(body *UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewUpdateB2bOrgSettingsUserRoleServiceUnavailable builds a
+// membership-service service update-b2b-org-settings-user-role endpoint
+// ServiceUnavailable error.
+func NewUpdateB2bOrgSettingsUserRoleServiceUnavailable(body *UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteB2bOrgSettingsUserResultOK builds a "membership-service" service
+// "delete-b2b-org-settings-user" endpoint result from a HTTP "OK" response.
+func NewDeleteB2bOrgSettingsUserResultOK(body *DeleteB2bOrgSettingsUserResponseBody, etag *string, lastModified *string) *membershipservice.DeleteB2bOrgSettingsUserResult {
+	v := &membershipservice.B2bOrgSettingsResponse{
+		CreatedAt: body.CreatedAt,
+		UpdatedAt: body.UpdatedAt,
+	}
+	if body.Writers != nil {
+		v.Writers = make([]*membershipservice.OrgUser, len(body.Writers))
+		for i, val := range body.Writers {
+			if val == nil {
+				v.Writers[i] = nil
+				continue
+			}
+			v.Writers[i] = unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	if body.Auditors != nil {
+		v.Auditors = make([]*membershipservice.OrgUser, len(body.Auditors))
+		for i, val := range body.Auditors {
+			if val == nil {
+				v.Auditors[i] = nil
+				continue
+			}
+			v.Auditors[i] = unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(val)
+		}
+	}
+	res := &membershipservice.DeleteB2bOrgSettingsUserResult{
+		Settings: v,
+	}
+	res.Etag = etag
+	res.LastModified = lastModified
+
+	return res
+}
+
+// NewDeleteB2bOrgSettingsUserNotFound builds a membership-service service
+// delete-b2b-org-settings-user endpoint NotFound error.
+func NewDeleteB2bOrgSettingsUserNotFound(body *DeleteB2bOrgSettingsUserNotFoundResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteB2bOrgSettingsUserBadRequest builds a membership-service service
+// delete-b2b-org-settings-user endpoint BadRequest error.
+func NewDeleteB2bOrgSettingsUserBadRequest(body *DeleteB2bOrgSettingsUserBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteB2bOrgSettingsUserConflict builds a membership-service service
+// delete-b2b-org-settings-user endpoint Conflict error.
+func NewDeleteB2bOrgSettingsUserConflict(body *DeleteB2bOrgSettingsUserConflictResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteB2bOrgSettingsUserPreconditionFailed builds a membership-service
+// service delete-b2b-org-settings-user endpoint PreconditionFailed error.
+func NewDeleteB2bOrgSettingsUserPreconditionFailed(body *DeleteB2bOrgSettingsUserPreconditionFailedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteB2bOrgSettingsUserInternalServerError builds a membership-service
+// service delete-b2b-org-settings-user endpoint InternalServerError error.
+func NewDeleteB2bOrgSettingsUserInternalServerError(body *DeleteB2bOrgSettingsUserInternalServerErrorResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewDeleteB2bOrgSettingsUserServiceUnavailable builds a membership-service
+// service delete-b2b-org-settings-user endpoint ServiceUnavailable error.
+func NewDeleteB2bOrgSettingsUserServiceUnavailable(body *DeleteB2bOrgSettingsUserServiceUnavailableResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
 // NewGetProjectMembershipResultOK builds a "membership-service" service
 // "get-project-membership" endpoint result from a HTTP "OK" response.
 func NewGetProjectMembershipResultOK(body *GetProjectMembershipResponseBody, etag *string, lastModified *string) *membershipservice.GetProjectMembershipResult {
@@ -2356,6 +3141,7 @@ func NewGetProjectMembershipResultOK(body *GetProjectMembershipResponseBody, eta
 		UID:              body.UID,
 		TierUID:          body.TierUID,
 		ProjectUID:       body.ProjectUID,
+		ProjectSfid:      body.ProjectSfid,
 		ProjectSlug:      body.ProjectSlug,
 		B2bOrgUID:        body.B2bOrgUID,
 		Status:           body.Status,
@@ -2487,6 +3273,7 @@ func NewGetKeyContactResultOK(body *GetKeyContactResponseBody, etag *string, las
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		ProjectSfid:    body.ProjectSfid,
 		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
@@ -2609,6 +3396,7 @@ func NewCreateKeyContactResultCreated(body *CreateKeyContactResponseBody, etag *
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		ProjectSfid:    body.ProjectSfid,
 		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
@@ -2746,6 +3534,7 @@ func NewUpdateKeyContactResultOK(body *UpdateKeyContactResponseBody, etag *strin
 		MembershipUID:  body.MembershipUID,
 		TierUID:        body.TierUID,
 		ProjectUID:     body.ProjectUID,
+		ProjectSfid:    body.ProjectSfid,
 		B2bOrgUID:      body.B2bOrgUID,
 		Role:           body.Role,
 		Status:         body.Status,
@@ -3083,14 +3872,8 @@ func NewReadyzServiceUnavailable(body *ReadyzServiceUnavailableResponseBody) *go
 // ValidateGetB2bOrgResponseBody runs the validations defined on
 // Get-B2b-OrgResponseBody
 func ValidateGetB2bOrgResponseBody(body *GetB2bOrgResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3104,14 +3887,8 @@ func ValidateGetB2bOrgResponseBody(body *GetB2bOrgResponseBody) (err error) {
 // ValidateCreateB2bOrgResponseBody runs the validations defined on
 // Create-B2b-OrgResponseBody
 func ValidateCreateB2bOrgResponseBody(body *CreateB2bOrgResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3125,14 +3902,8 @@ func ValidateCreateB2bOrgResponseBody(body *CreateB2bOrgResponseBody) (err error
 // ValidateUpdateB2bOrgResponseBody runs the validations defined on
 // Update-B2b-OrgResponseBody
 func ValidateUpdateB2bOrgResponseBody(body *UpdateB2bOrgResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3195,20 +3966,89 @@ func ValidateUpdateB2bOrgSettingsResponseBody(body *UpdateB2bOrgSettingsResponse
 	return
 }
 
+// ValidateAddB2bOrgSettingsUserResponseBody runs the validations defined on
+// Add-B2b-Org-Settings-UserResponseBody
+func ValidateAddB2bOrgSettingsUserResponseBody(body *AddB2bOrgSettingsUserResponseBody) (err error) {
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateOrgUserResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateOrgUserResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRoleResponseBody runs the validations
+// defined on Update-B2b-Org-Settings-User-RoleResponseBody
+func ValidateUpdateB2bOrgSettingsUserRoleResponseBody(body *UpdateB2bOrgSettingsUserRoleResponseBody) (err error) {
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateOrgUserResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateOrgUserResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateDeleteB2bOrgSettingsUserResponseBody runs the validations defined on
+// Delete-B2b-Org-Settings-UserResponseBody
+func ValidateDeleteB2bOrgSettingsUserResponseBody(body *DeleteB2bOrgSettingsUserResponseBody) (err error) {
+	for _, e := range body.Writers {
+		if e != nil {
+			if err2 := ValidateOrgUserResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	for _, e := range body.Auditors {
+		if e != nil {
+			if err2 := ValidateOrgUserResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
+	if body.CreatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
+	}
+	if body.UpdatedAt != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
 // ValidateGetProjectMembershipResponseBody runs the validations defined on
 // Get-Project-MembershipResponseBody
 func ValidateGetProjectMembershipResponseBody(body *GetProjectMembershipResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3222,20 +4062,8 @@ func ValidateGetProjectMembershipResponseBody(body *GetProjectMembershipResponse
 // ValidateGetKeyContactResponseBody runs the validations defined on
 // Get-Key-ContactResponseBody
 func ValidateGetKeyContactResponseBody(body *GetKeyContactResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3249,20 +4077,8 @@ func ValidateGetKeyContactResponseBody(body *GetKeyContactResponseBody) (err err
 // ValidateCreateKeyContactResponseBody runs the validations defined on
 // Create-Key-ContactResponseBody
 func ValidateCreateKeyContactResponseBody(body *CreateKeyContactResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3276,20 +4092,8 @@ func ValidateCreateKeyContactResponseBody(body *CreateKeyContactResponseBody) (e
 // ValidateUpdateKeyContactResponseBody runs the validations defined on
 // Update-Key-ContactResponseBody
 func ValidateUpdateKeyContactResponseBody(body *UpdateKeyContactResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -3966,6 +4770,450 @@ func ValidateUpdateB2bOrgSettingsInternalServerErrorResponseBody(body *UpdateB2b
 // validations defined on
 // update-b2b-org-settings_ServiceUnavailable_response_body
 func ValidateUpdateB2bOrgSettingsServiceUnavailableResponseBody(body *UpdateB2bOrgSettingsServiceUnavailableResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAddB2bOrgSettingsUserNotFoundResponseBody runs the validations
+// defined on add-b2b-org-settings-user_NotFound_response_body
+func ValidateAddB2bOrgSettingsUserNotFoundResponseBody(body *AddB2bOrgSettingsUserNotFoundResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAddB2bOrgSettingsUserBadRequestResponseBody runs the validations
+// defined on add-b2b-org-settings-user_BadRequest_response_body
+func ValidateAddB2bOrgSettingsUserBadRequestResponseBody(body *AddB2bOrgSettingsUserBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAddB2bOrgSettingsUserConflictResponseBody runs the validations
+// defined on add-b2b-org-settings-user_Conflict_response_body
+func ValidateAddB2bOrgSettingsUserConflictResponseBody(body *AddB2bOrgSettingsUserConflictResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAddB2bOrgSettingsUserPreconditionFailedResponseBody runs the
+// validations defined on
+// add-b2b-org-settings-user_PreconditionFailed_response_body
+func ValidateAddB2bOrgSettingsUserPreconditionFailedResponseBody(body *AddB2bOrgSettingsUserPreconditionFailedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAddB2bOrgSettingsUserInternalServerErrorResponseBody runs the
+// validations defined on
+// add-b2b-org-settings-user_InternalServerError_response_body
+func ValidateAddB2bOrgSettingsUserInternalServerErrorResponseBody(body *AddB2bOrgSettingsUserInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateAddB2bOrgSettingsUserServiceUnavailableResponseBody runs the
+// validations defined on
+// add-b2b-org-settings-user_ServiceUnavailable_response_body
+func ValidateAddB2bOrgSettingsUserServiceUnavailableResponseBody(body *AddB2bOrgSettingsUserServiceUnavailableResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRoleNotFoundResponseBody runs the
+// validations defined on
+// update-b2b-org-settings-user-role_NotFound_response_body
+func ValidateUpdateB2bOrgSettingsUserRoleNotFoundResponseBody(body *UpdateB2bOrgSettingsUserRoleNotFoundResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRoleBadRequestResponseBody runs the
+// validations defined on
+// update-b2b-org-settings-user-role_BadRequest_response_body
+func ValidateUpdateB2bOrgSettingsUserRoleBadRequestResponseBody(body *UpdateB2bOrgSettingsUserRoleBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRoleConflictResponseBody runs the
+// validations defined on
+// update-b2b-org-settings-user-role_Conflict_response_body
+func ValidateUpdateB2bOrgSettingsUserRoleConflictResponseBody(body *UpdateB2bOrgSettingsUserRoleConflictResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody runs the
+// validations defined on
+// update-b2b-org-settings-user-role_PreconditionFailed_response_body
+func ValidateUpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody(body *UpdateB2bOrgSettingsUserRolePreconditionFailedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody runs the
+// validations defined on
+// update-b2b-org-settings-user-role_InternalServerError_response_body
+func ValidateUpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody(body *UpdateB2bOrgSettingsUserRoleInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody runs the
+// validations defined on
+// update-b2b-org-settings-user-role_ServiceUnavailable_response_body
+func ValidateUpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody(body *UpdateB2bOrgSettingsUserRoleServiceUnavailableResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteB2bOrgSettingsUserNotFoundResponseBody runs the validations
+// defined on delete-b2b-org-settings-user_NotFound_response_body
+func ValidateDeleteB2bOrgSettingsUserNotFoundResponseBody(body *DeleteB2bOrgSettingsUserNotFoundResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteB2bOrgSettingsUserBadRequestResponseBody runs the validations
+// defined on delete-b2b-org-settings-user_BadRequest_response_body
+func ValidateDeleteB2bOrgSettingsUserBadRequestResponseBody(body *DeleteB2bOrgSettingsUserBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteB2bOrgSettingsUserConflictResponseBody runs the validations
+// defined on delete-b2b-org-settings-user_Conflict_response_body
+func ValidateDeleteB2bOrgSettingsUserConflictResponseBody(body *DeleteB2bOrgSettingsUserConflictResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteB2bOrgSettingsUserPreconditionFailedResponseBody runs the
+// validations defined on
+// delete-b2b-org-settings-user_PreconditionFailed_response_body
+func ValidateDeleteB2bOrgSettingsUserPreconditionFailedResponseBody(body *DeleteB2bOrgSettingsUserPreconditionFailedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteB2bOrgSettingsUserInternalServerErrorResponseBody runs the
+// validations defined on
+// delete-b2b-org-settings-user_InternalServerError_response_body
+func ValidateDeleteB2bOrgSettingsUserInternalServerErrorResponseBody(body *DeleteB2bOrgSettingsUserInternalServerErrorResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateDeleteB2bOrgSettingsUserServiceUnavailableResponseBody runs the
+// validations defined on
+// delete-b2b-org-settings-user_ServiceUnavailable_response_body
+func ValidateDeleteB2bOrgSettingsUserServiceUnavailableResponseBody(body *DeleteB2bOrgSettingsUserServiceUnavailableResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}
@@ -4929,14 +6177,8 @@ func ValidateReadyzServiceUnavailableResponseBody(body *ReadyzServiceUnavailable
 // ValidateB2bOrgResponseResponseBody runs the validations defined on
 // b2b-org-responseResponseBody
 func ValidateB2bOrgResponseResponseBody(body *B2bOrgResponseResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
 	if body.Website != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.website", *body.Website, goa.FormatURI))
-	}
-	if body.ParentUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.parent_uid", *body.ParentUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -5016,17 +6258,8 @@ func ValidateOrgUserRequestBody(body *OrgUserRequestBody) (err error) {
 // ValidateProjectMembershipResponseResponseBody runs the validations defined
 // on project-membership-responseResponseBody
 func ValidateProjectMembershipResponseResponseBody(body *ProjectMembershipResponseResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -5040,20 +6273,8 @@ func ValidateProjectMembershipResponseResponseBody(body *ProjectMembershipRespon
 // ValidateProjectKeyContactResponseResponseBody runs the validations defined
 // on project-key-contact-responseResponseBody
 func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactResponseResponseBody) (err error) {
-	if body.UID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
-	}
-	if body.MembershipUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.membership_uid", *body.MembershipUID, goa.FormatUUID))
-	}
-	if body.TierUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.tier_uid", *body.TierUID, goa.FormatUUID))
-	}
 	if body.ProjectUID != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.project_uid", *body.ProjectUID, goa.FormatUUID))
-	}
-	if body.B2bOrgUID != nil {
-		err = goa.MergeErrors(err, goa.ValidateFormat("body.b2b_org_uid", *body.B2bOrgUID, goa.FormatUUID))
 	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
@@ -5061,12 +6282,5 @@ func ValidateProjectKeyContactResponseResponseBody(body *ProjectKeyContactRespon
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
-	return
-}
-
-// ValidateAdminReindexItemRequestBody runs the validations defined on
-// admin-reindex-itemRequestBody
-func ValidateAdminReindexItemRequestBody(body *AdminReindexItemRequestBody) (err error) {
-	err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", body.UID, goa.FormatUUID))
 	return
 }

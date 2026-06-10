@@ -40,12 +40,12 @@ func NewKeyContactReader(client *SObjectClient) *KeyContactReader {
 // Step 3 (parallel via errgroup): Fetch Account + Fetch Project__c (both depend on Asset).
 func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (*model.KeyContact, time.Time, error) {
 	// Step 1: Fetch the Project_Role__c record.
-	sfid, err := sfuuid.ToSFID(uid)
+	sfid, err := sfuuid.Normalize18(uid)
 	if err != nil {
 		return nil, time.Time{}, errs.NewValidation(fmt.Sprintf("invalid Project_Role__c UID %q: %v", uid, err))
 	}
 
-	roleCacheKey := sobjectCacheKey(sobjectKeyPrefixKeyContact, uid)
+	roleCacheKey := sobjectCacheKey(sobjectKeyPrefixKeyContact, sfid)
 	roleResult, err := r.client.FetchSObject(ctx, "Project_Role__c", sfid, roleCacheKey, projectRoleFields)
 	if err != nil {
 		return nil, time.Time{}, err
@@ -56,13 +56,13 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 		return nil, time.Time{}, fmt.Errorf("unmarshal Project_Role__c sObject response: %w", err)
 	}
 
-	membershipUID, err := sfuuid.ToUUID(rawRole.AssetID)
+	membershipUID, err := sfuuid.Normalize18(rawRole.AssetID)
 	if err != nil && rawRole.AssetID != "" {
-		return nil, time.Time{}, fmt.Errorf("convert Project_Role__c.Asset__c %q to UUID: %w", rawRole.AssetID, err)
+		return nil, time.Time{}, fmt.Errorf("normalize Project_Role__c.Asset__c %q: %w", rawRole.AssetID, err)
 	}
 
 	contact := &model.KeyContact{
-		UID:            uid,
+		UID:            sfid,
 		MembershipUID:  membershipUID,
 		Role:           derefString(rawRole.Role),
 		Status:         derefString(rawRole.Status),
@@ -83,9 +83,9 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 		assetLastMod   time.Time
 	)
 
-	assetUID, assetUIDErr := sfuuid.ToUUID(rawRole.AssetID)
+	assetUID, assetUIDErr := sfuuid.Normalize18(rawRole.AssetID)
 	if assetUIDErr != nil && rawRole.AssetID != "" {
-		return nil, time.Time{}, fmt.Errorf("convert Project_Role__c.Asset__c to UUID: %w", assetUIDErr)
+		return nil, time.Time{}, fmt.Errorf("normalize Project_Role__c.Asset__c: %w", assetUIDErr)
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -93,9 +93,9 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 	if rawRole.ContactID != nil && *rawRole.ContactID != "" {
 		contactSFID := *rawRole.ContactID
 		g.Go(func() error {
-			// Derive a stable cache key; fall back to raw SFID if UUID conversion fails.
+			// Derive a stable cache key using the canonical 18-char SFID.
 			cacheKey := "contact." + contactSFID
-			if contactUID, convErr := sfuuid.ToUUID(contactSFID); convErr == nil {
+			if contactUID, convErr := sfuuid.Normalize18(contactSFID); convErr == nil {
 				cacheKey = sobjectCacheKey(sobjectKeyPrefixContact, contactUID)
 			}
 
@@ -141,7 +141,7 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 
 	// Populate TierUID from Asset.Product2Id.
 	if rawAsset.Product2ID != "" {
-		if tierUID, tierErr := sfuuid.ToUUID(rawAsset.Product2ID); tierErr == nil {
+		if tierUID, tierErr := sfuuid.Normalize18(rawAsset.Product2ID); tierErr == nil {
 			contact.TierUID = tierUID
 		}
 	}
@@ -156,9 +156,9 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 
 	if rawAsset.AccountID != "" {
 		g2.Go(func() error {
-			accountUID, convErr := sfuuid.ToUUID(rawAsset.AccountID)
+			accountUID, convErr := sfuuid.Normalize18(rawAsset.AccountID)
 			if convErr != nil {
-				return fmt.Errorf("convert Asset.AccountId %q to UUID: %w", rawAsset.AccountID, convErr)
+				return fmt.Errorf("normalize Asset.AccountId %q: %w", rawAsset.AccountID, convErr)
 			}
 
 			org, _, fetchErr := r.client.FetchB2BOrg(gCtx2, accountUID)
@@ -195,6 +195,14 @@ func (r *KeyContactReader) AssembleKeyContact(ctx context.Context, uid string) (
 				return fmt.Errorf("unmarshal Project__c sObject response: %w", unmarshalErr)
 			}
 			contact.ProjectSlug = derefString(rawProj.Slug)
+			contact.ProjectName = rawProj.Name
+			contact.ProjectLogoURL = derefString(rawProj.LogoURL)
+			// ProjectUID is resolved from the slug via project-service (NATS); see
+			// MemberReader and backfill_runner for the resolution step.
+			// ProjectSFID is the raw Salesforce Project__c.Id.
+			if sfidNorm, normErr := sfuuid.Normalize18(projectSFID); normErr == nil {
+				contact.ProjectSFID = sfidNorm
+			}
 			projLastMod = parseSOQLTime(rawProj.LastModifiedDate)
 			return nil
 		})

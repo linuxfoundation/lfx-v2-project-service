@@ -37,6 +37,21 @@ func UpdateB2bOrgSettingsMembershipServicePath(uid string) string {
 	return fmt.Sprintf("/b2b_orgs/%v/settings", uid)
 }
 
+// AddB2bOrgSettingsUserMembershipServicePath returns the URL path to the membership-service service add-b2b-org-settings-user HTTP endpoint.
+func AddB2bOrgSettingsUserMembershipServicePath(uid string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/settings/users", uid)
+}
+
+// UpdateB2bOrgSettingsUserRoleMembershipServicePath returns the URL path to the membership-service service update-b2b-org-settings-user-role HTTP endpoint.
+func UpdateB2bOrgSettingsUserRoleMembershipServicePath(uid string, email string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/settings/users/%v", uid, email)
+}
+
+// DeleteB2bOrgSettingsUserMembershipServicePath returns the URL path to the membership-service service delete-b2b-org-settings-user HTTP endpoint.
+func DeleteB2bOrgSettingsUserMembershipServicePath(uid string, email string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/settings/users/%v", uid, email)
+}
+
 // GetProjectMembershipMembershipServicePath returns the URL path to the membership-service service get-project-membership HTTP endpoint.
 func GetProjectMembershipMembershipServicePath(uid string) string {
 	return fmt.Sprintf("/project_memberships/%v", uid)

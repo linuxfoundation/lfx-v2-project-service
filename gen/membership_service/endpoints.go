@@ -17,20 +17,23 @@ import (
 
 // Endpoints wraps the "membership-service" service endpoints.
 type Endpoints struct {
-	GetB2bOrg            goa.Endpoint
-	CreateB2bOrg         goa.Endpoint
-	UpdateB2bOrg         goa.Endpoint
-	GetB2bOrgSettings    goa.Endpoint
-	UpdateB2bOrgSettings goa.Endpoint
-	GetProjectMembership goa.Endpoint
-	GetKeyContact        goa.Endpoint
-	CreateKeyContact     goa.Endpoint
-	UpdateKeyContact     goa.Endpoint
-	DeleteKeyContact     goa.Endpoint
-	AdminReindex         goa.Endpoint
-	Readyz               goa.Endpoint
-	Livez                goa.Endpoint
-	DebugVars            goa.Endpoint
+	GetB2bOrg                    goa.Endpoint
+	CreateB2bOrg                 goa.Endpoint
+	UpdateB2bOrg                 goa.Endpoint
+	GetB2bOrgSettings            goa.Endpoint
+	UpdateB2bOrgSettings         goa.Endpoint
+	AddB2bOrgSettingsUser        goa.Endpoint
+	UpdateB2bOrgSettingsUserRole goa.Endpoint
+	DeleteB2bOrgSettingsUser     goa.Endpoint
+	GetProjectMembership         goa.Endpoint
+	GetKeyContact                goa.Endpoint
+	CreateKeyContact             goa.Endpoint
+	UpdateKeyContact             goa.Endpoint
+	DeleteKeyContact             goa.Endpoint
+	AdminReindex                 goa.Endpoint
+	Readyz                       goa.Endpoint
+	Livez                        goa.Endpoint
+	DebugVars                    goa.Endpoint
 }
 
 // NewEndpoints wraps the methods of the "membership-service" service with
@@ -39,20 +42,23 @@ func NewEndpoints(s Service) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
 	return &Endpoints{
-		GetB2bOrg:            NewGetB2bOrgEndpoint(s, a.JWTAuth),
-		CreateB2bOrg:         NewCreateB2bOrgEndpoint(s, a.JWTAuth),
-		UpdateB2bOrg:         NewUpdateB2bOrgEndpoint(s, a.JWTAuth),
-		GetB2bOrgSettings:    NewGetB2bOrgSettingsEndpoint(s, a.JWTAuth),
-		UpdateB2bOrgSettings: NewUpdateB2bOrgSettingsEndpoint(s, a.JWTAuth),
-		GetProjectMembership: NewGetProjectMembershipEndpoint(s, a.JWTAuth),
-		GetKeyContact:        NewGetKeyContactEndpoint(s, a.JWTAuth),
-		CreateKeyContact:     NewCreateKeyContactEndpoint(s, a.JWTAuth),
-		UpdateKeyContact:     NewUpdateKeyContactEndpoint(s, a.JWTAuth),
-		DeleteKeyContact:     NewDeleteKeyContactEndpoint(s, a.JWTAuth),
-		AdminReindex:         NewAdminReindexEndpoint(s, a.JWTAuth),
-		Readyz:               NewReadyzEndpoint(s),
-		Livez:                NewLivezEndpoint(s),
-		DebugVars:            NewDebugVarsEndpoint(s),
+		GetB2bOrg:                    NewGetB2bOrgEndpoint(s, a.JWTAuth),
+		CreateB2bOrg:                 NewCreateB2bOrgEndpoint(s, a.JWTAuth),
+		UpdateB2bOrg:                 NewUpdateB2bOrgEndpoint(s, a.JWTAuth),
+		GetB2bOrgSettings:            NewGetB2bOrgSettingsEndpoint(s, a.JWTAuth),
+		UpdateB2bOrgSettings:         NewUpdateB2bOrgSettingsEndpoint(s, a.JWTAuth),
+		AddB2bOrgSettingsUser:        NewAddB2bOrgSettingsUserEndpoint(s, a.JWTAuth),
+		UpdateB2bOrgSettingsUserRole: NewUpdateB2bOrgSettingsUserRoleEndpoint(s, a.JWTAuth),
+		DeleteB2bOrgSettingsUser:     NewDeleteB2bOrgSettingsUserEndpoint(s, a.JWTAuth),
+		GetProjectMembership:         NewGetProjectMembershipEndpoint(s, a.JWTAuth),
+		GetKeyContact:                NewGetKeyContactEndpoint(s, a.JWTAuth),
+		CreateKeyContact:             NewCreateKeyContactEndpoint(s, a.JWTAuth),
+		UpdateKeyContact:             NewUpdateKeyContactEndpoint(s, a.JWTAuth),
+		DeleteKeyContact:             NewDeleteKeyContactEndpoint(s, a.JWTAuth),
+		AdminReindex:                 NewAdminReindexEndpoint(s, a.JWTAuth),
+		Readyz:                       NewReadyzEndpoint(s),
+		Livez:                        NewLivezEndpoint(s),
+		DebugVars:                    NewDebugVarsEndpoint(s),
 	}
 }
 
@@ -64,6 +70,9 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.UpdateB2bOrg = m(e.UpdateB2bOrg)
 	e.GetB2bOrgSettings = m(e.GetB2bOrgSettings)
 	e.UpdateB2bOrgSettings = m(e.UpdateB2bOrgSettings)
+	e.AddB2bOrgSettingsUser = m(e.AddB2bOrgSettingsUser)
+	e.UpdateB2bOrgSettingsUserRole = m(e.UpdateB2bOrgSettingsUserRole)
+	e.DeleteB2bOrgSettingsUser = m(e.DeleteB2bOrgSettingsUser)
 	e.GetProjectMembership = m(e.GetProjectMembership)
 	e.GetKeyContact = m(e.GetKeyContact)
 	e.CreateKeyContact = m(e.CreateKeyContact)
@@ -187,6 +196,76 @@ func NewUpdateB2bOrgSettingsEndpoint(s Service, authJWTFn security.AuthJWTFunc) 
 			return nil, err
 		}
 		return s.UpdateB2bOrgSettings(ctx, p)
+	}
+}
+
+// NewAddB2bOrgSettingsUserEndpoint returns an endpoint function that calls the
+// method "add-b2b-org-settings-user" of service "membership-service".
+func NewAddB2bOrgSettingsUserEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*AddB2bOrgSettingsUserPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.AddB2bOrgSettingsUser(ctx, p)
+	}
+}
+
+// NewUpdateB2bOrgSettingsUserRoleEndpoint returns an endpoint function that
+// calls the method "update-b2b-org-settings-user-role" of service
+// "membership-service".
+func NewUpdateB2bOrgSettingsUserRoleEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateB2bOrgSettingsUserRolePayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateB2bOrgSettingsUserRole(ctx, p)
+	}
+}
+
+// NewDeleteB2bOrgSettingsUserEndpoint returns an endpoint function that calls
+// the method "delete-b2b-org-settings-user" of service "membership-service".
+func NewDeleteB2bOrgSettingsUserEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*DeleteB2bOrgSettingsUserPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.DeleteB2bOrgSettingsUser(ctx, p)
 	}
 }
 

@@ -5,6 +5,7 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -83,6 +84,34 @@ func TestOrgSettingsWriter_Update_EmptyWriters_ClearsAll(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, result.Writers, "explicit empty slice should clear writers")
+}
+
+func TestOrgSettingsWriter_Update_PrincipalsCap(t *testing.T) {
+	const cap = 700
+	makeUsers := func(n int) []model.B2BOrgUser {
+		users := make([]model.B2BOrgUser, n)
+		for i := range users {
+			users[i] = model.B2BOrgUser{Email: "u@example.com"}
+		}
+		return users
+	}
+
+	t.Run("exactly cap writers succeeds", func(t *testing.T) {
+		writer := newOrgSettingsWriter(mock.NewMockB2BOrgSettings(), mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+		in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: makeUsers(cap)}
+		_, err := writer.Update(context.Background(), in)
+		require.NoError(t, err)
+	})
+
+	t.Run("cap+1 writers returns Validation error mentioning cap", func(t *testing.T) {
+		writer := newOrgSettingsWriter(mock.NewMockB2BOrgSettings(), mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
+		in := svc.B2BOrgSettingsUpdate{OrgUID: testOrgUID, Writers: makeUsers(cap + 1)}
+		_, err := writer.Update(context.Background(), in)
+		require.Error(t, err)
+		var ve pkgerrors.Validation
+		assert.True(t, errors.As(err, &ve), "expected Validation error, got %T: %v", err, err)
+		assert.Contains(t, err.Error(), "700")
+	})
 }
 
 func TestOrgSettingsWriter_Update_IfMatch_Matches_Succeeds(t *testing.T) {
@@ -329,6 +358,40 @@ func TestOrgSettingsWriter_Update_SubsequentWrite_EmitsActionUpdated(t *testing.
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 // seedB2BOrgReader returns a fixed org for any UID.
+// TestOrgSettingsWriter_AddPrincipal_OnlySyncsTouchedRelation verifies the per-principal FGA
+// sync reconciles only the relation that changed: inviting an auditor must exclude "writer"
+// from the full-sync (untouched, tuples preserved) while syncing "auditor".
+func TestOrgSettingsWriter_AddPrincipal_OnlySyncsTouchedRelation(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		},
+	}, 1)
+	pub := mock.NewMockMemberPublisher()
+	writer := svc.NewOrgSettingsWriter(
+		svc.WithOrgSettingsReader(store),
+		svc.WithOrgSettingsWriter(store),
+		svc.WithOrgSettingsB2BOrgReader(&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}}),
+		svc.WithOrgSettingsPublisher(pub),
+	)
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "carol@example.com", InvitedAs: "auditor",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, pub.LastAccessData, "FGA message must be published")
+	fgaMsg, ok := pub.LastAccessData.(fgatypes.GenericFGAMessage)
+	require.True(t, ok, "expected GenericFGAMessage, got %T", pub.LastAccessData)
+	data, ok := fgaMsg.Data.(fgatypes.GenericAccessData)
+	require.True(t, ok)
+	assert.Contains(t, data.ExcludeRelations, "writer",
+		"inviting an auditor must not re-sync the untouched writers relation")
+	assert.NotContains(t, data.ExcludeRelations, "auditor",
+		"the touched auditors relation must be synced so the new invite reconciles")
+}
+
 type seedB2BOrgReader struct{ org *model.B2BOrg }
 
 func (r *seedB2BOrgReader) GetB2BOrg(_ context.Context, _ string) (*model.B2BOrg, error) {

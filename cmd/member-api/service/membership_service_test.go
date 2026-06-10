@@ -61,6 +61,18 @@ func (s stubOrgSettingsWriterUC) Update(_ context.Context, _ usecaseSvc.B2BOrgSe
 	return s.settings, s.err
 }
 
+func (s stubOrgSettingsWriterUC) AddPrincipal(_ context.Context, _ usecaseSvc.B2BOrgSettingsAddPrincipal) (*model.B2BOrgSettings, error) {
+	return s.settings, s.err
+}
+
+func (s stubOrgSettingsWriterUC) ChangePrincipalRole(_ context.Context, _ usecaseSvc.B2BOrgSettingsChangeRole) (*model.B2BOrgSettings, error) {
+	return s.settings, s.err
+}
+
+func (s stubOrgSettingsWriterUC) RemovePrincipal(_ context.Context, _ usecaseSvc.B2BOrgSettingsRemovePrincipal) (*model.B2BOrgSettings, error) {
+	return s.settings, s.err
+}
+
 // ─── fixtures ─────────────────────────────────────────────────────────────────
 
 // seededB2BOrgReader returns a fixed org for any UID.
@@ -513,6 +525,76 @@ func TestUpdateB2bOrgSettings_Conflict(t *testing.T) {
 	var serviceErr *goa.ServiceError
 	require.True(t, errors.As(err, &serviceErr))
 	assert.Equal(t, "Conflict", serviceErr.Name)
+}
+
+// TestAddB2bOrgSettingsUser_PreservesExistingMembers verifies a per-principal add
+// keeps existing accepted members (with usernames) intact and lands the invitee as pending.
+func TestAddB2bOrgSettingsUser_PreservesExistingMembers(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed("lf-uid-001", &model.B2BOrgSettings{
+		UID: "lf-uid-001",
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		},
+	}, 1)
+	svc := newTestSvc(withOrgSettingsStore(store))
+
+	result, err := svc.AddB2bOrgSettingsUser(context.Background(), &membershipservice.AddB2bOrgSettingsUserPayload{
+		UID: "lf-uid-001", Email: "carol@example.com", InvitedAs: "auditor",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result.Settings)
+	require.Len(t, result.Settings.Writers, 1)
+	assert.Equal(t, "auth0|alice", *result.Settings.Writers[0].Username, "existing admin username must survive")
+	assert.Equal(t, "accepted", *result.Settings.Writers[0].InviteStatus)
+	require.Len(t, result.Settings.Auditors, 1)
+	assert.Equal(t, "carol@example.com", result.Settings.Auditors[0].Email)
+	assert.Equal(t, "pending", *result.Settings.Auditors[0].InviteStatus)
+	assert.NotNil(t, result.Etag)
+}
+
+// TestUpdateB2bOrgSettingsUserRole_LastAdminBlocked verifies the last-Admin invariant
+// surfaces as a Goa Conflict from the role-change handler.
+func TestUpdateB2bOrgSettingsUserRole_LastAdminBlocked(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed("lf-uid-001", &model.B2BOrgSettings{
+		UID: "lf-uid-001",
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		},
+	}, 1)
+	svc := newTestSvc(withOrgSettingsStore(store))
+
+	_, err := svc.UpdateB2bOrgSettingsUserRole(context.Background(), &membershipservice.UpdateB2bOrgSettingsUserRolePayload{
+		UID: "lf-uid-001", Email: "alice@example.com", InvitedAs: "auditor",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "Conflict", serviceErr.Name)
+}
+
+// TestDeleteB2bOrgSettingsUser_NotFound verifies removing an absent principal returns NotFound.
+func TestDeleteB2bOrgSettingsUser_NotFound(t *testing.T) {
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed("lf-uid-001", &model.B2BOrgSettings{
+		UID: "lf-uid-001",
+		Writers: []model.B2BOrgUser{
+			{Email: "alice@example.com", Username: "auth0|alice", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted},
+		},
+	}, 1)
+	svc := newTestSvc(withOrgSettingsStore(store))
+
+	_, err := svc.DeleteB2bOrgSettingsUser(context.Background(), &membershipservice.DeleteB2bOrgSettingsUserPayload{
+		UID: "lf-uid-001", Email: "ghost@example.com",
+	})
+
+	require.Error(t, err)
+	var serviceErr *goa.ServiceError
+	require.True(t, errors.As(err, &serviceErr))
+	assert.Equal(t, "NotFound", serviceErr.Name)
 }
 
 // ─── mockProjectMembershipReader ──────────────────────────────────────────────

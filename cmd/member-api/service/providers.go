@@ -24,7 +24,9 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 	infraproject "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/project"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce/pubsub"
 	usecaseSvc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 )
 
 var (
@@ -494,6 +496,8 @@ func BackfillRunnerImpl(ctx context.Context) *usecaseSvc.Runner {
 		B2BOrgSettingsReaderImpl(ctx),
 		MemberPublisherImpl(ctx),
 		nc,
+		GlobalOrgAdminTeamUID(),
+		ProjectResolverImpl(ctx),
 	)
 }
 
@@ -559,4 +563,81 @@ func OrgSettingsWriterUseCase(ctx context.Context) usecaseSvc.OrgSettingsWriter 
 // is pure CPU and works identically in every mode.
 func B2BOrgResolverImpl(_ context.Context) port.B2BOrgResolver {
 	return infrab2borg.NewResolver()
+}
+
+// CDCConsumerImpl constructs a CDCConsumer wired with all production
+// dependencies for consumer mode. It also initialises the pubsub-state KV
+// bucket (replay cursor storage) in the shared NATSClient.
+//
+// Required env vars (consumer mode only):
+//
+//	SF_PUBSUB_ENDPOINT — Salesforce Pub/Sub gRPC endpoint (e.g. "api.pubsub.salesforce.com:7443")
+//	SF_ORG_ID          — Salesforce org ID / tenantid injected as gRPC metadata header
+func CDCConsumerImpl(ctx context.Context) (*usecaseSvc.CDCConsumer, *pubsub.ReplayStore, *pubsub.Client) {
+	endpoint := os.Getenv("SF_PUBSUB_ENDPOINT")
+	if endpoint == "" {
+		log.Fatalf("SF_PUBSUB_ENDPOINT is required in consumer mode")
+	}
+
+	orgID := os.Getenv("SF_ORG_ID")
+	if orgID == "" {
+		log.Fatalf("SF_ORG_ID is required in consumer mode (Salesforce org/tenant ID for gRPC metadata)")
+	}
+
+	// Init all shared singletons.
+	natsInit(ctx)
+	sfInit(ctx)
+	sObjectClientInit(ctx)
+
+	// Init pubsub-state KV bucket (no MaxAge TTL — replay cursors must survive indefinitely).
+	if err := natsClient.KeyValueStore(ctx, constants.KVBucketNamePubSubState); err != nil {
+		log.Fatalf("failed to initialise pubsub-state KV bucket: %v", err)
+	}
+	slog.InfoContext(ctx, "pubsub-state KV bucket initialised", "bucket", constants.KVBucketNamePubSubState)
+
+	kv := natsClient.PubSubStateKV()
+	if kv == nil {
+		log.Fatalf("pubsub-state KV not available after initialisation")
+	}
+	replayStore := pubsub.NewReplayStore(kv)
+
+	// tokenFn is called each time a new gRPC stream is opened so the access
+	// token is always fresh (Salesforce sessions expire after a few hours).
+	tokenFn := func() (accessToken, instanceURL, tenantID string) {
+		return sfClient.GetAccessToken(), sfClient.GetInstanceUrl(), orgID
+	}
+
+	pubsubClient, err := pubsub.NewClient(endpoint, tokenFn)
+	if err != nil {
+		log.Fatalf("failed to create Pub/Sub gRPC client: %v", err)
+	}
+	slog.InfoContext(ctx, "Salesforce Pub/Sub gRPC client initialised", "endpoint", endpoint)
+
+	consumer := usecaseSvc.NewCDCConsumer(
+		usecaseSvc.WithCDCSubscriber(pubsubClient),
+		usecaseSvc.WithCDCMemberReader(MemberReaderImpl(ctx)),
+		// ProjectMembershipReaderImpl uses the sObject REST path (Asset + Account +
+		// Product2 + Project__c) so that, after cache invalidation, the re-fetch
+		// bypasses the membership-cache TTL and reads the changed record directly
+		// from Salesforce. Using MemberReaderImpl here would read through the
+		// stale membership-cache and publish pre-CDC data.
+		usecaseSvc.WithCDCProjectMembershipReader(ProjectMembershipReaderImpl(ctx)),
+		usecaseSvc.WithCDCB2BOrgReader(B2BOrgReaderImpl(ctx)),
+		usecaseSvc.WithCDCCacheInvalidator(sObjectClient),
+		usecaseSvc.WithCDCPublisher(MemberPublisherImpl(ctx)),
+		usecaseSvc.WithCDCGlobalOrgAdminTeamUID(GlobalOrgAdminTeamUID()),
+	)
+
+	return consumer, replayStore, pubsubClient
+}
+
+// CDCChannelFromEnv returns the Salesforce CDC channel to subscribe to.
+// Defaults to "/data/ChangeEvents" (all CDC objects) when SF_CDC_CHANNEL is
+// not set. Override in the consumer Deployment to subscribe to a specific
+// channel (e.g. "/data/AccountChangeEvent").
+func CDCChannelFromEnv() string {
+	if ch := os.Getenv("SF_CDC_CHANNEL"); ch != "" {
+		return ch
+	}
+	return "/data/ChangeEvents"
 }

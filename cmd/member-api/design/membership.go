@@ -31,8 +31,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			IfNoneMatchAttribute()
 			IfModifiedSinceAttribute()
@@ -126,8 +125,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			IfMatchAttribute()
 			dsl.Extend(B2BOrgUpdateBody)
@@ -177,8 +175,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			dsl.Required("uid")
 		})
@@ -221,8 +218,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("001B000000IqhSLIAZ")
 			})
 			IfMatchAttribute()
 			dsl.Extend(B2BOrgSettingsUpdateBody)
@@ -263,6 +259,165 @@ var _ = dsl.Service("membership-service", func() {
 		})
 	})
 
+	dsl.Method("add-b2b-org-settings-user", func() {
+		dsl.Description("Add (invite) a single principal to a B2B organization's writers or auditors. Per-principal merge: existing members are preserved; the new entry lands as a pending invite (no username yet).")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			IfMatchAttribute()
+			dsl.Extend(OrgUserAddBody)
+			dsl.Required("uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("settings", B2BOrgSettingsResponse, "Updated B2B organization access-control settings")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("settings")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Resource not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Principal already present, or concurrent modification — retry with fresh settings")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.POST("/b2b_orgs/{uid}/settings/users")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("settings")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("update-b2b-org-settings-user-role", func() {
+		dsl.Description("Change a single principal's role (writer⇄auditor) on a B2B organization. Per-principal merge: the principal's username and invite lifecycle are preserved; all other members are untouched.")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			dsl.Attribute("email", dsl.String, "Email of the principal to modify", func() {
+				dsl.Format(dsl.FormatEmail)
+				dsl.Example("alice@example.com")
+			})
+			IfMatchAttribute()
+			dsl.Extend(OrgUserRoleBody)
+			dsl.Required("uid", "email")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("settings", B2BOrgSettingsResponse, "Updated B2B organization access-control settings")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("settings")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Organization or principal not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Concurrent modification, or last-Admin invariant — retry with fresh settings")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.PUT("/b2b_orgs/{uid}/settings/users/{email}")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Param("email")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("settings")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("delete-b2b-org-settings-user", func() {
+		dsl.Description("Remove a single principal's access (revoke an accepted grant or cancel a pending invite) from a B2B organization. Per-principal merge: all other members are untouched.")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			dsl.Attribute("email", dsl.String, "Email of the principal to remove", func() {
+				dsl.Format(dsl.FormatEmail)
+				dsl.Example("alice@example.com")
+			})
+			IfMatchAttribute()
+			dsl.Required("uid", "email")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("settings", B2BOrgSettingsResponse, "Updated B2B organization access-control settings")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("settings")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Organization or principal not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Concurrent modification, or last-Admin invariant — retry with fresh settings")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.DELETE("/b2b_orgs/{uid}/settings/users/{email}")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Param("email")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("settings")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
 	// ── Project Memberships (Asset) ──────────────────────────────────────────
 
 	dsl.Method("get-project-membership", func() {
@@ -274,8 +429,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("uid", dsl.String, "Project membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			IfNoneMatchAttribute()
 			IfModifiedSinceAttribute()
@@ -328,12 +482,10 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("a0K2M000000ABCdUAG")
 			})
 			IfNoneMatchAttribute()
 			IfModifiedSinceAttribute()
@@ -385,8 +537,7 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Extend(KeyContactCreateBody)
 			dsl.Required("membership_uid")
@@ -436,12 +587,10 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("a0K2M000000ABCdUAG")
 			})
 			IfMatchAttribute()
 			dsl.Extend(KeyContactUpdateBody)
@@ -494,12 +643,10 @@ var _ = dsl.Service("membership-service", func() {
 			BearerTokenAttribute()
 			VersionAttribute()
 			dsl.Attribute("membership_uid", dsl.String, "Parent membership UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("02i2M000009ABCdIAM")
 			})
 			dsl.Attribute("uid", dsl.String, "Key contact UID", func() {
-				dsl.Format(dsl.FormatUUID)
-				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+				dsl.Example("a0K2M000000ABCdUAG")
 			})
 			IfMatchAttribute()
 			dsl.Required("membership_uid", "uid")
@@ -534,7 +681,10 @@ var _ = dsl.Service("membership-service", func() {
 	// ── Admin Actions ────────────────────────────────────────────────────────
 
 	dsl.Method("admin-reindex", func() {
-		dsl.Description("Trigger a reindex of cached entities")
+		dsl.Description("Trigger a reindex of cached entities. " +
+			"Operational note: key_contact is high-volume (~300k records in prod); " +
+			"reindex only the active window by passing a `since` ~2 years back " +
+			"(e.g. since=2024-06-01T00:00:00Z) rather than a full key_contact reindex.")
 
 		dsl.Security(JWTAuth)
 

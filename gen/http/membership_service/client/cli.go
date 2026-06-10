@@ -24,10 +24,6 @@ func BuildGetB2bOrgPayload(membershipServiceGetB2bOrgUID string, membershipServi
 	var uid string
 	{
 		uid = membershipServiceGetB2bOrgUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -130,10 +126,6 @@ func BuildUpdateB2bOrgPayload(membershipServiceUpdateB2bOrgBody string, membersh
 	var uid string
 	{
 		uid = membershipServiceUpdateB2bOrgUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -186,10 +178,6 @@ func BuildGetB2bOrgSettingsPayload(membershipServiceGetB2bOrgSettingsUID string,
 	var uid string
 	{
 		uid = membershipServiceGetB2bOrgSettingsUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -248,10 +236,6 @@ func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody 
 	var uid string
 	{
 		uid = membershipServiceUpdateB2bOrgSettingsUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -306,6 +290,180 @@ func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody 
 	return v, nil
 }
 
+// BuildAddB2bOrgSettingsUserPayload builds the payload for the
+// membership-service add-b2b-org-settings-user endpoint from CLI flags.
+func BuildAddB2bOrgSettingsUserPayload(membershipServiceAddB2bOrgSettingsUserBody string, membershipServiceAddB2bOrgSettingsUserUID string, membershipServiceAddB2bOrgSettingsUserVersion string, membershipServiceAddB2bOrgSettingsUserBearerToken string, membershipServiceAddB2bOrgSettingsUserIfMatch string) (*membershipservice.AddB2bOrgSettingsUserPayload, error) {
+	var err error
+	var body AddB2bOrgSettingsUserRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceAddB2bOrgSettingsUserBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"email\": \"alice@example.com\",\n      \"invited_as\": \"auditor\",\n      \"name\": \"Alice Smith\"\n   }'")
+		}
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.email", body.Email, goa.FormatEmail))
+		if !(body.InvitedAs == "writer" || body.InvitedAs == "auditor") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.invited_as", body.InvitedAs, []any{"writer", "auditor"}))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceAddB2bOrgSettingsUserUID
+	}
+	var version *string
+	{
+		if membershipServiceAddB2bOrgSettingsUserVersion != "" {
+			version = &membershipServiceAddB2bOrgSettingsUserVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceAddB2bOrgSettingsUserBearerToken != "" {
+			bearerToken = &membershipServiceAddB2bOrgSettingsUserBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceAddB2bOrgSettingsUserIfMatch != "" {
+			ifMatch = &membershipServiceAddB2bOrgSettingsUserIfMatch
+		}
+	}
+	v := &membershipservice.AddB2bOrgSettingsUserPayload{
+		Email:     body.Email,
+		InvitedAs: body.InvitedAs,
+		Name:      body.Name,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildUpdateB2bOrgSettingsUserRolePayload builds the payload for the
+// membership-service update-b2b-org-settings-user-role endpoint from CLI flags.
+func BuildUpdateB2bOrgSettingsUserRolePayload(membershipServiceUpdateB2bOrgSettingsUserRoleBody string, membershipServiceUpdateB2bOrgSettingsUserRoleUID string, membershipServiceUpdateB2bOrgSettingsUserRoleEmail string, membershipServiceUpdateB2bOrgSettingsUserRoleVersion string, membershipServiceUpdateB2bOrgSettingsUserRoleBearerToken string, membershipServiceUpdateB2bOrgSettingsUserRoleIfMatch string) (*membershipservice.UpdateB2bOrgSettingsUserRolePayload, error) {
+	var err error
+	var body UpdateB2bOrgSettingsUserRoleRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceUpdateB2bOrgSettingsUserRoleBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"invited_as\": \"writer\"\n   }'")
+		}
+		if !(body.InvitedAs == "writer" || body.InvitedAs == "auditor") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.invited_as", body.InvitedAs, []any{"writer", "auditor"}))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceUpdateB2bOrgSettingsUserRoleUID
+	}
+	var email string
+	{
+		email = membershipServiceUpdateB2bOrgSettingsUserRoleEmail
+		err = goa.MergeErrors(err, goa.ValidateFormat("email", email, goa.FormatEmail))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsUserRoleVersion != "" {
+			version = &membershipServiceUpdateB2bOrgSettingsUserRoleVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsUserRoleBearerToken != "" {
+			bearerToken = &membershipServiceUpdateB2bOrgSettingsUserRoleBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceUpdateB2bOrgSettingsUserRoleIfMatch != "" {
+			ifMatch = &membershipServiceUpdateB2bOrgSettingsUserRoleIfMatch
+		}
+	}
+	v := &membershipservice.UpdateB2bOrgSettingsUserRolePayload{
+		InvitedAs: body.InvitedAs,
+	}
+	v.UID = uid
+	v.Email = email
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildDeleteB2bOrgSettingsUserPayload builds the payload for the
+// membership-service delete-b2b-org-settings-user endpoint from CLI flags.
+func BuildDeleteB2bOrgSettingsUserPayload(membershipServiceDeleteB2bOrgSettingsUserUID string, membershipServiceDeleteB2bOrgSettingsUserEmail string, membershipServiceDeleteB2bOrgSettingsUserVersion string, membershipServiceDeleteB2bOrgSettingsUserBearerToken string, membershipServiceDeleteB2bOrgSettingsUserIfMatch string) (*membershipservice.DeleteB2bOrgSettingsUserPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = membershipServiceDeleteB2bOrgSettingsUserUID
+	}
+	var email string
+	{
+		email = membershipServiceDeleteB2bOrgSettingsUserEmail
+		err = goa.MergeErrors(err, goa.ValidateFormat("email", email, goa.FormatEmail))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceDeleteB2bOrgSettingsUserVersion != "" {
+			version = &membershipServiceDeleteB2bOrgSettingsUserVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceDeleteB2bOrgSettingsUserBearerToken != "" {
+			bearerToken = &membershipServiceDeleteB2bOrgSettingsUserBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceDeleteB2bOrgSettingsUserIfMatch != "" {
+			ifMatch = &membershipServiceDeleteB2bOrgSettingsUserIfMatch
+		}
+	}
+	v := &membershipservice.DeleteB2bOrgSettingsUserPayload{}
+	v.UID = uid
+	v.Email = email
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
 // BuildGetProjectMembershipPayload builds the payload for the
 // membership-service get-project-membership endpoint from CLI flags.
 func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipUID string, membershipServiceGetProjectMembershipVersion string, membershipServiceGetProjectMembershipBearerToken string, membershipServiceGetProjectMembershipIfNoneMatch string, membershipServiceGetProjectMembershipIfModifiedSince string) (*membershipservice.GetProjectMembershipPayload, error) {
@@ -313,10 +471,6 @@ func BuildGetProjectMembershipPayload(membershipServiceGetProjectMembershipUID s
 	var uid string
 	{
 		uid = membershipServiceGetProjectMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -365,18 +519,10 @@ func BuildGetKeyContactPayload(membershipServiceGetKeyContactMembershipUID strin
 	var membershipUID string
 	{
 		membershipUID = membershipServiceGetKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var uid string
 	{
 		uid = membershipServiceGetKeyContactUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -445,10 +591,6 @@ func BuildCreateKeyContactPayload(membershipServiceCreateKeyContactBody string, 
 	var membershipUID string
 	{
 		membershipUID = membershipServiceCreateKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -515,18 +657,10 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	var membershipUID string
 	{
 		membershipUID = membershipServiceUpdateKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var uid string
 	{
 		uid = membershipServiceUpdateKeyContactUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -576,18 +710,10 @@ func BuildDeleteKeyContactPayload(membershipServiceDeleteKeyContactMembershipUID
 	var membershipUID string
 	{
 		membershipUID = membershipServiceDeleteKeyContactMembershipUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("membership_uid", membershipUID, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var uid string
 	{
 		uid = membershipServiceDeleteKeyContactUID
-		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
-		if err != nil {
-			return nil, err
-		}
 	}
 	var version *string
 	{
@@ -631,7 +757,7 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceAdminReindexBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
 		}
 	}
 	var version *string

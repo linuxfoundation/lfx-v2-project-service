@@ -13,9 +13,8 @@ import (
 // MembershipTierResponse is the DSL type for a membership tier (Product2) response.
 var MembershipTierResponse = dsl.Type("membership-tier-response", func() {
 	dsl.Description("A membership tier (Product2) scoped to a project")
-	dsl.Attribute("uid", dsl.String, "Tier UID (invertible UUID v8 from Product2.Id)", func() {
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
-		dsl.Format(dsl.FormatUUID)
+	dsl.Attribute("uid", dsl.String, "Tier UID (Salesforce Product2.Id)", func() {
+		dsl.Example("01t2M000009ABCdIAM")
 	})
 	dsl.Attribute("project_uid", dsl.String, "V2 project UUID", func() {
 		dsl.Format(dsl.FormatUUID)
@@ -44,24 +43,24 @@ var MembershipTierResponse = dsl.Type("membership-tier-response", func() {
 // Account (company) attributes are denormalized directly onto this type.
 var ProjectMembershipResponse = dsl.Type("project-membership-response", func() {
 	dsl.Description("A membership (Asset) scoped to a project, with denormalized company attributes")
-	dsl.Attribute("uid", dsl.String, "Membership UID (invertible UUID v8 from Asset.Id)", func() {
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
-		dsl.Format(dsl.FormatUUID)
+	dsl.Attribute("uid", dsl.String, "Membership UID (Salesforce Asset.Id)", func() {
+		dsl.Example("02i2M000009ABCdIAM")
 	})
 	dsl.Attribute("tier_uid", dsl.String, "UID of the associated membership tier (Product2)", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Example("01t2M000009ABCdIAM")
 	})
-	dsl.Attribute("project_uid", dsl.String, "V2 project UUID", func() {
+	dsl.Attribute("project_uid", dsl.String, "V2 project UUID resolved from the project slug via project-service", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
+	})
+	dsl.Attribute("project_sfid", dsl.String, "Salesforce Project__c.Id for the project this membership belongs to", func() {
+		dsl.Example("a0941000002wBz9AAE")
 	})
 	dsl.Attribute("project_slug", dsl.String, "URL slug of the project this membership belongs to", func() {
 		dsl.Example("kubernetes")
 	})
 	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account) this membership belongs to", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Example("001B000000IqhSLIAZ")
 	})
 	dsl.Attribute("status", dsl.String, "Membership status", func() {
 		dsl.Example("Active")
@@ -137,25 +136,24 @@ var ProjectMembershipResponse = dsl.Type("project-membership-response", func() {
 // sub-objects, no User Service or Org Service references.
 var ProjectKeyContactResponse = dsl.Type("project-key-contact-response", func() {
 	dsl.Description("A key contact (Project_Role__c) scoped to a membership, with denormalized contact and company attributes")
-	dsl.Attribute("uid", dsl.String, "Key contact UID (invertible UUID v8 from Project_Role__c.Id)", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	dsl.Attribute("uid", dsl.String, "Key contact UID (Salesforce Project_Role__c.Id)", func() {
+		dsl.Example("a0K2M000000ABCdUAG")
 	})
 	dsl.Attribute("membership_uid", dsl.String, "UID of the associated membership (Asset)", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Example("02i2M000009ABCdIAM")
 	})
 	dsl.Attribute("tier_uid", dsl.String, "UID of the associated membership tier (Product2)", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Example("01t2M000009ABCdIAM")
 	})
-	dsl.Attribute("project_uid", dsl.String, "V2 project UUID", func() {
+	dsl.Attribute("project_uid", dsl.String, "V2 project UUID resolved from the project slug via project-service", func() {
 		dsl.Format(dsl.FormatUUID)
 		dsl.Example("a27394a3-7a6c-4d0f-9e0f-692d8753924f")
 	})
+	dsl.Attribute("project_sfid", dsl.String, "Salesforce Project__c.Id for the project this key contact belongs to", func() {
+		dsl.Example("a0941000002wBz9AAE")
+	})
 	dsl.Attribute("b2b_org_uid", dsl.String, "UID of the B2B organization (Account) this key contact's membership belongs to", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Example("001B000000IqhSLIAZ")
 	})
 	dsl.Attribute("role", dsl.String, "Contact role designation", func() {
 		dsl.Example("Technical Contact")
@@ -276,17 +274,15 @@ func LastModifiedAttribute() {
 // B2BOrgUIDAttribute adds the b2b_org_uid path parameter attribute.
 func B2BOrgUIDAttribute() {
 	dsl.Attribute("b2b_org_uid", dsl.String, "B2BOrg UID", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Example("001B000000IqhSLIAZ")
 	})
 }
 
 // B2BOrgResponse is the DSL type for a B2B organization response.
 var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 	dsl.Description("A B2B organization")
-	dsl.Attribute("uid", dsl.String, "B2BOrg UID (invertible UUID v8)", func() {
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
-		dsl.Format(dsl.FormatUUID)
+	dsl.Attribute("uid", dsl.String, "B2BOrg UID (Salesforce Account.Id)", func() {
+		dsl.Example("001B000000IqhSLIAZ")
 	})
 	dsl.Attribute("name", dsl.String, "Organization name", func() {
 		dsl.Example("Example Corp")
@@ -333,8 +329,7 @@ var B2BOrgResponse = dsl.Type("b2b-org-response", func() {
 		dsl.Example("example-corp")
 	})
 	dsl.Attribute("parent_uid", dsl.String, "UID of the parent organization (Account.ParentId); omitted when no parent", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("5c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+		dsl.Example("001B000000IqhSLIAZ")
 	})
 	dsl.Attribute("created_at", dsl.String, "Creation timestamp", func() {
 		dsl.Format(dsl.FormatDateTime)
@@ -510,15 +505,45 @@ var B2BOrgSettingsUpdateBody = dsl.Type("b2b-org-settings-update-body", func() {
 	dsl.Attribute("auditors", dsl.ArrayOf(OrgUserType), "Complete replacement list for org auditors. Nil = leave unchanged; [] = remove all.")
 })
 
+// OrgUserAddBody is the request body for POST /b2b_orgs/{uid}/settings/users
+// (per-principal add/invite). The service derives invite_status from username
+// (absent here ⇒ pending) and merges the new entry without touching existing members.
+var OrgUserAddBody = dsl.Type("org-user-add-body", func() {
+	dsl.Description("Request body to add (invite) a single principal to a b2b_org's writers or auditors")
+	dsl.Attribute("email", dsl.String, "Invitee email; identity key for the grant", func() {
+		dsl.Format(dsl.FormatEmail)
+		dsl.Example("alice@example.com")
+	})
+	dsl.Attribute("invited_as", dsl.String, "Relation to grant: writer (Admin) or auditor (Viewer)", func() {
+		dsl.Example("auditor")
+		dsl.Enum("writer", "auditor")
+	})
+	dsl.Attribute("name", dsl.String, "Optional display name; stored as provided and left empty when omitted (no server-side user lookup)", func() {
+		dsl.Example("Alice Smith")
+	})
+	dsl.Required("email", "invited_as")
+})
+
+// OrgUserRoleBody is the request body for PUT /b2b_orgs/{uid}/settings/users/{email}
+// (per-principal role change). Moves the principal between writers and auditors,
+// preserving its username/invite lifecycle so an accepted grant stays accepted.
+var OrgUserRoleBody = dsl.Type("org-user-role-body", func() {
+	dsl.Description("Request body to change a single principal's role on a b2b_org")
+	dsl.Attribute("invited_as", dsl.String, "Target relation: writer (Admin) or auditor (Viewer)", func() {
+		dsl.Example("writer")
+		dsl.Enum("writer", "auditor")
+	})
+	dsl.Required("invited_as")
+})
+
 // AdminReindexItem identifies a single entity to reindex in targeted mode.
 var AdminReindexItem = dsl.Type("admin-reindex-item", func() {
 	dsl.Description("A single entity to reindex (targeted mode)")
 	dsl.Attribute("type", dsl.String, "Entity type: b2b_org, project_membership, key_contact, or b2b_org_settings", func() {
 		dsl.Example("b2b_org")
 	})
-	dsl.Attribute("uid", dsl.String, "Entity UID (invertible UUID v8)", func() {
-		dsl.Format(dsl.FormatUUID)
-		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	dsl.Attribute("uid", dsl.String, "Entity UID (Salesforce ID)", func() {
+		dsl.Example("001B000000IqhSLIAZ")
 	})
 	dsl.Required("type", "uid")
 })
@@ -529,7 +554,7 @@ var AdminReindexPayload = dsl.Type("admin-reindex-payload", func() {
 	dsl.Attribute("types", dsl.ArrayOf(dsl.String), "Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.", func() {
 		dsl.Example([]string{"b2b_org", "project_membership"})
 	})
-	dsl.Attribute("since", dsl.String, "ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC.", func() {
+	dsl.Attribute("since", dsl.String, "ISO 8601 / RFC 3339 timestamp with explicit zone; only records with LastModifiedDate >= since are reindexed. Mutually exclusive with items. Handler normalises to UTC. For key_contact (high-volume), prefer a ~2-year window (e.g. 2024-06-01T00:00:00Z) to sync only the active set instead of the full ~300k records.", func() {
 		dsl.Format(dsl.FormatDateTime)
 		dsl.Example("2026-05-20T00:00:00Z")
 	})

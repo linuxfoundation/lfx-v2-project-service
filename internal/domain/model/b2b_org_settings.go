@@ -3,7 +3,10 @@
 
 package model
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // InviteStatus represents the lifecycle state of a B2BOrgUser entry.
 type InviteStatus string
@@ -124,17 +127,22 @@ func (s *B2BOrgSettings) FulltextTokens() []string {
 	return tokens
 }
 
-// Tag prefixes for per-user username tags emitted by Tags().
-// Consumed by the query-service as filter keys (e.g. filters_or=writers.username:<sub>).
+// Tag prefixes for per-user tags emitted by Tags().
 const (
-	TagPrefixWritersUsername  = "writers.username:"
-	TagPrefixAuditorsUsername = "auditors.username:"
+	// TagPrefixWriter is emitted once per accepted writer with a known LFID username.
+	// Inverse query: tags=writer:auth0|<username>
+	TagPrefixWriter = "writer:"
+	// TagPrefixAuditor is emitted once per accepted auditor with a known LFID username.
+	// Inverse query: tags=auditor:auth0|<username>
+	TagPrefixAuditor = "auditor:"
 	// TagPrefixMember covers both writers and auditors; use for role-agnostic
-	// "which orgs does user X belong to?" queries.
+	// "which orgs does user X belong to?" queries: tags=member:auth0|<username>
 	TagPrefixMember = "member:"
 )
 
 // Tags returns the discrete tag flags for the settings indexer doc.
+// Includes the org UID (bare and prefixed) so the settings doc is
+// discoverable by the same b2b_org_uid:<uid> tag as the org doc itself.
 // has_writers: ≥1 accepted writer; has_auditors: ≥1 accepted auditor;
 // has_pending_invites: ≥1 pending entry across writers or auditors.
 // Revoked and expired entries do not trigger any flag.
@@ -143,6 +151,10 @@ func (s *B2BOrgSettings) Tags() []string {
 		return nil
 	}
 	var tags []string
+	if s.UID != "" {
+		tags = append(tags, s.UID)
+		tags = append(tags, fmt.Sprintf("b2b_org_uid:%s", s.UID))
+	}
 	var hasPending bool
 	emittedMemberTags := map[string]struct{}{}
 	hasWriters := false
@@ -154,7 +166,7 @@ func (s *B2BOrgSettings) Tags() []string {
 				hasWriters = true
 			}
 			if u.Username != "" {
-				tags = append(tags, TagPrefixWritersUsername+u.Username)
+				tags = append(tags, TagPrefixWriter+u.Username)
 				if _, seen := emittedMemberTags[u.Username]; !seen {
 					tags = append(tags, TagPrefixMember+u.Username)
 					emittedMemberTags[u.Username] = struct{}{}
@@ -173,7 +185,7 @@ func (s *B2BOrgSettings) Tags() []string {
 				hasAuditors = true
 			}
 			if u.Username != "" {
-				tags = append(tags, TagPrefixAuditorsUsername+u.Username)
+				tags = append(tags, TagPrefixAuditor+u.Username)
 				if _, seen := emittedMemberTags[u.Username]; !seen {
 					tags = append(tags, TagPrefixMember+u.Username)
 					emittedMemberTags[u.Username] = struct{}{}

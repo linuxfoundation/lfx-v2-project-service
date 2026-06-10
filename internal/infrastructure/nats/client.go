@@ -30,6 +30,16 @@ func (c *NATSClient) Conn() *nats.Conn {
 	return c.conn
 }
 
+// PubSubStateKV returns the jetstream.KeyValue handle for the pubsub-state
+// bucket. Must be called after KeyValueStore(ctx, constants.KVBucketNamePubSubState).
+// Returns nil if the bucket has not been initialized (API mode does not init it).
+func (c *NATSClient) PubSubStateKV() jetstream.KeyValue {
+	if c.kvStore == nil {
+		return nil
+	}
+	return c.kvStore[constants.KVBucketNamePubSubState]
+}
+
 // Close gracefully closes the NATS connection.
 func (c *NATSClient) Close() error {
 	if c.conn != nil {
@@ -82,6 +92,9 @@ func (c *NATSClient) KeyValueStore(ctx context.Context, bucketName string) error
 		//     GET (ETag / Last-Modified); entries are revalidated on every fetch and
 		//     their TTL is reset on each 304, so a longer backstop means fewer cold
 		//     fetches after quiet periods.
+		//   org-settings: no TTL — authoritative state, never silently evicted.
+		//   pubsub-state: no TTL — replay cursors must survive indefinitely; a
+		//     silent eviction would cause a gap (fallback to LATEST, missing events).
 		if bucketName == constants.KVBucketNameCache {
 			cfg.TTL = 24 * time.Hour
 		}

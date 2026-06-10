@@ -115,9 +115,9 @@ func (r *MemberRepo) FetchTiersByProjectSFID(ctx context.Context, projectSFID st
 // domain MembershipTier model. Project fields are denormalized from the
 // Project__r relationship when available.
 func convertSOQLToMembershipTier(p soqlProduct2) (*model.MembershipTier, error) {
-	uid, err := sfuuid.ToUUID(p.ID)
+	uid, err := sfuuid.Normalize18(p.ID)
 	if err != nil {
-		return nil, fmt.Errorf("converting product2 SFID %q to UUID: %w", p.ID, err)
+		return nil, fmt.Errorf("normalizing product2 SFID %q: %w", p.ID, err)
 	}
 
 	t := &model.MembershipTier{

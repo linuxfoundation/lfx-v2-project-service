@@ -17,7 +17,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
-// canonicalAccountSFID is a real 15-char Salesforce Account.Id used throughout
+// canonicalAccountSFID is a real 15- or 18-char Salesforce Account.Id used throughout
 // reader and writer tests. Taken from the sfuuid test suite fixture.
 const canonicalAccountSFID = "001B000000IqhSL"
 
@@ -53,7 +53,7 @@ const canonicalAccountJSON = `{
 func TestSobjectAccountToB2BOrg_FixtureEquivalence(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
 	// ── sObject path ──────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ func TestSobjectAccountToB2BOrg_FixtureEquivalence(t *testing.T) {
 func TestB2BOrgReader_GetB2BOrg_Happy(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
 	transport := newRoutingTransport(fakeResponse(http.StatusOK, canonicalAccountJSON, nil))
@@ -154,7 +154,7 @@ func TestB2BOrgReader_GetB2BOrg_Happy(t *testing.T) {
 func TestB2BOrgReader_GetB2BOrg_NotFound(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
 	transport := newRoutingTransport(fakeResponse(http.StatusNotFound,
@@ -216,10 +216,10 @@ const parentAccountJSON = `{
 func TestSobjectAccountToB2BOrg_WithParent(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
-	parentUID, err := sfuuid.ToUUID(parentAccountSFID)
+	parentUID, err := sfuuid.Normalize18(parentAccountSFID)
 	require.NoError(t, err)
 
 	parentSFID := parentAccountSFID // local copy so we can take its address
@@ -244,7 +244,7 @@ func TestSobjectAccountToB2BOrg_WithParent(t *testing.T) {
 	require.NotNil(t, org)
 	assert.Equal(t, parentUID, org.ParentUID, "ParentUID must be derived from raw.ParentID")
 	require.NotNil(t, org.ParentDetail, "ParentDetail must be populated when Parent sub-object is present")
-	assert.Equal(t, parentUID, org.ParentDetail.UID, "ParentDetail.UID must match parent v2 UUID")
+	assert.Equal(t, parentUID, org.ParentDetail.UID, "ParentDetail.UID must match parent SFID")
 	assert.Equal(t, "Global Parent Org", org.ParentDetail.Name)
 	require.NotNil(t, org.ParentDetail.LogoURL)
 	assert.Equal(t, "https://parent.org/logo.png", *org.ParentDetail.LogoURL)
@@ -255,7 +255,7 @@ func TestSobjectAccountToB2BOrg_WithParent(t *testing.T) {
 func TestSobjectAccountToB2BOrg_ParentNoLogo(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
 	parentSFID2 := parentAccountSFID
@@ -285,7 +285,7 @@ func TestSobjectAccountToB2BOrg_ParentNoLogo(t *testing.T) {
 func TestSobjectAccountToB2BOrg_NilParent(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
 	parentSFID3 := parentAccountSFID
@@ -311,7 +311,7 @@ func TestSobjectAccountToB2BOrg_NilParent(t *testing.T) {
 func TestConvertSOQLToB2BOrg_WithParent(t *testing.T) {
 	t.Parallel()
 
-	parentUID, err := sfuuid.ToUUID(parentAccountSFID)
+	parentUID, err := sfuuid.Normalize18(parentAccountSFID)
 	require.NoError(t, err)
 
 	logoURL := "https://parent.org/logo.png"
@@ -364,10 +364,10 @@ func TestConvertSOQLToB2BOrg_NilParent(t *testing.T) {
 func TestB2BOrgReader_GetB2BOrg_WithParent(t *testing.T) {
 	t.Parallel()
 
-	uid, err := sfuuid.ToUUID(canonicalAccountSFID)
+	uid, err := sfuuid.Normalize18(canonicalAccountSFID)
 	require.NoError(t, err)
 
-	parentUID, err := sfuuid.ToUUID(parentAccountSFID)
+	parentUID, err := sfuuid.Normalize18(parentAccountSFID)
 	require.NoError(t, err)
 
 	// Route the first sObject call (Account fetch) to canonicalAccountWithParentJSON,
@@ -395,7 +395,7 @@ func TestB2BOrgReader_GetB2BOrg_WithParent(t *testing.T) {
 }
 
 // TestB2BOrgReader_GetB2BOrg_InvalidUID verifies that GetB2BOrg returns a
-// Validation error when the provided UID is not a valid LFX_ UUID.
+// Validation error when the provided UID is not a valid Salesforce ID.
 func TestB2BOrgReader_GetB2BOrg_InvalidUID(t *testing.T) {
 	t.Parallel()
 

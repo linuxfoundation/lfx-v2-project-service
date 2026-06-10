@@ -16,13 +16,16 @@ This guide provides essential information for Claude instances working with the 
 
 The LFX V2 Member Service is a RESTful API service that provides membership data for the Linux Foundation's LFX platform. It exposes endpoints for querying project-scoped tiers, memberships, and key contacts, as well as write endpoints (POST/PUT/DELETE) for managing key contacts. Data is sourced directly from Salesforce via SOQL queries, with a per-record NATS Key-Value cache to minimise round-trips.
 
+The same binary also runs as a **CDC consumer** (`RUN_MODE=consumer`) that subscribes to Salesforce Change Data Capture events via the Pub/Sub gRPC API and keeps the OpenSearch index and FGA tuples in sync in near-real-time. The consumer runs as a separate Kubernetes Deployment (replicas:1, Recreate strategy) so at most one pod processes CDC events at any time.
+
 ### Key Technologies
 
 - **Language**: Go 1.24+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for KV caching and RPC
-- **Storage**: Single NATS Key-Value bucket (`membership-cache`) acting as a TTL cache in front of Salesforce
+- **Storage**: Four NATS Key-Value buckets — `membership-cache` (Salesforce cache), `org-settings` (b2b_org ACL), `member-service-cache` (sObject cache), `pubsub-state` (CDC replay cursors)
 - **Primary data source**: Salesforce REST API (SOQL queries via `github.com/k-capehart/go-salesforce/v3`)
+- **CDC**: Salesforce Pub/Sub gRPC API + Apache Avro decoding (`github.com/linkedin/goavro/v2`)
 - **Authentication**: JWT with Heimdall middleware
 - **Authorization**: OpenFGA for fine-grained access control
 - **Container**: Chainguard distroless images
@@ -54,10 +57,13 @@ internal/
 │   ├── auth.go              # Authenticator interface
 │   ├── model/               # Domain entities
 │   │   ├── membership.go    # ProjectMembership (MembershipTier in member.go, KeyContact in key_contact.go)
-│   │   └── list_params.go   # ListParams with filter support
-│   └── port/                # Repository interfaces
+│   │   ├── list_params.go   # ListParams with filter support
+│   │   └── cdc_event.go     # CDCEvent, CDCChangeType (transport-agnostic CDC types)
+│   └── port/                # Repository interfaces (driven ports)
 │       ├── member_reader.go  # MemberReader interface (main read port)
-│       └── project_resolver.go  # ProjectResolver interface (UID ↔ slug ↔ SFID)
+│       ├── project_resolver.go  # ProjectResolver interface (UID ↔ slug ↔ SFID)
+│       ├── cache_invalidator.go # CacheInvalidator port (evict sObject cache entries)
+│       └── cdc.go           # CDCSubscriber, ReplayStore (CDC driven ports)
 ├── infrastructure/          # Infrastructure layer
 │   ├── auth/                # JWT authentication (Heimdall)
 │   ├── mock/                # Mock repository for testing
@@ -66,7 +72,6 @@ internal/
 │   │   ├── client.go        # NATSClient with KV bucket initialisation
 │   │   ├── config.go        # NATS configuration
 │   │   ├── project_id_map_handler.go  # RPC handler for lfx.member.project-id-map.lookup
-│   │   ├── id_map_handler.go          # RPC handlers for lfx.member.sfid-to-uuid.lookup / uuid-to-sfid.lookup
 │   │   ├── project_rpc.go   # NATS RPC calls to the project-service
 │   │   └── storage.go       # KV cache Get/Put helpers for each record type
 │   ├── project/             # ProjectResolver implementation
@@ -74,18 +79,25 @@ internal/
 │   └── salesforce/          # Salesforce SOQL client and repositories
 │       ├── config.go        # Config struct and ConfigFromEnv()
 │       ├── helpers.go       # parseSOQLTime, parseSOQLDateTime, quoteSOQL
+│       ├── cache_invalidator.go # CacheInvalidator: evicts sObject cache entries (CDC use)
 │       ├── key_contact_repo.go  # FetchKeyContactsByAssetSFID, FetchKeyContactBySFID
 │       ├── member_reader.go # MemberReader: Salesforce-first + KV cache
 │       ├── member_repo.go   # FetchAllMembers, FetchMemberBySFID
 │       ├── membership_repo.go  # FetchMembershipsByProjectSFID, etc.
 │       ├── models.go        # Salesforce SOQL result types
 │       ├── project_repo.go  # FetchSFIDBySlug, FetchProjectByPCCID, etc.
-│       └── soql.go          # QueryInto[T], QuerySingle[T], QueryOptional[T]
+│       ├── soql.go          # QueryInto[T], QuerySingle[T], QueryOptional[T]
+│       └── pubsub/          # Salesforce Pub/Sub gRPC + Avro CDC adapter
+│           ├── pubsub_client.go   # Client: satisfies port.CDCSubscriber; manages gRPC stream
+│           ├── pubsub_events.go   # Avro decoding → model.CDCEvent normalisation
+│           ├── pubsub_replay.go   # ReplayStore: NATS KV cursor persistence (port.ReplayStore)
+│           └── proto/             # Generated gRPC stubs (DO NOT EDIT — use make protoc-gen)
 ├── middleware/              # HTTP middleware
 │   ├── authorization.go     # Extracts Authorization header to context
 │   └── request_id.go        # Request ID propagation
 └── service/                 # Business logic / use case orchestration
-    └── member_reader.go     # MemberReaderOrchestrator
+    ├── member_reader.go     # MemberReaderOrchestrator
+    └── cdc_consumer.go      # CDCConsumer: dispatches CDCEvents to entity handlers
 
 pkg/
 └── constants/               # Shared constants (HTTP headers, NATS buckets, etc.)
@@ -136,30 +148,30 @@ salesforce.MemberReader (implements port.MemberReader)
 
 ### Project membership
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| GET | `/project_memberships/{uid}` | Get a project membership | `auditor` on `project_membership:{uid}` |
+| Method | Path                         | Description              | OpenFGA Check                           |
+|--------|------------------------------|--------------------------|-----------------------------------------|
+| GET    | `/project_memberships/{uid}` | Get a project membership | `auditor` on `project_membership:{uid}` |
 
 ### Key contact endpoints (nested under project_membership)
 
 Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 403) when the fetched contact's `membership_uid` doesn't match the path — avoids leaking record existence.
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| GET | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact | `auditor` on `project_membership:{membership_uid}` |
-| POST | `/project_memberships/{membership_uid}/key_contacts` | Create a key contact | `writer` on `project_membership:{membership_uid}` |
-| PUT | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{membership_uid}` |
-| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact | `writer` on `project_membership:{membership_uid}` |
+| Method | Path                                                       | Description          | OpenFGA Check                                      |
+|--------|------------------------------------------------------------|----------------------|----------------------------------------------------|
+| GET    | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Get a key contact    | `auditor` on `project_membership:{membership_uid}` |
+| POST   | `/project_memberships/{membership_uid}/key_contacts`       | Create a key contact | `writer` on `project_membership:{membership_uid}`  |
+| PUT    | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Update a key contact | `writer` on `project_membership:{membership_uid}`  |
+| DELETE | `/project_memberships/{membership_uid}/key_contacts/{uid}` | Remove a key contact | `writer` on `project_membership:{membership_uid}`  |
 
 ### B2B org write endpoints
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| POST | `/b2b_orgs` | Create a B2B org from a Salesforce Account SFID | `member` on `team:{globalOrgAdminTeamUID}` |
-| PUT | `/b2b_orgs/{uid}` | Partial update of a B2B org | `writer` on `b2b_org:{uid}` |
-| GET | `/b2b_orgs/{uid}` | Get a B2B org | `auditor` on `b2b_org:{uid}` |
-| GET | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}` |
-| PUT | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors | `writer` on `b2b_org:{uid}` |
+| Method | Path                       | Description                                         | OpenFGA Check                              |
+|--------|----------------------------|-----------------------------------------------------|--------------------------------------------|
+| POST   | `/b2b_orgs`                | Create a B2B org from a Salesforce Account SFID     | `member` on `team:{globalOrgAdminTeamUID}` |
+| PUT    | `/b2b_orgs/{uid}`          | Partial update of a B2B org                         | `writer` on `b2b_org:{uid}`                |
+| GET    | `/b2b_orgs/{uid}`          | Get a B2B org                                       | `auditor` on `b2b_org:{uid}`               |
+| GET    | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}`               |
+| PUT    | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors            | `writer` on `b2b_org:{uid}`                |
 
 **Settings semantics:** `nil` writers/auditors = keep existing; explicit `[]` = clear all. Entries with a `username` are `accepted` (FGA tuple emitted); without username are `pending` (no FGA tuple). The legacy `owner` relation is retired — use `writer` instead. Settings are stored in the `org-settings` NATS KV bucket (authoritative, no MaxAge TTL), separate from the Salesforce-backed `membership-cache` bucket.
 
@@ -171,19 +183,21 @@ FGA is published before the indexer so access tuples land before the doc is sear
 
 ### Admin
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| POST | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
+| Method | Path             | Description                                                              | OpenFGA Check                              |
+|--------|------------------|--------------------------------------------------------------------------|--------------------------------------------|
+| POST   | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
 
 Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`, `b2b_org_settings`; empty = all), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
 
+> **Operational note — `key_contact` is high-volume (~300k records in prod).** Reindex only the active window by passing a `since` ~2 years back (e.g. `{"types":["key_contact"],"since":"2024-06-01T00:00:00Z"}`) rather than a full key_contact reindex. A full pass takes hours and is likely to be interrupted by pod eviction. The `key_contact` `since` filter checks `Project_Role__c.LastModifiedDate` only (Contact/Asset field changes are not captured).
+
 ### Utility
 
-| Method | Path | Description | OpenFGA Check |
-|--------|------|-------------|---------------|
-| GET | `/readyz` | Readiness probe | None |
-| GET | `/livez` | Liveness probe | None |
-| GET | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None |
+| Method | Path                                 | Description        | OpenFGA Check |
+|--------|--------------------------------------|--------------------|---------------|
+| GET    | `/readyz`                            | Readiness probe    | None          |
+| GET    | `/livez`                             | Liveness probe     | None          |
+| GET    | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None          |
 
 > **Note:** The surface is resource-rooted (`/b2b_orgs/...`, `/project_memberships/...`, `/admin/reindex`). There are no `/projects/{project_id}/...` drill-down routes and no `/members/*` or `/memberships/*` routes — requests to those paths are unmatched and return `404`.
 
@@ -306,7 +320,11 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 
 ## NATS Storage
 
-The service uses three NATS KV buckets.
+The service uses four NATS KV buckets.
+
+### `pubsub-state` Bucket
+
+Stores the Salesforce Pub/Sub replay cursor (opaque `[]byte`) per CDC channel. **Authoritative state** — no MaxAge TTL. Key pattern: `pubsub-replay.<channel>` with slashes replaced by underscores (e.g. `pubsub-replay._data_ChangeEvents`).
 
 ### `org-settings` Bucket
 
@@ -320,14 +338,14 @@ Stores raw Salesforce sObject REST responses as `SObjectCacheEntry` JSON envelop
 
 All records share the `membership-cache` bucket. Keys are namespaced by a type prefix to avoid collisions.
 
-| Key pattern | Contents | Soft TTL |
-|-------------|----------|----------|
-| `tier.{uid}` | `CachedValue[*model.MembershipTier]` | 6 h stale / 23 h expire |
-| `membership.{uid}` | `CachedValue[*model.ProjectMembership]` | 6 h stale / 23 h expire |
-| `key-contacts.{membership_uid}` | `CachedValue[[]*model.KeyContact]` | 6 h stale / 23 h expire |
-| `project-sfid.{project_uid}` | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
-| `project-uid.{slug}` | `CachedValue[string]` (v2 project UUID) | 6 h stale / 23 h expire |
-| `soql.{...}` | `CachedValue[...]` (paged SOQL result batches) | 6 h stale / 23 h expire |
+| Key pattern                     | Contents                                         | Soft TTL                |
+|---------------------------------|--------------------------------------------------|-------------------------|
+| `tier.{uid}`                    | `CachedValue[*model.MembershipTier]`             | 6 h stale / 23 h expire |
+| `membership.{uid}`              | `CachedValue[*model.ProjectMembership]`          | 6 h stale / 23 h expire |
+| `key-contacts.{membership_uid}` | `CachedValue[[]*model.KeyContact]`               | 6 h stale / 23 h expire |
+| `project-sfid.{project_uid}`    | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
+| `project-uid.{slug}`            | `CachedValue[string]` (v2 project UUID)          | 6 h stale / 23 h expire |
+| `soql.{...}`                    | `CachedValue[...]` (paged SOQL result batches)   | 6 h stale / 23 h expire |
 
 The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always later than the soft `expires_at` timestamp inside each envelope.
 
@@ -335,12 +353,12 @@ The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always l
 
 Defined in `internal/infrastructure/nats/cache.go`:
 
-| Status | Meaning | Caller behaviour |
-|--------|---------|-----------------|
-| `CacheStatusFresh` | Within stale threshold | Serve immediately. |
-| `CacheStatusStale` | Past stale threshold, not yet expired | Serve immediately; trigger background refresh goroutine. |
-| `CacheStatusExpired` | Past expiry threshold | Do **not** serve; fetch synchronously from Salesforce. |
-| `CacheStatusMiss` | Key not present in bucket | Fetch synchronously from Salesforce. |
+| Status               | Meaning                               | Caller behaviour                                         |
+|----------------------|---------------------------------------|----------------------------------------------------------|
+| `CacheStatusFresh`   | Within stale threshold                | Serve immediately.                                       |
+| `CacheStatusStale`   | Past stale threshold, not yet expired | Serve immediately; trigger background refresh goroutine. |
+| `CacheStatusExpired` | Past expiry threshold                 | Do **not** serve; fetch synchronously from Salesforce.   |
+| `CacheStatusMiss`    | Key not present in bucket             | Fetch synchronously from Salesforce.                     |
 
 ## ProjectResolver
 
@@ -381,7 +399,7 @@ UIDFromSlug(ctx, slug)
     ├── 2. NATS RPC → project-service (lfx.projects-api.slug_to_uid)
     │        returns uid string
     │
-    └── 3. KV cache write: project-uid/{slug} → uid
+    └── 3. KV cache write: project-uid.{slug} → uid
             return uid
 ```
 
@@ -397,10 +415,10 @@ The service handles two inbound NATS request/reply subjects that allow other ser
 
 Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolution chains: KV cache → project-service NATS RPC (get slug) → Salesforce SOQL.
 
-| Field | Value |
-|-------|-------|
-| **Subject** | `lfx.member.project-id-map.lookup` |
-| **Transport** | NATS core request/reply |
+| Field         | Value                              |
+|---------------|------------------------------------|
+| **Subject**   | `lfx.member.project-id-map.lookup` |
+| **Transport** | NATS core request/reply            |
 
 **Request:** `{"project_uid": "<v2 project UUID>"}`
 
@@ -408,25 +426,17 @@ Implemented in `internal/infrastructure/nats/project_id_map_handler.go`. Resolut
 
 **Response — error:** `{"error": "<human-readable message>"}`
 
-### Generic SFID↔UUID Lookup
+## CDC Consumer
 
-Two entity-agnostic request/reply endpoints for translating between Salesforce IDs and v2 UUIDs. Pure CPU — no Salesforce call, no NATS KV. Covers all entity types (b2b_org, project_membership, key_contact, membership_tier).
+Set `RUN_MODE=consumer` to run as a CDC consumer instead of the HTTP API. The consumer subscribes to Salesforce Pub/Sub gRPC, decodes Avro payloads → `model.CDCEvent`, and dispatches to per-entity handlers that invalidate the sObject cache, re-fetch from Salesforce, and publish indexer + FGA messages.
 
-| Field | Value |
-|-------|-------|
-| **Subject (SFID→UUID)** | `lfx.member.sfid-to-uuid.lookup` |
-| **Subject (UUID→SFID)** | `lfx.member.uuid-to-sfid.lookup` |
-| **Transport** | NATS core request/reply |
-
-**SFID→UUID request:** `{"sfid":"<15 or 18-char Salesforce ID>"}`
-**SFID→UUID response — success:** `{"uuid":"<uuid v8>"}`
-
-**UUID→SFID request:** `{"uuid":"<uuid v8>"}`
-**UUID→SFID response — success:** `{"sfid":"<15-char Salesforce ID>"}`
-
-**Response — error:** `{"error":"<human-readable message>"}`
-
-The reply is always valid JSON. Callers should check for the `"error"` key to detect failure. 15-char SFIDs are normalised to 18 characters internally before translation; both forms are accepted.
+**Non-obvious invariants:**
+- **GAP_DELETE**: `dispatchRecordIDs` checks `changeType == CDCChangeDelete || changeType == CDCChangeGapDelete` explicitly — `HasSuffix` was avoided because `UNDELETE` also ends with `"DELETE"` and would incorrectly route to the delete path.
+- **Replay cursor**: written on a fresh `context.Background()` after each event so a SIGTERM does not skip the final commit. Cursor survives pod restarts via `pubsub-state` NATS KV.
+- **Early exit → pod restart**: `defer cancel()` in the Run goroutine ensures that if the gRPC stream dies unrecoverably, `<-ctx.Done()` unblocks and the pod exits so Kubernetes restarts it.
+- **Liveness probe**: always returns 200 — K8s handles shutdown via SIGTERM, not probe failures.
+- **Single active consumer**: `replicas:1` + `strategy:Recreate` in the Deployment — no app-level lease.
+- **Proto stubs**: committed to `internal/infrastructure/salesforce/pubsub/proto/` — normal builds never need `protoc`. Use `make protoc-install && make protoc-gen` only when updating the Salesforce proto schema.
 
 ## Authentication (JWT / Heimdall)
 
@@ -437,11 +447,11 @@ JWT authentication is implemented via `internal/infrastructure/auth/`:
 
 ### Configuration
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `JWKS_URL` | Heimdall JWKS endpoint | `http://heimdall:4457/.well-known/jwks` |
-| `AUDIENCE` | JWT audience | `lfx-v2-member-service` |
-| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock principal for local dev (bypasses JWT) | `""` (disabled) |
+| Variable                                 | Description                                 | Default                                 |
+|------------------------------------------|---------------------------------------------|-----------------------------------------|
+| `JWKS_URL`                               | Heimdall JWKS endpoint                      | `http://heimdall:4457/.well-known/jwks` |
+| `AUDIENCE`                               | JWT audience                                | `lfx-v2-member-service`                 |
+| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock principal for local dev (bypasses JWT) | `""` (disabled)                         |
 
 When `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` is set, the service skips JWT validation entirely and uses that value as the authenticated principal. **Only use for local development.**
 
@@ -531,34 +541,44 @@ func TestEndpoint(t *testing.T) {
 
 ### Service Configuration
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `PORT` | HTTP listen port | `8080` | No |
-| `NATS_URL` | NATS server URL | `nats://localhost:4222` | No |
-| `NATS_TIMEOUT` | NATS connection timeout | `10s` | No |
-| `NATS_MAX_RECONNECT` | Max NATS reconnect attempts | `3` | No |
-| `NATS_RECONNECT_WAIT` | Wait between reconnects | `2s` | No |
-| `LOG_LEVEL` | Log level (debug/info/warn/error) | `info` | No |
-| `LOG_ADD_SOURCE` | Include source location in logs | `true` | No |
-| `JWKS_URL` | Heimdall JWKS endpoint for JWT verification | `http://heimdall:4457/.well-known/jwks` | No |
-| `AUDIENCE` | JWT audience | `lfx-v2-member-service` | No |
-| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | `""` | No |
-| `REPOSITORY_SOURCE` | Storage backend (`salesforce` or `mock`) | `salesforce` | No |
+| Variable                                 | Description                                 | Default                                 | Required |
+|------------------------------------------|---------------------------------------------|-----------------------------------------|----------|
+| `PORT`                                   | HTTP listen port                            | `8080`                                  | No       |
+| `NATS_URL`                               | NATS server URL                             | `nats://localhost:4222`                 | No       |
+| `NATS_TIMEOUT`                           | NATS connection timeout                     | `10s`                                   | No       |
+| `NATS_MAX_RECONNECT`                     | Max NATS reconnect attempts                 | `3`                                     | No       |
+| `NATS_RECONNECT_WAIT`                    | Wait between reconnects                     | `2s`                                    | No       |
+| `LOG_LEVEL`                              | Log level (debug/info/warn/error)           | `info`                                  | No       |
+| `LOG_ADD_SOURCE`                         | Include source location in logs             | `true`                                  | No       |
+| `JWKS_URL`                               | Heimdall JWKS endpoint for JWT verification | `http://heimdall:4457/.well-known/jwks` | No       |
+| `AUDIENCE`                               | JWT audience                                | `lfx-v2-member-service`                 | No       |
+| `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev                     | `""`                                    | No       |
+| `REPOSITORY_SOURCE`                      | Storage backend (`salesforce` or `mock`)    | `salesforce`                            | No       |
+| `RUN_MODE`                               | `consumer` to run CDC consumer; omit for API | `""` (API mode)                        | No       |
+
+### Consumer Mode Variables (only read when `RUN_MODE=consumer`)
+
+| Variable              | Description                                                                 | Default                              | Required |
+|-----------------------|-----------------------------------------------------------------------------|--------------------------------------|----------|
+| `SF_PUBSUB_ENDPOINT`  | Salesforce Pub/Sub gRPC endpoint                                            | — (fatal if empty)                   | Yes      |
+| `SF_ORG_ID`           | Salesforce 18-char Org ID injected as `tenantid` gRPC metadata header      | — (fatal if empty)                   | Yes      |
+| `SF_CDC_CHANNEL`      | CDC channel to subscribe to                                                 | `/data/ChangeEvents`                 | No       |
+| `GLOBAL_ORG_ADMIN_TEAM_UID` | v2 UID of the platform org-admin team (same as API mode)            | `_null`                              | No       |
 
 ### Salesforce Credentials
 
 Credentials are injected from a pre-existing Kubernetes Secret (see Helm chart `values.yaml` `salesforce.secrets` stanza). At least one complete authentication flow must be configured.
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `SF_INSTANCE_URL` | Salesforce instance URL (e.g. `https://linuxfoundation.my.salesforce.com`) | Yes |
-| `SF_CLIENT_ID` | Connected-app consumer key | Yes |
-| `SF_CLIENT_SECRET` | Consumer secret (username/password or client-credentials flow) | Conditional |
-| `SF_USERNAME` | Salesforce username (username/password or JWT bearer flow) | Conditional |
-| `SF_PASSWORD` | Salesforce password (username/password flow) | Conditional |
-| `SF_SECURITY_TOKEN` | Security token appended to password | No |
-| `SF_CONSUMER_RSA_PEM` | PEM-encoded RSA private key (JWT bearer flow) | Conditional |
-| `SF_API_VERSION` | Salesforce REST API version | `v60.0` |
+| Variable              | Description                                                                | Required    |
+|-----------------------|----------------------------------------------------------------------------|-------------|
+| `SF_INSTANCE_URL`     | Salesforce instance URL (e.g. `https://linuxfoundation.my.salesforce.com`) | Yes         |
+| `SF_CLIENT_ID`        | Connected-app consumer key                                                 | Yes         |
+| `SF_CLIENT_SECRET`    | Consumer secret (username/password or client-credentials flow)             | Conditional |
+| `SF_USERNAME`         | Salesforce username (username/password or JWT bearer flow)                 | Conditional |
+| `SF_PASSWORD`         | Salesforce password (username/password flow)                               | Conditional |
+| `SF_SECURITY_TOKEN`   | Security token appended to password                                        | No          |
+| `SF_CONSUMER_RSA_PEM` | PEM-encoded RSA private key (JWT bearer flow)                              | Conditional |
+| `SF_API_VERSION`      | Salesforce REST API version                                                | `v63.0`     |
 
 **Authentication flows (one must be satisfiable):**
 

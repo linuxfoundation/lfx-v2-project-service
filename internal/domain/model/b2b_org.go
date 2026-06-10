@@ -11,7 +11,7 @@ import (
 // B2BOrg represents a B2B organization in the LFX v2 domain. It is the
 // canonical entity for a member company.
 type B2BOrg struct {
-	// UID is the invertible UUID v8 for this organization.
+	// UID is the canonical 18-char Salesforce Account SFID for this organization.
 	UID string `json:"uid"`
 
 	// SFID is the raw Salesforce Account.Id. It is kept internal (not
@@ -77,8 +77,8 @@ type B2BOrg struct {
 	// TODO: confirm field exists in the Salesforce org schema before exposing.
 	Slug string `json:"slug,omitempty"`
 
-	// ParentUID is the invertible UUID v8 of the parent organization, derived
-	// from Account.ParentId. Omitted when the organization has no parent.
+	// ParentUID is the canonical 18-char Salesforce Account SFID of the parent
+	// organization, derived from Account.ParentId. Omitted when the organization has no parent.
 	ParentUID string `json:"parent_uid,omitempty"`
 
 	// ParentDetail carries the parent organization's name and logo for
@@ -99,7 +99,7 @@ type B2BOrg struct {
 // B2BOrgParentDetail carries denormalized parent organization details embedded
 // in the indexed document so callers can render parent info without a second lookup.
 type B2BOrgParentDetail struct {
-	// UID is the v2 UUID of the parent organization (invertible from SFID).
+	// UID is the canonical 18-char Salesforce Account SFID of the parent organization.
 	UID string `json:"uid"`
 	// Name is the parent organization's display name.
 	Name string `json:"name"`
