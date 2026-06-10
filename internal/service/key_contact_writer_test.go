@@ -11,6 +11,7 @@ import (
 	"time"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
@@ -52,6 +53,23 @@ func (p *trackingPublisher) calls() []string {
 	out := make([]string, len(p.log))
 	copy(out, p.log)
 	return out
+}
+
+// accessPayloadPublisher records FGA Access payloads for username assertions.
+type accessPayloadPublisher struct {
+	trackingPublisher
+	accessMsgs []any
+}
+
+func (p *accessPayloadPublisher) Access(_ context.Context, subject string, msg any, _ bool) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.log = append(p.log, "access:"+subject)
+	if strings.Contains(subject, fgaconstants.GenericMemberRemoveSubject) ||
+		strings.Contains(subject, fgaconstants.GenericMemberPutSubject) {
+		p.accessMsgs = append(p.accessMsgs, msg)
+	}
+	return nil
 }
 
 // errorPublisher returns an error from Access (FGA remove) to test error propagation.
@@ -104,7 +122,7 @@ func (r *seededPMReader) AssembleProjectMembership(_ context.Context, _ string) 
 // userReaderFunc implements port.UserReader with a function.
 type userReaderFunc func(ctx context.Context, email string) (string, error)
 
-func (f userReaderFunc) SubByEmail(ctx context.Context, email string) (string, error) {
+func (f userReaderFunc) UsernameByEmail(ctx context.Context, email string) (string, error) {
 	return f(ctx, email)
 }
 
@@ -127,7 +145,7 @@ func TestKeyContactWriter_Create_NormalPath_PublishesInOrder(t *testing.T) {
 	storage := newSeededStorage() // empty — no self-heal
 
 	w := newKCWriter(storage, pmReader, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	in := svc.KeyContactCreateInput{
@@ -203,7 +221,7 @@ func TestKeyContactWriter_Update_NoOpETag_SkipsPublish(t *testing.T) {
 	pub := &trackingPublisher{}
 
 	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	// UpdateKeyContact with same data → writer returns identical kc → ETag unchanged → skip publish
@@ -300,16 +318,43 @@ func TestKeyContactWriter_Update_IfMatch_Mismatch_PreconditionFailed(t *testing.
 
 // ── Delete tests ──────────────────────────────────────────────────────────
 
+func TestKeyContactWriter_Delete_LegacyAuth0Username_ResolvesToLFID(t *testing.T) {
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID,
+		Email: "alice@example.com", Username: "auth0|alice",
+	}
+	storage := newSeededStorage(kc)
+	pub := &accessPayloadPublisher{}
+
+	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, email string) (string, error) {
+		if strings.EqualFold(email, "alice@example.com") {
+			return "alice", nil
+		}
+		return "", nil
+	}))
+
+	in := svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID}
+	err := w.Delete(context.Background(), in)
+
+	require.NoError(t, err)
+	require.Len(t, pub.accessMsgs, 1)
+	msg, ok := pub.accessMsgs[0].(fgatypes.GenericFGAMessage)
+	require.True(t, ok)
+	data, ok := msg.Data.(fgatypes.GenericMemberData)
+	require.True(t, ok)
+	assert.Equal(t, "alice", data.Username)
+}
+
 func TestKeyContactWriter_Delete_OrderingInvariant_DeleteThenIndexerThenFGARemove(t *testing.T) {
 	kc := &model.KeyContact{
 		UID: testKCUID, MembershipUID: testMembershipUID,
-		Email: "alice@example.com", Username: "alice-sub",
+		Email: "alice@example.com", Username: "alice",
 	}
 	storage := newSeededStorage(kc)
 	pub := &trackingPublisher{}
 
 	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	in := svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID}
@@ -335,13 +380,13 @@ func TestKeyContactWriter_Delete_OrderingInvariant_DeleteThenIndexerThenFGARemov
 func TestKeyContactWriter_Delete_FGARemoveError_Propagated(t *testing.T) {
 	kc := &model.KeyContact{
 		UID: testKCUID, MembershipUID: testMembershipUID,
-		Email: "alice@example.com", Username: "alice-sub",
+		Email: "alice@example.com", Username: "alice",
 	}
 	storage := newSeededStorage(kc)
 	pub := &errorFGARemovePublisher{}
 
 	w := newKCWriter(storage, &seededPMReader{pm: &model.ProjectMembership{}}, pub, userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "alice-sub", nil
+		return "alice", nil
 	}))
 
 	in := svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID}

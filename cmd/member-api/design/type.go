@@ -468,7 +468,7 @@ var OrgUserType = dsl.Type("org-user", func() {
 	dsl.Attribute("name", dsl.String, "User display name", func() {
 		dsl.Example("Alice Smith")
 	})
-	dsl.Attribute("username", dsl.String, "LFID username (OIDC sub); absent for pending invites", func() {
+	dsl.Attribute("username", dsl.String, "LFID username; absent for pending invites", func() {
 		dsl.Example("alice")
 	})
 	dsl.Attribute("invited_as", dsl.String, "Relation being granted: writer or auditor", func() {
