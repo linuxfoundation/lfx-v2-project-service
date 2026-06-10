@@ -7,20 +7,29 @@ import (
 	"context"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/redaction"
 )
 
+// orgSettingsUpdater is a narrow consumer-side interface — InviteAcceptedService only
+// needs Update, not the full OrgSettingsWriter surface.
+type orgSettingsUpdater interface {
+	Update(ctx context.Context, in B2BOrgSettingsUpdate) (*model.B2BOrgSettings, error)
+}
+
 // InviteAcceptedService handles lfx.invite-service.invite_accepted events.
-// It scans all org settings for a pending entry matching the accepted invite
-// and promotes it to an accepted writer/auditor, triggering FGA + indexer republish.
+// It filters to b2b_org events, then scans all org settings for pending entries
+// matching the accepted invite's email and promotes them to accepted — triggering
+// FGA + indexer republish. This mirrors the committee/project scan pattern.
 type InviteAcceptedService struct {
 	settingsReader    port.B2BOrgSettingsReader
-	orgSettingsWriter OrgSettingsWriter
+	orgSettingsWriter orgSettingsUpdater
 }
 
 // InviteAcceptedServiceOption configures an InviteAcceptedService.
@@ -31,7 +40,9 @@ func WithInviteAcceptedSettingsReader(r port.B2BOrgSettingsReader) InviteAccepte
 	return func(s *InviteAcceptedService) { s.settingsReader = r }
 }
 
-// WithInviteAcceptedOrgSettingsWriter sets the orgSettingsWriter.
+// WithInviteAcceptedOrgSettingsWriter sets the orgSettingsWriter. Any value that
+// satisfies OrgSettingsWriter (the full use-case interface) also satisfies the
+// narrower orgSettingsUpdater — no adapter needed.
 func WithInviteAcceptedOrgSettingsWriter(w OrgSettingsWriter) InviteAcceptedServiceOption {
 	return func(s *InviteAcceptedService) { s.orgSettingsWriter = w }
 }
@@ -45,11 +56,16 @@ func NewInviteAcceptedService(opts ...InviteAcceptedServiceOption) *InviteAccept
 	return s
 }
 
-// Handle processes an InviteServiceAcceptedEvent. It scans all org settings for a
-// pending entry matching ev.UID (or fallback ev.Recipient.Email + no username) and
-// promotes it to accepted. Errors per org are logged but not returned — the handler
-// is best-effort because the upstream NATS subscription uses core QueueSubscribe with
-// no ACK/NAK.
+// Handle processes an InviteServiceAcceptedEvent.
+//
+// Early exits (no KV access):
+//   - ev.Recipient.Email or ev.AcceptedBy is empty — malformed, drop + warn.
+//   - ev.Resource.Type != "b2b_org" — belongs to committee/project, not us; drop silently.
+//
+// Otherwise, scans all org settings for pending entries whose email matches
+// ev.Recipient.Email and promotes them. Errors per org are logged but not returned —
+// the handler is best-effort because the upstream NATS subscription uses core
+// QueueSubscribe with no ACK/NAK.
 func (s *InviteAcceptedService) Handle(ctx context.Context, ev inviteapi.InviteServiceAcceptedEvent) error {
 	if s.settingsReader == nil || s.orgSettingsWriter == nil {
 		slog.ErrorContext(ctx, "InviteAcceptedService not fully initialized",
@@ -59,28 +75,23 @@ func (s *InviteAcceptedService) Handle(ctx context.Context, ev inviteapi.InviteS
 		return nil
 	}
 
-	// Drop malformed events that can't be matched.
-	if ev.UID == "" && ev.Recipient.Email == "" {
-		slog.WarnContext(ctx, "invite_accepted event missing both UID and Recipient.Email — dropping")
-		return nil
-	}
-	if ev.AcceptedBy == "" {
-		slog.WarnContext(ctx, "invite_accepted event missing AcceptedBy — dropping", "invite_uid", ev.UID)
+	// Validate required fields first so we never scan on a malformed event.
+	if strings.TrimSpace(ev.Recipient.Email) == "" || ev.AcceptedBy == "" {
+		slog.WarnContext(ctx, "invite_accepted event missing required fields — dropping",
+			"accepted_by", redaction.Redact(ev.AcceptedBy),
+			"recipient_email", redaction.RedactEmail(ev.Recipient.Email),
+		)
 		return nil
 	}
 
-	// Fast path: look up the owning org directly via the secondary index (O(1)).
-	// Falls through to the full scan on index miss (legacy entries written before
-	// the index was introduced) or when ev.UID is empty (email-only events).
-	if ev.UID != "" {
-		orgUID, err := s.settingsReader.LookupInviteOrgUID(ctx, ev.UID)
-		if err == nil && orgUID != "" {
-			s.tryAcceptInviteInOrg(ctx, orgUID, ev)
-			return nil
-		}
-		// Index miss or transient error → fall through to scan so the event is not dropped.
-		slog.DebugContext(ctx, "invite_accepted: index miss, falling back to full scan",
-			"invite_uid", ev.UID, "index_err", err)
+	// Filter to org events only. Member-service receives every invite_accepted event
+	// (no resource-type filter on the subscription), so committee and project
+	// acceptances arrive here too. Drop them with zero KV access.
+	if ev.Resource.Type != "b2b_org" {
+		slog.DebugContext(ctx, "invite_accepted: skipping non-org resource type",
+			"resource_type", ev.Resource.Type,
+		)
+		return nil
 	}
 
 	orgUIDs, err := s.settingsReader.ListSettingsOrgUIDs(ctx)
@@ -89,19 +100,25 @@ func (s *InviteAcceptedService) Handle(ctx context.Context, ev inviteapi.InviteS
 		return nil
 	}
 
+	normalizedEmail := normalizeSettingsEmail(ev.Recipient.Email)
 	for _, orgUID := range orgUIDs {
-		s.tryAcceptInviteInOrg(ctx, orgUID, ev)
+		s.tryAcceptInviteInOrg(ctx, orgUID, normalizedEmail, ev)
 	}
 	return nil
 }
 
-// tryAcceptInviteInOrg attempts to find and promote a matching pending invite in one org.
-// Uses an optimistic-CAS retry loop (up to 3 attempts) to handle concurrent settings writes.
+// tryAcceptInviteInOrg attempts to find and promote all pending entries matching
+// normalizedEmail in one org. Uses a list-authoritative + role tie-break strategy:
+//   - Entries in exactly one list → promote all of them.
+//   - Entries in both lists → ev.Role selects: Manage→writers, View→auditors.
+//     Unknown/empty role → skip + warn (no over-grant).
+//
+// Uses an optimistic-CAS retry loop (up to 3 attempts) to handle concurrent writes.
 // Errors are logged but not returned.
-func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID string, ev inviteapi.InviteServiceAcceptedEvent) {
+func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID, normalizedEmail string, ev inviteapi.InviteServiceAcceptedEvent) {
 	const maxRetries = 3
 
-	for retry := 0; retry < maxRetries; retry++ {
+	for retry := range maxRetries {
 		settings, _, err := s.settingsReader.GetSettings(ctx, orgUID)
 		if err != nil {
 			slog.WarnContext(ctx, "invite_accepted: failed to get org settings",
@@ -112,83 +129,93 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 			return
 		}
 
-		foundIdx, foundList, found := s.findMatchingEntry(settings, ev)
-		if !found {
-			return
+		writerIdxs := pendingEmailIndices(settings.Writers, normalizedEmail)
+		auditorIdxs := pendingEmailIndices(settings.Auditors, normalizedEmail)
+
+		if len(writerIdxs) == 0 && len(auditorIdxs) == 0 {
+			return // no match in this org
+		}
+
+		// Determine which list(s) to promote.
+		var promoteWriters, promoteAuditors bool
+		switch {
+		case len(writerIdxs) > 0 && len(auditorIdxs) == 0:
+			promoteWriters = true
+		case len(writerIdxs) == 0 && len(auditorIdxs) > 0:
+			promoteAuditors = true
+		default:
+			// Email appears in both lists — use ev.Role as tie-breaker.
+			switch ev.Role {
+			case string(inviteapi.InviteRoleManage):
+				promoteWriters = true
+			case string(inviteapi.InviteRoleView):
+				promoteAuditors = true
+			default:
+				slog.WarnContext(ctx, "invite_accepted: email in both writers and auditors with unresolvable role — skipping org",
+					"org_uid", orgUID,
+					"email", redaction.RedactEmail(ev.Recipient.Email),
+					"role", ev.Role,
+				)
+				return
+			}
 		}
 
 		now := time.Now().UTC()
+		update := B2BOrgSettingsUpdate{OrgUID: orgUID}
 
-		// Patch the matched entry; leave all other fields untouched.
-		if foundList == model.B2BOrgRoleWriter {
+		if promoteWriters {
 			writers := slices.Clone(settings.Writers)
-			writers[foundIdx].Username = ev.AcceptedBy
-			writers[foundIdx].InviteStatus = model.InviteStatusAccepted
-			writers[foundIdx].AcceptedAt = &now
-			writers[foundIdx].InviteUUID = ""
-			writers[foundIdx].UpdatedAt = now
-			_, err = s.orgSettingsWriter.Update(ctx, B2BOrgSettingsUpdate{
-				OrgUID:  orgUID,
-				Writers: writers,
-				// Auditors nil = keep existing; only writers changed.
-			})
-		} else {
+			for _, i := range writerIdxs {
+				writers[i].Username = ev.AcceptedBy
+				writers[i].InviteStatus = model.InviteStatusAccepted
+				writers[i].AcceptedAt = &now
+				writers[i].InviteUUID = ""
+				writers[i].UpdatedAt = now
+			}
+			update.Writers = writers
+		}
+		if promoteAuditors {
 			auditors := slices.Clone(settings.Auditors)
-			auditors[foundIdx].Username = ev.AcceptedBy
-			auditors[foundIdx].InviteStatus = model.InviteStatusAccepted
-			auditors[foundIdx].AcceptedAt = &now
-			auditors[foundIdx].InviteUUID = ""
-			auditors[foundIdx].UpdatedAt = now
-			_, err = s.orgSettingsWriter.Update(ctx, B2BOrgSettingsUpdate{
-				OrgUID:   orgUID,
-				Auditors: auditors,
-				// Writers nil = keep existing; only auditors changed.
-			})
+			for _, i := range auditorIdxs {
+				auditors[i].Username = ev.AcceptedBy
+				auditors[i].InviteStatus = model.InviteStatusAccepted
+				auditors[i].AcceptedAt = &now
+				auditors[i].InviteUUID = ""
+				auditors[i].UpdatedAt = now
+			}
+			update.Auditors = auditors
 		}
 
+		_, err = s.orgSettingsWriter.Update(ctx, update)
 		if err == nil {
 			return
 		}
 		if pkgerrors.IsConflict(err) {
 			if retry < maxRetries-1 {
 				slog.DebugContext(ctx, "invite_accepted: revision conflict, retrying",
-					"org_uid", orgUID, "invite_uid", ev.UID, "attempt", retry+1)
+					"org_uid", orgUID, "attempt", retry+1)
 				continue
 			}
 			slog.WarnContext(ctx, "invite_accepted: revision conflict after 3 retries",
-				"org_uid", orgUID, "invite_uid", ev.UID)
+				"org_uid", orgUID)
 			return
 		}
 		slog.WarnContext(ctx, "invite_accepted: failed to update org settings",
-			"org_uid", orgUID, "invite_uid", ev.UID, "error", err)
+			"org_uid", orgUID, "error", err)
 		return
 	}
 }
 
-// findMatchingEntry searches settings for the pending entry to promote.
-// Primary: InviteUUID == ev.UID. Fallback: pending entry with matching email and no username.
-func (s *InviteAcceptedService) findMatchingEntry(settings *model.B2BOrgSettings, ev inviteapi.InviteServiceAcceptedEvent) (idx int, list string, found bool) {
-	if ev.UID != "" {
-		if idx, list, ok := model.FindByInviteUUID(settings, ev.UID); ok {
-			return idx, list, true
+// pendingEmailIndices returns the indices of pending entries (no username set)
+// in users whose normalised email matches normalizedEmail.
+func pendingEmailIndices(users []model.B2BOrgUser, normalizedEmail string) []int {
+	var out []int
+	for i, u := range users {
+		if u.EffectiveStatus() == model.InviteStatusPending &&
+			u.Username == "" &&
+			normalizeSettingsEmail(u.Email) == normalizedEmail {
+			out = append(out, i)
 		}
 	}
-
-	// Fallback: pending + email match + no username (covers legacy entries without InviteUUID).
-	if ev.Recipient.Email == "" {
-		return 0, "", false
-	}
-	for i, u := range settings.Writers {
-		if u.EffectiveStatus() == model.InviteStatusPending && u.Username == "" && u.InviteUUID == "" &&
-			normalizeSettingsEmail(u.Email) == normalizeSettingsEmail(ev.Recipient.Email) {
-			return i, model.B2BOrgRoleWriter, true
-		}
-	}
-	for i, u := range settings.Auditors {
-		if u.EffectiveStatus() == model.InviteStatusPending && u.Username == "" && u.InviteUUID == "" &&
-			normalizeSettingsEmail(u.Email) == normalizeSettingsEmail(ev.Recipient.Email) {
-			return i, model.B2BOrgRoleAuditor, true
-		}
-	}
-	return 0, "", false
+	return out
 }

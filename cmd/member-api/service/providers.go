@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -593,7 +594,8 @@ func OrgRoleNotifierImpl(ctx context.Context) port.OrgRoleNotifier {
 	case "nats":
 		slog.InfoContext(ctx, "initialising NATS org role notifier")
 		natsInit(ctx)
-		return nats.NewOrgRoleNotifier(natsClient, os.Getenv("LFX_SELF_SERVE_BASE_URL"))
+		orgDashboardURL := strings.TrimRight(os.Getenv("LFX_SELF_SERVE_BASE_URL"), "/") + "/org"
+		return nats.NewOrgRoleNotifier(natsClient, orgDashboardURL)
 
 	default:
 		log.Fatalf("unsupported MESSAGING_SOURCE value: %q", messagingSource())

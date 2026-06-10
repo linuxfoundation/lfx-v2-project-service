@@ -10,6 +10,9 @@ import (
 
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/nats-io/nats.go"
+
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/redaction"
 )
 
 // SubscribeInviteAccepted registers a NATS core queue subscription on
@@ -27,13 +30,22 @@ func SubscribeInviteAccepted(
 		inviteapi.InviteServiceAcceptedSubject,
 		"lfx-v2-member-service",
 		func(msg *nats.Msg) {
+			// Inject a service-identity bearer so FGA/indexer calls downstream
+			// carry a recognised principal (mirrors committee message_handler.go:903).
+			ctx := context.WithValue(context.Background(), constants.AuthorizationContextID, constants.ServiceAccountBearer)
+
 			var ev inviteapi.InviteServiceAcceptedEvent
 			if err := json.Unmarshal(msg.Data, &ev); err != nil {
-				slog.Warn("invite_accepted: failed to decode event", "error", err)
+				slog.WarnContext(ctx, "invite_accepted: failed to decode event", "error", err)
 				return
 			}
-			if err := handler(context.Background(), ev); err != nil {
-				slog.Warn("invite_accepted: handle error", "error", err)
+			slog.DebugContext(ctx, "invite_accepted: received",
+				"resource_type", ev.Resource.Type,
+				"resource_uid", ev.Resource.UID,
+				"recipient", redaction.RedactEmail(ev.Recipient.Email),
+			)
+			if err := handler(ctx, ev); err != nil {
+				slog.WarnContext(ctx, "invite_accepted: handle error", "error", err)
 			}
 		},
 	)

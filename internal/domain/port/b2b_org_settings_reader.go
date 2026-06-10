@@ -20,9 +20,4 @@ type B2BOrgSettingsReader interface {
 	// ListSettingsOrgUIDs returns the org UIDs for which settings records exist
 	// in the KV bucket. Returns an empty slice when the bucket is empty.
 	ListSettingsOrgUIDs(ctx context.Context) ([]string, error)
-
-	// LookupInviteOrgUID returns the orgUID recorded for the given InviteUUID in
-	// the secondary index. Returns a NotFound error on an index miss (the invite
-	// may predate the index or the write may have been best-effort lost).
-	LookupInviteOrgUID(ctx context.Context, inviteUUID string) (string, error)
 }

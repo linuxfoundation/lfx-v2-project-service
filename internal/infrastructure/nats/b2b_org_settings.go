@@ -24,11 +24,6 @@ import (
 // params as UUIDs; non-HTTP callers (RPC, admin tools) must do the same.
 const keyPrefixOrgSettings = "org-settings."
 
-// keyFmtInviteIndex is the key format for the InviteUUID→orgUID secondary index.
-// Index entries live in the same org-settings KV bucket under a "lookup/" prefix
-// so they never collide with primary "org-settings.{uid}" keys.
-const keyFmtInviteIndex = "lookup/org-settings-invite/%s"
-
 // GetSettings returns the settings for a b2b_org and the current KV revision.
 // Returns (nil, 0, nil) when no record exists yet.
 func (s *Storage) GetSettings(ctx context.Context, orgUID string) (*model.B2BOrgSettings, uint64, error) {
@@ -86,68 +81,6 @@ func (s *Storage) ListSettingsOrgUIDs(ctx context.Context) ([]string, error) {
 		}
 	}
 	return uids, nil
-}
-
-// orgSettingsKV returns the org-settings KV store, or an error if it has not been initialised.
-func (s *Storage) orgSettingsKV() (jetstream.KeyValue, error) {
-	kv, ok := s.client.kvStore[constants.KVBucketNameOrgSettings]
-	if !ok {
-		return nil, errs.NewUnexpected(fmt.Sprintf("KV bucket %q not initialized", constants.KVBucketNameOrgSettings))
-	}
-	return kv, nil
-}
-
-// PutInviteIndex writes (or overwrites) the InviteUUID→orgUID secondary-index entry
-// in the org-settings KV bucket. Last-write-wins: a resend that issues a new InviteUUID
-// must call this again with the new UUID; the old key is cleaned up by reconcileInviteIndex.
-func (s *Storage) PutInviteIndex(ctx context.Context, inviteUUID, orgUID string) error {
-	kv, err := s.orgSettingsKV()
-	if err != nil {
-		return err
-	}
-	key := fmt.Sprintf(keyFmtInviteIndex, inviteUUID)
-	if _, err := kv.Put(ctx, key, []byte(orgUID)); err != nil {
-		return errs.NewUnexpected("failed to put invite index entry", err)
-	}
-	slog.DebugContext(ctx, "invite index: put", "invite_uuid", inviteUUID, "org_uid", orgUID)
-	return nil
-}
-
-// LookupInviteOrgUID returns the orgUID stored for the given InviteUUID.
-// Returns a NotFound error when no index entry exists (index miss or not yet written).
-func (s *Storage) LookupInviteOrgUID(ctx context.Context, inviteUUID string) (string, error) {
-	kv, err := s.orgSettingsKV()
-	if err != nil {
-		return "", err
-	}
-	key := fmt.Sprintf(keyFmtInviteIndex, inviteUUID)
-	entry, err := kv.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return "", errs.NewNotFound("invite index entry not found")
-		}
-		return "", errs.NewUnexpected("failed to look up invite index entry", err)
-	}
-	return string(entry.Value()), nil
-}
-
-// DeleteInviteIndex removes the InviteUUID→orgUID secondary-index entry.
-// Not-found is tolerated so callers can issue a best-effort delete without
-// checking whether the key was ever written.
-func (s *Storage) DeleteInviteIndex(ctx context.Context, inviteUUID string) error {
-	kv, err := s.orgSettingsKV()
-	if err != nil {
-		return err
-	}
-	key := fmt.Sprintf(keyFmtInviteIndex, inviteUUID)
-	if err := kv.Delete(ctx, key); err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil // idempotent
-		}
-		return errs.NewUnexpected("failed to delete invite index entry", err)
-	}
-	slog.DebugContext(ctx, "invite index: delete", "invite_uuid", inviteUUID)
-	return nil
 }
 
 // UpdateSettings persists org settings. The org UID is carried in settings.UID.

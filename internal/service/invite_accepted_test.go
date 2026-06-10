@@ -51,14 +51,22 @@ func newInviteAcceptedService(store *mock.MockB2BOrgSettings, writer svc.OrgSett
 	)
 }
 
-func acceptedEvent(inviteUID, email, acceptedBy string) inviteapi.InviteServiceAcceptedEvent {
+// orgAcceptedEvent builds a b2b_org invite_accepted event. Most tests use this.
+func orgAcceptedEvent(email, acceptedBy string) inviteapi.InviteServiceAcceptedEvent {
 	return inviteapi.InviteServiceAcceptedEvent{
 		Invite: inviteapi.Invite{
-			UID:        inviteUID,
 			AcceptedBy: acceptedBy,
 			Recipient:  inviteapi.Recipient{Email: email},
+			Resource:   inviteapi.Resource{Type: "b2b_org"},
 		},
 	}
+}
+
+// orgAcceptedEventWithRole adds an explicit Role field to orgAcceptedEvent.
+func orgAcceptedEventWithRole(email, acceptedBy, role string) inviteapi.InviteServiceAcceptedEvent {
+	ev := orgAcceptedEvent(email, acceptedBy)
+	ev.Role = role
+	return ev
 }
 
 // ── Handle ────────────────────────────────────────────────────────────────
@@ -76,9 +84,9 @@ func TestInviteAcceptedService_Handle_PromotesPendingWriter(t *testing.T) {
 	}, 1)
 
 	inner := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
-	svc := newInviteAcceptedService(store, inner)
+	invSvc := newInviteAcceptedService(store, inner)
 
-	err := svc.Handle(context.Background(), acceptedEvent("invite-writer-1", "alice@example.com", "auth0|alice"))
+	err := invSvc.Handle(context.Background(), orgAcceptedEvent("alice@example.com", "auth0|alice"))
 
 	require.NoError(t, err)
 	saved, _, _ := store.GetSettings(context.Background(), testOrgUID)
@@ -103,9 +111,9 @@ func TestInviteAcceptedService_Handle_PromotesPendingAuditor(t *testing.T) {
 	}, 1)
 
 	inner := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
-	svc := newInviteAcceptedService(store, inner)
+	invSvc := newInviteAcceptedService(store, inner)
 
-	err := svc.Handle(context.Background(), acceptedEvent("invite-auditor-1", "bob@example.com", "auth0|bob"))
+	err := invSvc.Handle(context.Background(), orgAcceptedEvent("bob@example.com", "auth0|bob"))
 
 	require.NoError(t, err)
 	saved, _, _ := store.GetSettings(context.Background(), testOrgUID)
@@ -116,60 +124,32 @@ func TestInviteAcceptedService_Handle_PromotesPendingAuditor(t *testing.T) {
 	assert.Empty(t, a.InviteUUID)
 }
 
-func TestInviteAcceptedService_Handle_EmailFallback_PromotesPendingEntry(t *testing.T) {
-	// No InviteUUID on the entry — fallback to email match.
-	store := mock.NewMockB2BOrgSettings()
-	store.Seed(testOrgUID, &model.B2BOrgSettings{
-		UID: testOrgUID,
-		Writers: []model.B2BOrgUser{{
-			Email:        "carol@example.com",
-			InvitedAs:    "writer",
-			InviteStatus: model.InviteStatusPending,
-		}},
-	}, 1)
-
-	inner := newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())
-	svc := newInviteAcceptedService(store, inner)
-
-	// ev.UID is empty — relies solely on email fallback.
-	err := svc.Handle(context.Background(), acceptedEvent("", "carol@example.com", "auth0|carol"))
-
-	require.NoError(t, err)
-	saved, _, _ := store.GetSettings(context.Background(), testOrgUID)
-	require.Len(t, saved.Writers, 1)
-	assert.Equal(t, "auth0|carol", saved.Writers[0].Username)
-}
-
 func TestInviteAcceptedService_Handle_NoMatch_IsNoOp(t *testing.T) {
-	// Event UID does not match any entry — should not error and must not update the store.
 	store := mock.NewMockB2BOrgSettings()
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{{
 			Email:        "dave@example.com",
-			InviteUUID:   "other-uuid",
 			InviteStatus: model.InviteStatusPending,
 		}},
 	}, 1)
 
 	inner := &countingWriter{inner: newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())}
-	svc := newInviteAcceptedService(store, inner)
+	invSvc := newInviteAcceptedService(store, inner)
 
-	err := svc.Handle(context.Background(), acceptedEvent("unknown-uuid", "", "auth0|nobody"))
+	// Different email → no match
+	err := invSvc.Handle(context.Background(), orgAcceptedEvent("nobody@example.com", "auth0|nobody"))
 
 	require.NoError(t, err)
 	assert.Equal(t, 0, inner.calls, "Update must not be called when there is no matching entry")
 }
 
 func TestInviteAcceptedService_Handle_RevisionConflict_RetriesThreeTimes(t *testing.T) {
-	// When Update always returns Conflict, the retry loop must exhaust 3 attempts and give up
-	// without propagating an error.
 	store := mock.NewMockB2BOrgSettings()
 	store.Seed(testOrgUID, &model.B2BOrgSettings{
 		UID: testOrgUID,
 		Writers: []model.B2BOrgUser{{
 			Email:        "eve@example.com",
-			InviteUUID:   "invite-eve",
 			InviteStatus: model.InviteStatusPending,
 		}},
 	}, 1)
@@ -178,25 +158,26 @@ func TestInviteAcceptedService_Handle_RevisionConflict_RetriesThreeTimes(t *test
 		inner:     newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher()),
 		updateErr: pkgerrors.NewConflict("concurrent write"),
 	}
-	svc := newInviteAcceptedService(store, inner)
+	invSvc := newInviteAcceptedService(store, inner)
 
-	err := svc.Handle(context.Background(), acceptedEvent("invite-eve", "eve@example.com", "auth0|eve"))
+	err := invSvc.Handle(context.Background(), orgAcceptedEvent("eve@example.com", "auth0|eve"))
 
 	require.NoError(t, err, "revision conflict must not propagate to caller")
 	assert.Equal(t, 3, inner.calls, "must retry exactly 3 times before giving up")
 }
 
-func TestInviteAcceptedService_Handle_MalformedEvent_BothUIDAndEmailEmpty_DropsEvent(t *testing.T) {
+func TestInviteAcceptedService_Handle_MalformedEvent_EmailEmpty_DropsEvent(t *testing.T) {
 	store := mock.NewMockB2BOrgSettings()
 	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
 
 	inner := &countingWriter{inner: newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())}
-	svc := newInviteAcceptedService(store, inner)
+	invSvc := newInviteAcceptedService(store, inner)
 
-	err := svc.Handle(context.Background(), acceptedEvent("", "", "auth0|someone"))
+	ev := orgAcceptedEvent("", "auth0|someone")
+	err := invSvc.Handle(context.Background(), ev)
 
 	require.NoError(t, err)
-	assert.Equal(t, 0, inner.calls, "malformed event must be dropped without scanning")
+	assert.Equal(t, 0, inner.calls, "malformed event (no email) must be dropped without scanning")
 }
 
 func TestInviteAcceptedService_Handle_MalformedEvent_AcceptedByEmpty_DropsEvent(t *testing.T) {
@@ -204,10 +185,39 @@ func TestInviteAcceptedService_Handle_MalformedEvent_AcceptedByEmpty_DropsEvent(
 	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
 
 	inner := &countingWriter{inner: newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())}
-	svc := newInviteAcceptedService(store, inner)
+	invSvc := newInviteAcceptedService(store, inner)
 
-	err := svc.Handle(context.Background(), acceptedEvent("invite-1", "user@example.com", ""))
+	ev := orgAcceptedEvent("user@example.com", "")
+	err := invSvc.Handle(context.Background(), ev)
 
 	require.NoError(t, err)
 	assert.Equal(t, 0, inner.calls, "event missing AcceptedBy must be dropped")
+}
+
+func TestInviteAcceptedService_Handle_NonBizOrgType_IsNoOp(t *testing.T) {
+	// committee and project acceptances arrive on the same subscription; they must be
+	// dropped with zero KV access (no ListSettingsOrgUIDs call).
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{
+		UID: testOrgUID,
+		Writers: []model.B2BOrgUser{{
+			Email:        "fp@example.com",
+			InviteStatus: model.InviteStatusPending,
+		}},
+	}, 1)
+
+	inner := &countingWriter{inner: newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())}
+	invSvc := newInviteAcceptedService(store, inner)
+
+	ev := inviteapi.InviteServiceAcceptedEvent{
+		Invite: inviteapi.Invite{
+			AcceptedBy: "auth0|fp",
+			Recipient:  inviteapi.Recipient{Email: "fp@example.com"},
+			Resource:   inviteapi.Resource{Type: "group"}, // committee type
+		},
+	}
+	err := invSvc.Handle(context.Background(), ev)
+
+	require.NoError(t, err)
+	assert.Equal(t, 0, inner.calls, "non-b2b_org event must be dropped without calling Update")
 }

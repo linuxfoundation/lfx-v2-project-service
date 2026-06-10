@@ -18,6 +18,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/redaction"
 )
 
 // maxPrincipals bounds the writers/auditors list length to prevent unbounded NATS KV
@@ -185,9 +186,6 @@ func (o *orgSettingsWriterOrchestrator) Update(ctx context.Context, in B2BOrgSet
 		return nil, err
 	}
 
-	// Sync the secondary invite index after a successful write.
-	o.reconcileInviteIndex(ctx, in.OrgUID, existing, updated)
-
 	// Fetch org once; share across both publish helpers.
 	action := indexerConstants.ActionUpdated
 	if existing == nil {
@@ -277,11 +275,16 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 
 	// Branch on LFID lookup. If userReader is wired, check whether the email
 	// already has an LFID; if so, add them as accepted immediately (no invite needed).
-	// Errors from SubByEmail are treated as "no LFID" so a transient auth-service
-	// outage falls back to the pending-invite path rather than blocking the caller.
+	// NotFound means the email has no LFID yet — fall through to the pending-invite path.
+	// Any other error (transient auth-service outage, network failure, etc.) is returned
+	// to the caller as a 5xx rather than silently creating a spurious pending invite.
 	var sub string
 	if o.userReader != nil {
-		sub, _ = o.userReader.SubByEmail(ctx, email)
+		var subErr error
+		sub, subErr = o.userReader.SubByEmail(ctx, email)
+		if subErr != nil && !pkgerrors.IsNotFound(subErr) {
+			return nil, fmt.Errorf("lookup LFID for %s: %w", redaction.RedactEmail(email), subErr)
+		}
 	}
 	if sub != "" {
 		entry.Username = sub
@@ -443,9 +446,6 @@ func (o *orgSettingsWriterOrchestrator) persistAndPublish(
 	if err := o.settingsWriter.UpdateSettings(ctx, updated, revision); err != nil {
 		return nil, err
 	}
-
-	// Sync the secondary invite index after a successful write.
-	o.reconcileInviteIndex(ctx, orgUID, existing, updated)
 
 	action := indexerConstants.ActionUpdated
 	if existing == nil {
@@ -718,12 +718,12 @@ func (o *orgSettingsWriterOrchestrator) sendOrgInvite(
 		Resource:  &inviteapi.Resource{UID: orgUID, Type: "b2b_org", Name: orgName},
 		Role:      role,
 		OrgName:   orgName,
-		ReturnURL: o.lfxSelfServeBaseURL,
+		ReturnURL: strings.TrimRight(o.lfxSelfServeBaseURL, "/") + "/org",
 	}
 	result, err := o.inviteSender.SendInvite(ctx, req)
 	if err != nil {
 		slog.WarnContext(ctx, "org settings invite send failed (best-effort, entry still persisted)",
-			"org_uid", orgUID, "email", email, "error", err)
+			"org_uid", orgUID, "email", redaction.RedactEmail(email), "error", err)
 		return ""
 	}
 	return result.InviteUID
@@ -760,7 +760,7 @@ func (o *orgSettingsWriterOrchestrator) notifyRoleAssigned(ctx context.Context, 
 		Role:           role,
 	}); err != nil {
 		slog.WarnContext(ctx, "role-assignment email failed (best-effort, grant still persisted)",
-			"org_uid", orgUID, "email", email, "role", role, "error", err)
+			"org_uid", orgUID, "email", redaction.RedactEmail(email), "role", role, "error", err)
 	}
 }
 
@@ -776,75 +776,4 @@ func refreshPendingEntry(users []model.B2BOrgUser, email, inviteUID string, now 
 		}
 	}
 	return users
-}
-
-// hasPendingInvite reports whether s has at least one pending entry with a non-empty
-// InviteUUID. Used as a cheap short-circuit before building the full UUID sets.
-func hasPendingInvite(s *model.B2BOrgSettings) bool {
-	if s == nil {
-		return false
-	}
-	for _, list := range [][]model.B2BOrgUser{s.Writers, s.Auditors} {
-		for _, u := range list {
-			if u.EffectiveStatus() == model.InviteStatusPending && u.InviteUUID != "" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// pendingInviteUUIDs returns the set of InviteUUIDs held by pending entries across
-// writers and auditors. Only non-empty UUIDs (entries that went through the invite
-// flow) are included; entries without a UUID (admin backfills, immediately-accepted
-// adds) are skipped because there is no index key to manage for them.
-func pendingInviteUUIDs(s *model.B2BOrgSettings) map[string]struct{} {
-	if s == nil {
-		return nil
-	}
-	out := make(map[string]struct{})
-	for _, list := range [][]model.B2BOrgUser{s.Writers, s.Auditors} {
-		for _, u := range list {
-			if u.EffectiveStatus() == model.InviteStatusPending && u.InviteUUID != "" {
-				out[u.InviteUUID] = struct{}{}
-			}
-		}
-	}
-	return out
-}
-
-// reconcileInviteIndex diffs the pending InviteUUIDs in existing vs updated and
-// syncs the secondary index: new UUIDs get a Put, removed UUIDs get a Delete.
-// This single chokepoint handles every lifecycle transition (invite / resend /
-// accept / remove / revoke-cleanup) without scattering index calls across mutation
-// paths. Best-effort: errors are logged and never block the caller.
-func (o *orgSettingsWriterOrchestrator) reconcileInviteIndex(ctx context.Context, orgUID string, existing, updated *model.B2BOrgSettings) {
-	if o.settingsWriter == nil {
-		return
-	}
-	// Fast-exit: no pending invites on either side means no index keys to add or remove.
-	if !hasPendingInvite(existing) && !hasPendingInvite(updated) {
-		return
-	}
-	old := pendingInviteUUIDs(existing)
-	cur := pendingInviteUUIDs(updated)
-
-	// New UUIDs (new invite or resend with fresh UUID) → Put.
-	for uid := range cur {
-		if _, wasPresent := old[uid]; !wasPresent {
-			if err := o.settingsWriter.PutInviteIndex(ctx, uid, orgUID); err != nil {
-				slog.WarnContext(ctx, "invite index: put failed (best-effort)",
-					"invite_uuid", uid, "org_uid", orgUID, "error", err)
-			}
-		}
-	}
-	// Removed UUIDs (accept clears UUID, resend replaces UUID, remove/revoke drops entry) → Delete.
-	for uid := range old {
-		if _, stillPresent := cur[uid]; !stillPresent {
-			if err := o.settingsWriter.DeleteInviteIndex(ctx, uid); err != nil {
-				slog.WarnContext(ctx, "invite index: delete failed (best-effort)",
-					"invite_uuid", uid, "org_uid", orgUID, "error", err)
-			}
-		}
-	}
 }

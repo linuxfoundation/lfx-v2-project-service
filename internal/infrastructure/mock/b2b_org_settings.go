@@ -14,23 +14,19 @@ import (
 // MockB2BOrgSettings is an in-memory implementation of port.B2BOrgSettingsReader
 // and port.B2BOrgSettingsWriter. It supports seeding a fixed settings value and
 // revision for read tests, and records UpdateSettings calls for assertion in write tests.
-// It also implements the secondary-index methods (PutInviteIndex, LookupInviteOrgUID,
-// DeleteInviteIndex) using an in-memory map so tests can assert index state directly.
 type MockB2BOrgSettings struct {
-	mu          sync.RWMutex
-	settings    map[string]*model.B2BOrgSettings
-	revision    map[string]uint64
-	inviteIndex map[string]string // inviteUUID → orgUID
-	putErr      error
-	listErr     error
+	mu       sync.RWMutex
+	settings map[string]*model.B2BOrgSettings
+	revision map[string]uint64
+	putErr   error
+	listErr  error
 }
 
 // NewMockB2BOrgSettings returns an empty, ready-to-use mock.
 func NewMockB2BOrgSettings() *MockB2BOrgSettings {
 	return &MockB2BOrgSettings{
-		settings:    make(map[string]*model.B2BOrgSettings),
-		revision:    make(map[string]uint64),
-		inviteIndex: make(map[string]string),
+		settings: make(map[string]*model.B2BOrgSettings),
+		revision: make(map[string]uint64),
 	}
 }
 
@@ -81,46 +77,6 @@ func (m *MockB2BOrgSettings) GetSettings(_ context.Context, orgUID string) (*mod
 		return nil, 0, nil
 	}
 	return s, m.revision[orgUID], nil
-}
-
-// InviteIndex returns a snapshot of the current invite index for test assertions.
-func (m *MockB2BOrgSettings) InviteIndex() map[string]string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	out := make(map[string]string, len(m.inviteIndex))
-	for k, v := range m.inviteIndex {
-		out[k] = v
-	}
-	return out
-}
-
-// LookupInviteOrgUID returns the orgUID for inviteUUID from the in-memory index.
-// Returns a NotFound error when absent (mirrors production semantics).
-func (m *MockB2BOrgSettings) LookupInviteOrgUID(_ context.Context, inviteUUID string) (string, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	orgUID, ok := m.inviteIndex[inviteUUID]
-	if !ok {
-		return "", errors.NewNotFound("invite index entry not found")
-	}
-	return orgUID, nil
-}
-
-// PutInviteIndex writes (or overwrites) an InviteUUID→orgUID entry in the in-memory index.
-func (m *MockB2BOrgSettings) PutInviteIndex(_ context.Context, inviteUUID, orgUID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.inviteIndex[inviteUUID] = orgUID
-	return nil
-}
-
-// DeleteInviteIndex removes an InviteUUID→orgUID entry from the in-memory index.
-// Not-found is tolerated (idempotent).
-func (m *MockB2BOrgSettings) DeleteInviteIndex(_ context.Context, inviteUUID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.inviteIndex, inviteUUID)
-	return nil
 }
 
 // UpdateSettings stores settings for orgUID, mirroring production NATS semantics:
