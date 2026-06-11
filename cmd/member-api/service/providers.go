@@ -594,7 +594,10 @@ func OrgRoleNotifierImpl(ctx context.Context) port.OrgRoleNotifier {
 	case "nats":
 		slog.InfoContext(ctx, "initialising NATS org role notifier")
 		natsInit(ctx)
-		orgDashboardURL := strings.TrimRight(os.Getenv("LFX_SELF_SERVE_BASE_URL"), "/") + "/org"
+		var orgDashboardURL string
+		if base := strings.TrimRight(os.Getenv("LFX_SELF_SERVE_BASE_URL"), "/"); base != "" {
+			orgDashboardURL = base + "/org"
+		}
 		return nats.NewOrgRoleNotifier(natsClient, orgDashboardURL)
 
 	default:

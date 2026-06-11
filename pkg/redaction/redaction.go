@@ -11,8 +11,8 @@ import (
 )
 
 // Redact redacts sensitive information for logging and output purposes.
-// Shows the first 3 characters when the string has more than 5 characters,
-// otherwise shows asterisks for shorter strings.
+// Shows only asterisks for 1–2 runes, the first rune for 3–5 runes,
+// and the first 3 runes for strings longer than 5 runes.
 //
 // Examples:
 //   - Redact("") → ""

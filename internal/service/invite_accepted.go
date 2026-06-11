@@ -14,6 +14,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/etag"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/redaction"
 )
 
@@ -129,6 +130,11 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 			return
 		}
 
+		// Snapshot the ETag now so Update's IfMatch check catches any concurrent
+		// write that changes the lists between this read and Update's own read.
+		// On mismatch Update returns PreconditionFailed, which the retry loop handles.
+		ifMatch, _ := etag.LFXEtag(settings)
+
 		writerIdxs := pendingEmailIndices(settings.Writers, normalizedEmail)
 		auditorIdxs := pendingEmailIndices(settings.Auditors, normalizedEmail)
 
@@ -161,7 +167,7 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 		}
 
 		now := time.Now().UTC()
-		update := B2BOrgSettingsUpdate{OrgUID: orgUID}
+		update := B2BOrgSettingsUpdate{OrgUID: orgUID, IfMatch: ifMatch}
 
 		if promoteWriters {
 			writers := slices.Clone(settings.Writers)
@@ -190,7 +196,7 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 		if err == nil {
 			return
 		}
-		if pkgerrors.IsConflict(err) {
+		if pkgerrors.IsConflict(err) || pkgerrors.IsPreconditionFailed(err) {
 			if retry < maxRetries-1 {
 				slog.DebugContext(ctx, "invite_accepted: revision conflict, retrying",
 					"org_uid", orgUID, "attempt", retry+1)
