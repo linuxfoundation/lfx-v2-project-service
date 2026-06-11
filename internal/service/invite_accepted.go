@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
@@ -108,16 +109,27 @@ func (s *InviteAcceptedService) Handle(ctx context.Context, ev inviteapi.InviteS
 	}
 
 	normalizedEmail := normalizeSettingsEmail(ev.Recipient.Email)
+
+	// fgaOrgs collects all org UIDs for which key_contact FGA + indexer events
+	// must be published. Seeded with ev.Resource.UID (the org the invite was sent
+	// for) so contacts there are resolved even when no pending org-settings entry
+	// exists (e.g. contact added via CDC after the invite was created).
+	// promoteInviteInOrg adds any org where a pending entry was found and promoted
+	// but that org differs from the invite's source (cross-org acceptance fix).
+	fgaOrgs := make(map[string]struct{})
+	if ev.Resource.UID != "" {
+		fgaOrgs[ev.Resource.UID] = struct{}{}
+	}
 	for _, orgUID := range orgUIDs {
-		s.tryAcceptInviteInOrg(ctx, orgUID, normalizedEmail, ev)
+		if s.promoteInviteInOrg(ctx, orgUID, normalizedEmail, ev) {
+			fgaOrgs[orgUID] = struct{}{}
+		}
 	}
 
-	// Grant key_contact FGA for any key contacts in the accepting org whose
-	// email matches the accepted invite. ev.Resource.UID is the Account SFID
-	// (confirmed: InviteServiceAcceptedEvent embeds Invite; Resource.UID is
-	// populated on the send side and round-trips through the invite service).
-	if ev.Resource.UID != "" && s.keyContactReader != nil && s.publisher != nil {
-		s.resolveKeyContactsInOrg(ctx, ev.Resource.UID, normalizedEmail, ev.AcceptedBy)
+	if s.keyContactReader != nil && s.publisher != nil {
+		for orgUID := range fgaOrgs {
+			s.resolveKeyContactsInOrg(ctx, orgUID, normalizedEmail, ev.AcceptedBy)
+		}
 	}
 	return nil
 }
@@ -139,18 +151,23 @@ func (s *InviteAcceptedService) resolveKeyContactsInOrg(ctx context.Context, org
 		}
 		kc.Username = acceptedBy
 		PublishKeyContactFGA(ctx, s.publisher, kc)
+		PublishKeyContactIndexer(ctx, s.publisher, kc, indexerConstants.ActionUpdated)
 	}
 }
 
-// tryAcceptInviteInOrg attempts to find and promote all pending entries matching
+// promoteInviteInOrg attempts to find and promote all pending entries matching
 // normalizedEmail in one org. Uses a list-authoritative + role tie-break strategy:
 //   - Entries in exactly one list → promote all of them.
 //   - Entries in both lists → ev.Role selects: Manage→writers, View→auditors.
 //     Unknown/empty role → skip + warn (no over-grant).
 //
+// Returns true if a pending entry was found for this email (regardless of whether
+// the promotion write succeeded). The caller uses this to drive resolveKeyContactsInOrg
+// over the same org set.
+//
 // Uses an optimistic-CAS retry loop (up to 3 attempts) to handle concurrent writes.
 // Errors are logged but not returned.
-func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID, normalizedEmail string, ev inviteapi.InviteServiceAcceptedEvent) {
+func (s *InviteAcceptedService) promoteInviteInOrg(ctx context.Context, orgUID, normalizedEmail string, ev inviteapi.InviteServiceAcceptedEvent) bool {
 	const maxRetries = 3
 
 	for retry := range maxRetries {
@@ -158,10 +175,10 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 		if err != nil {
 			slog.WarnContext(ctx, "invite_accepted: failed to get org settings",
 				"org_uid", orgUID, "error", err)
-			return
+			return false
 		}
 		if settings == nil {
-			return
+			return false
 		}
 
 		// Snapshot the ETag now so Update's IfMatch check catches any concurrent
@@ -171,14 +188,14 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 		if etagErr != nil {
 			slog.WarnContext(ctx, "invite_accepted: failed to compute settings ETag, skipping org",
 				"org_uid", orgUID, "error", etagErr)
-			return
+			return false
 		}
 
 		writerIdxs := pendingEmailIndices(settings.Writers, normalizedEmail)
 		auditorIdxs := pendingEmailIndices(settings.Auditors, normalizedEmail)
 
 		if len(writerIdxs) == 0 && len(auditorIdxs) == 0 {
-			return // no match in this org
+			return false // no match in this org
 		}
 
 		// Determine which list(s) to promote.
@@ -201,7 +218,7 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 					"email", redaction.RedactEmail(ev.Recipient.Email),
 					"role", ev.Role,
 				)
-				return
+				return true
 			}
 		}
 
@@ -233,7 +250,7 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 
 		_, err = s.orgSettingsWriter.Update(ctx, update)
 		if err == nil {
-			return
+			return true
 		}
 		if pkgerrors.IsConflict(err) || pkgerrors.IsPreconditionFailed(err) {
 			if retry < maxRetries-1 {
@@ -243,12 +260,13 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 			}
 			slog.WarnContext(ctx, "invite_accepted: revision conflict after 3 retries",
 				"org_uid", orgUID)
-			return
+			return true
 		}
 		slog.WarnContext(ctx, "invite_accepted: failed to update org settings",
 			"org_uid", orgUID, "error", err)
-		return
+		return true
 	}
+	return false
 }
 
 // pendingEmailIndices returns the indices of pending entries (no username set)

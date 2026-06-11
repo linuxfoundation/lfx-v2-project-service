@@ -120,13 +120,20 @@ func kcRoleToOrgRole(kcRole string) string {
 	return model.B2BOrgRoleAuditor
 }
 
+// orgDashboardReady reports whether the orchestrator has the minimum wiring to
+// perform any org-dashboard operation for kc: an orgSettings writer plus a
+// contact with both an org UID and an email address.
+func (o *keyContactWriterOrchestrator) orgDashboardReady(kc *model.KeyContact) bool {
+	return o.orgSettings != nil && kc.B2BOrgUID != "" && kc.Email != ""
+}
+
 // provisionOrgDashboardAccess grants org-dashboard access for a key contact.
 // Registered users (LFID known) are always provisioned silently; the
 // role-assignment email is sent only when sendInvite is true. Unregistered
 // users get a pending entry + invite only when sendInvite is true; otherwise
 // nothing is sent. All errors are best-effort (logged, not returned).
 func (o *keyContactWriterOrchestrator) provisionOrgDashboardAccess(ctx context.Context, kc *model.KeyContact, sendInvite bool) {
-	if o.orgSettings == nil || kc.B2BOrgUID == "" || kc.Email == "" {
+	if !o.orgDashboardReady(kc) {
 		return
 	}
 	if kc.Username == "" && !sendInvite {
@@ -150,7 +157,7 @@ func (o *keyContactWriterOrchestrator) provisionOrgDashboardAccess(ctx context.C
 // never provisioned (unregistered, send_invite=false). All other errors are
 // best-effort (logged, not returned).
 func (o *keyContactWriterOrchestrator) remapOrgDashboardRole(ctx context.Context, kc *model.KeyContact) {
-	if o.orgSettings == nil || kc.B2BOrgUID == "" || kc.Email == "" {
+	if !o.orgDashboardReady(kc) {
 		return
 	}
 	_, err := o.orgSettings.ChangePrincipalRole(ctx, B2BOrgSettingsChangeRole{
@@ -164,29 +171,76 @@ func (o *keyContactWriterOrchestrator) remapOrgDashboardRole(ctx context.Context
 	}
 }
 
-// revokeOrgDashboardAccessIfNoOtherActiveRole removes the org-dashboard
-// principal for kc.Email only when no OTHER active key contact for that email
-// remains anywhere in the org. Fails safe: if the org scan errors, it skips
-// the revoke rather than revoking prematurely.
-func (o *keyContactWriterOrchestrator) revokeOrgDashboardAccessIfNoOtherActiveRole(ctx context.Context, kc *model.KeyContact) {
-	if o.orgSettings == nil || kc.B2BOrgUID == "" || kc.Email == "" {
+// orgRoleLevel returns a numeric ordering for org-dashboard roles so the
+// highest-privilege role among remaining contacts can be computed in O(n).
+// writer=1 > auditor=0; any unknown value maps to 0.
+func orgRoleLevel(role string) int {
+	if role == model.B2BOrgRoleWriter {
+		return 1
+	}
+	return 0
+}
+
+// revokeOrDowngradeOrgDashboardRole reconciles org-dashboard access after a
+// key contact is removed (delete or email change). It scans all OTHER active
+// key contacts for kc.Email in the org and takes one of three actions:
+//
+//   - No remaining active contacts → RemovePrincipal (full revoke).
+//   - Remaining max role < departing role → ChangePrincipalRole to max remaining
+//     (downgrade; e.g. Voting Contact deleted while Billing Contact stays active).
+//   - Remaining max role ≥ departing role → no-op (access level unchanged).
+//
+// Fails safe: scan error → skip rather than revoke prematurely.
+// ChangePrincipalRole NotFound → swallowed (contact never provisioned).
+// ChangePrincipalRole Conflict → swallowed (assertNotRemovingLastAdmin guard; access stays elevated).
+func (o *keyContactWriterOrchestrator) revokeOrDowngradeOrgDashboardRole(ctx context.Context, kc *model.KeyContact) {
+	if !o.orgDashboardReady(kc) || o.storage == nil {
 		return
 	}
 	contacts, err := o.storage.ListKeyContactsForOrg(ctx, kc.B2BOrgUID)
 	if err != nil {
-		slog.WarnContext(ctx, "key contact org scan failed; skipping dashboard revoke (best-effort)",
+		slog.WarnContext(ctx, "key contact org scan failed; skipping dashboard action (best-effort)",
 			"org_uid", kc.B2BOrgUID, "error", err)
 		return
 	}
+
+	// Compute the highest org-dashboard role held by any OTHER active contact
+	// with the same email. Empty string means no remaining active contacts.
+	maxRemainingRole := ""
 	for _, c := range contacts {
-		if c.UID != kc.UID && c.Status == constants.RoleStatusActive && strings.EqualFold(c.Email, kc.Email) {
-			return // another active role still grants access
+		if c.UID == kc.UID || c.Status != constants.RoleStatusActive || !strings.EqualFold(c.Email, kc.Email) {
+			continue
+		}
+		r := kcRoleToOrgRole(c.Role)
+		if maxRemainingRole == "" || orgRoleLevel(r) > orgRoleLevel(maxRemainingRole) {
+			maxRemainingRole = r
 		}
 	}
-	if _, err := o.orgSettings.RemovePrincipal(ctx, B2BOrgSettingsRemovePrincipal{OrgUID: kc.B2BOrgUID, Email: kc.Email}); err != nil &&
-		!pkgerrors.IsNotFound(err) && !pkgerrors.IsConflict(err) {
-		slog.WarnContext(ctx, "key contact org-dashboard revoke failed (best-effort)",
-			"org_uid", kc.B2BOrgUID, "error", err)
+
+	departingRole := kcRoleToOrgRole(kc.Role)
+
+	switch {
+	case maxRemainingRole == "":
+		// No other active contacts — full revoke.
+		if _, err := o.orgSettings.RemovePrincipal(ctx, B2BOrgSettingsRemovePrincipal{
+			OrgUID: kc.B2BOrgUID, Email: kc.Email,
+		}); err != nil && !pkgerrors.IsNotFound(err) && !pkgerrors.IsConflict(err) {
+			slog.WarnContext(ctx, "key contact org-dashboard revoke failed (best-effort)",
+				"org_uid", kc.B2BOrgUID, "error", err)
+		}
+	case orgRoleLevel(maxRemainingRole) < orgRoleLevel(departingRole):
+		// Remaining contacts only warrant a lower role — downgrade.
+		// NotFound: contact was never provisioned → no-op.
+		// Conflict: last-writer guard fired (org must keep ≥1 admin) → swallow,
+		// access stays elevated rather than stranding the org without an admin.
+		if _, err := o.orgSettings.ChangePrincipalRole(ctx, B2BOrgSettingsChangeRole{
+			OrgUID: kc.B2BOrgUID, Email: kc.Email, InvitedAs: maxRemainingRole,
+		}); err != nil && !pkgerrors.IsNotFound(err) && !pkgerrors.IsConflict(err) {
+			slog.WarnContext(ctx, "key contact org-dashboard role downgrade failed (best-effort)",
+				"org_uid", kc.B2BOrgUID, "error", err)
+		}
+		// maxRemainingRole >= departingRole: another contact already holds equal or
+		// higher access — current org-settings role is already correct, no change.
 	}
 }
 
@@ -317,16 +371,16 @@ func (o *keyContactWriterOrchestrator) Update(ctx context.Context, in KeyContact
 		// mock can't re-fetch from SF and returns "" for unchanged fields.
 		newKC.Role = derefOrStr(in.Role, current.Role)
 		o.provisionOrgDashboardAccess(ctx, newKC, in.SendInvite)
-		o.revokeOrgDashboardAccessIfNoOtherActiveRole(ctx, current)
+		o.revokeOrDowngradeOrgDashboardRole(ctx, current)
 	} else {
-		// Email: nil input means unchanged — mock returns "" for nil Email; coalesce.
+		// Email/Role: nil input means unchanged — mock returns "" for nil fields; coalesce.
 		if newKC.Email == "" {
 			newKC.Email = current.Email
 		}
+		newKC.Role = derefOrStr(in.Role, current.Role)
 		newKC.Username = o.resolveUsernameForContact(ctx, current.Username, newKC.Email)
 		o.publishFGAPut(ctx, newKC.MembershipUID, newKC.Username)
 		if in.Role != nil && *in.Role != current.Role {
-			newKC.Role = *in.Role
 			o.remapOrgDashboardRole(ctx, newKC)
 		}
 	}
@@ -361,13 +415,16 @@ func (o *keyContactWriterOrchestrator) Delete(ctx context.Context, in KeyContact
 
 	// FGA remove: propagate — dangling permissions are not auto-repairable.
 	username := o.resolveUsernameForContact(ctx, kc.Username, kc.Email)
+
+	// Org-dashboard revoke is best-effort; run it regardless of FGA outcome so a
+	// transient fga-sync timeout does not leave a stale writer/auditor entry.
+	o.revokeOrDowngradeOrgDashboardRole(ctx, kc)
+
 	if pubErr := o.publishFGARemove(ctx, kc.MembershipUID, username); pubErr != nil {
 		slog.ErrorContext(ctx, "key contact FGA remove failed on delete — dangling permission",
 			"uid", in.UID, "error", pubErr)
 		return pkgerrors.NewUnexpected("failed to revoke FGA access for deleted key contact", pubErr)
 	}
-
-	o.revokeOrgDashboardAccessIfNoOtherActiveRole(ctx, kc)
 
 	return nil
 }

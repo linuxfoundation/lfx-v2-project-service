@@ -16,6 +16,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -630,6 +631,31 @@ func TestKeyContactWriter_Update_NoRoleChange_NoEmailChange_SkipsRemap(t *testin
 	assert.Empty(t, spy.roleChanges, "ChangePrincipalRole must NOT be called when role is unchanged")
 }
 
+func TestKeyContactWriter_Update_NoEmailNoRole_PreservesRole(t *testing.T) {
+	// When neither email nor role changes, the returned KeyContact must still
+	// carry the original role (mock returns "" for unchanged Role input — coalesce).
+	title := "CTO"
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: "Technical Contact",
+	}
+	storage := newSeededStorage(kc)
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		&spyOrgSettings{},
+	)
+
+	got, err := w.Update(context.Background(), svc.KeyContactUpdateInput{
+		MembershipUID: testMembershipUID, UID: testKCUID,
+		Title: &title,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "Technical Contact", got.Role, "role must be preserved when not changed")
+}
+
 func TestKeyContactWriter_Update_RoleChange_NotFound_UpdateSucceeds(t *testing.T) {
 	// ChangePrincipalRole returning NotFound (contact never provisioned) is a no-op.
 	votingRole := "Representative/Voting Contact"
@@ -707,15 +733,15 @@ func TestKeyContactWriter_Delete_LastActive_RevokesOrgAccess(t *testing.T) {
 	assert.Equal(t, "alice@example.com", spy.removes[0].Email)
 }
 
-func TestKeyContactWriter_Delete_OtherActiveRole_SkipsRevoke(t *testing.T) {
-	// Delete when same email holds another active contact in the org → RemovePrincipal NOT called.
+func TestKeyContactWriter_Delete_OtherActiveRole_SameLevel_SkipsRevoke(t *testing.T) {
+	// D=auditor, R=auditor: delete one auditor-level KC while another remains — no remove, no downgrade.
 	kc := &model.KeyContact{
 		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
-		Email: "alice@example.com", Status: "Active",
+		Email: "alice@example.com", Status: "Active", Role: constants.RoleNameBillingContact,
 	}
 	otherKC := &model.KeyContact{
 		UID: "other-kc-uid", MembershipUID: "other-membership", B2BOrgUID: testOrgSFID,
-		Email: "alice@example.com", Status: "Active",
+		Email: "alice@example.com", Status: "Active", Role: constants.RoleNameTechnicalContact,
 	}
 	storage := newSeededStorage(kc, otherKC)
 	spy := &spyOrgSettings{}
@@ -729,7 +755,62 @@ func TestKeyContactWriter_Delete_OtherActiveRole_SkipsRevoke(t *testing.T) {
 	err := w.Delete(context.Background(), svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID})
 
 	require.NoError(t, err)
-	assert.Empty(t, spy.removes, "RemovePrincipal must NOT be called when another active role exists for the same email")
+	assert.Empty(t, spy.removes, "RemovePrincipal must NOT be called when another active auditor-level role remains")
+	assert.Empty(t, spy.roleChanges, "ChangePrincipalRole must NOT be called when roles are at the same level")
+}
+
+func TestKeyContactWriter_Delete_VotingContact_AuditorRemains_DowngradesRole(t *testing.T) {
+	// D=writer, R=auditor: delete Voting Contact while Billing Contact stays → downgrade to auditor.
+	votingKC := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: constants.RoleNameRepresentativeVotingContact,
+	}
+	billingKC := &model.KeyContact{
+		UID: "billing-kc-uid", MembershipUID: "other-membership", B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: constants.RoleNameBillingContact,
+	}
+	storage := newSeededStorage(votingKC, billingKC)
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	err := w.Delete(context.Background(), svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID})
+
+	require.NoError(t, err)
+	assert.Empty(t, spy.removes, "RemovePrincipal must NOT be called when another active role remains")
+	require.Len(t, spy.roleChanges, 1, "ChangePrincipalRole must be called to downgrade from writer to auditor")
+	assert.Equal(t, model.B2BOrgRoleAuditor, spy.roleChanges[0].InvitedAs, "must downgrade to auditor (max remaining role)")
+	assert.Equal(t, "alice@example.com", spy.roleChanges[0].Email)
+}
+
+func TestKeyContactWriter_Delete_VotingContact_AnotherVotingRemains_NoChange(t *testing.T) {
+	// D=writer, R=writer: delete one Voting Contact while another remains — no action.
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: constants.RoleNameRepresentativeVotingContact,
+	}
+	otherVoting := &model.KeyContact{
+		UID: "other-voting-uid", MembershipUID: "other-membership", B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: constants.RoleNameRepresentativeVotingContact,
+	}
+	storage := newSeededStorage(kc, otherVoting)
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	err := w.Delete(context.Background(), svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID})
+
+	require.NoError(t, err)
+	assert.Empty(t, spy.removes, "RemovePrincipal must NOT be called when another writer-level KC exists")
+	assert.Empty(t, spy.roleChanges, "ChangePrincipalRole must NOT be called when remaining role is equal or higher")
 }
 
 func TestKeyContactWriter_Delete_OrgScanError_SkipsRevoke(t *testing.T) {

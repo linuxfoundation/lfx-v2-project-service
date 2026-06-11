@@ -264,13 +264,17 @@ func TestInviteAcceptedService_Handle_GrantsKeyContactFGA_OnMatch(t *testing.T) 
 	err := invSvc.Handle(context.Background(), ev)
 
 	require.NoError(t, err)
-	var accessCount int
+	var accessCount, indexerCount int
 	for _, c := range pub.CallOrder {
-		if c == "access" {
+		switch c {
+		case "access":
 			accessCount++
+		case "indexer":
+			indexerCount++
 		}
 	}
 	assert.Equal(t, 2, accessCount, "must publish key_contact FGA grant for each matching contact")
+	assert.Equal(t, 2, indexerCount, "must publish key_contact indexer update for each matching contact")
 }
 
 func TestInviteAcceptedService_Handle_NoKeyContactMatch_NoFGAGrant(t *testing.T) {
