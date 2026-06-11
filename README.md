@@ -69,7 +69,7 @@ This service publishes the following NATS events:
 This service indexes project data into the indexer service, making it searchable via the query service.
 
 - `lfx.index.project`: Published when a project is created, updated, or deleted. Contains the project base data and tags for indexing.
-- `lfx.index.project_settings`: Published when project settings are created or updated. Contains the project settings data and tags for indexing.
+- `lfx.index.project_settings`: Published when project settings are created or updated, and when the project is deleted. Contains the project settings data and tags for indexing.
 - `lfx.index.project_link`: Published when a project link is created or deleted.
 - `lfx.index.project_folder`: Published when a project folder is created or deleted.
 - `lfx.index.project_document`: Published when a project document is uploaded or deleted.
