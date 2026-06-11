@@ -278,16 +278,16 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 	// NotFound means the email has no LFID yet — fall through to the pending-invite path.
 	// Any other error (transient auth-service outage, network failure, etc.) is returned
 	// to the caller as a 5xx rather than silently creating a spurious pending invite.
-	var sub string
+	var username string
 	if o.userReader != nil {
-		var subErr error
-		sub, subErr = o.userReader.SubByEmail(ctx, email)
-		if subErr != nil && !pkgerrors.IsNotFound(subErr) {
-			return nil, fmt.Errorf("lookup LFID for %s: %w", redaction.RedactEmail(email), subErr)
+		var usernameErr error
+		username, usernameErr = o.userReader.UsernameByEmail(ctx, email)
+		if usernameErr != nil && !pkgerrors.IsNotFound(usernameErr) {
+			return nil, fmt.Errorf("lookup LFID for %s: %w", redaction.RedactEmail(email), usernameErr)
 		}
 	}
-	if sub != "" {
-		entry.Username = sub
+	if username != "" {
+		entry.Username = username
 		entry.InviteStatus = model.InviteStatusAccepted
 		entry.AcceptedAt = &now
 	} else {
@@ -314,7 +314,7 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 		in.InvitedAs == model.B2BOrgRoleWriter || cleanupRan, in.InvitedAs == model.B2BOrgRoleAuditor || cleanupRan)
 	// On the existing-LFID path, send a role-assignment notification email
 	// best-effort — a transient email failure must never block the caller.
-	if err == nil && sub != "" {
+	if err == nil && username != "" {
 		o.notifyRoleAssigned(ctx, email, in.InvitedAs, in.OrgUID, guardOrgName)
 	}
 	return res, err

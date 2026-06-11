@@ -419,13 +419,13 @@ func (s *stubInviteSender) SendInvite(_ context.Context, req inviteapi.SendInvit
 }
 
 func TestOrgSettingsWriter_AddPrincipal_LFIDFound_AcceptsImmediately(t *testing.T) {
-	// When SubByEmail returns a sub, the entry should be InviteStatusAccepted with no invite sent.
+	// When UsernameByEmail returns a username, the entry should be InviteStatusAccepted with no invite sent.
 	store := mock.NewMockB2BOrgSettings()
 	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
 
 	sender := &stubInviteSender{result: port.InviteResult{InviteUID: "unused"}}
 	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "auth0|bob", nil
+		return "bob", nil
 	})
 
 	writer := newOrgSettingsWriterWithNotifier(store, &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
@@ -438,7 +438,7 @@ func TestOrgSettingsWriter_AddPrincipal_LFIDFound_AcceptsImmediately(t *testing.
 	require.NoError(t, err)
 	require.Len(t, result.Writers, 1)
 	w := result.Writers[0]
-	assert.Equal(t, "auth0|bob", w.Username, "LFID sub must be stamped immediately")
+	assert.Equal(t, "bob", w.Username, "LFID username must be stamped immediately")
 	assert.Equal(t, model.InviteStatusAccepted, w.InviteStatus)
 	assert.NotNil(t, w.AcceptedAt)
 	assert.Empty(t, w.InviteUUID, "no invite UUID when LFID found")
@@ -446,7 +446,7 @@ func TestOrgSettingsWriter_AddPrincipal_LFIDFound_AcceptsImmediately(t *testing.
 }
 
 func TestOrgSettingsWriter_AddPrincipal_NoLFID_SendsInvite(t *testing.T) {
-	// When SubByEmail returns empty, invite service is called and entry is pending.
+	// When UsernameByEmail returns empty, invite service is called and entry is pending.
 	store := mock.NewMockB2BOrgSettings()
 	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
 
@@ -596,7 +596,7 @@ func TestOrgSettingsWriter_AddPrincipal_LFIDFound_NotifiesRoleAssigned(t *testin
 	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
 
 	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "auth0|bob", nil
+		return "bob", nil
 	})
 	notifier := &capturingRoleNotifier{}
 
@@ -654,7 +654,7 @@ func TestOrgSettingsWriter_AddPrincipal_NotifyFails_WriteStillSucceeds(t *testin
 	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
 
 	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "auth0|dan", nil
+		return "dan", nil
 	})
 	notifier := &capturingRoleNotifier{err: errors.New("email service down")}
 
@@ -702,7 +702,7 @@ func TestOrgSettingsWriter_AddPrincipal_FirstPrincipal_SingleOrgFetch(t *testing
 	const orgName = "First Org"
 
 	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
-		return "auth0|eve", nil
+		return "eve", nil
 	})
 	notifier := &capturingRoleNotifier{}
 	orgReader := &countingOrgReader{inner: &seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID, Name: orgName}}}
