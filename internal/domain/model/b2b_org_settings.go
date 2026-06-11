@@ -48,7 +48,7 @@ type B2BOrgUser struct {
 	Email string `json:"email"`
 	// Name is the user's display name.
 	Name string `json:"name,omitempty"`
-	// Username is the LFID username (OIDC sub). Set once the invite is accepted.
+	// Username is the LFID username. Set once the invite is accepted.
 	// Absent for pending invites.
 	Username string `json:"username,omitempty"`
 
@@ -142,13 +142,13 @@ func (s *B2BOrgSettings) FulltextTokens() []string {
 // Tag prefixes for per-user tags emitted by Tags().
 const (
 	// TagPrefixWriter is emitted once per accepted writer with a known LFID username.
-	// Inverse query: tags=writer:auth0|<username>
+	// Inverse query: tags=writer:<username>
 	TagPrefixWriter = "writer:"
 	// TagPrefixAuditor is emitted once per accepted auditor with a known LFID username.
-	// Inverse query: tags=auditor:auth0|<username>
+	// Inverse query: tags=auditor:<username>
 	TagPrefixAuditor = "auditor:"
 	// TagPrefixMember covers both writers and auditors; use for role-agnostic
-	// "which orgs does user X belong to?" queries: tags=member:auth0|<username>
+	// "which orgs does user X belong to?" queries: tags=member:<username>
 	TagPrefixMember = "member:"
 )
 

@@ -325,8 +325,8 @@ func (o *CDCConsumer) handleProjectRoleDelete(ctx context.Context, uid string) e
 
 	// key_contact delete FGA revoke: best-effort, alertable on failure.
 	// Uses GenericMemberRemoveSubject to match the key_contact_writer delete path.
-	// The sub (username) is not available from the CDC event — the FGA sync
-	// service performs cleanup by object-id when sub is empty.
+	// The username is not available from the CDC event — the FGA sync
+	// service performs cleanup by object-id when username is empty.
 	if err := o.publisher.Access(ctx, fgaconstants.GenericMemberRemoveSubject,
 		BuildKeyContactFGARemoveMessage(uid, ""), false); err != nil {
 		// fga_revoke_failed_dangling_tuple=true signals a dangling FGA tuple:

@@ -7,7 +7,7 @@ import "context"
 
 // UserReader provides access to user identity information from auth-service.
 type UserReader interface {
-	// SubByEmail resolves an email address to its OIDC subject identifier.
+	// UsernameByEmail resolves the registered LFID username for the given primary email address.
 	// Returns NotFound if the email does not exist in auth-service.
-	SubByEmail(ctx context.Context, email string) (string, error)
+	UsernameByEmail(ctx context.Context, email string) (string, error)
 }

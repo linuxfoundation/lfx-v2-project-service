@@ -192,7 +192,7 @@ This document is the authoritative reference for all data the member service sen
 | `last_name`        | string              | Contact's last name                                                         |
 | `title`            | string (optional)   | Contact's job title                                                         |
 | `email`            | string (optional)   | Primary email address                                                       |
-| `username`         | string (optional)   | Resolved OIDC sub                                                           |
+| `username`         | string (optional)   | Resolved LFID username                                                      |
 | `emails`           | []string (optional) | Full list of email addresses                                                |
 | `company_name`     | string              | Member company name                                                         |
 | `company_logo_url` | string (optional)   | Member company logo URL                                                     |
@@ -273,7 +273,7 @@ Per-member entry shape:
 
 | Field           | Example value          | Notes                                                                 |
 |-----------------|------------------------|-----------------------------------------------------------------------|
-| `username`      | `auth0\|<lfid>`        | Absent for pending invites                                            |
+| `username`      | `<lfid>`               | Absent for pending invites                                            |
 | `email`         | `user@example.org`     | Always present                                                        |
 | `name`          | `Display Name`         | Optional                                                              |
 | `role`          | `writer`               | `"writer"` or `"auditor"`; writer takes precedence if user holds both |
@@ -300,23 +300,23 @@ Per-member entry shape:
 
 **"Which orgs is user X a member of?" (role-agnostic)**
 ```
-GET /query/resources?v=1&type=b2b_org_settings&tags=member:auth0|{username}
+GET /query/resources?v=1&type=b2b_org_settings&tags=member:{username}
 ```
 Returns one doc per org where the user is an accepted writer or auditor. Each doc contains `data.uid` (the org UID) and the full `data.members[]` array. The `member:` tag covers both roles so a single call suffices.
 
 **"Which orgs is user X a writer on?" (role-specific)**
 ```
-GET /query/resources?v=1&type=b2b_org_settings&tags=writer:auth0|{username}
+GET /query/resources?v=1&type=b2b_org_settings&tags=writer:{username}
 ```
 
 **"Which orgs is user X an auditor on?" (role-specific)**
 ```
-GET /query/resources?v=1&type=b2b_org_settings&tags=auditor:auth0|{username}
+GET /query/resources?v=1&type=b2b_org_settings&tags=auditor:{username}
 ```
 
 **"How many orgs does user X belong to?"**
 ```
-GET /query/resources/count?type=b2b_org_settings&tags=member:auth0|{username}
+GET /query/resources/count?type=b2b_org_settings&tags=member:{username}
 ```
 Returns `{"count": N, "has_more": false}`. `has_more` is true when the result exceeds the aggregation bucket limit.
 

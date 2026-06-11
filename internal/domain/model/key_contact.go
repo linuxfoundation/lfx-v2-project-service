@@ -131,9 +131,9 @@ type KeyContact struct {
 	// lookups (e.g. MCP). No User Service reference is made.
 	Email string `json:"email,omitempty"`
 
-	// Username is the resolved Authelia OIDC sub for this contact's email.
+	// Username is the resolved LFID username for this contact's email.
 	// Empty when the email hasn't been resolved yet or the user doesn't have
-	// an Authelia account. Re-resolved on next mutation when empty.
+	// an LFID account. Re-resolved on next mutation when empty.
 	Username string `json:"username,omitempty"`
 
 	// Emails is the full list of email addresses for this contact (primary +
