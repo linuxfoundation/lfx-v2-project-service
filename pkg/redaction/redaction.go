@@ -42,8 +42,9 @@ func Redact(sensitive string) string {
 }
 
 // RedactEmail redacts email addresses for logging and output purposes.
-// Shows the first 3 characters of the local part and keeps the full domain
-// visible for debugging purposes.
+// Redacts the local part using Redact (asterisks-only for 1–2 runes, first
+// rune for 3–5 runes, first 3 runes for longer strings) and keeps the full
+// domain visible for debugging purposes.
 //
 // Examples:
 //   - RedactEmail("") → ""

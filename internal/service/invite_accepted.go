@@ -133,7 +133,12 @@ func (s *InviteAcceptedService) tryAcceptInviteInOrg(ctx context.Context, orgUID
 		// Snapshot the ETag now so Update's IfMatch check catches any concurrent
 		// write that changes the lists between this read and Update's own read.
 		// On mismatch Update returns PreconditionFailed, which the retry loop handles.
-		ifMatch, _ := etag.LFXEtag(settings)
+		ifMatch, etagErr := etag.LFXEtag(settings)
+		if etagErr != nil {
+			slog.WarnContext(ctx, "invite_accepted: failed to compute settings ETag, skipping org",
+				"org_uid", orgUID, "error", etagErr)
+			return
+		}
 
 		writerIdxs := pendingEmailIndices(settings.Writers, normalizedEmail)
 		auditorIdxs := pendingEmailIndices(settings.Auditors, normalizedEmail)
