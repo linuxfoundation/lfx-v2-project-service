@@ -18,19 +18,15 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/redaction"
 )
 
-// orgSettingsUpdater is a narrow consumer-side interface — InviteAcceptedService only
-// needs Update, not the full OrgSettingsWriter surface.
-type orgSettingsUpdater interface {
-	Update(ctx context.Context, in B2BOrgSettingsUpdate) (*model.B2BOrgSettings, error)
-}
-
 // InviteAcceptedService handles lfx.invite-service.invite_accepted events.
 // It filters to b2b_org events, then scans all org settings for pending entries
 // matching the accepted invite's email and promotes them to accepted — triggering
 // FGA + indexer republish. This mirrors the committee/project scan pattern.
 type InviteAcceptedService struct {
 	settingsReader    port.B2BOrgSettingsReader
-	orgSettingsWriter orgSettingsUpdater
+	orgSettingsWriter OrgSettingsUpdater
+	keyContactReader  KeyContactOrgReader
+	publisher         port.MemberPublisher
 }
 
 // InviteAcceptedServiceOption configures an InviteAcceptedService.
@@ -43,9 +39,19 @@ func WithInviteAcceptedSettingsReader(r port.B2BOrgSettingsReader) InviteAccepte
 
 // WithInviteAcceptedOrgSettingsWriter sets the orgSettingsWriter. Any value that
 // satisfies OrgSettingsWriter (the full use-case interface) also satisfies the
-// narrower orgSettingsUpdater — no adapter needed.
+// narrower OrgSettingsUpdater — no adapter needed.
 func WithInviteAcceptedOrgSettingsWriter(w OrgSettingsWriter) InviteAcceptedServiceOption {
 	return func(s *InviteAcceptedService) { s.orgSettingsWriter = w }
+}
+
+// WithInviteAcceptedKeyContactReader sets the key-contact org reader.
+func WithInviteAcceptedKeyContactReader(r KeyContactOrgReader) InviteAcceptedServiceOption {
+	return func(s *InviteAcceptedService) { s.keyContactReader = r }
+}
+
+// WithInviteAcceptedPublisher sets the publisher for FGA grants.
+func WithInviteAcceptedPublisher(p port.MemberPublisher) InviteAcceptedServiceOption {
+	return func(s *InviteAcceptedService) { s.publisher = p }
 }
 
 // NewInviteAcceptedService creates a new InviteAcceptedService.
@@ -105,7 +111,35 @@ func (s *InviteAcceptedService) Handle(ctx context.Context, ev inviteapi.InviteS
 	for _, orgUID := range orgUIDs {
 		s.tryAcceptInviteInOrg(ctx, orgUID, normalizedEmail, ev)
 	}
+
+	// Grant key_contact FGA for any key contacts in the accepting org whose
+	// email matches the accepted invite. ev.Resource.UID is the Account SFID
+	// (confirmed: InviteServiceAcceptedEvent embeds Invite; Resource.UID is
+	// populated on the send side and round-trips through the invite service).
+	if ev.Resource.UID != "" && s.keyContactReader != nil && s.publisher != nil {
+		s.resolveKeyContactsInOrg(ctx, ev.Resource.UID, normalizedEmail, ev.AcceptedBy)
+	}
 	return nil
+}
+
+// resolveKeyContactsInOrg grants key_contact FGA on every membership where a
+// key contact's email matches the accepted invite. Resolves all matches — does
+// not stop at the first one (an org can have the same person as a key contact
+// on multiple memberships).
+func (s *InviteAcceptedService) resolveKeyContactsInOrg(ctx context.Context, orgUID, normalizedEmail, acceptedBy string) {
+	contacts, err := s.keyContactReader.ListKeyContactsForOrg(ctx, orgUID)
+	if err != nil {
+		slog.WarnContext(ctx, "invite_accepted: list key contacts for org failed",
+			"org_uid", orgUID, "error", err)
+		return
+	}
+	for _, kc := range contacts {
+		if normalizeSettingsEmail(kc.Email) != normalizedEmail {
+			continue
+		}
+		kc.Username = acceptedBy
+		PublishKeyContactFGA(ctx, s.publisher, kc)
+	}
 }
 
 // tryAcceptInviteInOrg attempts to find and promote all pending entries matching

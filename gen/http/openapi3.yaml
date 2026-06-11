@@ -530,21 +530,15 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                     - avatar: https://avatars.githubusercontent.com/u/12345
                                       email: alice@example.com
                                       invite_status: accepted
@@ -658,12 +652,6 @@ paths:
                                   invited_as: writer
                                   name: Alice Smith
                                   username: alice
-                                - avatar: https://avatars.githubusercontent.com/u/12345
-                                  email: alice@example.com
-                                  invite_status: accepted
-                                  invited_as: writer
-                                  name: Alice Smith
-                                  username: alice
             responses:
                 "200":
                     description: OK response.
@@ -706,21 +694,15 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                     - avatar: https://avatars.githubusercontent.com/u/12345
                                       email: alice@example.com
                                       invite_status: accepted
@@ -860,21 +842,15 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                     - avatar: https://avatars.githubusercontent.com/u/12345
                                       email: alice@example.com
                                       invite_status: accepted
@@ -1014,21 +990,15 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                     - avatar: https://avatars.githubusercontent.com/u/12345
                                       email: alice@example.com
                                       invite_status: accepted
@@ -1175,21 +1145,15 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
+                                    - avatar: https://avatars.githubusercontent.com/u/12345
+                                      email: alice@example.com
+                                      invite_status: accepted
+                                      invited_as: writer
+                                      name: Alice Smith
+                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                     - avatar: https://avatars.githubusercontent.com/u/12345
                                       email: alice@example.com
                                       invite_status: accepted
@@ -1281,6 +1245,7 @@ paths:
                             last_name: Doe
                             primary_contact: false
                             role: Technical Contact
+                            send_invite: true
                             status: Active
                             title: CTO
             responses:
@@ -1646,6 +1611,7 @@ paths:
                             email: john.doe@example.com
                             primary_contact: false
                             role: Technical Contact
+                            send_invite: false
                             status: Active
                             title: CTO
             responses:
@@ -1918,7 +1884,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Deserunt sunt nesciunt.
+                        example: Quidem blanditiis error qui similique quisquam explicabo.
                     description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.'
                     example:
                         - b2b_org
@@ -1984,7 +1950,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Animi nobis.
+                        example: Corporis quia doloribus a.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -2125,6 +2091,18 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
             description: 'Access-control settings for a b2b_org: writers and auditors'
             example:
                 auditors:
@@ -2200,12 +2178,6 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
             description: 'Request body for replacing the writers and/or auditors list on a b2b_org. Full-replace: nil = keep existing; [] = remove all.'
             example:
                 auditors:
@@ -2221,19 +2193,19 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
-                    - avatar: https://avatars.githubusercontent.com/u/12345
-                      email: alice@example.com
-                      invite_status: accepted
-                      invited_as: writer
-                      name: Alice Smith
-                      username: alice
                 writers:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -2335,8 +2307,8 @@ components:
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: false
-                timeout: true
+                temporary: true
+                timeout: false
             required:
                 - name
                 - id
@@ -2382,6 +2354,11 @@ components:
                         - Event Sponsorship Contact
                         - PO Contact
                         - PR Contact
+                send_invite:
+                    type: boolean
+                    description: When true, send a platform invite (unregistered user) or role-assignment email (registered user). Defaults to false — org-dashboard access is still provisioned silently for registered users.
+                    default: false
+                    example: false
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
@@ -2401,6 +2378,7 @@ components:
                 last_name: Doe
                 primary_contact: false
                 role: Technical Contact
+                send_invite: true
                 status: Active
                 title: CTO
             required:
@@ -2438,6 +2416,11 @@ components:
                         - Event Sponsorship Contact
                         - PO Contact
                         - PR Contact
+                send_invite:
+                    type: boolean
+                    description: When true, send a platform invite (unregistered user) or role-assignment email (registered user) if the email changes. Defaults to false — org-dashboard access is still provisioned silently for registered users.
+                    default: false
+                    example: false
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
@@ -2455,6 +2438,7 @@ components:
                 email: john.doe@example.com
                 primary_contact: false
                 role: Technical Contact
+                send_invite: false
                 status: Active
                 title: CTO
         ListMetadata:
@@ -2935,12 +2919,6 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
                 writers:
                     type: array
                     items:
@@ -2959,8 +2937,20 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
             example:
                 auditors:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -3022,6 +3012,11 @@ components:
                         - Event Sponsorship Contact
                         - PO Contact
                         - PR Contact
+                send_invite:
+                    type: boolean
+                    description: When true, send a platform invite (unregistered user) or role-assignment email (registered user) if the email changes. Defaults to false — org-dashboard access is still provisioned silently for registered users.
+                    default: false
+                    example: true
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
@@ -3038,6 +3033,7 @@ components:
                 email: john.doe@example.com
                 primary_contact: false
                 role: Technical Contact
+                send_invite: false
                 status: Active
                 title: CTO
     securitySchemes:

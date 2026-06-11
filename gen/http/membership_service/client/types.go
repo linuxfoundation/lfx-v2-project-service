@@ -100,6 +100,10 @@ type CreateKeyContactRequestBody struct {
 	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
+	// When true, send a platform invite (unregistered user) or role-assignment
+	// email (registered user). Defaults to false — org-dashboard access is still
+	// provisioned silently for registered users.
+	SendInvite bool `form:"send_invite" json:"send_invite" xml:"send_invite"`
 }
 
 // UpdateKeyContactRequestBody is the type of the "membership-service" service
@@ -119,6 +123,10 @@ type UpdateKeyContactRequestBody struct {
 	// unknown address and a new Salesforce Contact is created; ignored if the
 	// Contact already exists.
 	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
+	// When true, send a platform invite (unregistered user) or role-assignment
+	// email (registered user) if the email changes. Defaults to false —
+	// org-dashboard access is still provisioned silently for registered users.
+	SendInvite bool `form:"send_invite" json:"send_invite" xml:"send_invite"`
 }
 
 // AdminReindexRequestBody is the type of the "membership-service" service
@@ -2099,6 +2107,13 @@ func NewCreateKeyContactRequestBody(p *membershipservice.CreateKeyContactPayload
 		Status:         p.Status,
 		BoardMember:    p.BoardMember,
 		PrimaryContact: p.PrimaryContact,
+		SendInvite:     p.SendInvite,
+	}
+	{
+		var zero bool
+		if body.SendInvite == zero {
+			body.SendInvite = false
+		}
 	}
 	return body
 }
@@ -2113,6 +2128,13 @@ func NewUpdateKeyContactRequestBody(p *membershipservice.UpdateKeyContactPayload
 		BoardMember:    p.BoardMember,
 		PrimaryContact: p.PrimaryContact,
 		Title:          p.Title,
+		SendInvite:     p.SendInvite,
+	}
+	{
+		var zero bool
+		if body.SendInvite == zero {
+			body.SendInvite = false
+		}
 	}
 	return body
 }

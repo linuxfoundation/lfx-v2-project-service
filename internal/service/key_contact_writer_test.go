@@ -5,6 +5,7 @@ package service_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -86,7 +87,8 @@ func (p *errorFGARemovePublisher) Access(ctx context.Context, subject string, ms
 // seededStorage is a port.MemberReader that returns a fixed key contact by UID.
 type seededStorage struct {
 	mock.MockMembershipRepository
-	kcs map[string]*model.KeyContact
+	kcs        map[string]*model.KeyContact
+	listOrgErr error // if set, ListKeyContactsForOrg returns this error
 }
 
 func newSeededStorage(kcs ...*model.KeyContact) *seededStorage {
@@ -112,6 +114,19 @@ func (s *seededStorage) ListKeyContactsForMembership(_ context.Context, _ string
 	return out, nil
 }
 
+func (s *seededStorage) ListKeyContactsForOrg(_ context.Context, orgSFID string) ([]*model.KeyContact, error) {
+	if s.listOrgErr != nil {
+		return nil, s.listOrgErr
+	}
+	var out []*model.KeyContact
+	for _, kc := range s.kcs {
+		if kc.B2BOrgUID == orgSFID {
+			out = append(out, kc)
+		}
+	}
+	return out, nil
+}
+
 // seededPMReader returns a fixed PM for any UID.
 type seededPMReader struct{ pm *model.ProjectMembership }
 
@@ -133,6 +148,48 @@ func newKCWriter(storage svc.MemberStorageReader, pmReader svc.PMReader, pub svc
 		svc.WithKCProjectMembershipReader(pmReader),
 		svc.WithKCPublisher(pub),
 		svc.WithKCUserReader(userReader),
+	)
+}
+
+// spyOrgSettings records AddPrincipal / RemovePrincipal / ChangePrincipalRole calls.
+type spyOrgSettings struct {
+	mu          sync.Mutex
+	adds        []svc.B2BOrgSettingsAddPrincipal
+	removes     []svc.B2BOrgSettingsRemovePrincipal
+	roleChanges []svc.B2BOrgSettingsChangeRole
+	addErr      error
+	changeErr   error
+}
+
+func (s *spyOrgSettings) AddPrincipal(_ context.Context, in svc.B2BOrgSettingsAddPrincipal) (*model.B2BOrgSettings, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.adds = append(s.adds, in)
+	return &model.B2BOrgSettings{}, s.addErr
+}
+
+func (s *spyOrgSettings) RemovePrincipal(_ context.Context, in svc.B2BOrgSettingsRemovePrincipal) (*model.B2BOrgSettings, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.removes = append(s.removes, in)
+	return &model.B2BOrgSettings{}, nil
+}
+
+func (s *spyOrgSettings) ChangePrincipalRole(_ context.Context, in svc.B2BOrgSettingsChangeRole) (*model.B2BOrgSettings, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.roleChanges = append(s.roleChanges, in)
+	return &model.B2BOrgSettings{}, s.changeErr
+}
+
+func newKCWriterWithOrgSettings(storage svc.MemberStorageReader, pmReader svc.PMReader, pub svc.PublisherForKC, userReader svc.UserReaderForKC, orgSettings *spyOrgSettings) svc.KeyContactWriter {
+	return svc.NewKeyContactWriter(
+		svc.WithKCStorage(storage),
+		svc.WithKCWriter(mock.NewMockKeyContactWriterWithOK()),
+		svc.WithKCProjectMembershipReader(pmReader),
+		svc.WithKCPublisher(pub),
+		svc.WithKCUserReader(userReader),
+		svc.WithKCOrgSettings(orgSettings),
 	)
 }
 
@@ -408,4 +465,292 @@ func TestKeyContactWriter_Delete_IfMatch_Mismatch_PreconditionFailed(t *testing.
 
 	require.Error(t, err)
 	assert.True(t, pkgerrors.IsPreconditionFailed(err))
+}
+
+// ── Org-dashboard provisioning tests (Tasks 4, 5, 6) ─────────────────────────
+
+const testOrgSFID = "001000000000000AAA"
+
+func TestKeyContactWriter_Create_Registered_SilentProvision(t *testing.T) {
+	// Registered user + send_invite=false → AddPrincipal called with SuppressNotification=true.
+	pm := &model.ProjectMembership{UID: testMembershipUID, B2BOrgUID: testOrgSFID}
+	spy := &spyOrgSettings{}
+	storage := newSeededStorage()
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: pm}, &trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	_, err := w.Create(context.Background(), svc.KeyContactCreateInput{
+		MembershipUID: testMembershipUID, FirstName: "Alice", LastName: "Smith",
+		Email: "alice@example.com", Role: "Technical Contact", SendInvite: false,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, spy.adds, 1)
+	assert.True(t, spy.adds[0].SuppressNotification, "SuppressNotification must be true when send_invite=false")
+	assert.Equal(t, testOrgSFID, spy.adds[0].OrgUID)
+	assert.Equal(t, model.B2BOrgRoleAuditor, spy.adds[0].InvitedAs, "non-voting role maps to auditor")
+}
+
+func TestKeyContactWriter_Create_VotingContact_MapsToWriter(t *testing.T) {
+	// Representative/Voting Contact role → InvitedAs=writer.
+	pm := &model.ProjectMembership{UID: testMembershipUID, B2BOrgUID: testOrgSFID}
+	spy := &spyOrgSettings{}
+	storage := newSeededStorage()
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: pm}, &trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "bob-sub", nil }),
+		spy,
+	)
+
+	_, err := w.Create(context.Background(), svc.KeyContactCreateInput{
+		MembershipUID: testMembershipUID, FirstName: "Bob", LastName: "Jones",
+		Email: "bob@example.com", Role: "Representative/Voting Contact", SendInvite: false,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, spy.adds, 1)
+	assert.Equal(t, model.B2BOrgRoleWriter, spy.adds[0].InvitedAs, "voting contact must map to writer")
+}
+
+func TestKeyContactWriter_Create_Unregistered_NoInvite_NoProvision(t *testing.T) {
+	// Unregistered + send_invite=false → AddPrincipal NOT called.
+	pm := &model.ProjectMembership{UID: testMembershipUID, B2BOrgUID: testOrgSFID}
+	spy := &spyOrgSettings{}
+	storage := newSeededStorage()
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: pm}, &trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "", nil }),
+		spy,
+	)
+
+	_, err := w.Create(context.Background(), svc.KeyContactCreateInput{
+		MembershipUID: testMembershipUID, FirstName: "Carol", LastName: "Doe",
+		Email: "carol@example.com", Role: "Technical Contact", SendInvite: false,
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, spy.adds, "AddPrincipal must NOT be called for unregistered user with send_invite=false")
+}
+
+func TestKeyContactWriter_Create_Unregistered_WithInvite_CallsAdd(t *testing.T) {
+	// Unregistered + send_invite=true → AddPrincipal called with SuppressNotification=false.
+	pm := &model.ProjectMembership{UID: testMembershipUID, B2BOrgUID: testOrgSFID}
+	spy := &spyOrgSettings{}
+	storage := newSeededStorage()
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: pm}, &trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "", nil }),
+		spy,
+	)
+
+	_, err := w.Create(context.Background(), svc.KeyContactCreateInput{
+		MembershipUID: testMembershipUID, FirstName: "Dave", LastName: "Lee",
+		Email: "dave@example.com", Role: "Technical Contact", SendInvite: true,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, spy.adds, 1)
+	assert.False(t, spy.adds[0].SuppressNotification, "SuppressNotification must be false when send_invite=true")
+}
+
+func TestKeyContactWriter_Create_AddPrincipalConflict_CreateSucceeds(t *testing.T) {
+	// AddPrincipal returning Conflict must not fail Create (same email holds another role).
+	pm := &model.ProjectMembership{UID: testMembershipUID, B2BOrgUID: testOrgSFID}
+	spy := &spyOrgSettings{addErr: pkgerrors.NewConflict("already has access")}
+	storage := newSeededStorage()
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: pm}, &trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	_, err := w.Create(context.Background(), svc.KeyContactCreateInput{
+		MembershipUID: testMembershipUID, FirstName: "Alice", LastName: "Smith",
+		Email: "alice@example.com", Role: "Technical Contact", SendInvite: false,
+	})
+
+	require.NoError(t, err, "Conflict from AddPrincipal must be swallowed by Create")
+}
+
+func TestKeyContactWriter_Update_RoleChange_NoEmailChange_RemapsOrgDashboard(t *testing.T) {
+	// Role upgrade (Technical Contact → Representative/Voting Contact) without email change
+	// → ChangePrincipalRole called with InvitedAs=writer; AddPrincipal/RemovePrincipal NOT called.
+	votingRole := "Representative/Voting Contact"
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: "Technical Contact",
+	}
+	storage := newSeededStorage(kc)
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	_, err := w.Update(context.Background(), svc.KeyContactUpdateInput{
+		MembershipUID: testMembershipUID, UID: testKCUID,
+		Role: &votingRole,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, spy.roleChanges, 1, "ChangePrincipalRole must be called on role change")
+	assert.Equal(t, "alice@example.com", spy.roleChanges[0].Email)
+	assert.Equal(t, model.B2BOrgRoleWriter, spy.roleChanges[0].InvitedAs)
+	assert.Empty(t, spy.adds, "AddPrincipal must NOT be called on role-only change")
+	assert.Empty(t, spy.removes, "RemovePrincipal must NOT be called on role-only change")
+}
+
+func TestKeyContactWriter_Update_NoRoleChange_NoEmailChange_SkipsRemap(t *testing.T) {
+	// No role in input → ChangePrincipalRole NOT called.
+	title := "CTO"
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: "Technical Contact",
+	}
+	storage := newSeededStorage(kc)
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	_, err := w.Update(context.Background(), svc.KeyContactUpdateInput{
+		MembershipUID: testMembershipUID, UID: testKCUID,
+		Title: &title,
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, spy.roleChanges, "ChangePrincipalRole must NOT be called when role is unchanged")
+}
+
+func TestKeyContactWriter_Update_RoleChange_NotFound_UpdateSucceeds(t *testing.T) {
+	// ChangePrincipalRole returning NotFound (contact never provisioned) is a no-op.
+	votingRole := "Representative/Voting Contact"
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: "Technical Contact",
+	}
+	storage := newSeededStorage(kc)
+	spy := &spyOrgSettings{changeErr: pkgerrors.NewNotFound("principal not found")}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	_, err := w.Update(context.Background(), svc.KeyContactUpdateInput{
+		MembershipUID: testMembershipUID, UID: testKCUID,
+		Role: &votingRole,
+	})
+
+	require.NoError(t, err, "NotFound from ChangePrincipalRole must be swallowed")
+}
+
+func TestKeyContactWriter_Update_EmailChange_ProvisionNewRevokeOld(t *testing.T) {
+	// Email change: new email provisioned + old email revoke guard run.
+	// Old email is the only active contact → RemovePrincipal called.
+	const orgUID = testOrgSFID
+	oldKC := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: orgUID,
+		Email: "old@example.com", Status: "Active", Role: "Technical Contact",
+		FirstName: "Alice", LastName: "Smith",
+	}
+	storage := newSeededStorage(oldKC)
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{UID: testMembershipUID, B2BOrgUID: orgUID}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "new-sub", nil }),
+		spy,
+	)
+
+	newEmail := "new@example.com"
+	_, err := w.Update(context.Background(), svc.KeyContactUpdateInput{
+		MembershipUID: testMembershipUID, UID: testKCUID,
+		Email: &newEmail, SendInvite: false,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, spy.adds, 1, "new email must be provisioned")
+	assert.Equal(t, "new@example.com", spy.adds[0].Email)
+	require.Len(t, spy.removes, 1, "old email must be revoked (last active contact)")
+	assert.Equal(t, "old@example.com", spy.removes[0].Email)
+}
+
+func TestKeyContactWriter_Delete_LastActive_RevokesOrgAccess(t *testing.T) {
+	// Delete when email is the only active contact in org → RemovePrincipal called.
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active", Role: "Technical Contact",
+	}
+	storage := newSeededStorage(kc)
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	err := w.Delete(context.Background(), svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID})
+
+	require.NoError(t, err)
+	require.Len(t, spy.removes, 1, "RemovePrincipal must be called when no other active role remains")
+	assert.Equal(t, "alice@example.com", spy.removes[0].Email)
+}
+
+func TestKeyContactWriter_Delete_OtherActiveRole_SkipsRevoke(t *testing.T) {
+	// Delete when same email holds another active contact in the org → RemovePrincipal NOT called.
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active",
+	}
+	otherKC := &model.KeyContact{
+		UID: "other-kc-uid", MembershipUID: "other-membership", B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active",
+	}
+	storage := newSeededStorage(kc, otherKC)
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	err := w.Delete(context.Background(), svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID})
+
+	require.NoError(t, err)
+	assert.Empty(t, spy.removes, "RemovePrincipal must NOT be called when another active role exists for the same email")
+}
+
+func TestKeyContactWriter_Delete_OrgScanError_SkipsRevoke(t *testing.T) {
+	// Fail-safe: if the org scan errors (e.g. Salesforce down), skip revoke rather
+	// than revoking prematurely and stranding a legitimate access holder.
+	kc := &model.KeyContact{
+		UID: testKCUID, MembershipUID: testMembershipUID, B2BOrgUID: testOrgSFID,
+		Email: "alice@example.com", Status: "Active",
+	}
+	storage := newSeededStorage(kc)
+	storage.listOrgErr = errors.New("salesforce unavailable")
+	spy := &spyOrgSettings{}
+
+	w := newKCWriterWithOrgSettings(storage, &seededPMReader{pm: &model.ProjectMembership{}},
+		&trackingPublisher{},
+		userReaderFunc(func(_ context.Context, _ string) (string, error) { return "alice-sub", nil }),
+		spy,
+	)
+
+	err := w.Delete(context.Background(), svc.KeyContactDeleteInput{MembershipUID: testMembershipUID, UID: testKCUID})
+
+	require.NoError(t, err)
+	assert.Empty(t, spy.removes, "RemovePrincipal must NOT be called when the org scan fails (fail-safe)")
 }

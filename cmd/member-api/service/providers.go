@@ -555,6 +555,7 @@ func KeyContactWriterUseCase(ctx context.Context) usecaseSvc.KeyContactWriter {
 		usecaseSvc.WithKCProjectMembershipReader(ProjectMembershipReaderImpl(ctx)),
 		usecaseSvc.WithKCPublisher(MemberPublisherImpl(ctx)),
 		usecaseSvc.WithKCUserReader(UserReaderImpl(ctx)),
+		usecaseSvc.WithKCOrgSettings(OrgSettingsWriterUseCase(ctx)),
 	)
 }
 
@@ -627,6 +628,8 @@ func InviteAcceptedServiceImpl(ctx context.Context) *usecaseSvc.InviteAcceptedSe
 	return usecaseSvc.NewInviteAcceptedService(
 		usecaseSvc.WithInviteAcceptedSettingsReader(B2BOrgSettingsReaderImpl(ctx)),
 		usecaseSvc.WithInviteAcceptedOrgSettingsWriter(OrgSettingsWriterUseCase(ctx)),
+		usecaseSvc.WithInviteAcceptedKeyContactReader(MemberReaderImpl(ctx)),
+		usecaseSvc.WithInviteAcceptedPublisher(MemberPublisherImpl(ctx)),
 	)
 }
 
@@ -735,6 +738,8 @@ func CDCConsumerImpl(ctx context.Context) (*usecaseSvc.CDCConsumer, *pubsub.Repl
 		usecaseSvc.WithCDCCacheInvalidator(sObjectClient),
 		usecaseSvc.WithCDCPublisher(MemberPublisherImpl(ctx)),
 		usecaseSvc.WithCDCGlobalOrgAdminTeamUID(GlobalOrgAdminTeamUID()),
+		usecaseSvc.WithCDCUserReader(UserReaderImpl(ctx)),
+		usecaseSvc.WithCDCOrgSettings(OrgSettingsWriterUseCase(ctx)),
 	)
 
 	return consumer, replayStore, pubsubClient

@@ -221,3 +221,112 @@ func TestInviteAcceptedService_Handle_NonBizOrgType_IsNoOp(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, inner.calls, "non-b2b_org event must be dropped without calling Update")
 }
+
+// ── Key-contact FGA resolution on invite acceptance (Task 7) ─────────────────
+
+// stubKCOrgReader implements keyContactOrgReader (unexported; use svc.WithInviteAcceptedKeyContactReader).
+type stubKCOrgReader struct {
+	contacts []*model.KeyContact
+}
+
+func (r *stubKCOrgReader) ListKeyContactsForOrg(_ context.Context, _ string) ([]*model.KeyContact, error) {
+	return r.contacts, nil
+}
+
+func TestInviteAcceptedService_Handle_GrantsKeyContactFGA_OnMatch(t *testing.T) {
+	// Two key contacts with the same email on two different memberships in the
+	// same org → both get key_contact FGA grants (Username=AcceptedBy).
+	const orgUID = "001000000000000AAA"
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(orgUID, &model.B2BOrgSettings{UID: orgUID}, 1)
+
+	inner := &countingWriter{inner: newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())}
+	pub := mock.NewMockMemberPublisher()
+
+	kcs := []*model.KeyContact{
+		{UID: "kc-1", MembershipUID: "m-1", B2BOrgUID: orgUID, Email: "alice@example.com"},
+		{UID: "kc-2", MembershipUID: "m-2", B2BOrgUID: orgUID, Email: "alice@example.com"},
+	}
+	invSvc := svc.NewInviteAcceptedService(
+		svc.WithInviteAcceptedSettingsReader(store),
+		svc.WithInviteAcceptedOrgSettingsWriter(inner),
+		svc.WithInviteAcceptedKeyContactReader(&stubKCOrgReader{contacts: kcs}),
+		svc.WithInviteAcceptedPublisher(pub),
+	)
+
+	ev := inviteapi.InviteServiceAcceptedEvent{
+		Invite: inviteapi.Invite{
+			AcceptedBy: "auth0|alice",
+			Recipient:  inviteapi.Recipient{Email: "alice@example.com"},
+			Resource:   inviteapi.Resource{Type: "b2b_org", UID: orgUID},
+		},
+	}
+	err := invSvc.Handle(context.Background(), ev)
+
+	require.NoError(t, err)
+	var accessCount int
+	for _, c := range pub.CallOrder {
+		if c == "access" {
+			accessCount++
+		}
+	}
+	assert.Equal(t, 2, accessCount, "must publish key_contact FGA grant for each matching contact")
+}
+
+func TestInviteAcceptedService_Handle_NoKeyContactMatch_NoFGAGrant(t *testing.T) {
+	// Non-matching email → no key_contact FGA grants.
+	const orgUID = "001000000000000AAA"
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(orgUID, &model.B2BOrgSettings{UID: orgUID}, 1)
+
+	inner := &countingWriter{inner: newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())}
+	pub := mock.NewMockMemberPublisher()
+
+	kcs := []*model.KeyContact{
+		{UID: "kc-1", MembershipUID: "m-1", B2BOrgUID: orgUID, Email: "other@example.com"},
+	}
+	invSvc := svc.NewInviteAcceptedService(
+		svc.WithInviteAcceptedSettingsReader(store),
+		svc.WithInviteAcceptedOrgSettingsWriter(inner),
+		svc.WithInviteAcceptedKeyContactReader(&stubKCOrgReader{contacts: kcs}),
+		svc.WithInviteAcceptedPublisher(pub),
+	)
+
+	ev := inviteapi.InviteServiceAcceptedEvent{
+		Invite: inviteapi.Invite{
+			AcceptedBy: "auth0|alice",
+			Recipient:  inviteapi.Recipient{Email: "alice@example.com"},
+			Resource:   inviteapi.Resource{Type: "b2b_org", UID: orgUID},
+		},
+	}
+	err := invSvc.Handle(context.Background(), ev)
+
+	require.NoError(t, err)
+	var accessCount int
+	for _, c := range pub.CallOrder {
+		if c == "access" {
+			accessCount++
+		}
+	}
+	assert.Equal(t, 0, accessCount, "no FGA grant when email does not match any key contact")
+}
+
+func TestInviteAcceptedService_Handle_NilKeyContactDeps_NoPanic(t *testing.T) {
+	// Nil keyContactReader/publisher (e.g. not yet wired) must not panic.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	inner := &countingWriter{inner: newOrgSettingsWriter(store, mock.NewMockB2BOrgReader(), mock.NewMockMemberPublisher())}
+	invSvc := newInviteAcceptedService(store, inner)
+
+	ev := inviteapi.InviteServiceAcceptedEvent{
+		Invite: inviteapi.Invite{
+			AcceptedBy: "auth0|alice",
+			Recipient:  inviteapi.Recipient{Email: "alice@example.com"},
+			Resource:   inviteapi.Resource{Type: "b2b_org", UID: testOrgUID},
+		},
+	}
+	require.NotPanics(t, func() {
+		_ = invSvc.Handle(context.Background(), ev)
+	})
+}
