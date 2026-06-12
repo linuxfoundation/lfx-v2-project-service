@@ -70,6 +70,11 @@ func (s *Storage) ListSettingsOrgUIDs(ctx context.Context) ([]string, error) {
 
 	uids := make([]string, 0, len(keys))
 	for _, k := range keys {
+		// Skip secondary-index keys explicitly; they share the same bucket but
+		// must never appear in the org-UID list used for scanning.
+		if strings.HasPrefix(k, "lookup/") {
+			continue
+		}
 		uid := strings.TrimPrefix(k, keyPrefixOrgSettings)
 		if uid != k { // prefix was present
 			uids = append(uids, uid)

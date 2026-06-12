@@ -160,8 +160,11 @@ Key contacts are nested under their membership. GET/PUT/DELETE return 404 (not 4
 | POST   | `/b2b_orgs`                | Create a B2B org from a Salesforce Account SFID     | `member` on `team:{globalOrgAdminTeamUID}` |
 | PUT    | `/b2b_orgs/{uid}`          | Partial update of a B2B org                         | `writer` on `b2b_org:{uid}`                |
 | GET    | `/b2b_orgs/{uid}`          | Get a B2B org                                       | `auditor` on `b2b_org:{uid}`               |
-| GET    | `/b2b_orgs/{uid}/settings` | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}`               |
-| PUT    | `/b2b_orgs/{uid}/settings` | Full-replace org writers and/or auditors            | `writer` on `b2b_org:{uid}`                |
+| GET    | `/b2b_orgs/{uid}/settings`                    | Get org access-control settings (writers, auditors) | `auditor` on `b2b_org:{uid}`               |
+| PUT    | `/b2b_orgs/{uid}/settings`                    | Full-replace org writers and/or auditors            | `writer` on `b2b_org:{uid}`                |
+| POST   | `/b2b_orgs/{uid}/settings/users`              | Add a principal (invite or accept immediately)      | `writer` on `b2b_org:{uid}`                |
+| PUT    | `/b2b_orgs/{uid}/settings/users/{email}`      | Change a principal's role                           | `writer` on `b2b_org:{uid}`                |
+| DELETE | `/b2b_orgs/{uid}/settings/users/{email}`      | Remove a principal                                  | `writer` on `b2b_org:{uid}`                |
 
 **Settings semantics:** `nil` writers/auditors = keep existing; explicit `[]` = clear all. Entries with a `username` are `accepted` (FGA tuple emitted); without username are `pending` (no FGA tuple). The legacy `owner` relation is retired — use `writer` instead. Settings are stored in the `org-settings` NATS KV bucket (authoritative, no MaxAge TTL), separate from the Salesforce-backed `membership-cache` bucket.
 
@@ -409,6 +412,12 @@ Set `RUN_MODE=consumer` to run as a CDC consumer instead of the HTTP API. The co
 - **Single active consumer**: `replicas:1` + `strategy:Recreate` in the Deployment — no app-level lease.
 - **Proto stubs**: committed to `internal/infrastructure/salesforce/pubsub/proto/` — normal builds never need `protoc`. Use `make protoc-install && make protoc-gen` only when updating the Salesforce proto schema.
 
+## Org Settings Invite Flow
+
+`OrgSettingsWriter.AddPrincipal` calls `UserReader.UsernameByEmail`: if an LFID exists the entry is accepted immediately; otherwise `InviteSender.SendInvite` is called (best-effort — errors logged, entry still persisted as pending). Same email + same role re-sends the invite in place; different role returns Conflict.
+
+`InviteAcceptedService` (`internal/service/invite_accepted.go`) subscribes to `lfx.invite-service.invite_accepted` via `natsinf.SubscribeInviteAccepted` (queue group `"lfx-v2-member-service"`). Events with `resource.type != "b2b_org"` are dropped immediately (no KV access). For org events, `ListSettingsOrgUIDs` scans all org settings; per org, pending entries matching the recipient email are promoted (list-authoritative: email in one list → promote it; email in both → tie-break on `role`; unknown role → skip). Promotes the entries to accepted in-place and republishes FGA + indexer via `OrgSettingsWriter.Update`. Retries up to 3× on CAS Conflict.
+
 ## Authentication (JWT / Heimdall)
 
 JWT authentication is implemented via `internal/infrastructure/auth/`:
@@ -519,6 +528,8 @@ func TestEndpoint(t *testing.T) {
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev                     | `""`                                    | No       |
 | `REPOSITORY_SOURCE`                      | Storage backend (`salesforce` or `mock`)    | `salesforce`                            | No       |
 | `RUN_MODE`                               | `consumer` to run CDC consumer; omit for API | `""` (API mode)                        | No       |
+| `MESSAGING_SOURCE`                       | NATS messaging backend (`nats` or `mock`)    | `nats`                                  | No       |
+| `LFX_SELF_SERVE_BASE_URL`                | Base URL injected as `ReturnURL` in org-settings invite emails | `""`          | No       |
 
 ### Consumer Mode Variables (only read when `RUN_MODE=consumer`)
 

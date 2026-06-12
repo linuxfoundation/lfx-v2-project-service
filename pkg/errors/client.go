@@ -73,3 +73,12 @@ func NewConflict(message string, err ...error) Conflict {
 		},
 	}
 }
+
+// IsConflict reports whether err is a Conflict error.
+func IsConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	var conflict Conflict
+	return errors.As(err, &conflict)
+}
