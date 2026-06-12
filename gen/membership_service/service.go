@@ -265,6 +265,10 @@ type CreateKeyContactPayload struct {
 	BoardMember *bool
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool
+	// When true, send a platform invite (unregistered user) or role-assignment
+	// email (registered user). Defaults to false — org-dashboard access is still
+	// provisioned silently for registered users.
+	SendInvite bool
 }
 
 // CreateKeyContactResult is the result type of the membership-service service
@@ -670,6 +674,10 @@ type UpdateKeyContactPayload struct {
 	// unknown address and a new Salesforce Contact is created; ignored if the
 	// Contact already exists.
 	Title *string
+	// When true, send a platform invite (unregistered user) or role-assignment
+	// email (registered user) if the email changes. Defaults to false —
+	// org-dashboard access is still provisioned silently for registered users.
+	SendInvite bool
 }
 
 // UpdateKeyContactResult is the result type of the membership-service service

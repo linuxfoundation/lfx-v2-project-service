@@ -245,6 +245,24 @@ func (m *MockMembershipRepository) GetKeyContact(ctx context.Context, keyContact
 	return c, nil
 }
 
+// ListKeyContactsForOrg returns all KeyContact records whose B2BOrgUID matches
+// the given 18-char Account SFID.
+func (m *MockMembershipRepository) ListKeyContactsForOrg(ctx context.Context, orgSFID string) ([]*model.KeyContact, error) {
+	slog.DebugContext(ctx, "mock: listing key contacts for org", "org_sfid", orgSFID)
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var result []*model.KeyContact
+	for _, c := range m.contacts {
+		if c.B2BOrgUID == orgSFID {
+			result = append(result, c)
+		}
+	}
+
+	return result, nil
+}
+
 // IsReady always returns nil for mock implementations.
 func (m *MockMembershipRepository) IsReady(_ context.Context) error {
 	return nil
@@ -473,6 +491,7 @@ func (m *MockKeyContactWriterWithOK) CreateKeyContact(_ context.Context, input m
 		MembershipUID: input.MembershipUID,
 		Email:         email,
 		Role:          role,
+		B2BOrgUID:     input.AccountSFID,
 		UpdatedAt:     time.Now(),
 	}, nil
 }
@@ -482,10 +501,16 @@ func (m *MockKeyContactWriterWithOK) UpdateKeyContact(_ context.Context, uid str
 	if input.Email != nil {
 		email = *input.Email
 	}
+	role := ""
+	if input.Role != nil {
+		role = *input.Role
+	}
 	return &model.KeyContact{
 		UID:           uid,
 		MembershipUID: input.MembershipUID,
 		Email:         email,
+		Role:          role,
+		B2BOrgUID:     input.AccountSFID,
 		UpdatedAt:     time.Now(),
 	}, nil
 }

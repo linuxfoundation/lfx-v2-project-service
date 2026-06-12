@@ -38,6 +38,12 @@ type MemberReader interface {
 	// GetKeyContact returns a single KeyContact by its UID.
 	GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error)
 
+	// ListKeyContactsForOrg returns all KeyContact records across every membership
+	// backed by the given 18-char Account SFID (b2b_org UID). Used to grant
+	// key_contact FGA on invite acceptance and to guard org-dashboard revocation
+	// on key-contact delete.
+	ListKeyContactsForOrg(ctx context.Context, orgSFID string) ([]*model.KeyContact, error)
+
 	// IsReady reports whether the underlying storage is reachable.
 	IsReady(ctx context.Context) error
 }

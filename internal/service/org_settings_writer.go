@@ -36,6 +36,30 @@ type B2BOrgSettingsUpdate struct {
 	IfMatch  string
 }
 
+// OrgSettingsPrincipalWriter is the consumer-side port for per-principal
+// org-dashboard access management. Defined at the consumer boundary (ISP):
+// callers only need add/remove — not the full OrgSettingsWriter surface.
+// *orgSettingsWriterOrchestrator satisfies this interface.
+type OrgSettingsPrincipalWriter interface {
+	AddPrincipal(ctx context.Context, in B2BOrgSettingsAddPrincipal) (*model.B2BOrgSettings, error)
+	RemovePrincipal(ctx context.Context, in B2BOrgSettingsRemovePrincipal) (*model.B2BOrgSettings, error)
+	ChangePrincipalRole(ctx context.Context, in B2BOrgSettingsChangeRole) (*model.B2BOrgSettings, error)
+}
+
+// OrgSettingsUpdater is the consumer-side port for org-settings promotion
+// (invite acceptance). Narrow interface: InviteAcceptedService only needs
+// Update — not the full OrgSettingsWriter surface.
+type OrgSettingsUpdater interface {
+	Update(ctx context.Context, in B2BOrgSettingsUpdate) (*model.B2BOrgSettings, error)
+}
+
+// KeyContactOrgReader is the consumer-side port for listing key contacts
+// scoped to a single org. Used by InviteAcceptedService to grant FGA on
+// invite acceptance and by KeyContactWriter to guard org-dashboard revocation.
+type KeyContactOrgReader interface {
+	ListKeyContactsForOrg(ctx context.Context, orgSFID string) ([]*model.KeyContact, error)
+}
+
 // OrgSettingsWriter orchestrates the UpdateB2bOrgSettings use case.
 type OrgSettingsWriter interface {
 	Update(ctx context.Context, in B2BOrgSettingsUpdate) (*model.B2BOrgSettings, error)
@@ -55,6 +79,10 @@ type B2BOrgSettingsAddPrincipal struct {
 	InvitedAs string // "writer" or "auditor"
 	Name      string
 	IfMatch   string // optional ETag precondition; "" = first-write-wins (no check)
+	// SuppressNotification, when true, provisions the entry without sending the
+	// invite (unregistered) or role-assignment email (registered). Always set by
+	// CDC (passive sync) and by key-contact paths when send_invite=false.
+	SuppressNotification bool
 }
 
 // B2BOrgSettingsChangeRole carries the validated parameters for a per-principal role change.
@@ -292,7 +320,9 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 		entry.AcceptedAt = &now
 	} else {
 		entry.InviteStatus = model.InviteStatusPending
-		entry.InviteUUID = o.sendOrgInvite(ctx, in.OrgUID, email, entry.Name, in.InvitedAs)
+		if !in.SuppressNotification {
+			entry.InviteUUID = o.sendOrgInvite(ctx, in.OrgUID, email, entry.Name, in.InvitedAs)
+		}
 	}
 
 	if in.InvitedAs == model.B2BOrgRoleWriter {
@@ -314,7 +344,8 @@ func (o *orgSettingsWriterOrchestrator) AddPrincipal(ctx context.Context, in B2B
 		in.InvitedAs == model.B2BOrgRoleWriter || cleanupRan, in.InvitedAs == model.B2BOrgRoleAuditor || cleanupRan)
 	// On the existing-LFID path, send a role-assignment notification email
 	// best-effort — a transient email failure must never block the caller.
-	if err == nil && username != "" {
+	// Skipped when SuppressNotification=true (e.g. CDC sync, key-contact silent provisioning).
+	if err == nil && username != "" && !in.SuppressNotification {
 		o.notifyRoleAssigned(ctx, email, in.InvitedAs, in.OrgUID, guardOrgName)
 	}
 	return res, err

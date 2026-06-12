@@ -819,3 +819,102 @@ func TestCDCConsumer_Account_OrgNotFound_AdvancesReplay(t *testing.T) {
 	assert.Empty(t, pub.indexer, "no indexer on org not found")
 	assert.Equal(t, []byte("r12"), replay.saved, "replay must advance even when org not found")
 }
+
+// ── LFID resolution + silent provisioning (Task 8) ───────────────────────────
+
+// fakeUserReader implements port.UserReader for CDC consumer tests.
+type fakeUserReader struct {
+	sub string
+	err error
+}
+
+func (r *fakeUserReader) UsernameByEmail(_ context.Context, _ string) (string, error) {
+	return r.sub, r.err
+}
+
+// newProjectRoleCDCConsumer builds a CDCConsumer wired for a single
+// Project_Role__c upsert event keyed by kc.UID. Boring mocks (PM reader,
+// org reader, cache invalidator) are pre-filled so each test only passes
+// the options it actually cares about via extraOpts.
+func newProjectRoleCDCConsumer(
+	kc *model.KeyContact,
+	pub *subjectCapturingPublisher,
+	extraOpts ...svc.CDCConsumerOption,
+) *svc.CDCConsumer {
+	base := []svc.CDCConsumerOption{
+		svc.WithCDCSubscriber(&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{kc.UID}},
+		}}),
+		svc.WithCDCMemberReader(&mock.MockControllableMemberReader{Contact: kc}),
+		svc.WithCDCProjectMembershipReader(&mock.MockControllableProjectMembershipReader{}),
+		svc.WithCDCB2BOrgReader(&fakeB2BOrgReader{}),
+		svc.WithCDCCacheInvalidator(&mock.MockCacheInvalidator{}),
+		svc.WithCDCPublisher(pub),
+	}
+	return svc.NewCDCConsumer(append(base, extraOpts...)...)
+}
+
+func TestCDCConsumer_ProjectRole_Upsert_EmailResolves_GrantsFGAAndProvisions(t *testing.T) {
+	// Email resolves to an LFID → FGA member_put published AND AddPrincipal called
+	// with SuppressNotification=true (CDC must never email).
+	kc := &model.KeyContact{
+		UID: "kc-res-1", MembershipUID: "pm-1",
+		B2BOrgUID: "001000000000001AAA", Email: "carol@example.com",
+		Role: "Billing Contact",
+	}
+	pub := &subjectCapturingPublisher{}
+	spy := &spyOrgSettings{}
+
+	consumer := newProjectRoleCDCConsumer(kc, pub,
+		svc.WithCDCUserReader(&fakeUserReader{sub: "auth0|carol"}),
+		svc.WithCDCOrgSettings(spy),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	assert.True(t, pub.hasAccess(fgaconstants.GenericMemberPutSubject),
+		"FGA member_put must be published when LFID is resolved")
+	require.Len(t, spy.adds, 1, "AddPrincipal must be called once")
+	assert.True(t, spy.adds[0].SuppressNotification, "CDC provisioning must suppress notification")
+	assert.Equal(t, "001000000000001AAA", spy.adds[0].OrgUID)
+	assert.Equal(t, "carol@example.com", spy.adds[0].Email)
+}
+
+func TestCDCConsumer_ProjectRole_Upsert_EmailNotFound_NoGrantNoProvision(t *testing.T) {
+	// UsernameByEmail returns NotFound → Username stays empty → FGA grant skipped;
+	// no AddPrincipal call (unregistered contacts stay pending via the invite flow).
+	kc := &model.KeyContact{
+		UID: "kc-res-2", MembershipUID: "pm-2",
+		B2BOrgUID: "001000000000002AAA", Email: "unknown@example.com",
+	}
+	pub := &subjectCapturingPublisher{}
+	spy := &spyOrgSettings{}
+
+	consumer := newProjectRoleCDCConsumer(kc, pub,
+		svc.WithCDCUserReader(&fakeUserReader{err: pkgerrors.NewNotFound("not found")}),
+		svc.WithCDCOrgSettings(spy),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	assert.False(t, pub.hasAccess(fgaconstants.GenericMemberPutSubject),
+		"FGA member_put must NOT be published for unresolved email")
+	assert.Empty(t, spy.adds, "AddPrincipal must not be called for unregistered contact")
+}
+
+func TestCDCConsumer_ProjectRole_Upsert_NilUserReader_PreservesExistingBehavior(t *testing.T) {
+	// nil userReader must not regress existing behavior: a contact with a stored
+	// Username still gets FGA member_put; no provisioning attempt is made.
+	kc := &model.KeyContact{
+		UID: "kc-res-3", MembershipUID: "pm-3", Username: "auth0|existing",
+		B2BOrgUID: "001000000000003AAA", Email: "existing@example.com",
+	}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newProjectRoleCDCConsumer(kc, pub) // no extraOpts — nil userReader path
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	assert.True(t, pub.hasAccess(fgaconstants.GenericMemberPutSubject),
+		"pre-existing Username must still produce FGA member_put even without userReader")
+}

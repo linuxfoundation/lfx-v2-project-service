@@ -692,6 +692,101 @@ func (r *countingOrgReader) FetchChildUIDsByParentUID(ctx context.Context, uid s
 	return r.inner.FetchChildUIDsByParentUID(ctx, uid)
 }
 
+// ── AddPrincipal (SuppressNotification) ──────────────────────────────────────
+
+func TestOrgSettingsWriter_AddPrincipal_SuppressNotification_RegisteredNoEmail(t *testing.T) {
+	// SuppressNotification=true on the registered-LFID path: entry must be accepted
+	// with Username set, but NotifyRoleAssigned must NOT be called.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "auth0|bob", nil
+	})
+	notifier := &capturingRoleNotifier{}
+
+	writer := newOrgSettingsWriterWithNotifier(
+		store,
+		&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID, Name: "Acme"}},
+		mock.NewMockMemberPublisher(),
+		userReader,
+		&stubInviteSender{},
+		notifier,
+	)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "bob@example.com", InvitedAs: model.B2BOrgRoleWriter,
+		SuppressNotification: true,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Writers, 1)
+	w := result.Writers[0]
+	assert.Equal(t, "auth0|bob", w.Username, "LFID must still be stamped when suppressed")
+	assert.Equal(t, model.InviteStatusAccepted, w.InviteStatus)
+	assert.Empty(t, notifier.calls, "NotifyRoleAssigned must NOT be called when SuppressNotification=true")
+}
+
+func TestOrgSettingsWriter_AddPrincipal_SuppressNotification_False_Notifies(t *testing.T) {
+	// SuppressNotification=false (default) on the registered-LFID path: NotifyRoleAssigned
+	// MUST be called, preserving the existing behavior.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) {
+		return "auth0|alice", nil
+	})
+	notifier := &capturingRoleNotifier{}
+
+	writer := newOrgSettingsWriterWithNotifier(
+		store,
+		&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID, Name: "Acme"}},
+		mock.NewMockMemberPublisher(),
+		userReader,
+		&stubInviteSender{},
+		notifier,
+	)
+
+	_, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "alice@example.com", InvitedAs: model.B2BOrgRoleAuditor,
+		SuppressNotification: false,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, notifier.calls, 1, "NotifyRoleAssigned must be called when SuppressNotification=false")
+}
+
+func TestOrgSettingsWriter_AddPrincipal_SuppressNotification_UnregisteredNoInvite(t *testing.T) {
+	// SuppressNotification=true on the no-LFID path: entry is persisted as pending but
+	// the invite service must NOT be called, and InviteUUID must be empty.
+	store := mock.NewMockB2BOrgSettings()
+	store.Seed(testOrgUID, &model.B2BOrgSettings{UID: testOrgUID}, 1)
+
+	sender := &stubInviteSender{result: port.InviteResult{InviteUID: "should-not-be-set"}}
+	userReader := userReaderFunc(func(_ context.Context, _ string) (string, error) { return "", nil })
+
+	writer := newOrgSettingsWriterWithNotifier(
+		store,
+		&seedB2BOrgReader{org: &model.B2BOrg{UID: testOrgUID}},
+		mock.NewMockMemberPublisher(),
+		userReader,
+		sender,
+		nil,
+	)
+
+	result, err := writer.AddPrincipal(context.Background(), svc.B2BOrgSettingsAddPrincipal{
+		OrgUID: testOrgUID, Email: "unregistered@example.com", InvitedAs: model.B2BOrgRoleAuditor,
+		SuppressNotification: true,
+	})
+
+	require.NoError(t, err)
+	require.Len(t, result.Auditors, 1)
+	a := result.Auditors[0]
+	assert.Equal(t, model.InviteStatusPending, a.InviteStatus)
+	assert.Empty(t, a.InviteUUID, "InviteUUID must be empty when SuppressNotification=true and no LFID")
+	assert.Empty(t, sender.calls, "invite service must NOT be called when SuppressNotification=true")
+}
+
 func TestOrgSettingsWriter_AddPrincipal_FirstPrincipal_SingleOrgFetch(t *testing.T) {
 	// On the first-principal + existing-LFID path (existing == nil), GetB2BOrg must
 	// be called exactly twice: once for the existence guard, once by publishAll.

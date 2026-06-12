@@ -114,6 +114,29 @@ Removes a principal entirely — revokes an accepted grant or cancels a pending 
 
 ---
 
+## Key-Contact Org-Dashboard Provisioning
+
+When a key contact is created or updated via `POST /project_memberships/{uid}/key_contacts` or `PUT …/{kc_uid}`, the service provisions org-dashboard access in addition to the FGA `key_contact` grant. This reuses `AddPrincipal` / `RemovePrincipal` internally.
+
+**Role mapping:** `Representative/Voting Contact` → `writer`; all other key-contact roles → `auditor`.
+
+**`send_invite` flag (default `false`):**
+
+| User state | `send_invite=false` | `send_invite=true` |
+|---|---|---|
+| Registered (has LFID) | `accepted` entry added silently; no email | `accepted` entry added + role-assignment email sent |
+| Unregistered (no LFID) | No org-dashboard entry created | `pending` entry created + invite email sent |
+
+The provisioning call uses `SuppressNotification: !send_invite` on `AddPrincipal`. A `409 Conflict` (e.g. email already holds a live grant in a different role) is swallowed — the SF write has already succeeded, so org-dashboard state is best-effort.
+
+**Revocation on delete / email change:** `RemovePrincipal` is called only when no other active key contact in the org shares the same email (full-org scan via `ListKeyContactsForOrg`). If the scan fails (Salesforce unavailable), the revoke is skipped rather than revoking prematurely.
+
+**CDC upsert:** the CDC consumer silently provisions (`SuppressNotification: true`) for registered contacts after resolving the LFID via `UserReader.UsernameByEmail`. No invite is ever sent from CDC.
+
+**CDC delete:** org-dashboard access is NOT revoked on `Project_Role__c` CDC delete events — the contact's email and `B2BOrgUID` are unavailable once Salesforce removes the record. Revocation only happens via the API delete endpoint. This is a known gap.
+
+---
+
 ## Invite Acceptance
 
 When a no-LFID user completes LFID account creation via LFX Self Serve, the invite service publishes an event. The member service subscribes and promotes matching pending entries across all orgs.
@@ -130,18 +153,19 @@ When a no-LFID user completes LFID account creation via LFX Self Serve, the invi
 | `resource.uid` | Org UID of the resource the invite was for |
 | `role` | `"Manage"` or `"View"` — used as tie-breaker only |
 
-**Handler:** `InviteAcceptedService.Handle` → `tryAcceptInviteInOrg`
+**Handler:** `InviteAcceptedService.Handle` → `promoteInviteInOrg` + `resolveKeyContactsInOrg`
 
 **Processing steps:**
 
 1. **Type filter:** if `resource.type != "b2b_org"`, return immediately with no KV access. This drops the flood of committee/project acceptances that arrive on the same subscription.
-2. **Scan:** `ListSettingsOrgUIDs` returns all org UIDs. For each org, `tryAcceptInviteInOrg` runs.
+2. **Scan:** `ListSettingsOrgUIDs` returns all org UIDs. For each org, `promoteInviteInOrg` runs.
 3. **Per-org list-authoritative matching:** collect all pending entries with no username whose normalised email matches `recipient.email`.
    - Matches in exactly one list → promote all of them.
    - Matches in both writers **and** auditors → tie-break on `role`: `"Manage"` → writers, `"View"` → auditors; unknown/empty role → skip that org (no over-grant).
 4. Patch each selected entry: `username = accepted_by`, `invite_status: accepted`, `accepted_at: now`, `invite_uuid: ""`.
 5. Write via `Update` (one call per org, carrying only the changed list(s)) — triggers FGA sync and indexer republish.
 6. On `409 Conflict` (concurrent write), retry up to 3 times with a fresh read.
+7. **Key-contact FGA grant:** `resolveKeyContactsInOrg` is called for a deduplicated set of org UIDs: `resource.uid` (the org the invite was sent for) is always included; any org where `promoteInviteInOrg` found a pending entry is also added. This ensures key-contact FGA tuples and indexer updates are published across all orgs where the person holds a key contact — not only the org that issued the invite. For each matched org, `ListKeyContactsForOrg` fetches all key contacts, matches by normalised email, sets `username = accepted_by`, and publishes both `lfx.fga-sync.member_put` (via `PublishKeyContactFGA`) and an indexer update (via `PublishKeyContactIndexer`) so the dashboard shows the resolved LFID without waiting for the next CDC event.
 
 All errors per org are logged and not returned — the handler is best-effort because the NATS core subscription has no ACK/NAK.
 

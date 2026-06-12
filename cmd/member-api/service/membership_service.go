@@ -236,6 +236,7 @@ func (s *membershipServicesrvc) CreateKeyContact(ctx context.Context, p *members
 		Status:         p.Status,
 		BoardMember:    p.BoardMember,
 		PrimaryContact: p.PrimaryContact,
+		SendInvite:     p.SendInvite,
 	}
 	kc, err := s.keyContactWriter.Create(ctx, in)
 	if err != nil {
@@ -286,6 +287,7 @@ func (s *membershipServicesrvc) UpdateKeyContact(ctx context.Context, p *members
 		BoardMember:    p.BoardMember,
 		PrimaryContact: p.PrimaryContact,
 		IfMatch:        derefStr(p.IfMatch),
+		SendInvite:     p.SendInvite,
 	}
 	kc, err := s.keyContactWriter.Update(ctx, in)
 	if err != nil {

@@ -721,6 +721,29 @@ func (r *MemberReader) GetKeyContact(ctx context.Context, keyContactUID string) 
 	return contact, nil
 }
 
+// ListKeyContactsForOrg returns all KeyContact records across every membership
+// backed by the given 18-char Account SFID. Implemented as a two-hop:
+// FetchMembershipsByAccountSFID to get all memberships, then
+// FetchKeyContactsByAssetSFID per membership. N+1 is bounded by the number of
+// memberships an org holds (small) and this path is only used on rare events
+// (invite acceptance, key-contact delete guard).
+func (r *MemberReader) ListKeyContactsForOrg(ctx context.Context, orgSFID string) ([]*model.KeyContact, error) {
+	memberships, err := r.memberships.FetchMembershipsByAccountSFID(ctx, orgSFID)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*model.KeyContact
+	for _, m := range memberships {
+		kcs, err := r.contacts.FetchKeyContactsByAssetSFID(ctx, m.UID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, kcs...)
+	}
+	return out, nil
+}
+
 // ─── Readiness ───────────────────────────────────────────────────────────────
 
 // IsReady reports whether the underlying NATS KV cache is reachable. Salesforce
