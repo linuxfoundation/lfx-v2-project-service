@@ -2951,6 +2951,1179 @@ func DecodeDebugVarsResponse(decoder func(*http.Response) goahttp.Decoder, resto
 	}
 }
 
+// BuildCreateB2bOrgWorkspaceRequest instantiates a HTTP request object with
+// method and path set to call the "membership-service" service
+// "create-b2b-org-workspace" endpoint
+func (c *Client) BuildCreateB2bOrgWorkspaceRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*membershipservice.CreateB2bOrgWorkspacePayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "create-b2b-org-workspace", "*membershipservice.CreateB2bOrgWorkspacePayload", v)
+		}
+		uid = p.UID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: CreateB2bOrgWorkspaceMembershipServicePath(uid)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "create-b2b-org-workspace", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeCreateB2bOrgWorkspaceRequest returns an encoder for requests sent to
+// the membership-service create-b2b-org-workspace server.
+func EncodeCreateB2bOrgWorkspaceRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.CreateB2bOrgWorkspacePayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "create-b2b-org-workspace", "*membershipservice.CreateB2bOrgWorkspacePayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewCreateB2bOrgWorkspaceRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("membership-service", "create-b2b-org-workspace", err)
+		}
+		return nil
+	}
+}
+
+// DecodeCreateB2bOrgWorkspaceResponse returns a decoder for responses returned
+// by the membership-service create-b2b-org-workspace endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeCreateB2bOrgWorkspaceResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeCreateB2bOrgWorkspaceResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusCreated:
+			var (
+				body CreateB2bOrgWorkspaceResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-b2b-org-workspace", err)
+			}
+			err = ValidateCreateB2bOrgWorkspaceResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-b2b-org-workspace", err)
+			}
+			var (
+				etag         *string
+				lastModified *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			lastModifiedRaw := resp.Header.Get("Last-Modified")
+			if lastModifiedRaw != "" {
+				lastModified = &lastModifiedRaw
+			}
+			res := NewCreateB2bOrgWorkspaceResultCreated(&body, etag, lastModified)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body CreateB2bOrgWorkspaceNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-b2b-org-workspace", err)
+			}
+			err = ValidateCreateB2bOrgWorkspaceNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-b2b-org-workspace", err)
+			}
+			return nil, NewCreateB2bOrgWorkspaceNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body CreateB2bOrgWorkspaceBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-b2b-org-workspace", err)
+			}
+			err = ValidateCreateB2bOrgWorkspaceBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-b2b-org-workspace", err)
+			}
+			return nil, NewCreateB2bOrgWorkspaceBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body CreateB2bOrgWorkspaceConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-b2b-org-workspace", err)
+			}
+			err = ValidateCreateB2bOrgWorkspaceConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-b2b-org-workspace", err)
+			}
+			return nil, NewCreateB2bOrgWorkspaceConflict(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body CreateB2bOrgWorkspacePreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-b2b-org-workspace", err)
+			}
+			err = ValidateCreateB2bOrgWorkspacePreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-b2b-org-workspace", err)
+			}
+			return nil, NewCreateB2bOrgWorkspacePreconditionFailed(&body)
+		case http.StatusInternalServerError:
+			var (
+				body CreateB2bOrgWorkspaceInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-b2b-org-workspace", err)
+			}
+			err = ValidateCreateB2bOrgWorkspaceInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-b2b-org-workspace", err)
+			}
+			return nil, NewCreateB2bOrgWorkspaceInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body CreateB2bOrgWorkspaceServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "create-b2b-org-workspace", err)
+			}
+			err = ValidateCreateB2bOrgWorkspaceServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "create-b2b-org-workspace", err)
+			}
+			return nil, NewCreateB2bOrgWorkspaceServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "create-b2b-org-workspace", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildUpdateB2bOrgWorkspaceRequest instantiates a HTTP request object with
+// method and path set to call the "membership-service" service
+// "update-b2b-org-workspace" endpoint
+func (c *Client) BuildUpdateB2bOrgWorkspaceRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid          string
+		workspaceUID string
+	)
+	{
+		p, ok := v.(*membershipservice.UpdateB2bOrgWorkspacePayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "update-b2b-org-workspace", "*membershipservice.UpdateB2bOrgWorkspacePayload", v)
+		}
+		uid = p.UID
+		workspaceUID = p.WorkspaceUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: UpdateB2bOrgWorkspaceMembershipServicePath(uid, workspaceUID)}
+	req, err := http.NewRequest("PUT", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "update-b2b-org-workspace", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeUpdateB2bOrgWorkspaceRequest returns an encoder for requests sent to
+// the membership-service update-b2b-org-workspace server.
+func EncodeUpdateB2bOrgWorkspaceRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.UpdateB2bOrgWorkspacePayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "update-b2b-org-workspace", "*membershipservice.UpdateB2bOrgWorkspacePayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewUpdateB2bOrgWorkspaceRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("membership-service", "update-b2b-org-workspace", err)
+		}
+		return nil
+	}
+}
+
+// DecodeUpdateB2bOrgWorkspaceResponse returns a decoder for responses returned
+// by the membership-service update-b2b-org-workspace endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeUpdateB2bOrgWorkspaceResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeUpdateB2bOrgWorkspaceResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body UpdateB2bOrgWorkspaceResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-workspace", err)
+			}
+			err = ValidateUpdateB2bOrgWorkspaceResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-workspace", err)
+			}
+			var (
+				etag         *string
+				lastModified *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			lastModifiedRaw := resp.Header.Get("Last-Modified")
+			if lastModifiedRaw != "" {
+				lastModified = &lastModifiedRaw
+			}
+			res := NewUpdateB2bOrgWorkspaceResultOK(&body, etag, lastModified)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body UpdateB2bOrgWorkspaceNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-workspace", err)
+			}
+			err = ValidateUpdateB2bOrgWorkspaceNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-workspace", err)
+			}
+			return nil, NewUpdateB2bOrgWorkspaceNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body UpdateB2bOrgWorkspaceBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-workspace", err)
+			}
+			err = ValidateUpdateB2bOrgWorkspaceBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-workspace", err)
+			}
+			return nil, NewUpdateB2bOrgWorkspaceBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body UpdateB2bOrgWorkspaceConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-workspace", err)
+			}
+			err = ValidateUpdateB2bOrgWorkspaceConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-workspace", err)
+			}
+			return nil, NewUpdateB2bOrgWorkspaceConflict(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body UpdateB2bOrgWorkspacePreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-workspace", err)
+			}
+			err = ValidateUpdateB2bOrgWorkspacePreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-workspace", err)
+			}
+			return nil, NewUpdateB2bOrgWorkspacePreconditionFailed(&body)
+		case http.StatusInternalServerError:
+			var (
+				body UpdateB2bOrgWorkspaceInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-workspace", err)
+			}
+			err = ValidateUpdateB2bOrgWorkspaceInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-workspace", err)
+			}
+			return nil, NewUpdateB2bOrgWorkspaceInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body UpdateB2bOrgWorkspaceServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "update-b2b-org-workspace", err)
+			}
+			err = ValidateUpdateB2bOrgWorkspaceServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "update-b2b-org-workspace", err)
+			}
+			return nil, NewUpdateB2bOrgWorkspaceServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "update-b2b-org-workspace", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildDeleteB2bOrgWorkspaceRequest instantiates a HTTP request object with
+// method and path set to call the "membership-service" service
+// "delete-b2b-org-workspace" endpoint
+func (c *Client) BuildDeleteB2bOrgWorkspaceRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid          string
+		workspaceUID string
+	)
+	{
+		p, ok := v.(*membershipservice.DeleteB2bOrgWorkspacePayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "delete-b2b-org-workspace", "*membershipservice.DeleteB2bOrgWorkspacePayload", v)
+		}
+		uid = p.UID
+		workspaceUID = p.WorkspaceUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: DeleteB2bOrgWorkspaceMembershipServicePath(uid, workspaceUID)}
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "delete-b2b-org-workspace", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeDeleteB2bOrgWorkspaceRequest returns an encoder for requests sent to
+// the membership-service delete-b2b-org-workspace server.
+func EncodeDeleteB2bOrgWorkspaceRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.DeleteB2bOrgWorkspacePayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "delete-b2b-org-workspace", "*membershipservice.DeleteB2bOrgWorkspacePayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeDeleteB2bOrgWorkspaceResponse returns a decoder for responses returned
+// by the membership-service delete-b2b-org-workspace endpoint. restoreBody
+// controls whether the response body should be restored after having been read.
+// DecodeDeleteB2bOrgWorkspaceResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeDeleteB2bOrgWorkspaceResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusNoContent:
+			return nil, nil
+		case http.StatusNotFound:
+			var (
+				body DeleteB2bOrgWorkspaceNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			err = ValidateDeleteB2bOrgWorkspaceNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			return nil, NewDeleteB2bOrgWorkspaceNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body DeleteB2bOrgWorkspaceBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			err = ValidateDeleteB2bOrgWorkspaceBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			return nil, NewDeleteB2bOrgWorkspaceBadRequest(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body DeleteB2bOrgWorkspacePreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			err = ValidateDeleteB2bOrgWorkspacePreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			return nil, NewDeleteB2bOrgWorkspacePreconditionFailed(&body)
+		case http.StatusInternalServerError:
+			var (
+				body DeleteB2bOrgWorkspaceInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			err = ValidateDeleteB2bOrgWorkspaceInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			return nil, NewDeleteB2bOrgWorkspaceInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body DeleteB2bOrgWorkspaceServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			err = ValidateDeleteB2bOrgWorkspaceServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "delete-b2b-org-workspace", err)
+			}
+			return nil, NewDeleteB2bOrgWorkspaceServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "delete-b2b-org-workspace", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildAddB2bOrgWorkspaceProjectRequest instantiates a HTTP request object
+// with method and path set to call the "membership-service" service
+// "add-b2b-org-workspace-project" endpoint
+func (c *Client) BuildAddB2bOrgWorkspaceProjectRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid          string
+		workspaceUID string
+	)
+	{
+		p, ok := v.(*membershipservice.AddB2bOrgWorkspaceProjectPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "add-b2b-org-workspace-project", "*membershipservice.AddB2bOrgWorkspaceProjectPayload", v)
+		}
+		uid = p.UID
+		workspaceUID = p.WorkspaceUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: AddB2bOrgWorkspaceProjectMembershipServicePath(uid, workspaceUID)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "add-b2b-org-workspace-project", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeAddB2bOrgWorkspaceProjectRequest returns an encoder for requests sent
+// to the membership-service add-b2b-org-workspace-project server.
+func EncodeAddB2bOrgWorkspaceProjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.AddB2bOrgWorkspaceProjectPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "add-b2b-org-workspace-project", "*membershipservice.AddB2bOrgWorkspaceProjectPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewAddB2bOrgWorkspaceProjectRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("membership-service", "add-b2b-org-workspace-project", err)
+		}
+		return nil
+	}
+}
+
+// DecodeAddB2bOrgWorkspaceProjectResponse returns a decoder for responses
+// returned by the membership-service add-b2b-org-workspace-project endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeAddB2bOrgWorkspaceProjectResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeAddB2bOrgWorkspaceProjectResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body AddB2bOrgWorkspaceProjectResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			err = ValidateAddB2bOrgWorkspaceProjectResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			var (
+				etag         *string
+				lastModified *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			lastModifiedRaw := resp.Header.Get("Last-Modified")
+			if lastModifiedRaw != "" {
+				lastModified = &lastModifiedRaw
+			}
+			res := NewAddB2bOrgWorkspaceProjectResultOK(&body, etag, lastModified)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body AddB2bOrgWorkspaceProjectNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			err = ValidateAddB2bOrgWorkspaceProjectNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			return nil, NewAddB2bOrgWorkspaceProjectNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body AddB2bOrgWorkspaceProjectBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			err = ValidateAddB2bOrgWorkspaceProjectBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			return nil, NewAddB2bOrgWorkspaceProjectBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body AddB2bOrgWorkspaceProjectConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			err = ValidateAddB2bOrgWorkspaceProjectConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			return nil, NewAddB2bOrgWorkspaceProjectConflict(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body AddB2bOrgWorkspaceProjectPreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			err = ValidateAddB2bOrgWorkspaceProjectPreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			return nil, NewAddB2bOrgWorkspaceProjectPreconditionFailed(&body)
+		case http.StatusInternalServerError:
+			var (
+				body AddB2bOrgWorkspaceProjectInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			err = ValidateAddB2bOrgWorkspaceProjectInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			return nil, NewAddB2bOrgWorkspaceProjectInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body AddB2bOrgWorkspaceProjectServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			err = ValidateAddB2bOrgWorkspaceProjectServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "add-b2b-org-workspace-project", err)
+			}
+			return nil, NewAddB2bOrgWorkspaceProjectServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "add-b2b-org-workspace-project", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildBulkAddB2bOrgWorkspaceProjectsRequest instantiates a HTTP request
+// object with method and path set to call the "membership-service" service
+// "bulk-add-b2b-org-workspace-projects" endpoint
+func (c *Client) BuildBulkAddB2bOrgWorkspaceProjectsRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid          string
+		workspaceUID string
+	)
+	{
+		p, ok := v.(*membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "bulk-add-b2b-org-workspace-projects", "*membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload", v)
+		}
+		uid = p.UID
+		workspaceUID = p.WorkspaceUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: BulkAddB2bOrgWorkspaceProjectsMembershipServicePath(uid, workspaceUID)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "bulk-add-b2b-org-workspace-projects", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeBulkAddB2bOrgWorkspaceProjectsRequest returns an encoder for requests
+// sent to the membership-service bulk-add-b2b-org-workspace-projects server.
+func EncodeBulkAddB2bOrgWorkspaceProjectsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "bulk-add-b2b-org-workspace-projects", "*membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewBulkAddB2bOrgWorkspaceProjectsRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+		}
+		return nil
+	}
+}
+
+// DecodeBulkAddB2bOrgWorkspaceProjectsResponse returns a decoder for responses
+// returned by the membership-service bulk-add-b2b-org-workspace-projects
+// endpoint. restoreBody controls whether the response body should be restored
+// after having been read.
+// DecodeBulkAddB2bOrgWorkspaceProjectsResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeBulkAddB2bOrgWorkspaceProjectsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body BulkAddB2bOrgWorkspaceProjectsResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			err = ValidateBulkAddB2bOrgWorkspaceProjectsResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			res := NewBulkAddB2bOrgWorkspaceProjectsWorkspaceBulkResponseOK(&body)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body BulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			err = ValidateBulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			return nil, NewBulkAddB2bOrgWorkspaceProjectsNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body BulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			err = ValidateBulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			return nil, NewBulkAddB2bOrgWorkspaceProjectsBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body BulkAddB2bOrgWorkspaceProjectsConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			err = ValidateBulkAddB2bOrgWorkspaceProjectsConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			return nil, NewBulkAddB2bOrgWorkspaceProjectsConflict(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body BulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			err = ValidateBulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			return nil, NewBulkAddB2bOrgWorkspaceProjectsPreconditionFailed(&body)
+		case http.StatusInternalServerError:
+			var (
+				body BulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			err = ValidateBulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			return nil, NewBulkAddB2bOrgWorkspaceProjectsInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body BulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			err = ValidateBulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+			}
+			return nil, NewBulkAddB2bOrgWorkspaceProjectsServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "bulk-add-b2b-org-workspace-projects", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildRemoveB2bOrgWorkspaceProjectRequest instantiates a HTTP request object
+// with method and path set to call the "membership-service" service
+// "remove-b2b-org-workspace-project" endpoint
+func (c *Client) BuildRemoveB2bOrgWorkspaceProjectRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid          string
+		workspaceUID string
+		projectUID   string
+	)
+	{
+		p, ok := v.(*membershipservice.RemoveB2bOrgWorkspaceProjectPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("membership-service", "remove-b2b-org-workspace-project", "*membershipservice.RemoveB2bOrgWorkspaceProjectPayload", v)
+		}
+		uid = p.UID
+		workspaceUID = p.WorkspaceUID
+		projectUID = p.ProjectUID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: RemoveB2bOrgWorkspaceProjectMembershipServicePath(uid, workspaceUID, projectUID)}
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("membership-service", "remove-b2b-org-workspace-project", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeRemoveB2bOrgWorkspaceProjectRequest returns an encoder for requests
+// sent to the membership-service remove-b2b-org-workspace-project server.
+func EncodeRemoveB2bOrgWorkspaceProjectRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*membershipservice.RemoveB2bOrgWorkspaceProjectPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("membership-service", "remove-b2b-org-workspace-project", "*membershipservice.RemoveB2bOrgWorkspaceProjectPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		if p.IfMatch != nil {
+			head := *p.IfMatch
+			req.Header.Set("If-Match", head)
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeRemoveB2bOrgWorkspaceProjectResponse returns a decoder for responses
+// returned by the membership-service remove-b2b-org-workspace-project
+// endpoint. restoreBody controls whether the response body should be restored
+// after having been read.
+// DecodeRemoveB2bOrgWorkspaceProjectResponse may return the following errors:
+//   - "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Conflict" (type *goa.ServiceError): http.StatusConflict
+//   - "PreconditionFailed" (type *goa.ServiceError): http.StatusPreconditionFailed
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeRemoveB2bOrgWorkspaceProjectResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body RemoveB2bOrgWorkspaceProjectResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			err = ValidateRemoveB2bOrgWorkspaceProjectResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			var (
+				etag         *string
+				lastModified *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			lastModifiedRaw := resp.Header.Get("Last-Modified")
+			if lastModifiedRaw != "" {
+				lastModified = &lastModifiedRaw
+			}
+			res := NewRemoveB2bOrgWorkspaceProjectResultOK(&body, etag, lastModified)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body RemoveB2bOrgWorkspaceProjectNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			err = ValidateRemoveB2bOrgWorkspaceProjectNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			return nil, NewRemoveB2bOrgWorkspaceProjectNotFound(&body)
+		case http.StatusBadRequest:
+			var (
+				body RemoveB2bOrgWorkspaceProjectBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			err = ValidateRemoveB2bOrgWorkspaceProjectBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			return nil, NewRemoveB2bOrgWorkspaceProjectBadRequest(&body)
+		case http.StatusConflict:
+			var (
+				body RemoveB2bOrgWorkspaceProjectConflictResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			err = ValidateRemoveB2bOrgWorkspaceProjectConflictResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			return nil, NewRemoveB2bOrgWorkspaceProjectConflict(&body)
+		case http.StatusPreconditionFailed:
+			var (
+				body RemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			err = ValidateRemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			return nil, NewRemoveB2bOrgWorkspaceProjectPreconditionFailed(&body)
+		case http.StatusInternalServerError:
+			var (
+				body RemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			err = ValidateRemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			return nil, NewRemoveB2bOrgWorkspaceProjectInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body RemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			err = ValidateRemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("membership-service", "remove-b2b-org-workspace-project", err)
+			}
+			return nil, NewRemoveB2bOrgWorkspaceProjectServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("membership-service", "remove-b2b-org-workspace-project", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // unmarshalOrgUserResponseBodyToMembershipserviceOrgUser builds a value of
 // type *membershipservice.OrgUser from a value of type *OrgUserResponseBody.
 func unmarshalOrgUserResponseBodyToMembershipserviceOrgUser(v *OrgUserResponseBody) *membershipservice.OrgUser {
@@ -3030,6 +4203,63 @@ func marshalAdminReindexItemRequestBodyToMembershipserviceAdminReindexItem(v *Ad
 	res := &membershipservice.AdminReindexItem{
 		Type: v.Type,
 		UID:  v.UID,
+	}
+
+	return res
+}
+
+// unmarshalWorkspaceProjectResponseResponseBodyToMembershipserviceWorkspaceProjectResponse
+// builds a value of type *membershipservice.WorkspaceProjectResponse from a
+// value of type *WorkspaceProjectResponseResponseBody.
+func unmarshalWorkspaceProjectResponseResponseBodyToMembershipserviceWorkspaceProjectResponse(v *WorkspaceProjectResponseResponseBody) *membershipservice.WorkspaceProjectResponse {
+	if v == nil {
+		return nil
+	}
+	res := &membershipservice.WorkspaceProjectResponse{
+		ProjectUID:  *v.ProjectUID,
+		ProjectSfid: v.ProjectSfid,
+		ProjectSlug: v.ProjectSlug,
+		ProjectName: v.ProjectName,
+		AddedBy:     v.AddedBy,
+		AddedAt:     v.AddedAt,
+	}
+
+	return res
+}
+
+// unmarshalWorkspaceResponseResponseBodyToMembershipserviceWorkspaceResponse
+// builds a value of type *membershipservice.WorkspaceResponse from a value of
+// type *WorkspaceResponseResponseBody.
+func unmarshalWorkspaceResponseResponseBodyToMembershipserviceWorkspaceResponse(v *WorkspaceResponseResponseBody) *membershipservice.WorkspaceResponse {
+	res := &membershipservice.WorkspaceResponse{
+		UID:       *v.UID,
+		Name:      *v.Name,
+		CreatedBy: v.CreatedBy,
+		UpdatedBy: v.UpdatedBy,
+		CreatedAt: v.CreatedAt,
+		UpdatedAt: v.UpdatedAt,
+	}
+	if v.Projects != nil {
+		res.Projects = make([]*membershipservice.WorkspaceProjectResponse, len(v.Projects))
+		for i, val := range v.Projects {
+			if val == nil {
+				res.Projects[i] = nil
+				continue
+			}
+			res.Projects[i] = unmarshalWorkspaceProjectResponseResponseBodyToMembershipserviceWorkspaceProjectResponse(val)
+		}
+	}
+
+	return res
+}
+
+// unmarshalWorkspaceBulkAddItemErrorResponseBodyToMembershipserviceWorkspaceBulkAddItemError
+// builds a value of type *membershipservice.WorkspaceBulkAddItemError from a
+// value of type *WorkspaceBulkAddItemErrorResponseBody.
+func unmarshalWorkspaceBulkAddItemErrorResponseBodyToMembershipserviceWorkspaceBulkAddItemError(v *WorkspaceBulkAddItemErrorResponseBody) *membershipservice.WorkspaceBulkAddItemError {
+	res := &membershipservice.WorkspaceBulkAddItemError{
+		ProjectID: *v.ProjectID,
+		Error:     *v.Error,
 	}
 
 	return res

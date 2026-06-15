@@ -624,22 +624,37 @@ func assertNotRemovingLastAdmin(before, after *model.B2BOrgSettings) error {
 	return nil
 }
 
-// checkSettingsIfMatch validates the optional If-Match precondition against the current settings ETag.
-func checkSettingsIfMatch(existing *model.B2BOrgSettings, ifMatch string) error {
+// checkIfMatch validates an optional If-Match precondition against the current ETag of
+// existing. docLabel is used in error messages (e.g. "settings record", "workspace record").
+//
+// Returns nil when ifMatch is empty (no precondition supplied).
+// Returns PreconditionFailed when existing is nil, the ETag cannot be computed, or the
+// ETag does not match ifMatch.
+//
+// The generic *T parameter is intentional: passing existing as any would box typed-nil
+// pointers into a non-nil interface, defeating the nil guard.
+func checkIfMatch[T any](existing *T, ifMatch, docLabel string) error {
 	if ifMatch == "" {
 		return nil
 	}
 	if existing == nil {
-		return pkgerrors.NewPreconditionFailed("no settings record exists to match against — omit If-Match for first write")
+		return pkgerrors.NewPreconditionFailed(
+			fmt.Sprintf("no %s exists to match against — omit If-Match for first write", docLabel))
 	}
 	currentETag, err := etag.LFXEtag(existing)
 	if err != nil {
-		return pkgerrors.NewUnexpected("failed to compute etag for settings", err)
+		return pkgerrors.NewUnexpected(fmt.Sprintf("failed to compute etag for %s", docLabel), err)
 	}
 	if currentETag != ifMatch {
-		return pkgerrors.NewPreconditionFailed("settings have been modified since your last read — refresh and retry")
+		return pkgerrors.NewPreconditionFailed(
+			fmt.Sprintf("%s has been modified since your last read — refresh and retry", docLabel))
 	}
 	return nil
+}
+
+// checkSettingsIfMatch validates the optional If-Match precondition against the current settings ETag.
+func checkSettingsIfMatch(existing *model.B2BOrgSettings, ifMatch string) error {
+	return checkIfMatch(existing, ifMatch, "settings record")
 }
 
 // publishAll fetches the parent org once and drives both the FGA and indexer publishes.

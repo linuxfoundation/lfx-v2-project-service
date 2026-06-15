@@ -20,28 +20,34 @@ import (
 
 // Server lists the membership-service service endpoint HTTP handlers.
 type Server struct {
-	Mounts                       []*MountPoint
-	GetB2bOrg                    http.Handler
-	CreateB2bOrg                 http.Handler
-	UpdateB2bOrg                 http.Handler
-	GetB2bOrgSettings            http.Handler
-	UpdateB2bOrgSettings         http.Handler
-	AddB2bOrgSettingsUser        http.Handler
-	UpdateB2bOrgSettingsUserRole http.Handler
-	DeleteB2bOrgSettingsUser     http.Handler
-	GetProjectMembership         http.Handler
-	GetKeyContact                http.Handler
-	CreateKeyContact             http.Handler
-	UpdateKeyContact             http.Handler
-	DeleteKeyContact             http.Handler
-	AdminReindex                 http.Handler
-	Readyz                       http.Handler
-	Livez                        http.Handler
-	DebugVars                    http.Handler
-	GenHTTPOpenapiJSON           http.Handler
-	GenHTTPOpenapiYaml           http.Handler
-	GenHTTPOpenapi3JSON          http.Handler
-	GenHTTPOpenapi3Yaml          http.Handler
+	Mounts                         []*MountPoint
+	GetB2bOrg                      http.Handler
+	CreateB2bOrg                   http.Handler
+	UpdateB2bOrg                   http.Handler
+	GetB2bOrgSettings              http.Handler
+	UpdateB2bOrgSettings           http.Handler
+	AddB2bOrgSettingsUser          http.Handler
+	UpdateB2bOrgSettingsUserRole   http.Handler
+	DeleteB2bOrgSettingsUser       http.Handler
+	GetProjectMembership           http.Handler
+	GetKeyContact                  http.Handler
+	CreateKeyContact               http.Handler
+	UpdateKeyContact               http.Handler
+	DeleteKeyContact               http.Handler
+	AdminReindex                   http.Handler
+	Readyz                         http.Handler
+	Livez                          http.Handler
+	DebugVars                      http.Handler
+	CreateB2bOrgWorkspace          http.Handler
+	UpdateB2bOrgWorkspace          http.Handler
+	DeleteB2bOrgWorkspace          http.Handler
+	AddB2bOrgWorkspaceProject      http.Handler
+	BulkAddB2bOrgWorkspaceProjects http.Handler
+	RemoveB2bOrgWorkspaceProject   http.Handler
+	GenHTTPOpenapiJSON             http.Handler
+	GenHTTPOpenapiYaml             http.Handler
+	GenHTTPOpenapi3JSON            http.Handler
+	GenHTTPOpenapi3Yaml            http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -108,32 +114,44 @@ func New(
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"DebugVars", "GET", "/debug/vars"},
+			{"CreateB2bOrgWorkspace", "POST", "/b2b_orgs/{uid}/workspaces"},
+			{"UpdateB2bOrgWorkspace", "PUT", "/b2b_orgs/{uid}/workspaces/{workspace_uid}"},
+			{"DeleteB2bOrgWorkspace", "DELETE", "/b2b_orgs/{uid}/workspaces/{workspace_uid}"},
+			{"AddB2bOrgWorkspaceProject", "POST", "/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects"},
+			{"BulkAddB2bOrgWorkspaceProjects", "POST", "/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/bulk"},
+			{"RemoveB2bOrgWorkspaceProject", "DELETE", "/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/{project_uid}"},
 			{"Serve gen/http/openapi.json", "GET", "/_memberships/openapi.json"},
 			{"Serve gen/http/openapi.yaml", "GET", "/_memberships/openapi.yaml"},
 			{"Serve gen/http/openapi3.json", "GET", "/_memberships/openapi3.json"},
 			{"Serve gen/http/openapi3.yaml", "GET", "/_memberships/openapi3.yaml"},
 		},
-		GetB2bOrg:                    NewGetB2bOrgHandler(e.GetB2bOrg, mux, decoder, encoder, errhandler, formatter),
-		CreateB2bOrg:                 NewCreateB2bOrgHandler(e.CreateB2bOrg, mux, decoder, encoder, errhandler, formatter),
-		UpdateB2bOrg:                 NewUpdateB2bOrgHandler(e.UpdateB2bOrg, mux, decoder, encoder, errhandler, formatter),
-		GetB2bOrgSettings:            NewGetB2bOrgSettingsHandler(e.GetB2bOrgSettings, mux, decoder, encoder, errhandler, formatter),
-		UpdateB2bOrgSettings:         NewUpdateB2bOrgSettingsHandler(e.UpdateB2bOrgSettings, mux, decoder, encoder, errhandler, formatter),
-		AddB2bOrgSettingsUser:        NewAddB2bOrgSettingsUserHandler(e.AddB2bOrgSettingsUser, mux, decoder, encoder, errhandler, formatter),
-		UpdateB2bOrgSettingsUserRole: NewUpdateB2bOrgSettingsUserRoleHandler(e.UpdateB2bOrgSettingsUserRole, mux, decoder, encoder, errhandler, formatter),
-		DeleteB2bOrgSettingsUser:     NewDeleteB2bOrgSettingsUserHandler(e.DeleteB2bOrgSettingsUser, mux, decoder, encoder, errhandler, formatter),
-		GetProjectMembership:         NewGetProjectMembershipHandler(e.GetProjectMembership, mux, decoder, encoder, errhandler, formatter),
-		GetKeyContact:                NewGetKeyContactHandler(e.GetKeyContact, mux, decoder, encoder, errhandler, formatter),
-		CreateKeyContact:             NewCreateKeyContactHandler(e.CreateKeyContact, mux, decoder, encoder, errhandler, formatter),
-		UpdateKeyContact:             NewUpdateKeyContactHandler(e.UpdateKeyContact, mux, decoder, encoder, errhandler, formatter),
-		DeleteKeyContact:             NewDeleteKeyContactHandler(e.DeleteKeyContact, mux, decoder, encoder, errhandler, formatter),
-		AdminReindex:                 NewAdminReindexHandler(e.AdminReindex, mux, decoder, encoder, errhandler, formatter),
-		Readyz:                       NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
-		Livez:                        NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
-		DebugVars:                    NewDebugVarsHandler(e.DebugVars, mux, decoder, encoder, errhandler, formatter),
-		GenHTTPOpenapiJSON:           http.FileServer(fileSystemGenHTTPOpenapiJSON),
-		GenHTTPOpenapiYaml:           http.FileServer(fileSystemGenHTTPOpenapiYaml),
-		GenHTTPOpenapi3JSON:          http.FileServer(fileSystemGenHTTPOpenapi3JSON),
-		GenHTTPOpenapi3Yaml:          http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
+		GetB2bOrg:                      NewGetB2bOrgHandler(e.GetB2bOrg, mux, decoder, encoder, errhandler, formatter),
+		CreateB2bOrg:                   NewCreateB2bOrgHandler(e.CreateB2bOrg, mux, decoder, encoder, errhandler, formatter),
+		UpdateB2bOrg:                   NewUpdateB2bOrgHandler(e.UpdateB2bOrg, mux, decoder, encoder, errhandler, formatter),
+		GetB2bOrgSettings:              NewGetB2bOrgSettingsHandler(e.GetB2bOrgSettings, mux, decoder, encoder, errhandler, formatter),
+		UpdateB2bOrgSettings:           NewUpdateB2bOrgSettingsHandler(e.UpdateB2bOrgSettings, mux, decoder, encoder, errhandler, formatter),
+		AddB2bOrgSettingsUser:          NewAddB2bOrgSettingsUserHandler(e.AddB2bOrgSettingsUser, mux, decoder, encoder, errhandler, formatter),
+		UpdateB2bOrgSettingsUserRole:   NewUpdateB2bOrgSettingsUserRoleHandler(e.UpdateB2bOrgSettingsUserRole, mux, decoder, encoder, errhandler, formatter),
+		DeleteB2bOrgSettingsUser:       NewDeleteB2bOrgSettingsUserHandler(e.DeleteB2bOrgSettingsUser, mux, decoder, encoder, errhandler, formatter),
+		GetProjectMembership:           NewGetProjectMembershipHandler(e.GetProjectMembership, mux, decoder, encoder, errhandler, formatter),
+		GetKeyContact:                  NewGetKeyContactHandler(e.GetKeyContact, mux, decoder, encoder, errhandler, formatter),
+		CreateKeyContact:               NewCreateKeyContactHandler(e.CreateKeyContact, mux, decoder, encoder, errhandler, formatter),
+		UpdateKeyContact:               NewUpdateKeyContactHandler(e.UpdateKeyContact, mux, decoder, encoder, errhandler, formatter),
+		DeleteKeyContact:               NewDeleteKeyContactHandler(e.DeleteKeyContact, mux, decoder, encoder, errhandler, formatter),
+		AdminReindex:                   NewAdminReindexHandler(e.AdminReindex, mux, decoder, encoder, errhandler, formatter),
+		Readyz:                         NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
+		Livez:                          NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
+		DebugVars:                      NewDebugVarsHandler(e.DebugVars, mux, decoder, encoder, errhandler, formatter),
+		CreateB2bOrgWorkspace:          NewCreateB2bOrgWorkspaceHandler(e.CreateB2bOrgWorkspace, mux, decoder, encoder, errhandler, formatter),
+		UpdateB2bOrgWorkspace:          NewUpdateB2bOrgWorkspaceHandler(e.UpdateB2bOrgWorkspace, mux, decoder, encoder, errhandler, formatter),
+		DeleteB2bOrgWorkspace:          NewDeleteB2bOrgWorkspaceHandler(e.DeleteB2bOrgWorkspace, mux, decoder, encoder, errhandler, formatter),
+		AddB2bOrgWorkspaceProject:      NewAddB2bOrgWorkspaceProjectHandler(e.AddB2bOrgWorkspaceProject, mux, decoder, encoder, errhandler, formatter),
+		BulkAddB2bOrgWorkspaceProjects: NewBulkAddB2bOrgWorkspaceProjectsHandler(e.BulkAddB2bOrgWorkspaceProjects, mux, decoder, encoder, errhandler, formatter),
+		RemoveB2bOrgWorkspaceProject:   NewRemoveB2bOrgWorkspaceProjectHandler(e.RemoveB2bOrgWorkspaceProject, mux, decoder, encoder, errhandler, formatter),
+		GenHTTPOpenapiJSON:             http.FileServer(fileSystemGenHTTPOpenapiJSON),
+		GenHTTPOpenapiYaml:             http.FileServer(fileSystemGenHTTPOpenapiYaml),
+		GenHTTPOpenapi3JSON:            http.FileServer(fileSystemGenHTTPOpenapi3JSON),
+		GenHTTPOpenapi3Yaml:            http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
 	}
 }
 
@@ -159,6 +177,12 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
 	s.DebugVars = m(s.DebugVars)
+	s.CreateB2bOrgWorkspace = m(s.CreateB2bOrgWorkspace)
+	s.UpdateB2bOrgWorkspace = m(s.UpdateB2bOrgWorkspace)
+	s.DeleteB2bOrgWorkspace = m(s.DeleteB2bOrgWorkspace)
+	s.AddB2bOrgWorkspaceProject = m(s.AddB2bOrgWorkspaceProject)
+	s.BulkAddB2bOrgWorkspaceProjects = m(s.BulkAddB2bOrgWorkspaceProjects)
+	s.RemoveB2bOrgWorkspaceProject = m(s.RemoveB2bOrgWorkspaceProject)
 }
 
 // MethodNames returns the methods served.
@@ -183,6 +207,12 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
 	MountDebugVarsHandler(mux, h.DebugVars)
+	MountCreateB2bOrgWorkspaceHandler(mux, h.CreateB2bOrgWorkspace)
+	MountUpdateB2bOrgWorkspaceHandler(mux, h.UpdateB2bOrgWorkspace)
+	MountDeleteB2bOrgWorkspaceHandler(mux, h.DeleteB2bOrgWorkspace)
+	MountAddB2bOrgWorkspaceProjectHandler(mux, h.AddB2bOrgWorkspaceProject)
+	MountBulkAddB2bOrgWorkspaceProjectsHandler(mux, h.BulkAddB2bOrgWorkspaceProjects)
+	MountRemoveB2bOrgWorkspaceProjectHandler(mux, h.RemoveB2bOrgWorkspaceProject)
 	MountGenHTTPOpenapiJSON(mux, http.StripPrefix("/_memberships", h.GenHTTPOpenapiJSON))
 	MountGenHTTPOpenapiYaml(mux, http.StripPrefix("/_memberships", h.GenHTTPOpenapiYaml))
 	MountGenHTTPOpenapi3JSON(mux, http.StripPrefix("/_memberships", h.GenHTTPOpenapi3JSON))
@@ -1069,6 +1099,330 @@ func NewDebugVarsHandler(
 		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
 		var err error
 		res, err := endpoint(ctx, nil)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountCreateB2bOrgWorkspaceHandler configures the mux to serve the
+// "membership-service" service "create-b2b-org-workspace" endpoint.
+func MountCreateB2bOrgWorkspaceHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/b2b_orgs/{uid}/workspaces", f)
+}
+
+// NewCreateB2bOrgWorkspaceHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service
+// "create-b2b-org-workspace" endpoint.
+func NewCreateB2bOrgWorkspaceHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeCreateB2bOrgWorkspaceRequest(mux, decoder)
+		encodeResponse = EncodeCreateB2bOrgWorkspaceResponse(encoder)
+		encodeError    = EncodeCreateB2bOrgWorkspaceError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "create-b2b-org-workspace")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountUpdateB2bOrgWorkspaceHandler configures the mux to serve the
+// "membership-service" service "update-b2b-org-workspace" endpoint.
+func MountUpdateB2bOrgWorkspaceHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("PUT", "/b2b_orgs/{uid}/workspaces/{workspace_uid}", f)
+}
+
+// NewUpdateB2bOrgWorkspaceHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service
+// "update-b2b-org-workspace" endpoint.
+func NewUpdateB2bOrgWorkspaceHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeUpdateB2bOrgWorkspaceRequest(mux, decoder)
+		encodeResponse = EncodeUpdateB2bOrgWorkspaceResponse(encoder)
+		encodeError    = EncodeUpdateB2bOrgWorkspaceError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "update-b2b-org-workspace")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountDeleteB2bOrgWorkspaceHandler configures the mux to serve the
+// "membership-service" service "delete-b2b-org-workspace" endpoint.
+func MountDeleteB2bOrgWorkspaceHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("DELETE", "/b2b_orgs/{uid}/workspaces/{workspace_uid}", f)
+}
+
+// NewDeleteB2bOrgWorkspaceHandler creates a HTTP handler which loads the HTTP
+// request and calls the "membership-service" service
+// "delete-b2b-org-workspace" endpoint.
+func NewDeleteB2bOrgWorkspaceHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeDeleteB2bOrgWorkspaceRequest(mux, decoder)
+		encodeResponse = EncodeDeleteB2bOrgWorkspaceResponse(encoder)
+		encodeError    = EncodeDeleteB2bOrgWorkspaceError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "delete-b2b-org-workspace")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountAddB2bOrgWorkspaceProjectHandler configures the mux to serve the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint.
+func MountAddB2bOrgWorkspaceProjectHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects", f)
+}
+
+// NewAddB2bOrgWorkspaceProjectHandler creates a HTTP handler which loads the
+// HTTP request and calls the "membership-service" service
+// "add-b2b-org-workspace-project" endpoint.
+func NewAddB2bOrgWorkspaceProjectHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeAddB2bOrgWorkspaceProjectRequest(mux, decoder)
+		encodeResponse = EncodeAddB2bOrgWorkspaceProjectResponse(encoder)
+		encodeError    = EncodeAddB2bOrgWorkspaceProjectError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "add-b2b-org-workspace-project")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountBulkAddB2bOrgWorkspaceProjectsHandler configures the mux to serve the
+// "membership-service" service "bulk-add-b2b-org-workspace-projects" endpoint.
+func MountBulkAddB2bOrgWorkspaceProjectsHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/bulk", f)
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsHandler creates a HTTP handler which loads
+// the HTTP request and calls the "membership-service" service
+// "bulk-add-b2b-org-workspace-projects" endpoint.
+func NewBulkAddB2bOrgWorkspaceProjectsHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeBulkAddB2bOrgWorkspaceProjectsRequest(mux, decoder)
+		encodeResponse = EncodeBulkAddB2bOrgWorkspaceProjectsResponse(encoder)
+		encodeError    = EncodeBulkAddB2bOrgWorkspaceProjectsError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "bulk-add-b2b-org-workspace-projects")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountRemoveB2bOrgWorkspaceProjectHandler configures the mux to serve the
+// "membership-service" service "remove-b2b-org-workspace-project" endpoint.
+func MountRemoveB2bOrgWorkspaceProjectHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("DELETE", "/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/{project_uid}", f)
+}
+
+// NewRemoveB2bOrgWorkspaceProjectHandler creates a HTTP handler which loads
+// the HTTP request and calls the "membership-service" service
+// "remove-b2b-org-workspace-project" endpoint.
+func NewRemoveB2bOrgWorkspaceProjectHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeRemoveB2bOrgWorkspaceProjectRequest(mux, decoder)
+		encodeResponse = EncodeRemoveB2bOrgWorkspaceProjectResponse(encoder)
+		encodeError    = EncodeRemoveB2bOrgWorkspaceProjectError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "remove-b2b-org-workspace-project")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "membership-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
 		if err != nil {
 			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
 				errhandler(ctx, w, err)

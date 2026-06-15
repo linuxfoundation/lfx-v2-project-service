@@ -603,3 +603,61 @@ func PublishKeyContactIndexer(ctx context.Context, p port.MemberPublisher, kc *m
 			"publish_failed_for_backfill_repair", true)
 	}
 }
+
+// BuildWorkspaceIndexingConfig constructs an IndexingConfig for a Workspace document.
+// AccessCheck resolves against the parent b2b_org (reusing the existing FGA type).
+// Public is explicitly false. HistoryCheckRelation is writer (write-side concern).
+// No FGA Access publish for workspaces — reuse existing b2b_org tuples.
+func BuildWorkspaceIndexingConfig(org *model.B2BOrg, ws *model.Workspace) *indexerTypes.IndexingConfig {
+	nameAndAliases := orgNameAndAliases(org)
+
+	parentRefs := []string{"b2b_org:" + org.UID}
+	if org.ParentUID != "" {
+		parentRefs = append(parentRefs, "b2b_org:"+org.ParentUID)
+	}
+
+	return &indexerTypes.IndexingConfig{
+		Public:               boolPtr(false),
+		ObjectID:             ws.UID,
+		AccessCheckObject:    "b2b_org:" + org.UID,
+		AccessCheckRelation:  fgaconstants.RelationAuditor,
+		HistoryCheckObject:   "b2b_org:" + org.UID,
+		HistoryCheckRelation: fgaconstants.RelationWriter,
+		SortName:             strings.ToLower(ws.Name),
+		NameAndAliases:       nameAndAliases,
+		ParentRefs:           parentRefs,
+		Fulltext:             strings.Join(ws.FulltextTokens(), " "),
+		Tags:                 ws.Tags(org.UID),
+	}
+}
+
+// buildWorkspaceIndexerView returns the data payload for a workspace indexer message.
+func buildWorkspaceIndexerView(ws *model.Workspace) any {
+	return ws
+}
+
+// PublishWorkspaceIndexer builds and publishes a MemberIndexerMessage for a Workspace.
+// Errors are swallowed and logged — /admin/reindex recovers missed records.
+func PublishWorkspaceIndexer(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, ws *model.Workspace, action indexerConstants.MessageAction) {
+	indexMsg := &model.MemberIndexerMessage{
+		Action:         action,
+		Tags:           ws.Tags(org.UID),
+		IndexingConfig: BuildWorkspaceIndexingConfig(org, ws),
+	}
+	builtMsg, err := indexMsg.Build(ctx, buildWorkspaceIndexerView(ws))
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build workspace indexer message",
+			"workspace_uid", ws.UID,
+			"org_uid", org.UID,
+			"error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	if pubErr := p.Indexer(ctx, constants.IndexB2BOrgWorkspaceSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "workspace indexer publish failed",
+			"workspace_uid", ws.UID,
+			"org_uid", org.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}

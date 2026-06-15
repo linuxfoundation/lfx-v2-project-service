@@ -63,6 +63,21 @@ type Service interface {
 	// Expose expvar debug variables as JSON. Accessible via kubectl port-forward;
 	// not exposed by ingress.
 	DebugVars(context.Context) (res []byte, err error)
+	// Create a new workspace within a b2b_org. Name must be unique within the org.
+	CreateB2bOrgWorkspace(context.Context, *CreateB2bOrgWorkspacePayload) (res *CreateB2bOrgWorkspaceResult, err error)
+	// Rename an existing workspace. Name must be unique within the org.
+	UpdateB2bOrgWorkspace(context.Context, *UpdateB2bOrgWorkspacePayload) (res *UpdateB2bOrgWorkspaceResult, err error)
+	// Delete a workspace and all its project associations (cascade delete).
+	DeleteB2bOrgWorkspace(context.Context, *DeleteB2bOrgWorkspacePayload) (err error)
+	// Add a single project to a workspace. Idempotent: already-associated projects
+	// are a no-op. Returns HTTP 400 for unknown project identifiers.
+	AddB2bOrgWorkspaceProject(context.Context, *AddB2bOrgWorkspaceProjectPayload) (res *AddB2bOrgWorkspaceProjectResult, err error)
+	// Add multiple projects to a workspace in one operation. Partially succeeds:
+	// successfully enriched projects are written; per-item failures are reported
+	// in the response.
+	BulkAddB2bOrgWorkspaceProjects(context.Context, *BulkAddB2bOrgWorkspaceProjectsPayload) (res *WorkspaceBulkResponse, err error)
+	// Remove a project association from a workspace.
+	RemoveB2bOrgWorkspaceProject(context.Context, *RemoveB2bOrgWorkspaceProjectPayload) (res *RemoveB2bOrgWorkspaceProjectResult, err error)
 }
 
 // Auther defines the authorization functions to be implemented by the service.
@@ -85,7 +100,7 @@ const ServiceName = "membership-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [17]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-b2b-org-settings", "update-b2b-org-settings", "add-b2b-org-settings-user", "update-b2b-org-settings-user-role", "delete-b2b-org-settings-user", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars"}
+var MethodNames = [23]string{"get-b2b-org", "create-b2b-org", "update-b2b-org", "get-b2b-org-settings", "update-b2b-org-settings", "add-b2b-org-settings-user", "update-b2b-org-settings-user-role", "delete-b2b-org-settings-user", "get-project-membership", "get-key-contact", "create-key-contact", "update-key-contact", "delete-key-contact", "admin-reindex", "readyz", "livez", "debug-vars", "create-b2b-org-workspace", "update-b2b-org-workspace", "delete-b2b-org-workspace", "add-b2b-org-workspace-project", "bulk-add-b2b-org-workspace-projects", "remove-b2b-org-workspace-project"}
 
 // AddB2bOrgSettingsUserPayload is the payload type of the membership-service
 // service add-b2b-org-settings-user method.
@@ -112,6 +127,34 @@ type AddB2bOrgSettingsUserPayload struct {
 type AddB2bOrgSettingsUserResult struct {
 	// Updated B2B organization access-control settings
 	Settings *B2bOrgSettingsResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// AddB2bOrgWorkspaceProjectPayload is the payload type of the
+// membership-service service add-b2b-org-workspace-project method.
+type AddB2bOrgWorkspaceProjectPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// Workspace UID
+	WorkspaceUID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Project identifier: v2 UUID or URL slug
+	ProjectID string
+}
+
+// AddB2bOrgWorkspaceProjectResult is the result type of the membership-service
+// service add-b2b-org-workspace-project method.
+type AddB2bOrgWorkspaceProjectResult struct {
+	// The updated workspace
+	Workspace *WorkspaceResponse
 	// ETag header value
 	Etag *string
 	// Last-Modified header value (HTTP date format)
@@ -214,6 +257,23 @@ type B2bOrgSettingsResponse struct {
 	UpdatedAt *string
 }
 
+// BulkAddB2bOrgWorkspaceProjectsPayload is the payload type of the
+// membership-service service bulk-add-b2b-org-workspace-projects method.
+type BulkAddB2bOrgWorkspaceProjectsPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// Workspace UID
+	WorkspaceUID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Project identifiers (v2 UUIDs or slugs); at most 100 per request
+	ProjectIds []string
+}
+
 // CreateB2bOrgPayload is the payload type of the membership-service service
 // create-b2b-org method.
 type CreateB2bOrgPayload struct {
@@ -231,6 +291,32 @@ type CreateB2bOrgPayload struct {
 type CreateB2bOrgResult struct {
 	// Newly created B2B organization
 	B2bOrg *B2bOrgResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
+// CreateB2bOrgWorkspacePayload is the payload type of the membership-service
+// service create-b2b-org-workspace method.
+type CreateB2bOrgWorkspacePayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// Workspace display name; must be unique within the org
+	Name string
+}
+
+// CreateB2bOrgWorkspaceResult is the result type of the membership-service
+// service create-b2b-org-workspace method.
+type CreateB2bOrgWorkspaceResult struct {
+	// The created workspace
+	Workspace *WorkspaceResponse
 	// ETag header value
 	Etag *string
 	// Last-Modified header value (HTTP date format)
@@ -306,6 +392,21 @@ type DeleteB2bOrgSettingsUserResult struct {
 	Etag *string
 	// Last-Modified header value (HTTP date format)
 	LastModified *string
+}
+
+// DeleteB2bOrgWorkspacePayload is the payload type of the membership-service
+// service delete-b2b-org-workspace method.
+type DeleteB2bOrgWorkspacePayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// Workspace UID
+	WorkspaceUID string
+	// If-Match header value for conditional requests
+	IfMatch *string
 }
 
 // DeleteKeyContactPayload is the payload type of the membership-service
@@ -433,7 +534,7 @@ type OrgUser struct {
 	Email string
 	// User display name
 	Name *string
-	// LFID username (OIDC sub); absent for pending invites
+	// LFID username; absent for pending invites
 	Username *string
 	// Relation being granted: writer or auditor
 	InvitedAs string
@@ -544,6 +645,34 @@ type ProjectMembershipResponse struct {
 	UpdatedAt *string
 }
 
+// RemoveB2bOrgWorkspaceProjectPayload is the payload type of the
+// membership-service service remove-b2b-org-workspace-project method.
+type RemoveB2bOrgWorkspaceProjectPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// Workspace UID
+	WorkspaceUID string
+	// Project UID to remove
+	ProjectUID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+}
+
+// RemoveB2bOrgWorkspaceProjectResult is the result type of the
+// membership-service service remove-b2b-org-workspace-project method.
+type RemoveB2bOrgWorkspaceProjectResult struct {
+	// The updated workspace
+	Workspace *WorkspaceResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
 // UpdateB2bOrgPayload is the payload type of the membership-service service
 // update-b2b-org method.
 type UpdateB2bOrgPayload struct {
@@ -647,6 +776,34 @@ type UpdateB2bOrgSettingsUserRoleResult struct {
 	LastModified *string
 }
 
+// UpdateB2bOrgWorkspacePayload is the payload type of the membership-service
+// service update-b2b-org-workspace method.
+type UpdateB2bOrgWorkspacePayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// B2B organization UID
+	UID string
+	// Workspace UID
+	WorkspaceUID string
+	// If-Match header value for conditional requests
+	IfMatch *string
+	// New workspace display name; must be unique within the org
+	Name string
+}
+
+// UpdateB2bOrgWorkspaceResult is the result type of the membership-service
+// service update-b2b-org-workspace method.
+type UpdateB2bOrgWorkspaceResult struct {
+	// The updated workspace
+	Workspace *WorkspaceResponse
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
+}
+
 // UpdateKeyContactPayload is the payload type of the membership-service
 // service update-key-contact method.
 type UpdateKeyContactPayload struct {
@@ -689,6 +846,59 @@ type UpdateKeyContactResult struct {
 	Etag *string
 	// Last-Modified header value (HTTP date format)
 	LastModified *string
+}
+
+// Per-item failure detail in a bulk workspace project add
+type WorkspaceBulkAddItemError struct {
+	// The project identifier that failed
+	ProjectID string
+	// Reason the project could not be added
+	Error string
+}
+
+// WorkspaceBulkResponse is the result type of the membership-service service
+// bulk-add-b2b-org-workspace-projects method.
+type WorkspaceBulkResponse struct {
+	// The workspace after all successful additions
+	Workspace *WorkspaceResponse
+	// Project UIDs that were successfully added (or were already present)
+	Succeeded []string
+	// Projects that could not be added with per-item error detail
+	Failed []*WorkspaceBulkAddItemError
+}
+
+// A project association within a workspace (write-time snapshot)
+type WorkspaceProjectResponse struct {
+	// v2 project UID
+	ProjectUID string
+	// Salesforce Project__c.Id (snapshot)
+	ProjectSfid *string
+	// Project URL slug (snapshot)
+	ProjectSlug *string
+	// Project display name (snapshot)
+	ProjectName *string
+	// LFID username of the principal who added this project
+	AddedBy *string
+	// Timestamp when the project was added
+	AddedAt *string
+}
+
+// A named container of project associations within a b2b_org
+type WorkspaceResponse struct {
+	// Workspace UID
+	UID string
+	// Workspace display name
+	Name string
+	// Project associations in this workspace
+	Projects []*WorkspaceProjectResponse
+	// LFID username of the creator
+	CreatedBy *string
+	// LFID username of the last updater
+	UpdatedBy *string
+	// Creation timestamp
+	CreatedAt *string
+	// Last-update timestamp
+	UpdatedAt *string
 }
 
 // MakeNotImplemented builds a goa.ServiceError from an error.

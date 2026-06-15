@@ -93,6 +93,7 @@ func (c *NATSClient) KeyValueStore(ctx context.Context, bucketName string) error
 		//     their TTL is reset on each 304, so a longer backstop means fewer cold
 		//     fetches after quiet periods.
 		//   org-settings: no TTL — authoritative state, never silently evicted.
+		//   org-workspaces: no TTL — authoritative state, never silently evicted.
 		//   pubsub-state: no TTL — replay cursors must survive indefinitely; a
 		//     silent eviction would cause a gap (fallback to LATEST, missing events).
 		if bucketName == constants.KVBucketNameCache {
@@ -210,6 +211,17 @@ func NewClient(ctx context.Context, config Config) (*NATSClient, error) {
 	}
 	slog.InfoContext(ctx, "NATS key-value store initialized",
 		"bucket", constants.KVBucketNameOrgSettings,
+	)
+
+	if err := client.KeyValueStore(ctx, constants.KVBucketNameOrgWorkspaces); err != nil {
+		slog.ErrorContext(ctx, "failed to initialize org-workspaces key-value store",
+			"error", err,
+			"bucket", constants.KVBucketNameOrgWorkspaces,
+		)
+		return nil, errors.NewServiceUnavailable("failed to initialize org-workspaces key-value store", err)
+	}
+	slog.InfoContext(ctx, "NATS key-value store initialized",
+		"bucket", constants.KVBucketNameOrgWorkspaces,
 	)
 
 	slog.InfoContext(ctx, "NATS client created successfully",

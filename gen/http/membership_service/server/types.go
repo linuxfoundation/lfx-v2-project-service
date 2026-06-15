@@ -152,6 +152,35 @@ type AdminReindexRequestBody struct {
 	DryRun *bool `form:"dry_run,omitempty" json:"dry_run,omitempty" xml:"dry_run,omitempty"`
 }
 
+// CreateB2bOrgWorkspaceRequestBody is the type of the "membership-service"
+// service "create-b2b-org-workspace" endpoint HTTP request body.
+type CreateB2bOrgWorkspaceRequestBody struct {
+	// Workspace display name; must be unique within the org
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+}
+
+// UpdateB2bOrgWorkspaceRequestBody is the type of the "membership-service"
+// service "update-b2b-org-workspace" endpoint HTTP request body.
+type UpdateB2bOrgWorkspaceRequestBody struct {
+	// New workspace display name; must be unique within the org
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+}
+
+// AddB2bOrgWorkspaceProjectRequestBody is the type of the "membership-service"
+// service "add-b2b-org-workspace-project" endpoint HTTP request body.
+type AddB2bOrgWorkspaceProjectRequestBody struct {
+	// Project identifier: v2 UUID or URL slug
+	ProjectID *string `form:"project_id,omitempty" json:"project_id,omitempty" xml:"project_id,omitempty"`
+}
+
+// BulkAddB2bOrgWorkspaceProjectsRequestBody is the type of the
+// "membership-service" service "bulk-add-b2b-org-workspace-projects" endpoint
+// HTTP request body.
+type BulkAddB2bOrgWorkspaceProjectsRequestBody struct {
+	// Project identifiers (v2 UUIDs or slugs); at most 100 per request
+	ProjectIds []string `form:"project_ids,omitempty" json:"project_ids,omitempty" xml:"project_ids,omitempty"`
+}
+
 // GetB2bOrgResponseBody is the type of the "membership-service" service
 // "get-b2b-org" endpoint HTTP response body.
 type GetB2bOrgResponseBody B2bOrgResponseResponseBody
@@ -207,6 +236,36 @@ type AdminReindexResponseBody struct {
 	// Correlation ID for the reindex run (for log lookups)
 	RunID string `form:"run_id" json:"run_id" xml:"run_id"`
 }
+
+// CreateB2bOrgWorkspaceResponseBody is the type of the "membership-service"
+// service "create-b2b-org-workspace" endpoint HTTP response body.
+type CreateB2bOrgWorkspaceResponseBody WorkspaceResponseResponseBody
+
+// UpdateB2bOrgWorkspaceResponseBody is the type of the "membership-service"
+// service "update-b2b-org-workspace" endpoint HTTP response body.
+type UpdateB2bOrgWorkspaceResponseBody WorkspaceResponseResponseBody
+
+// AddB2bOrgWorkspaceProjectResponseBody is the type of the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint HTTP
+// response body.
+type AddB2bOrgWorkspaceProjectResponseBody WorkspaceResponseResponseBody
+
+// BulkAddB2bOrgWorkspaceProjectsResponseBody is the type of the
+// "membership-service" service "bulk-add-b2b-org-workspace-projects" endpoint
+// HTTP response body.
+type BulkAddB2bOrgWorkspaceProjectsResponseBody struct {
+	// The workspace after all successful additions
+	Workspace *WorkspaceResponseResponseBody `form:"workspace" json:"workspace" xml:"workspace"`
+	// Project UIDs that were successfully added (or were already present)
+	Succeeded []string `form:"succeeded" json:"succeeded" xml:"succeeded"`
+	// Projects that could not be added with per-item error detail
+	Failed []*WorkspaceBulkAddItemErrorResponseBody `form:"failed" json:"failed" xml:"failed"`
+}
+
+// RemoveB2bOrgWorkspaceProjectResponseBody is the type of the
+// "membership-service" service "remove-b2b-org-workspace-project" endpoint
+// HTTP response body.
+type RemoveB2bOrgWorkspaceProjectResponseBody WorkspaceResponseResponseBody
 
 // GetB2bOrgNotImplementedResponseBody is the type of the "membership-service"
 // service "get-b2b-org" endpoint HTTP response body for the "NotImplemented"
@@ -1820,6 +1879,671 @@ type ReadyzServiceUnavailableResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
+// CreateB2bOrgWorkspaceNotFoundResponseBody is the type of the
+// "membership-service" service "create-b2b-org-workspace" endpoint HTTP
+// response body for the "NotFound" error.
+type CreateB2bOrgWorkspaceNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateB2bOrgWorkspaceBadRequestResponseBody is the type of the
+// "membership-service" service "create-b2b-org-workspace" endpoint HTTP
+// response body for the "BadRequest" error.
+type CreateB2bOrgWorkspaceBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateB2bOrgWorkspaceConflictResponseBody is the type of the
+// "membership-service" service "create-b2b-org-workspace" endpoint HTTP
+// response body for the "Conflict" error.
+type CreateB2bOrgWorkspaceConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateB2bOrgWorkspacePreconditionFailedResponseBody is the type of the
+// "membership-service" service "create-b2b-org-workspace" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type CreateB2bOrgWorkspacePreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateB2bOrgWorkspaceInternalServerErrorResponseBody is the type of the
+// "membership-service" service "create-b2b-org-workspace" endpoint HTTP
+// response body for the "InternalServerError" error.
+type CreateB2bOrgWorkspaceInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CreateB2bOrgWorkspaceServiceUnavailableResponseBody is the type of the
+// "membership-service" service "create-b2b-org-workspace" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type CreateB2bOrgWorkspaceServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgWorkspaceNotFoundResponseBody is the type of the
+// "membership-service" service "update-b2b-org-workspace" endpoint HTTP
+// response body for the "NotFound" error.
+type UpdateB2bOrgWorkspaceNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgWorkspaceBadRequestResponseBody is the type of the
+// "membership-service" service "update-b2b-org-workspace" endpoint HTTP
+// response body for the "BadRequest" error.
+type UpdateB2bOrgWorkspaceBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgWorkspaceConflictResponseBody is the type of the
+// "membership-service" service "update-b2b-org-workspace" endpoint HTTP
+// response body for the "Conflict" error.
+type UpdateB2bOrgWorkspaceConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgWorkspacePreconditionFailedResponseBody is the type of the
+// "membership-service" service "update-b2b-org-workspace" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type UpdateB2bOrgWorkspacePreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgWorkspaceInternalServerErrorResponseBody is the type of the
+// "membership-service" service "update-b2b-org-workspace" endpoint HTTP
+// response body for the "InternalServerError" error.
+type UpdateB2bOrgWorkspaceInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// UpdateB2bOrgWorkspaceServiceUnavailableResponseBody is the type of the
+// "membership-service" service "update-b2b-org-workspace" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type UpdateB2bOrgWorkspaceServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgWorkspaceNotFoundResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-workspace" endpoint HTTP
+// response body for the "NotFound" error.
+type DeleteB2bOrgWorkspaceNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgWorkspaceBadRequestResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-workspace" endpoint HTTP
+// response body for the "BadRequest" error.
+type DeleteB2bOrgWorkspaceBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgWorkspacePreconditionFailedResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-workspace" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type DeleteB2bOrgWorkspacePreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgWorkspaceInternalServerErrorResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-workspace" endpoint HTTP
+// response body for the "InternalServerError" error.
+type DeleteB2bOrgWorkspaceInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// DeleteB2bOrgWorkspaceServiceUnavailableResponseBody is the type of the
+// "membership-service" service "delete-b2b-org-workspace" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type DeleteB2bOrgWorkspaceServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgWorkspaceProjectNotFoundResponseBody is the type of the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint HTTP
+// response body for the "NotFound" error.
+type AddB2bOrgWorkspaceProjectNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgWorkspaceProjectBadRequestResponseBody is the type of the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint HTTP
+// response body for the "BadRequest" error.
+type AddB2bOrgWorkspaceProjectBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgWorkspaceProjectConflictResponseBody is the type of the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint HTTP
+// response body for the "Conflict" error.
+type AddB2bOrgWorkspaceProjectConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgWorkspaceProjectPreconditionFailedResponseBody is the type of the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint HTTP
+// response body for the "PreconditionFailed" error.
+type AddB2bOrgWorkspaceProjectPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgWorkspaceProjectInternalServerErrorResponseBody is the type of the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint HTTP
+// response body for the "InternalServerError" error.
+type AddB2bOrgWorkspaceProjectInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// AddB2bOrgWorkspaceProjectServiceUnavailableResponseBody is the type of the
+// "membership-service" service "add-b2b-org-workspace-project" endpoint HTTP
+// response body for the "ServiceUnavailable" error.
+type AddB2bOrgWorkspaceProjectServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// BulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody is the type of the
+// "membership-service" service "bulk-add-b2b-org-workspace-projects" endpoint
+// HTTP response body for the "NotFound" error.
+type BulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// BulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody is the type of the
+// "membership-service" service "bulk-add-b2b-org-workspace-projects" endpoint
+// HTTP response body for the "BadRequest" error.
+type BulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// BulkAddB2bOrgWorkspaceProjectsConflictResponseBody is the type of the
+// "membership-service" service "bulk-add-b2b-org-workspace-projects" endpoint
+// HTTP response body for the "Conflict" error.
+type BulkAddB2bOrgWorkspaceProjectsConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// BulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody is the type of
+// the "membership-service" service "bulk-add-b2b-org-workspace-projects"
+// endpoint HTTP response body for the "PreconditionFailed" error.
+type BulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// BulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody is the type of
+// the "membership-service" service "bulk-add-b2b-org-workspace-projects"
+// endpoint HTTP response body for the "InternalServerError" error.
+type BulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// BulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody is the type of
+// the "membership-service" service "bulk-add-b2b-org-workspace-projects"
+// endpoint HTTP response body for the "ServiceUnavailable" error.
+type BulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// RemoveB2bOrgWorkspaceProjectNotFoundResponseBody is the type of the
+// "membership-service" service "remove-b2b-org-workspace-project" endpoint
+// HTTP response body for the "NotFound" error.
+type RemoveB2bOrgWorkspaceProjectNotFoundResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// RemoveB2bOrgWorkspaceProjectBadRequestResponseBody is the type of the
+// "membership-service" service "remove-b2b-org-workspace-project" endpoint
+// HTTP response body for the "BadRequest" error.
+type RemoveB2bOrgWorkspaceProjectBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// RemoveB2bOrgWorkspaceProjectConflictResponseBody is the type of the
+// "membership-service" service "remove-b2b-org-workspace-project" endpoint
+// HTTP response body for the "Conflict" error.
+type RemoveB2bOrgWorkspaceProjectConflictResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// RemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody is the type of
+// the "membership-service" service "remove-b2b-org-workspace-project" endpoint
+// HTTP response body for the "PreconditionFailed" error.
+type RemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// RemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody is the type of
+// the "membership-service" service "remove-b2b-org-workspace-project" endpoint
+// HTTP response body for the "InternalServerError" error.
+type RemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// RemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody is the type of
+// the "membership-service" service "remove-b2b-org-workspace-project" endpoint
+// HTTP response body for the "ServiceUnavailable" error.
+type RemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
 // B2bOrgResponseResponseBody is used to define fields on response body types.
 type B2bOrgResponseResponseBody struct {
 	// B2BOrg UID (Salesforce Account.Id)
@@ -1885,7 +2609,7 @@ type OrgUserResponseBody struct {
 	Email string `form:"email" json:"email" xml:"email"`
 	// User display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// LFID username (OIDC sub); absent for pending invites
+	// LFID username; absent for pending invites
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// Relation being granted: writer or auditor
 	InvitedAs string `form:"invited_as" json:"invited_as" xml:"invited_as"`
@@ -1996,6 +2720,51 @@ type ProjectKeyContactResponseResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// WorkspaceResponseResponseBody is used to define fields on response body
+// types.
+type WorkspaceResponseResponseBody struct {
+	// Workspace UID
+	UID string `form:"uid" json:"uid" xml:"uid"`
+	// Workspace display name
+	Name string `form:"name" json:"name" xml:"name"`
+	// Project associations in this workspace
+	Projects []*WorkspaceProjectResponseResponseBody `form:"projects,omitempty" json:"projects,omitempty" xml:"projects,omitempty"`
+	// LFID username of the creator
+	CreatedBy *string `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// LFID username of the last updater
+	UpdatedBy *string `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	// Creation timestamp
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// Last-update timestamp
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// WorkspaceProjectResponseResponseBody is used to define fields on response
+// body types.
+type WorkspaceProjectResponseResponseBody struct {
+	// v2 project UID
+	ProjectUID string `form:"project_uid" json:"project_uid" xml:"project_uid"`
+	// Salesforce Project__c.Id (snapshot)
+	ProjectSfid *string `form:"project_sfid,omitempty" json:"project_sfid,omitempty" xml:"project_sfid,omitempty"`
+	// Project URL slug (snapshot)
+	ProjectSlug *string `form:"project_slug,omitempty" json:"project_slug,omitempty" xml:"project_slug,omitempty"`
+	// Project display name (snapshot)
+	ProjectName *string `form:"project_name,omitempty" json:"project_name,omitempty" xml:"project_name,omitempty"`
+	// LFID username of the principal who added this project
+	AddedBy *string `form:"added_by,omitempty" json:"added_by,omitempty" xml:"added_by,omitempty"`
+	// Timestamp when the project was added
+	AddedAt *string `form:"added_at,omitempty" json:"added_at,omitempty" xml:"added_at,omitempty"`
+}
+
+// WorkspaceBulkAddItemErrorResponseBody is used to define fields on response
+// body types.
+type WorkspaceBulkAddItemErrorResponseBody struct {
+	// The project identifier that failed
+	ProjectID string `form:"project_id" json:"project_id" xml:"project_id"`
+	// Reason the project could not be added
+	Error string `form:"error" json:"error" xml:"error"`
+}
+
 // OrgUserRequestBody is used to define fields on request body types.
 type OrgUserRequestBody struct {
 	// User avatar URL
@@ -2004,7 +2773,7 @@ type OrgUserRequestBody struct {
 	Email *string `form:"email,omitempty" json:"email,omitempty" xml:"email,omitempty"`
 	// User display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// LFID username (OIDC sub); absent for pending invites
+	// LFID username; absent for pending invites
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// Relation being granted: writer or auditor
 	InvitedAs *string `form:"invited_as,omitempty" json:"invited_as,omitempty" xml:"invited_as,omitempty"`
@@ -2392,6 +3161,137 @@ func NewUpdateKeyContactResponseBody(res *membershipservice.UpdateKeyContactResu
 func NewAdminReindexResponseBody(res *membershipservice.AdminReindexResult) *AdminReindexResponseBody {
 	body := &AdminReindexResponseBody{
 		RunID: res.RunID,
+	}
+	return body
+}
+
+// NewCreateB2bOrgWorkspaceResponseBody builds the HTTP response body from the
+// result of the "create-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewCreateB2bOrgWorkspaceResponseBody(res *membershipservice.CreateB2bOrgWorkspaceResult) *CreateB2bOrgWorkspaceResponseBody {
+	body := &CreateB2bOrgWorkspaceResponseBody{
+		UID:       res.Workspace.UID,
+		Name:      res.Workspace.Name,
+		CreatedBy: res.Workspace.CreatedBy,
+		UpdatedBy: res.Workspace.UpdatedBy,
+		CreatedAt: res.Workspace.CreatedAt,
+		UpdatedAt: res.Workspace.UpdatedAt,
+	}
+	if res.Workspace.Projects != nil {
+		body.Projects = make([]*WorkspaceProjectResponseResponseBody, len(res.Workspace.Projects))
+		for i, val := range res.Workspace.Projects {
+			if val == nil {
+				body.Projects[i] = nil
+				continue
+			}
+			body.Projects[i] = marshalMembershipserviceWorkspaceProjectResponseToWorkspaceProjectResponseResponseBody(val)
+		}
+	}
+	return body
+}
+
+// NewUpdateB2bOrgWorkspaceResponseBody builds the HTTP response body from the
+// result of the "update-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewUpdateB2bOrgWorkspaceResponseBody(res *membershipservice.UpdateB2bOrgWorkspaceResult) *UpdateB2bOrgWorkspaceResponseBody {
+	body := &UpdateB2bOrgWorkspaceResponseBody{
+		UID:       res.Workspace.UID,
+		Name:      res.Workspace.Name,
+		CreatedBy: res.Workspace.CreatedBy,
+		UpdatedBy: res.Workspace.UpdatedBy,
+		CreatedAt: res.Workspace.CreatedAt,
+		UpdatedAt: res.Workspace.UpdatedAt,
+	}
+	if res.Workspace.Projects != nil {
+		body.Projects = make([]*WorkspaceProjectResponseResponseBody, len(res.Workspace.Projects))
+		for i, val := range res.Workspace.Projects {
+			if val == nil {
+				body.Projects[i] = nil
+				continue
+			}
+			body.Projects[i] = marshalMembershipserviceWorkspaceProjectResponseToWorkspaceProjectResponseResponseBody(val)
+		}
+	}
+	return body
+}
+
+// NewAddB2bOrgWorkspaceProjectResponseBody builds the HTTP response body from
+// the result of the "add-b2b-org-workspace-project" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgWorkspaceProjectResponseBody(res *membershipservice.AddB2bOrgWorkspaceProjectResult) *AddB2bOrgWorkspaceProjectResponseBody {
+	body := &AddB2bOrgWorkspaceProjectResponseBody{
+		UID:       res.Workspace.UID,
+		Name:      res.Workspace.Name,
+		CreatedBy: res.Workspace.CreatedBy,
+		UpdatedBy: res.Workspace.UpdatedBy,
+		CreatedAt: res.Workspace.CreatedAt,
+		UpdatedAt: res.Workspace.UpdatedAt,
+	}
+	if res.Workspace.Projects != nil {
+		body.Projects = make([]*WorkspaceProjectResponseResponseBody, len(res.Workspace.Projects))
+		for i, val := range res.Workspace.Projects {
+			if val == nil {
+				body.Projects[i] = nil
+				continue
+			}
+			body.Projects[i] = marshalMembershipserviceWorkspaceProjectResponseToWorkspaceProjectResponseResponseBody(val)
+		}
+	}
+	return body
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsResponseBody builds the HTTP response body
+// from the result of the "bulk-add-b2b-org-workspace-projects" endpoint of the
+// "membership-service" service.
+func NewBulkAddB2bOrgWorkspaceProjectsResponseBody(res *membershipservice.WorkspaceBulkResponse) *BulkAddB2bOrgWorkspaceProjectsResponseBody {
+	body := &BulkAddB2bOrgWorkspaceProjectsResponseBody{}
+	if res.Workspace != nil {
+		body.Workspace = marshalMembershipserviceWorkspaceResponseToWorkspaceResponseResponseBody(res.Workspace)
+	}
+	if res.Succeeded != nil {
+		body.Succeeded = make([]string, len(res.Succeeded))
+		for i, val := range res.Succeeded {
+			body.Succeeded[i] = val
+		}
+	} else {
+		body.Succeeded = []string{}
+	}
+	if res.Failed != nil {
+		body.Failed = make([]*WorkspaceBulkAddItemErrorResponseBody, len(res.Failed))
+		for i, val := range res.Failed {
+			if val == nil {
+				body.Failed[i] = nil
+				continue
+			}
+			body.Failed[i] = marshalMembershipserviceWorkspaceBulkAddItemErrorToWorkspaceBulkAddItemErrorResponseBody(val)
+		}
+	} else {
+		body.Failed = []*WorkspaceBulkAddItemErrorResponseBody{}
+	}
+	return body
+}
+
+// NewRemoveB2bOrgWorkspaceProjectResponseBody builds the HTTP response body
+// from the result of the "remove-b2b-org-workspace-project" endpoint of the
+// "membership-service" service.
+func NewRemoveB2bOrgWorkspaceProjectResponseBody(res *membershipservice.RemoveB2bOrgWorkspaceProjectResult) *RemoveB2bOrgWorkspaceProjectResponseBody {
+	body := &RemoveB2bOrgWorkspaceProjectResponseBody{
+		UID:       res.Workspace.UID,
+		Name:      res.Workspace.Name,
+		CreatedBy: res.Workspace.CreatedBy,
+		UpdatedBy: res.Workspace.UpdatedBy,
+		CreatedAt: res.Workspace.CreatedAt,
+		UpdatedAt: res.Workspace.UpdatedAt,
+	}
+	if res.Workspace.Projects != nil {
+		body.Projects = make([]*WorkspaceProjectResponseResponseBody, len(res.Workspace.Projects))
+		for i, val := range res.Workspace.Projects {
+			if val == nil {
+				body.Projects[i] = nil
+				continue
+			}
+			body.Projects[i] = marshalMembershipserviceWorkspaceProjectResponseToWorkspaceProjectResponseResponseBody(val)
+		}
 	}
 	return body
 }
@@ -3663,6 +4563,534 @@ func NewReadyzServiceUnavailableResponseBody(res *goa.ServiceError) *ReadyzServi
 	return body
 }
 
+// NewCreateB2bOrgWorkspaceNotFoundResponseBody builds the HTTP response body
+// from the result of the "create-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewCreateB2bOrgWorkspaceNotFoundResponseBody(res *goa.ServiceError) *CreateB2bOrgWorkspaceNotFoundResponseBody {
+	body := &CreateB2bOrgWorkspaceNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateB2bOrgWorkspaceBadRequestResponseBody builds the HTTP response body
+// from the result of the "create-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewCreateB2bOrgWorkspaceBadRequestResponseBody(res *goa.ServiceError) *CreateB2bOrgWorkspaceBadRequestResponseBody {
+	body := &CreateB2bOrgWorkspaceBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateB2bOrgWorkspaceConflictResponseBody builds the HTTP response body
+// from the result of the "create-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewCreateB2bOrgWorkspaceConflictResponseBody(res *goa.ServiceError) *CreateB2bOrgWorkspaceConflictResponseBody {
+	body := &CreateB2bOrgWorkspaceConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateB2bOrgWorkspacePreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "create-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewCreateB2bOrgWorkspacePreconditionFailedResponseBody(res *goa.ServiceError) *CreateB2bOrgWorkspacePreconditionFailedResponseBody {
+	body := &CreateB2bOrgWorkspacePreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateB2bOrgWorkspaceInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "create-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewCreateB2bOrgWorkspaceInternalServerErrorResponseBody(res *goa.ServiceError) *CreateB2bOrgWorkspaceInternalServerErrorResponseBody {
+	body := &CreateB2bOrgWorkspaceInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCreateB2bOrgWorkspaceServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "create-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewCreateB2bOrgWorkspaceServiceUnavailableResponseBody(res *goa.ServiceError) *CreateB2bOrgWorkspaceServiceUnavailableResponseBody {
+	body := &CreateB2bOrgWorkspaceServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgWorkspaceNotFoundResponseBody builds the HTTP response body
+// from the result of the "update-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewUpdateB2bOrgWorkspaceNotFoundResponseBody(res *goa.ServiceError) *UpdateB2bOrgWorkspaceNotFoundResponseBody {
+	body := &UpdateB2bOrgWorkspaceNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgWorkspaceBadRequestResponseBody builds the HTTP response body
+// from the result of the "update-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewUpdateB2bOrgWorkspaceBadRequestResponseBody(res *goa.ServiceError) *UpdateB2bOrgWorkspaceBadRequestResponseBody {
+	body := &UpdateB2bOrgWorkspaceBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgWorkspaceConflictResponseBody builds the HTTP response body
+// from the result of the "update-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewUpdateB2bOrgWorkspaceConflictResponseBody(res *goa.ServiceError) *UpdateB2bOrgWorkspaceConflictResponseBody {
+	body := &UpdateB2bOrgWorkspaceConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgWorkspacePreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "update-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewUpdateB2bOrgWorkspacePreconditionFailedResponseBody(res *goa.ServiceError) *UpdateB2bOrgWorkspacePreconditionFailedResponseBody {
+	body := &UpdateB2bOrgWorkspacePreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgWorkspaceInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "update-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewUpdateB2bOrgWorkspaceInternalServerErrorResponseBody(res *goa.ServiceError) *UpdateB2bOrgWorkspaceInternalServerErrorResponseBody {
+	body := &UpdateB2bOrgWorkspaceInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewUpdateB2bOrgWorkspaceServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "update-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewUpdateB2bOrgWorkspaceServiceUnavailableResponseBody(res *goa.ServiceError) *UpdateB2bOrgWorkspaceServiceUnavailableResponseBody {
+	body := &UpdateB2bOrgWorkspaceServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgWorkspaceNotFoundResponseBody builds the HTTP response body
+// from the result of the "delete-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewDeleteB2bOrgWorkspaceNotFoundResponseBody(res *goa.ServiceError) *DeleteB2bOrgWorkspaceNotFoundResponseBody {
+	body := &DeleteB2bOrgWorkspaceNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgWorkspaceBadRequestResponseBody builds the HTTP response body
+// from the result of the "delete-b2b-org-workspace" endpoint of the
+// "membership-service" service.
+func NewDeleteB2bOrgWorkspaceBadRequestResponseBody(res *goa.ServiceError) *DeleteB2bOrgWorkspaceBadRequestResponseBody {
+	body := &DeleteB2bOrgWorkspaceBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgWorkspacePreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "delete-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewDeleteB2bOrgWorkspacePreconditionFailedResponseBody(res *goa.ServiceError) *DeleteB2bOrgWorkspacePreconditionFailedResponseBody {
+	body := &DeleteB2bOrgWorkspacePreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgWorkspaceInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "delete-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewDeleteB2bOrgWorkspaceInternalServerErrorResponseBody(res *goa.ServiceError) *DeleteB2bOrgWorkspaceInternalServerErrorResponseBody {
+	body := &DeleteB2bOrgWorkspaceInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewDeleteB2bOrgWorkspaceServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "delete-b2b-org-workspace" endpoint of
+// the "membership-service" service.
+func NewDeleteB2bOrgWorkspaceServiceUnavailableResponseBody(res *goa.ServiceError) *DeleteB2bOrgWorkspaceServiceUnavailableResponseBody {
+	body := &DeleteB2bOrgWorkspaceServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgWorkspaceProjectNotFoundResponseBody builds the HTTP response
+// body from the result of the "add-b2b-org-workspace-project" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgWorkspaceProjectNotFoundResponseBody(res *goa.ServiceError) *AddB2bOrgWorkspaceProjectNotFoundResponseBody {
+	body := &AddB2bOrgWorkspaceProjectNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgWorkspaceProjectBadRequestResponseBody builds the HTTP response
+// body from the result of the "add-b2b-org-workspace-project" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgWorkspaceProjectBadRequestResponseBody(res *goa.ServiceError) *AddB2bOrgWorkspaceProjectBadRequestResponseBody {
+	body := &AddB2bOrgWorkspaceProjectBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgWorkspaceProjectConflictResponseBody builds the HTTP response
+// body from the result of the "add-b2b-org-workspace-project" endpoint of the
+// "membership-service" service.
+func NewAddB2bOrgWorkspaceProjectConflictResponseBody(res *goa.ServiceError) *AddB2bOrgWorkspaceProjectConflictResponseBody {
+	body := &AddB2bOrgWorkspaceProjectConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgWorkspaceProjectPreconditionFailedResponseBody builds the HTTP
+// response body from the result of the "add-b2b-org-workspace-project"
+// endpoint of the "membership-service" service.
+func NewAddB2bOrgWorkspaceProjectPreconditionFailedResponseBody(res *goa.ServiceError) *AddB2bOrgWorkspaceProjectPreconditionFailedResponseBody {
+	body := &AddB2bOrgWorkspaceProjectPreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgWorkspaceProjectInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "add-b2b-org-workspace-project"
+// endpoint of the "membership-service" service.
+func NewAddB2bOrgWorkspaceProjectInternalServerErrorResponseBody(res *goa.ServiceError) *AddB2bOrgWorkspaceProjectInternalServerErrorResponseBody {
+	body := &AddB2bOrgWorkspaceProjectInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewAddB2bOrgWorkspaceProjectServiceUnavailableResponseBody builds the HTTP
+// response body from the result of the "add-b2b-org-workspace-project"
+// endpoint of the "membership-service" service.
+func NewAddB2bOrgWorkspaceProjectServiceUnavailableResponseBody(res *goa.ServiceError) *AddB2bOrgWorkspaceProjectServiceUnavailableResponseBody {
+	body := &AddB2bOrgWorkspaceProjectServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody builds the HTTP
+// response body from the result of the "bulk-add-b2b-org-workspace-projects"
+// endpoint of the "membership-service" service.
+func NewBulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody(res *goa.ServiceError) *BulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody {
+	body := &BulkAddB2bOrgWorkspaceProjectsNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody builds the HTTP
+// response body from the result of the "bulk-add-b2b-org-workspace-projects"
+// endpoint of the "membership-service" service.
+func NewBulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody(res *goa.ServiceError) *BulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody {
+	body := &BulkAddB2bOrgWorkspaceProjectsBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsConflictResponseBody builds the HTTP
+// response body from the result of the "bulk-add-b2b-org-workspace-projects"
+// endpoint of the "membership-service" service.
+func NewBulkAddB2bOrgWorkspaceProjectsConflictResponseBody(res *goa.ServiceError) *BulkAddB2bOrgWorkspaceProjectsConflictResponseBody {
+	body := &BulkAddB2bOrgWorkspaceProjectsConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody builds the
+// HTTP response body from the result of the
+// "bulk-add-b2b-org-workspace-projects" endpoint of the "membership-service"
+// service.
+func NewBulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody(res *goa.ServiceError) *BulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody {
+	body := &BulkAddB2bOrgWorkspaceProjectsPreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody builds the
+// HTTP response body from the result of the
+// "bulk-add-b2b-org-workspace-projects" endpoint of the "membership-service"
+// service.
+func NewBulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody(res *goa.ServiceError) *BulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody {
+	body := &BulkAddB2bOrgWorkspaceProjectsInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody builds the
+// HTTP response body from the result of the
+// "bulk-add-b2b-org-workspace-projects" endpoint of the "membership-service"
+// service.
+func NewBulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody(res *goa.ServiceError) *BulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody {
+	body := &BulkAddB2bOrgWorkspaceProjectsServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewRemoveB2bOrgWorkspaceProjectNotFoundResponseBody builds the HTTP response
+// body from the result of the "remove-b2b-org-workspace-project" endpoint of
+// the "membership-service" service.
+func NewRemoveB2bOrgWorkspaceProjectNotFoundResponseBody(res *goa.ServiceError) *RemoveB2bOrgWorkspaceProjectNotFoundResponseBody {
+	body := &RemoveB2bOrgWorkspaceProjectNotFoundResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewRemoveB2bOrgWorkspaceProjectBadRequestResponseBody builds the HTTP
+// response body from the result of the "remove-b2b-org-workspace-project"
+// endpoint of the "membership-service" service.
+func NewRemoveB2bOrgWorkspaceProjectBadRequestResponseBody(res *goa.ServiceError) *RemoveB2bOrgWorkspaceProjectBadRequestResponseBody {
+	body := &RemoveB2bOrgWorkspaceProjectBadRequestResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewRemoveB2bOrgWorkspaceProjectConflictResponseBody builds the HTTP response
+// body from the result of the "remove-b2b-org-workspace-project" endpoint of
+// the "membership-service" service.
+func NewRemoveB2bOrgWorkspaceProjectConflictResponseBody(res *goa.ServiceError) *RemoveB2bOrgWorkspaceProjectConflictResponseBody {
+	body := &RemoveB2bOrgWorkspaceProjectConflictResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewRemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody builds the
+// HTTP response body from the result of the "remove-b2b-org-workspace-project"
+// endpoint of the "membership-service" service.
+func NewRemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody(res *goa.ServiceError) *RemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody {
+	body := &RemoveB2bOrgWorkspaceProjectPreconditionFailedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewRemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody builds the
+// HTTP response body from the result of the "remove-b2b-org-workspace-project"
+// endpoint of the "membership-service" service.
+func NewRemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody(res *goa.ServiceError) *RemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody {
+	body := &RemoveB2bOrgWorkspaceProjectInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewRemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody builds the
+// HTTP response body from the result of the "remove-b2b-org-workspace-project"
+// endpoint of the "membership-service" service.
+func NewRemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody(res *goa.ServiceError) *RemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody {
+	body := &RemoveB2bOrgWorkspaceProjectServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
 // NewGetB2bOrgPayload builds a membership-service service get-b2b-org endpoint
 // payload.
 func NewGetB2bOrgPayload(uid string, version *string, bearerToken *string, ifNoneMatch *string, ifModifiedSince *string) *membershipservice.GetB2bOrgPayload {
@@ -3924,6 +5352,94 @@ func NewAdminReindexPayload(body *AdminReindexRequestBody, version *string, bear
 	return v
 }
 
+// NewCreateB2bOrgWorkspacePayload builds a membership-service service
+// create-b2b-org-workspace endpoint payload.
+func NewCreateB2bOrgWorkspacePayload(body *CreateB2bOrgWorkspaceRequestBody, uid string, version *string, bearerToken *string, ifMatch *string) *membershipservice.CreateB2bOrgWorkspacePayload {
+	v := &membershipservice.CreateB2bOrgWorkspacePayload{
+		Name: *body.Name,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewUpdateB2bOrgWorkspacePayload builds a membership-service service
+// update-b2b-org-workspace endpoint payload.
+func NewUpdateB2bOrgWorkspacePayload(body *UpdateB2bOrgWorkspaceRequestBody, uid string, workspaceUID string, version *string, bearerToken *string, ifMatch *string) *membershipservice.UpdateB2bOrgWorkspacePayload {
+	v := &membershipservice.UpdateB2bOrgWorkspacePayload{
+		Name: *body.Name,
+	}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewDeleteB2bOrgWorkspacePayload builds a membership-service service
+// delete-b2b-org-workspace endpoint payload.
+func NewDeleteB2bOrgWorkspacePayload(uid string, workspaceUID string, version *string, bearerToken *string, ifMatch *string) *membershipservice.DeleteB2bOrgWorkspacePayload {
+	v := &membershipservice.DeleteB2bOrgWorkspacePayload{}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewAddB2bOrgWorkspaceProjectPayload builds a membership-service service
+// add-b2b-org-workspace-project endpoint payload.
+func NewAddB2bOrgWorkspaceProjectPayload(body *AddB2bOrgWorkspaceProjectRequestBody, uid string, workspaceUID string, version *string, bearerToken *string, ifMatch *string) *membershipservice.AddB2bOrgWorkspaceProjectPayload {
+	v := &membershipservice.AddB2bOrgWorkspaceProjectPayload{
+		ProjectID: *body.ProjectID,
+	}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsPayload builds a membership-service service
+// bulk-add-b2b-org-workspace-projects endpoint payload.
+func NewBulkAddB2bOrgWorkspaceProjectsPayload(body *BulkAddB2bOrgWorkspaceProjectsRequestBody, uid string, workspaceUID string, version *string, bearerToken *string, ifMatch *string) *membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload {
+	v := &membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload{}
+	v.ProjectIds = make([]string, len(body.ProjectIds))
+	for i, val := range body.ProjectIds {
+		v.ProjectIds[i] = val
+	}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewRemoveB2bOrgWorkspaceProjectPayload builds a membership-service service
+// remove-b2b-org-workspace-project endpoint payload.
+func NewRemoveB2bOrgWorkspaceProjectPayload(uid string, workspaceUID string, projectUID string, version *string, bearerToken *string, ifMatch *string) *membershipservice.RemoveB2bOrgWorkspaceProjectPayload {
+	v := &membershipservice.RemoveB2bOrgWorkspaceProjectPayload{}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.ProjectUID = projectUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v
+}
+
 // ValidateCreateB2bOrgRequestBody runs the validations defined on
 // Create-B2b-OrgRequestBody
 func ValidateCreateB2bOrgRequestBody(body *CreateB2bOrgRequestBody) (err error) {
@@ -4062,6 +5578,68 @@ func ValidateAdminReindexRequestBody(body *AdminReindexRequestBody) (err error) 
 				err = goa.MergeErrors(err, err2)
 			}
 		}
+	}
+	return
+}
+
+// ValidateCreateB2bOrgWorkspaceRequestBody runs the validations defined on
+// Create-B2b-Org-WorkspaceRequestBody
+func ValidateCreateB2bOrgWorkspaceRequestBody(body *CreateB2bOrgWorkspaceRequestBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 255, false))
+		}
+	}
+	return
+}
+
+// ValidateUpdateB2bOrgWorkspaceRequestBody runs the validations defined on
+// Update-B2b-Org-WorkspaceRequestBody
+func ValidateUpdateB2bOrgWorkspaceRequestBody(body *UpdateB2bOrgWorkspaceRequestBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 255, false))
+		}
+	}
+	return
+}
+
+// ValidateAddB2bOrgWorkspaceProjectRequestBody runs the validations defined on
+// Add-B2b-Org-Workspace-ProjectRequestBody
+func ValidateAddB2bOrgWorkspaceProjectRequestBody(body *AddB2bOrgWorkspaceProjectRequestBody) (err error) {
+	if body.ProjectID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("project_id", "body"))
+	}
+	return
+}
+
+// ValidateBulkAddB2bOrgWorkspaceProjectsRequestBody runs the validations
+// defined on Bulk-Add-B2b-Org-Workspace-ProjectsRequestBody
+func ValidateBulkAddB2bOrgWorkspaceProjectsRequestBody(body *BulkAddB2bOrgWorkspaceProjectsRequestBody) (err error) {
+	if body.ProjectIds == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("project_ids", "body"))
+	}
+	if len(body.ProjectIds) < 1 {
+		err = goa.MergeErrors(err, goa.InvalidLengthError("body.project_ids", body.ProjectIds, len(body.ProjectIds), 1, true))
+	}
+	if len(body.ProjectIds) > 100 {
+		err = goa.MergeErrors(err, goa.InvalidLengthError("body.project_ids", body.ProjectIds, len(body.ProjectIds), 100, false))
 	}
 	return
 }

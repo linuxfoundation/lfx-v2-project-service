@@ -11,6 +11,8 @@ This document is the authoritative reference for all data the member service sen
 - [B2B Org](#b2b-org)
 - [Project Membership](#project-membership)
 - [Key Contact](#key-contact)
+- [B2B Org Settings](#b2b-org-settings)
+- [B2B Org Workspace](#b2b-org-workspace)
 
 ---
 
@@ -352,6 +354,94 @@ Returns the single settings doc for that org with the full `members[]` roster.
 |------------------------|------------------------------------|
 | `b2b_org:{uid}`        | Always (self-ref for point-lookup) |
 | `b2b_org:{parent_uid}` | Only when `parent_uid` is set      |
+
+---
+
+## B2B Org Workspace
+
+**Object type:** `b2b_org_workspace`
+
+**NATS subject:** `lfx.index.b2b_org_workspace`
+
+**Source struct:** `internal/domain/model/workspace.go` — `Workspace` (per-workspace document; the parent `OrgWorkspaces` envelope is stored in NATS KV but each workspace is indexed individually)
+
+**Trigger:** Any write that creates, updates, or deletes a workspace or modifies its project list — `POST /b2b_orgs/{uid}/workspaces`, `PUT /b2b_orgs/{uid}/workspaces/{workspace_uid}`, `DELETE /b2b_orgs/{uid}/workspaces/{workspace_uid}`, `POST /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects`, `POST /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/bulk`, `DELETE /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/{project_uid}`.
+
+**Note:** `ObjectID` equals the workspace UID (`workspace.UID`). Each workspace is a separate indexed document. The org UID is represented via tags (`b2b_org_uid:{orgUID}`) and parent references.
+
+**Known limitation (enrichment staleness):** Project `name`, `slug`, and `sfid` stored in each `WorkspaceProject` entry are a write-time snapshot captured via Salesforce SOQL at the time the project was added. If a project is later renamed or re-slugged in Salesforce, the stored copy becomes stale until the next write touches that workspace. There is no read-path re-enrichment.
+
+### Payload Fields
+
+The indexed view is the raw `*model.Workspace` struct.
+
+| Field        | Type                   | Description                                              |
+|--------------|------------------------|----------------------------------------------------------|
+| `uid`        | string                 | Workspace unique identifier (UUID)                       |
+| `name`       | string                 | Workspace display name (unique within the org)           |
+| `projects`   | []WorkspaceProject     | Enriched project associations (write-time snapshot)      |
+| `created_by` | string                 | Principal who created the workspace                      |
+| `updated_by` | string                 | Principal who last modified the workspace                |
+| `created_at` | timestamp              | Creation time (RFC3339)                                  |
+| `updated_at` | timestamp              | Last update time (RFC3339)                               |
+
+Per-project entry shape (`WorkspaceProject`):
+
+| Field          | Example value              | Notes                                          |
+|----------------|----------------------------|------------------------------------------------|
+| `project_uid`  | `abc-123...`               | v2 project UUID                                |
+| `project_sfid` | `a2T2M000000ABCdUAG`       | Salesforce Project__c.Id (write-time snapshot) |
+| `project_slug` | `cncf`                     | Project URL slug (write-time snapshot)         |
+| `project_name` | `Cloud Native Computing`   | Project display name (write-time snapshot)     |
+| `added_by`     | `jdoe`                     | Principal who added the project                |
+| `added_at`     | `2026-01-15T10:00:00Z`     | Time the project was added                     |
+
+### Tags
+
+| Tag Format                          | Example                                        | Purpose                                           |
+|-------------------------------------|------------------------------------------------|---------------------------------------------------|
+| `{uid}`                             | `550e8400-e29b-41d4-a716-446655440000`         | Direct lookup by workspace UID                    |
+| `b2b_org_workspace_uid:{uid}`       | `b2b_org_workspace_uid:550e8400-...`           | Find workspaces by UID                            |
+| `b2b_org_uid:{orgUID}`              | `b2b_org_uid:0012M00002qnukOQAQ`               | Find all workspaces for an org                    |
+| `project_uid:{projectUID}`          | `project_uid:abc-123...`                       | Find all workspaces containing a project (by UID) |
+| `project_sfid:{projectSFID}`        | `project_sfid:a2T2M000000ABCdUAG`              | Find all workspaces containing a project (by SFID)|
+
+> `project_uid` and `project_sfid` tags are emitted once per project association — a workspace with 5 projects emits 5 `project_uid:` tags and 5 `project_sfid:` tags (de-duplicated automatically by the indexer).
+
+### Access Control (IndexingConfig)
+
+| Field                    | Value                                                                         |
+|--------------------------|-------------------------------------------------------------------------------|
+| `access_check_object`    | `b2b_org:{orgUID}` (parent — workspaces have no separate FGA object type)     |
+| `access_check_relation`  | `auditor`                                                                     |
+| `history_check_object`   | `b2b_org:{orgUID}`                                                            |
+| `history_check_relation` | `writer`                                                                      |
+
+### Search Behavior
+
+| Field      | Contents                                                   |
+|------------|------------------------------------------------------------|
+| `fulltext` | `workspace.Name` + each `WorkspaceProject.ProjectName`     |
+
+### Parent References
+
+| Ref               | Condition |
+|-------------------|-----------|
+| `b2b_org:{orgUID}` | Always   |
+
+### Query Patterns
+
+**"Which workspaces does org X have?"**
+```
+GET /query/resources?v=1&type=b2b_org_workspace&tags=b2b_org_uid:{orgUID}
+```
+
+**"Which workspaces contain project Y?"**
+```
+GET /query/resources?v=1&type=b2b_org_workspace&tags=project_uid:{projectUID}
+```
+
+> All queries are enforced by an FGA `auditor` check on `b2b_org:{uid}`.
 
 ---
 

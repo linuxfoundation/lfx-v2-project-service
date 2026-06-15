@@ -784,6 +784,314 @@ var _ = dsl.Service("membership-service", func() {
 	dsl.Files("/_memberships/openapi3.json", "gen/http/openapi3.json", func() {
 		dsl.Meta("swagger:generate", "false")
 	})
+	// ── Workspaces ────────────────────────────────────────────────────────────
+
+	dsl.Method("create-b2b-org-workspace", func() {
+		dsl.Description("Create a new workspace within a b2b_org. Name must be unique within the org.")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			IfMatchAttribute()
+			dsl.Extend(WorkspaceCreateBody)
+			dsl.Required("uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("workspace", WorkspaceResponse, "The created workspace")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("workspace")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Organization not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Workspace name already exists, or concurrent modification — retry")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.POST("/b2b_orgs/{uid}/workspaces")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusCreated, func() {
+				dsl.Body("workspace")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("update-b2b-org-workspace", func() {
+		dsl.Description("Rename an existing workspace. Name must be unique within the org.")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			dsl.Attribute("workspace_uid", dsl.String, "Workspace UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfMatchAttribute()
+			dsl.Extend(WorkspaceUpdateBody)
+			dsl.Required("uid", "workspace_uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("workspace", WorkspaceResponse, "The updated workspace")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("workspace")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Workspace not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Workspace name already exists, or concurrent modification — retry")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.PUT("/b2b_orgs/{uid}/workspaces/{workspace_uid}")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Param("workspace_uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("workspace")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("delete-b2b-org-workspace", func() {
+		dsl.Description("Delete a workspace and all its project associations (cascade delete).")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			dsl.Attribute("workspace_uid", dsl.String, "Workspace UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfMatchAttribute()
+			dsl.Required("uid", "workspace_uid")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Workspace not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.DELETE("/b2b_orgs/{uid}/workspaces/{workspace_uid}")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Param("workspace_uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusNoContent)
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("add-b2b-org-workspace-project", func() {
+		dsl.Description("Add a single project to a workspace. Idempotent: already-associated projects are a no-op. Returns HTTP 400 for unknown project identifiers.")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			dsl.Attribute("workspace_uid", dsl.String, "Workspace UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfMatchAttribute()
+			dsl.Extend(WorkspaceProjectAddBody)
+			dsl.Required("uid", "workspace_uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("workspace", WorkspaceResponse, "The updated workspace")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("workspace")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Workspace not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request or unknown project identifier")
+		dsl.Error("Conflict", dsl.ErrorResult, "Concurrent modification — retry")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.POST("/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Param("workspace_uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("workspace")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("bulk-add-b2b-org-workspace-projects", func() {
+		dsl.Description("Add multiple projects to a workspace in one operation. Partially succeeds: successfully enriched projects are written; per-item failures are reported in the response.")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			dsl.Attribute("workspace_uid", dsl.String, "Workspace UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			IfMatchAttribute()
+			dsl.Extend(WorkspaceProjectsBulkAddBody)
+			dsl.Required("uid", "workspace_uid")
+		})
+
+		dsl.Result(WorkspaceBulkResponse)
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Workspace not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Concurrent modification — retry")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.POST("/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/bulk")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Param("workspace_uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusOK)
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
+	dsl.Method("remove-b2b-org-workspace-project", func() {
+		dsl.Description("Remove a project association from a workspace.")
+
+		dsl.Security(JWTAuth)
+
+		dsl.Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			dsl.Attribute("uid", dsl.String, "B2B organization UID", func() {
+				dsl.Example("001B000000IqhSLIAZ")
+			})
+			dsl.Attribute("workspace_uid", dsl.String, "Workspace UID", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+			})
+			dsl.Attribute("project_uid", dsl.String, "Project UID to remove", func() {
+				dsl.Format(dsl.FormatUUID)
+				dsl.Example("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+			})
+			IfMatchAttribute()
+			dsl.Required("uid", "workspace_uid", "project_uid")
+		})
+
+		dsl.Result(func() {
+			dsl.Attribute("workspace", WorkspaceResponse, "The updated workspace")
+			ETagAttribute()
+			LastModifiedAttribute()
+			dsl.Required("workspace")
+		})
+
+		dsl.Error("NotFound", dsl.ErrorResult, "Workspace or project not found")
+		dsl.Error("BadRequest", dsl.ErrorResult, "Bad request")
+		dsl.Error("Conflict", dsl.ErrorResult, "Concurrent modification — retry")
+		dsl.Error("PreconditionFailed", dsl.ErrorResult, "Precondition failed")
+		dsl.Error("InternalServerError", dsl.ErrorResult, "Internal server error", func() { dsl.Fault() })
+		dsl.Error("ServiceUnavailable", dsl.ErrorResult, "Service unavailable", func() { dsl.Temporary() })
+
+		dsl.HTTP(func() {
+			dsl.DELETE("/b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/{project_uid}")
+			dsl.Header("bearer_token:Authorization")
+			dsl.Param("version:v")
+			dsl.Param("uid")
+			dsl.Param("workspace_uid")
+			dsl.Param("project_uid")
+			dsl.Header("if_match:If-Match")
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Body("workspace")
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
+			dsl.Response("NotFound", dsl.StatusNotFound)
+			dsl.Response("BadRequest", dsl.StatusBadRequest)
+			dsl.Response("Conflict", dsl.StatusConflict)
+			dsl.Response("PreconditionFailed", dsl.StatusPreconditionFailed)
+			dsl.Response("InternalServerError", dsl.StatusInternalServerError)
+			dsl.Response("ServiceUnavailable", dsl.StatusServiceUnavailable)
+		})
+	})
+
 	dsl.Files("/_memberships/openapi3.yaml", "gen/http/openapi3.yaml", func() {
 		dsl.Meta("swagger:generate", "false")
 	})

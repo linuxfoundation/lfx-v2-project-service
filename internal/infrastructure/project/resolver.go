@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/google/uuid"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce"
@@ -157,4 +159,171 @@ func (r *Resolver) UIDFromSlug(ctx context.Context, slug string) (string, error)
 	}
 
 	return uid, nil
+}
+
+// ResolveProject resolves a project identifier (v2 UUID or slug) to a fully-enriched
+// model.ProjectInfo{UID, SFID, Name, Slug}. Used when adding a project to a workspace
+// to capture a write-time snapshot of project metadata.
+//
+// Resolution:
+//   - UUID input:  SFIDFromUID → FetchProjectByID(sfid) → assemble ProjectInfo.
+//   - Slug input:  UIDFromSlug → SFIDFromUID → FetchProjectByID(sfid) → assemble ProjectInfo.
+//
+// Returns a Validation error (maps to HTTP 400 via wrapError) when the project cannot
+// be found either in the project-service or in Salesforce.
+func (r *Resolver) ResolveProject(ctx context.Context, idOrSlug string) (model.ProjectInfo, error) {
+	var projectUID, sfid string
+	var err error
+
+	if isUUID(idOrSlug) {
+		projectUID = idOrSlug
+		sfid, err = r.SFIDFromUID(ctx, idOrSlug)
+		if err != nil {
+			return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project %q: %v", idOrSlug, err))
+		}
+	} else {
+		// Treat as slug.
+		projectUID, err = r.UIDFromSlug(ctx, idOrSlug)
+		if err != nil {
+			return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project slug %q: %v", idOrSlug, err))
+		}
+		sfid, err = r.SFIDFromUID(ctx, projectUID)
+		if err != nil {
+			return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project %q: %v", projectUID, err))
+		}
+	}
+
+	if sfid == "" {
+		return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project %q: not found in Salesforce", idOrSlug))
+	}
+
+	proj, err := r.repo.FetchProjectByID(ctx, sfid)
+	if err != nil {
+		return model.ProjectInfo{}, fmt.Errorf("enriching project %q: %w", sfid, err)
+	}
+	if proj == nil {
+		return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project %q: not found in Salesforce", idOrSlug))
+	}
+
+	info := model.ProjectInfo{
+		UID:  projectUID,
+		SFID: sfid,
+		Name: proj.Name,
+	}
+	if proj.Slug != nil {
+		info.Slug = *proj.Slug
+	}
+	return info, nil
+}
+
+// ResolveProjectsBatch resolves a slice of project identifiers (UIDs or slugs) to
+// enriched ProjectInfo values using a single batch SOQL query for name+slug.
+//
+// Algorithm:
+//  1. Per-item: resolve id → {uid, sfid} via cache/RPC (SFIDFromUID / UIDFromSlug).
+//  2. Collect all sfids from successful per-item resolutions.
+//  3. ONE FetchProjectsByIDs call for name+slug enrichment.
+//  4. Merge results back by sfid; return parallel ([]ProjectInfo, []error) slices.
+//
+// Each index in the returned slices corresponds to the same index in idsOrSlugs.
+// A nil error at index i means info[i] is populated; a non-nil error means info[i]
+// is the zero value.
+func (r *Resolver) ResolveProjectsBatch(ctx context.Context, idsOrSlugs []string) ([]model.ProjectInfo, []error) {
+	n := len(idsOrSlugs)
+	infos := make([]model.ProjectInfo, n)
+	errsOut := make([]error, n)
+
+	// Step 1: per-item uid+sfid resolution.
+	type resolved struct {
+		uid  string
+		sfid string
+	}
+	items := make([]resolved, n)
+	sfids := make([]string, 0, n)
+
+	for i, id := range idsOrSlugs {
+		var projectUID, sfid string
+		var resolveErr error
+
+		if isUUID(id) {
+			projectUID = id
+			sfid, resolveErr = r.SFIDFromUID(ctx, id)
+		} else {
+			projectUID, resolveErr = r.UIDFromSlug(ctx, id)
+			if resolveErr == nil && projectUID != "" {
+				sfid, resolveErr = r.SFIDFromUID(ctx, projectUID)
+			}
+		}
+
+		if resolveErr != nil || sfid == "" {
+			if resolveErr == nil {
+				resolveErr = errs.NewValidation(fmt.Sprintf("unknown project %q: not found in Salesforce", id))
+			} else {
+				resolveErr = errs.NewValidation(fmt.Sprintf("unknown project %q: %v", id, resolveErr))
+			}
+			errsOut[i] = resolveErr
+			continue
+		}
+
+		items[i] = resolved{uid: projectUID, sfid: sfid}
+		sfids = append(sfids, sfid)
+	}
+
+	if len(sfids) == 0 {
+		return infos, errsOut
+	}
+
+	// Step 2: batch SOQL fetch for name+slug.
+	projects, batchErr := r.repo.FetchProjectsByIDs(ctx, sfids)
+	if batchErr != nil {
+		// Mark all not-yet-failed items as failed.
+		for i := range idsOrSlugs {
+			if errsOut[i] == nil {
+				errsOut[i] = fmt.Errorf("batch enrichment failed: %w", batchErr)
+			}
+		}
+		return infos, errsOut
+	}
+
+	// Build sfid → enrichment lookup using a local struct to avoid naming the
+	// unexported salesforce.soqlProject type while still accessing its fields.
+	type projEnrichment struct {
+		name string
+		slug *string
+	}
+	byID := make(map[string]projEnrichment, len(projects))
+	for _, p := range projects {
+		if p != nil {
+			byID[p.ID] = projEnrichment{name: p.Name, slug: p.Slug}
+		}
+	}
+
+	// Step 3: assemble per-item results.
+	for i := range idsOrSlugs {
+		if errsOut[i] != nil {
+			continue
+		}
+		sfid := items[i].sfid
+		enrichment, ok := byID[sfid]
+		if !ok {
+			errsOut[i] = errs.NewValidation(fmt.Sprintf("unknown project %q: not found in Salesforce", idsOrSlugs[i]))
+			continue
+		}
+		info := model.ProjectInfo{
+			UID:  items[i].uid,
+			SFID: sfid,
+			Name: enrichment.name,
+		}
+		if enrichment.slug != nil {
+			info.Slug = *enrichment.slug
+		}
+		infos[i] = info
+	}
+	return infos, errsOut
+}
+
+// isUUID reports whether s is a valid UUID (any version).
+func isUUID(s string) bool {
+	_, err := uuid.Parse(s)
+	return err == nil
 }

@@ -35,6 +35,7 @@ type membershipServicesrvc struct {
 	b2bOrgWriter            usecaseSvc.B2BOrgWriter
 	keyContactWriter        usecaseSvc.KeyContactWriter
 	orgSettingsWriter       usecaseSvc.OrgSettingsWriter
+	workspaceWriter         usecaseSvc.WorkspaceWriter
 	backfillRunner          *usecaseSvc.Runner
 }
 
@@ -762,12 +763,202 @@ func (s *membershipServicesrvc) DeleteB2bOrgSettingsUser(ctx context.Context, p 
 	}, nil
 }
 
-// settingsETagHeader computes the ETag header value for a settings result, logging and
+// ── Workspace handlers ────────────────────────────────────────────────────────
+
+// CreateB2bOrgWorkspace creates a new workspace in a b2b_org.
+func (s *membershipServicesrvc) CreateB2bOrgWorkspace(ctx context.Context, p *membershipservice.CreateB2bOrgWorkspacePayload) (*membershipservice.CreateB2bOrgWorkspaceResult, error) {
+	p.UID = normalizeSFID(p.UID)
+	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+	in := usecaseSvc.WorkspaceCreate{
+		OrgUID:    p.UID,
+		Name:      p.Name,
+		CreatedBy: principal,
+		IfMatch:   derefStr(p.IfMatch),
+	}
+	ws, err := s.workspaceWriter.CreateWorkspace(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.CreateB2bOrgWorkspaceResult{
+		Workspace:    workspaceToResponse(ws),
+		Etag:         workspaceETagHeader(ctx, ws),
+		LastModified: workspaceLastModifiedHeader(ws),
+	}, nil
+}
+
+// UpdateB2bOrgWorkspace renames an existing workspace.
+func (s *membershipServicesrvc) UpdateB2bOrgWorkspace(ctx context.Context, p *membershipservice.UpdateB2bOrgWorkspacePayload) (*membershipservice.UpdateB2bOrgWorkspaceResult, error) {
+	p.UID = normalizeSFID(p.UID)
+	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+	in := usecaseSvc.WorkspaceUpdate{
+		OrgUID:       p.UID,
+		WorkspaceUID: p.WorkspaceUID,
+		Name:         p.Name,
+		UpdatedBy:    principal,
+		IfMatch:      derefStr(p.IfMatch),
+	}
+	ws, err := s.workspaceWriter.UpdateWorkspace(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.UpdateB2bOrgWorkspaceResult{
+		Workspace:    workspaceToResponse(ws),
+		Etag:         workspaceETagHeader(ctx, ws),
+		LastModified: workspaceLastModifiedHeader(ws),
+	}, nil
+}
+
+// DeleteB2bOrgWorkspace deletes a workspace and all its project associations.
+func (s *membershipServicesrvc) DeleteB2bOrgWorkspace(ctx context.Context, p *membershipservice.DeleteB2bOrgWorkspacePayload) error {
+	p.UID = normalizeSFID(p.UID)
+	in := usecaseSvc.WorkspaceDelete{
+		OrgUID:       p.UID,
+		WorkspaceUID: p.WorkspaceUID,
+		IfMatch:      derefStr(p.IfMatch),
+	}
+	if err := s.workspaceWriter.DeleteWorkspace(ctx, in); err != nil {
+		return wrapError(ctx, err)
+	}
+	return nil
+}
+
+// AddB2bOrgWorkspaceProject adds a single project to a workspace.
+func (s *membershipServicesrvc) AddB2bOrgWorkspaceProject(ctx context.Context, p *membershipservice.AddB2bOrgWorkspaceProjectPayload) (*membershipservice.AddB2bOrgWorkspaceProjectResult, error) {
+	p.UID = normalizeSFID(p.UID)
+	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+	in := usecaseSvc.WorkspaceProjectAdd{
+		OrgUID:       p.UID,
+		WorkspaceUID: p.WorkspaceUID,
+		ProjectID:    p.ProjectID,
+		AddedBy:      principal,
+		IfMatch:      derefStr(p.IfMatch),
+	}
+	ws, err := s.workspaceWriter.AddProject(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.AddB2bOrgWorkspaceProjectResult{
+		Workspace:    workspaceToResponse(ws),
+		Etag:         workspaceETagHeader(ctx, ws),
+		LastModified: workspaceLastModifiedHeader(ws),
+	}, nil
+}
+
+// BulkAddB2bOrgWorkspaceProjects adds multiple projects to a workspace in one operation.
+func (s *membershipServicesrvc) BulkAddB2bOrgWorkspaceProjects(ctx context.Context, p *membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload) (*membershipservice.WorkspaceBulkResponse, error) {
+	p.UID = normalizeSFID(p.UID)
+	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+	in := usecaseSvc.WorkspaceProjectsBulkAdd{
+		OrgUID:       p.UID,
+		WorkspaceUID: p.WorkspaceUID,
+		ProjectIDs:   p.ProjectIds,
+		AddedBy:      principal,
+		IfMatch:      derefStr(p.IfMatch),
+	}
+	result, err := s.workspaceWriter.AddProjectsBulk(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	succeeded := make([]string, 0, len(result.Succeeded))
+	for _, info := range result.Succeeded {
+		succeeded = append(succeeded, info.UID)
+	}
+	failed := make([]*membershipservice.WorkspaceBulkAddItemError, 0, len(p.ProjectIds))
+	for i, ferr := range result.Failed {
+		if ferr != nil {
+			id := ""
+			if i < len(p.ProjectIds) {
+				id = p.ProjectIds[i]
+			}
+			failed = append(failed, &membershipservice.WorkspaceBulkAddItemError{
+				ProjectID: id,
+				Error:     ferr.Error(),
+			})
+		}
+	}
+	return &membershipservice.WorkspaceBulkResponse{
+		Workspace: workspaceToResponse(result.Workspace),
+		Succeeded: succeeded,
+		Failed:    failed,
+	}, nil
+}
+
+// RemoveB2bOrgWorkspaceProject removes a project association from a workspace.
+func (s *membershipServicesrvc) RemoveB2bOrgWorkspaceProject(ctx context.Context, p *membershipservice.RemoveB2bOrgWorkspaceProjectPayload) (*membershipservice.RemoveB2bOrgWorkspaceProjectResult, error) {
+	p.UID = normalizeSFID(p.UID)
+	in := usecaseSvc.WorkspaceProjectRemove{
+		OrgUID:       p.UID,
+		WorkspaceUID: p.WorkspaceUID,
+		ProjectUID:   p.ProjectUID,
+		IfMatch:      derefStr(p.IfMatch),
+	}
+	ws, err := s.workspaceWriter.RemoveProject(ctx, in)
+	if err != nil {
+		return nil, wrapError(ctx, err)
+	}
+	return &membershipservice.RemoveB2bOrgWorkspaceProjectResult{
+		Workspace:    workspaceToResponse(ws),
+		Etag:         workspaceETagHeader(ctx, ws),
+		LastModified: workspaceLastModifiedHeader(ws),
+	}, nil
+}
+
+// ── Workspace response converters ─────────────────────────────────────────────
+
+// workspaceToResponse maps a domain Workspace to the generated API response type.
+func workspaceToResponse(ws *model.Workspace) *membershipservice.WorkspaceResponse {
+	if ws == nil {
+		return nil
+	}
+	resp := &membershipservice.WorkspaceResponse{
+		UID:  ws.UID,
+		Name: ws.Name,
+	}
+	if ws.CreatedBy != "" {
+		resp.CreatedBy = &ws.CreatedBy
+	}
+	if ws.UpdatedBy != "" {
+		resp.UpdatedBy = &ws.UpdatedBy
+	}
+	createdAt := ws.CreatedAt.UTC().Format(time.RFC3339)
+	resp.CreatedAt = &createdAt
+	updatedAt := ws.UpdatedAt.UTC().Format(time.RFC3339)
+	resp.UpdatedAt = &updatedAt
+	for _, p := range ws.Projects {
+		resp.Projects = append(resp.Projects, workspaceProjectToResponse(p))
+	}
+	return resp
+}
+
+// workspaceProjectToResponse maps a domain WorkspaceProject to the generated type.
+func workspaceProjectToResponse(p model.WorkspaceProject) *membershipservice.WorkspaceProjectResponse {
+	out := &membershipservice.WorkspaceProjectResponse{
+		ProjectUID: p.ProjectUID,
+	}
+	if p.ProjectSFID != "" {
+		out.ProjectSfid = &p.ProjectSFID
+	}
+	if p.ProjectSlug != "" {
+		out.ProjectSlug = &p.ProjectSlug
+	}
+	if p.ProjectName != "" {
+		out.ProjectName = &p.ProjectName
+	}
+	if p.AddedBy != "" {
+		out.AddedBy = &p.AddedBy
+	}
+	addedAt := p.AddedAt.UTC().Format(time.RFC3339)
+	out.AddedAt = &addedAt
+	return out
+}
+
+// computeETag computes an ETag header value for any serialisable object, logging and
 // returning nil on failure (the response is still valid without the optional header).
-func settingsETagHeader(ctx context.Context, updated *model.B2BOrgSettings, uid string) *string {
-	etagVal, etagErr := etag.LFXEtag(updated)
-	if etagErr != nil {
-		slog.WarnContext(ctx, "failed to compute etag for b2b org settings", "uid", uid, "error", etagErr)
+// logUID is included in the warning log to identify which record failed.
+func computeETag(ctx context.Context, obj any, logUID string) *string {
+	etagVal, err := etag.LFXEtag(obj)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to compute etag", "uid", logUID, "error", err)
 		return nil
 	}
 	if etagVal == "" {
@@ -776,10 +967,42 @@ func settingsETagHeader(ctx context.Context, updated *model.B2BOrgSettings, uid 
 	return &etagVal
 }
 
+// formatLastModified returns the HTTP-date formatted Last-Modified header value.
+func formatLastModified(t time.Time) *string {
+	s := t.UTC().Format(constants.HTTPDateFormat)
+	return &s
+}
+
+// workspaceETagHeader computes the ETag header value for a workspace result.
+func workspaceETagHeader(ctx context.Context, ws *model.Workspace) *string {
+	if ws == nil {
+		return nil
+	}
+	return computeETag(ctx, ws, ws.UID)
+}
+
+// workspaceLastModifiedHeader formats the Last-Modified header for a workspace result.
+func workspaceLastModifiedHeader(ws *model.Workspace) *string {
+	if ws == nil {
+		return nil
+	}
+	return formatLastModified(ws.UpdatedAt)
+}
+
+// settingsETagHeader computes the ETag header value for a settings result.
+func settingsETagHeader(ctx context.Context, updated *model.B2BOrgSettings, uid string) *string {
+	if updated == nil {
+		return nil
+	}
+	return computeETag(ctx, updated, uid)
+}
+
 // settingsLastModifiedHeader formats the Last-Modified header value for a settings result.
 func settingsLastModifiedHeader(updated *model.B2BOrgSettings) *string {
-	lastMod := updated.UpdatedAt.UTC().Format(constants.HTTPDateFormat)
-	return &lastMod
+	if updated == nil {
+		return nil
+	}
+	return formatLastModified(updated.UpdatedAt)
 }
 
 // orgSettingsToResponse maps model.B2BOrgSettings to the generated response type.
@@ -868,6 +1091,7 @@ func NewMembershipService(
 	b2bOrgWriter usecaseSvc.B2BOrgWriter,
 	keyContactWriter usecaseSvc.KeyContactWriter,
 	orgSettingsWriter usecaseSvc.OrgSettingsWriter,
+	workspaceWriter usecaseSvc.WorkspaceWriter,
 	backfillRunner *usecaseSvc.Runner,
 ) membershipservice.Service {
 	return &membershipServicesrvc{
@@ -879,6 +1103,7 @@ func NewMembershipService(
 		b2bOrgWriter:            b2bOrgWriter,
 		keyContactWriter:        keyContactWriter,
 		orgSettingsWriter:       orgSettingsWriter,
+		workspaceWriter:         workspaceWriter,
 		backfillRunner:          backfillRunner,
 	}
 }

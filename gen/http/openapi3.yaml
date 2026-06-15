@@ -32,7 +32,7 @@ paths:
                         schema:
                             $ref: '#/components/schemas/AdminReindexPayload'
                         example:
-                            dry_run: true
+                            dry_run: false
                             items:
                                 - type: b2b_org
                                   uid: 001B000000IqhSLIAZ
@@ -530,12 +530,6 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
@@ -639,7 +633,19 @@ paths:
                                   invited_as: writer
                                   name: Alice Smith
                                   username: alice
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
                             writers:
+                                - avatar: https://avatars.githubusercontent.com/u/12345
+                                  email: alice@example.com
+                                  invite_status: accepted
+                                  invited_as: writer
+                                  name: Alice Smith
+                                  username: alice
                                 - avatar: https://avatars.githubusercontent.com/u/12345
                                   email: alice@example.com
                                   invite_status: accepted
@@ -676,12 +682,6 @@ paths:
                                 $ref: '#/components/schemas/B2bOrgSettingsResponse'
                             example:
                                 auditors:
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                     - avatar: https://avatars.githubusercontent.com/u/12345
                                       email: alice@example.com
                                       invite_status: accepted
@@ -842,12 +842,6 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
@@ -972,12 +966,6 @@ paths:
                                 $ref: '#/components/schemas/B2bOrgSettingsResponse'
                             example:
                                 auditors:
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                     - avatar: https://avatars.githubusercontent.com/u/12345
                                       email: alice@example.com
                                       invite_status: accepted
@@ -1145,12 +1133,6 @@ paths:
                                       invited_as: writer
                                       name: Alice Smith
                                       username: alice
-                                    - avatar: https://avatars.githubusercontent.com/u/12345
-                                      email: alice@example.com
-                                      invite_status: accepted
-                                      invited_as: writer
-                                      name: Alice Smith
-                                      username: alice
                                 created_at: "2025-01-01T00:00:00Z"
                                 updated_at: "2025-06-01T12:00:00Z"
                                 writers:
@@ -1180,6 +1162,814 @@ paths:
                                 $ref: '#/components/schemas/Error'
                 "409":
                     description: 'Conflict: Concurrent modification, or last-Admin invariant — retry with fresh settings'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/workspaces:
+        post:
+            tags:
+                - membership-service
+            summary: create-b2b-org-workspace membership-service
+            description: Create a new workspace within a b2b_org. Name must be unique within the org.
+            operationId: membership-service#create-b2b-org-workspace
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/WorkspaceCreateBody'
+                        example:
+                            name: My Workspace
+            responses:
+                "201":
+                    description: Created response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/WorkspaceResponse'
+                            example:
+                                created_at: "2026-01-01T00:00:00Z"
+                                created_by: alice
+                                name: My Workspace
+                                projects:
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2026-06-01T12:00:00Z"
+                                updated_by: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Organization not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Workspace name already exists, or concurrent modification — retry'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/workspaces/{workspace_uid}:
+        delete:
+            tags:
+                - membership-service
+            summary: delete-b2b-org-workspace membership-service
+            description: Delete a workspace and all its project associations (cascade delete).
+            operationId: membership-service#delete-b2b-org-workspace
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: workspace_uid
+                  in: path
+                  description: Workspace UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Workspace UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            responses:
+                "204":
+                    description: No Content response.
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Workspace not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+        put:
+            tags:
+                - membership-service
+            summary: update-b2b-org-workspace membership-service
+            description: Rename an existing workspace. Name must be unique within the org.
+            operationId: membership-service#update-b2b-org-workspace
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: workspace_uid
+                  in: path
+                  description: Workspace UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Workspace UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/WorkspaceCreateBody'
+                        example:
+                            name: Renamed Workspace
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/WorkspaceResponse'
+                            example:
+                                created_at: "2026-01-01T00:00:00Z"
+                                created_by: alice
+                                name: My Workspace
+                                projects:
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2026-06-01T12:00:00Z"
+                                updated_by: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Workspace not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Workspace name already exists, or concurrent modification — retry'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects:
+        post:
+            tags:
+                - membership-service
+            summary: add-b2b-org-workspace-project membership-service
+            description: 'Add a single project to a workspace. Idempotent: already-associated projects are a no-op. Returns HTTP 400 for unknown project identifiers.'
+            operationId: membership-service#add-b2b-org-workspace-project
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: workspace_uid
+                  in: path
+                  description: Workspace UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Workspace UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/WorkspaceProjectAddBody'
+                        example:
+                            project_id: my-project
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/WorkspaceResponse'
+                            example:
+                                created_at: "2026-01-01T00:00:00Z"
+                                created_by: alice
+                                name: My Workspace
+                                projects:
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2026-06-01T12:00:00Z"
+                                updated_by: alice
+                "400":
+                    description: 'BadRequest: Bad request or unknown project identifier'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Workspace not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Concurrent modification — retry'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/{project_uid}:
+        delete:
+            tags:
+                - membership-service
+            summary: remove-b2b-org-workspace-project membership-service
+            description: Remove a project association from a workspace.
+            operationId: membership-service#remove-b2b-org-workspace-project
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: workspace_uid
+                  in: path
+                  description: Workspace UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Workspace UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: project_uid
+                  in: path
+                  description: Project UID to remove
+                  required: true
+                  schema:
+                    type: string
+                    description: Project UID to remove
+                    example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    format: uuid
+                  example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            responses:
+                "200":
+                    description: OK response.
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            schema:
+                                type: string
+                                description: ETag header value
+                                example: "123"
+                            example: "123"
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            schema:
+                                type: string
+                                description: Last-Modified header value (HTTP date format)
+                                example: Wed, 21 Oct 2025 07:28:00 GMT
+                            example: Wed, 21 Oct 2025 07:28:00 GMT
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/WorkspaceResponse'
+                            example:
+                                created_at: "2026-01-01T00:00:00Z"
+                                created_by: alice
+                                name: My Workspace
+                                projects:
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    - added_at: "2026-01-01T00:00:00Z"
+                                      added_by: alice
+                                      project_name: My Project
+                                      project_sfid: a2F000000000001AAA
+                                      project_slug: my-project
+                                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                updated_at: "2026-06-01T12:00:00Z"
+                                updated_by: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Workspace or project not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Concurrent modification — retry'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "412":
+                    description: 'PreconditionFailed: Precondition failed'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
+    /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/bulk:
+        post:
+            tags:
+                - membership-service
+            summary: bulk-add-b2b-org-workspace-projects membership-service
+            description: 'Add multiple projects to a workspace in one operation. Partially succeeds: successfully enriched projects are written; per-item failures are reported in the response.'
+            operationId: membership-service#bulk-add-b2b-org-workspace-projects
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: uid
+                  in: path
+                  description: B2B organization UID
+                  required: true
+                  schema:
+                    type: string
+                    description: B2B organization UID
+                    example: 001B000000IqhSLIAZ
+                  example: 001B000000IqhSLIAZ
+                - name: workspace_uid
+                  in: path
+                  description: Workspace UID
+                  required: true
+                  schema:
+                    type: string
+                    description: Workspace UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                  example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                - name: If-Match
+                  in: header
+                  description: If-Match header value for conditional requests
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: If-Match header value for conditional requests
+                    example: "123"
+                  example: "123"
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/WorkspaceProjectsBulkAddBody'
+                        example:
+                            project_ids:
+                                - Dolorem porro maxime voluptas repellat.
+                                - Labore quia facilis.
+                                - Pariatur hic officia qui.
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/WorkspaceBulkResponse'
+                            example:
+                                failed:
+                                    - error: unknown project
+                                      project_id: unknown-project
+                                    - error: unknown project
+                                      project_id: unknown-project
+                                    - error: unknown project
+                                      project_id: unknown-project
+                                    - error: unknown project
+                                      project_id: unknown-project
+                                succeeded:
+                                    - a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                workspace:
+                                    created_at: "2026-01-01T00:00:00Z"
+                                    created_by: alice
+                                    name: My Workspace
+                                    projects:
+                                        - added_at: "2026-01-01T00:00:00Z"
+                                          added_by: alice
+                                          project_name: My Project
+                                          project_sfid: a2F000000000001AAA
+                                          project_slug: my-project
+                                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                        - added_at: "2026-01-01T00:00:00Z"
+                                          added_by: alice
+                                          project_name: My Project
+                                          project_sfid: a2F000000000001AAA
+                                          project_slug: my-project
+                                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                        - added_at: "2026-01-01T00:00:00Z"
+                                          added_by: alice
+                                          project_name: My Project
+                                          project_sfid: a2F000000000001AAA
+                                          project_slug: my-project
+                                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                        - added_at: "2026-01-01T00:00:00Z"
+                                          added_by: alice
+                                          project_name: My Project
+                                          project_sfid: a2F000000000001AAA
+                                          project_slug: my-project
+                                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                                    uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                                    updated_at: "2026-06-01T12:00:00Z"
+                                    updated_by: alice
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "404":
+                    description: 'NotFound: Workspace not found'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "409":
+                    description: 'Conflict: Concurrent modification — retry'
                     content:
                         application/vnd.goa.error:
                             schema:
@@ -1611,7 +2401,7 @@ paths:
                             email: john.doe@example.com
                             primary_contact: false
                             role: Technical Contact
-                            send_invite: false
+                            send_invite: true
                             status: Active
                             title: CTO
             responses:
@@ -1861,7 +2651,7 @@ components:
                     type: boolean
                     description: When true, walk SOQL/live-path but skip publishing. Final log includes would_publish_count.
                     default: false
-                    example: false
+                    example: true
                 items:
                     type: array
                     items:
@@ -1884,14 +2674,14 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Quidem blanditiis error qui similique quisquam explicabo.
+                        example: Suscipit rerum blanditiis consectetur eaque natus.
                     description: 'Entity types to reindex (optional; default = all in-scope: b2b_org, project_membership, key_contact, b2b_org_settings). Mutually exclusive with items.'
                     example:
                         - b2b_org
                         - project_membership
             description: Request payload for triggering a reindex operation
             example:
-                dry_run: false
+                dry_run: true
                 items:
                     - type: b2b_org
                       uid: 001B000000IqhSLIAZ
@@ -1950,7 +2740,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Corporis quia doloribus a.
+                        example: Hic dignissimos aut ea qui ipsum ad.
                     description: Additional domains; each item is a bare host with the same normalization as primary_domain
                     example:
                         - example.org
@@ -2063,6 +2853,12 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
                 created_at:
                     type: string
                     description: Settings record creation timestamp
@@ -2091,18 +2887,6 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
             description: 'Access-control settings for a b2b_org: writers and auditors'
             example:
                 auditors:
@@ -2118,9 +2902,21 @@ components:
                       invited_as: writer
                       name: Alice Smith
                       username: alice
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                 created_at: "2025-01-01T00:00:00Z"
                 updated_at: "2025-06-01T12:00:00Z"
                 writers:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -2154,12 +2950,6 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
                 writers:
                     type: array
                     items:
@@ -2178,9 +2968,27 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
+                        - avatar: https://avatars.githubusercontent.com/u/12345
+                          email: alice@example.com
+                          invite_status: accepted
+                          invited_as: writer
+                          name: Alice Smith
+                          username: alice
             description: 'Request body for replacing the writers and/or auditors list on a b2b_org. Full-replace: nil = keep existing; [] = remove all.'
             example:
                 auditors:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -2280,7 +3088,7 @@ components:
                 fault:
                     type: boolean
                     description: Is the error a server-side fault?
-                    example: false
+                    example: true
                 id:
                     type: string
                     description: ID is a unique identifier for this particular occurrence of the problem.
@@ -2303,12 +3111,12 @@ components:
                     example: true
             description: Endpoint not implemented
             example:
-                fault: false
+                fault: true
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: true
-                timeout: false
+                temporary: false
+                timeout: true
             required:
                 - name
                 - id
@@ -2358,7 +3166,7 @@ components:
                     type: boolean
                     description: When true, send a platform invite (unregistered user) or role-assignment email (registered user). Defaults to false — org-dashboard access is still provisioned silently for registered users.
                     default: false
-                    example: false
+                    example: true
                 status:
                     type: string
                     description: Role record status, e.g. 'Active'
@@ -2438,7 +3246,7 @@ components:
                 email: john.doe@example.com
                 primary_contact: false
                 role: Technical Contact
-                send_invite: false
+                send_invite: true
                 status: Active
                 title: CTO
         ListMetadata:
@@ -2534,7 +3342,7 @@ components:
                     example: Alice Smith
                 username:
                     type: string
-                    description: LFID username (OIDC sub); absent for pending invites
+                    description: LFID username; absent for pending invites
                     example: alice
             description: A writer or auditor principal on a b2b_org settings list
             example:
@@ -2937,12 +3745,6 @@ components:
                           invited_as: writer
                           name: Alice Smith
                           username: alice
-                        - avatar: https://avatars.githubusercontent.com/u/12345
-                          email: alice@example.com
-                          invite_status: accepted
-                          invited_as: writer
-                          name: Alice Smith
-                          username: alice
             example:
                 auditors:
                     - avatar: https://avatars.githubusercontent.com/u/12345
@@ -2964,6 +3766,12 @@ components:
                       name: Alice Smith
                       username: alice
                 writers:
+                    - avatar: https://avatars.githubusercontent.com/u/12345
+                      email: alice@example.com
+                      invite_status: accepted
+                      invited_as: writer
+                      name: Alice Smith
+                      username: alice
                     - avatar: https://avatars.githubusercontent.com/u/12345
                       email: alice@example.com
                       invite_status: accepted
@@ -3036,6 +3844,276 @@ components:
                 send_invite: false
                 status: Active
                 title: CTO
+        WorkspaceBulkAddItemError:
+            type: object
+            properties:
+                error:
+                    type: string
+                    description: Reason the project could not be added
+                    example: unknown project
+                project_id:
+                    type: string
+                    description: The project identifier that failed
+                    example: unknown-project
+            description: Per-item failure detail in a bulk workspace project add
+            example:
+                error: unknown project
+                project_id: unknown-project
+            required:
+                - project_id
+                - error
+        WorkspaceBulkResponse:
+            type: object
+            properties:
+                failed:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/WorkspaceBulkAddItemError'
+                    description: Projects that could not be added with per-item error detail
+                    example:
+                        - error: unknown project
+                          project_id: unknown-project
+                        - error: unknown project
+                          project_id: unknown-project
+                        - error: unknown project
+                          project_id: unknown-project
+                        - error: unknown project
+                          project_id: unknown-project
+                succeeded:
+                    type: array
+                    items:
+                        type: string
+                        example: Nobis nisi qui et.
+                    description: Project UIDs that were successfully added (or were already present)
+                    example:
+                        - a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                workspace:
+                    $ref: '#/components/schemas/WorkspaceResponse'
+            description: 'Result of a bulk workspace project add: the updated workspace plus per-item success/failure detail'
+            example:
+                failed:
+                    - error: unknown project
+                      project_id: unknown-project
+                    - error: unknown project
+                      project_id: unknown-project
+                    - error: unknown project
+                      project_id: unknown-project
+                    - error: unknown project
+                      project_id: unknown-project
+                succeeded:
+                    - a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                workspace:
+                    created_at: "2026-01-01T00:00:00Z"
+                    created_by: alice
+                    name: My Workspace
+                    projects:
+                        - added_at: "2026-01-01T00:00:00Z"
+                          added_by: alice
+                          project_name: My Project
+                          project_sfid: a2F000000000001AAA
+                          project_slug: my-project
+                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        - added_at: "2026-01-01T00:00:00Z"
+                          added_by: alice
+                          project_name: My Project
+                          project_sfid: a2F000000000001AAA
+                          project_slug: my-project
+                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    updated_at: "2026-06-01T12:00:00Z"
+                    updated_by: alice
+            required:
+                - workspace
+                - succeeded
+                - failed
+        WorkspaceCreateBody:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Workspace display name; must be unique within the org
+                    example: My Workspace
+                    minLength: 1
+                    maxLength: 255
+            description: Request body for creating a workspace
+            example:
+                name: My Workspace
+            required:
+                - name
+        WorkspaceProjectAddBody:
+            type: object
+            properties:
+                project_id:
+                    type: string
+                    description: 'Project identifier: v2 UUID or URL slug'
+                    example: my-project
+            description: Request body for adding a single project to a workspace
+            example:
+                project_id: my-project
+            required:
+                - project_id
+        WorkspaceProjectResponse:
+            type: object
+            properties:
+                added_at:
+                    type: string
+                    description: Timestamp when the project was added
+                    example: "2026-01-01T00:00:00Z"
+                    format: date-time
+                added_by:
+                    type: string
+                    description: LFID username of the principal who added this project
+                    example: alice
+                project_name:
+                    type: string
+                    description: Project display name (snapshot)
+                    example: My Project
+                project_sfid:
+                    type: string
+                    description: Salesforce Project__c.Id (snapshot)
+                    example: a2F000000000001AAA
+                project_slug:
+                    type: string
+                    description: Project URL slug (snapshot)
+                    example: my-project
+                project_uid:
+                    type: string
+                    description: v2 project UID
+                    example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+            description: A project association within a workspace (write-time snapshot)
+            example:
+                added_at: "2026-01-01T00:00:00Z"
+                added_by: alice
+                project_name: My Project
+                project_sfid: a2F000000000001AAA
+                project_slug: my-project
+                project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+            required:
+                - project_uid
+        WorkspaceProjectsBulkAddBody:
+            type: object
+            properties:
+                project_ids:
+                    type: array
+                    items:
+                        type: string
+                        example: Qui enim harum aut.
+                    description: Project identifiers (v2 UUIDs or slugs); at most 100 per request
+                    example:
+                        - Sit sunt omnis.
+                    minItems: 1
+                    maxItems: 100
+            description: Request body for adding multiple projects to a workspace in one operation
+            example:
+                project_ids:
+                    - Molestiae possimus suscipit.
+                    - Sit velit aut sint cumque.
+            required:
+                - project_ids
+        WorkspaceResponse:
+            type: object
+            properties:
+                created_at:
+                    type: string
+                    description: Creation timestamp
+                    example: "2026-01-01T00:00:00Z"
+                    format: date-time
+                created_by:
+                    type: string
+                    description: LFID username of the creator
+                    example: alice
+                name:
+                    type: string
+                    description: Workspace display name
+                    example: My Workspace
+                projects:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/WorkspaceProjectResponse'
+                    description: Project associations in this workspace
+                    example:
+                        - added_at: "2026-01-01T00:00:00Z"
+                          added_by: alice
+                          project_name: My Project
+                          project_sfid: a2F000000000001AAA
+                          project_slug: my-project
+                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        - added_at: "2026-01-01T00:00:00Z"
+                          added_by: alice
+                          project_name: My Project
+                          project_sfid: a2F000000000001AAA
+                          project_slug: my-project
+                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        - added_at: "2026-01-01T00:00:00Z"
+                          added_by: alice
+                          project_name: My Project
+                          project_sfid: a2F000000000001AAA
+                          project_slug: my-project
+                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                        - added_at: "2026-01-01T00:00:00Z"
+                          added_by: alice
+                          project_name: My Project
+                          project_sfid: a2F000000000001AAA
+                          project_slug: my-project
+                          project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                uid:
+                    type: string
+                    description: Workspace UID
+                    example: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                    format: uuid
+                updated_at:
+                    type: string
+                    description: Last-update timestamp
+                    example: "2026-06-01T12:00:00Z"
+                    format: date-time
+                updated_by:
+                    type: string
+                    description: LFID username of the last updater
+                    example: alice
+            description: A named container of project associations within a b2b_org
+            example:
+                created_at: "2026-01-01T00:00:00Z"
+                created_by: alice
+                name: My Workspace
+                projects:
+                    - added_at: "2026-01-01T00:00:00Z"
+                      added_by: alice
+                      project_name: My Project
+                      project_sfid: a2F000000000001AAA
+                      project_slug: my-project
+                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    - added_at: "2026-01-01T00:00:00Z"
+                      added_by: alice
+                      project_name: My Project
+                      project_sfid: a2F000000000001AAA
+                      project_slug: my-project
+                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    - added_at: "2026-01-01T00:00:00Z"
+                      added_by: alice
+                      project_name: My Project
+                      project_sfid: a2F000000000001AAA
+                      project_slug: my-project
+                      project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
+                updated_at: "2026-06-01T12:00:00Z"
+                updated_by: alice
+            required:
+                - uid
+                - name
+        WorkspaceUpdateBody:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: New workspace display name; must be unique within the org
+                    example: Renamed Workspace
+                    minLength: 1
+                    maxLength: 255
+            description: Request body for renaming a workspace
+            example:
+                name: Renamed Workspace
+            required:
+                - name
     securitySchemes:
         jwt_header_Authorization:
             type: http

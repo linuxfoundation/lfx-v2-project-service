@@ -26,4 +26,7 @@ const (
 	// AuthEmailToUsernameLookupSubject resolves a registered LFID username by primary email.
 	// Request: plain-text email. Reply: plain-text username on success, JSON error envelope on miss.
 	AuthEmailToUsernameLookupSubject = "lfx.auth-service.email_to_username"
+
+	// IndexB2BOrgWorkspaceSubject is the NATS subject for indexing B2BOrgWorkspace records.
+	IndexB2BOrgWorkspaceSubject = "lfx.index.b2b_org_workspace"
 )

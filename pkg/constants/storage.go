@@ -32,4 +32,10 @@ const (
 	// Single-active-consumer enforcement is handled at the Kubernetes level
 	// (replicas: 1, Recreate strategy) — no lease key is stored here.
 	KVBucketNamePubSubState = "pubsub-state"
+
+	// KVBucketNameOrgWorkspaces is the name of the KV bucket for authoritative
+	// b2b_org workspace records (named project containers). One key per org;
+	// key format: "org-workspaces.{orgUID}". No MaxAge TTL — workspace membership
+	// is authoritative state that must never be silently evicted.
+	KVBucketNameOrgWorkspaces = "org-workspaces"
 )
