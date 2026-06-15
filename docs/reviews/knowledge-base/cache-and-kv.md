@@ -30,7 +30,7 @@ read path consults `CacheStatus` / `expires_at` (`CacheStatusFresh|Stale|Expired
 and only returns `Fresh`/`Stale` (with refresh) entries. Flag a `return cached` that is
 not gated by the freshness check, relying on an `evictExpired()` sweep alone.
 
-**Empirical citation:** PR #10 `internal/infrastructure/nats/project_resolver.go:80` — Copilot — "Cache TTL isn't actually enforced on cache hits: ResolveB2BSFID returns the cached entry without checking entry.expiresAt, and evictExpired() only runs a full sweep once per projectResolverCacheCleanup. This can serve stale mappings for up to ~TTL+cleanup interval." (Maintainer accepted the residual risk for static SFID data but confirmed the observation is valid.)
+**Empirical citation:** PR #10 `internal/infrastructure/project/resolver.go:80` (then at `internal/infrastructure/nats/project_resolver.go`) — Copilot — "Cache TTL isn't actually enforced on cache hits: ResolveB2BSFID returns the cached entry without checking entry.expiresAt, and evictExpired() only runs a full sweep once per projectResolverCacheCleanup. This can serve stale mappings for up to ~TTL+cleanup interval." (Maintainer accepted the residual risk for static SFID data but confirmed the observation is valid.)
 
 **Failure message:** Cache TTL checked only by a background sweep, not on the read path — stale entries served for up to TTL + sweep interval.
 

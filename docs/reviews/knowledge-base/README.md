@@ -5,8 +5,8 @@
 
 Empirical review patterns extracted from this repo's merged-PR review history. Each
 pattern was flagged by a real reviewer (human maintainer or Copilot) on a real
-member-service PR and cleared the promotion gate in the
-[service review-KB research playbook](../../../../lfx-architecture-scratch/2026-05-DevX-Time-to-Merge/service-kb-research-playbook.md).
+member-service PR and cleared the promotion gate in the service review-KB research
+playbook.
 
 This KB is the **empirical** surface. It does NOT duplicate `lfx-skills:lfx-general-code-reviewer`
 (generic correctness/security/test intuition) or `lfx-skills:lfx-member-service-code-reviewer`

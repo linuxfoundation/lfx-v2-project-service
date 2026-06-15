@@ -42,7 +42,6 @@ cmd/member-api/               # Presentation Layer (HTTP entry point)
 │   └── type.go              # Goa type definitions (MembershipTier, ProjectMembership, ProjectKeyContact)
 ├── service/                 # Service handlers (implements Goa interfaces)
 │   ├── membership_service.go  # Main service handler with endpoint logic
-│   ├── membership_service_response.go  # Response conversion helpers
 │   ├── providers.go         # Dependency initialization (NATS, Salesforce, auth)
 │   └── error.go             # Error mapping helpers
 ├── http.go                  # HTTP server setup and middleware
@@ -605,7 +604,7 @@ Credentials are injected from a pre-existing Kubernetes Secret (see Helm chart `
 For integration testing with the complete LFX stack:
 
 - Install lfx-platform Helm chart (includes NATS, Heimdall, OpenFGA, Authelia, Traefik).
-- Use `make helm-install-local` with `values.local.yaml`.
+- Use `make helm-install` to deploy the service chart.
 - Full authentication and authorization enabled.
 
 ### Option B: Minimal Setup
