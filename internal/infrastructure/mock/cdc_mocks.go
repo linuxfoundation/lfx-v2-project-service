@@ -49,6 +49,9 @@ func (r *MockControllableMemberReader) ListMembershipsForProject(_ context.Conte
 func (r *MockControllableMemberReader) ListKeyContactsForMembership(_ context.Context, _ string) ([]*model.KeyContact, error) {
 	return nil, nil
 }
+func (r *MockControllableMemberReader) ListKeyContactsForOrg(_ context.Context, _ string) ([]*model.KeyContact, error) {
+	return nil, nil
+}
 func (r *MockControllableMemberReader) IsReady(_ context.Context) error { return nil }
 
 // MockControllableProjectMembershipReader is a test double for

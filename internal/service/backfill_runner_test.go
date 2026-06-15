@@ -317,8 +317,8 @@ func TestBackfillRunner_Settings_FullMode_PublishesOnePerUID(t *testing.T) {
 
 	org1 := &model.B2BOrg{UID: uid1}
 	org2 := &model.B2BOrg{UID: uid2}
-	settings1 := &model.B2BOrgSettings{UID: uid1, Writers: []model.B2BOrgUser{{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}}}
-	settings2 := &model.B2BOrgSettings{UID: uid2, Writers: []model.B2BOrgUser{{Username: "auth0|bob", Email: "bob@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}}}
+	settings1 := &model.B2BOrgSettings{UID: uid1, Writers: []model.B2BOrgUser{{Username: "alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}}}
+	settings2 := &model.B2BOrgSettings{UID: uid2, Writers: []model.B2BOrgUser{{Username: "bob", Email: "bob@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}}}
 
 	settingsStore := mock.NewMockB2BOrgSettings()
 	settingsStore.Seed(uid1, settings1, 1)
@@ -342,7 +342,7 @@ func TestBackfillRunner_Settings_TargetedMode_PublishesOne(t *testing.T) {
 	const uid = "00000000-0000-0000-0000-000000000011"
 
 	org := &model.B2BOrg{UID: uid}
-	settings := &model.B2BOrgSettings{UID: uid, Writers: []model.B2BOrgUser{{Username: "auth0|alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}}}
+	settings := &model.B2BOrgSettings{UID: uid, Writers: []model.B2BOrgUser{{Username: "alice", Email: "alice@acme.com", InvitedAs: "writer", InviteStatus: model.InviteStatusAccepted}}}
 
 	settingsStore := mock.NewMockB2BOrgSettings()
 	settingsStore.Seed(uid, settings, 1)

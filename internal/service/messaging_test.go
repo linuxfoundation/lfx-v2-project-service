@@ -587,7 +587,7 @@ func TestPublishB2BOrgSettingsIndexer_PublishesToCorrectSubject(t *testing.T) {
 	org := &model.B2BOrg{UID: "org-uid-pub-001", Name: "Pub Org"}
 	settings := &model.B2BOrgSettings{
 		UID:     "org-uid-pub-001",
-		Writers: []model.B2BOrgUser{{Username: "auth0|alice", Email: "alice@acme.com", InviteStatus: model.InviteStatusAccepted}},
+		Writers: []model.B2BOrgUser{{Username: "alice", Email: "alice@acme.com", InviteStatus: model.InviteStatusAccepted}},
 	}
 
 	PublishB2BOrgSettingsIndexer(context.Background(), pub, org, settings, indexerConstants.ActionCreated)
@@ -601,7 +601,7 @@ func TestPublishB2BOrgSettingsIndexer_PublishError_Swallowed(t *testing.T) {
 	org := &model.B2BOrg{UID: "org-uid-pub-002", Name: "Pub Org 2"}
 	settings := &model.B2BOrgSettings{
 		UID:     "org-uid-pub-002",
-		Writers: []model.B2BOrgUser{{Username: "auth0|bob", Email: "bob@acme.com", InviteStatus: model.InviteStatusAccepted}},
+		Writers: []model.B2BOrgUser{{Username: "bob", Email: "bob@acme.com", InviteStatus: model.InviteStatusAccepted}},
 	}
 
 	// Must not panic or return an error — fire-and-forget.
@@ -614,19 +614,19 @@ func TestBuildB2BOrgSettingsIndexerView_FlatMembersWithRole(t *testing.T) {
 	settings := &model.B2BOrgSettings{
 		UID: "org-view-001",
 		Writers: []model.B2BOrgUser{
-			{Username: "auth0|alice", Email: "alice@acme.com", Name: "Alice A", InviteStatus: model.InviteStatusAccepted},
+			{Username: "alice", Email: "alice@acme.com", Name: "Alice A", InviteStatus: model.InviteStatusAccepted},
 		},
 		Auditors: []model.B2BOrgUser{
-			{Username: "auth0|bob", Email: "bob@acme.com", Name: "Bob B", InviteStatus: model.InviteStatusAccepted},
+			{Username: "bob", Email: "bob@acme.com", Name: "Bob B", InviteStatus: model.InviteStatusAccepted},
 		},
 	}
 
 	view := buildB2BOrgSettingsIndexerView(settings)
 
 	require.Len(t, view.Members, 2)
-	assert.Equal(t, "auth0|alice", view.Members[0].Username)
+	assert.Equal(t, "alice", view.Members[0].Username)
 	assert.Equal(t, "writer", view.Members[0].Role)
-	assert.Equal(t, "auth0|bob", view.Members[1].Username)
+	assert.Equal(t, "bob", view.Members[1].Username)
 	assert.Equal(t, "auditor", view.Members[1].Role)
 	assert.Equal(t, "org-view-001", view.UID)
 }
@@ -635,8 +635,8 @@ func TestBuildB2BOrgSettingsIndexerView_WriterPrecedence(t *testing.T) {
 	// User in both writers and auditors must appear once with role "writer".
 	settings := &model.B2BOrgSettings{
 		UID:      "org-view-002",
-		Writers:  []model.B2BOrgUser{{Username: "auth0|charlie", Email: "c@example.com", InviteStatus: model.InviteStatusAccepted}},
-		Auditors: []model.B2BOrgUser{{Username: "auth0|charlie", Email: "c@example.com", InviteStatus: model.InviteStatusAccepted}},
+		Writers:  []model.B2BOrgUser{{Username: "charlie", Email: "c@example.com", InviteStatus: model.InviteStatusAccepted}},
+		Auditors: []model.B2BOrgUser{{Username: "charlie", Email: "c@example.com", InviteStatus: model.InviteStatusAccepted}},
 	}
 
 	view := buildB2BOrgSettingsIndexerView(settings)
@@ -672,16 +672,16 @@ func TestBuildB2BOrgSettingsIndexerView_RevokedExpiredExcluded(t *testing.T) {
 	settings := &model.B2BOrgSettings{
 		UID: "org-view-004",
 		Writers: []model.B2BOrgUser{
-			{Username: "auth0|active", Email: "active@example.com", InviteStatus: model.InviteStatusAccepted},
-			{Username: "auth0|revoked", Email: "revoked@example.com", InviteStatus: model.InviteStatusRevoked},
-			{Username: "auth0|expired", Email: "expired@example.com", InviteStatus: model.InviteStatusExpired},
+			{Username: "active", Email: "active@example.com", InviteStatus: model.InviteStatusAccepted},
+			{Username: "revoked", Email: "revoked@example.com", InviteStatus: model.InviteStatusRevoked},
+			{Username: "expired", Email: "expired@example.com", InviteStatus: model.InviteStatusExpired},
 		},
 	}
 
 	view := buildB2BOrgSettingsIndexerView(settings)
 
 	require.Len(t, view.Members, 1, "only accepted entry must appear")
-	assert.Equal(t, "auth0|active", view.Members[0].Username)
+	assert.Equal(t, "active", view.Members[0].Username)
 }
 
 func TestBuildB2BOrgSettingsIndexerView_EmptySettingsProducesEmptySlice(t *testing.T) {

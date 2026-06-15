@@ -15,6 +15,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
+	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
 )
 
 // CDCConsumer consumes normalized CDCEvents from a CDCSubscriber and dispatches
@@ -36,6 +37,8 @@ type CDCConsumer struct {
 	cacheInvalidator        port.CacheInvalidator
 	publisher               port.MemberPublisher
 	globalOrgAdminTeamUID   string
+	userReader              port.UserReader
+	orgSettings             OrgSettingsPrincipalWriter
 }
 
 // CDCConsumerOption configures a CDCConsumer.
@@ -67,6 +70,14 @@ func WithCDCPublisher(p port.MemberPublisher) CDCConsumerOption {
 
 func WithCDCGlobalOrgAdminTeamUID(uid string) CDCConsumerOption {
 	return func(o *CDCConsumer) { o.globalOrgAdminTeamUID = uid }
+}
+
+func WithCDCUserReader(r port.UserReader) CDCConsumerOption {
+	return func(o *CDCConsumer) { o.userReader = r }
+}
+
+func WithCDCOrgSettings(w OrgSettingsPrincipalWriter) CDCConsumerOption {
+	return func(o *CDCConsumer) { o.orgSettings = w }
 }
 
 // NewCDCConsumer constructs a CDCConsumer.
@@ -304,6 +315,20 @@ func (o *CDCConsumer) handleProjectRoleUpsert(ctx context.Context, uid string, c
 		return err
 	}
 
+	// Attempt LFID resolution when the contact has no stored username. CDC is a
+	// passive sync and must never send emails — provisioning is always silent.
+	if o.userReader != nil && kc.Username == "" && kc.Email != "" {
+		if username, usernameErr := o.userReader.UsernameByEmail(ctx, kc.Email); usernameErr != nil {
+			if !pkgerrors.IsNotFound(usernameErr) {
+				slog.WarnContext(ctx, "cdc: resolve LFID for key contact failed",
+					"uid", uid, "error", usernameErr)
+			}
+			// NotFound is expected for unregistered emails — leave Username empty.
+		} else {
+			kc.Username = username
+		}
+	}
+
 	action := indexerConstants.ActionUpdated
 	if changeType == model.CDCChangeCreate {
 		action = indexerConstants.ActionCreated
@@ -311,6 +336,22 @@ func (o *CDCConsumer) handleProjectRoleUpsert(ctx context.Context, uid string, c
 
 	PublishKeyContactIndexer(ctx, o.publisher, kc, action)
 	PublishKeyContactFGA(ctx, o.publisher, kc)
+
+	// Provision org-dashboard access silently for registered contacts.
+	// kc.Username is non-empty only when UsernameByEmail (lines 321-329) resolved a trusted
+	// LFID — unregistered contacts remain pending until they accept an explicit invite.
+	if kc.Username != "" && o.orgSettings != nil && kc.B2BOrgUID != "" && kc.Email != "" {
+		if _, provErr := o.orgSettings.AddPrincipal(ctx, B2BOrgSettingsAddPrincipal{
+			OrgUID:               kc.B2BOrgUID,
+			Email:                kc.Email,
+			InvitedAs:            kcRoleToOrgRole(kc.Role),
+			Name:                 kc.Name(),
+			SuppressNotification: true,
+		}); provErr != nil && !pkgerrors.IsConflict(provErr) {
+			slog.WarnContext(ctx, "cdc: key contact org-dashboard provision failed (best-effort)",
+				"uid", uid, "error", provErr)
+		}
+	}
 	return nil
 }
 
@@ -325,8 +366,8 @@ func (o *CDCConsumer) handleProjectRoleDelete(ctx context.Context, uid string) e
 
 	// key_contact delete FGA revoke: best-effort, alertable on failure.
 	// Uses GenericMemberRemoveSubject to match the key_contact_writer delete path.
-	// The sub (username) is not available from the CDC event — the FGA sync
-	// service performs cleanup by object-id when sub is empty.
+	// The username is not available from the CDC event — the FGA sync
+	// service performs cleanup by object-id when username is empty.
 	if err := o.publisher.Access(ctx, fgaconstants.GenericMemberRemoveSubject,
 		BuildKeyContactFGARemoveMessage(uid, ""), false); err != nil {
 		// fga_revoke_failed_dangling_tuple=true signals a dangling FGA tuple:

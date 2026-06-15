@@ -421,6 +421,9 @@ var KeyContactCreateBody = dsl.Type("key-contact-create-body", func() {
 	dsl.Attribute("primary_contact", dsl.Boolean, "Whether this is the primary contact for the membership", func() {
 		dsl.Example(false)
 	})
+	dsl.Attribute("send_invite", dsl.Boolean, "When true, send a platform invite (unregistered user) or role-assignment email (registered user). Defaults to false — org-dashboard access is still provisioned silently for registered users.", func() {
+		dsl.Default(false)
+	})
 	dsl.Required("email", "first_name", "last_name", "role")
 })
 
@@ -448,6 +451,9 @@ var KeyContactUpdateBody = dsl.Type("key-contact-update-body", func() {
 	dsl.Attribute("title", dsl.String, "Contact job title. Only persisted when the email change resolves to an unknown address and a new Salesforce Contact is created; ignored if the Contact already exists.", func() {
 		dsl.Example("CTO")
 	})
+	dsl.Attribute("send_invite", dsl.Boolean, "When true, send a platform invite (unregistered user) or role-assignment email (registered user) if the email changes. Defaults to false — org-dashboard access is still provisioned silently for registered users.", func() {
+		dsl.Default(false)
+	})
 })
 
 // OrgUserType describes a single principal (writer or auditor) on a b2b_org
@@ -468,7 +474,7 @@ var OrgUserType = dsl.Type("org-user", func() {
 	dsl.Attribute("name", dsl.String, "User display name", func() {
 		dsl.Example("Alice Smith")
 	})
-	dsl.Attribute("username", dsl.String, "LFID username (OIDC sub); absent for pending invites", func() {
+	dsl.Attribute("username", dsl.String, "LFID username; absent for pending invites", func() {
 		dsl.Example("alice")
 	})
 	dsl.Attribute("invited_as", dsl.String, "Relation being granted: writer or auditor", func() {

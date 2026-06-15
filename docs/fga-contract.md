@@ -48,8 +48,8 @@ All messages use the generic FGA message format on the following NATS subjects:
 | `global_org_admin` | `"team:{globalOrgAdminTeamUID}"` | On create only, when `globalOrgAdminTeamUID` is non-empty |
 | `parent` | `"b2b_org:{ParentUID}"` | When `ParentUID` changes; empty clears the tuple |
 | `child` | `["b2b_org:{child_uid}", ...]` | Updated on old/new parent when `ParentUID` changes |
-| `writer` | raw username/OIDC sub string (one per accepted writer, e.g. `"auth0\|alice"`) | When org settings are updated with a non-nil writers field |
-| `auditor` | raw username/OIDC sub string (one per accepted auditor) | When org settings are updated with a non-nil auditors field |
+| `writer` | LFID username string (one per accepted writer, e.g. `"alice"`) | When org settings are updated with a non-nil writers field |
+| `auditor` | LFID username string (one per accepted auditor) | When org settings are updated with a non-nil auditors field |
 
 > `parent` and `child` relations are always excluded from `update_access` via `ExcludeRelations` and managed by separate reparenting messages.
 >
@@ -88,9 +88,11 @@ Manages the `key_contact` relation on `project_membership` objects.
 
 | Relation | Value | Condition |
 |---|---|---|
-| `key_contact` | Contact's Authelia OIDC sub | On create/update via `member_put`; on delete/sub-change via `member_remove` |
+| `key_contact` | Contact's LFID username | On create/update via `member_put`; on delete/username-change via `member_remove`; on `invite_accepted` b2b_org event for matching contacts |
 
-> **CDC delete path:** when a `Project_Role__c` DELETE event arrives, `sub` is empty (not available from the CDC payload). The fga-sync service performs cleanup by object-id when `sub` is empty.
+> **CDC upsert path:** the CDC consumer now resolves the LFID via `UserReader.UsernameByEmail` before publishing. If the email has no LFID, the `username` remains empty and the grant is skipped (pending until the user accepts an invite).
+
+> **CDC delete path:** when a `Project_Role__c` DELETE event arrives, `username` is empty (not available from the CDC payload). The fga-sync service performs cleanup by object-id when `username` is empty. Org-dashboard access is also not revoked on CDC delete (the pre-deletion `B2BOrgUID` + email are unavailable after Salesforce removes the record); revocation only happens via the API delete endpoint.
 
 ---
 
@@ -104,11 +106,13 @@ Manages the `key_contact` relation on `project_membership` objects.
 | Reparent B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Up to 3 messages: org's own `parent`, old parent's `child` list, new parent's `child` list |
 | Delete B2B org | `b2b_org` | `lfx.fga-sync.update_access` | Stub org (uid only); fga-sync handles cleanup |
 | CDC `AccountChangeEvent` (delete) | `b2b_org` | `lfx.fga-sync.update_access` | Same as delete |
-| Update org settings | `b2b_org` | `lfx.fga-sync.update_access` | `writer`/`auditor` relations; nil param = preserve existing tuples, explicit (even `[]`) = replace |
+| Update org settings (`PUT /settings`) | `b2b_org` | `lfx.fga-sync.update_access` | `writer`/`auditor` relations; nil param = preserve existing tuples, explicit (even `[]`) = replace |
+| Add/update/delete settings user | `b2b_org` | `lfx.fga-sync.update_access` | Emitted by `AddPrincipal`, `UpdatePrincipalRole`, `DeletePrincipal` and `invite_accepted` promotion |
 | Update project membership | `project_membership` | `lfx.fga-sync.update_access` | Sets `b2b_org` + `project` refs; excludes `key_contact` |
 | CDC `AssetChangeEvent` | `project_membership` | `lfx.fga-sync.update_access` | Same as update |
-| Create key contact | `project_membership` | `lfx.fga-sync.member_put` | Only when contact has a resolved OIDC sub |
-| Update key contact (sub change) | `project_membership` | `lfx.fga-sync.member_remove` + `lfx.fga-sync.member_put` | Revokes old sub, grants new sub |
-| CDC `Project_Role__ChangeEvent` | `project_membership` | `lfx.fga-sync.member_put` | Only when contact has a resolved OIDC sub |
-| Delete key contact | `project_membership` | `lfx.fga-sync.member_remove` | Always sent when sub is known |
-| CDC `Project_Role__ChangeEvent` (delete) | `project_membership` | `lfx.fga-sync.member_remove` | `sub` is empty — fga-sync cleans up by object-id |
+| Create key contact | `project_membership` | `lfx.fga-sync.member_put` | Only when contact has a resolved LFID username |
+| Update key contact (username change) | `project_membership` | `lfx.fga-sync.member_remove` + `lfx.fga-sync.member_put` | Revokes old username, grants new username |
+| CDC `Project_Role__ChangeEvent` | `project_membership` | `lfx.fga-sync.member_put` | LFID resolved via `UserReader.UsernameByEmail`; skipped when email has no LFID |
+| Delete key contact | `project_membership` | `lfx.fga-sync.member_remove` | Always sent when username is known |
+| CDC `Project_Role__ChangeEvent` (delete) | `project_membership` | `lfx.fga-sync.member_remove` | `username` is empty — fga-sync cleans up by object-id |
+| `invite_accepted` b2b_org event | `project_membership` | `lfx.fga-sync.member_put` | One grant per key contact in the org whose email matches `recipient.email`; `username = accepted_by` |

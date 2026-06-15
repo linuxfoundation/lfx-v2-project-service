@@ -1,0 +1,12 @@
+User Role Assignment as {{.SubjectSuffix}}
+
+Hi,
+
+You have been added as {{.RoleLabel}} for {{.OrgName}} on the LFX Organization Dashboard.
+
+Log in to access your dashboard:
+{{.PlatformURL}}
+
+If you have any questions, contact your organization administrator.
+
+The Linux Foundation

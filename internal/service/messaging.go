@@ -286,28 +286,28 @@ func BuildKeyContactIndexingConfig(kc *model.KeyContact) *indexerTypes.IndexingC
 }
 
 // BuildKeyContactFGAPutMessage constructs a GenericFGAMessage that grants the
-// given user (sub) the key_contact relation on the parent project_membership.
-func BuildKeyContactFGAPutMessage(membershipUID, sub string) fgatypes.GenericFGAMessage {
+// given user (username) the key_contact relation on the parent project_membership.
+func BuildKeyContactFGAPutMessage(membershipUID, username string) fgatypes.GenericFGAMessage {
 	return fgatypes.GenericFGAMessage{
 		ObjectType: "project_membership",
 		Operation:  "member_put",
 		Data: fgatypes.GenericMemberData{
 			UID:       membershipUID,
-			Username:  sub,
+			Username:  username,
 			Relations: []string{"key_contact"},
 		},
 	}
 }
 
 // BuildKeyContactFGARemoveMessage constructs a GenericFGAMessage that revokes
-// the key_contact relation for the given user (sub) on the parent membership.
-func BuildKeyContactFGARemoveMessage(membershipUID, sub string) fgatypes.GenericFGAMessage {
+// the key_contact relation for the given user (username) on the parent membership.
+func BuildKeyContactFGARemoveMessage(membershipUID, username string) fgatypes.GenericFGAMessage {
 	return fgatypes.GenericFGAMessage{
 		ObjectType: "project_membership",
 		Operation:  "member_remove",
 		Data: fgatypes.GenericMemberData{
 			UID:       membershipUID,
-			Username:  sub,
+			Username:  username,
 			Relations: []string{"key_contact"},
 		},
 	}
@@ -496,10 +496,10 @@ func buildB2BOrgSettingsIndexerView(settings *model.B2BOrgSettings) b2bOrgSettin
 	}
 
 	for _, u := range settings.Writers {
-		addMember(u, "writer")
+		addMember(u, model.B2BOrgRoleWriter)
 	}
 	for _, u := range settings.Auditors {
-		addMember(u, "auditor")
+		addMember(u, model.B2BOrgRoleAuditor)
 	}
 	return view
 }

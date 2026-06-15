@@ -16,15 +16,14 @@
 # Required env vars:
 #   OPENFGA_STORE_ID     — OpenFGA store ID for the target environment
 #   TEAM_UID             — the globalOrgAdminTeamUID for the environment
-#   ADMIN_USERS          — comma-separated Auth0 usernames (e.g. "auth0|username1,auth0|username2")
+#   ADMIN_USERS          — comma-separated LFID usernames (e.g. "alice,bob")
 #
 # Optional env vars:
 #   OPENFGA_URL          — default: http://localhost:8080
 #
 # IMPORTANT — user format:
-#   Heimdall passes the OIDC `sub` claim as the FGA subject. In this environment
-#   the `sub` is the Auth0 username prefixed with "auth0|" (e.g. "auth0|username").
-#   ADMIN_USERS entries MUST include the "auth0|" prefix or the Heimdall check will
+#   Heimdall passes the LFID username as the FGA principal. ADMIN_USERS entries
+#   must be plain LFID usernames (no "auth0|" prefix) or the Heimdall check will
 #   never match and all callers will receive 403.
 #
 # Usage:
@@ -33,7 +32,7 @@
 #
 #   OPENFGA_STORE_ID=<store-id> \
 #   TEAM_UID=<team-uid> \
-#   ADMIN_USERS="auth0|username1,auth0|username2" \
+#   ADMIN_USERS="alice,bob" \
 #   ./scripts/setup-global-org-admin-team.sh [--dry-run]
 #
 

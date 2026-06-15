@@ -17,7 +17,6 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-member-service/cmd/member-api/service"
 	membershipservice "github.com/linuxfoundation/lfx-v2-member-service/gen/membership_service"
-	natsinf "github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/salesforce"
 
 	logging "github.com/linuxfoundation/lfx-v2-member-service/pkg/log"
@@ -103,22 +102,13 @@ func runAPI(ctx context.Context, bind, port string, debug bool) {
 		"graceful-shutdown-seconds", gracefulShutdownSeconds,
 	)
 
-	// Register the project-id-map NATS RPC handler so external services can
-	// resolve v2 project UIDs to Salesforce Project__c.Id SFIDs.
-	// ProjectResolverImpl returns nil in mock mode; skip registration then.
-	natsClient := service.NATSClientImpl(ctx)
-	if resolver := service.ProjectResolverImpl(ctx); resolver != nil {
-		projectIDMapSub, err := natsinf.SubscribeProjectIDMap(natsClient.Conn(), resolver)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to subscribe to project-id-map RPC", "error", err)
-			os.Exit(1)
-		}
-		defer func() {
-			if drainErr := projectIDMapSub.Drain(); drainErr != nil {
-				slog.WarnContext(ctx, "error draining project-id-map subscription", "error", drainErr)
-			}
-		}()
+	// Register all NATS subscriptions via the provider. The provider handles
+	// mock-mode skipping (project-id-map) and queue-group wiring centrally.
+	if err := service.QueueSubscriptions(ctx); err != nil {
+		slog.ErrorContext(ctx, "failed to start NATS subscriptions", "error", err)
+		os.Exit(1)
 	}
+	defer service.DrainAPISubscriptions(ctx)
 
 	membershipServiceSvc := service.NewMembershipService(
 		service.JWTAuthImpl(ctx),

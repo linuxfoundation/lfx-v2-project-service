@@ -102,6 +102,10 @@ type CreateKeyContactRequestBody struct {
 	BoardMember *bool `form:"board_member,omitempty" json:"board_member,omitempty" xml:"board_member,omitempty"`
 	// Whether this is the primary contact for the membership
 	PrimaryContact *bool `form:"primary_contact,omitempty" json:"primary_contact,omitempty" xml:"primary_contact,omitempty"`
+	// When true, send a platform invite (unregistered user) or role-assignment
+	// email (registered user). Defaults to false — org-dashboard access is still
+	// provisioned silently for registered users.
+	SendInvite *bool `form:"send_invite,omitempty" json:"send_invite,omitempty" xml:"send_invite,omitempty"`
 }
 
 // UpdateKeyContactRequestBody is the type of the "membership-service" service
@@ -121,6 +125,10 @@ type UpdateKeyContactRequestBody struct {
 	// unknown address and a new Salesforce Contact is created; ignored if the
 	// Contact already exists.
 	Title *string `form:"title,omitempty" json:"title,omitempty" xml:"title,omitempty"`
+	// When true, send a platform invite (unregistered user) or role-assignment
+	// email (registered user) if the email changes. Defaults to false —
+	// org-dashboard access is still provisioned silently for registered users.
+	SendInvite *bool `form:"send_invite,omitempty" json:"send_invite,omitempty" xml:"send_invite,omitempty"`
 }
 
 // AdminReindexRequestBody is the type of the "membership-service" service
@@ -3830,6 +3838,12 @@ func NewCreateKeyContactPayload(body *CreateKeyContactRequestBody, membershipUID
 		BoardMember:    body.BoardMember,
 		PrimaryContact: body.PrimaryContact,
 	}
+	if body.SendInvite != nil {
+		v.SendInvite = *body.SendInvite
+	}
+	if body.SendInvite == nil {
+		v.SendInvite = false
+	}
 	v.MembershipUID = membershipUID
 	v.Version = version
 	v.BearerToken = bearerToken
@@ -3847,6 +3861,12 @@ func NewUpdateKeyContactPayload(body *UpdateKeyContactRequestBody, membershipUID
 		BoardMember:    body.BoardMember,
 		PrimaryContact: body.PrimaryContact,
 		Title:          body.Title,
+	}
+	if body.SendInvite != nil {
+		v.SendInvite = *body.SendInvite
+	}
+	if body.SendInvite == nil {
+		v.SendInvite = false
 	}
 	v.MembershipUID = membershipUID
 	v.UID = uid

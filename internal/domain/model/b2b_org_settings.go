@@ -22,6 +22,18 @@ const (
 	InviteStatusExpired InviteStatus = "expired"
 )
 
+// B2BOrgRole is the relation a B2BOrgUser entry grants (the InvitedAs value).
+// A type alias (= string) is used so callers can assign literals without casting:
+// InvitedAs is a plain string field and all comparison sites use untyped constants.
+type B2BOrgRole = string
+
+const (
+	// B2BOrgRoleWriter is the relation for org administrators.
+	B2BOrgRoleWriter B2BOrgRole = "writer"
+	// B2BOrgRoleAuditor is the relation for read-only principals.
+	B2BOrgRoleAuditor B2BOrgRole = "auditor"
+)
+
 // B2BOrgUser is a member of a b2b_org settings list (writers or auditors).
 // Invite fields extend the base principal to support pre-LFID invitations.
 //
@@ -36,7 +48,7 @@ type B2BOrgUser struct {
 	Email string `json:"email"`
 	// Name is the user's display name.
 	Name string `json:"name,omitempty"`
-	// Username is the LFID username (OIDC sub). Set once the invite is accepted.
+	// Username is the LFID username. Set once the invite is accepted.
 	// Absent for pending invites.
 	Username string `json:"username,omitempty"`
 
@@ -130,13 +142,13 @@ func (s *B2BOrgSettings) FulltextTokens() []string {
 // Tag prefixes for per-user tags emitted by Tags().
 const (
 	// TagPrefixWriter is emitted once per accepted writer with a known LFID username.
-	// Inverse query: tags=writer:auth0|<username>
+	// Inverse query: tags=writer:<username>
 	TagPrefixWriter = "writer:"
 	// TagPrefixAuditor is emitted once per accepted auditor with a known LFID username.
-	// Inverse query: tags=auditor:auth0|<username>
+	// Inverse query: tags=auditor:<username>
 	TagPrefixAuditor = "auditor:"
 	// TagPrefixMember covers both writers and auditors; use for role-agnostic
-	// "which orgs does user X belong to?" queries: tags=member:auth0|<username>
+	// "which orgs does user X belong to?" queries: tags=member:<username>
 	TagPrefixMember = "member:"
 )
 

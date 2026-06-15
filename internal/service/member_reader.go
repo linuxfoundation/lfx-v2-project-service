@@ -26,6 +26,7 @@ type MemberReader interface {
 	GetMembership(ctx context.Context, membershipUID string) (*model.ProjectMembership, error)
 	ListKeyContactsForMembership(ctx context.Context, membershipUID string) ([]*model.KeyContact, error)
 	GetKeyContact(ctx context.Context, keyContactUID string) (*model.KeyContact, error)
+	ListKeyContactsForOrg(ctx context.Context, orgSFID string) ([]*model.KeyContact, error)
 }
 
 // memberReaderOrchestratorOption defines a functional option for configuring a
@@ -168,6 +169,27 @@ func (rc *memberReaderOrchestrator) GetKeyContact(ctx context.Context, keyContac
 
 	slog.DebugContext(ctx, "key contact retrieved successfully", "key_contact_uid", keyContactUID)
 	return contact, nil
+}
+
+// ListKeyContactsForOrg returns all KeyContact records across every membership
+// backed by the given 18-char Account SFID (b2b_org UID).
+func (rc *memberReaderOrchestrator) ListKeyContactsForOrg(ctx context.Context, orgSFID string) ([]*model.KeyContact, error) {
+	slog.DebugContext(ctx, "executing list key contacts for org use case", "org_sfid", orgSFID)
+
+	contacts, err := rc.memberReader.ListKeyContactsForOrg(ctx, orgSFID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list key contacts for org",
+			"error", err,
+			"org_sfid", orgSFID,
+		)
+		return nil, err
+	}
+
+	slog.DebugContext(ctx, "key contacts for org retrieved successfully",
+		"org_sfid", orgSFID,
+		"contact_count", len(contacts),
+	)
+	return contacts, nil
 }
 
 // NewMemberReaderOrchestrator creates a new memberReaderOrchestrator. The
