@@ -14,6 +14,9 @@ paths:
 allowed-tools: Read, Glob, Grep, Edit, Write, Bash
 ---
 
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Development Conventions
 
 Repo-local Go and Goa conventions for the LFX V2 Member Service. This skill

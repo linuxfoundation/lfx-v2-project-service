@@ -8,6 +8,9 @@ paths:
 allowed-tools: Read, Glob, Grep, Edit, Write, Bash
 ---
 
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Add a New Member Service Endpoint
 
 The lfx-v2-member-service uses Goa v3 for code generation. Every new endpoint flows through the design DSL, regenerates the HTTP layer, gets implemented in the service struct, gets tested, and must be added to the Heimdall ruleset for authorization. Skipping the ruleset step ships an unauthorized endpoint.

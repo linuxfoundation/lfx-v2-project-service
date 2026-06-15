@@ -11,6 +11,9 @@ context: fork
 allowed-tools: Bash, Read, Glob, Grep
 ---
 
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Member Service PR Readiness
 
 You are checking whether local commits are shaped correctly to open a PR for
