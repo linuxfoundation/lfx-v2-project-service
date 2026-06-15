@@ -11,7 +11,7 @@ When a user is added to a project's role list via `PUT /projects/{uid}/settings`
 | User state | `username` field | Action |
 |---|---|---|
 | Has LFID | non-empty | Send a direct role-notification email via the email service |
-| No LFID | empty | Send an invite request to the invite service; store returned invite metadata |
+| No LFID | empty | Send an invite request to the invite service; no invite state is stored (acceptance is reconciled by recipient email) |
 
 The invite service handles rendering and delivering the invite email to the recipient. The project service does not store any invite state: when the invite is later accepted, the invite service publishes an enriched acceptance event that carries the recipient email, and the project service reconciles by email.
 
