@@ -9,7 +9,6 @@ import (
 	"github.com/nats-io/nats.go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -64,7 +63,6 @@ func ExtractMsgContext(ctx context.Context, msg *nats.Msg, subject string) (cont
 		),
 	)
 	return msgCtx, func() {
-		span.SetStatus(codes.Ok, "")
 		span.End()
 	}
 }
