@@ -94,6 +94,7 @@ func (c *NATSClient) KeyValueStore(ctx context.Context, bucketName string) error
 		//     fetches after quiet periods.
 		//   org-settings: no TTL — authoritative state, never silently evicted.
 		//   org-workspaces: no TTL — authoritative state, never silently evicted.
+		//   org_workspace_projects: no TTL — authoritative state, never silently evicted.
 		//   pubsub-state: no TTL — replay cursors must survive indefinitely; a
 		//     silent eviction would cause a gap (fallback to LATEST, missing events).
 		if bucketName == constants.KVBucketNameCache {

@@ -649,5 +649,5 @@ func checkWorkspacesIfMatch(existing *model.OrgWorkspaces, ifMatch string) error
 // checkWorkspaceProjectsIfMatch validates the optional If-Match precondition against
 // a workspace projects document.
 func checkWorkspaceProjectsIfMatch(wps *model.WorkspaceProjects, ifMatch string) error {
-	return checkIfMatch(wps, ifMatch, "workspace projects")
+	return checkIfMatch(wps, ifMatch, "workspace projects record")
 }
