@@ -1011,6 +1011,12 @@ func BuildAddB2bOrgWorkspaceProjectPayload(membershipServiceAddB2bOrgWorkspacePr
 		if err != nil {
 			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"project_id\": \"my-project\"\n   }'")
 		}
+		if utf8.RuneCountInString(body.ProjectID) > 512 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.project_id", body.ProjectID, utf8.RuneCountInString(body.ProjectID), 512, false))
+		}
+		if err != nil {
+			return nil, err
+		}
 	}
 	var uid string
 	{

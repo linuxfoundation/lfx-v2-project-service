@@ -700,10 +700,14 @@ func BuildWorkspaceProjectIndexingConfig(org *model.B2BOrg, ws *model.Workspace,
 		parentRefs = append(parentRefs, "b2b_org:"+org.ParentUID)
 	}
 
-	fulltext := wp.ProjectName
-	if wp.ProjectSlug != "" {
-		fulltext += " " + wp.ProjectSlug
+	fulltextParts := make([]string, 0, 2)
+	if wp.ProjectName != "" {
+		fulltextParts = append(fulltextParts, wp.ProjectName)
 	}
+	if wp.ProjectSlug != "" {
+		fulltextParts = append(fulltextParts, wp.ProjectSlug)
+	}
+	fulltext := strings.Join(fulltextParts, " ")
 
 	return &indexerTypes.IndexingConfig{
 		Public:               boolPtr(false),

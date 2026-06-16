@@ -309,16 +309,19 @@ func (o *workspaceWriterOrchestrator) DeleteWorkspace(ctx context.Context, in Wo
 	updated.Workspaces = filtered
 	updated.UpdatedAt = now
 
-	if err := o.workspacesWriter.UpdateWorkspaces(ctx, updated, revision); err != nil {
-		return err
-	}
-
-	// Fire-and-forget: delete the projects document (non-atomic orphan is harmless).
+	// Delete the projects document before committing the registry removal so that
+	// a failed delete followed by a client retry can still complete the cascade:
+	// once UpdateWorkspaces succeeds the workspace UID is removed from the registry
+	// and a retried DELETE would 404 before reaching this cleanup.
 	if o.workspaceProjectsWriter != nil {
 		if delErr := o.workspaceProjectsWriter.DeleteWorkspaceProjects(ctx, in.WorkspaceUID); delErr != nil {
 			slog.WarnContext(ctx, "failed to delete workspace projects doc; orphaned KV entry may remain",
 				"workspace_uid", in.WorkspaceUID, "error", delErr)
 		}
+	}
+
+	if err := o.workspacesWriter.UpdateWorkspaces(ctx, updated, revision); err != nil {
+		return err
 	}
 
 	// Fire-and-forget: one GetB2BOrg fetch shared by workspace + project indexer deletes.
@@ -353,6 +356,10 @@ func (o *workspaceWriterOrchestrator) AddProject(ctx context.Context, in Workspa
 	ws := existing.FindWorkspace(in.WorkspaceUID)
 	if ws == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
+	}
+
+	if o.projectResolver == nil {
+		return nil, pkgerrors.NewUnexpected("project resolver not configured")
 	}
 
 	// Enrich project (write-time snapshot).
@@ -435,6 +442,10 @@ func (o *workspaceWriterOrchestrator) AddProjectsBulk(ctx context.Context, in Wo
 	ws := existing.FindWorkspace(in.WorkspaceUID)
 	if ws == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
+	}
+
+	if o.projectResolver == nil {
+		return nil, pkgerrors.NewUnexpected("project resolver not configured")
 	}
 
 	// Batch-resolve all project identifiers in one round-trip.

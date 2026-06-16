@@ -4095,6 +4095,7 @@ components:
                     type: string
                     description: 'Project identifier: v2 UUID or URL slug'
                     example: my-project
+                    maxLength: 512
             description: Request body for adding a single project to a workspace
             example:
                 project_id: my-project

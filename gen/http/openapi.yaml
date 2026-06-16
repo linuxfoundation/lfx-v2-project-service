@@ -2271,6 +2271,7 @@ definitions:
                 type: string
                 description: 'Project identifier: v2 UUID or URL slug'
                 example: my-project
+                maxLength: 512
         example:
             project_id: my-project
         required:

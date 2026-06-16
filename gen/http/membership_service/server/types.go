@@ -5630,6 +5630,11 @@ func ValidateAddB2bOrgWorkspaceProjectRequestBody(body *AddB2bOrgWorkspaceProjec
 	if body.ProjectID == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("project_id", "body"))
 	}
+	if body.ProjectID != nil {
+		if utf8.RuneCountInString(*body.ProjectID) > 512 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.project_id", *body.ProjectID, utf8.RuneCountInString(*body.ProjectID), 512, false))
+		}
+	}
 	return
 }
 

@@ -221,12 +221,14 @@ func (r *Resolver) ResolveProject(ctx context.Context, idOrSlug string) (model.P
 }
 
 // ResolveProjectsBatch resolves a slice of project identifiers (UIDs or slugs) to
-// enriched ProjectInfo values using a single batch SOQL query for name+slug.
+// enriched ProjectInfo values. Only the Salesforce enrichment (step 3) is batched;
+// step 1 issues one NATS RPC per item and is O(N).
 //
 // Algorithm:
-//  1. Per-item: resolve id → {uid, sfid} via cache/RPC (SFIDFromUID / UIDFromSlug).
+//  1. Per-item: resolve id → {uid, sfid} via N cache/RPC calls (SFIDFromUID /
+//     UIDFromSlug — one NATS round-trip per input; not batched).
 //  2. Collect all sfids from successful per-item resolutions.
-//  3. ONE FetchProjectsByIDs call for name+slug enrichment.
+//  3. ONE FetchProjectsByIDs SOQL call for name+slug enrichment (batched).
 //  4. Merge results back by sfid; return parallel ([]ProjectInfo, []error) slices.
 //
 // Each index in the returned slices corresponds to the same index in idsOrSlugs.

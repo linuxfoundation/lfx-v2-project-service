@@ -670,6 +670,7 @@ var WorkspaceUpdateBody = dsl.Type("workspace-update-body", func() {
 var WorkspaceProjectAddBody = dsl.Type("workspace-project-add-body", func() {
 	dsl.Description("Request body for adding a single project to a workspace")
 	dsl.Attribute("project_id", dsl.String, "Project identifier: v2 UUID or URL slug", func() {
+		dsl.MaxLength(512)
 		dsl.Example("my-project")
 	})
 	dsl.Required("project_id")
