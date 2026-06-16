@@ -609,7 +609,7 @@ func PublishKeyContactIndexer(ctx context.Context, p port.MemberPublisher, kc *m
 // Public is explicitly false. HistoryCheckRelation is writer (write-side concern).
 // No FGA Access publish for workspaces — reuse existing b2b_org tuples.
 func BuildWorkspaceIndexingConfig(org *model.B2BOrg, ws *model.Workspace) *indexerTypes.IndexingConfig {
-	nameAndAliases := orgNameAndAliases(org)
+	nameAndAliases := append(orgNameAndAliases(org), ws.Name)
 
 	parentRefs := []string{"b2b_org:" + org.UID}
 	if org.ParentUID != "" {

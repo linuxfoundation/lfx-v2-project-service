@@ -491,7 +491,7 @@ func (o *workspaceWriterOrchestrator) AddProjectsBulk(ctx context.Context, in Wo
 		succeeded = append(succeeded, info)
 	}
 
-	if len(succeeded) > 0 {
+	if len(newlyAdded) > 0 {
 		updatedProjects.UpdatedAt = now
 		if err := o.workspaceProjectsWriter.UpdateWorkspaceProjects(ctx, updatedProjects, projectsRevision); err != nil {
 			return nil, err
