@@ -315,7 +315,10 @@ func (o *workspaceWriterOrchestrator) DeleteWorkspace(ctx context.Context, in Wo
 
 	// Fire-and-forget: delete the projects document (non-atomic orphan is harmless).
 	if o.workspaceProjectsWriter != nil {
-		_ = o.workspaceProjectsWriter.DeleteWorkspaceProjects(ctx, in.WorkspaceUID)
+		if delErr := o.workspaceProjectsWriter.DeleteWorkspaceProjects(ctx, in.WorkspaceUID); delErr != nil {
+			slog.WarnContext(ctx, "failed to delete workspace projects doc; orphaned KV entry may remain",
+				"workspace_uid", in.WorkspaceUID, "error", delErr)
+		}
 	}
 
 	// Fire-and-forget: one GetB2BOrg fetch shared by workspace + project indexer deletes.
@@ -355,7 +358,7 @@ func (o *workspaceWriterOrchestrator) AddProject(ctx context.Context, in Workspa
 	// Enrich project (write-time snapshot).
 	info, resolveErr := o.projectResolver.ResolveProject(ctx, in.ProjectID)
 	if resolveErr != nil {
-		return nil, resolveErr // already a Validation error → HTTP 400
+		return nil, resolveErr
 	}
 
 	// Read the projects document (lazy create if not exists).
@@ -459,6 +462,12 @@ func (o *workspaceWriterOrchestrator) AddProjectsBulk(ctx context.Context, in Wo
 
 	for i, info := range infos {
 		if resolveErrs[i] != nil {
+			// Infrastructure errors (NATS/Salesforce down) are not per-item failures —
+			// fail the whole request so the caller retries rather than receiving a
+			// partial-success 200 that masks a dependency outage.
+			if !pkgerrors.IsValidation(resolveErrs[i]) {
+				return nil, resolveErrs[i]
+			}
 			failedOut[i] = resolveErrs[i]
 			continue
 		}

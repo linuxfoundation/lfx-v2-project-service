@@ -628,8 +628,8 @@ func assertNotRemovingLastAdmin(before, after *model.B2BOrgSettings) error {
 // existing. docLabel is used in error messages (e.g. "settings record", "workspace record").
 //
 // Returns nil when ifMatch is empty (no precondition supplied).
-// Returns PreconditionFailed when existing is nil, the ETag cannot be computed, or the
-// ETag does not match ifMatch.
+// Returns PreconditionFailed when existing is nil or the ETag does not match ifMatch.
+// Returns an internal error when ETag computation fails (not a precondition failure).
 //
 // The generic *T parameter is intentional: passing existing as any would box typed-nil
 // pointers into a non-nil interface, defeating the nil guard.

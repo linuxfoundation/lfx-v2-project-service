@@ -169,8 +169,9 @@ func (r *Resolver) UIDFromSlug(ctx context.Context, slug string) (string, error)
 //   - UUID input:  SFIDFromUID → FetchProjectByID(sfid) → assemble ProjectInfo.
 //   - Slug input:  UIDFromSlug → SFIDFromUID → FetchProjectByID(sfid) → assemble ProjectInfo.
 //
-// Returns a Validation error (maps to HTTP 400 via wrapError) when the project cannot
-// be found either in the project-service or in Salesforce.
+// Returns a Validation error (→ HTTP 400) only when the project is definitively not
+// found. Infrastructure failures (NATS RPC, Salesforce) propagate as internal errors
+// (→ HTTP 500) so callers can distinguish "bad input" from "dependency down".
 func (r *Resolver) ResolveProject(ctx context.Context, idOrSlug string) (model.ProjectInfo, error) {
 	var projectUID, sfid string
 	var err error
@@ -179,17 +180,20 @@ func (r *Resolver) ResolveProject(ctx context.Context, idOrSlug string) (model.P
 		projectUID = idOrSlug
 		sfid, err = r.SFIDFromUID(ctx, idOrSlug)
 		if err != nil {
-			return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project %q: %v", idOrSlug, err))
+			return model.ProjectInfo{}, fmt.Errorf("resolving project %q: %w", idOrSlug, err)
 		}
 	} else {
 		// Treat as slug.
 		projectUID, err = r.UIDFromSlug(ctx, idOrSlug)
 		if err != nil {
-			return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project slug %q: %v", idOrSlug, err))
+			if errs.IsNotFound(err) {
+				return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project slug %q: project not found", idOrSlug))
+			}
+			return model.ProjectInfo{}, fmt.Errorf("resolving project slug %q: %w", idOrSlug, err)
 		}
 		sfid, err = r.SFIDFromUID(ctx, projectUID)
 		if err != nil {
-			return model.ProjectInfo{}, errs.NewValidation(fmt.Sprintf("unknown project %q: %v", projectUID, err))
+			return model.ProjectInfo{}, fmt.Errorf("resolving project %q: %w", projectUID, err)
 		}
 	}
 
@@ -258,9 +262,11 @@ func (r *Resolver) ResolveProjectsBatch(ctx context.Context, idsOrSlugs []string
 		if resolveErr != nil || sfid == "" {
 			if resolveErr == nil {
 				resolveErr = errs.NewValidation(fmt.Sprintf("unknown project %q: not found in Salesforce", id))
-			} else {
-				resolveErr = errs.NewValidation(fmt.Sprintf("unknown project %q: %v", id, resolveErr))
+			} else if errs.IsNotFound(resolveErr) {
+				resolveErr = errs.NewValidation(fmt.Sprintf("unknown project %q: project not found", id))
 			}
+			// Non-NotFound errors (infrastructure failures) are preserved without a
+			// Validation wrapper so AddProjectsBulk can detect and fail the whole request.
 			errsOut[i] = resolveErr
 			continue
 		}
