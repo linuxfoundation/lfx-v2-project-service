@@ -20,10 +20,10 @@ import (
 
 // ── Authoritative KV helpers ─────────────────────────────────────────────────
 //
-// getDocWithRevision and updateDocWithRevision are package-level generics shared
-// by all authoritative (no-TTL) KV buckets in this package (org-settings,
-// org-workspaces). They are intentionally co-located with the first authoritative
-// bucket (org-settings) rather than in a separate file.
+// getDocWithRevision, updateDocWithRevision, and deleteDoc are package-level generics
+// shared by all authoritative (no-TTL) KV buckets in this package (org-settings,
+// org-workspaces, org_workspace_projects). They are intentionally co-located with
+// the first authoritative bucket (org-settings) rather than in a separate file.
 
 // getDocWithRevision fetches and JSON-decodes a document from the named authoritative
 // KV bucket. Returns (nil, 0, nil) when the key does not exist (no-error miss).

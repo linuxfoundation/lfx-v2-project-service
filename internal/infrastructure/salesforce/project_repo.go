@@ -96,7 +96,7 @@ const soqlBatchSize = 200
 // query-length limits. Returns an empty slice when none are found.
 func (r *ProjectRepo) FetchProjectsByIDs(ctx context.Context, sfids []string) ([]*soqlProject, error) {
 	if len(sfids) == 0 {
-		return nil, nil
+		return []*soqlProject{}, nil
 	}
 	slog.DebugContext(ctx, "fetching projects from Salesforce by IDs (batch)", "count", len(sfids))
 

@@ -12,9 +12,8 @@ import (
 )
 
 // keyPrefixOrgWorkspaces is the NATS KV key prefix for org workspace records.
-// orgUID must be a valid UUID — callers are responsible for sanitising input
-// before reaching this layer. HTTP callers are safe because Goa validates path
-// params as UUIDs; non-HTTP callers (RPC, admin tools) must do the same.
+// orgUID is a Salesforce SFID (e.g. "001dy00000u0UnRAAU") — callers are responsible
+// for passing a non-empty value; no further format validation is applied here.
 const keyPrefixOrgWorkspaces = "org-workspaces."
 
 // GetWorkspaces returns the workspace document for a b2b_org and the current

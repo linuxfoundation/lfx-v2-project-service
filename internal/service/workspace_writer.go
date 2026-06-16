@@ -263,7 +263,7 @@ func (o *workspaceWriterOrchestrator) UpdateWorkspace(ctx context.Context, in Wo
 }
 
 // DeleteWorkspace removes a workspace and all its project associations (cascade).
-// Returns 204 (nil, nil) on success.
+// Returns nil on success.
 func (o *workspaceWriterOrchestrator) DeleteWorkspace(ctx context.Context, in WorkspaceDelete) error {
 	existing, revision, err := o.workspacesReader.GetWorkspaces(ctx, in.OrgUID)
 	if err != nil {
@@ -491,11 +491,13 @@ func (o *workspaceWriterOrchestrator) AddProjectsBulk(ctx context.Context, in Wo
 		succeeded = append(succeeded, info)
 	}
 
+	projectsResult := existingProjects
 	if len(newlyAdded) > 0 {
 		updatedProjects.UpdatedAt = now
 		if err := o.workspaceProjectsWriter.UpdateWorkspaceProjects(ctx, updatedProjects, projectsRevision); err != nil {
 			return nil, err
 		}
+		projectsResult = updatedProjects
 
 		// Fire-and-forget: publish indexer creates for each newly added project.
 		if o.b2bOrgReader != nil && o.publisher != nil {
@@ -511,7 +513,7 @@ func (o *workspaceWriterOrchestrator) AddProjectsBulk(ctx context.Context, in Wo
 	wsCopy := *ws
 	return &WorkspaceBulkResult{
 		Workspace: &wsCopy,
-		Projects:  updatedProjects,
+		Projects:  projectsResult,
 		Succeeded: succeeded,
 		Failed:    failedOut,
 	}, nil
