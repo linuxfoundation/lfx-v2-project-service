@@ -87,10 +87,11 @@ func (m *MockOrgWorkspaces) UpdateWorkspaces(_ context.Context, ws *model.OrgWor
 // MockWorkspaceProjects is an in-memory implementation of port.WorkspaceProjectsReader
 // and port.WorkspaceProjectsWriter. CAS semantics mirror MockOrgWorkspaces.
 type MockWorkspaceProjects struct {
-	mu       sync.RWMutex
-	docs     map[string]*model.WorkspaceProjects
-	revision map[string]uint64
-	putErr   error
+	mu        sync.RWMutex
+	docs      map[string]*model.WorkspaceProjects
+	revision  map[string]uint64
+	putErr    error
+	deleteErr error
 }
 
 // NewMockWorkspaceProjects returns an empty, ready-to-use mock.
@@ -109,11 +110,18 @@ func (m *MockWorkspaceProjects) Seed(workspaceUID string, p *model.WorkspaceProj
 	m.revision[workspaceUID] = rev
 }
 
-// SetPutError configures the mock to return err on the next write call.
+// SetPutError configures the mock to return err on the next UpdateWorkspaceProjects call.
 func (m *MockWorkspaceProjects) SetPutError(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.putErr = err
+}
+
+// SetDeleteError configures the mock to return err on the next DeleteWorkspaceProjects call.
+func (m *MockWorkspaceProjects) SetDeleteError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.deleteErr = err
 }
 
 // GetWorkspaceProjects returns the seeded document for workspaceUID, or (nil, 0, nil) when absent.
@@ -152,9 +160,15 @@ func (m *MockWorkspaceProjects) UpdateWorkspaceProjects(_ context.Context, p *mo
 }
 
 // DeleteWorkspaceProjects removes the document for workspaceUID. No-op if absent.
+// Returns the injected deleteErr (once) if SetDeleteError was called.
 func (m *MockWorkspaceProjects) DeleteWorkspaceProjects(_ context.Context, workspaceUID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.deleteErr != nil {
+		err := m.deleteErr
+		m.deleteErr = nil
+		return err
+	}
 	delete(m.docs, workspaceUID)
 	delete(m.revision, workspaceUID)
 	return nil

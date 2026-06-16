@@ -198,17 +198,11 @@ func TestWorkspaceWriter_DeleteWorkspace_HappyPath_ClearsProjectsDoc(t *testing.
 	assert.Nil(t, doc, "expected projects doc deleted")
 }
 
-func TestWorkspaceWriter_DeleteWorkspace_ProjectsDeleteFails_RegistryStillMutable(t *testing.T) {
-	// Verifies that a failed projects-doc delete does NOT commit the registry removal,
-	// keeping the workspace UID in the registry so a retry can succeed.
+func TestWorkspaceWriter_DeleteWorkspace_HappyPath_RemovesFromRegistry(t *testing.T) {
 	wsStore := mock.NewMockOrgWorkspaces()
 	wpStore := mock.NewMockWorkspaceProjects()
 	seedWorkspace(wsStore)
-	// Seed a projects doc so the delete path is exercised.
 	wpStore.Seed(wsUID, &model.WorkspaceProjects{WorkspaceUID: wsUID, OrgUID: wsOrgUID}, 1)
-	// Make DeleteWorkspaceProjects fail — but MockWorkspaceProjects.DeleteWorkspaceProjects
-	// always succeeds (it's idempotent). We test the ordering by confirming the registry
-	// write still proceeds after a no-op delete.
 	writer := newWorkspaceWriter(wsStore, wpStore, mock.NewMockProjectResolver())
 
 	err := writer.DeleteWorkspace(context.Background(), svc.WorkspaceDelete{
@@ -217,10 +211,31 @@ func TestWorkspaceWriter_DeleteWorkspace_ProjectsDeleteFails_RegistryStillMutabl
 	})
 
 	require.NoError(t, err)
-	// Workspace should be removed from the registry.
 	reg, _, _ := wsStore.GetWorkspaces(context.Background(), wsOrgUID)
 	require.NotNil(t, reg)
 	assert.Nil(t, reg.FindWorkspace(wsUID), "workspace should be removed from registry")
+}
+
+func TestWorkspaceWriter_DeleteWorkspace_ProjectsDocDeleteFails_RegistryNotCommitted(t *testing.T) {
+	// Verifies that a failed projects-doc delete aborts the registry removal so that
+	// a retried DELETE can complete the full cascade (workspace UID still in registry).
+	wsStore := mock.NewMockOrgWorkspaces()
+	wpStore := mock.NewMockWorkspaceProjects()
+	seedWorkspace(wsStore)
+	wpStore.Seed(wsUID, &model.WorkspaceProjects{WorkspaceUID: wsUID, OrgUID: wsOrgUID}, 1)
+	wpStore.SetDeleteError(pkgerrors.NewUnexpected("NATS timeout"))
+	writer := newWorkspaceWriter(wsStore, wpStore, mock.NewMockProjectResolver())
+
+	err := writer.DeleteWorkspace(context.Background(), svc.WorkspaceDelete{
+		OrgUID:       wsOrgUID,
+		WorkspaceUID: wsUID,
+	})
+
+	require.Error(t, err)
+	// Workspace must still be in the registry — retry can complete the cascade.
+	reg, _, _ := wsStore.GetWorkspaces(context.Background(), wsOrgUID)
+	require.NotNil(t, reg)
+	assert.NotNil(t, reg.FindWorkspace(wsUID), "workspace must remain in registry after failed delete so retry can succeed")
 }
 
 func TestWorkspaceWriter_DeleteWorkspace_WorkspaceNotFound_ReturnsNotFound(t *testing.T) {

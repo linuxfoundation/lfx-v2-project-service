@@ -323,13 +323,13 @@ serviceAccount:
 salesforce:
   secrets:
     # name is the name of the Kubernetes Secret containing Salesforce credentials.
-    name: lfx-v2-member-service-secrets
+    name: lfx-v2-member-service-salesforce
     # keys maps each credential to the key name used inside the Secret.
     keys:
-      instanceURL: sf_instance_url
-      clientID: sf_client_id
-      clientSecret: sf_client_secret
-      username: sf_username
-      password: sf_password
-      securityToken: sf_security_token
+      instanceURL: instance_url
+      clientID: client_id
+      clientSecret: client_secret
+      username: username
+      password: password
+      securityToken: security_token
       consumerRSAPem: consumer_rsa_pem

@@ -310,13 +310,12 @@ func (o *workspaceWriterOrchestrator) DeleteWorkspace(ctx context.Context, in Wo
 	updated.UpdatedAt = now
 
 	// Delete the projects document before committing the registry removal so that
-	// a failed delete followed by a client retry can still complete the cascade:
-	// once UpdateWorkspaces succeeds the workspace UID is removed from the registry
-	// and a retried DELETE would 404 before reaching this cleanup.
+	// a failed delete leaves the workspace UID intact in the registry and a retried
+	// DELETE can complete the cascade. DeleteWorkspaceProjects is idempotent (safe
+	// to retry), so returning an error here is the correct failure mode.
 	if o.workspaceProjectsWriter != nil {
 		if delErr := o.workspaceProjectsWriter.DeleteWorkspaceProjects(ctx, in.WorkspaceUID); delErr != nil {
-			slog.WarnContext(ctx, "failed to delete workspace projects doc; orphaned KV entry may remain",
-				"workspace_uid", in.WorkspaceUID, "error", delErr)
+			return delErr
 		}
 	}
 
