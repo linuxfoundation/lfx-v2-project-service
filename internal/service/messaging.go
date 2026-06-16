@@ -653,11 +653,102 @@ func PublishWorkspaceIndexer(ctx context.Context, p port.MemberPublisher, org *m
 			"publish_failed_for_backfill_repair", true)
 		return
 	}
-	if pubErr := p.Indexer(ctx, constants.IndexB2BOrgWorkspaceSubject, builtMsg, false); pubErr != nil {
+	if pubErr := p.Indexer(ctx, constants.IndexOrgWorkspaceSubject, builtMsg, false); pubErr != nil {
 		slog.WarnContext(ctx, "workspace indexer publish failed",
 			"workspace_uid", ws.UID,
 			"org_uid", org.UID,
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// PublishWorkspaceProjectIndexer builds and publishes a MemberIndexerMessage for a
+// workspace-project association. Errors are swallowed and logged — /admin/reindex
+// recovers missed records.
+func PublishWorkspaceProjectIndexer(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, ws *model.Workspace, wp model.WorkspaceProject, wps model.WorkspaceProjects, action indexerConstants.MessageAction) {
+	indexMsg := &model.MemberIndexerMessage{
+		Action:         action,
+		Tags:           wp.Tags(org.UID, ws.UID),
+		IndexingConfig: BuildWorkspaceProjectIndexingConfig(org, ws, wp),
+	}
+	builtMsg, err := indexMsg.Build(ctx, buildWorkspaceProjectIndexerView(org.UID, ws.UID, wp, wps))
+	if err != nil {
+		slog.WarnContext(ctx, "failed to build workspace project indexer message",
+			"workspace_uid", ws.UID,
+			"project_uid", wp.ProjectUID,
+			"org_uid", org.UID,
+			"error", err,
+			"publish_failed_for_backfill_repair", true)
+		return
+	}
+	if pubErr := p.Indexer(ctx, constants.IndexOrgWorkspaceProjectSubject, builtMsg, false); pubErr != nil {
+		slog.WarnContext(ctx, "workspace project indexer publish failed",
+			"workspace_uid", ws.UID,
+			"project_uid", wp.ProjectUID,
+			"org_uid", org.UID,
+			"error", pubErr,
+			"publish_failed_for_backfill_repair", true)
+	}
+}
+
+// BuildWorkspaceProjectIndexingConfig constructs an IndexingConfig for a workspace-project
+// association. ObjectID is "{workspaceUID}/{projectUID}" — a compound key that uniquely
+// identifies the association.
+func BuildWorkspaceProjectIndexingConfig(org *model.B2BOrg, ws *model.Workspace, wp model.WorkspaceProject) *indexerTypes.IndexingConfig {
+	parentRefs := []string{"org_workspace:" + ws.UID, "b2b_org:" + org.UID}
+	if org.ParentUID != "" {
+		parentRefs = append(parentRefs, "b2b_org:"+org.ParentUID)
+	}
+
+	fulltext := wp.ProjectName
+	if wp.ProjectSlug != "" {
+		fulltext += " " + wp.ProjectSlug
+	}
+
+	return &indexerTypes.IndexingConfig{
+		Public:               boolPtr(false),
+		ObjectID:             wp.AssociationID(ws.UID),
+		AccessCheckObject:    "b2b_org:" + org.UID,
+		AccessCheckRelation:  fgaconstants.RelationAuditor,
+		HistoryCheckObject:   "b2b_org:" + org.UID,
+		HistoryCheckRelation: fgaconstants.RelationWriter,
+		SortName:             strings.ToLower(wp.ProjectName),
+		NameAndAliases:       []string{wp.ProjectName},
+		ParentRefs:           parentRefs,
+		Fulltext:             fulltext,
+		Tags:                 wp.Tags(org.UID, ws.UID),
+	}
+}
+
+// workspaceProjectIndexerView is the indexer document body for an org_workspace_project.
+type workspaceProjectIndexerView struct {
+	B2BOrgUID           string    `json:"b2b_org_uid"`
+	B2BOrgWorkspaceUID  string    `json:"b2b_org_workspace_uid"`
+	ProjectUID          string    `json:"project_uid"`
+	ProjectSFID         string    `json:"project_sfid,omitempty"`
+	ProjectSlug         string    `json:"project_slug,omitempty"`
+	ProjectName         string    `json:"project_name,omitempty"`
+	CreatedBy           string    `json:"created_by,omitempty"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedBy           string    `json:"updated_by,omitempty"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	CollectionUpdatedAt time.Time `json:"collection_updated_at"`
+}
+
+// buildWorkspaceProjectIndexerView returns the data payload for an org_workspace_project
+// indexer message. Includes the per-item audit quartet and the container-level UpdatedAt.
+func buildWorkspaceProjectIndexerView(orgUID, workspaceUID string, wp model.WorkspaceProject, wps model.WorkspaceProjects) any {
+	return workspaceProjectIndexerView{
+		B2BOrgUID:           orgUID,
+		B2BOrgWorkspaceUID:  workspaceUID,
+		ProjectUID:          wp.ProjectUID,
+		ProjectSFID:         wp.ProjectSFID,
+		ProjectSlug:         wp.ProjectSlug,
+		ProjectName:         wp.ProjectName,
+		CreatedBy:           wp.CreatedBy,
+		CreatedAt:           wp.CreatedAt,
+		UpdatedBy:           wp.UpdatedBy,
+		UpdatedAt:           wp.UpdatedAt,
+		CollectionUpdatedAt: wps.UpdatedAt,
 	}
 }

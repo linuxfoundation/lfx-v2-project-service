@@ -3827,7 +3827,19 @@ func DecodeBulkAddB2bOrgWorkspaceProjectsResponse(decoder func(*http.Response) g
 			if err != nil {
 				return nil, goahttp.ErrValidationError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
 			}
-			res := NewBulkAddB2bOrgWorkspaceProjectsWorkspaceBulkResponseOK(&body)
+			var (
+				etag         *string
+				lastModified *string
+			)
+			etagRaw := resp.Header.Get("Etag")
+			if etagRaw != "" {
+				etag = &etagRaw
+			}
+			lastModifiedRaw := resp.Header.Get("Last-Modified")
+			if lastModifiedRaw != "" {
+				lastModified = &lastModifiedRaw
+			}
+			res := NewBulkAddB2bOrgWorkspaceProjectsWorkspaceBulkResponseOK(&body, etag, lastModified)
 			return res, nil
 		case http.StatusNotFound:
 			var (
@@ -4220,8 +4232,10 @@ func unmarshalWorkspaceProjectResponseResponseBodyToMembershipserviceWorkspacePr
 		ProjectSfid: v.ProjectSfid,
 		ProjectSlug: v.ProjectSlug,
 		ProjectName: v.ProjectName,
-		AddedBy:     v.AddedBy,
-		AddedAt:     v.AddedAt,
+		CreatedBy:   v.CreatedBy,
+		UpdatedBy:   v.UpdatedBy,
+		CreatedAt:   v.CreatedAt,
+		UpdatedAt:   v.UpdatedAt,
 	}
 
 	return res

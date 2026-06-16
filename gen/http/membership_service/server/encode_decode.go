@@ -3154,6 +3154,12 @@ func EncodeBulkAddB2bOrgWorkspaceProjectsResponse(encoder func(context.Context, 
 		res, _ := v.(*membershipservice.WorkspaceBulkResponse)
 		enc := encoder(ctx, w)
 		body := NewBulkAddB2bOrgWorkspaceProjectsResponseBody(res)
+		if res.Etag != nil {
+			w.Header().Set("Etag", *res.Etag)
+		}
+		if res.LastModified != nil {
+			w.Header().Set("Last-Modified", *res.LastModified)
+		}
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -3553,8 +3559,10 @@ func marshalMembershipserviceWorkspaceProjectResponseToWorkspaceProjectResponseR
 		ProjectSfid: v.ProjectSfid,
 		ProjectSlug: v.ProjectSlug,
 		ProjectName: v.ProjectName,
-		AddedBy:     v.AddedBy,
-		AddedAt:     v.AddedAt,
+		CreatedBy:   v.CreatedBy,
+		UpdatedBy:   v.UpdatedBy,
+		CreatedAt:   v.CreatedAt,
+		UpdatedAt:   v.UpdatedAt,
 	}
 
 	return res

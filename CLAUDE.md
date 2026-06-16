@@ -13,7 +13,7 @@ The same binary also runs as a **CDC consumer** (`RUN_MODE=consumer`) that subsc
 - **Language**: Go 1.24+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for KV caching and RPC
-- **Storage**: Four NATS Key-Value buckets — `membership-cache` (Salesforce cache), `org-settings` (b2b_org ACL), `member-service-cache` (sObject cache), `pubsub-state` (CDC replay cursors)
+- **Storage**: Six NATS Key-Value buckets — `membership-cache`, `org-settings`, `member-service-cache`, `pubsub-state`, `org-workspaces`, `org_workspace_projects`
 - **Primary data source**: Salesforce REST API (SOQL queries via `github.com/k-capehart/go-salesforce/v3`)
 - **CDC**: Salesforce Pub/Sub gRPC API + Apache Avro decoding (`github.com/linkedin/goavro/v2`)
 - **Authentication**: JWT with Heimdall middleware

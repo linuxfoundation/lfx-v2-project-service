@@ -775,14 +775,14 @@ func (s *membershipServicesrvc) CreateB2bOrgWorkspace(ctx context.Context, p *me
 		CreatedBy: principal,
 		IfMatch:   derefStr(p.IfMatch),
 	}
-	ws, err := s.workspaceWriter.CreateWorkspace(ctx, in)
+	result, err := s.workspaceWriter.CreateWorkspace(ctx, in)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
 	return &membershipservice.CreateB2bOrgWorkspaceResult{
-		Workspace:    workspaceToResponse(ws),
-		Etag:         workspaceETagHeader(ctx, ws),
-		LastModified: workspaceLastModifiedHeader(ws),
+		Workspace:    workspaceToResponse(result.Workspace),
+		Etag:         workspaceRegistryETagHeader(ctx, result.Registry),
+		LastModified: workspaceRegistryLastModifiedHeader(result.Registry),
 	}, nil
 }
 
@@ -797,14 +797,14 @@ func (s *membershipServicesrvc) UpdateB2bOrgWorkspace(ctx context.Context, p *me
 		UpdatedBy:    principal,
 		IfMatch:      derefStr(p.IfMatch),
 	}
-	ws, err := s.workspaceWriter.UpdateWorkspace(ctx, in)
+	result, err := s.workspaceWriter.UpdateWorkspace(ctx, in)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
 	return &membershipservice.UpdateB2bOrgWorkspaceResult{
-		Workspace:    workspaceToResponse(ws),
-		Etag:         workspaceETagHeader(ctx, ws),
-		LastModified: workspaceLastModifiedHeader(ws),
+		Workspace:    workspaceToResponse(result.Workspace),
+		Etag:         workspaceRegistryETagHeader(ctx, result.Registry),
+		LastModified: workspaceRegistryLastModifiedHeader(result.Registry),
 	}, nil
 }
 
@@ -830,17 +830,17 @@ func (s *membershipServicesrvc) AddB2bOrgWorkspaceProject(ctx context.Context, p
 		OrgUID:       p.UID,
 		WorkspaceUID: p.WorkspaceUID,
 		ProjectID:    p.ProjectID,
-		AddedBy:      principal,
+		CreatedBy:    principal,
 		IfMatch:      derefStr(p.IfMatch),
 	}
-	ws, err := s.workspaceWriter.AddProject(ctx, in)
+	result, err := s.workspaceWriter.AddProject(ctx, in)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
 	return &membershipservice.AddB2bOrgWorkspaceProjectResult{
-		Workspace:    workspaceToResponse(ws),
-		Etag:         workspaceETagHeader(ctx, ws),
-		LastModified: workspaceLastModifiedHeader(ws),
+		Workspace:    workspaceWithProjectsToResponse(result.Workspace, result.Projects),
+		Etag:         workspaceProjectsETagHeader(ctx, result.Projects),
+		LastModified: workspaceProjectsLastModifiedHeader(result.Projects),
 	}, nil
 }
 
@@ -852,7 +852,7 @@ func (s *membershipServicesrvc) BulkAddB2bOrgWorkspaceProjects(ctx context.Conte
 		OrgUID:       p.UID,
 		WorkspaceUID: p.WorkspaceUID,
 		ProjectIDs:   p.ProjectIds,
-		AddedBy:      principal,
+		CreatedBy:    principal,
 		IfMatch:      derefStr(p.IfMatch),
 	}
 	result, err := s.workspaceWriter.AddProjectsBulk(ctx, in)
@@ -877,9 +877,11 @@ func (s *membershipServicesrvc) BulkAddB2bOrgWorkspaceProjects(ctx context.Conte
 		}
 	}
 	return &membershipservice.WorkspaceBulkResponse{
-		Workspace: workspaceToResponse(result.Workspace),
-		Succeeded: succeeded,
-		Failed:    failed,
+		Workspace:    workspaceWithProjectsToResponse(result.Workspace, result.Projects),
+		Succeeded:    succeeded,
+		Failed:       failed,
+		Etag:         workspaceProjectsETagHeader(ctx, result.Projects),
+		LastModified: workspaceProjectsLastModifiedHeader(result.Projects),
 	}, nil
 }
 
@@ -892,20 +894,22 @@ func (s *membershipServicesrvc) RemoveB2bOrgWorkspaceProject(ctx context.Context
 		ProjectUID:   p.ProjectUID,
 		IfMatch:      derefStr(p.IfMatch),
 	}
-	ws, err := s.workspaceWriter.RemoveProject(ctx, in)
+	result, err := s.workspaceWriter.RemoveProject(ctx, in)
 	if err != nil {
 		return nil, wrapError(ctx, err)
 	}
 	return &membershipservice.RemoveB2bOrgWorkspaceProjectResult{
-		Workspace:    workspaceToResponse(ws),
-		Etag:         workspaceETagHeader(ctx, ws),
-		LastModified: workspaceLastModifiedHeader(ws),
+		Workspace:    workspaceWithProjectsToResponse(result.Workspace, result.Projects),
+		Etag:         workspaceProjectsETagHeader(ctx, result.Projects),
+		LastModified: workspaceProjectsLastModifiedHeader(result.Projects),
 	}, nil
 }
 
 // ── Workspace response converters ─────────────────────────────────────────────
 
 // workspaceToResponse maps a domain Workspace to the generated API response type.
+// Note: projects are stored in a separate WorkspaceProjects document; this function
+// only maps workspace metadata.
 func workspaceToResponse(ws *model.Workspace) *membershipservice.WorkspaceResponse {
 	if ws == nil {
 		return nil
@@ -924,9 +928,6 @@ func workspaceToResponse(ws *model.Workspace) *membershipservice.WorkspaceRespon
 	resp.CreatedAt = &createdAt
 	updatedAt := ws.UpdatedAt.UTC().Format(time.RFC3339)
 	resp.UpdatedAt = &updatedAt
-	for _, p := range ws.Projects {
-		resp.Projects = append(resp.Projects, workspaceProjectToResponse(p))
-	}
 	return resp
 }
 
@@ -944,11 +945,16 @@ func workspaceProjectToResponse(p model.WorkspaceProject) *membershipservice.Wor
 	if p.ProjectName != "" {
 		out.ProjectName = &p.ProjectName
 	}
-	if p.AddedBy != "" {
-		out.AddedBy = &p.AddedBy
+	if p.CreatedBy != "" {
+		out.CreatedBy = &p.CreatedBy
 	}
-	addedAt := p.AddedAt.UTC().Format(time.RFC3339)
-	out.AddedAt = &addedAt
+	if p.UpdatedBy != "" {
+		out.UpdatedBy = &p.UpdatedBy
+	}
+	createdAt := p.CreatedAt.UTC().Format(time.RFC3339)
+	out.CreatedAt = &createdAt
+	updatedAt := p.UpdatedAt.UTC().Format(time.RFC3339)
+	out.UpdatedAt = &updatedAt
 	return out
 }
 
@@ -973,20 +979,57 @@ func formatLastModified(t time.Time) *string {
 	return &s
 }
 
-// workspaceETagHeader computes the ETag header value for a workspace result.
-func workspaceETagHeader(ctx context.Context, ws *model.Workspace) *string {
-	if ws == nil {
+// workspaceRegistryETagHeader computes the ETag header value for workspace
+// create/update responses. Hashes *model.OrgWorkspaces — the same type the
+// orchestrator validates If-Match against (OrgSettings pattern invariant).
+func workspaceRegistryETagHeader(ctx context.Context, registry *model.OrgWorkspaces) *string {
+	if registry == nil {
 		return nil
 	}
-	return computeETag(ctx, ws, ws.UID)
+	return computeETag(ctx, registry, registry.OrgUID)
 }
 
-// workspaceLastModifiedHeader formats the Last-Modified header for a workspace result.
-func workspaceLastModifiedHeader(ws *model.Workspace) *string {
-	if ws == nil {
+// workspaceRegistryLastModifiedHeader formats the Last-Modified header for
+// workspace create/update responses, using the registry document's UpdatedAt.
+func workspaceRegistryLastModifiedHeader(registry *model.OrgWorkspaces) *string {
+	if registry == nil {
 		return nil
 	}
-	return formatLastModified(ws.UpdatedAt)
+	return formatLastModified(registry.UpdatedAt)
+}
+
+// workspaceProjectsETagHeader computes the ETag header value for a workspace projects result.
+// Hashes the WorkspaceProjects doc so the ETag reflects only the projects aggregate.
+func workspaceProjectsETagHeader(ctx context.Context, wps *model.WorkspaceProjects) *string {
+	if wps == nil {
+		return nil
+	}
+	return computeETag(ctx, wps, wps.WorkspaceUID)
+}
+
+// workspaceProjectsLastModifiedHeader formats the Last-Modified header for a projects result.
+func workspaceProjectsLastModifiedHeader(wps *model.WorkspaceProjects) *string {
+	if wps == nil {
+		return nil
+	}
+	return formatLastModified(wps.UpdatedAt)
+}
+
+// workspaceWithProjectsToResponse builds a WorkspaceResponse that includes the
+// projects list from the separate WorkspaceProjects aggregate.
+func workspaceWithProjectsToResponse(ws *model.Workspace, wps *model.WorkspaceProjects) *membershipservice.WorkspaceResponse {
+	resp := workspaceToResponse(ws)
+	if resp == nil {
+		return nil
+	}
+	if wps != nil {
+		projects := make([]*membershipservice.WorkspaceProjectResponse, 0, len(wps.Projects))
+		for _, p := range wps.Projects {
+			projects = append(projects, workspaceProjectToResponse(p))
+		}
+		resp.Projects = projects
+	}
+	return resp
 }
 
 // settingsETagHeader computes the ETag header value for a settings result.

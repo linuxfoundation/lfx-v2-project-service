@@ -599,10 +599,17 @@ var WorkspaceProjectResponse = dsl.Type("workspace-project-response", func() {
 	dsl.Attribute("project_name", dsl.String, "Project display name (snapshot)", func() {
 		dsl.Example("My Project")
 	})
-	dsl.Attribute("added_by", dsl.String, "LFID username of the principal who added this project", func() {
+	dsl.Attribute("created_by", dsl.String, "LFID username of the principal who added this project", func() {
 		dsl.Example("alice")
 	})
-	dsl.Attribute("added_at", dsl.String, "Timestamp when the project was added", func() {
+	dsl.Attribute("updated_by", dsl.String, "LFID username of the principal who last updated this association", func() {
+		dsl.Example("alice")
+	})
+	dsl.Attribute("created_at", dsl.String, "Timestamp when the project was added", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2026-01-01T00:00:00Z")
+	})
+	dsl.Attribute("updated_at", dsl.String, "Timestamp when this association was last updated", func() {
 		dsl.Format(dsl.FormatDateTime)
 		dsl.Example("2026-01-01T00:00:00Z")
 	})
@@ -698,5 +705,7 @@ var WorkspaceBulkResponse = dsl.Type("workspace-bulk-response", func() {
 		dsl.Example([]string{"a1b2c3d4-e5f6-7890-abcd-ef1234567890"})
 	})
 	dsl.Attribute("failed", dsl.ArrayOf(WorkspaceBulkAddItemError), "Projects that could not be added with per-item error detail")
+	ETagAttribute()
+	LastModifiedAttribute()
 	dsl.Required("workspace", "succeeded", "failed")
 })

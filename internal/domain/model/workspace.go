@@ -34,20 +34,56 @@ type WorkspaceProject struct {
 	ProjectSlug string `json:"project_slug,omitempty"`
 	// ProjectName is the project display name (write-time snapshot).
 	ProjectName string `json:"project_name,omitempty"`
-	// AddedBy is the LFID username of the principal who added this project.
-	AddedBy string `json:"added_by,omitempty"`
-	// AddedAt is when the project was added.
-	AddedAt time.Time `json:"added_at"`
+	// CreatedBy is the LFID username of the principal who added this project.
+	CreatedBy string `json:"created_by,omitempty"`
+	// UpdatedBy is the LFID username of the principal who last touched this association.
+	UpdatedBy string    `json:"updated_by,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// AssociationID returns the compound ObjectID used in the indexer:
+// "{workspaceUID}/{projectUID}".
+func (wp *WorkspaceProject) AssociationID(workspaceUID string) string {
+	return workspaceUID + "/" + wp.ProjectUID
+}
+
+// Tags returns the indexer tags for a workspace-project association.
+// Mirrors the tag style of model.ProjectMembership.Tags(): bare compound ID
+// first, then prefixed relation refs. Omits empty values.
+func (wp *WorkspaceProject) Tags(orgUID, workspaceUID string) []string {
+	if wp == nil {
+		return nil
+	}
+	var tags []string
+	if workspaceUID != "" && wp.ProjectUID != "" {
+		tags = append(tags, workspaceUID+"/"+wp.ProjectUID)
+	}
+	if orgUID != "" {
+		tags = append(tags, TagPrefixB2BOrgUID+orgUID)
+	}
+	if workspaceUID != "" {
+		tags = append(tags, TagPrefixB2BOrgWorkspaceUID+workspaceUID)
+	}
+	if wp.ProjectUID != "" {
+		tags = append(tags, TagPrefixProjectUID+wp.ProjectUID)
+	}
+	if wp.ProjectSlug != "" {
+		tags = append(tags, TagPrefixProjectSlug+wp.ProjectSlug)
+	}
+	if wp.ProjectSFID != "" {
+		tags = append(tags, TagPrefixProjectSFID+wp.ProjectSFID)
+	}
+	return tags
 }
 
 // Workspace is a named container of project associations within a b2b_org.
+// Projects are stored separately in the WorkspaceProjects aggregate.
 type Workspace struct {
 	// UID is the workspace's v2 UUID.
 	UID string `json:"uid"`
 	// Name is the workspace display name; unique within the org.
 	Name string `json:"name"`
-	// Projects holds the project associations for this workspace.
-	Projects []WorkspaceProject `json:"projects,omitempty"`
 	// CreatedBy is the LFID username of the principal who created the workspace.
 	CreatedBy string `json:"created_by,omitempty"`
 	// UpdatedBy is the LFID username of the principal who last mutated the workspace.
@@ -66,28 +102,37 @@ type OrgWorkspaces struct {
 	UpdatedAt  time.Time   `json:"updated_at"`
 }
 
+// WorkspaceProjects is the document stored in the "org_workspace_projects"
+// NATS KV bucket. One document per workspace; keyed
+// "org_workspace_projects.{workspaceUID}".
+type WorkspaceProjects struct {
+	// WorkspaceUID is the parent workspace UID this document belongs to.
+	WorkspaceUID string `json:"workspace_uid"`
+	// OrgUID is the parent b2b_org UID (denormalised for indexer context).
+	OrgUID string `json:"org_uid"`
+	// Projects lists all project associations for this workspace.
+	Projects  []WorkspaceProject `json:"projects,omitempty"`
+	UpdatedAt time.Time          `json:"updated_at"`
+}
+
 // Tag prefix consts for workspace indexer tags — mirror the TagPrefix* style
 // used by b2b_org_settings but scoped to workspaces.
 const (
 	// TagPrefixB2BOrgWorkspaceUID is the per-workspace type-prefixed UID tag.
-	// Inverse query: tags=b2b_org_workspace_uid:<uid>
 	TagPrefixB2BOrgWorkspaceUID = "b2b_org_workspace_uid:"
-	// TagPrefixB2BOrgUID is the parent org UID tag (shared with other member-service
-	// model tags so a single b2b_org_uid: query surfaces related docs).
-	// Inverse query: tags=b2b_org_uid:<orgUID>
+	// TagPrefixB2BOrgUID is the parent org UID tag.
 	TagPrefixB2BOrgUID = "b2b_org_uid:"
 	// TagPrefixProjectUID is the per-project UID tag.
-	// Inverse query: tags=project_uid:<projectUID>
 	TagPrefixProjectUID = "project_uid:"
 	// TagPrefixProjectSFID is the per-project Salesforce ID tag.
-	// Inverse query: tags=project_sfid:<sfid>
 	TagPrefixProjectSFID = "project_sfid:"
+	// TagPrefixProjectSlug is the per-project URL slug tag.
+	TagPrefixProjectSlug = "project_slug:"
 )
 
 // Tags returns the indexer tags for a single Workspace within its parent org.
-// Mirrors the tag style of model.ProjectMembership.Tags() and
-// model.KeyContact.Tags(): bare UID first, then prefixed UID, then relation refs.
-// Returns nil for a nil receiver (nil-receiver-safe).
+// Metadata-only: bare UID, b2b_org_workspace_uid:, b2b_org_uid:.
+// No project tags — those live on WorkspaceProject.Tags().
 func (w *Workspace) Tags(orgUID string) []string {
 	if w == nil {
 		return nil
@@ -100,34 +145,18 @@ func (w *Workspace) Tags(orgUID string) []string {
 	if orgUID != "" {
 		tags = append(tags, TagPrefixB2BOrgUID+orgUID)
 	}
-	for _, p := range w.Projects {
-		if p.ProjectUID != "" {
-			tags = append(tags, TagPrefixProjectUID+p.ProjectUID)
-		}
-		if p.ProjectSFID != "" {
-			tags = append(tags, TagPrefixProjectSFID+p.ProjectSFID)
-		}
-	}
 	return tags
 }
 
-// FulltextTokens returns the free-text search tokens for a workspace:
-// the workspace name and each associated project name.
-// Returns nil for a nil receiver.
+// FulltextTokens returns the free-text search tokens for a workspace (name only).
 func (w *Workspace) FulltextTokens() []string {
 	if w == nil {
 		return nil
 	}
-	var tokens []string
-	if w.Name != "" {
-		tokens = append(tokens, w.Name)
+	if w.Name == "" {
+		return nil
 	}
-	for _, p := range w.Projects {
-		if p.ProjectName != "" {
-			tokens = append(tokens, p.ProjectName)
-		}
-	}
-	return tokens
+	return []string{w.Name}
 }
 
 // FindWorkspace returns the workspace with the given UID, or nil if not found.
@@ -157,10 +186,8 @@ func (o *OrgWorkspaces) FindWorkspaceByName(name string) *Workspace {
 	return nil
 }
 
-// Clone returns a shallow copy of the OrgWorkspaces document with Workspaces
-// and each workspace's Projects slice duplicated so callers can mutate the
-// copy without touching the reader's cached value.
-// A nil source yields a fresh document for orgUID.
+// CloneOrgWorkspaces returns a shallow copy of the OrgWorkspaces document with
+// the Workspaces slice duplicated. A nil source yields a fresh document.
 func CloneOrgWorkspaces(o *OrgWorkspaces, orgUID string, now time.Time) *OrgWorkspaces {
 	if o == nil {
 		return &OrgWorkspaces{OrgUID: orgUID, UpdatedAt: now}
@@ -171,68 +198,60 @@ func CloneOrgWorkspaces(o *OrgWorkspaces, orgUID string, now time.Time) *OrgWork
 	}
 	if len(o.Workspaces) > 0 {
 		clone.Workspaces = make([]Workspace, len(o.Workspaces))
-		for i, w := range o.Workspaces {
-			wc := Workspace{
-				UID:       w.UID,
-				Name:      w.Name,
-				CreatedBy: w.CreatedBy,
-				UpdatedBy: w.UpdatedBy,
-				CreatedAt: w.CreatedAt,
-				UpdatedAt: w.UpdatedAt,
-			}
-			if len(w.Projects) > 0 {
-				wc.Projects = make([]WorkspaceProject, len(w.Projects))
-				copy(wc.Projects, w.Projects)
-			}
-			clone.Workspaces[i] = wc
-		}
+		copy(clone.Workspaces, o.Workspaces)
 	}
 	return clone
 }
 
-// workspaceProjectByUID returns a pointer to the WorkspaceProject with the
-// given projectUID in w, or nil if not present.
-func (w *Workspace) WorkspaceProjectByUID(projectUID string) *WorkspaceProject {
-	if w == nil {
+// CloneWorkspaceProjects returns a shallow copy of the WorkspaceProjects
+// document with the Projects slice duplicated. A nil source yields a fresh
+// document for workspaceUID + orgUID.
+func CloneWorkspaceProjects(p *WorkspaceProjects, workspaceUID, orgUID string, now time.Time) *WorkspaceProjects {
+	if p == nil {
+		return &WorkspaceProjects{WorkspaceUID: workspaceUID, OrgUID: orgUID, UpdatedAt: now}
+	}
+	clone := &WorkspaceProjects{
+		WorkspaceUID: workspaceUID,
+		OrgUID:       orgUID,
+		UpdatedAt:    p.UpdatedAt,
+	}
+	if len(p.Projects) > 0 {
+		clone.Projects = make([]WorkspaceProject, len(p.Projects))
+		copy(clone.Projects, p.Projects)
+	}
+	return clone
+}
+
+// WorkspaceProjectByUID returns a pointer to the WorkspaceProject with the
+// given projectUID, or nil if not present.
+func (p *WorkspaceProjects) WorkspaceProjectByUID(projectUID string) *WorkspaceProject {
+	if p == nil {
 		return nil
 	}
-	for i := range w.Projects {
-		if w.Projects[i].ProjectUID == projectUID {
-			return &w.Projects[i]
+	for i := range p.Projects {
+		if p.Projects[i].ProjectUID == projectUID {
+			return &p.Projects[i]
 		}
 	}
 	return nil
 }
 
-// RemoveProject removes the project with the given projectUID from w.Projects.
+// RemoveProject removes the project with the given projectUID from Projects.
 // Returns true if a project was removed.
-func (w *Workspace) RemoveProject(projectUID string) bool {
-	if w == nil {
+func (p *WorkspaceProjects) RemoveProject(projectUID string) bool {
+	if p == nil {
 		return false
 	}
-	for i, p := range w.Projects {
-		if p.ProjectUID == projectUID {
-			w.Projects = append(w.Projects[:i], w.Projects[i+1:]...)
+	for i, wp := range p.Projects {
+		if wp.ProjectUID == projectUID {
+			p.Projects = append(p.Projects[:i], p.Projects[i+1:]...)
 			return true
 		}
 	}
 	return false
 }
 
-// WorkspaceTagsAll returns the combined tags for all workspaces in the document.
-// Used for OrgWorkspaces-level indexer messages (not per-workspace).
-func (o *OrgWorkspaces) WorkspaceTagsAll() []string {
-	if o == nil {
-		return nil
-	}
-	var tags []string
-	for i := range o.Workspaces {
-		tags = append(tags, o.Workspaces[i].Tags(o.OrgUID)...)
-	}
-	return tags
-}
-
-// workspaceTagKey returns a formatted tag; exposed as a package-level helper
+// WorkspaceTagKey returns a formatted tag; exposed as a package-level helper
 // so tests and callers outside the model can construct expected tag values
 // without importing format strings.
 func WorkspaceTagKey(prefix, value string) string {

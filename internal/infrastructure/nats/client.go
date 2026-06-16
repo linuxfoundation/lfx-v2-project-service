@@ -224,6 +224,17 @@ func NewClient(ctx context.Context, config Config) (*NATSClient, error) {
 		"bucket", constants.KVBucketNameOrgWorkspaces,
 	)
 
+	if err := client.KeyValueStore(ctx, constants.KVBucketNameWorkspaceProjects); err != nil {
+		slog.ErrorContext(ctx, "failed to initialize org_workspace_projects key-value store",
+			"error", err,
+			"bucket", constants.KVBucketNameWorkspaceProjects,
+		)
+		return nil, errors.NewServiceUnavailable("failed to initialize org_workspace_projects key-value store", err)
+	}
+	slog.InfoContext(ctx, "NATS key-value store initialized",
+		"bucket", constants.KVBucketNameWorkspaceProjects,
+	)
+
 	slog.InfoContext(ctx, "NATS client created successfully",
 		"connected_url", conn.ConnectedUrl(),
 		"status", conn.Status(),

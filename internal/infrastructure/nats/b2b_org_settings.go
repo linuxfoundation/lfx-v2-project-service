@@ -86,6 +86,22 @@ func updateDocWithRevision[T any](ctx context.Context, s *Storage, bucket, key, 
 	return nil
 }
 
+// deleteDoc removes a key from the named authoritative KV bucket.
+// Safe to call when the key does not exist (ErrKeyNotFound is treated as success).
+func deleteDoc(ctx context.Context, s *Storage, bucket, key string) error {
+	kv, ok := s.client.kvStore[bucket]
+	if !ok {
+		return errs.NewUnexpected(fmt.Sprintf("KV bucket %q not initialized", bucket))
+	}
+	if err := kv.Delete(ctx, key); err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
+		return errs.NewUnexpected(fmt.Sprintf("failed to delete key %q from bucket %q", key, bucket), err)
+	}
+	return nil
+}
+
 // ── Org settings ─────────────────────────────────────────────────────────────
 
 // keyPrefixOrgSettings is the NATS KV key prefix for org settings records.

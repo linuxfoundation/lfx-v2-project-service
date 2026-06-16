@@ -865,6 +865,10 @@ type WorkspaceBulkResponse struct {
 	Succeeded []string
 	// Projects that could not be added with per-item error detail
 	Failed []*WorkspaceBulkAddItemError
+	// ETag header value
+	Etag *string
+	// Last-Modified header value (HTTP date format)
+	LastModified *string
 }
 
 // A project association within a workspace (write-time snapshot)
@@ -878,9 +882,13 @@ type WorkspaceProjectResponse struct {
 	// Project display name (snapshot)
 	ProjectName *string
 	// LFID username of the principal who added this project
-	AddedBy *string
+	CreatedBy *string
+	// LFID username of the principal who last updated this association
+	UpdatedBy *string
 	// Timestamp when the project was added
-	AddedAt *string
+	CreatedAt *string
+	// Timestamp when this association was last updated
+	UpdatedAt *string
 }
 
 // A named container of project associations within a b2b_org

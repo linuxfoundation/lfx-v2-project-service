@@ -82,6 +82,84 @@ func (m *MockOrgWorkspaces) UpdateWorkspaces(_ context.Context, ws *model.OrgWor
 	return nil
 }
 
+// --- MockWorkspaceProjects ------------------------------------------------
+
+// MockWorkspaceProjects is an in-memory implementation of port.WorkspaceProjectsReader
+// and port.WorkspaceProjectsWriter. CAS semantics mirror MockOrgWorkspaces.
+type MockWorkspaceProjects struct {
+	mu       sync.RWMutex
+	docs     map[string]*model.WorkspaceProjects
+	revision map[string]uint64
+	putErr   error
+}
+
+// NewMockWorkspaceProjects returns an empty, ready-to-use mock.
+func NewMockWorkspaceProjects() *MockWorkspaceProjects {
+	return &MockWorkspaceProjects{
+		docs:     make(map[string]*model.WorkspaceProjects),
+		revision: make(map[string]uint64),
+	}
+}
+
+// Seed pre-populates the mock with a projects document and revision.
+func (m *MockWorkspaceProjects) Seed(workspaceUID string, p *model.WorkspaceProjects, rev uint64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.docs[workspaceUID] = p
+	m.revision[workspaceUID] = rev
+}
+
+// SetPutError configures the mock to return err on the next write call.
+func (m *MockWorkspaceProjects) SetPutError(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.putErr = err
+}
+
+// GetWorkspaceProjects returns the seeded document for workspaceUID, or (nil, 0, nil) when absent.
+func (m *MockWorkspaceProjects) GetWorkspaceProjects(_ context.Context, workspaceUID string) (*model.WorkspaceProjects, uint64, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	p, ok := m.docs[workspaceUID]
+	if !ok {
+		return nil, 0, nil
+	}
+	return p, m.revision[workspaceUID], nil
+}
+
+// UpdateWorkspaceProjects stores the document, mirroring production NATS CAS semantics.
+func (m *MockWorkspaceProjects) UpdateWorkspaceProjects(_ context.Context, p *model.WorkspaceProjects, revision uint64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.putErr != nil {
+		err := m.putErr
+		m.putErr = nil
+		return err
+	}
+	wsUID := p.WorkspaceUID
+	if revision == 0 {
+		if _, exists := m.docs[wsUID]; exists {
+			return errors.NewConflict("workspace projects were created concurrently, please retry")
+		}
+	} else {
+		if stored, ok := m.revision[wsUID]; !ok || stored != revision {
+			return errors.NewConflict("stale revision")
+		}
+	}
+	m.docs[wsUID] = p
+	m.revision[wsUID] = revision + 1
+	return nil
+}
+
+// DeleteWorkspaceProjects removes the document for workspaceUID. No-op if absent.
+func (m *MockWorkspaceProjects) DeleteWorkspaceProjects(_ context.Context, workspaceUID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.docs, workspaceUID)
+	delete(m.revision, workspaceUID)
+	return nil
+}
+
 // --- MockProjectResolver --------------------------------------------------
 
 // MockProjectResolver is a stub implementation of port.ProjectResolver used

@@ -2751,9 +2751,13 @@ type WorkspaceProjectResponseResponseBody struct {
 	// Project display name (snapshot)
 	ProjectName *string `form:"project_name,omitempty" json:"project_name,omitempty" xml:"project_name,omitempty"`
 	// LFID username of the principal who added this project
-	AddedBy *string `form:"added_by,omitempty" json:"added_by,omitempty" xml:"added_by,omitempty"`
+	CreatedBy *string `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// LFID username of the principal who last updated this association
+	UpdatedBy *string `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// Timestamp when the project was added
-	AddedAt *string `form:"added_at,omitempty" json:"added_at,omitempty" xml:"added_at,omitempty"`
+	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
+	// Timestamp when this association was last updated
+	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
 // WorkspaceBulkAddItemErrorResponseBody is used to define fields on response

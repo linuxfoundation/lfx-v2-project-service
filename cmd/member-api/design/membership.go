@@ -1023,7 +1023,10 @@ var _ = dsl.Service("membership-service", func() {
 			dsl.Param("uid")
 			dsl.Param("workspace_uid")
 			dsl.Header("if_match:If-Match")
-			dsl.Response(dsl.StatusOK)
+			dsl.Response(dsl.StatusOK, func() {
+				dsl.Header("etag:ETag")
+				dsl.Header("last_modified:Last-Modified")
+			})
 			dsl.Response("NotFound", dsl.StatusNotFound)
 			dsl.Response("BadRequest", dsl.StatusBadRequest)
 			dsl.Response("Conflict", dsl.StatusConflict)

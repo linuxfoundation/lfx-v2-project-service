@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -48,7 +49,7 @@ type WorkspaceProjectAdd struct {
 	OrgUID       string
 	WorkspaceUID string
 	ProjectID    string // UID or slug
-	AddedBy      string
+	CreatedBy    string
 	IfMatch      string
 }
 
@@ -58,7 +59,7 @@ type WorkspaceProjectsBulkAdd struct {
 	OrgUID       string
 	WorkspaceUID string
 	ProjectIDs   []string // UIDs or slugs
-	AddedBy      string
+	CreatedBy    string
 	IfMatch      string
 }
 
@@ -71,10 +72,31 @@ type WorkspaceProjectRemove struct {
 	IfMatch      string
 }
 
+// WorkspaceMetaResult is returned by CreateWorkspace and UpdateWorkspace.
+// Registry is the updated OrgWorkspaces document — the same type the
+// orchestrator validates If-Match against (following the OrgSettings pattern:
+// "return the same type you validate IfMatch against").
+type WorkspaceMetaResult struct {
+	// Workspace is the specific workspace that was created or updated.
+	Workspace *model.Workspace
+	// Registry is the updated org-level registry document (OrgWorkspaces).
+	Registry *model.OrgWorkspaces
+}
+
+// WorkspaceProjectResult is returned by AddProject and RemoveProject.
+type WorkspaceProjectResult struct {
+	// Workspace is the workspace metadata.
+	Workspace *model.Workspace
+	// Projects is the updated projects document for the workspace.
+	Projects *model.WorkspaceProjects
+}
+
 // WorkspaceBulkResult is returned by AddProjectsBulk.
 type WorkspaceBulkResult struct {
 	// Workspace is the updated workspace after all successful additions.
 	Workspace *model.Workspace
+	// Projects is the updated projects document for the workspace.
+	Projects *model.WorkspaceProjects
 	// Succeeded holds the ProjectInfo for each successfully added project.
 	Succeeded []model.ProjectInfo
 	// Failed holds per-item errors aligned to the input ProjectIDs slice.
@@ -86,22 +108,24 @@ type WorkspaceBulkResult struct {
 
 // WorkspaceWriter orchestrates workspace mutation use cases.
 type WorkspaceWriter interface {
-	CreateWorkspace(ctx context.Context, in WorkspaceCreate) (*model.Workspace, error)
-	UpdateWorkspace(ctx context.Context, in WorkspaceUpdate) (*model.Workspace, error)
+	CreateWorkspace(ctx context.Context, in WorkspaceCreate) (*WorkspaceMetaResult, error)
+	UpdateWorkspace(ctx context.Context, in WorkspaceUpdate) (*WorkspaceMetaResult, error)
 	DeleteWorkspace(ctx context.Context, in WorkspaceDelete) error
-	AddProject(ctx context.Context, in WorkspaceProjectAdd) (*model.Workspace, error)
+	AddProject(ctx context.Context, in WorkspaceProjectAdd) (*WorkspaceProjectResult, error)
 	AddProjectsBulk(ctx context.Context, in WorkspaceProjectsBulkAdd) (*WorkspaceBulkResult, error)
-	RemoveProject(ctx context.Context, in WorkspaceProjectRemove) (*model.Workspace, error)
+	RemoveProject(ctx context.Context, in WorkspaceProjectRemove) (*WorkspaceProjectResult, error)
 }
 
 // ── Orchestrator ──────────────────────────────────────────────────────────────
 
 type workspaceWriterOrchestrator struct {
-	workspacesReader port.OrgWorkspacesReader
-	workspacesWriter port.OrgWorkspacesWriter
-	b2bOrgReader     port.B2BOrgReader
-	projectResolver  port.ProjectResolver
-	publisher        port.MemberPublisher
+	workspacesReader        port.OrgWorkspacesReader
+	workspacesWriter        port.OrgWorkspacesWriter
+	workspaceProjectsReader port.WorkspaceProjectsReader
+	workspaceProjectsWriter port.WorkspaceProjectsWriter
+	b2bOrgReader            port.B2BOrgReader
+	projectResolver         port.ProjectResolver
+	publisher               port.MemberPublisher
 }
 
 // WorkspaceWriterOption configures a workspaceWriterOrchestrator.
@@ -113,6 +137,14 @@ func WithWorkspacesReader(r port.OrgWorkspacesReader) WorkspaceWriterOption {
 
 func WithWorkspacesWriter(w port.OrgWorkspacesWriter) WorkspaceWriterOption {
 	return func(o *workspaceWriterOrchestrator) { o.workspacesWriter = w }
+}
+
+func WithWorkspaceProjectsReader(r port.WorkspaceProjectsReader) WorkspaceWriterOption {
+	return func(o *workspaceWriterOrchestrator) { o.workspaceProjectsReader = r }
+}
+
+func WithWorkspaceProjectsWriter(w port.WorkspaceProjectsWriter) WorkspaceWriterOption {
+	return func(o *workspaceWriterOrchestrator) { o.workspaceProjectsWriter = w }
 }
 
 func WithWorkspacesB2BOrgReader(r port.B2BOrgReader) WorkspaceWriterOption {
@@ -138,10 +170,10 @@ func NewWorkspaceWriter(opts ...WorkspaceWriterOption) WorkspaceWriter {
 
 // ── Use-case methods ──────────────────────────────────────────────────────────
 
-// CreateWorkspace creates a new workspace in the org's KV document.
+// CreateWorkspace creates a new workspace in the org's registry document.
 // Name must be unique within the org (case-sensitive). Returns Conflict on
 // duplicate name and NotFound if the parent org does not exist.
-func (o *workspaceWriterOrchestrator) CreateWorkspace(ctx context.Context, in WorkspaceCreate) (*model.Workspace, error) {
+func (o *workspaceWriterOrchestrator) CreateWorkspace(ctx context.Context, in WorkspaceCreate) (*WorkspaceMetaResult, error) {
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return nil, pkgerrors.NewValidation("workspace name is required")
@@ -162,13 +194,13 @@ func (o *workspaceWriterOrchestrator) CreateWorkspace(ctx context.Context, in Wo
 		}
 	}
 
-	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, time.Now().UTC())
+	now := time.Now().UTC()
+	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, now)
 
 	if updated.FindWorkspaceByName(name) != nil {
 		return nil, pkgerrors.NewConflict("a workspace with that name already exists in this organization")
 	}
 
-	now := time.Now().UTC()
 	ws := model.Workspace{
 		UID:       uuid.New().String(),
 		Name:      name,
@@ -180,14 +212,14 @@ func (o *workspaceWriterOrchestrator) CreateWorkspace(ctx context.Context, in Wo
 	updated.Workspaces = append(updated.Workspaces, ws)
 	updated.UpdatedAt = now
 
-	if err := o.persistAndPublish(ctx, existing, updated, revision, &ws, indexerConstants.ActionCreated); err != nil {
+	if err := o.persistAndPublishRegistry(ctx, existing, updated, revision, &ws, indexerConstants.ActionCreated); err != nil {
 		return nil, err
 	}
-	return &ws, nil
+	return &WorkspaceMetaResult{Workspace: &ws, Registry: updated}, nil
 }
 
 // UpdateWorkspace renames an existing workspace. Name must be unique within the org.
-func (o *workspaceWriterOrchestrator) UpdateWorkspace(ctx context.Context, in WorkspaceUpdate) (*model.Workspace, error) {
+func (o *workspaceWriterOrchestrator) UpdateWorkspace(ctx context.Context, in WorkspaceUpdate) (*WorkspaceMetaResult, error) {
 	name := strings.TrimSpace(in.Name)
 	if name == "" {
 		return nil, pkgerrors.NewValidation("workspace name is required")
@@ -204,7 +236,8 @@ func (o *workspaceWriterOrchestrator) UpdateWorkspace(ctx context.Context, in Wo
 		return nil, err
 	}
 
-	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, time.Now().UTC())
+	now := time.Now().UTC()
+	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, now)
 
 	ws := updated.FindWorkspace(in.WorkspaceUID)
 	if ws == nil {
@@ -216,18 +249,17 @@ func (o *workspaceWriterOrchestrator) UpdateWorkspace(ctx context.Context, in Wo
 		return nil, pkgerrors.NewConflict("a workspace with that name already exists in this organization")
 	}
 
-	now := time.Now().UTC()
 	ws.Name = name
 	ws.UpdatedBy = in.UpdatedBy
 	ws.UpdatedAt = now
 	updated.UpdatedAt = now
 
-	if err := o.persistAndPublish(ctx, existing, updated, revision, ws, indexerConstants.ActionUpdated); err != nil {
+	if err := o.persistAndPublishRegistry(ctx, existing, updated, revision, ws, indexerConstants.ActionUpdated); err != nil {
 		return nil, err
 	}
-	// Return a copy of the workspace (the pointer into updated is valid after persist).
+	// Return a copy of the workspace alongside the updated registry (caller hashes registry for ETag).
 	wsCopy := *ws
-	return &wsCopy, nil
+	return &WorkspaceMetaResult{Workspace: &wsCopy, Registry: updated}, nil
 }
 
 // DeleteWorkspace removes a workspace and all its project associations (cascade).
@@ -250,7 +282,23 @@ func (o *workspaceWriterOrchestrator) DeleteWorkspace(ctx context.Context, in Wo
 		return pkgerrors.NewNotFound("workspace not found")
 	}
 
-	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, time.Now().UTC())
+	// Read and capture projects before deletion (for indexer delete publishing).
+	// Error is intentionally swallowed — project delete events are fire-and-forget;
+	// missing them is recoverable by backfill repair.
+	var projects *model.WorkspaceProjects
+	if o.workspaceProjectsReader != nil {
+		var readErr error
+		projects, _, readErr = o.workspaceProjectsReader.GetWorkspaceProjects(ctx, in.WorkspaceUID)
+		if readErr != nil {
+			slog.DebugContext(ctx, "could not read workspace projects for delete event publishing",
+				"workspace_uid", in.WorkspaceUID,
+				"error", readErr,
+			)
+		}
+	}
+
+	now := time.Now().UTC()
+	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, now)
 	// Remove the workspace by UID.
 	filtered := updated.Workspaces[:0]
 	for _, w := range updated.Workspaces {
@@ -259,40 +307,47 @@ func (o *workspaceWriterOrchestrator) DeleteWorkspace(ctx context.Context, in Wo
 		}
 	}
 	updated.Workspaces = filtered
-	updated.UpdatedAt = time.Now().UTC()
+	updated.UpdatedAt = now
 
 	if err := o.workspacesWriter.UpdateWorkspaces(ctx, updated, revision); err != nil {
 		return err
 	}
 
-	// Fire-and-forget indexer delete.
+	// Fire-and-forget: delete the projects document (non-atomic orphan is harmless).
+	if o.workspaceProjectsWriter != nil {
+		_ = o.workspaceProjectsWriter.DeleteWorkspaceProjects(ctx, in.WorkspaceUID)
+	}
+
+	// Fire-and-forget: one GetB2BOrg fetch shared by workspace + project indexer deletes.
 	if o.b2bOrgReader != nil && o.publisher != nil {
 		org, orgErr := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID)
 		if orgErr == nil && org != nil {
 			PublishWorkspaceIndexer(ctx, o.publisher, org, found, indexerConstants.ActionDeleted)
+			if projects != nil {
+				for _, wp := range projects.Projects {
+					PublishWorkspaceProjectIndexer(ctx, o.publisher, org, found, wp, *projects, indexerConstants.ActionDeleted)
+				}
+			}
 		}
 	}
+
 	return nil
 }
 
-// AddProject enriches and appends a single project to a workspace.
-// Idempotent: if the project is already associated, returns the current workspace
+// AddProject enriches and appends a single project to a workspace's projects document.
+// Idempotent: if the project is already associated, returns the current state
 // without error (BR-6). Returns NotFound if the workspace does not exist and
 // Validation (→ HTTP 400) if the project cannot be resolved.
-func (o *workspaceWriterOrchestrator) AddProject(ctx context.Context, in WorkspaceProjectAdd) (*model.Workspace, error) {
-	existing, revision, err := o.workspacesReader.GetWorkspaces(ctx, in.OrgUID)
+func (o *workspaceWriterOrchestrator) AddProject(ctx context.Context, in WorkspaceProjectAdd) (*WorkspaceProjectResult, error) {
+	existing, _, err := o.workspacesReader.GetWorkspaces(ctx, in.OrgUID)
 	if err != nil {
 		return nil, err
 	}
 	if existing == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
 	}
-	if err := checkWorkspacesIfMatch(existing, in.IfMatch); err != nil {
-		return nil, err
-	}
 
-	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, time.Now().UTC())
-	ws := updated.FindWorkspace(in.WorkspaceUID)
+	ws := existing.FindWorkspace(in.WorkspaceUID)
 	if ws == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
 	}
@@ -303,48 +358,78 @@ func (o *workspaceWriterOrchestrator) AddProject(ctx context.Context, in Workspa
 		return nil, resolveErr // already a Validation error → HTTP 400
 	}
 
-	// Idempotency: already associated → return current workspace.
-	if ws.WorkspaceProjectByUID(info.UID) != nil {
+	// Read the projects document (lazy create if not exists).
+	existingProjects, projectsRevision, err := o.workspaceProjectsReader.GetWorkspaceProjects(ctx, in.WorkspaceUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check If-Match against the projects document — the doc actually being
+	// mutated. Matches OrgSettings pattern: validate against the same type
+	// the HTTP layer hashes for the response ETag.
+	if err := checkWorkspaceProjectsIfMatch(existingProjects, in.IfMatch); err != nil {
+		return nil, err
+	}
+
+	// Idempotency: already associated → return current state without cloning.
+	if existingProjects != nil && existingProjects.WorkspaceProjectByUID(info.UID) != nil {
 		wsCopy := *ws
-		return &wsCopy, nil
+		return &WorkspaceProjectResult{
+			Workspace: &wsCopy,
+			Projects:  existingProjects,
+		}, nil
 	}
 
 	now := time.Now().UTC()
-	ws.Projects = append(ws.Projects, model.WorkspaceProject{
+	updatedProjects := model.CloneWorkspaceProjects(existingProjects, in.WorkspaceUID, in.OrgUID, now)
+	updatedProjects.Projects = append(updatedProjects.Projects, model.WorkspaceProject{
 		ProjectUID:  info.UID,
 		ProjectSFID: info.SFID,
 		ProjectSlug: info.Slug,
 		ProjectName: info.Name,
-		AddedBy:     in.AddedBy,
-		AddedAt:     now,
+		CreatedBy:   in.CreatedBy,
+		UpdatedBy:   in.CreatedBy,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	})
-	ws.UpdatedAt = now
-	updated.UpdatedAt = now
+	updatedProjects.UpdatedAt = now
 
-	if err := o.persistAndPublish(ctx, existing, updated, revision, ws, indexerConstants.ActionUpdated); err != nil {
+	// CAS write projects document (lazy create: projectsRevision==0 on first add).
+	if err := o.workspaceProjectsWriter.UpdateWorkspaceProjects(ctx, updatedProjects, projectsRevision); err != nil {
 		return nil, err
 	}
+
+	// Fire-and-forget: publish indexer create for the new association.
+	if o.b2bOrgReader != nil && o.publisher != nil {
+		org, orgErr := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID)
+		if orgErr == nil && org != nil {
+			wp := updatedProjects.WorkspaceProjectByUID(info.UID)
+			if wp != nil {
+				PublishWorkspaceProjectIndexer(ctx, o.publisher, org, ws, *wp, *updatedProjects, indexerConstants.ActionCreated)
+			}
+		}
+	}
+
 	wsCopy := *ws
-	return &wsCopy, nil
+	return &WorkspaceProjectResult{
+		Workspace: &wsCopy,
+		Projects:  updatedProjects,
+	}, nil
 }
 
 // AddProjectsBulk adds multiple projects to a workspace using a batch SOQL enrichment.
 // Per-item resolution failures are collected; only successfully enriched projects are
 // persisted in a single CAS write.
 func (o *workspaceWriterOrchestrator) AddProjectsBulk(ctx context.Context, in WorkspaceProjectsBulkAdd) (*WorkspaceBulkResult, error) {
-	existing, revision, err := o.workspacesReader.GetWorkspaces(ctx, in.OrgUID)
+	existing, _, err := o.workspacesReader.GetWorkspaces(ctx, in.OrgUID)
 	if err != nil {
 		return nil, err
 	}
 	if existing == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
 	}
-	if err := checkWorkspacesIfMatch(existing, in.IfMatch); err != nil {
-		return nil, err
-	}
 
-	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, time.Now().UTC())
-	ws := updated.FindWorkspace(in.WorkspaceUID)
+	ws := existing.FindWorkspace(in.WorkspaceUID)
 	if ws == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
 	}
@@ -355,85 +440,147 @@ func (o *workspaceWriterOrchestrator) AddProjectsBulk(ctx context.Context, in Wo
 	var succeeded []model.ProjectInfo
 	failedOut := make([]error, len(in.ProjectIDs))
 
+	// Read the projects document (lazy create if not exists).
+	existingProjects, projectsRevision, err := o.workspaceProjectsReader.GetWorkspaceProjects(ctx, in.WorkspaceUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check If-Match against the projects document — the doc actually being
+	// mutated. Matches OrgSettings pattern: validate against the same type
+	// the HTTP layer hashes for the response ETag.
+	if err := checkWorkspaceProjectsIfMatch(existingProjects, in.IfMatch); err != nil {
+		return nil, err
+	}
+
 	now := time.Now().UTC()
+	updatedProjects := model.CloneWorkspaceProjects(existingProjects, in.WorkspaceUID, in.OrgUID, now)
+	newlyAdded := []*model.WorkspaceProject{}
+
 	for i, info := range infos {
 		if resolveErrs[i] != nil {
 			failedOut[i] = resolveErrs[i]
 			continue
 		}
 		// Idempotency: skip already-associated projects.
-		if ws.WorkspaceProjectByUID(info.UID) != nil {
+		if updatedProjects.WorkspaceProjectByUID(info.UID) != nil {
 			succeeded = append(succeeded, info)
 			continue
 		}
-		ws.Projects = append(ws.Projects, model.WorkspaceProject{
+		wp := model.WorkspaceProject{
 			ProjectUID:  info.UID,
 			ProjectSFID: info.SFID,
 			ProjectSlug: info.Slug,
 			ProjectName: info.Name,
-			AddedBy:     in.AddedBy,
-			AddedAt:     now,
-		})
+			CreatedBy:   in.CreatedBy,
+			UpdatedBy:   in.CreatedBy,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		updatedProjects.Projects = append(updatedProjects.Projects, wp)
+		newlyAdded = append(newlyAdded, &wp)
 		succeeded = append(succeeded, info)
 	}
 
 	if len(succeeded) > 0 {
-		ws.UpdatedAt = now
-		updated.UpdatedAt = now
-		if err := o.persistAndPublish(ctx, existing, updated, revision, ws, indexerConstants.ActionUpdated); err != nil {
+		updatedProjects.UpdatedAt = now
+		if err := o.workspaceProjectsWriter.UpdateWorkspaceProjects(ctx, updatedProjects, projectsRevision); err != nil {
 			return nil, err
+		}
+
+		// Fire-and-forget: publish indexer creates for each newly added project.
+		if o.b2bOrgReader != nil && o.publisher != nil {
+			org, orgErr := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID)
+			if orgErr == nil && org != nil {
+				for _, wp := range newlyAdded {
+					PublishWorkspaceProjectIndexer(ctx, o.publisher, org, ws, *wp, *updatedProjects, indexerConstants.ActionCreated)
+				}
+			}
 		}
 	}
 
 	wsCopy := *ws
 	return &WorkspaceBulkResult{
 		Workspace: &wsCopy,
+		Projects:  updatedProjects,
 		Succeeded: succeeded,
 		Failed:    failedOut,
 	}, nil
 }
 
-// RemoveProject removes a project association from a workspace. Returns NotFound if
-// either the workspace or the project association does not exist.
-func (o *workspaceWriterOrchestrator) RemoveProject(ctx context.Context, in WorkspaceProjectRemove) (*model.Workspace, error) {
-	existing, revision, err := o.workspacesReader.GetWorkspaces(ctx, in.OrgUID)
+// RemoveProject removes a project association from a workspace's projects document.
+// Returns NotFound if either the workspace or the project association does not exist.
+func (o *workspaceWriterOrchestrator) RemoveProject(ctx context.Context, in WorkspaceProjectRemove) (*WorkspaceProjectResult, error) {
+	existing, _, err := o.workspacesReader.GetWorkspaces(ctx, in.OrgUID)
 	if err != nil {
 		return nil, err
 	}
 	if existing == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
 	}
-	if err := checkWorkspacesIfMatch(existing, in.IfMatch); err != nil {
-		return nil, err
-	}
 
-	updated := model.CloneOrgWorkspaces(existing, in.OrgUID, time.Now().UTC())
-	ws := updated.FindWorkspace(in.WorkspaceUID)
+	ws := existing.FindWorkspace(in.WorkspaceUID)
 	if ws == nil {
 		return nil, pkgerrors.NewNotFound("workspace not found")
 	}
 
-	if !ws.RemoveProject(in.ProjectUID) {
+	// Read the projects document.
+	existingProjects, projectsRevision, err := o.workspaceProjectsReader.GetWorkspaceProjects(ctx, in.WorkspaceUID)
+	if err != nil {
+		return nil, err
+	}
+	if existingProjects == nil {
+		return nil, pkgerrors.NewNotFound("project not found in workspace")
+	}
+
+	// Check If-Match on the projects document.
+	if err := checkWorkspaceProjectsIfMatch(existingProjects, in.IfMatch); err != nil {
+		return nil, err
+	}
+
+	// Verify the project exists before cloning — avoids allocating a clone
+	// that would be immediately discarded on the not-found path.
+	if existingProjects.WorkspaceProjectByUID(in.ProjectUID) == nil {
 		return nil, pkgerrors.NewNotFound("project not found in workspace")
 	}
 
 	now := time.Now().UTC()
-	ws.UpdatedAt = now
-	updated.UpdatedAt = now
+	updatedProjects := model.CloneWorkspaceProjects(existingProjects, in.WorkspaceUID, in.OrgUID, now)
 
-	if err := o.persistAndPublish(ctx, existing, updated, revision, ws, indexerConstants.ActionUpdated); err != nil {
+	removedProject := updatedProjects.WorkspaceProjectByUID(in.ProjectUID)
+	removedCopy := *removedProject // safe: checked on existingProjects above
+
+	if !updatedProjects.RemoveProject(in.ProjectUID) {
+		return nil, pkgerrors.NewNotFound("project not found in workspace")
+	}
+
+	updatedProjects.UpdatedAt = now
+
+	if err := o.workspaceProjectsWriter.UpdateWorkspaceProjects(ctx, updatedProjects, projectsRevision); err != nil {
 		return nil, err
 	}
+
+	// Fire-and-forget: publish indexer delete for the removed association.
+	if o.b2bOrgReader != nil && o.publisher != nil {
+		org, orgErr := o.b2bOrgReader.GetB2BOrg(ctx, in.OrgUID)
+		if orgErr == nil && org != nil {
+			PublishWorkspaceProjectIndexer(ctx, o.publisher, org, ws, removedCopy, *updatedProjects, indexerConstants.ActionDeleted)
+		}
+	}
+
 	wsCopy := *ws
-	return &wsCopy, nil
+	return &WorkspaceProjectResult{
+		Workspace: &wsCopy,
+		Projects:  updatedProjects,
+	}, nil
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// persistAndPublish writes the updated document (CAS) and fires the indexer publish.
-// The action describes the operation performed on the specific workspace (created/
-// updated/deleted). The indexer always publishes the per-workspace view.
-func (o *workspaceWriterOrchestrator) persistAndPublish(
+// persistAndPublishRegistry writes the updated registry document (CAS) and fires
+// the indexer publish for the workspace metadata. The action describes the operation
+// performed on the specific workspace (created/updated/deleted).
+func (o *workspaceWriterOrchestrator) persistAndPublishRegistry(
 	ctx context.Context,
 	existing *model.OrgWorkspaces,
 	updated *model.OrgWorkspaces,
@@ -473,7 +620,13 @@ func (o *workspaceWriterOrchestrator) guardOrg(ctx context.Context, orgUID strin
 }
 
 // checkWorkspacesIfMatch validates the optional If-Match precondition against
-// the current workspace document ETag.
+// the current registry document ETag.
 func checkWorkspacesIfMatch(existing *model.OrgWorkspaces, ifMatch string) error {
 	return checkIfMatch(existing, ifMatch, "workspace record")
+}
+
+// checkWorkspaceProjectsIfMatch validates the optional If-Match precondition against
+// a workspace projects document.
+func checkWorkspaceProjectsIfMatch(wps *model.WorkspaceProjects, ifMatch string) error {
+	return checkIfMatch(wps, ifMatch, "workspace projects")
 }

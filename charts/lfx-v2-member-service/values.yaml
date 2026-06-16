@@ -168,6 +168,22 @@ nats:
     compression: true
     ttl: ""
 
+  # kv_bucket_org_workspace_projects is the configuration for the org_workspace_projects KV bucket.
+  # Stores per-workspace project association documents keyed by workspace UID. This is
+  # authoritative state — no soft-TTL envelopes, no MaxAge eviction. Pattern mirrors
+  # kv_bucket_org_workspaces (another authoritative-state bucket with no TTL).
+  kv_bucket_org_workspace_projects:
+    creation: true
+    keep: true
+    name: org_workspace_projects
+    replicas: 1
+    history: 20
+    storage: file
+    maxValueSize: 10485760 # 10MB
+    maxBytes: 1073741824 # 1GB
+    compression: true
+    ttl: ""
+
   # kv_bucket_sobject_cache is the configuration for the member-service-cache KV
   # bucket. It stores raw Salesforce sObject REST API responses alongside their
   # ETag / Last-Modified metadata so the service can issue HTTP conditional GETs
@@ -307,13 +323,13 @@ serviceAccount:
 salesforce:
   secrets:
     # name is the name of the Kubernetes Secret containing Salesforce credentials.
-    name: lfx-v2-member-service-salesforce
+    name: lfx-v2-member-service-secrets
     # keys maps each credential to the key name used inside the Secret.
     keys:
-      instanceURL: instance_url
-      clientID: client_id
-      clientSecret: client_secret
-      username: username
-      password: password
-      securityToken: security_token
+      instanceURL: sf_instance_url
+      clientID: sf_client_id
+      clientSecret: sf_client_secret
+      username: sf_username
+      password: sf_password
+      securityToken: sf_security_token
       consumerRSAPem: consumer_rsa_pem

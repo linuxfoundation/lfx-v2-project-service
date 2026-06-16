@@ -38,4 +38,9 @@ const (
 	// key format: "org-workspaces.{orgUID}". No MaxAge TTL — workspace membership
 	// is authoritative state that must never be silently evicted.
 	KVBucketNameOrgWorkspaces = "org-workspaces"
+
+	// KVBucketNameWorkspaceProjects is the name of the KV bucket for authoritative
+	// workspace project associations. One key per workspace;
+	// key format: "org_workspace_projects.{workspaceUID}". No MaxAge TTL.
+	KVBucketNameWorkspaceProjects = "org_workspace_projects"
 )

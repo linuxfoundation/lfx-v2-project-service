@@ -1106,6 +1106,13 @@ paths:
                             - workspace
                             - succeeded
                             - failed
+                    headers:
+                        ETag:
+                            description: ETag header value
+                            type: string
+                        Last-Modified:
+                            description: Last-Modified header value (HTTP date format)
+                            type: string
                 "400":
                     description: Bad Request response.
                     schema:
@@ -7737,30 +7744,38 @@ definitions:
                 created_by: alice
                 name: My Workspace
                 projects:
-                    - added_at: "2026-01-01T00:00:00Z"
-                      added_by: alice
+                    - created_at: "2026-01-01T00:00:00Z"
+                      created_by: alice
                       project_name: My Project
                       project_sfid: a2F000000000001AAA
                       project_slug: my-project
                       project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                    - added_at: "2026-01-01T00:00:00Z"
-                      added_by: alice
+                      updated_at: "2026-01-01T00:00:00Z"
+                      updated_by: alice
+                    - created_at: "2026-01-01T00:00:00Z"
+                      created_by: alice
                       project_name: My Project
                       project_sfid: a2F000000000001AAA
                       project_slug: my-project
                       project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                    - added_at: "2026-01-01T00:00:00Z"
-                      added_by: alice
+                      updated_at: "2026-01-01T00:00:00Z"
+                      updated_by: alice
+                    - created_at: "2026-01-01T00:00:00Z"
+                      created_by: alice
                       project_name: My Project
                       project_sfid: a2F000000000001AAA
                       project_slug: my-project
                       project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                    - added_at: "2026-01-01T00:00:00Z"
-                      added_by: alice
+                      updated_at: "2026-01-01T00:00:00Z"
+                      updated_by: alice
+                    - created_at: "2026-01-01T00:00:00Z"
+                      created_by: alice
                       project_name: My Project
                       project_sfid: a2F000000000001AAA
                       project_slug: my-project
                       project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                      updated_at: "2026-01-01T00:00:00Z"
+                      updated_by: alice
                 uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
                 updated_at: "2026-06-01T12:00:00Z"
                 updated_by: alice
@@ -7772,12 +7787,12 @@ definitions:
         title: WorkspaceProjectResponse
         type: object
         properties:
-            added_at:
+            created_at:
                 type: string
                 description: Timestamp when the project was added
                 example: "2026-01-01T00:00:00Z"
                 format: date-time
-            added_by:
+            created_by:
                 type: string
                 description: LFID username of the principal who added this project
                 example: alice
@@ -7797,14 +7812,25 @@ definitions:
                 type: string
                 description: v2 project UID
                 example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+            updated_at:
+                type: string
+                description: Timestamp when this association was last updated
+                example: "2026-01-01T00:00:00Z"
+                format: date-time
+            updated_by:
+                type: string
+                description: LFID username of the principal who last updated this association
+                example: alice
         description: A project association within a workspace (write-time snapshot)
         example:
-            added_at: "2026-01-01T00:00:00Z"
-            added_by: alice
+            created_at: "2026-01-01T00:00:00Z"
+            created_by: alice
             project_name: My Project
             project_sfid: a2F000000000001AAA
             project_slug: my-project
             project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+            updated_at: "2026-01-01T00:00:00Z"
+            updated_by: alice
         required:
             - project_uid
     WorkspaceResponse:
@@ -7830,18 +7856,22 @@ definitions:
                     $ref: '#/definitions/WorkspaceProjectResponse'
                 description: Project associations in this workspace
                 example:
-                    - added_at: "2026-01-01T00:00:00Z"
-                      added_by: alice
+                    - created_at: "2026-01-01T00:00:00Z"
+                      created_by: alice
                       project_name: My Project
                       project_sfid: a2F000000000001AAA
                       project_slug: my-project
                       project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                    - added_at: "2026-01-01T00:00:00Z"
-                      added_by: alice
+                      updated_at: "2026-01-01T00:00:00Z"
+                      updated_by: alice
+                    - created_at: "2026-01-01T00:00:00Z"
+                      created_by: alice
                       project_name: My Project
                       project_sfid: a2F000000000001AAA
                       project_slug: my-project
                       project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                      updated_at: "2026-01-01T00:00:00Z"
+                      updated_by: alice
             uid:
                 type: string
                 description: Workspace UID
@@ -7862,18 +7892,22 @@ definitions:
             created_by: alice
             name: My Workspace
             projects:
-                - added_at: "2026-01-01T00:00:00Z"
-                  added_by: alice
+                - created_at: "2026-01-01T00:00:00Z"
+                  created_by: alice
                   project_name: My Project
                   project_sfid: a2F000000000001AAA
                   project_slug: my-project
                   project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
-                - added_at: "2026-01-01T00:00:00Z"
-                  added_by: alice
+                  updated_at: "2026-01-01T00:00:00Z"
+                  updated_by: alice
+                - created_at: "2026-01-01T00:00:00Z"
+                  created_by: alice
                   project_name: My Project
                   project_sfid: a2F000000000001AAA
                   project_slug: my-project
                   project_uid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                  updated_at: "2026-01-01T00:00:00Z"
+                  updated_by: alice
             uid: 4c46585f-9f01-8bda-a0a5-f0c8eeef7fff
             updated_at: "2026-06-01T12:00:00Z"
             updated_by: alice

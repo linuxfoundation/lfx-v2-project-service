@@ -639,11 +639,41 @@ func OrgWorkspacesWriterImpl(ctx context.Context) port.OrgWorkspacesWriter {
 	return nats.NewStorage(natsClient)
 }
 
+var mockWorkspaceProjectsOnce sync.Once
+var mockWorkspaceProjectsStore *mock.MockWorkspaceProjects
+
+func mockWorkspaceProjectsInstance(_ context.Context) *mock.MockWorkspaceProjects {
+	mockWorkspaceProjectsOnce.Do(func() {
+		mockWorkspaceProjectsStore = mock.NewMockWorkspaceProjects()
+	})
+	return mockWorkspaceProjectsStore
+}
+
+// WorkspaceProjectsReaderImpl returns the port.WorkspaceProjectsReader implementation.
+func WorkspaceProjectsReaderImpl(ctx context.Context) port.WorkspaceProjectsReader {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockWorkspaceProjectsInstance(ctx)
+	}
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
+// WorkspaceProjectsWriterImpl returns the port.WorkspaceProjectsWriter implementation.
+func WorkspaceProjectsWriterImpl(ctx context.Context) port.WorkspaceProjectsWriter {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockWorkspaceProjectsInstance(ctx)
+	}
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
 // WorkspaceWriterUseCase constructs the WorkspaceWriter use-case orchestrator.
 func WorkspaceWriterUseCase(ctx context.Context) usecaseSvc.WorkspaceWriter {
 	return usecaseSvc.NewWorkspaceWriter(
 		usecaseSvc.WithWorkspacesReader(OrgWorkspacesReaderImpl(ctx)),
 		usecaseSvc.WithWorkspacesWriter(OrgWorkspacesWriterImpl(ctx)),
+		usecaseSvc.WithWorkspaceProjectsReader(WorkspaceProjectsReaderImpl(ctx)),
+		usecaseSvc.WithWorkspaceProjectsWriter(WorkspaceProjectsWriterImpl(ctx)),
 		usecaseSvc.WithWorkspacesB2BOrgReader(B2BOrgReaderImpl(ctx)),
 		usecaseSvc.WithWorkspacesProjectResolver(ProjectResolverImpl(ctx)),
 		usecaseSvc.WithWorkspacesPublisher(MemberPublisherImpl(ctx)),
