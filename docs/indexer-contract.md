@@ -113,12 +113,12 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `uid` | string | Project UID (same as the parent project) |
 | `mission_statement` | string (optional) | Project mission statement |
 | `announcement_date` | timestamp (optional) | Project announcement date (RFC3339) |
-| `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
-| `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
-| `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
-| `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
-| `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
-| `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — holds the user ID / sub value) |
+| `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 

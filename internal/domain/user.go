@@ -27,7 +27,7 @@ type UserMetadata struct {
 type UserReader interface {
 	// UserMetadataByPrincipal retrieves profile metadata for a user by their principal.
 	UserMetadataByPrincipal(ctx context.Context, principal string) (*UserMetadata, error)
-	// SubByEmail resolves the subject identifier for the given primary email address.
+	// UsernameByEmail resolves the registered LFID username for the given primary email address.
 	// Returns ErrUserNotFound when no user is registered with that email.
-	SubByEmail(ctx context.Context, email string) (string, error)
+	UsernameByEmail(ctx context.Context, email string) (string, error)
 }

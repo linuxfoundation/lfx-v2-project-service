@@ -48,13 +48,16 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 				Tags:   []string{"test-project", "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg indexerTypes.IndexerMessageEnvelope
-					err := json.Unmarshal(data, &msg)
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					if msg.Subject != constants.IndexProjectSubject {
+						return false
+					}
+					var m indexerTypes.IndexerMessageEnvelope
+					err := json.Unmarshal(msg.Data, &m)
 					if err != nil {
 						return false
 					}
-					return msg.Action == indexerConstants.ActionCreated
+					return m.Action == indexerConstants.ActionCreated
 				})).Return(nil)
 			},
 			setupCtx: func() context.Context {
@@ -74,7 +77,9 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 				Tags:   []string{"test-settings", "test mission"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSettingsSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == constants.IndexProjectSettingsSubject
+				})).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -84,7 +89,9 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 			subject: constants.IndexProjectSubject,
 			message: "test-uid-to-delete",
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == constants.IndexProjectSubject
+				})).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -108,7 +115,9 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 				Tags:   []string{"test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.IndexProjectSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == constants.IndexProjectSubject
+				})).Return(errors.New("nats error"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -157,14 +166,17 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 				Tags:   []string{"test-project", "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.IndexProjectSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg indexerTypes.IndexerMessageEnvelope
-					err := json.Unmarshal(data, &msg)
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					if msg.Subject != constants.IndexProjectSubject {
+						return false
+					}
+					var m indexerTypes.IndexerMessageEnvelope
+					err := json.Unmarshal(msg.Data, &m)
 					if err != nil {
 						return false
 					}
-					return msg.Action == indexerConstants.ActionCreated
-				}), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("ack")}, nil)
+					return m.Action == indexerConstants.ActionCreated
+				})).Return(&nats.Msg{Data: []byte("ack")}, nil)
 			},
 			setupCtx: func() context.Context {
 				ctx := context.Background()
@@ -183,7 +195,9 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 				Tags:   []string{"test-settings", "test mission"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.IndexProjectSettingsSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("ack")}, nil)
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == constants.IndexProjectSettingsSubject
+				})).Return(&nats.Msg{Data: []byte("ack")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -193,7 +207,9 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			subject: constants.IndexProjectSubject,
 			message: "test-uid-to-delete",
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.IndexProjectSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("ack")}, nil)
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == constants.IndexProjectSubject
+				})).Return(&nats.Msg{Data: []byte("ack")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -207,7 +223,7 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 				Tags:   []string{"test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", constants.IndexProjectSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(nil, errors.New("nats request timeout"))
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).Return(nil, errors.New("nats request timeout"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -265,7 +281,9 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == fgaconstants.GenericUpdateAccessSubject
+				})).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -281,7 +299,9 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", fgaconstants.GenericDeleteAccessSubject, mock.AnythingOfType("[]uint8")).Return(nil)
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == fgaconstants.GenericDeleteAccessSubject
+				})).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -305,7 +325,9 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 				Data:       fgatypes.GenericAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == fgaconstants.GenericUpdateAccessSubject
+				})).Return(errors.New("nats error"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -363,7 +385,9 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == fgaconstants.GenericUpdateAccessSubject
+				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -379,7 +403,9 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", fgaconstants.GenericDeleteAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(&nats.Msg{Data: []byte("OK")}, nil)
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == fgaconstants.GenericDeleteAccessSubject
+				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -393,7 +419,7 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 				Data:       fgatypes.GenericAccessData{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Request", fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("[]uint8"), defaultRequestTimeout).Return(nil, errors.New("nats request timeout"))
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).Return(nil, errors.New("nats request timeout"))
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -514,15 +540,18 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(data []byte) bool {
-					var msg events.ProjectSettingsUpdatedMessage
-					err := json.Unmarshal(data, &msg)
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					if msg.Subject != constants.ProjectSettingsUpdatedSubject {
+						return false
+					}
+					var m events.ProjectSettingsUpdatedMessage
+					err := json.Unmarshal(msg.Data, &m)
 					if err != nil {
 						return false
 					}
-					return msg.ProjectUID == "test-project-uid" &&
-						msg.OldSettings.MissionStatement == "old mission" &&
-						msg.NewSettings.MissionStatement == "new mission"
+					return m.ProjectUID == "test-project-uid" &&
+						m.OldSettings.MissionStatement == "old mission" &&
+						m.NewSettings.MissionStatement == "new mission"
 				})).Return(nil)
 			},
 			wantErr: false,
@@ -536,7 +565,9 @@ func TestMessageBuilder_SendProjectEventMessage(t *testing.T) {
 				NewSettings: events.ProjectSettings{UID: "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("Publish", constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("[]uint8")).Return(errors.New("nats error"))
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
+					return msg.Subject == constants.ProjectSettingsUpdatedSubject
+				})).Return(errors.New("nats error"))
 			},
 			wantErr: true,
 		},

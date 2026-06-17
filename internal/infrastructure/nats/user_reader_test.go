@@ -23,7 +23,7 @@ import (
 // Transport-error cases should pass nil as the reply directly.
 func replyMsg(data []byte) *natsgo.Msg { return &natsgo.Msg{Data: data} }
 
-func TestUserReaderNATS_SubByEmail(t *testing.T) {
+func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 	tests := []struct {
 		name       string
 		reply      *natsgo.Msg // nil simulates a transport error
@@ -33,17 +33,12 @@ func TestUserReaderNATS_SubByEmail(t *testing.T) {
 		wantErrStr string
 	}{
 		{
-			name:     "plain-text subject returned on success",
+			name:     "plain-text username returned on success",
 			reply:    replyMsg([]byte("alice")),
 			wantUser: "alice",
 		},
 		{
-			name:     "provider-qualified sub preserved without truncation",
-			reply:    replyMsg([]byte("auth0|alice")),
-			wantUser: "auth0|alice",
-		},
-		{
-			name:     "trailing newline trimmed from subject",
+			name:     "trailing newline trimmed from username",
 			reply:    replyMsg([]byte("alice\n")),
 			wantUser: "alice",
 		},
@@ -70,23 +65,23 @@ func TestUserReaderNATS_SubByEmail(t *testing.T) {
 		{
 			name:       "JSON envelope missing success field returns descriptive error",
 			reply:      replyMsg([]byte(`{"error":"something unexpected"}`)),
-			wantErrStr: "email_to_sub response missing success field",
+			wantErrStr: "email_to_username response missing success field",
 		},
 		{
-			name:       "JSON success envelope returns error instead of leaking JSON as subject",
+			name:       "JSON success envelope returns error instead of leaking JSON as username",
 			reply:      replyMsg([]byte(`{"success":true,"username":"alice"}`)),
-			wantErrStr: "unexpected email_to_sub success envelope",
+			wantErrStr: "unexpected email_to_username success envelope",
 		},
 		{
-			name:       "malformed JSON object returns parse error instead of leaking raw body as subject",
+			name:       "malformed JSON object returns parse error instead of leaking raw body as username",
 			reply:      replyMsg([]byte(`{"success":"true"}`)),
-			wantErrStr: "failed to parse email_to_sub response",
+			wantErrStr: "failed to parse email_to_username response",
 		},
 		{
 			name:       "transport error is wrapped and returned",
 			reply:      nil,
 			replyErr:   errors.New("nats: connection closed"),
-			wantErrStr: "email_to_sub request failed",
+			wantErrStr: "email_to_username request failed",
 		},
 	}
 
@@ -94,11 +89,11 @@ func TestUserReaderNATS_SubByEmail(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockConn := &MockNATSConn{}
 			mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *natsgo.Msg) bool {
-				return msg.Subject == constants.AuthEmailToSubSubject
+				return msg.Subject == constants.AuthEmailToUsernameSubject
 			})).Return(tt.reply, tt.replyErr)
 
 			reader := &UserReaderNATS{NatsConn: mockConn}
-			got, err := reader.SubByEmail(context.Background(), "test@example.com")
+			got, err := reader.UsernameByEmail(context.Background(), "test@example.com")
 
 			switch {
 			case tt.wantErr != nil:

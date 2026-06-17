@@ -278,7 +278,7 @@ func (m *MockUserReader) UserMetadataByPrincipal(ctx context.Context, principal 
 	return args.Get(0).(*UserMetadata), args.Error(1)
 }
 
-func (m *MockUserReader) SubByEmail(ctx context.Context, email string) (string, error) {
+func (m *MockUserReader) UsernameByEmail(ctx context.Context, email string) (string, error) {
 	args := m.Called(ctx, email)
 	return args.String(0), args.Error(1)
 }

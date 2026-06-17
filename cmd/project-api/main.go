@@ -468,8 +468,10 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 	} {
 		slog.With("subject", subject, "queue", queueName).Debug("subscribing to NATS subject")
 		_, err := natsConn.QueueSubscribe(subject, queueName, func(msg *nats.Msg) {
+			msgCtx, end := internalnats.ExtractMsgContext(ctx, msg, subject)
+			defer end()
 			natsMsg := &internalnats.NatsMsg{Msg: msg}
-			svc.service.HandleMessage(ctx, natsMsg)
+			svc.service.HandleMessage(msgCtx, natsMsg)
 		})
 		if err != nil {
 			slog.ErrorContext(ctx, "error creating NATS queue subscription", errKey, err)
@@ -489,9 +491,11 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 	} {
 		slog.With("subject", eh.subject, "queue", queueName).Debug("subscribing to NATS subject")
 		_, err := natsConn.QueueSubscribe(eh.subject, queueName, func(msg *nats.Msg) {
+			msgCtx, end := internalnats.ExtractMsgContext(ctx, msg, eh.subject)
+			defer end()
 			natsMsg := &internalnats.NatsMsg{Msg: msg}
-			if handlerErr := eh.handle(ctx, natsMsg); handlerErr != nil {
-				slog.WarnContext(ctx, "event handler failed", errKey, handlerErr, "subject", eh.subject)
+			if handlerErr := eh.handle(msgCtx, natsMsg); handlerErr != nil {
+				slog.WarnContext(msgCtx, "event handler failed", errKey, handlerErr, "subject", eh.subject)
 			}
 		})
 		if err != nil {
