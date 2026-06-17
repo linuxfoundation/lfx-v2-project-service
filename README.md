@@ -105,8 +105,8 @@ Key-Value cache to minimise round-trips.
 | GET | `/readyz` | Readiness check |
 | GET | `/livez` | Liveness check |
 
-> **Note:** The legacy `/members/*` and `/memberships/*` endpoints return
-> `410 Gone` with a hint pointing to the replacement paths above.
+> **Note:** The legacy `/members/*` and `/memberships/*` endpoints are no longer
+> registered and return `404 Not Found`; use the replacement paths above.
 
 ## NATS API
 

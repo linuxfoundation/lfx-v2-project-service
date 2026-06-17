@@ -2,6 +2,16 @@
 
 This guide provides essential information for Claude instances working with the LFX V2 Member Service codebase. It includes build commands, architecture patterns, and key technical decisions.
 
+> **Central LFX skills:**
+> - `lfx-skills:lfx` for cross-repo tasks, "where does X live" questions, owner/peer repo routing, or missing checkouts.
+> - `lfx-skills:lfx-platform-architecture` for platform composition, V2 service classes, write/read/access-check flows, NATS/KV ownership, and handoff points across FGA, indexer, query, Heimdall, OpenFGA, Helm, or ArgoCD.
+> - For the post-commit review lifecycle, launch the central pre-PR reviewers through the Agent tool after every commit: `lfx-skills:lfx-general-code-reviewer` for general code review, `lfx-skills:lfx-member-service-code-reviewer` for repo-specific member-service conventions/contracts, and `lfx-skills:lfx-member-service-learnings-reviewer` for empirical-pattern matching against `docs/reviews/knowledge-base/`.
+> - **Local skills:**
+>   - `member-service-dev` auto-attaches on Go and service paths (`**/*.go`, `cmd/**`, `internal/**`, `pkg/**`, `gen/**`, `Makefile`) and owns Go conventions, Goa boundaries, NATS/KV cache and RPC rules, tests, formatting, and the Salesforce-integration callout.
+>   - `member-add-endpoint` is the entry point for adding or changing any membership HTTP endpoint (Goa design, regen, handler, tests, Heimdall ruleset update).
+>   - Before opening a PR, run the repo-local cycle in order: `/member-service-pr-readiness` for branch/commit shape, then `/member-service-preflight` for mechanical Go validation.
+> - Repo-local docs own concrete subjects, payloads, contracts, chart values, and domain behavior. If the plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
+
 ## Project Overview
 
 The LFX V2 Member Service is a RESTful API service that provides membership data for the Linux Foundation's LFX platform. It exposes endpoints for querying project-scoped tiers, memberships, and key contacts, as well as write endpoints (POST/PUT/DELETE) for managing key contacts. Data is sourced directly from Salesforce via SOQL queries, with a per-record NATS Key-Value cache to minimise round-trips.
@@ -32,7 +42,6 @@ cmd/member-api/               # Presentation Layer (HTTP entry point)
 │   └── type.go              # Goa type definitions (MembershipTier, ProjectMembership, ProjectKeyContact)
 ├── service/                 # Service handlers (implements Goa interfaces)
 │   ├── membership_service.go  # Main service handler with endpoint logic
-│   ├── membership_service_response.go  # Response conversion helpers
 │   ├── providers.go         # Dependency initialization (NATS, Salesforce, auth)
 │   └── error.go             # Error mapping helpers
 ├── http.go                  # HTTP server setup and middleware
@@ -46,7 +55,7 @@ internal/
 ├── domain/                  # Domain layer
 │   ├── auth.go              # Authenticator interface
 │   ├── model/               # Domain entities
-│   │   ├── membership.go    # MembershipTier, ProjectMembership, ProjectKeyContact
+│   │   ├── membership.go    # ProjectMembership (MembershipTier in member.go, KeyContact in key_contact.go)
 │   │   ├── list_params.go   # ListParams with filter support
 │   │   └── cdc_event.go     # CDCEvent, CDCChangeType (transport-agnostic CDC types)
 │   └── port/                # Repository interfaces (driven ports)
@@ -128,7 +137,7 @@ salesforce.MemberReader (implements port.MemberReader)
 ### Key Design Principles
 
 1. **Salesforce as source of truth**: No PostgreSQL, no sync job. Every record is fetched from Salesforce on cache miss.
-2. **Single KV bucket**: All cached data lives in `membership-cache` with type-prefixed keys (e.g., `tier/`, `membership/`, `key-contacts/`, `project-sfid/`, `project-uid/`).
+2. **Type-prefixed KV keys**: All SOQL-cached data lives in `membership-cache` with type-prefixed keys (e.g., `tier.`, `membership.`, `key-contacts.`, `project-sfid.`, `project-uid.`); sObject conditional-GET entries live in `member-service-cache`.
 3. **Stale-while-revalidate**: `CachedValue[T]` envelopes carry `stale_at` and `expires_at` timestamps. Stale entries are served immediately while a background goroutine refreshes from Salesforce.
 4. **Database Independence**: Repository interfaces allow switching storage backends.
 5. **Testability**: Each layer can be tested in isolation using mocks.
@@ -180,7 +189,7 @@ FGA is published before the indexer so access tuples land before the doc is sear
 |--------|------------------|--------------------------------------------------------------------------|--------------------------------------------|
 | POST   | `/admin/reindex` | Trigger a full or incremental reindex of cached entities into OpenSearch | `member` on `team:{globalOrgAdminTeamUID}` |
 
-Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
+Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlation only — search slog for `run_id=<uuid>` to track progress. Supports `types` (subset of `b2b_org`, `project_membership`, `key_contact`, `b2b_org_settings`; empty = all), `since` (RFC 3339 with explicit zone for incremental), `items` (array of `{type, uid}` objects, max 100, for targeted surgical reindex), and `dry_run` (count only, no publish).
 
 > **Operational note — `key_contact` is high-volume (~300k records in prod).** Reindex only the active window by passing a `since` ~2 years back (e.g. `{"types":["key_contact"],"since":"2024-06-01T00:00:00Z"}`) rather than a full key_contact reindex. A full pass takes hours and is likely to be interrupted by pod eviction. The `key_contact` `since` filter checks `Project_Role__c.LastModifiedDate` only (Contact/Asset field changes are not captured).
 
@@ -192,23 +201,11 @@ Returns HTTP 202 with `{ "run_id": "<uuid>" }`. The `run_id` is for log correlat
 | GET    | `/livez`                             | Liveness probe     | None          |
 | GET    | `/_memberships/openapi*.{json,yaml}` | OpenAPI spec files | None          |
 
-> **Note:** The legacy `/members/*` and `/memberships/*` endpoints return `410 Gone`.
+> **Note:** The surface is resource-rooted (`/b2b_orgs/...`, `/project_memberships/...`, `/admin/reindex`). There are no `/projects/{project_id}/...` drill-down routes and no `/members/*` or `/memberships/*` routes — requests to those paths are unmatched and return `404`.
 
-### Member Search & Filtering
+> **Optimistic concurrency:** mutations (`PUT /b2b_orgs/{uid}`, `PUT /b2b_orgs/{uid}/settings`, the per-principal `POST`/`PUT`/`DELETE` settings-user endpoints, and `PUT`/`DELETE` key contacts) take an `If-Match` header carrying the current resource version (`POST` key-contact creates do not). A stale value returns `412 Precondition Failed`.
 
-The list endpoints accept a `filter` query parameter with semicolon-separated `key=value` pairs:
-
-```
-GET /projects/{project_id}/memberships?filter=status=Active
-GET /projects/{project_id}/memberships?filter=status=Active;tier=Gold
-```
-
-| Filter Key     | Match Type                | Example             |
-|----------------|---------------------------|---------------------|
-| `status`       | Case-insensitive exact    | `status=Active`     |
-| `tier`         | Case-insensitive exact    | `tier=Gold`         |
-| `year`         | Exact                     | `year=2026`         |
-| `product_name` | Case-insensitive contains | `product_name=Gold` |
+> **Internal filtering:** SOQL-level membership filtering (`MembershipFilters` in `internal/domain/model/list_params.go`, e.g. tier UID / product) is applied internally on the Salesforce read path. It is not exposed as an HTTP `filter` query parameter on the current resource-rooted surface.
 
 ## Development Workflow
 
@@ -242,9 +239,7 @@ make build
 #### 3. Run Tests
 
 ```bash
-make test              # Run unit tests
-make test-verbose      # Verbose output
-make test-coverage     # Generate coverage report
+make test              # Run unit tests (verbose, race detector, writes coverage.out)
 ```
 
 #### 4. Run the Service Locally
@@ -258,7 +253,8 @@ export SF_CLIENT_SECRET=<client-secret>
 make run
 
 # With debug logging
-make debug
+export LOG_LEVEL=debug
+make run
 
 # With mock auth (bypasses Heimdall JWT validation)
 export JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL=test-user
@@ -270,8 +266,39 @@ make run
 ```bash
 make fmt    # Format code
 make lint   # Run golangci-lint
-make check  # Check format and lint without modifying
 ```
+
+## Work cycle — post-commit and pre-PR reviews
+
+> **CRITICAL — while the branch is pre-PR, post-commit review is mandatory.** After every commit on the local branch, launch `lfx-skills:lfx-general-code-reviewer`, `lfx-skills:lfx-member-service-code-reviewer`, AND `lfx-skills:lfx-member-service-learnings-reviewer` via the Agent tool with `run_in_background: true` — then keep working while they run. If Claude displays plugin agents without the `lfx-skills:` namespace, use the equivalent displayed reviewer names. Before opening a PR, every running review must return clean (or remaining findings explicitly documented as trade-offs), the **full-branch sweep** must run clean if the branch has more than one commit (`branch` arg), AND `/member-service-pr-readiness` must clear every Critical finding before `/member-service-preflight` runs.
+>
+> **Once the PR is open, do NOT invoke the central reviewers on iteration commits.** CodeRabbit + Copilot auto-trigger on every push and own the audit surface from that point. The central reviewers are pre-PR insurance only.
+
+### Post-commit (pre-PR phase, after every commit, asynchronous)
+
+1. **Commit your work.** `git commit -s -S`. Do not wait for any prior review to finish.
+2. **Immediately launch all three reviewer subagents in parallel.** Use `subagent_type: lfx-skills:lfx-general-code-reviewer`, `run_in_background: true`; `subagent_type: lfx-skills:lfx-member-service-code-reviewer`, `run_in_background: true`; and `subagent_type: lfx-skills:lfx-member-service-learnings-reviewer`, `run_in_background: true`.
+3. **Post-commit mode prompt for each reviewer (exact):** `target repo: lfx-v2-member-service\n\nReview the latest commit.` Append `extra: <focus>` on a new line only when there is a priority hint to add. Do NOT pass `branch` here. If this work cycle is launched from the LFX workspace parent, the `target repo:` line is required so both reviewers operate in this repo.
+4. **Keep working.** Start the next commit while the reviewers run. Do not block on them.
+5. **When the reviews return:** roll every Critical finding and every reasonable Important finding into the next commit.
+
+### Pre-PR (drain the queue, sweep cumulative state, then open)
+
+When the work is done and no more code commits are planned:
+
+1. **Wait for every running review to complete.**
+2. **If any returned review flags Critical or reasonable Important:** add a fix commit, launch both reviewers again on the new state, wait, and loop until clean or explicitly documented as a trade-off.
+3. **Full-branch sweep — only if the branch has more than one commit.** Launch `lfx-skills:lfx-general-code-reviewer`, `lfx-skills:lfx-member-service-code-reviewer`, and `lfx-skills:lfx-member-service-learnings-reviewer` with prompt **`target repo: lfx-v2-member-service\nbranch\n\nReview the branch's diff against origin/main.`**. Address any new findings, then re-run the sweep until clean.
+4. **Run `/member-service-pr-readiness`** for branch and commit shape only.
+5. **Run `/member-service-preflight`** for mechanical Go validation and PR summary.
+6. **Only then push and open the PR.**
+
+### Post-PR iteration (responding to bot feedback on an open PR)
+
+1. Wait for CodeRabbit + Copilot to comment after each push.
+2. Triage every Critical and reasonable Important finding against current code.
+3. Roll fixes into a `fix(review): ...` commit.
+4. Push. Repeat until clean.
 
 ## Code Generation (Goa Framework)
 
@@ -317,9 +344,10 @@ All records share the `membership-cache` bucket. Keys are namespaced by a type p
 |---------------------------------|--------------------------------------------------|-------------------------|
 | `tier.{uid}`                    | `CachedValue[*model.MembershipTier]`             | 6 h stale / 23 h expire |
 | `membership.{uid}`              | `CachedValue[*model.ProjectMembership]`          | 6 h stale / 23 h expire |
-| `key-contacts.{membership_uid}` | `CachedValue[[]*model.ProjectKeyContact]`        | 6 h stale / 23 h expire |
+| `key-contacts.{membership_uid}` | `CachedValue[[]*model.KeyContact]`               | 6 h stale / 23 h expire |
 | `project-sfid.{project_uid}`    | `CachedValue[string]` (Salesforce Project__c.Id) | 6 h stale / 23 h expire |
 | `project-uid.{slug}`            | `CachedValue[string]` (v2 project UUID)          | 6 h stale / 23 h expire |
+| `soql.{...}`                    | `CachedValue[...]` (paged SOQL result batches)   | 6 h stale / 23 h expire |
 
 The NATS bucket itself has a 24-hour `MaxAge` (hard eviction), which is always later than the soft `expires_at` timestamp inside each envelope.
 
@@ -472,12 +500,20 @@ type project_membership
 
 **Key contact access:** a user with `key_contact` on a `project_membership` automatically becomes `auditor` on the parent `b2b_org` (via `key_contact from membership`).
 
-Authorization checks in Heimdall ruleset:
-- **GET /projects/{project_id}/\*** — requires `auditor` on `project:{project_id}`
-- **GET/POST/PUT/DELETE /project_memberships/{m_uid}/key_contacts/\*** — requires `auditor`/`writer` on `project_membership:{m_uid}`
-- **GET /b2b_orgs/{uid}** — requires `auditor` on `b2b_org:{uid}`
-- **POST/PUT /b2b_orgs/\*** — requires `writer` on `b2b_org:{uid}`
-- **GET /members/\*** — `allow_all` passthrough (returns 410 Gone unconditionally)
+Authorization checks in Heimdall ruleset (`charts/lfx-v2-member-service/templates/ruleset.yaml`):
+- **GET `/b2b_orgs/:uid`** — `auditor` on `b2b_org:{uid}`
+- **POST `/b2b_orgs`** — `member` on `team:{globalOrgAdminTeamUID}`
+- **PUT `/b2b_orgs/:uid`** — `writer` on `b2b_org:{uid}`
+- **GET `/b2b_orgs/:uid/settings`** — `auditor` on `b2b_org:{uid}` (auditor, not writer, so trusted principals can see the pending-invite list)
+- **PUT `/b2b_orgs/:uid/settings`** — `writer` on `b2b_org:{uid}`
+- **POST `/b2b_orgs/:uid/settings/users` and PUT/DELETE `/b2b_orgs/:uid/settings/users/:email`** — `writer` on `b2b_org:{uid}`
+- **GET `/project_memberships/:uid`** — `auditor` on `project_membership:{uid}`
+- **GET `/project_memberships/:membership_uid/key_contacts/:uid`** — `auditor` on `project_membership:{membership_uid}`
+- **POST/PUT/DELETE `/project_memberships/:membership_uid/key_contacts...`** — `writer` on `project_membership:{membership_uid}` (POST also runs `json_content_type`)
+- **POST `/admin/reindex`** — `member` on `team:{globalOrgAdminTeamUID}`
+- **GET `/_memberships/openapi*`** — `allow_all` passthrough
+
+When `openfga.enabled` is false (local dev), every rule falls back to `allow_all`. There are no `/projects/{project_id}/*`, `/members/*`, or `/memberships/*` rules.
 
 ## Testing Patterns
 
@@ -568,7 +604,7 @@ Credentials are injected from a pre-existing Kubernetes Secret (see Helm chart `
 For integration testing with the complete LFX stack:
 
 - Install lfx-platform Helm chart (includes NATS, Heimdall, OpenFGA, Authelia, Traefik).
-- Use `make helm-install-local` with `values.local.yaml`.
+- Use `make helm-install` to deploy the service chart.
 - Full authentication and authorization enabled.
 
 ### Option B: Minimal Setup
