@@ -2,13 +2,24 @@
 
 This guide provides essential information for Claude instances working with the LFX V2 Project Service codebase. It includes build commands, architecture patterns, and key technical decisions.
 
+> **Central LFX skills:**
+> - `/lfx-skills:lfx`: cross-repo routing, "where does X live" questions, owner/peer repos, missing checkouts.
+> - `/lfx-skills:lfx-platform-architecture`: platform composition, V2 service classes (native, wrapper, proxy, platform), write/read/access-check flows, cross-service responsibilities, NATS/KV ownership, handoff points across Self Serve, FGA, indexer, query, Heimdall, OpenFGA, Helm, ArgoCD.
+>
+> **Repo-local project-service skills and docs:**
+> - `/project-service-dev` at `.claude/skills/project-service-dev/` auto-attaches on Go and service paths and owns logging, errors, request context, pagination, generated-code boundary, NATS/KV publishing, tests, formatting, linting, and license headers for this repo.
+> - `/project-service-pr-readiness` checks pre-PR shape only: branch/JIRA/conventional commits/rebase/DCO+GPG/diff size/protected files.
+> - `/project-service-preflight` runs the mechanical Go pre-PR pipeline after readiness: working tree, license, formatting, lint, build, tests, protected files, commit verification, generated-code freshness, and change summary.
+> - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates.
+> - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
+
 ## Project Overview
 
 The LFX V2 Project Service is a RESTful API service that manages projects within the Linux Foundation's LFX platform. It provides CRUD operations for projects with built-in authorization and audit capabilities.
 
 ### Key Technologies
 
-- **Language**: Go 1.24+
+- **Language**: Go 1.25+
 - **API Framework**: Goa v3 (code generation framework)
 - **Messaging**: NATS with JetStream for event-driven architecture
 - **Storage**: NATS Key-Value stores (no traditional database)
@@ -32,23 +43,30 @@ api/                        # API contracts
 
 charts/                     # Helm charts containing kubernetes template files for deployments
 
-cmd/project-api/            # Presentation Layer (HTTP/NATS entry point)
-├── service*.go            # HTTP and NATS handlers
-└── main.go                # Application entry point
+cmd/project-api/            # Presentation Layer (HTTP entry point, Goa endpoint adapters)
+├── service_endpoint_*.go  # Goa endpoint adapters (project, link, folder, document)
+├── http.go                # HTTP server wiring
+└── main.go                # Application entry point, NATS subscription wiring
 
 internal/                   # Core business logic
-├── domain/                # Domain layer (interfaces, models, errors)
-│   └── models/           # Domain entities
-├── service/               # Service layer (business logic)
+├── domain/                # Domain layer (interfaces, models, errors, mocks)
+│   └── models/           # Domain entities (project, link, folder, document)
+├── service/               # Service layer (business logic, NATS RPC handlers, event subscriber)
+│   ├── *_operations.go   # Per-resource business orchestration
+│   ├── project_handlers.go    # Inbound NATS request/reply RPC handlers
+│   ├── project_subscriber.go  # Inbound NATS event subscribers (settings updates, invite acceptance)
+│   ├── document_subscriber.go # Inbound NATS event subscribers (document/link created notifications)
+│   ├── converters.go     # Domain ↔ Goa ↔ pkg/events wire-type converters
 │   └── email/            # Email template rendering (one file per email type)
 └── infrastructure/        # Infrastructure layer
     ├── auth/             # JWT authentication
     ├── log/              # Structured logging helpers (AppendCtx, InitStructureLogConfig)
     ├── middleware/        # HTTP middleware (auth, request ID, body limit, logger)
-    └── nats/             # NATS repository and message builder
+    └── nats/             # NATS repository, object store, message builder, user reader
 
 pkg/                    # Shared packages across services
-└── constants/          # Shared constants
+├── constants/          # Shared constants (NATS subjects, KV buckets, HTTP, access control)
+└── events/             # NATS event wire types consumed by other services
 
 scripts/                # Scripts for services and miscellaneous tasks
 ```
@@ -65,9 +83,9 @@ scripts/                # Scripts for services and miscellaneous tasks
 ### Prerequisites
 
 ```bash
-# Install Go 1.23+
+# Install Go 1.25+
 # Install Goa framework
-go install goa.design/goa/v3/cmd/goa@latest
+go install goa.design/goa/v3/cmd/goa@v3.22.6
 
 # Install linting tools
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
@@ -94,7 +112,6 @@ make build
 make test              # Run unit tests
 make test-verbose      # Verbose output
 make test-coverage     # Generate coverage report
-make test-integration  # Run integration tests (requires -tags=integration)
 ```
 
 #### 4. Run the Service Locally
@@ -118,6 +135,38 @@ make lint   # Run golangci-lint
 make check  # Check format and lint without modifying
 ```
 
+## Work cycle — post-commit and pre-PR reviews
+
+> **CRITICAL — while the branch is pre-PR, post-commit review is mandatory.** After every commit on the local branch, launch all three reviewer subagents via the Agent tool in parallel: `lfx-skills:lfx-general-code-reviewer`, `lfx-skills:lfx-project-service-code-reviewer`, AND `lfx-skills:lfx-project-service-learnings-reviewer` (each with `run_in_background: true`) — then keep working while they run. If Claude displays plugin agents without the `lfx-skills:` namespace, use the equivalent displayed general, project-service, and learnings reviewer names. Before opening a PR, every running review must return clean (or remaining findings explicitly documented as trade-offs), the **full-branch sweep** must run clean if the branch has more than one commit (`branch` arg), AND `/project-service-pr-readiness` must clear every Critical finding before `/project-service-preflight` runs.
+>
+> **Once the PR is open, do NOT invoke these reviewers on iteration commits.** CodeRabbit + Copilot auto-trigger on every push and own the audit surface from that point. The general, project-service, and learnings reviewers are pre-PR insurance only.
+
+### Post-commit (pre-PR phase, after every commit, asynchronous)
+
+1. **Commit your work.** `git commit -s -S`. Do not wait for any prior review to finish.
+2. **Immediately launch all three reviewer subagents in parallel.** Use `subagent_type: lfx-skills:lfx-general-code-reviewer`, `subagent_type: lfx-skills:lfx-project-service-code-reviewer`, and `subagent_type: lfx-skills:lfx-project-service-learnings-reviewer`, each with `run_in_background: true`.
+3. **Post-commit mode prompt for all three reviewers (exact):** `target repo: lfx-v2-project-service\n\nReview the latest commit.` Append `extra: <focus>` on a new line only when there is a priority hint to add. Do NOT pass `branch` here. If this work cycle is launched from the LFX workspace parent, the `target repo:` line is required so all three reviewers operate in this repo.
+4. **Keep working.** Start the next commit while the reviewers run. Do not block on them.
+5. **When reviews return:** roll every Critical finding and every reasonable Important finding into the next commit.
+
+### Pre-PR (drain the queue, sweep cumulative state, then open)
+
+When the work is done and no more code commits are planned:
+
+1. **Wait for every running review to complete.**
+2. **If any returned review flags Critical or reasonable Important:** add a fix commit, launch all three reviewers again on the new state, wait, and loop until clean or explicitly documented as a trade-off.
+3. **Full-branch sweep — only if the branch has more than one commit.** Launch `lfx-skills:lfx-general-code-reviewer`, `lfx-skills:lfx-project-service-code-reviewer`, and `lfx-skills:lfx-project-service-learnings-reviewer` again with prompt **`target repo: lfx-v2-project-service\nbranch\n\nReview the branch's diff against origin/main.`**. Address any new findings, then re-run the sweep until clean.
+4. **Run `/project-service-pr-readiness`** for branch and commit shape only.
+5. **Run `/project-service-preflight`** for mechanical Go validation and PR summary.
+6. **Only then push and open the PR.**
+
+### Post-PR iteration (responding to bot feedback on an open PR)
+
+1. Wait for CodeRabbit + Copilot to comment after each push.
+2. Triage every Critical and reasonable Important finding against current code.
+3. Roll fixes into a `fix(review): ...` commit.
+4. Push. Repeat until clean.
+
 ## Code Generation (Goa Framework)
 
 The service uses Goa v3 for API code generation. This is **critical** to understand:
@@ -134,8 +183,8 @@ The service uses Goa v3 for API code generation. This is **critical** to underst
 
 1. Update `api/project/v1/design/project.go` with new method
 2. Run `make apigen` (from repository root) to regenerate code
-3. Implement the new method in `cmd/project-api/service_endpoint_project.go`
-4. Add tests in `cmd/project-api/service_endpoint_project_test.go`
+3. Implement the Goa endpoint adapter in `cmd/project-api/service_endpoint_*.go` (translation only); put business logic in `internal/service/*_operations.go`
+4. Add tests alongside the implementation (`internal/service/*_operations_test.go` and the adapter test)
 5. Update Heimdall ruleset in `charts/*/templates/ruleset.yaml`
 
 ## NATS Messaging Patterns
@@ -150,6 +199,12 @@ The service uses NATS for:
 
 - `projects`: Base project information
 - `project-settings`: Project settings (separated for access control)
+- `project-links`: Project link records
+- `project-folders`: Project folder records
+- `project-documents-metadata`: Project document metadata
+- `project-documents`: Project document binaries (NATS object store)
+
+All bucket names live as constants in `pkg/constants/nats.go`.
 
 ### API Endpoints and Message Subjects
 
@@ -159,7 +214,7 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 
 **Request/reply RPC** (`internal/service/project_handlers.go`): another service sends a request and blocks waiting for a response. The handler calls `msg.Respond(data)` to return data to the caller.
 
-**Event subscriptions** (`internal/service/project_subscriber.go`): the service reacts to events that were already published (including by itself). No caller is waiting — the handler is fire-and-forget and never calls `msg.Respond`.
+**Event subscriptions** (`internal/service/project_subscriber.go` and `internal/service/document_subscriber.go`): the service reacts to events that were already published (including by itself). No caller is waiting — the handler is fire-and-forget and never calls `msg.Respond`.
 
 ```go
 // Inbound RPC — request/reply, caller blocks waiting for response
@@ -170,15 +225,26 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 "lfx.projects-api.get_parent_uid"      // Get parent project UID
 
 // Inbound events — fire-and-forget, no reply expected
-"lfx.projects-api.project_settings.updated" // Sends role notification emails on member additions
+"lfx.projects-api.project_settings.updated" // Self-published; sends role notification emails / invites on member changes
+"lfx.invite-service.invite_accepted"   // From invite-service (enriched event); promotes matching email-only users to LFID across all projects
+"lfx.projects-api.project_document.created" // Self-published; emails project writers/auditors about the new document
+"lfx.projects-api.project_link.created"     // Self-published; emails project writers/auditors about the new link
 
 // Outbound events (published by this service)
 "lfx.index.project"                    // Project created/updated/deleted for indexing
-"lfx.index.project_settings"           // Settings created/updated for indexing
+"lfx.index.project_settings"           // Settings created/updated/deleted for indexing
+"lfx.index.project_link"               // Link created/deleted for indexing
+"lfx.index.project_folder"             // Folder created/deleted for indexing
+"lfx.index.project_document"           // Document created/deleted for indexing
 "lfx.projects-api.project_settings.updated" // Settings changed (before/after snapshot)
+"lfx.projects-api.project_document.created" // File document uploaded (events.ProjectDocumentCreatedMessage)
+"lfx.projects-api.project_link.created"     // Link added (events.ProjectLinkCreatedMessage)
 "lfx.fga-sync.update_access"           // Generic FGA access control updates
 "lfx.fga-sync.delete_access"           // Generic FGA access control deletion
-"lfx.email-service.send_email"         // Request/reply to email service for role notifications
+
+// Outbound request/reply (published by this service, awaits a response)
+"lfx.email-service.send_email"         // Request to email service for role notifications
+"lfx.invite-service.send_invite"       // Request to invite service for non-LFID users
 ```
 
 ### FGA Sync Message Format
@@ -186,17 +252,18 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 The service uses the generic FGA sync handlers for access control. All messages use the `GenericFGAMessage` envelope:
 
 ```go
-// Update access control (full sync)
+// Update access control (full sync) — fgatypes.GenericAccessData
 GenericFGAMessage{
     ObjectType: "project",
     Operation: "update_access",
-    Data: UpdateAccessData{
+    Data: GenericAccessData{
         UID: "project-uid",
         Public: true,
         Relations: map[string][]string{
             "writer": []string{"username1", "username2"},
             "auditor": []string{"username3"},
             "meeting_coordinator": []string{"username4"},
+            "executive_director": []string{"username5"},
         },
         References: map[string][]string{
             "parent": []string{"project:parent-uid"},
@@ -204,11 +271,11 @@ GenericFGAMessage{
     },
 }
 
-// Delete all access control
+// Delete all access control — fgatypes.GenericDeleteData
 GenericFGAMessage{
     ObjectType: "project",
     Operation: "delete_access",
-    Data: DeleteAccessData{
+    Data: GenericDeleteData{
         UID: "project-uid",
     },
 }
@@ -267,6 +334,8 @@ func TestEndpoint(t *testing.T) {
 | `JWKS_URL` | JWT verification endpoint | - | No |
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | - | No |
+| `SKIP_ETAG_VALIDATION` | Skip If-Match/ETag revision enforcement on writes (`true` to skip; local dev only) | false | No |
+| `LFX_ENVIRONMENT` | Deployment environment (`prod`, `staging`/`stg`, else dev); drives the default self-serve base URL | - | No |
 | `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails | derived from `LFX_ENVIRONMENT` | No |
 | `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
 | `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
@@ -440,12 +509,13 @@ Important context values:
 
 ### 5. Error Handling
 
-Domain errors are mapped to HTTP status codes:
+Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP status codes by `handleError` in `cmd/project-api/service_endpoint_project.go`:
 
-- `ErrNotFound` → 404
-- `ErrConflict` → 409
-- `ErrInvalidParentUID` → 400
-- `ErrInternal` → 500
+- `ErrProjectNotFound` / `ErrDocumentNotFound` / `ErrLinkNotFound` / `ErrFolderNotFound` → 404
+- `ErrProjectSlugExists` / `ErrRevisionMismatch` / `ErrDocumentNameExists` / `ErrFolderNameExists` / `ErrFolderNotEmpty` → 409
+- `ErrValidationFailed` / `ErrInvalidParentProject` / `ErrInvalidContentType` / `ErrFileTooLarge` / `ErrCannotDeleteNonCrowdfundingProject` → 400
+- `ErrInternal` / `ErrUnmarshal` → 500
+- `ErrServiceUnavailable` → 503
 
 ## Debugging Tips
 

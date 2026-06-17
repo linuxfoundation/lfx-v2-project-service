@@ -14,6 +14,11 @@ This document is the authoritative reference for all data the project service se
 - [Project Folder](#project-folder)
 - [Project Document](#project-document)
 
+Project and project-settings delete messages send only the deleted UID. Link,
+folder, and document delete messages include `IndexingConfig` with the owning
+project access metadata so the indexer can retain the same access fields on the
+delete record.
+
 ---
 
 ## Project
@@ -44,6 +49,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `legal_entity_type` | string (optional) | Legal entity type |
 | `legal_entity_name` | string (optional) | Legal entity name |
 | `legal_parent_uid` | string (optional) | UID of the legal parent entity |
+| `funding` | string (optional) | Legacy funding value |
 | `funding_model` | []string (optional) | Funding model types |
 | `entity_dissolution_date` | timestamp (optional) | Date the legal entity was dissolved |
 | `entity_formation_document_url` | string (optional) | URL to the formation document |
@@ -110,12 +116,15 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 
 #### Invite Object
 
-When a user in `writers`, `auditors`, or `meeting_coordinators` has no LFID yet (their `username` is empty), a pending invite is tracked in a nested `invite` object. The invite is cleared and `username` is populated when the user accepts the invite.
+A legacy nested `invite` object may appear on a user in `writers`, `auditors`, or `meeting_coordinators` who has no LFID yet (their `username` is empty). The service no longer writes this object when sending invites (acceptance events are now routed by recipient email, not stored invite UID — see `docs/lfid-invite-flow.md`), but existing records may still carry it: it survives PUT round-trips and is cleared, with `username` populated, when the user accepts their invite.
 
 | Field | Type | Description |
 |---|---|---|
@@ -335,4 +344,3 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | Ref | Condition |
 |---|---|
 | `project:{project_uid}` | Always set |
-

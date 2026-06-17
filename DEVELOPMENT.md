@@ -6,11 +6,11 @@ This guide provides comprehensive instructions for developers working on the LFX
 
 Before you begin development, ensure you have the following tools installed:
 
-- **Go 1.23+** - [Download and install Go](https://golang.org/dl/)
+- **Go 1.25+** - [Download and install Go](https://golang.org/dl/). The module declares `go 1.25.0`.
 - **Goa v3** - Code generation framework
 
   ```bash
-  go install goa.design/goa/v3/cmd/goa@latest
+  go install goa.design/goa/v3/cmd/goa@v3.22.6
   ```
 
 - **golangci-lint** - Linting tool
@@ -82,7 +82,7 @@ Then follow the [Local Development Without Kubernetes](#local-development-withou
 
 ### 1. Code Generation
 
-This service uses [Goa v3](https://goa.design/) for API code generation. The API design is defined in `api/project/v1/design/` and code is generated to `api/project/v1/gen/`.
+This service uses [Goa v3](https://goa.design/) for API code generation. The API design is defined in `api/project/v1/design/` and code is generated to the tracked `api/project/v1/gen/` tree.
 
 **Important:** Always regenerate code after modifying design files!
 
@@ -99,6 +99,9 @@ The generated code includes:
 - Service interfaces
 - OpenAPI specifications
 - Type definitions
+
+Generated files are committed in this repo. Include the generated diffs in the
+same change as the design updates, and never edit generated files by hand.
 
 ### 2. Building the Service
 
@@ -413,7 +416,8 @@ This means:
      -d '{
        "name": "Test Project",
        "slug": "test-project",
-       "description": "A test project"
+       "description": "A test project",
+       "parent_uid": "<ROOT_PROJECT_UID>"
      }'
    
    # List projects (no auth header needed with mock auth)
@@ -488,7 +492,7 @@ The service follows Clean Architecture principles. For the complete file structu
 
    ```go
    // cmd/project-api/service_endpoint_project.go
-   func (s *projectsrvc) NewEndpoint(ctx context.Context, p *projsvc.NewEndpointPayload) (*projsvc.NewEndpointResult, error) {
+   func (s *ProjectsAPI) NewEndpoint(ctx context.Context, p *projsvc.NewEndpointPayload) (*projsvc.NewEndpointResult, error) {
        // Implementation
    }
    ```
@@ -548,7 +552,7 @@ The service follows Clean Architecture principles. For the complete file structu
 1. **"goa: command not found"**
 
    ```bash
-   go install goa.design/goa/v3/cmd/goa@latest
+   go install goa.design/goa/v3/cmd/goa@v3.22.6
    export PATH=$PATH:$(go env GOPATH)/bin
    ```
 
