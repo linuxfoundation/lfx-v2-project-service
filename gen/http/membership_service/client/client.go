@@ -84,6 +84,30 @@ type Client struct {
 	// endpoint.
 	DebugVarsDoer goahttp.Doer
 
+	// CreateB2bOrgWorkspace Doer is the HTTP client used to make requests to the
+	// create-b2b-org-workspace endpoint.
+	CreateB2bOrgWorkspaceDoer goahttp.Doer
+
+	// UpdateB2bOrgWorkspace Doer is the HTTP client used to make requests to the
+	// update-b2b-org-workspace endpoint.
+	UpdateB2bOrgWorkspaceDoer goahttp.Doer
+
+	// DeleteB2bOrgWorkspace Doer is the HTTP client used to make requests to the
+	// delete-b2b-org-workspace endpoint.
+	DeleteB2bOrgWorkspaceDoer goahttp.Doer
+
+	// AddB2bOrgWorkspaceProject Doer is the HTTP client used to make requests to
+	// the add-b2b-org-workspace-project endpoint.
+	AddB2bOrgWorkspaceProjectDoer goahttp.Doer
+
+	// BulkAddB2bOrgWorkspaceProjects Doer is the HTTP client used to make requests
+	// to the bulk-add-b2b-org-workspace-projects endpoint.
+	BulkAddB2bOrgWorkspaceProjectsDoer goahttp.Doer
+
+	// RemoveB2bOrgWorkspaceProject Doer is the HTTP client used to make requests
+	// to the remove-b2b-org-workspace-project endpoint.
+	RemoveB2bOrgWorkspaceProjectDoer goahttp.Doer
+
 	// RestoreResponseBody controls whether the response bodies are reset after
 	// decoding so they can be read again.
 	RestoreResponseBody bool
@@ -105,28 +129,34 @@ func NewClient(
 	restoreBody bool,
 ) *Client {
 	return &Client{
-		GetB2bOrgDoer:                    doer,
-		CreateB2bOrgDoer:                 doer,
-		UpdateB2bOrgDoer:                 doer,
-		GetB2bOrgSettingsDoer:            doer,
-		UpdateB2bOrgSettingsDoer:         doer,
-		AddB2bOrgSettingsUserDoer:        doer,
-		UpdateB2bOrgSettingsUserRoleDoer: doer,
-		DeleteB2bOrgSettingsUserDoer:     doer,
-		GetProjectMembershipDoer:         doer,
-		GetKeyContactDoer:                doer,
-		CreateKeyContactDoer:             doer,
-		UpdateKeyContactDoer:             doer,
-		DeleteKeyContactDoer:             doer,
-		AdminReindexDoer:                 doer,
-		ReadyzDoer:                       doer,
-		LivezDoer:                        doer,
-		DebugVarsDoer:                    doer,
-		RestoreResponseBody:              restoreBody,
-		scheme:                           scheme,
-		host:                             host,
-		decoder:                          dec,
-		encoder:                          enc,
+		GetB2bOrgDoer:                      doer,
+		CreateB2bOrgDoer:                   doer,
+		UpdateB2bOrgDoer:                   doer,
+		GetB2bOrgSettingsDoer:              doer,
+		UpdateB2bOrgSettingsDoer:           doer,
+		AddB2bOrgSettingsUserDoer:          doer,
+		UpdateB2bOrgSettingsUserRoleDoer:   doer,
+		DeleteB2bOrgSettingsUserDoer:       doer,
+		GetProjectMembershipDoer:           doer,
+		GetKeyContactDoer:                  doer,
+		CreateKeyContactDoer:               doer,
+		UpdateKeyContactDoer:               doer,
+		DeleteKeyContactDoer:               doer,
+		AdminReindexDoer:                   doer,
+		ReadyzDoer:                         doer,
+		LivezDoer:                          doer,
+		DebugVarsDoer:                      doer,
+		CreateB2bOrgWorkspaceDoer:          doer,
+		UpdateB2bOrgWorkspaceDoer:          doer,
+		DeleteB2bOrgWorkspaceDoer:          doer,
+		AddB2bOrgWorkspaceProjectDoer:      doer,
+		BulkAddB2bOrgWorkspaceProjectsDoer: doer,
+		RemoveB2bOrgWorkspaceProjectDoer:   doer,
+		RestoreResponseBody:                restoreBody,
+		scheme:                             scheme,
+		host:                               host,
+		decoder:                            dec,
+		encoder:                            enc,
 	}
 }
 
@@ -518,6 +548,150 @@ func (c *Client) DebugVars() goa.Endpoint {
 		resp, err := c.DebugVarsDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("membership-service", "debug-vars", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// CreateB2bOrgWorkspace returns an endpoint that makes HTTP requests to the
+// membership-service service create-b2b-org-workspace server.
+func (c *Client) CreateB2bOrgWorkspace() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeCreateB2bOrgWorkspaceRequest(c.encoder)
+		decodeResponse = DecodeCreateB2bOrgWorkspaceResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildCreateB2bOrgWorkspaceRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.CreateB2bOrgWorkspaceDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "create-b2b-org-workspace", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// UpdateB2bOrgWorkspace returns an endpoint that makes HTTP requests to the
+// membership-service service update-b2b-org-workspace server.
+func (c *Client) UpdateB2bOrgWorkspace() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeUpdateB2bOrgWorkspaceRequest(c.encoder)
+		decodeResponse = DecodeUpdateB2bOrgWorkspaceResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildUpdateB2bOrgWorkspaceRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.UpdateB2bOrgWorkspaceDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "update-b2b-org-workspace", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// DeleteB2bOrgWorkspace returns an endpoint that makes HTTP requests to the
+// membership-service service delete-b2b-org-workspace server.
+func (c *Client) DeleteB2bOrgWorkspace() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeDeleteB2bOrgWorkspaceRequest(c.encoder)
+		decodeResponse = DecodeDeleteB2bOrgWorkspaceResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildDeleteB2bOrgWorkspaceRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.DeleteB2bOrgWorkspaceDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "delete-b2b-org-workspace", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// AddB2bOrgWorkspaceProject returns an endpoint that makes HTTP requests to
+// the membership-service service add-b2b-org-workspace-project server.
+func (c *Client) AddB2bOrgWorkspaceProject() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeAddB2bOrgWorkspaceProjectRequest(c.encoder)
+		decodeResponse = DecodeAddB2bOrgWorkspaceProjectResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildAddB2bOrgWorkspaceProjectRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.AddB2bOrgWorkspaceProjectDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "add-b2b-org-workspace-project", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// BulkAddB2bOrgWorkspaceProjects returns an endpoint that makes HTTP requests
+// to the membership-service service bulk-add-b2b-org-workspace-projects server.
+func (c *Client) BulkAddB2bOrgWorkspaceProjects() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeBulkAddB2bOrgWorkspaceProjectsRequest(c.encoder)
+		decodeResponse = DecodeBulkAddB2bOrgWorkspaceProjectsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildBulkAddB2bOrgWorkspaceProjectsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.BulkAddB2bOrgWorkspaceProjectsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "bulk-add-b2b-org-workspace-projects", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// RemoveB2bOrgWorkspaceProject returns an endpoint that makes HTTP requests to
+// the membership-service service remove-b2b-org-workspace-project server.
+func (c *Client) RemoveB2bOrgWorkspaceProject() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeRemoveB2bOrgWorkspaceProjectRequest(c.encoder)
+		decodeResponse = DecodeRemoveB2bOrgWorkspaceProjectResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildRemoveB2bOrgWorkspaceProjectRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.RemoveB2bOrgWorkspaceProjectDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("membership-service", "remove-b2b-org-workspace-project", err)
 		}
 		return decodeResponse(resp)
 	}

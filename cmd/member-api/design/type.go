@@ -581,3 +581,132 @@ var AdminReindexResult = dsl.Type("admin-reindex-result", func() {
 	})
 	dsl.Required("run_id")
 })
+
+// ── Workspace types ───────────────────────────────────────────────────────────
+
+// WorkspaceProjectResponse is the DSL type for a project associated with a workspace.
+var WorkspaceProjectResponse = dsl.Type("workspace-project-response", func() {
+	dsl.Description("A project association within a workspace (write-time snapshot)")
+	dsl.Attribute("project_uid", dsl.String, "v2 project UID", func() {
+		dsl.Example("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+	})
+	dsl.Attribute("project_sfid", dsl.String, "Salesforce Project__c.Id (snapshot)", func() {
+		dsl.Example("a2F000000000001AAA")
+	})
+	dsl.Attribute("project_slug", dsl.String, "Project URL slug (snapshot)", func() {
+		dsl.Example("my-project")
+	})
+	dsl.Attribute("project_name", dsl.String, "Project display name (snapshot)", func() {
+		dsl.Example("My Project")
+	})
+	dsl.Attribute("created_by", dsl.String, "LFID username of the principal who added this project", func() {
+		dsl.Example("alice")
+	})
+	dsl.Attribute("updated_by", dsl.String, "LFID username of the principal who last updated this association", func() {
+		dsl.Example("alice")
+	})
+	dsl.Attribute("created_at", dsl.String, "Timestamp when the project was added", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2026-01-01T00:00:00Z")
+	})
+	dsl.Attribute("updated_at", dsl.String, "Timestamp when this association was last updated", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2026-01-01T00:00:00Z")
+	})
+	dsl.Required("project_uid")
+})
+
+// WorkspaceResponse is the DSL type returned by workspace write endpoints.
+var WorkspaceResponse = dsl.Type("workspace-response", func() {
+	dsl.Description("A named container of project associations within a b2b_org")
+	dsl.Attribute("uid", dsl.String, "Workspace UID", func() {
+		dsl.Format(dsl.FormatUUID)
+		dsl.Example("4c46585f-9f01-8bda-a0a5-f0c8eeef7fff")
+	})
+	dsl.Attribute("name", dsl.String, "Workspace display name", func() {
+		dsl.Example("My Workspace")
+	})
+	dsl.Attribute("projects", dsl.ArrayOf(WorkspaceProjectResponse), "Project associations in this workspace")
+	dsl.Attribute("created_by", dsl.String, "LFID username of the creator", func() {
+		dsl.Example("alice")
+	})
+	dsl.Attribute("updated_by", dsl.String, "LFID username of the last updater", func() {
+		dsl.Example("alice")
+	})
+	dsl.Attribute("created_at", dsl.String, "Creation timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2026-01-01T00:00:00Z")
+	})
+	dsl.Attribute("updated_at", dsl.String, "Last-update timestamp", func() {
+		dsl.Format(dsl.FormatDateTime)
+		dsl.Example("2026-06-01T12:00:00Z")
+	})
+	dsl.Required("uid", "name")
+})
+
+// WorkspaceCreateBody is the request body for POST /b2b_orgs/{uid}/workspaces.
+var WorkspaceCreateBody = dsl.Type("workspace-create-body", func() {
+	dsl.Description("Request body for creating a workspace")
+	dsl.Attribute("name", dsl.String, "Workspace display name; must be unique within the org", func() {
+		dsl.MinLength(1)
+		dsl.MaxLength(255)
+		dsl.Example("My Workspace")
+	})
+	dsl.Required("name")
+})
+
+// WorkspaceUpdateBody is the request body for PUT /b2b_orgs/{uid}/workspaces/{workspace_uid}.
+var WorkspaceUpdateBody = dsl.Type("workspace-update-body", func() {
+	dsl.Description("Request body for renaming a workspace")
+	dsl.Attribute("name", dsl.String, "New workspace display name; must be unique within the org", func() {
+		dsl.MinLength(1)
+		dsl.MaxLength(255)
+		dsl.Example("Renamed Workspace")
+	})
+	dsl.Required("name")
+})
+
+// WorkspaceProjectAddBody is the request body for POST /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects.
+var WorkspaceProjectAddBody = dsl.Type("workspace-project-add-body", func() {
+	dsl.Description("Request body for adding a single project to a workspace")
+	dsl.Attribute("project_id", dsl.String, "Project identifier: v2 UUID or URL slug", func() {
+		dsl.MaxLength(512)
+		dsl.Example("my-project")
+	})
+	dsl.Required("project_id")
+})
+
+// WorkspaceProjectsBulkAddBody is the request body for POST /b2b_orgs/{uid}/workspaces/{workspace_uid}/projects/bulk.
+var WorkspaceProjectsBulkAddBody = dsl.Type("workspace-projects-bulk-add-body", func() {
+	dsl.Description("Request body for adding multiple projects to a workspace in one operation")
+	dsl.Attribute("project_ids", dsl.ArrayOf(dsl.String), "Project identifiers (v2 UUIDs or slugs); at most 100 per request", func() {
+		dsl.MinLength(1)
+		dsl.MaxLength(100)
+	})
+	dsl.Required("project_ids")
+})
+
+// WorkspaceBulkAddResult is the per-item error detail for a bulk-add failure.
+var WorkspaceBulkAddItemError = dsl.Type("workspace-bulk-add-item-error", func() {
+	dsl.Description("Per-item failure detail in a bulk workspace project add")
+	dsl.Attribute("project_id", dsl.String, "The project identifier that failed", func() {
+		dsl.Example("unknown-project")
+	})
+	dsl.Attribute("error", dsl.String, "Reason the project could not be added", func() {
+		dsl.Example("unknown project")
+	})
+	dsl.Required("project_id", "error")
+})
+
+// WorkspaceBulkResponse is the result type for POST /…/projects/bulk.
+var WorkspaceBulkResponse = dsl.Type("workspace-bulk-response", func() {
+	dsl.Description("Result of a bulk workspace project add: the updated workspace plus per-item success/failure detail")
+	dsl.Attribute("workspace", WorkspaceResponse, "The workspace after all successful additions")
+	dsl.Attribute("succeeded", dsl.ArrayOf(dsl.String), "Project UIDs that were successfully added (or were already present)", func() {
+		dsl.Example([]string{"a1b2c3d4-e5f6-7890-abcd-ef1234567890"})
+	})
+	dsl.Attribute("failed", dsl.ArrayOf(WorkspaceBulkAddItemError), "Projects that could not be added with per-item error detail")
+	ETagAttribute()
+	LastModifiedAttribute()
+	dsl.Required("workspace", "succeeded", "failed")
+})

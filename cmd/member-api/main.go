@@ -119,6 +119,7 @@ func runAPI(ctx context.Context, bind, port string, debug bool) {
 		service.B2BOrgWriterUseCase(ctx),
 		service.KeyContactWriterUseCase(ctx),
 		service.OrgSettingsWriterUseCase(ctx),
+		service.WorkspaceWriterUseCase(ctx),
 		service.BackfillRunnerImpl(ctx),
 	)
 

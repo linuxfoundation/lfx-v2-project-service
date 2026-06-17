@@ -52,6 +52,62 @@ spec:
   {{- end }}
 {{- end }}
 ---
+{{- if .Values.nats.kv_bucket_org_workspaces.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_org_workspaces.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_org_workspaces.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_org_workspaces.name }}
+  replicas: {{ .Values.nats.kv_bucket_org_workspaces.replicas }}
+  history: {{ .Values.nats.kv_bucket_org_workspaces.history }}
+  storage: {{ .Values.nats.kv_bucket_org_workspaces.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_org_workspaces.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_org_workspaces.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_org_workspaces.compression }}
+  # IMPORTANT: do not set ttl in production — this bucket holds authoritative
+  # workspace state. TTL eviction would silently delete all org workspace data
+  # with no audit trail. Only enable for local-dev bucket teardown.
+  {{- if .Values.nats.kv_bucket_org_workspaces.ttl }}
+  ttl: {{ .Values.nats.kv_bucket_org_workspaces.ttl }}
+  {{- end }}
+{{- end }}
+---
+{{- if .Values.nats.kv_bucket_org_workspace_projects.creation }}
+apiVersion: jetstream.nats.io/v1beta2
+kind: KeyValue
+metadata:
+  name: {{ .Values.nats.kv_bucket_org_workspace_projects.name }}
+  namespace: lfx
+  {{- if .Values.nats.kv_bucket_org_workspace_projects.keep }}
+  annotations:
+    "helm.sh/resource-policy": keep
+  {{- end }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+spec:
+  bucket: {{ .Values.nats.kv_bucket_org_workspace_projects.name }}
+  replicas: {{ .Values.nats.kv_bucket_org_workspace_projects.replicas }}
+  history: {{ .Values.nats.kv_bucket_org_workspace_projects.history }}
+  storage: {{ .Values.nats.kv_bucket_org_workspace_projects.storage }}
+  maxValueSize: {{ .Values.nats.kv_bucket_org_workspace_projects.maxValueSize }}
+  maxBytes: {{ .Values.nats.kv_bucket_org_workspace_projects.maxBytes }}
+  compression: {{ .Values.nats.kv_bucket_org_workspace_projects.compression }}
+  # IMPORTANT: do not set ttl in production — this bucket holds authoritative
+  # workspace-project association state. TTL eviction would silently delete all
+  # per-workspace project data with no audit trail.
+  {{- if .Values.nats.kv_bucket_org_workspace_projects.ttl }}
+  ttl: {{ .Values.nats.kv_bucket_org_workspace_projects.ttl }}
+  {{- end }}
+{{- end }}
+---
 {{- if .Values.nats.kv_bucket_sobject_cache.creation }}
 apiVersion: jetstream.nats.io/v1beta2
 kind: KeyValue

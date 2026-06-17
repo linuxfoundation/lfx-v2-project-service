@@ -96,3 +96,33 @@ func LivezMembershipServicePath() string {
 func DebugVarsMembershipServicePath() string {
 	return "/debug/vars"
 }
+
+// CreateB2bOrgWorkspaceMembershipServicePath returns the URL path to the membership-service service create-b2b-org-workspace HTTP endpoint.
+func CreateB2bOrgWorkspaceMembershipServicePath(uid string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/workspaces", uid)
+}
+
+// UpdateB2bOrgWorkspaceMembershipServicePath returns the URL path to the membership-service service update-b2b-org-workspace HTTP endpoint.
+func UpdateB2bOrgWorkspaceMembershipServicePath(uid string, workspaceUID string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/workspaces/%v", uid, workspaceUID)
+}
+
+// DeleteB2bOrgWorkspaceMembershipServicePath returns the URL path to the membership-service service delete-b2b-org-workspace HTTP endpoint.
+func DeleteB2bOrgWorkspaceMembershipServicePath(uid string, workspaceUID string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/workspaces/%v", uid, workspaceUID)
+}
+
+// AddB2bOrgWorkspaceProjectMembershipServicePath returns the URL path to the membership-service service add-b2b-org-workspace-project HTTP endpoint.
+func AddB2bOrgWorkspaceProjectMembershipServicePath(uid string, workspaceUID string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/workspaces/%v/projects", uid, workspaceUID)
+}
+
+// BulkAddB2bOrgWorkspaceProjectsMembershipServicePath returns the URL path to the membership-service service bulk-add-b2b-org-workspace-projects HTTP endpoint.
+func BulkAddB2bOrgWorkspaceProjectsMembershipServicePath(uid string, workspaceUID string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/workspaces/%v/projects/bulk", uid, workspaceUID)
+}
+
+// RemoveB2bOrgWorkspaceProjectMembershipServicePath returns the URL path to the membership-service service remove-b2b-org-workspace-project HTTP endpoint.
+func RemoveB2bOrgWorkspaceProjectMembershipServicePath(uid string, workspaceUID string, projectUID string) string {
+	return fmt.Sprintf("/b2b_orgs/%v/workspaces/%v/projects/%v", uid, workspaceUID, projectUID)
+}

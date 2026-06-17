@@ -213,7 +213,7 @@ func BuildUpdateB2bOrgSettingsPayload(membershipServiceUpdateB2bOrgSettingsBody 
 	{
 		err = json.Unmarshal([]byte(membershipServiceUpdateB2bOrgSettingsBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }'")
 		}
 		for _, e := range body.Writers {
 			if e != nil {
@@ -642,7 +642,7 @@ func BuildUpdateKeyContactPayload(membershipServiceUpdateKeyContactBody string, 
 	{
 		err = json.Unmarshal([]byte(membershipServiceUpdateKeyContactBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"send_invite\": false,\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"send_invite\": true,\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }'")
 		}
 		if body.Email != nil {
 			err = goa.MergeErrors(err, goa.ValidateFormat("body.email", *body.Email, goa.FormatEmail))
@@ -771,7 +771,7 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	{
 		err = json.Unmarshal([]byte(membershipServiceAdminReindexBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }'")
 		}
 	}
 	var version *string
@@ -820,6 +820,385 @@ func BuildAdminReindexPayload(membershipServiceAdminReindexBody string, membersh
 	}
 	v.Version = version
 	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
+// BuildCreateB2bOrgWorkspacePayload builds the payload for the
+// membership-service create-b2b-org-workspace endpoint from CLI flags.
+func BuildCreateB2bOrgWorkspacePayload(membershipServiceCreateB2bOrgWorkspaceBody string, membershipServiceCreateB2bOrgWorkspaceUID string, membershipServiceCreateB2bOrgWorkspaceVersion string, membershipServiceCreateB2bOrgWorkspaceBearerToken string, membershipServiceCreateB2bOrgWorkspaceIfMatch string) (*membershipservice.CreateB2bOrgWorkspacePayload, error) {
+	var err error
+	var body CreateB2bOrgWorkspaceRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceCreateB2bOrgWorkspaceBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"name\": \"My Workspace\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
+		}
+		if utf8.RuneCountInString(body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 255, false))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceCreateB2bOrgWorkspaceUID
+	}
+	var version *string
+	{
+		if membershipServiceCreateB2bOrgWorkspaceVersion != "" {
+			version = &membershipServiceCreateB2bOrgWorkspaceVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceCreateB2bOrgWorkspaceBearerToken != "" {
+			bearerToken = &membershipServiceCreateB2bOrgWorkspaceBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceCreateB2bOrgWorkspaceIfMatch != "" {
+			ifMatch = &membershipServiceCreateB2bOrgWorkspaceIfMatch
+		}
+	}
+	v := &membershipservice.CreateB2bOrgWorkspacePayload{
+		Name: body.Name,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildUpdateB2bOrgWorkspacePayload builds the payload for the
+// membership-service update-b2b-org-workspace endpoint from CLI flags.
+func BuildUpdateB2bOrgWorkspacePayload(membershipServiceUpdateB2bOrgWorkspaceBody string, membershipServiceUpdateB2bOrgWorkspaceUID string, membershipServiceUpdateB2bOrgWorkspaceWorkspaceUID string, membershipServiceUpdateB2bOrgWorkspaceVersion string, membershipServiceUpdateB2bOrgWorkspaceBearerToken string, membershipServiceUpdateB2bOrgWorkspaceIfMatch string) (*membershipservice.UpdateB2bOrgWorkspacePayload, error) {
+	var err error
+	var body UpdateB2bOrgWorkspaceRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceUpdateB2bOrgWorkspaceBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"name\": \"Renamed Workspace\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
+		}
+		if utf8.RuneCountInString(body.Name) > 255 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 255, false))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceUpdateB2bOrgWorkspaceUID
+	}
+	var workspaceUID string
+	{
+		workspaceUID = membershipServiceUpdateB2bOrgWorkspaceWorkspaceUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("workspace_uid", workspaceUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceUpdateB2bOrgWorkspaceVersion != "" {
+			version = &membershipServiceUpdateB2bOrgWorkspaceVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceUpdateB2bOrgWorkspaceBearerToken != "" {
+			bearerToken = &membershipServiceUpdateB2bOrgWorkspaceBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceUpdateB2bOrgWorkspaceIfMatch != "" {
+			ifMatch = &membershipServiceUpdateB2bOrgWorkspaceIfMatch
+		}
+	}
+	v := &membershipservice.UpdateB2bOrgWorkspacePayload{
+		Name: body.Name,
+	}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildDeleteB2bOrgWorkspacePayload builds the payload for the
+// membership-service delete-b2b-org-workspace endpoint from CLI flags.
+func BuildDeleteB2bOrgWorkspacePayload(membershipServiceDeleteB2bOrgWorkspaceUID string, membershipServiceDeleteB2bOrgWorkspaceWorkspaceUID string, membershipServiceDeleteB2bOrgWorkspaceVersion string, membershipServiceDeleteB2bOrgWorkspaceBearerToken string, membershipServiceDeleteB2bOrgWorkspaceIfMatch string) (*membershipservice.DeleteB2bOrgWorkspacePayload, error) {
+	var err error
+	var uid string
+	{
+		uid = membershipServiceDeleteB2bOrgWorkspaceUID
+	}
+	var workspaceUID string
+	{
+		workspaceUID = membershipServiceDeleteB2bOrgWorkspaceWorkspaceUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("workspace_uid", workspaceUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceDeleteB2bOrgWorkspaceVersion != "" {
+			version = &membershipServiceDeleteB2bOrgWorkspaceVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceDeleteB2bOrgWorkspaceBearerToken != "" {
+			bearerToken = &membershipServiceDeleteB2bOrgWorkspaceBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceDeleteB2bOrgWorkspaceIfMatch != "" {
+			ifMatch = &membershipServiceDeleteB2bOrgWorkspaceIfMatch
+		}
+	}
+	v := &membershipservice.DeleteB2bOrgWorkspacePayload{}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildAddB2bOrgWorkspaceProjectPayload builds the payload for the
+// membership-service add-b2b-org-workspace-project endpoint from CLI flags.
+func BuildAddB2bOrgWorkspaceProjectPayload(membershipServiceAddB2bOrgWorkspaceProjectBody string, membershipServiceAddB2bOrgWorkspaceProjectUID string, membershipServiceAddB2bOrgWorkspaceProjectWorkspaceUID string, membershipServiceAddB2bOrgWorkspaceProjectVersion string, membershipServiceAddB2bOrgWorkspaceProjectBearerToken string, membershipServiceAddB2bOrgWorkspaceProjectIfMatch string) (*membershipservice.AddB2bOrgWorkspaceProjectPayload, error) {
+	var err error
+	var body AddB2bOrgWorkspaceProjectRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceAddB2bOrgWorkspaceProjectBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"project_id\": \"my-project\"\n   }'")
+		}
+		if utf8.RuneCountInString(body.ProjectID) > 512 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.project_id", body.ProjectID, utf8.RuneCountInString(body.ProjectID), 512, false))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceAddB2bOrgWorkspaceProjectUID
+	}
+	var workspaceUID string
+	{
+		workspaceUID = membershipServiceAddB2bOrgWorkspaceProjectWorkspaceUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("workspace_uid", workspaceUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceAddB2bOrgWorkspaceProjectVersion != "" {
+			version = &membershipServiceAddB2bOrgWorkspaceProjectVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceAddB2bOrgWorkspaceProjectBearerToken != "" {
+			bearerToken = &membershipServiceAddB2bOrgWorkspaceProjectBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceAddB2bOrgWorkspaceProjectIfMatch != "" {
+			ifMatch = &membershipServiceAddB2bOrgWorkspaceProjectIfMatch
+		}
+	}
+	v := &membershipservice.AddB2bOrgWorkspaceProjectPayload{
+		ProjectID: body.ProjectID,
+	}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildBulkAddB2bOrgWorkspaceProjectsPayload builds the payload for the
+// membership-service bulk-add-b2b-org-workspace-projects endpoint from CLI
+// flags.
+func BuildBulkAddB2bOrgWorkspaceProjectsPayload(membershipServiceBulkAddB2bOrgWorkspaceProjectsBody string, membershipServiceBulkAddB2bOrgWorkspaceProjectsUID string, membershipServiceBulkAddB2bOrgWorkspaceProjectsWorkspaceUID string, membershipServiceBulkAddB2bOrgWorkspaceProjectsVersion string, membershipServiceBulkAddB2bOrgWorkspaceProjectsBearerToken string, membershipServiceBulkAddB2bOrgWorkspaceProjectsIfMatch string) (*membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload, error) {
+	var err error
+	var body BulkAddB2bOrgWorkspaceProjectsRequestBody
+	{
+		err = json.Unmarshal([]byte(membershipServiceBulkAddB2bOrgWorkspaceProjectsBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"project_ids\": [\n         \"Dolorem porro maxime voluptas repellat.\",\n         \"Labore quia facilis.\",\n         \"Pariatur hic officia qui.\"\n      ]\n   }'")
+		}
+		if body.ProjectIds == nil {
+			err = goa.MergeErrors(err, goa.MissingFieldError("project_ids", "body"))
+		}
+		if len(body.ProjectIds) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.project_ids", body.ProjectIds, len(body.ProjectIds), 1, true))
+		}
+		if len(body.ProjectIds) > 100 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.project_ids", body.ProjectIds, len(body.ProjectIds), 100, false))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var uid string
+	{
+		uid = membershipServiceBulkAddB2bOrgWorkspaceProjectsUID
+	}
+	var workspaceUID string
+	{
+		workspaceUID = membershipServiceBulkAddB2bOrgWorkspaceProjectsWorkspaceUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("workspace_uid", workspaceUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceBulkAddB2bOrgWorkspaceProjectsVersion != "" {
+			version = &membershipServiceBulkAddB2bOrgWorkspaceProjectsVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceBulkAddB2bOrgWorkspaceProjectsBearerToken != "" {
+			bearerToken = &membershipServiceBulkAddB2bOrgWorkspaceProjectsBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceBulkAddB2bOrgWorkspaceProjectsIfMatch != "" {
+			ifMatch = &membershipServiceBulkAddB2bOrgWorkspaceProjectsIfMatch
+		}
+	}
+	v := &membershipservice.BulkAddB2bOrgWorkspaceProjectsPayload{}
+	if body.ProjectIds != nil {
+		v.ProjectIds = make([]string, len(body.ProjectIds))
+		for i, val := range body.ProjectIds {
+			v.ProjectIds[i] = val
+		}
+	} else {
+		v.ProjectIds = []string{}
+	}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
+
+	return v, nil
+}
+
+// BuildRemoveB2bOrgWorkspaceProjectPayload builds the payload for the
+// membership-service remove-b2b-org-workspace-project endpoint from CLI flags.
+func BuildRemoveB2bOrgWorkspaceProjectPayload(membershipServiceRemoveB2bOrgWorkspaceProjectUID string, membershipServiceRemoveB2bOrgWorkspaceProjectWorkspaceUID string, membershipServiceRemoveB2bOrgWorkspaceProjectProjectUID string, membershipServiceRemoveB2bOrgWorkspaceProjectVersion string, membershipServiceRemoveB2bOrgWorkspaceProjectBearerToken string, membershipServiceRemoveB2bOrgWorkspaceProjectIfMatch string) (*membershipservice.RemoveB2bOrgWorkspaceProjectPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = membershipServiceRemoveB2bOrgWorkspaceProjectUID
+	}
+	var workspaceUID string
+	{
+		workspaceUID = membershipServiceRemoveB2bOrgWorkspaceProjectWorkspaceUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("workspace_uid", workspaceUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var projectUID string
+	{
+		projectUID = membershipServiceRemoveB2bOrgWorkspaceProjectProjectUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("project_uid", projectUID, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if membershipServiceRemoveB2bOrgWorkspaceProjectVersion != "" {
+			version = &membershipServiceRemoveB2bOrgWorkspaceProjectVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if membershipServiceRemoveB2bOrgWorkspaceProjectBearerToken != "" {
+			bearerToken = &membershipServiceRemoveB2bOrgWorkspaceProjectBearerToken
+		}
+	}
+	var ifMatch *string
+	{
+		if membershipServiceRemoveB2bOrgWorkspaceProjectIfMatch != "" {
+			ifMatch = &membershipServiceRemoveB2bOrgWorkspaceProjectIfMatch
+		}
+	}
+	v := &membershipservice.RemoveB2bOrgWorkspaceProjectPayload{}
+	v.UID = uid
+	v.WorkspaceUID = workspaceUID
+	v.ProjectUID = projectUID
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.IfMatch = ifMatch
 
 	return v, nil
 }

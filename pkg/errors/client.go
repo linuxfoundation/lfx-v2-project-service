@@ -25,6 +25,15 @@ func NewValidation(message string, err ...error) Validation {
 	}
 }
 
+// IsValidation reports whether err is a Validation error.
+func IsValidation(err error) bool {
+	if err == nil {
+		return false
+	}
+	var v Validation
+	return errors.As(err, &v)
+}
+
 // NotFound represents a not found error in the application.
 type NotFound struct {
 	base
