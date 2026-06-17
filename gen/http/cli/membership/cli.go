@@ -24,7 +24,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"membership-service (get-b2b-org|create-b2b-org|update-b2b-org|get-b2b-org-settings|update-b2b-org-settings|add-b2b-org-settings-user|update-b2b-org-settings-user-role|delete-b2b-org-settings-user|get-project-membership|get-key-contact|create-key-contact|update-key-contact|delete-key-contact|admin-reindex|readyz|livez|debug-vars)",
+		"membership-service (get-b2b-org|create-b2b-org|update-b2b-org|get-b2b-org-settings|update-b2b-org-settings|add-b2b-org-settings-user|update-b2b-org-settings-user-role|delete-b2b-org-settings-user|get-project-membership|get-key-contact|create-key-contact|update-key-contact|delete-key-contact|admin-reindex|readyz|livez|debug-vars|create-b2b-org-workspace|update-b2b-org-workspace|delete-b2b-org-workspace|add-b2b-org-workspace-project|bulk-add-b2b-org-workspace-projects|remove-b2b-org-workspace-project)",
 	}
 }
 
@@ -145,6 +145,52 @@ func ParseEndpoint(
 		membershipServiceLivezFlags = flag.NewFlagSet("livez", flag.ExitOnError)
 
 		membershipServiceDebugVarsFlags = flag.NewFlagSet("debug-vars", flag.ExitOnError)
+
+		membershipServiceCreateB2bOrgWorkspaceFlags           = flag.NewFlagSet("create-b2b-org-workspace", flag.ExitOnError)
+		membershipServiceCreateB2bOrgWorkspaceBodyFlag        = membershipServiceCreateB2bOrgWorkspaceFlags.String("body", "REQUIRED", "")
+		membershipServiceCreateB2bOrgWorkspaceUIDFlag         = membershipServiceCreateB2bOrgWorkspaceFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceCreateB2bOrgWorkspaceVersionFlag     = membershipServiceCreateB2bOrgWorkspaceFlags.String("version", "", "")
+		membershipServiceCreateB2bOrgWorkspaceBearerTokenFlag = membershipServiceCreateB2bOrgWorkspaceFlags.String("bearer-token", "", "")
+		membershipServiceCreateB2bOrgWorkspaceIfMatchFlag     = membershipServiceCreateB2bOrgWorkspaceFlags.String("if-match", "", "")
+
+		membershipServiceUpdateB2bOrgWorkspaceFlags            = flag.NewFlagSet("update-b2b-org-workspace", flag.ExitOnError)
+		membershipServiceUpdateB2bOrgWorkspaceBodyFlag         = membershipServiceUpdateB2bOrgWorkspaceFlags.String("body", "REQUIRED", "")
+		membershipServiceUpdateB2bOrgWorkspaceUIDFlag          = membershipServiceUpdateB2bOrgWorkspaceFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceUpdateB2bOrgWorkspaceWorkspaceUIDFlag = membershipServiceUpdateB2bOrgWorkspaceFlags.String("workspace-uid", "REQUIRED", "Workspace UID")
+		membershipServiceUpdateB2bOrgWorkspaceVersionFlag      = membershipServiceUpdateB2bOrgWorkspaceFlags.String("version", "", "")
+		membershipServiceUpdateB2bOrgWorkspaceBearerTokenFlag  = membershipServiceUpdateB2bOrgWorkspaceFlags.String("bearer-token", "", "")
+		membershipServiceUpdateB2bOrgWorkspaceIfMatchFlag      = membershipServiceUpdateB2bOrgWorkspaceFlags.String("if-match", "", "")
+
+		membershipServiceDeleteB2bOrgWorkspaceFlags            = flag.NewFlagSet("delete-b2b-org-workspace", flag.ExitOnError)
+		membershipServiceDeleteB2bOrgWorkspaceUIDFlag          = membershipServiceDeleteB2bOrgWorkspaceFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceDeleteB2bOrgWorkspaceWorkspaceUIDFlag = membershipServiceDeleteB2bOrgWorkspaceFlags.String("workspace-uid", "REQUIRED", "Workspace UID")
+		membershipServiceDeleteB2bOrgWorkspaceVersionFlag      = membershipServiceDeleteB2bOrgWorkspaceFlags.String("version", "", "")
+		membershipServiceDeleteB2bOrgWorkspaceBearerTokenFlag  = membershipServiceDeleteB2bOrgWorkspaceFlags.String("bearer-token", "", "")
+		membershipServiceDeleteB2bOrgWorkspaceIfMatchFlag      = membershipServiceDeleteB2bOrgWorkspaceFlags.String("if-match", "", "")
+
+		membershipServiceAddB2bOrgWorkspaceProjectFlags            = flag.NewFlagSet("add-b2b-org-workspace-project", flag.ExitOnError)
+		membershipServiceAddB2bOrgWorkspaceProjectBodyFlag         = membershipServiceAddB2bOrgWorkspaceProjectFlags.String("body", "REQUIRED", "")
+		membershipServiceAddB2bOrgWorkspaceProjectUIDFlag          = membershipServiceAddB2bOrgWorkspaceProjectFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceAddB2bOrgWorkspaceProjectWorkspaceUIDFlag = membershipServiceAddB2bOrgWorkspaceProjectFlags.String("workspace-uid", "REQUIRED", "Workspace UID")
+		membershipServiceAddB2bOrgWorkspaceProjectVersionFlag      = membershipServiceAddB2bOrgWorkspaceProjectFlags.String("version", "", "")
+		membershipServiceAddB2bOrgWorkspaceProjectBearerTokenFlag  = membershipServiceAddB2bOrgWorkspaceProjectFlags.String("bearer-token", "", "")
+		membershipServiceAddB2bOrgWorkspaceProjectIfMatchFlag      = membershipServiceAddB2bOrgWorkspaceProjectFlags.String("if-match", "", "")
+
+		membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags            = flag.NewFlagSet("bulk-add-b2b-org-workspace-projects", flag.ExitOnError)
+		membershipServiceBulkAddB2bOrgWorkspaceProjectsBodyFlag         = membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags.String("body", "REQUIRED", "")
+		membershipServiceBulkAddB2bOrgWorkspaceProjectsUIDFlag          = membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceBulkAddB2bOrgWorkspaceProjectsWorkspaceUIDFlag = membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags.String("workspace-uid", "REQUIRED", "Workspace UID")
+		membershipServiceBulkAddB2bOrgWorkspaceProjectsVersionFlag      = membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags.String("version", "", "")
+		membershipServiceBulkAddB2bOrgWorkspaceProjectsBearerTokenFlag  = membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags.String("bearer-token", "", "")
+		membershipServiceBulkAddB2bOrgWorkspaceProjectsIfMatchFlag      = membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags.String("if-match", "", "")
+
+		membershipServiceRemoveB2bOrgWorkspaceProjectFlags            = flag.NewFlagSet("remove-b2b-org-workspace-project", flag.ExitOnError)
+		membershipServiceRemoveB2bOrgWorkspaceProjectUIDFlag          = membershipServiceRemoveB2bOrgWorkspaceProjectFlags.String("uid", "REQUIRED", "B2B organization UID")
+		membershipServiceRemoveB2bOrgWorkspaceProjectWorkspaceUIDFlag = membershipServiceRemoveB2bOrgWorkspaceProjectFlags.String("workspace-uid", "REQUIRED", "Workspace UID")
+		membershipServiceRemoveB2bOrgWorkspaceProjectProjectUIDFlag   = membershipServiceRemoveB2bOrgWorkspaceProjectFlags.String("project-uid", "REQUIRED", "Project UID to remove")
+		membershipServiceRemoveB2bOrgWorkspaceProjectVersionFlag      = membershipServiceRemoveB2bOrgWorkspaceProjectFlags.String("version", "", "")
+		membershipServiceRemoveB2bOrgWorkspaceProjectBearerTokenFlag  = membershipServiceRemoveB2bOrgWorkspaceProjectFlags.String("bearer-token", "", "")
+		membershipServiceRemoveB2bOrgWorkspaceProjectIfMatchFlag      = membershipServiceRemoveB2bOrgWorkspaceProjectFlags.String("if-match", "", "")
 	)
 	membershipServiceFlags.Usage = membershipServiceUsage
 	membershipServiceGetB2bOrgFlags.Usage = membershipServiceGetB2bOrgUsage
@@ -164,6 +210,12 @@ func ParseEndpoint(
 	membershipServiceReadyzFlags.Usage = membershipServiceReadyzUsage
 	membershipServiceLivezFlags.Usage = membershipServiceLivezUsage
 	membershipServiceDebugVarsFlags.Usage = membershipServiceDebugVarsUsage
+	membershipServiceCreateB2bOrgWorkspaceFlags.Usage = membershipServiceCreateB2bOrgWorkspaceUsage
+	membershipServiceUpdateB2bOrgWorkspaceFlags.Usage = membershipServiceUpdateB2bOrgWorkspaceUsage
+	membershipServiceDeleteB2bOrgWorkspaceFlags.Usage = membershipServiceDeleteB2bOrgWorkspaceUsage
+	membershipServiceAddB2bOrgWorkspaceProjectFlags.Usage = membershipServiceAddB2bOrgWorkspaceProjectUsage
+	membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags.Usage = membershipServiceBulkAddB2bOrgWorkspaceProjectsUsage
+	membershipServiceRemoveB2bOrgWorkspaceProjectFlags.Usage = membershipServiceRemoveB2bOrgWorkspaceProjectUsage
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
@@ -250,6 +302,24 @@ func ParseEndpoint(
 			case "debug-vars":
 				epf = membershipServiceDebugVarsFlags
 
+			case "create-b2b-org-workspace":
+				epf = membershipServiceCreateB2bOrgWorkspaceFlags
+
+			case "update-b2b-org-workspace":
+				epf = membershipServiceUpdateB2bOrgWorkspaceFlags
+
+			case "delete-b2b-org-workspace":
+				epf = membershipServiceDeleteB2bOrgWorkspaceFlags
+
+			case "add-b2b-org-workspace-project":
+				epf = membershipServiceAddB2bOrgWorkspaceProjectFlags
+
+			case "bulk-add-b2b-org-workspace-projects":
+				epf = membershipServiceBulkAddB2bOrgWorkspaceProjectsFlags
+
+			case "remove-b2b-org-workspace-project":
+				epf = membershipServiceRemoveB2bOrgWorkspaceProjectFlags
+
 			}
 
 		}
@@ -323,6 +393,24 @@ func ParseEndpoint(
 				endpoint = c.Livez()
 			case "debug-vars":
 				endpoint = c.DebugVars()
+			case "create-b2b-org-workspace":
+				endpoint = c.CreateB2bOrgWorkspace()
+				data, err = membershipservicec.BuildCreateB2bOrgWorkspacePayload(*membershipServiceCreateB2bOrgWorkspaceBodyFlag, *membershipServiceCreateB2bOrgWorkspaceUIDFlag, *membershipServiceCreateB2bOrgWorkspaceVersionFlag, *membershipServiceCreateB2bOrgWorkspaceBearerTokenFlag, *membershipServiceCreateB2bOrgWorkspaceIfMatchFlag)
+			case "update-b2b-org-workspace":
+				endpoint = c.UpdateB2bOrgWorkspace()
+				data, err = membershipservicec.BuildUpdateB2bOrgWorkspacePayload(*membershipServiceUpdateB2bOrgWorkspaceBodyFlag, *membershipServiceUpdateB2bOrgWorkspaceUIDFlag, *membershipServiceUpdateB2bOrgWorkspaceWorkspaceUIDFlag, *membershipServiceUpdateB2bOrgWorkspaceVersionFlag, *membershipServiceUpdateB2bOrgWorkspaceBearerTokenFlag, *membershipServiceUpdateB2bOrgWorkspaceIfMatchFlag)
+			case "delete-b2b-org-workspace":
+				endpoint = c.DeleteB2bOrgWorkspace()
+				data, err = membershipservicec.BuildDeleteB2bOrgWorkspacePayload(*membershipServiceDeleteB2bOrgWorkspaceUIDFlag, *membershipServiceDeleteB2bOrgWorkspaceWorkspaceUIDFlag, *membershipServiceDeleteB2bOrgWorkspaceVersionFlag, *membershipServiceDeleteB2bOrgWorkspaceBearerTokenFlag, *membershipServiceDeleteB2bOrgWorkspaceIfMatchFlag)
+			case "add-b2b-org-workspace-project":
+				endpoint = c.AddB2bOrgWorkspaceProject()
+				data, err = membershipservicec.BuildAddB2bOrgWorkspaceProjectPayload(*membershipServiceAddB2bOrgWorkspaceProjectBodyFlag, *membershipServiceAddB2bOrgWorkspaceProjectUIDFlag, *membershipServiceAddB2bOrgWorkspaceProjectWorkspaceUIDFlag, *membershipServiceAddB2bOrgWorkspaceProjectVersionFlag, *membershipServiceAddB2bOrgWorkspaceProjectBearerTokenFlag, *membershipServiceAddB2bOrgWorkspaceProjectIfMatchFlag)
+			case "bulk-add-b2b-org-workspace-projects":
+				endpoint = c.BulkAddB2bOrgWorkspaceProjects()
+				data, err = membershipservicec.BuildBulkAddB2bOrgWorkspaceProjectsPayload(*membershipServiceBulkAddB2bOrgWorkspaceProjectsBodyFlag, *membershipServiceBulkAddB2bOrgWorkspaceProjectsUIDFlag, *membershipServiceBulkAddB2bOrgWorkspaceProjectsWorkspaceUIDFlag, *membershipServiceBulkAddB2bOrgWorkspaceProjectsVersionFlag, *membershipServiceBulkAddB2bOrgWorkspaceProjectsBearerTokenFlag, *membershipServiceBulkAddB2bOrgWorkspaceProjectsIfMatchFlag)
+			case "remove-b2b-org-workspace-project":
+				endpoint = c.RemoveB2bOrgWorkspaceProject()
+				data, err = membershipservicec.BuildRemoveB2bOrgWorkspaceProjectPayload(*membershipServiceRemoveB2bOrgWorkspaceProjectUIDFlag, *membershipServiceRemoveB2bOrgWorkspaceProjectWorkspaceUIDFlag, *membershipServiceRemoveB2bOrgWorkspaceProjectProjectUIDFlag, *membershipServiceRemoveB2bOrgWorkspaceProjectVersionFlag, *membershipServiceRemoveB2bOrgWorkspaceProjectBearerTokenFlag, *membershipServiceRemoveB2bOrgWorkspaceProjectIfMatchFlag)
 			}
 		}
 	}
@@ -356,6 +444,12 @@ func membershipServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    readyz: Check if the service is able to take inbound requests.`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
 	fmt.Fprintln(os.Stderr, `    debug-vars: Expose expvar debug variables as JSON. Accessible via kubectl port-forward; not exposed by ingress.`)
+	fmt.Fprintln(os.Stderr, `    create-b2b-org-workspace: Create a new workspace within a b2b_org. Name must be unique within the org.`)
+	fmt.Fprintln(os.Stderr, `    update-b2b-org-workspace: Rename an existing workspace. Name must be unique within the org.`)
+	fmt.Fprintln(os.Stderr, `    delete-b2b-org-workspace: Delete a workspace and all its project associations (cascade delete).`)
+	fmt.Fprintln(os.Stderr, `    add-b2b-org-workspace-project: Add a single project to a workspace. Idempotent: already-associated projects are a no-op. Returns HTTP 400 for unknown project identifiers.`)
+	fmt.Fprintln(os.Stderr, `    bulk-add-b2b-org-workspace-projects: Add multiple projects to a workspace in one operation. Partially succeeds: successfully enriched projects are written; per-item failures are reported in the response.`)
+	fmt.Fprintln(os.Stderr, `    remove-b2b-org-workspace-project: Remove a project association from a workspace.`)
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s membership-service COMMAND --help\n", os.Args[0])
@@ -479,7 +573,7 @@ func membershipServiceUpdateB2bOrgSettingsUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-settings --body '{\n      \"auditors\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ],\n      \"writers\": [\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         },\n         {\n            \"avatar\": \"https://avatars.githubusercontent.com/u/12345\",\n            \"email\": \"alice@example.com\",\n            \"invite_status\": \"accepted\",\n            \"invited_as\": \"writer\",\n            \"name\": \"Alice Smith\",\n            \"username\": \"alice\"\n         }\n      ]\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceAddB2bOrgSettingsUserUsage() {
@@ -665,7 +759,7 @@ func membershipServiceUpdateKeyContactUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"send_invite\": false,\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"02i2M000009ABCdIAM\" --uid \"a0K2M000000ABCdUAG\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-key-contact --body '{\n      \"board_member\": false,\n      \"email\": \"john.doe@example.com\",\n      \"primary_contact\": false,\n      \"role\": \"Technical Contact\",\n      \"send_invite\": true,\n      \"status\": \"Active\",\n      \"title\": \"CTO\"\n   }' --membership-uid \"02i2M000009ABCdIAM\" --uid \"a0K2M000000ABCdUAG\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }
 
 func membershipServiceDeleteKeyContactUsage() {
@@ -713,7 +807,7 @@ func membershipServiceAdminReindexUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": true,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service admin-reindex --body '{\n      \"dry_run\": false,\n      \"items\": [\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         },\n         {\n            \"type\": \"b2b_org\",\n            \"uid\": \"001B000000IqhSLIAZ\"\n         }\n      ],\n      \"since\": \"2026-05-20T00:00:00Z\",\n      \"types\": [\n         \"b2b_org\",\n         \"project_membership\"\n      ]\n   }' --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func membershipServiceReadyzUsage() {
@@ -762,4 +856,168 @@ func membershipServiceDebugVarsUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service debug-vars")
+}
+
+func membershipServiceCreateB2bOrgWorkspaceUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service create-b2b-org-workspace", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Create a new workspace within a b2b_org. Name must be unique within the org.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service create-b2b-org-workspace --body '{\n      \"name\": \"My Workspace\"\n   }' --uid \"001B000000IqhSLIAZ\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceUpdateB2bOrgWorkspaceUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service update-b2b-org-workspace", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -workspace-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Rename an existing workspace. Name must be unique within the org.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -workspace-uid STRING: Workspace UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service update-b2b-org-workspace --body '{\n      \"name\": \"Renamed Workspace\"\n   }' --uid \"001B000000IqhSLIAZ\" --workspace-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceDeleteB2bOrgWorkspaceUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service delete-b2b-org-workspace", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -workspace-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Delete a workspace and all its project associations (cascade delete).`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -workspace-uid STRING: Workspace UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service delete-b2b-org-workspace --uid \"001B000000IqhSLIAZ\" --workspace-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceAddB2bOrgWorkspaceProjectUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service add-b2b-org-workspace-project", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -workspace-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Add a single project to a workspace. Idempotent: already-associated projects are a no-op. Returns HTTP 400 for unknown project identifiers.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -workspace-uid STRING: Workspace UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service add-b2b-org-workspace-project --body '{\n      \"project_id\": \"my-project\"\n   }' --uid \"001B000000IqhSLIAZ\" --workspace-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceBulkAddB2bOrgWorkspaceProjectsUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service bulk-add-b2b-org-workspace-projects", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -workspace-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Add multiple projects to a workspace in one operation. Partially succeeds: successfully enriched projects are written; per-item failures are reported in the response.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -workspace-uid STRING: Workspace UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service bulk-add-b2b-org-workspace-projects --body '{\n      \"project_ids\": [\n         \"Dolorem porro maxime voluptas repellat.\",\n         \"Labore quia facilis.\",\n         \"Pariatur hic officia qui.\"\n      ]\n   }' --uid \"001B000000IqhSLIAZ\" --workspace-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
+}
+
+func membershipServiceRemoveB2bOrgWorkspaceProjectUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] membership-service remove-b2b-org-workspace-project", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -workspace-uid STRING")
+	fmt.Fprint(os.Stderr, " -project-uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -if-match STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Remove a project association from a workspace.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: B2B organization UID`)
+	fmt.Fprintln(os.Stderr, `    -workspace-uid STRING: Workspace UID`)
+	fmt.Fprintln(os.Stderr, `    -project-uid STRING: Project UID to remove`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -if-match STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "membership-service remove-b2b-org-workspace-project --uid \"001B000000IqhSLIAZ\" --workspace-uid \"4c46585f-9f01-8bda-a0a5-f0c8eeef7fff\" --project-uid \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\" --version \"1\" --bearer-token \"eyJhbGci...\" --if-match \"123\"")
 }

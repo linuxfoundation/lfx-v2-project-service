@@ -49,6 +49,10 @@ var (
 	mockSettings     *mock.MockB2BOrgSettings
 	mockSettingsOnce sync.Once
 
+	// mockWorkspaces is the shared in-memory workspace store used in mock mode.
+	mockWorkspaces     *mock.MockOrgWorkspaces
+	mockWorkspacesOnce sync.Once
+
 	// apiSubs holds the drain callbacks for all NATS subscriptions registered by
 	// QueueSubscriptions. Stored as func() error so the raw nats package does not
 	// need to be imported here; each element is the Drain method of a *nats.Subscription.
@@ -605,6 +609,75 @@ func OrgRoleNotifierImpl(ctx context.Context) port.OrgRoleNotifier {
 		log.Fatalf("unsupported MESSAGING_SOURCE value: %q", messagingSource())
 		return nil
 	}
+}
+
+// mockWorkspacesInstance returns (or lazily creates) the shared MockOrgWorkspaces
+// instance used by both the reader and writer in mock mode.
+func mockWorkspacesInstance(ctx context.Context) *mock.MockOrgWorkspaces {
+	mockWorkspacesOnce.Do(func() {
+		slog.InfoContext(ctx, "initialising mock org workspaces store")
+		mockWorkspaces = mock.NewMockOrgWorkspaces()
+	})
+	return mockWorkspaces
+}
+
+// OrgWorkspacesReaderImpl returns the port.OrgWorkspacesReader implementation.
+func OrgWorkspacesReaderImpl(ctx context.Context) port.OrgWorkspacesReader {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockWorkspacesInstance(ctx)
+	}
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
+// OrgWorkspacesWriterImpl returns the port.OrgWorkspacesWriter implementation.
+func OrgWorkspacesWriterImpl(ctx context.Context) port.OrgWorkspacesWriter {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockWorkspacesInstance(ctx)
+	}
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
+var mockWorkspaceProjectsOnce sync.Once
+var mockWorkspaceProjectsStore *mock.MockWorkspaceProjects
+
+func mockWorkspaceProjectsInstance(_ context.Context) *mock.MockWorkspaceProjects {
+	mockWorkspaceProjectsOnce.Do(func() {
+		mockWorkspaceProjectsStore = mock.NewMockWorkspaceProjects()
+	})
+	return mockWorkspaceProjectsStore
+}
+
+// WorkspaceProjectsReaderImpl returns the port.WorkspaceProjectsReader implementation.
+func WorkspaceProjectsReaderImpl(ctx context.Context) port.WorkspaceProjectsReader {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockWorkspaceProjectsInstance(ctx)
+	}
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
+// WorkspaceProjectsWriterImpl returns the port.WorkspaceProjectsWriter implementation.
+func WorkspaceProjectsWriterImpl(ctx context.Context) port.WorkspaceProjectsWriter {
+	if os.Getenv("REPOSITORY_SOURCE") == "mock" {
+		return mockWorkspaceProjectsInstance(ctx)
+	}
+	natsInit(ctx)
+	return nats.NewStorage(natsClient)
+}
+
+// WorkspaceWriterUseCase constructs the WorkspaceWriter use-case orchestrator.
+func WorkspaceWriterUseCase(ctx context.Context) usecaseSvc.WorkspaceWriter {
+	return usecaseSvc.NewWorkspaceWriter(
+		usecaseSvc.WithWorkspacesReader(OrgWorkspacesReaderImpl(ctx)),
+		usecaseSvc.WithWorkspacesWriter(OrgWorkspacesWriterImpl(ctx)),
+		usecaseSvc.WithWorkspaceProjectsReader(WorkspaceProjectsReaderImpl(ctx)),
+		usecaseSvc.WithWorkspaceProjectsWriter(WorkspaceProjectsWriterImpl(ctx)),
+		usecaseSvc.WithWorkspacesB2BOrgReader(B2BOrgReaderImpl(ctx)),
+		usecaseSvc.WithWorkspacesProjectResolver(ProjectResolverImpl(ctx)),
+		usecaseSvc.WithWorkspacesPublisher(MemberPublisherImpl(ctx)),
+	)
 }
 
 // OrgSettingsWriterUseCase constructs the OrgSettingsWriter use-case orchestrator.

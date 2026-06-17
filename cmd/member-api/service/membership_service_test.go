@@ -103,15 +103,16 @@ var sampleB2BOrg = &model.B2BOrg{
 // ─── functional-options test builder ──────────────────────────────────────────
 
 type svcBuilder struct {
-	auth         domain.Authenticator
-	storage      port.MemberReader
-	b2bOrgReader port.B2BOrgReader
-	pmReader     port.ProjectMembershipReader
-	settingsR    port.B2BOrgSettingsReader
-	b2bOrgWriter usecaseSvc.B2BOrgWriter
-	kcWriter     usecaseSvc.KeyContactWriter
-	settingsW    usecaseSvc.OrgSettingsWriter
-	runner       *usecaseSvc.Runner
+	auth            domain.Authenticator
+	storage         port.MemberReader
+	b2bOrgReader    port.B2BOrgReader
+	pmReader        port.ProjectMembershipReader
+	settingsR       port.B2BOrgSettingsReader
+	b2bOrgWriter    usecaseSvc.B2BOrgWriter
+	kcWriter        usecaseSvc.KeyContactWriter
+	settingsW       usecaseSvc.OrgSettingsWriter
+	workspaceWriter usecaseSvc.WorkspaceWriter
+	runner          *usecaseSvc.Runner
 }
 
 type svcOpt func(*svcBuilder)
@@ -159,7 +160,7 @@ func newTestSvc(opts ...svcOpt) membershipservice.Service {
 		o(b)
 	}
 	return NewMembershipService(b.auth, b.storage, b.b2bOrgReader,
-		b.pmReader, b.settingsR, b.b2bOrgWriter, b.kcWriter, b.settingsW, b.runner)
+		b.pmReader, b.settingsR, b.b2bOrgWriter, b.kcWriter, b.settingsW, b.workspaceWriter, b.runner)
 }
 
 // ─── B2BOrg handler tests ──────────────────────────────────────────────────────

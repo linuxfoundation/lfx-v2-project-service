@@ -12,6 +12,7 @@ The full OpenFGA type definitions (relations, schema) for all object types are d
 
 - [B2B Org](#b2b-org)
 - [Project Membership](#project-membership)
+- [Org Workspace](#org-workspace) — no FGA messages; access inherited from parent `b2b_org`
 
 ---
 
@@ -93,6 +94,12 @@ Manages the `key_contact` relation on `project_membership` objects.
 > **CDC upsert path:** the CDC consumer now resolves the LFID via `UserReader.UsernameByEmail` before publishing. If the email has no LFID, the `username` remains empty and the grant is skipped (pending until the user accepts an invite).
 
 > **CDC delete path:** when a `Project_Role__c` DELETE event arrives, `username` is empty (not available from the CDC payload). The fga-sync service performs cleanup by object-id when `username` is empty. Org-dashboard access is also not revoked on CDC delete (the pre-deletion `B2BOrgUID` + email are unavailable after Salesforce removes the record); revocation only happens via the API delete endpoint.
+
+---
+
+## Org Workspace
+
+Workspace CRUD operations (`POST/PUT/DELETE /b2b_orgs/{uid}/workspaces/…`) and workspace-project mutations (`POST/DELETE /b2b_orgs/{uid}/workspaces/{uid}/projects/…`) emit **no FGA messages**. Workspaces have no dedicated FGA object type. Access control is enforced entirely through the parent `b2b_org` — the indexer's `access_check_object` and `history_check_object` both point to `b2b_org:{orgUID}`.
 
 ---
 

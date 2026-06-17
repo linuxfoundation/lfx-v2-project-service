@@ -17,23 +17,29 @@ import (
 
 // Endpoints wraps the "membership-service" service endpoints.
 type Endpoints struct {
-	GetB2bOrg                    goa.Endpoint
-	CreateB2bOrg                 goa.Endpoint
-	UpdateB2bOrg                 goa.Endpoint
-	GetB2bOrgSettings            goa.Endpoint
-	UpdateB2bOrgSettings         goa.Endpoint
-	AddB2bOrgSettingsUser        goa.Endpoint
-	UpdateB2bOrgSettingsUserRole goa.Endpoint
-	DeleteB2bOrgSettingsUser     goa.Endpoint
-	GetProjectMembership         goa.Endpoint
-	GetKeyContact                goa.Endpoint
-	CreateKeyContact             goa.Endpoint
-	UpdateKeyContact             goa.Endpoint
-	DeleteKeyContact             goa.Endpoint
-	AdminReindex                 goa.Endpoint
-	Readyz                       goa.Endpoint
-	Livez                        goa.Endpoint
-	DebugVars                    goa.Endpoint
+	GetB2bOrg                      goa.Endpoint
+	CreateB2bOrg                   goa.Endpoint
+	UpdateB2bOrg                   goa.Endpoint
+	GetB2bOrgSettings              goa.Endpoint
+	UpdateB2bOrgSettings           goa.Endpoint
+	AddB2bOrgSettingsUser          goa.Endpoint
+	UpdateB2bOrgSettingsUserRole   goa.Endpoint
+	DeleteB2bOrgSettingsUser       goa.Endpoint
+	GetProjectMembership           goa.Endpoint
+	GetKeyContact                  goa.Endpoint
+	CreateKeyContact               goa.Endpoint
+	UpdateKeyContact               goa.Endpoint
+	DeleteKeyContact               goa.Endpoint
+	AdminReindex                   goa.Endpoint
+	Readyz                         goa.Endpoint
+	Livez                          goa.Endpoint
+	DebugVars                      goa.Endpoint
+	CreateB2bOrgWorkspace          goa.Endpoint
+	UpdateB2bOrgWorkspace          goa.Endpoint
+	DeleteB2bOrgWorkspace          goa.Endpoint
+	AddB2bOrgWorkspaceProject      goa.Endpoint
+	BulkAddB2bOrgWorkspaceProjects goa.Endpoint
+	RemoveB2bOrgWorkspaceProject   goa.Endpoint
 }
 
 // NewEndpoints wraps the methods of the "membership-service" service with
@@ -42,23 +48,29 @@ func NewEndpoints(s Service) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
 	return &Endpoints{
-		GetB2bOrg:                    NewGetB2bOrgEndpoint(s, a.JWTAuth),
-		CreateB2bOrg:                 NewCreateB2bOrgEndpoint(s, a.JWTAuth),
-		UpdateB2bOrg:                 NewUpdateB2bOrgEndpoint(s, a.JWTAuth),
-		GetB2bOrgSettings:            NewGetB2bOrgSettingsEndpoint(s, a.JWTAuth),
-		UpdateB2bOrgSettings:         NewUpdateB2bOrgSettingsEndpoint(s, a.JWTAuth),
-		AddB2bOrgSettingsUser:        NewAddB2bOrgSettingsUserEndpoint(s, a.JWTAuth),
-		UpdateB2bOrgSettingsUserRole: NewUpdateB2bOrgSettingsUserRoleEndpoint(s, a.JWTAuth),
-		DeleteB2bOrgSettingsUser:     NewDeleteB2bOrgSettingsUserEndpoint(s, a.JWTAuth),
-		GetProjectMembership:         NewGetProjectMembershipEndpoint(s, a.JWTAuth),
-		GetKeyContact:                NewGetKeyContactEndpoint(s, a.JWTAuth),
-		CreateKeyContact:             NewCreateKeyContactEndpoint(s, a.JWTAuth),
-		UpdateKeyContact:             NewUpdateKeyContactEndpoint(s, a.JWTAuth),
-		DeleteKeyContact:             NewDeleteKeyContactEndpoint(s, a.JWTAuth),
-		AdminReindex:                 NewAdminReindexEndpoint(s, a.JWTAuth),
-		Readyz:                       NewReadyzEndpoint(s),
-		Livez:                        NewLivezEndpoint(s),
-		DebugVars:                    NewDebugVarsEndpoint(s),
+		GetB2bOrg:                      NewGetB2bOrgEndpoint(s, a.JWTAuth),
+		CreateB2bOrg:                   NewCreateB2bOrgEndpoint(s, a.JWTAuth),
+		UpdateB2bOrg:                   NewUpdateB2bOrgEndpoint(s, a.JWTAuth),
+		GetB2bOrgSettings:              NewGetB2bOrgSettingsEndpoint(s, a.JWTAuth),
+		UpdateB2bOrgSettings:           NewUpdateB2bOrgSettingsEndpoint(s, a.JWTAuth),
+		AddB2bOrgSettingsUser:          NewAddB2bOrgSettingsUserEndpoint(s, a.JWTAuth),
+		UpdateB2bOrgSettingsUserRole:   NewUpdateB2bOrgSettingsUserRoleEndpoint(s, a.JWTAuth),
+		DeleteB2bOrgSettingsUser:       NewDeleteB2bOrgSettingsUserEndpoint(s, a.JWTAuth),
+		GetProjectMembership:           NewGetProjectMembershipEndpoint(s, a.JWTAuth),
+		GetKeyContact:                  NewGetKeyContactEndpoint(s, a.JWTAuth),
+		CreateKeyContact:               NewCreateKeyContactEndpoint(s, a.JWTAuth),
+		UpdateKeyContact:               NewUpdateKeyContactEndpoint(s, a.JWTAuth),
+		DeleteKeyContact:               NewDeleteKeyContactEndpoint(s, a.JWTAuth),
+		AdminReindex:                   NewAdminReindexEndpoint(s, a.JWTAuth),
+		Readyz:                         NewReadyzEndpoint(s),
+		Livez:                          NewLivezEndpoint(s),
+		DebugVars:                      NewDebugVarsEndpoint(s),
+		CreateB2bOrgWorkspace:          NewCreateB2bOrgWorkspaceEndpoint(s, a.JWTAuth),
+		UpdateB2bOrgWorkspace:          NewUpdateB2bOrgWorkspaceEndpoint(s, a.JWTAuth),
+		DeleteB2bOrgWorkspace:          NewDeleteB2bOrgWorkspaceEndpoint(s, a.JWTAuth),
+		AddB2bOrgWorkspaceProject:      NewAddB2bOrgWorkspaceProjectEndpoint(s, a.JWTAuth),
+		BulkAddB2bOrgWorkspaceProjects: NewBulkAddB2bOrgWorkspaceProjectsEndpoint(s, a.JWTAuth),
+		RemoveB2bOrgWorkspaceProject:   NewRemoveB2bOrgWorkspaceProjectEndpoint(s, a.JWTAuth),
 	}
 }
 
@@ -82,6 +94,12 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
 	e.DebugVars = m(e.DebugVars)
+	e.CreateB2bOrgWorkspace = m(e.CreateB2bOrgWorkspace)
+	e.UpdateB2bOrgWorkspace = m(e.UpdateB2bOrgWorkspace)
+	e.DeleteB2bOrgWorkspace = m(e.DeleteB2bOrgWorkspace)
+	e.AddB2bOrgWorkspaceProject = m(e.AddB2bOrgWorkspaceProject)
+	e.BulkAddB2bOrgWorkspaceProjects = m(e.BulkAddB2bOrgWorkspaceProjects)
+	e.RemoveB2bOrgWorkspaceProject = m(e.RemoveB2bOrgWorkspaceProject)
 }
 
 // NewGetB2bOrgEndpoint returns an endpoint function that calls the method
@@ -428,5 +446,145 @@ func NewLivezEndpoint(s Service) goa.Endpoint {
 func NewDebugVarsEndpoint(s Service) goa.Endpoint {
 	return func(ctx context.Context, req any) (any, error) {
 		return s.DebugVars(ctx)
+	}
+}
+
+// NewCreateB2bOrgWorkspaceEndpoint returns an endpoint function that calls the
+// method "create-b2b-org-workspace" of service "membership-service".
+func NewCreateB2bOrgWorkspaceEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*CreateB2bOrgWorkspacePayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.CreateB2bOrgWorkspace(ctx, p)
+	}
+}
+
+// NewUpdateB2bOrgWorkspaceEndpoint returns an endpoint function that calls the
+// method "update-b2b-org-workspace" of service "membership-service".
+func NewUpdateB2bOrgWorkspaceEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*UpdateB2bOrgWorkspacePayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.UpdateB2bOrgWorkspace(ctx, p)
+	}
+}
+
+// NewDeleteB2bOrgWorkspaceEndpoint returns an endpoint function that calls the
+// method "delete-b2b-org-workspace" of service "membership-service".
+func NewDeleteB2bOrgWorkspaceEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*DeleteB2bOrgWorkspacePayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.DeleteB2bOrgWorkspace(ctx, p)
+	}
+}
+
+// NewAddB2bOrgWorkspaceProjectEndpoint returns an endpoint function that calls
+// the method "add-b2b-org-workspace-project" of service "membership-service".
+func NewAddB2bOrgWorkspaceProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*AddB2bOrgWorkspaceProjectPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.AddB2bOrgWorkspaceProject(ctx, p)
+	}
+}
+
+// NewBulkAddB2bOrgWorkspaceProjectsEndpoint returns an endpoint function that
+// calls the method "bulk-add-b2b-org-workspace-projects" of service
+// "membership-service".
+func NewBulkAddB2bOrgWorkspaceProjectsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*BulkAddB2bOrgWorkspaceProjectsPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.BulkAddB2bOrgWorkspaceProjects(ctx, p)
+	}
+}
+
+// NewRemoveB2bOrgWorkspaceProjectEndpoint returns an endpoint function that
+// calls the method "remove-b2b-org-workspace-project" of service
+// "membership-service".
+func NewRemoveB2bOrgWorkspaceProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*RemoveB2bOrgWorkspaceProjectPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.RemoveB2bOrgWorkspaceProject(ctx, p)
 	}
 }
