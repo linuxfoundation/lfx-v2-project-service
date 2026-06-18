@@ -226,6 +226,10 @@ func (o *CDCConsumer) quotaExceeded(ctx context.Context, entity string, ids []st
 	if o.quotaGauge == nil {
 		return false
 	}
+	if o.quotaSkipThreshold >= 1 {
+		// Threshold of 1 means "never skip" — guard disabled regardless of usage.
+		return false
+	}
 	current, limit := o.quotaGauge.APIUsage()
 	if limit <= 0 {
 		// Not yet observed — fail open.
