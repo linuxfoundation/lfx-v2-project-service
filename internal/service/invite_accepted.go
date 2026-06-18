@@ -161,9 +161,10 @@ func (s *InviteAcceptedService) resolveKeyContactsInOrg(ctx context.Context, org
 //   - Entries in both lists → ev.Role selects: Manage→writers, View→auditors.
 //     Unknown/empty role → skip + warn (no over-grant).
 //
-// Returns true if a pending entry was found for this email (regardless of whether
-// the promotion write succeeded). The caller uses this to drive resolveKeyContactsInOrg
-// over the same org set.
+// Returns true only when a pending entry was found AND the promotion write
+// succeeded. Returns false on write failure or after exhausting CAS retries,
+// so the caller only adds the org to the FGA/indexer resolution set when
+// the promotion actually committed.
 //
 // Uses an optimistic-CAS retry loop (up to 3 attempts) to handle concurrent writes.
 // Errors are logged but not returned.

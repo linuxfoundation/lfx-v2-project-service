@@ -115,12 +115,14 @@ func WithCDCOrgSettings(w OrgSettingsPrincipalWriter) CDCConsumerOption {
 }
 
 // NewCDCConsumer constructs a CDCConsumer. The quota-skip threshold is read
-// from CDC_QUOTA_SKIP_THRESHOLD (float, 0–1; default 0.95) at construction
-// time so it is set once at startup rather than on every event.
+// from CDC_QUOTA_SKIP_THRESHOLD (float, 0–1 inclusive; default 0.95) at
+// construction time so it is set once at startup rather than on every event.
+// Set to 0 to always skip upsert fetches (useful in tests/emergencies); set to
+// 1 to disable the guard entirely.
 func NewCDCConsumer(opts ...CDCConsumerOption) *CDCConsumer {
 	threshold := defaultQuotaSkipThreshold
 	if raw := os.Getenv("CDC_QUOTA_SKIP_THRESHOLD"); raw != "" {
-		if v, err := strconv.ParseFloat(raw, 64); err == nil && v > 0 && v <= 1 {
+		if v, err := strconv.ParseFloat(raw, 64); err == nil && v >= 0 && v <= 1 {
 			threshold = v
 		}
 	}
@@ -232,7 +234,7 @@ func (o *CDCConsumer) quotaExceeded(ctx context.Context, entity string, ids []st
 	if ratio >= o.quotaSkipThreshold {
 		slog.WarnContext(ctx, "cdc: Salesforce API quota threshold reached — skipping upsert fetch; use /admin/reindex to repair",
 			"entity", entity,
-			"record_ids", ids,
+			"record_count", len(ids),
 			"api_usage_current", current,
 			"api_usage_limit", limit,
 			"threshold", o.quotaSkipThreshold,
@@ -269,6 +271,11 @@ func (o *CDCConsumer) handleAccount(ctx context.Context, event model.CDCEvent) e
 }
 
 func (o *CDCConsumer) handleAccountUpsertBatch(ctx context.Context, upsertIDs []string) {
+	if o.accountBatch == nil {
+		slog.WarnContext(ctx, "cdc: accountBatch reader not wired — skipping Account upsert; use /admin/reindex to repair",
+			"record_count", len(upsertIDs), "publish_failed_for_backfill_repair", true)
+		return
+	}
 	if o.quotaExceeded(ctx, "Account", upsertIDs) {
 		return
 	}
@@ -390,6 +397,11 @@ func (o *CDCConsumer) handleAsset(ctx context.Context, event model.CDCEvent) err
 }
 
 func (o *CDCConsumer) handleAssetUpsertBatch(ctx context.Context, upsertIDs []string, changeType model.CDCChangeType) {
+	if o.membershipBatch == nil {
+		slog.WarnContext(ctx, "cdc: membershipBatch reader not wired — skipping Asset upsert; use /admin/reindex to repair",
+			"record_count", len(upsertIDs), "publish_failed_for_backfill_repair", true)
+		return
+	}
 	if o.quotaExceeded(ctx, "Asset", upsertIDs) {
 		return
 	}
@@ -470,6 +482,11 @@ func (o *CDCConsumer) handleProjectRole(ctx context.Context, event model.CDCEven
 }
 
 func (o *CDCConsumer) handleProjectRoleUpsertBatch(ctx context.Context, upsertIDs []string, changeType model.CDCChangeType) {
+	if o.keyContactBatch == nil {
+		slog.WarnContext(ctx, "cdc: keyContactBatch reader not wired — skipping Project_Role__c upsert; use /admin/reindex to repair",
+			"record_count", len(upsertIDs), "publish_failed_for_backfill_repair", true)
+		return
+	}
 	if o.quotaExceeded(ctx, "Project_Role__c", upsertIDs) {
 		return
 	}
