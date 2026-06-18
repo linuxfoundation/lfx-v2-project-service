@@ -288,7 +288,11 @@ func TestWorkspaceWriter_AddProject_HappyPath(t *testing.T) {
 	require.NotNil(t, result)
 	require.NotNil(t, result.Projects)
 	assert.Len(t, result.Projects.Projects, 1)
-	assert.Equal(t, wsProjectUID, result.Projects.Projects[0].ProjectUID)
+	wp := result.Projects.Projects[0]
+	assert.Equal(t, wsProjectUID, wp.ProjectUID)
+	assert.Equal(t, "a2C000001AAA", wp.ProjectSFID, "write-time enrichment: SFID must be snapshotted")
+	assert.Equal(t, "test-proj", wp.ProjectSlug, "write-time enrichment: Slug must be snapshotted")
+	assert.Equal(t, "Test Project", wp.ProjectName, "write-time enrichment: Name must be snapshotted")
 }
 
 func TestWorkspaceWriter_AddProject_Idempotent_NoSpuriousRevisionBump(t *testing.T) {
@@ -580,4 +584,26 @@ func TestWorkspaceWriter_RemoveProject_WorkspaceNotFound_ReturnsNotFound(t *test
 
 	require.Error(t, err)
 	assert.True(t, pkgerrors.IsNotFound(err), "expected NotFound, got %T: %v", err, err)
+}
+
+func TestWorkspaceWriter_RemoveProject_StaleIfMatch_ReturnsPreconditionFailed(t *testing.T) {
+	wsStore := mock.NewMockOrgWorkspaces()
+	wpStore := mock.NewMockWorkspaceProjects()
+	seedWorkspace(wsStore)
+	wpStore.Seed(wsUID, &model.WorkspaceProjects{
+		WorkspaceUID: wsUID,
+		OrgUID:       wsOrgUID,
+		Projects:     []model.WorkspaceProject{{ProjectUID: wsProjectUID}},
+	}, 1)
+	writer := newWorkspaceWriter(wsStore, wpStore, mock.NewMockProjectResolver())
+
+	_, err := writer.RemoveProject(context.Background(), svc.WorkspaceProjectRemove{
+		OrgUID:       wsOrgUID,
+		WorkspaceUID: wsUID,
+		ProjectUID:   wsProjectUID,
+		IfMatch:      "stale-etag",
+	})
+
+	require.Error(t, err)
+	assert.True(t, pkgerrors.IsPreconditionFailed(err), "expected PreconditionFailed, got %T: %v", err, err)
 }

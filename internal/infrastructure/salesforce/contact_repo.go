@@ -11,6 +11,7 @@ import (
 	sf "github.com/k-capehart/go-salesforce/v3"
 
 	errs "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
 // alternateEmailByAddressSOQL looks up a Contact SFID via Alternate_Email__c,
@@ -83,9 +84,9 @@ func (r *ContactRepo) ResolveOrCreateContact(
 	}
 
 	if len(altEmails) > 0 && altEmails[0].ContactNameID != "" {
-		normalized, normErr := normalizeUID("Contact", altEmails[0].ContactNameID)
+		normalized, normErr := sfuuid.Normalize18(altEmails[0].ContactNameID)
 		if normErr != nil {
-			return "", false, normErr
+			return "", false, fmt.Errorf("malformed Contact SFID from Salesforce: %w", normErr)
 		}
 		slog.DebugContext(ctx, "contact resolved via Alternate_Email__c",
 			"email", email,
@@ -101,9 +102,9 @@ func (r *ContactRepo) ResolveOrCreateContact(
 	}
 
 	if len(contacts) > 0 && contacts[0].ID != "" {
-		normalized, normErr := normalizeUID("Contact", contacts[0].ID)
+		normalized, normErr := sfuuid.Normalize18(contacts[0].ID)
 		if normErr != nil {
-			return "", false, normErr
+			return "", false, fmt.Errorf("malformed Contact SFID from Salesforce: %w", normErr)
 		}
 		slog.DebugContext(ctx, "contact resolved via Contact.Email fallback",
 			"email", email,
@@ -142,9 +143,9 @@ func (r *ContactRepo) ResolveOrCreateContact(
 		)
 	}
 
-	normalized, normErr := normalizeUID("Contact", result.Id)
+	normalized, normErr := sfuuid.Normalize18(result.Id)
 	if normErr != nil {
-		return "", false, normErr
+		return "", false, fmt.Errorf("malformed Contact SFID from Salesforce insert result: %w", normErr)
 	}
 
 	slog.InfoContext(ctx, "new Contact created in Salesforce",

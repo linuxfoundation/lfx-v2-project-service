@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	sf "github.com/k-capehart/go-salesforce/v3"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
 // projectBySlugSOQL fetches a single Project__c record by its Slug__c value.
@@ -81,7 +82,11 @@ func (r *ProjectRepo) FetchSFIDBySlug(ctx context.Context, slug string) (string,
 	case 0:
 		return "", nil
 	case 1:
-		return normalizeUID("Project__c", projects[0].ID)
+		normalized, normErr := sfuuid.Normalize18(projects[0].ID)
+		if normErr != nil {
+			return "", fmt.Errorf("malformed Project__c SFID from Salesforce: %w", normErr)
+		}
+		return normalized, nil
 	default:
 		return "", fmt.Errorf("slug %q matched %d Project__c records; expected at most 1", slug, len(projects))
 	}
