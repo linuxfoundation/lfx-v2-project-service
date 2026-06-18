@@ -798,6 +798,14 @@ func CDCConsumerImpl(ctx context.Context) (*usecaseSvc.CDCConsumer, *pubsub.Repl
 	}
 	slog.InfoContext(ctx, "Salesforce Pub/Sub gRPC client initialised", "endpoint", endpoint)
 
+	// SOQL repos for the batched CDC re-fetch path (one query per event instead
+	// of 4–6 sObject GETs per record). These repos are uncached — they sit
+	// below the MemberReader stale-while-revalidate layer and call client.Query
+	// directly — so the published record always reflects the CDC change.
+	cdcMembershipRepo := salesforce.NewMembershipRepo(sfClient)
+	cdcKeyContactRepo := salesforce.NewKeyContactRepo(sfClient)
+	cdcAccountRepo := salesforce.NewAccountRepo(sfClient)
+
 	consumer := usecaseSvc.NewCDCConsumer(
 		usecaseSvc.WithCDCSubscriber(pubsubClient),
 		usecaseSvc.WithCDCMemberReader(MemberReaderImpl(ctx)),
@@ -808,6 +816,14 @@ func CDCConsumerImpl(ctx context.Context) (*usecaseSvc.CDCConsumer, *pubsub.Repl
 		// stale membership-cache and publish pre-CDC data.
 		usecaseSvc.WithCDCProjectMembershipReader(ProjectMembershipReaderImpl(ctx)),
 		usecaseSvc.WithCDCB2BOrgReader(B2BOrgReaderImpl(ctx)),
+		// Batch SOQL readers — replace the per-record sObject fan-out with a
+		// single IN-clause query per CDC event (~4–6× fewer REST calls).
+		usecaseSvc.WithCDCMembershipBatchReader(cdcMembershipRepo),
+		usecaseSvc.WithCDCKeyContactBatchReader(cdcKeyContactRepo),
+		usecaseSvc.WithCDCAccountBatchReader(cdcAccountRepo),
+		// Quota guard — skips upsert fetches when the shared daily REST API
+		// quota approaches exhaustion; /admin/reindex repairs skipped records.
+		usecaseSvc.WithCDCQuotaGauge(salesforce.NewAPIUsageGauge()),
 		usecaseSvc.WithCDCCacheInvalidator(sObjectClient),
 		usecaseSvc.WithCDCPublisher(MemberPublisherImpl(ctx)),
 		usecaseSvc.WithCDCGlobalOrgAdminTeamUID(GlobalOrgAdminTeamUID()),

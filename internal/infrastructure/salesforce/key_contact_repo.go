@@ -11,6 +11,7 @@ import (
 
 	sf "github.com/k-capehart/go-salesforce/v3"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
@@ -145,6 +146,82 @@ func (r *KeyContactRepo) FetchKeyContactBySFID(ctx context.Context, sfid string)
 
 	return convertSOQLToKeyContact(roles[0], emailMap)
 }
+
+// keyContactsByIDsSOQL fetches multiple Project_Role__c records by a set of
+// Salesforce IDs. The caller must substitute a buildSOQLInClause result for
+// the %s placeholder. Applies the same IsDeleted = false filter as the
+// single-record path.
+const keyContactsByIDsSOQL = `
+SELECT
+    Id, Asset__c, Contact__c, Role__c, Status__c,
+    BoardMember__c, PrimaryContact__c,
+    CreatedDate, SystemModstamp,
+    Contact__r.Id, Contact__r.FirstName, Contact__r.LastName, Contact__r.Title, Contact__r.Email,
+    Asset__r.Id, Asset__r.AccountId, Asset__r.Product2Id, Asset__r.Projects__c,
+    Asset__r.Account.Id, Asset__r.Account.Name,
+    Asset__r.Account.Logo_URL__c, Asset__r.Account.Website,
+    Asset__r.Projects__r.Id, Asset__r.Projects__r.Name,
+    Asset__r.Projects__r.Slug__c, Asset__r.Projects__r.Project_Logo__c
+FROM Project_Role__c
+WHERE Id IN (%s)
+    AND IsDeleted = false
+`
+
+// FetchKeyContactsBySFIDs fetches multiple Project_Role__c records by their
+// Salesforce IDs in a single batched SOQL query. Primary email addresses are
+// fetched via the same batched fetchPrimaryEmails path used by the
+// single-record fetch, so the email field matches the read path. IDs absent
+// from the result set have been soft-deleted. Returns an empty slice when none
+// are found.
+func (r *KeyContactRepo) FetchKeyContactsBySFIDs(ctx context.Context, sfids []string) ([]*model.KeyContact, []string, error) {
+	if len(sfids) == 0 {
+		return []*model.KeyContact{}, nil, nil
+	}
+	slog.DebugContext(ctx, "fetching key contacts by SFIDs from Salesforce (batch)", "count", len(sfids))
+
+	const batchSize = 200
+	var allRoles []soqlProjectRole
+	for start := 0; start < len(sfids); start += batchSize {
+		end := start + batchSize
+		if end > len(sfids) {
+			end = len(sfids)
+		}
+		chunk := sfids[start:end]
+
+		var roles []soqlProjectRole
+		if err := r.client.Query(fmt.Sprintf(keyContactsByIDsSOQL, buildSOQLInClause(chunk)), &roles); err != nil {
+			return nil, nil, fmt.Errorf("batch fetching key contacts (chunk %d-%d): %w", start, end, err)
+		}
+		allRoles = append(allRoles, roles...)
+	}
+
+	// Collect all contact IDs for a single primary-email fetch.
+	contactIDs := collectProjectRoleContactIDs(allRoles)
+	emailMap, err := r.fetchPrimaryEmails(ctx, contactIDs)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to fetch primary emails for batch key contacts",
+			"error", err,
+		)
+		emailMap = make(map[string]string)
+	}
+
+	contacts := make([]*model.KeyContact, 0, len(allRoles))
+	var conversionErrorSFIDs []string
+	for _, role := range allRoles {
+		kc, convErr := convertSOQLToKeyContact(role, emailMap)
+		if convErr != nil {
+			slog.WarnContext(ctx, "skipping key contact with invalid SFID in batch",
+				"sfid", role.ID, "error", convErr)
+			conversionErrorSFIDs = append(conversionErrorSFIDs, role.ID)
+			continue
+		}
+		contacts = append(contacts, kc)
+	}
+	return contacts, conversionErrorSFIDs, nil
+}
+
+// Ensure KeyContactRepo satisfies the port at compile time.
+var _ port.KeyContactBatchReader = (*KeyContactRepo)(nil)
 
 // fetchPrimaryEmails fetches the primary alternate email address for each of the
 // given contact IDs. Returns a map of contactID → email address. Requests are

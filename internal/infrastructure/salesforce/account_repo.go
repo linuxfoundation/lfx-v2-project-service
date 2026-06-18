@@ -13,6 +13,7 @@ import (
 
 	sf "github.com/k-capehart/go-salesforce/v3"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
@@ -102,6 +103,49 @@ func (r *AccountRepo) FetchAccountBySFID(ctx context.Context, sfid string) (*mod
 	return convertSOQLToB2BOrg(ctx, sfResult.Records[0])
 }
 
+// FetchAccountsBySFIDs fetches multiple Account records from Salesforce by
+// their Salesforce Ids in a single batched SOQL query. Records absent from
+// the result set have been soft-deleted or no longer hold a membership Asset
+// (the membership semi-join in accountsSOQLBase excludes them). Returns an
+// empty slice when none are found.
+func (r *AccountRepo) FetchAccountsBySFIDs(ctx context.Context, sfids []string) ([]*model.B2BOrg, []string, error) {
+	if len(sfids) == 0 {
+		return []*model.B2BOrg{}, nil, nil
+	}
+	slog.DebugContext(ctx, "fetching accounts by SFIDs from Salesforce (batch)", "count", len(sfids))
+
+	const batchSize = 200
+	all := make([]*model.B2BOrg, 0, len(sfids))
+	var conversionErrorSFIDs []string
+	for start := 0; start < len(sfids); start += batchSize {
+		end := start + batchSize
+		if end > len(sfids) {
+			end = len(sfids)
+		}
+		chunk := sfids[start:end]
+
+		query := accountsSOQLBase + "\n    AND Id IN (" + buildSOQLInClause(chunk) + ")"
+		sfResult, err := QueryPage[soqlAccount](ctx, r.client, query, "")
+		if err != nil {
+			return nil, nil, fmt.Errorf("batch fetching accounts (chunk %d-%d): %w", start, end, err)
+		}
+		for _, acc := range sfResult.Records {
+			org, convErr := convertSOQLToB2BOrg(ctx, acc)
+			if convErr != nil {
+				slog.WarnContext(ctx, "skipping account with invalid SFID in batch",
+					"sfid", acc.ID, "error", convErr)
+				conversionErrorSFIDs = append(conversionErrorSFIDs, acc.ID)
+				continue
+			}
+			all = append(all, org)
+		}
+	}
+	return all, conversionErrorSFIDs, nil
+}
+
+// Ensure AccountRepo satisfies the port at compile time.
+var _ port.AccountBatchReader = (*AccountRepo)(nil)
+
 // convertSOQLToB2BOrg converts a Salesforce Account SOQL result to the domain
 // B2BOrg model.
 func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, error) {
@@ -144,23 +188,9 @@ func convertSOQLToB2BOrg(ctx context.Context, acc soqlAccount) (*model.B2BOrg, e
 		}
 	}
 
-	// Normalize Domain_Alias__c (comma-separated) into DomainAliases.
-	if raw := derefString(acc.DomainAlias); raw != "" {
-		for _, item := range strings.Split(raw, ",") {
-			item = strings.TrimSpace(item)
-			if item == "" {
-				continue
-			}
-			if normalized, ok := normalizeDomain(item); ok {
-				org.DomainAliases = append(org.DomainAliases, normalized)
-			} else {
-				slog.WarnContext(ctx, "account domain alias item does not look like a valid domain, omitting",
-					"sfid", acc.ID,
-					"raw_value", item,
-				)
-			}
-		}
-	}
+	// Normalize Domain_Alias__c into DomainAliases using the shared parser
+	// that also handles account-merge CRLF artifacts.
+	org.DomainAliases = parseDomainAliases(ctx, acc.ID, derefString(acc.DomainAlias))
 
 	org.LogoURL = derefString(acc.LogoURL)
 	org.Description = derefString(acc.Description)
@@ -235,6 +265,11 @@ func normalizeDomain(s string) (string, bool) {
 		host = u.Path
 	}
 	if host == "" {
+		return "", false
+	}
+	// Reject single-label tokens (no dot in host). Real domain aliases always
+	// carry a TLD; dot-less values are typically merge-artifact remnants.
+	if !strings.Contains(host, ".") {
 		return "", false
 	}
 	return host, true

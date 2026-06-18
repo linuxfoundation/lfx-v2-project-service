@@ -12,6 +12,7 @@ import (
 
 	sf "github.com/k-capehart/go-salesforce/v3"
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
+	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
@@ -142,6 +143,70 @@ func (r *MembershipRepo) FetchMembershipBySFID(ctx context.Context, assetSFID st
 
 	return convertSOQLToProjectMembership(assets[0])
 }
+
+// membershipsByIDsSOQL fetches multiple Asset records by a set of Salesforce
+// IDs. The caller must substitute a buildSOQLInClause result for the %s
+// placeholder. Applies the same IsDeleted = false and
+// Product2.Family = 'Membership' filters as the single-record path.
+const membershipsByIDsSOQL = `
+SELECT
+    Id, Name, Status, AccountId, Product2Id,
+    Year__c, Tier__c, Auto_Renew__c,
+    Renewal_Type__c, Price, Annual_Full_Price__c,
+    PaymentFrequency__c, PaymentTerms__c,
+    Agreement_Date__c, PurchaseDate, InstallDate, UsageEndDate,
+    Projects__c, CreatedDate, LastModifiedDate,
+    Account.Id, Account.Name, Account.Logo_URL__c, Account.Website,
+    Product2.Id, Product2.Name, Product2.Family, Product2.Type__c,
+    Projects__r.Id, Projects__r.Name, Projects__r.Project_Logo__c,
+    Projects__r.Slug__c, Projects__r.Status__c
+FROM Asset
+WHERE Id IN (%s)
+    AND Product2.Family = 'Membership'
+    AND IsDeleted = false
+`
+
+// FetchMembershipsBySFIDs fetches multiple membership Assets by their
+// Salesforce IDs in a single batched SOQL query. Applies the same
+// IsDeleted = false and Product2.Family = 'Membership' filters as the
+// single-record path so that soft-deleted or non-membership IDs are absent
+// from the result. Returns an empty slice when none are found.
+func (r *MembershipRepo) FetchMembershipsBySFIDs(ctx context.Context, sfids []string) ([]*model.ProjectMembership, []string, error) {
+	if len(sfids) == 0 {
+		return []*model.ProjectMembership{}, nil, nil
+	}
+	slog.DebugContext(ctx, "fetching memberships by SFIDs from Salesforce (batch)", "count", len(sfids))
+
+	const batchSize = 200
+	all := make([]*model.ProjectMembership, 0, len(sfids))
+	var conversionErrorSFIDs []string
+	for start := 0; start < len(sfids); start += batchSize {
+		end := start + batchSize
+		if end > len(sfids) {
+			end = len(sfids)
+		}
+		chunk := sfids[start:end]
+
+		var assets []soqlAsset
+		if err := r.client.Query(fmt.Sprintf(membershipsByIDsSOQL, buildSOQLInClause(chunk)), &assets); err != nil {
+			return nil, nil, fmt.Errorf("batch fetching memberships (chunk %d-%d): %w", start, end, err)
+		}
+		for _, asset := range assets {
+			pm, convErr := convertSOQLToProjectMembership(asset)
+			if convErr != nil {
+				slog.WarnContext(ctx, "skipping membership with conversion error in batch",
+					"sfid", asset.ID, "error", convErr)
+				conversionErrorSFIDs = append(conversionErrorSFIDs, asset.ID)
+				continue
+			}
+			all = append(all, pm)
+		}
+	}
+	return all, conversionErrorSFIDs, nil
+}
+
+// Ensure MembershipRepo satisfies the port at compile time.
+var _ port.MembershipBatchReader = (*MembershipRepo)(nil)
 
 // FetchMembershipsByAccountSFID fetches all membership Assets for a given
 // Salesforce Account ID and returns them as ProjectMembership domain objects.

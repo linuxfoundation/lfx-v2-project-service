@@ -172,8 +172,9 @@ func newTestCDCConsumer(
 	invalidator *mock.MockCacheInvalidator,
 	pub *subjectCapturingPublisher,
 	globalOrgAdminTeamUID string,
+	extraOpts ...svc.CDCConsumerOption,
 ) *svc.CDCConsumer {
-	return svc.NewCDCConsumer(
+	opts := []svc.CDCConsumerOption{
 		svc.WithCDCSubscriber(subscriber),
 		svc.WithCDCMemberReader(memberReader),
 		svc.WithCDCProjectMembershipReader(pmReader),
@@ -181,7 +182,8 @@ func newTestCDCConsumer(
 		svc.WithCDCCacheInvalidator(invalidator),
 		svc.WithCDCPublisher(pub),
 		svc.WithCDCGlobalOrgAdminTeamUID(globalOrgAdminTeamUID),
-	)
+	}
+	return svc.NewCDCConsumer(append(opts, extraOpts...)...)
 }
 
 // ── Account (b2b_org) tests ───────────────────────────────────────────────────
@@ -201,6 +203,7 @@ func TestCDCConsumer_Account_Upsert_PublishesIndexerAndFGA(t *testing.T) {
 		invalidator,
 		pub,
 		"admin-team-uid",
+		svc.WithCDCAccountBatchReader(&mock.MockAccountBatchReader{Orgs: []*model.B2BOrg{org}}),
 	)
 
 	replay := &fakeReplayStore{}
@@ -230,6 +233,7 @@ func TestCDCConsumer_Account_Upsert_PassesGlobalOrgAdminTeamUID(t *testing.T) {
 		&mock.MockCacheInvalidator{},
 		pub,
 		"global-admin-team",
+		svc.WithCDCAccountBatchReader(&mock.MockAccountBatchReader{Orgs: []*model.B2BOrg{org}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/AccountChangeEvent", &fakeReplayStore{}))
@@ -278,6 +282,7 @@ func TestCDCConsumer_Asset_Upsert_PublishesIndexerAndFGA(t *testing.T) {
 		invalidator,
 		pub,
 		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
 	)
 
 	replay := &fakeReplayStore{}
@@ -327,6 +332,7 @@ func TestCDCConsumer_ProjectRole_Upsert_WithUsername_PublishesIndexerAndFGAMembe
 		invalidator,
 		pub,
 		"",
+		svc.WithCDCKeyContactBatchReader(&mock.MockKeyContactBatchReader{Contacts: []*model.KeyContact{kc}}),
 	)
 
 	replay := &fakeReplayStore{}
@@ -354,6 +360,7 @@ func TestCDCConsumer_ProjectRole_Upsert_WithoutUsername_NoFGAMemberPut(t *testin
 		&mock.MockCacheInvalidator{},
 		pub,
 		"",
+		svc.WithCDCKeyContactBatchReader(&mock.MockKeyContactBatchReader{Contacts: []*model.KeyContact{kc}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
@@ -425,11 +432,12 @@ func TestCDCConsumer_HandlerError_ReplayStillAdvances(t *testing.T) {
 			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-bad"}, ReplayID: []byte("r10")},
 		}},
 		&mock.MockControllableMemberReader{},
-		&mock.MockControllableProjectMembershipReader{AssembleErr: pkgerrors.NewNotFound("not found")},
+		&mock.MockControllableProjectMembershipReader{},
 		&fakeB2BOrgReader{},
 		&mock.MockCacheInvalidator{},
 		pub,
 		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Err: pkgerrors.NewNotFound("not found")}),
 	)
 
 	replay := &fakeReplayStore{}
@@ -442,18 +450,20 @@ func TestCDCConsumer_HandlerError_ReplayStillAdvances(t *testing.T) {
 func TestCDCConsumer_MultipleRecordIDs_ProcessedAll(t *testing.T) {
 	// A batch event with two record IDs must result in two cache invalidations.
 	invalidator := &mock.MockCacheInvalidator{}
-	pm := &model.ProjectMembership{UID: "pm-batch"}
+	pm1 := &model.ProjectMembership{UID: "pm-1"}
+	pm2 := &model.ProjectMembership{UID: "pm-2"}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
 			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-1", "pm-2"}, ReplayID: []byte("r11")},
 		}},
-		&mock.MockControllableMemberReader{Membership: pm},
-		&mock.MockControllableProjectMembershipReader{Membership: pm},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
 		&fakeB2BOrgReader{},
 		invalidator,
 		&subjectCapturingPublisher{},
 		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm1, pm2}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
@@ -479,6 +489,7 @@ func TestCDCConsumer_Asset_Create_SetsActionCreated(t *testing.T) {
 		&mock.MockCacheInvalidator{},
 		pub,
 		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
@@ -502,6 +513,7 @@ func TestCDCConsumer_ProjectRole_Create_SetsActionCreated(t *testing.T) {
 		&mock.MockCacheInvalidator{},
 		pub,
 		"",
+		svc.WithCDCKeyContactBatchReader(&mock.MockKeyContactBatchReader{Contacts: []*model.KeyContact{kc}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
@@ -552,6 +564,7 @@ func TestCDCConsumer_Account_Reparenting_EmitsMoreFGAAccessCalls(t *testing.T) {
 		svc.WithCDCCacheInvalidator(&mock.MockCacheInvalidator{}),
 		svc.WithCDCPublisher(reparentPub),
 		svc.WithCDCGlobalOrgAdminTeamUID(""),
+		svc.WithCDCAccountBatchReader(&mock.MockAccountBatchReader{Orgs: []*model.B2BOrg{postOrg}}),
 	)
 
 	samePub := &subjectCapturingPublisher{}
@@ -565,6 +578,7 @@ func TestCDCConsumer_Account_Reparenting_EmitsMoreFGAAccessCalls(t *testing.T) {
 		svc.WithCDCCacheInvalidator(&mock.MockCacheInvalidator{}),
 		svc.WithCDCPublisher(samePub),
 		svc.WithCDCGlobalOrgAdminTeamUID(""),
+		svc.WithCDCAccountBatchReader(&mock.MockAccountBatchReader{Orgs: []*model.B2BOrg{sameOrg}}),
 	)
 
 	require.NoError(t, reparentConsumer.Run(context.Background(), "/data/AccountChangeEvent", &fakeReplayStore{}))
@@ -593,6 +607,7 @@ func TestCDCConsumer_ProjectRole_Upsert_WithUsername_EmptyMembershipUID_NoFGAMem
 		&mock.MockCacheInvalidator{},
 		pub,
 		"",
+		svc.WithCDCKeyContactBatchReader(&mock.MockKeyContactBatchReader{Contacts: []*model.KeyContact{kc}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
@@ -659,6 +674,7 @@ func TestCDCConsumer_ReplayStore_SaveError_NotFatal(t *testing.T) {
 		&mock.MockCacheInvalidator{},
 		&subjectCapturingPublisher{},
 		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
 	)
 
 	replay := &fakeReplayStore{saveErr: errors.New("nats: kv write failed")}
@@ -684,6 +700,8 @@ func TestCDCConsumer_MultipleEvents_ReplayAdvancesPerEvent(t *testing.T) {
 		&mock.MockCacheInvalidator{},
 		&subjectCapturingPublisher{},
 		"",
+		// Return empty — absent IDs route to delete, which still advances replay correctly.
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{}),
 	)
 
 	replay := &fakeReplayStore{}
@@ -713,6 +731,7 @@ func TestCDCConsumer_Asset_Undelete_TreatedAsUpsert(t *testing.T) {
 		invalidator,
 		pub,
 		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
@@ -737,6 +756,7 @@ func TestCDCConsumer_Asset_GapOverflow_TreatedAsUpsert(t *testing.T) {
 		&mock.MockCacheInvalidator{},
 		pub,
 		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
 	)
 
 	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
@@ -797,7 +817,7 @@ func TestCDCConsumer_ProjectRole_GapDelete_TreatedAsDelete(t *testing.T) {
 
 // ── pkgerrors test helper ─────────────────────────────────────────────────────
 
-// Verify that a reader error on the second GetB2BOrg call (post-eviction) propagates correctly.
+// Verify that a batch-fetch error propagates correctly: replay advances, nothing is published.
 func TestCDCConsumer_Account_OrgNotFound_AdvancesReplay(t *testing.T) {
 	pub := &subjectCapturingPublisher{}
 
@@ -811,6 +831,8 @@ func TestCDCConsumer_Account_OrgNotFound_AdvancesReplay(t *testing.T) {
 		&mock.MockCacheInvalidator{},
 		pub,
 		"",
+		// Batch fetch errors → no publish; error is logged, replay still advances.
+		svc.WithCDCAccountBatchReader(&mock.MockAccountBatchReader{Err: errors.New("not found")}),
 	)
 
 	replay := &fakeReplayStore{}
@@ -850,6 +872,7 @@ func newProjectRoleCDCConsumer(
 		svc.WithCDCB2BOrgReader(&fakeB2BOrgReader{}),
 		svc.WithCDCCacheInvalidator(&mock.MockCacheInvalidator{}),
 		svc.WithCDCPublisher(pub),
+		svc.WithCDCKeyContactBatchReader(&mock.MockKeyContactBatchReader{Contacts: []*model.KeyContact{kc}}),
 	}
 	return svc.NewCDCConsumer(append(base, extraOpts...)...)
 }
@@ -917,4 +940,228 @@ func TestCDCConsumer_ProjectRole_Upsert_NilUserReader_PreservesExistingBehavior(
 
 	assert.True(t, pub.hasAccess(fgaconstants.GenericMemberPutSubject),
 		"pre-existing Username must still produce FGA member_put even without userReader")
+}
+
+// ── Quota guard tests ─────────────────────────────────────────────────────────
+
+func TestCDCConsumer_QuotaGuard_AboveThreshold_SkipsUpsert(t *testing.T) {
+	pm := &model.ProjectMembership{UID: "pm-quota-1"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-1"}, ReplayID: []byte("qg1")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
+		svc.WithCDCQuotaGauge(&mock.MockSalesforceQuotaGauge{Current: 96, Limit: 100}), // 0.96 ≥ 0.95
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.Empty(t, pub.indexer, "quota exceeded must suppress indexer publish")
+	assert.Empty(t, pub.access, "quota exceeded must suppress FGA publish")
+}
+
+func TestCDCConsumer_QuotaGuard_AtThreshold_SkipsUpsert(t *testing.T) {
+	pm := &model.ProjectMembership{UID: "pm-quota-2"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-2"}, ReplayID: []byte("qg2")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
+		svc.WithCDCQuotaGauge(&mock.MockSalesforceQuotaGauge{Current: 95, Limit: 100}), // 0.95 == threshold
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.Empty(t, pub.indexer, "quota at exact threshold must suppress indexer publish")
+	assert.Empty(t, pub.access, "quota at exact threshold must suppress FGA publish")
+}
+
+func TestCDCConsumer_QuotaGuard_BelowThreshold_Proceeds(t *testing.T) {
+	pm := &model.ProjectMembership{UID: "pm-quota-3"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-3"}, ReplayID: []byte("qg3")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
+		svc.WithCDCQuotaGauge(&mock.MockSalesforceQuotaGauge{Current: 94, Limit: 100}), // 0.94 < 0.95
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "below threshold must proceed and publish indexer")
+}
+
+func TestCDCConsumer_QuotaGuard_LimitZero_FailsOpen(t *testing.T) {
+	// limit ≤ 0 means the gauge has not yet observed a response — must proceed.
+	pm := &model.ProjectMembership{UID: "pm-quota-4"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-4"}, ReplayID: []byte("qg4")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
+		svc.WithCDCQuotaGauge(&mock.MockSalesforceQuotaGauge{Current: 100, Limit: 0}),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "limit=0 (unobserved) must fail open and publish")
+}
+
+func TestCDCConsumer_QuotaGuard_NilGauge_FailsOpen(t *testing.T) {
+	// No WithCDCQuotaGauge injected — nil gauge must fail open.
+	pm := &model.ProjectMembership{UID: "pm-quota-5"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-5"}, ReplayID: []byte("qg5")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pm}}),
+		// intentionally no WithCDCQuotaGauge
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "nil gauge must fail open and publish")
+}
+
+func TestCDCConsumer_QuotaGuard_DeleteBypassesQuota(t *testing.T) {
+	// DELETE events must publish even when quota is 100% — the delete path never
+	// calls quotaExceeded and must always fire for index/FGA convergence.
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"pm-quota-del"}, ReplayID: []byte("qg6")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCQuotaGauge(&mock.MockSalesforceQuotaGauge{Current: 100, Limit: 100}),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	assert.NotEmpty(t, pub.indexer, "DELETE must always publish regardless of quota state")
+}
+
+// ── Absent-from-SOQL → delete convergence tests ───────────────────────────────
+
+func TestCDCConsumer_Asset_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
+	// Batch event with two IDs: SOQL only returns pm-present. pm-absent is missing
+	// (soft-deleted or no longer holds a membership Asset) and must be routed to
+	// the delete path for index/FGA convergence, not silently skipped.
+	pmPresent := &model.ProjectMembership{UID: "pm-present"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-present", "pm-absent"}, ReplayID: []byte("ab1")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{Memberships: []*model.ProjectMembership{pmPresent}}),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	require.Len(t, pub.indexerMessages, 2, "both IDs must produce an indexer event")
+	// absent ID fires delete first (absent loop runs before present loop)
+	assert.Equal(t, "deleted", pub.indexerAction(0), "absent ID must produce ActionDeleted")
+	assert.Equal(t, "updated", pub.indexerAction(1), "present ID must produce ActionUpdated")
+}
+
+func TestCDCConsumer_Account_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
+	// Same convergence guarantee for Account / b2b_org.
+	orgPresent := &model.B2BOrg{UID: "org-present"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-present", "org-absent"}, ReplayID: []byte("ab2")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCAccountBatchReader(&mock.MockAccountBatchReader{Orgs: []*model.B2BOrg{orgPresent}}),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AccountChangeEvent", &fakeReplayStore{}))
+
+	require.Len(t, pub.indexerMessages, 2, "both account IDs must produce an indexer event")
+	assert.Equal(t, "deleted", pub.indexerAction(0), "absent account must produce ActionDeleted")
+	assert.Equal(t, "updated", pub.indexerAction(1), "present account must produce ActionUpdated")
+}
+
+func TestCDCConsumer_ProjectRole_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
+	// Same convergence guarantee for Project_Role__c / key_contact.
+	kcPresent := &model.KeyContact{UID: "kc-present"}
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-present", "kc-absent"}, ReplayID: []byte("ab3")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCKeyContactBatchReader(&mock.MockKeyContactBatchReader{Contacts: []*model.KeyContact{kcPresent}}),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/ProjectRoleChangeEvent", &fakeReplayStore{}))
+
+	require.Len(t, pub.indexerMessages, 2, "both key_contact IDs must produce an indexer event")
+	assert.Equal(t, "deleted", pub.indexerAction(0), "absent key_contact must produce ActionDeleted")
+	assert.Equal(t, "updated", pub.indexerAction(1), "present key_contact must produce ActionUpdated")
 }
