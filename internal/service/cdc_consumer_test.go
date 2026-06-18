@@ -20,7 +20,28 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/infrastructure/mock"
 	svc "github.com/linuxfoundation/lfx-v2-member-service/internal/service"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
+
+// sfid returns a deterministic canonical 18-char Salesforce test ID from a
+// human-readable label. Non-alnum chars are stripped and lowercased, the body
+// is right-padded with '0' to 15 chars, and the suffix is computed by
+// sfuuid.Salesforce15To18 — the same production function used at runtime.
+func sfid(label string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(label) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	s := b.String()
+	if len(s) > 15 {
+		s = s[:15]
+	}
+	s += strings.Repeat("0", 15-len(s))
+	id, _ := sfuuid.Salesforce15To18(s)
+	return id
+}
 
 // ── In-process stubs ──────────────────────────────────────────────────────────
 
@@ -189,13 +210,13 @@ func newTestCDCConsumer(
 // ── Account (b2b_org) tests ───────────────────────────────────────────────────
 
 func TestCDCConsumer_Account_Upsert_PublishesIndexerAndFGA(t *testing.T) {
-	org := &model.B2BOrg{UID: "org-uid-1"}
+	org := &model.B2BOrg{UID: sfid("org-uid-1")}
 	pub := &subjectCapturingPublisher{}
 	invalidator := &mock.MockCacheInvalidator{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-1"}, ReplayID: []byte("r1")},
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("org-uid-1")}, ReplayID: []byte("r1")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -220,12 +241,12 @@ func TestCDCConsumer_Account_Upsert_PassesGlobalOrgAdminTeamUID(t *testing.T) {
 	// globalOrgAdminTeamUID must reach BuildB2BOrgFGAMessage — verified indirectly:
 	// if it were "" the FGA subject is still emitted; this test ensures the field
 	// is wired at all (non-empty UID → message contains non-empty team reference).
-	org := &model.B2BOrg{UID: "org-uid-1"}
+	org := &model.B2BOrg{UID: sfid("org-uid-1")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-1"}, ReplayID: []byte("r2")},
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("org-uid-1")}, ReplayID: []byte("r2")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -246,7 +267,7 @@ func TestCDCConsumer_Account_Delete_PublishesIndexerAndFGA(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Account", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"org-uid-del"}, ReplayID: []byte("r3")},
+			{Entity: "Account", ChangeType: model.CDCChangeDelete, RecordIDs: []string{sfid("org-uid-del")}, ReplayID: []byte("r3")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -268,13 +289,13 @@ func TestCDCConsumer_Account_Delete_PublishesIndexerAndFGA(t *testing.T) {
 // ── Asset (project_membership) tests ─────────────────────────────────────────
 
 func TestCDCConsumer_Asset_Upsert_PublishesIndexerAndFGA(t *testing.T) {
-	pm := &model.ProjectMembership{UID: "pm-uid-1", B2BOrgUID: "org-uid-1"}
+	pm := &model.ProjectMembership{UID: sfid("pm-uid-1"), B2BOrgUID: "org-uid-1"}
 	pub := &subjectCapturingPublisher{}
 	invalidator := &mock.MockCacheInvalidator{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-uid-1"}, ReplayID: []byte("r4")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-uid-1")}, ReplayID: []byte("r4")},
 		}},
 		&mock.MockControllableMemberReader{Membership: pm},
 		&mock.MockControllableProjectMembershipReader{Membership: pm},
@@ -299,7 +320,7 @@ func TestCDCConsumer_Asset_Delete_PublishesIndexerOnly(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"pm-uid-del"}, ReplayID: []byte("r5")},
+			{Entity: "Asset", ChangeType: model.CDCChangeDelete, RecordIDs: []string{sfid("pm-uid-del")}, ReplayID: []byte("r5")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -318,13 +339,13 @@ func TestCDCConsumer_Asset_Delete_PublishesIndexerOnly(t *testing.T) {
 // ── Project_Role__c (key_contact) tests ──────────────────────────────────────
 
 func TestCDCConsumer_ProjectRole_Upsert_WithUsername_PublishesIndexerAndFGAMemberPut(t *testing.T) {
-	kc := &model.KeyContact{UID: "kc-uid-1", MembershipUID: "pm-uid-1", Username: "alice"}
+	kc := &model.KeyContact{UID: sfid("kc-uid-1"), MembershipUID: "pm-uid-1", Username: "alice"}
 	pub := &subjectCapturingPublisher{}
 	invalidator := &mock.MockCacheInvalidator{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-uid-1"}, ReplayID: []byte("r6")},
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("kc-uid-1")}, ReplayID: []byte("r6")},
 		}},
 		&mock.MockControllableMemberReader{Contact: kc},
 		&mock.MockControllableProjectMembershipReader{},
@@ -347,12 +368,12 @@ func TestCDCConsumer_ProjectRole_Upsert_WithUsername_PublishesIndexerAndFGAMembe
 
 func TestCDCConsumer_ProjectRole_Upsert_WithoutUsername_NoFGAMemberPut(t *testing.T) {
 	// Pending/unaccepted contact — no username — must not emit FGA member_put.
-	kc := &model.KeyContact{UID: "kc-uid-2", MembershipUID: "pm-uid-1", Username: ""}
+	kc := &model.KeyContact{UID: sfid("kc-uid-2"), MembershipUID: "pm-uid-1", Username: ""}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-uid-2"}, ReplayID: []byte("r7")},
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("kc-uid-2")}, ReplayID: []byte("r7")},
 		}},
 		&mock.MockControllableMemberReader{Contact: kc},
 		&mock.MockControllableProjectMembershipReader{},
@@ -376,7 +397,7 @@ func TestCDCConsumer_ProjectRole_Delete_PublishesIndexerAndFGAMemberRemove(t *te
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Project_Role__c", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"kc-uid-del"}, ReplayID: []byte("r8")},
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeDelete, RecordIDs: []string{sfid("kc-uid-del")}, ReplayID: []byte("r8")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -429,7 +450,7 @@ func TestCDCConsumer_HandlerError_ReplayStillAdvances(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-bad"}, ReplayID: []byte("r10")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-bad")}, ReplayID: []byte("r10")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -450,12 +471,12 @@ func TestCDCConsumer_HandlerError_ReplayStillAdvances(t *testing.T) {
 func TestCDCConsumer_MultipleRecordIDs_ProcessedAll(t *testing.T) {
 	// A batch event with two record IDs must result in two cache invalidations.
 	invalidator := &mock.MockCacheInvalidator{}
-	pm1 := &model.ProjectMembership{UID: "pm-1"}
-	pm2 := &model.ProjectMembership{UID: "pm-2"}
+	pm1 := &model.ProjectMembership{UID: sfid("pm-1")}
+	pm2 := &model.ProjectMembership{UID: sfid("pm-2")}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-1", "pm-2"}, ReplayID: []byte("r11")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-1"), sfid("pm-2")}, ReplayID: []byte("r11")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -476,12 +497,12 @@ func TestCDCConsumer_MultipleRecordIDs_ProcessedAll(t *testing.T) {
 func TestCDCConsumer_Asset_Create_SetsActionCreated(t *testing.T) {
 	// CDCChangeCreate must result in ActionCreated in the indexer message payload,
 	// not ActionUpdated. The action is encoded in the message body, not the subject.
-	pm := &model.ProjectMembership{UID: "pm-create-1"}
+	pm := &model.ProjectMembership{UID: sfid("pm-create-1")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeCreate, RecordIDs: []string{"pm-create-1"}, ReplayID: []byte("rc1")},
+			{Entity: "Asset", ChangeType: model.CDCChangeCreate, RecordIDs: []string{sfid("pm-create-1")}, ReplayID: []byte("rc1")},
 		}},
 		&mock.MockControllableMemberReader{Membership: pm},
 		&mock.MockControllableProjectMembershipReader{Membership: pm},
@@ -500,12 +521,12 @@ func TestCDCConsumer_Asset_Create_SetsActionCreated(t *testing.T) {
 }
 
 func TestCDCConsumer_ProjectRole_Create_SetsActionCreated(t *testing.T) {
-	kc := &model.KeyContact{UID: "kc-create-1", MembershipUID: "pm-uid-1", Username: "bob"}
+	kc := &model.KeyContact{UID: sfid("kc-create-1"), MembershipUID: "pm-uid-1", Username: "bob"}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Project_Role__c", ChangeType: model.CDCChangeCreate, RecordIDs: []string{"kc-create-1"}, ReplayID: []byte("rc2")},
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeCreate, RecordIDs: []string{sfid("kc-create-1")}, ReplayID: []byte("rc2")},
 		}},
 		&mock.MockControllableMemberReader{Contact: kc},
 		&mock.MockControllableProjectMembershipReader{},
@@ -529,34 +550,34 @@ func TestCDCConsumer_Account_Reparenting_EmitsMoreFGAAccessCalls(t *testing.T) {
 	// Pre-change: org has old-parent. Post-change: org has new-parent.
 	// The consumer reads pre-change before eviction, then post-change after.
 	// BuildB2BOrgReparentingMessages should fire extra FGA access calls.
-	preOrg := &model.B2BOrg{UID: "org-uid-r", ParentUID: "old-parent"}
-	postOrg := &model.B2BOrg{UID: "org-uid-r", ParentUID: "new-parent"}
+	preOrg := &model.B2BOrg{UID: sfid("org-uid-r"), ParentUID: "old-parent"}
+	postOrg := &model.B2BOrg{UID: sfid("org-uid-r"), ParentUID: "new-parent"}
 
 	reparentReader := &reparentingB2BOrgReader{
 		preOrg:  preOrg,
 		postOrg: postOrg,
 		children: map[string][]string{
-			"old-parent": {"sibling-org"},
-			"new-parent": {},
-			"org-uid-r":  {},
+			"old-parent":      {"sibling-org"},
+			"new-parent":      {},
+			sfid("org-uid-r"): {},
 		},
 	}
 
 	// Baseline: same parent (no reparenting) — should emit fewer FGA calls.
-	sameOrg := &model.B2BOrg{UID: "org-uid-s", ParentUID: "same-parent"}
+	sameOrg := &model.B2BOrg{UID: sfid("org-uid-s"), ParentUID: "same-parent"}
 	sameReader := &reparentingB2BOrgReader{
 		preOrg:  sameOrg,
 		postOrg: sameOrg,
 		children: map[string][]string{
-			"same-parent": {},
-			"org-uid-s":   {},
+			"same-parent":     {},
+			sfid("org-uid-s"): {},
 		},
 	}
 
 	reparentPub := &subjectCapturingPublisher{}
 	reparentConsumer := svc.NewCDCConsumer(
 		svc.WithCDCSubscriber(&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-r"}, ReplayID: []byte("rr1")},
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("org-uid-r")}, ReplayID: []byte("rr1")},
 		}}),
 		svc.WithCDCMemberReader(&mock.MockControllableMemberReader{}),
 		svc.WithCDCProjectMembershipReader(&mock.MockControllableProjectMembershipReader{}),
@@ -570,7 +591,7 @@ func TestCDCConsumer_Account_Reparenting_EmitsMoreFGAAccessCalls(t *testing.T) {
 	samePub := &subjectCapturingPublisher{}
 	sameConsumer := svc.NewCDCConsumer(
 		svc.WithCDCSubscriber(&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-uid-s"}, ReplayID: []byte("rr2")},
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("org-uid-s")}, ReplayID: []byte("rr2")},
 		}}),
 		svc.WithCDCMemberReader(&mock.MockControllableMemberReader{}),
 		svc.WithCDCProjectMembershipReader(&mock.MockControllableProjectMembershipReader{}),
@@ -594,12 +615,12 @@ func TestCDCConsumer_Account_Reparenting_EmitsMoreFGAAccessCalls(t *testing.T) {
 func TestCDCConsumer_ProjectRole_Upsert_WithUsername_EmptyMembershipUID_NoFGAMemberPut(t *testing.T) {
 	// Guard: kc.Username != "" && kc.MembershipUID != ""
 	// A malformed record with a username but no MembershipUID must NOT emit FGA member_put.
-	kc := &model.KeyContact{UID: "kc-bad", MembershipUID: "", Username: "charlie"}
+	kc := &model.KeyContact{UID: sfid("kc-bad"), MembershipUID: "", Username: "charlie"}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-bad"}, ReplayID: []byte("rg1")},
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("kc-bad")}, ReplayID: []byte("rg1")},
 		}},
 		&mock.MockControllableMemberReader{Contact: kc},
 		&mock.MockControllableProjectMembershipReader{},
@@ -662,11 +683,11 @@ func TestCDCConsumer_Subscriber_SubscribeError_RunReturnsError(t *testing.T) {
 
 func TestCDCConsumer_ReplayStore_SaveError_NotFatal(t *testing.T) {
 	// Save failures are logged and swallowed — Run must not return an error.
-	pm := &model.ProjectMembership{UID: "pm-save-err"}
+	pm := &model.ProjectMembership{UID: sfid("pm-save-err")}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-save-err"}, ReplayID: []byte("rs1")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-save-err")}, ReplayID: []byte("rs1")},
 		}},
 		&mock.MockControllableMemberReader{Membership: pm},
 		&mock.MockControllableProjectMembershipReader{Membership: pm},
@@ -690,9 +711,9 @@ func TestCDCConsumer_MultipleEvents_ReplayAdvancesPerEvent(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-1"}, ReplayID: []byte("seq-1")},
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-2"}, ReplayID: []byte("seq-2")},
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-3"}, ReplayID: []byte("seq-3")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-1")}, ReplayID: []byte("seq-1")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-2")}, ReplayID: []byte("seq-2")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-3")}, ReplayID: []byte("seq-3")},
 		}},
 		&mock.MockControllableMemberReader{Membership: pm},
 		&mock.MockControllableProjectMembershipReader{Membership: pm},
@@ -717,13 +738,13 @@ func TestCDCConsumer_MultipleEvents_ReplayAdvancesPerEvent(t *testing.T) {
 
 func TestCDCConsumer_Asset_Undelete_TreatedAsUpsert(t *testing.T) {
 	// UNDELETE falls into the same non-delete branch as UPDATE/CREATE.
-	pm := &model.ProjectMembership{UID: "pm-undelete"}
+	pm := &model.ProjectMembership{UID: sfid("pm-undelete")}
 	pub := &subjectCapturingPublisher{}
 	invalidator := &mock.MockCacheInvalidator{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUndelete, RecordIDs: []string{"pm-undelete"}, ReplayID: []byte("ru1")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUndelete, RecordIDs: []string{sfid("pm-undelete")}, ReplayID: []byte("ru1")},
 		}},
 		&mock.MockControllableMemberReader{Membership: pm},
 		&mock.MockControllableProjectMembershipReader{Membership: pm},
@@ -743,12 +764,12 @@ func TestCDCConsumer_Asset_Undelete_TreatedAsUpsert(t *testing.T) {
 
 func TestCDCConsumer_Asset_GapOverflow_TreatedAsUpsert(t *testing.T) {
 	// GAP_OVERFLOW also falls into the non-delete upsert path.
-	pm := &model.ProjectMembership{UID: "pm-gap"}
+	pm := &model.ProjectMembership{UID: sfid("pm-gap")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeGapOverflow, RecordIDs: []string{"pm-gap"}, ReplayID: []byte("rg2")},
+			{Entity: "Asset", ChangeType: model.CDCChangeGapOverflow, RecordIDs: []string{sfid("pm-gap")}, ReplayID: []byte("rg2")},
 		}},
 		&mock.MockControllableMemberReader{Membership: pm},
 		&mock.MockControllableProjectMembershipReader{Membership: pm},
@@ -773,7 +794,7 @@ func TestCDCConsumer_Asset_GapDelete_TreatedAsDelete(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: "GAP_DELETE", RecordIDs: []string{"pm-gapdel"}, ReplayID: []byte("rgd1")},
+			{Entity: "Asset", ChangeType: "GAP_DELETE", RecordIDs: []string{sfid("pm-gapdel")}, ReplayID: []byte("rgd1")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -799,7 +820,7 @@ func TestCDCConsumer_ProjectRole_GapDelete_TreatedAsDelete(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Project_Role__c", ChangeType: "GAP_DELETE", RecordIDs: []string{"kc-gapdel"}, ReplayID: []byte("rgd2")},
+			{Entity: "Project_Role__c", ChangeType: "GAP_DELETE", RecordIDs: []string{sfid("kc-gapdel")}, ReplayID: []byte("rgd2")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -823,7 +844,7 @@ func TestCDCConsumer_Account_OrgNotFound_AdvancesReplay(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-missing"}, ReplayID: []byte("r12")},
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("org-missing")}, ReplayID: []byte("r12")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -881,7 +902,7 @@ func TestCDCConsumer_ProjectRole_Upsert_EmailResolves_GrantsFGAAndProvisions(t *
 	// Email resolves to an LFID → FGA member_put published AND AddPrincipal called
 	// with SuppressNotification=true (CDC must never email).
 	kc := &model.KeyContact{
-		UID: "kc-res-1", MembershipUID: "pm-1",
+		UID: sfid("kc-res-1"), MembershipUID: "pm-1",
 		B2BOrgUID: "001000000000001AAA", Email: "carol@example.com",
 		Role: "Billing Contact",
 	}
@@ -907,7 +928,7 @@ func TestCDCConsumer_ProjectRole_Upsert_EmailNotFound_NoGrantNoProvision(t *test
 	// UsernameByEmail returns NotFound → Username stays empty → FGA grant skipped;
 	// no AddPrincipal call (unregistered contacts stay pending via the invite flow).
 	kc := &model.KeyContact{
-		UID: "kc-res-2", MembershipUID: "pm-2",
+		UID: sfid("kc-res-2"), MembershipUID: "pm-2",
 		B2BOrgUID: "001000000000002AAA", Email: "unknown@example.com",
 	}
 	pub := &subjectCapturingPublisher{}
@@ -929,7 +950,7 @@ func TestCDCConsumer_ProjectRole_Upsert_NilUserReader_PreservesExistingBehavior(
 	// nil userReader must not regress existing behavior: a contact with a stored
 	// Username still gets FGA member_put; no provisioning attempt is made.
 	kc := &model.KeyContact{
-		UID: "kc-res-3", MembershipUID: "pm-3", Username: "auth0|existing",
+		UID: sfid("kc-res-3"), MembershipUID: "pm-3", Username: "auth0|existing",
 		B2BOrgUID: "001000000000003AAA", Email: "existing@example.com",
 	}
 	pub := &subjectCapturingPublisher{}
@@ -945,12 +966,12 @@ func TestCDCConsumer_ProjectRole_Upsert_NilUserReader_PreservesExistingBehavior(
 // ── Quota guard tests ─────────────────────────────────────────────────────────
 
 func TestCDCConsumer_QuotaGuard_AboveThreshold_SkipsUpsert(t *testing.T) {
-	pm := &model.ProjectMembership{UID: "pm-quota-1"}
+	pm := &model.ProjectMembership{UID: sfid("pm-quota-1")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-1"}, ReplayID: []byte("qg1")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-quota-1")}, ReplayID: []byte("qg1")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -969,12 +990,12 @@ func TestCDCConsumer_QuotaGuard_AboveThreshold_SkipsUpsert(t *testing.T) {
 }
 
 func TestCDCConsumer_QuotaGuard_AtThreshold_SkipsUpsert(t *testing.T) {
-	pm := &model.ProjectMembership{UID: "pm-quota-2"}
+	pm := &model.ProjectMembership{UID: sfid("pm-quota-2")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-2"}, ReplayID: []byte("qg2")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-quota-2")}, ReplayID: []byte("qg2")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -993,12 +1014,12 @@ func TestCDCConsumer_QuotaGuard_AtThreshold_SkipsUpsert(t *testing.T) {
 }
 
 func TestCDCConsumer_QuotaGuard_BelowThreshold_Proceeds(t *testing.T) {
-	pm := &model.ProjectMembership{UID: "pm-quota-3"}
+	pm := &model.ProjectMembership{UID: sfid("pm-quota-3")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-3"}, ReplayID: []byte("qg3")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-quota-3")}, ReplayID: []byte("qg3")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -1017,12 +1038,12 @@ func TestCDCConsumer_QuotaGuard_BelowThreshold_Proceeds(t *testing.T) {
 
 func TestCDCConsumer_QuotaGuard_LimitZero_FailsOpen(t *testing.T) {
 	// limit ≤ 0 means the gauge has not yet observed a response — must proceed.
-	pm := &model.ProjectMembership{UID: "pm-quota-4"}
+	pm := &model.ProjectMembership{UID: sfid("pm-quota-4")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-4"}, ReplayID: []byte("qg4")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-quota-4")}, ReplayID: []byte("qg4")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -1041,12 +1062,12 @@ func TestCDCConsumer_QuotaGuard_LimitZero_FailsOpen(t *testing.T) {
 
 func TestCDCConsumer_QuotaGuard_NilGauge_FailsOpen(t *testing.T) {
 	// No WithCDCQuotaGauge injected — nil gauge must fail open.
-	pm := &model.ProjectMembership{UID: "pm-quota-5"}
+	pm := &model.ProjectMembership{UID: sfid("pm-quota-5")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-quota-5"}, ReplayID: []byte("qg5")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-quota-5")}, ReplayID: []byte("qg5")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -1070,7 +1091,7 @@ func TestCDCConsumer_QuotaGuard_DeleteBypassesQuota(t *testing.T) {
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeDelete, RecordIDs: []string{"pm-quota-del"}, ReplayID: []byte("qg6")},
+			{Entity: "Asset", ChangeType: model.CDCChangeDelete, RecordIDs: []string{sfid("pm-quota-del")}, ReplayID: []byte("qg6")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -1092,12 +1113,12 @@ func TestCDCConsumer_Asset_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
 	// Batch event with two IDs: SOQL only returns pm-present. pm-absent is missing
 	// (soft-deleted or no longer holds a membership Asset) and must be routed to
 	// the delete path for index/FGA convergence, not silently skipped.
-	pmPresent := &model.ProjectMembership{UID: "pm-present"}
+	pmPresent := &model.ProjectMembership{UID: sfid("pm-present")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"pm-present", "pm-absent"}, ReplayID: []byte("ab1")},
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("pm-present"), sfid("pm-absent")}, ReplayID: []byte("ab1")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -1118,12 +1139,12 @@ func TestCDCConsumer_Asset_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
 
 func TestCDCConsumer_Account_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
 	// Same convergence guarantee for Account / b2b_org.
-	orgPresent := &model.B2BOrg{UID: "org-present"}
+	orgPresent := &model.B2BOrg{UID: sfid("org-present")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"org-present", "org-absent"}, ReplayID: []byte("ab2")},
+			{Entity: "Account", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("org-present"), sfid("org-absent")}, ReplayID: []byte("ab2")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -1143,12 +1164,12 @@ func TestCDCConsumer_Account_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
 
 func TestCDCConsumer_ProjectRole_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
 	// Same convergence guarantee for Project_Role__c / key_contact.
-	kcPresent := &model.KeyContact{UID: "kc-present"}
+	kcPresent := &model.KeyContact{UID: sfid("kc-present")}
 	pub := &subjectCapturingPublisher{}
 
 	consumer := newTestCDCConsumer(
 		&fakeCDCSubscriber{events: []model.CDCEvent{
-			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{"kc-present", "kc-absent"}, ReplayID: []byte("ab3")},
+			{Entity: "Project_Role__c", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{sfid("kc-present"), sfid("kc-absent")}, ReplayID: []byte("ab3")},
 		}},
 		&mock.MockControllableMemberReader{},
 		&mock.MockControllableProjectMembershipReader{},
@@ -1164,4 +1185,38 @@ func TestCDCConsumer_ProjectRole_AbsentFromSOQL_RoutesToDelete(t *testing.T) {
 	require.Len(t, pub.indexerMessages, 2, "both key_contact IDs must produce an indexer event")
 	assert.Equal(t, "deleted", pub.indexerAction(0), "absent key_contact must produce ActionDeleted")
 	assert.Equal(t, "updated", pub.indexerAction(1), "present key_contact must produce ActionUpdated")
+}
+
+// ── Conv-error SFID → not routed to delete (Finding 3) ───────────────────────
+
+func TestCDCConsumer_Asset_ConvErrSFID_NotRoutedToDelete(t *testing.T) {
+	// A SFID that SOQL returned but the batch reader could not convert (e.g. the
+	// sObject row had an unexpected shape) is reported in ConvErrSFIDs. The
+	// consumer must NOT route it to the delete handler — the record exists in
+	// Salesforce; it just couldn't be materialised in this batch pass.
+	// /admin/reindex can repair it later.
+	badID := sfid("pm-bad")
+	pub := &subjectCapturingPublisher{}
+
+	consumer := newTestCDCConsumer(
+		&fakeCDCSubscriber{events: []model.CDCEvent{
+			{Entity: "Asset", ChangeType: model.CDCChangeUpdate, RecordIDs: []string{badID}, ReplayID: []byte("cv1")},
+		}},
+		&mock.MockControllableMemberReader{},
+		&mock.MockControllableProjectMembershipReader{},
+		&fakeB2BOrgReader{},
+		&mock.MockCacheInvalidator{},
+		pub,
+		"",
+		svc.WithCDCMembershipBatchReader(&mock.MockMembershipBatchReader{
+			Memberships:  nil,
+			ConvErrSFIDs: []string{badID},
+		}),
+	)
+
+	require.NoError(t, consumer.Run(context.Background(), "/data/AssetChangeEvent", &fakeReplayStore{}))
+
+	// The SFID is in seenButFailed → returned set contains it → absent check skips it.
+	assert.Empty(t, pub.indexerMessages,
+		"a conv-error SFID must NOT produce ActionDeleted; got indexer calls: %v", pub.indexer)
 }

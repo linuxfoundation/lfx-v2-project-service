@@ -18,6 +18,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/port"
 	"github.com/linuxfoundation/lfx-v2-member-service/pkg/constants"
 	pkgerrors "github.com/linuxfoundation/lfx-v2-member-service/pkg/errors"
+	"github.com/linuxfoundation/lfx-v2-member-service/pkg/sfuuid"
 )
 
 // defaultQuotaSkipThreshold is the fraction of the daily Salesforce REST API
@@ -245,32 +246,62 @@ func (o *CDCConsumer) quotaExceeded(ctx context.Context, entity string, ids []st
 	return false
 }
 
-// ── Account (b2b_org) ─────────────────────────────────────────────────────────
-
-func (o *CDCConsumer) handleAccount(ctx context.Context, event model.CDCEvent) error {
-	var deleteIDs, upsertIDs []string
-	for _, id := range event.RecordIDs {
+// partitionRecordIDs normalizes each raw CDC record ID to its canonical 18-char
+// SFID and splits the event into delete vs upsert lists. An ID that cannot be
+// normalized (wrong length / non-base-62) is logged and skipped, so a malformed
+// ID never drives a spurious delete or a cache miss against the 18-char keys
+// returned by SOQL.
+func partitionRecordIDs(ctx context.Context, entity string, event model.CDCEvent) (deleteIDs, upsertIDs []string) {
+	for _, raw := range event.RecordIDs {
+		id, err := sfuuid.Normalize18(raw)
+		if err != nil {
+			slog.WarnContext(ctx, "cdc: skipping record with non-normalizable SFID",
+				"entity", entity, "raw_uid", raw, "error", err)
+			continue
+		}
 		if isDelete(event.ChangeType) {
 			deleteIDs = append(deleteIDs, id)
 		} else {
 			upsertIDs = append(upsertIDs, id)
 		}
 	}
+	return
+}
 
+// dispatchEntity normalizes and partitions event record IDs, runs each delete
+// ID through deleteHandler (logging failures), and returns the upsert IDs for
+// the caller to batch-process. Shared by all three entity top-level handlers.
+func (o *CDCConsumer) dispatchEntity(ctx context.Context, entity string, event model.CDCEvent,
+	deleteHandler func(context.Context, string) error) []string {
+	deleteIDs, upsertIDs := partitionRecordIDs(ctx, entity, event)
 	for _, id := range deleteIDs {
-		if err := o.handleAccountDelete(ctx, id); err != nil {
+		if err := deleteHandler(ctx, id); err != nil {
 			slog.ErrorContext(ctx, "cdc: handler failed",
-				"entity", "Account", "uid", id, "change_type", event.ChangeType, "error", err)
+				"entity", entity, "uid", id, "change_type", event.ChangeType, "error", err)
 		}
 	}
+	return upsertIDs
+}
 
-	if len(upsertIDs) > 0 {
-		o.handleAccountUpsertBatch(ctx, upsertIDs)
+// logBatchFetchError logs a handler failure for each ID in a batch when the
+// upstream SOQL fetch returns an error.
+func logBatchFetchError(ctx context.Context, entity string, ids []string, changeType model.CDCChangeType, err error) {
+	for _, id := range ids {
+		slog.ErrorContext(ctx, "cdc: handler failed",
+			"entity", entity, "uid", id, "change_type", changeType, "error", err)
+	}
+}
+
+// ── Account (b2b_org) ─────────────────────────────────────────────────────────
+
+func (o *CDCConsumer) handleAccount(ctx context.Context, event model.CDCEvent) error {
+	if upsertIDs := o.dispatchEntity(ctx, "Account", event, o.handleAccountDelete); len(upsertIDs) > 0 {
+		o.handleAccountUpsertBatch(ctx, upsertIDs, event.ChangeType)
 	}
 	return nil
 }
 
-func (o *CDCConsumer) handleAccountUpsertBatch(ctx context.Context, upsertIDs []string) {
+func (o *CDCConsumer) handleAccountUpsertBatch(ctx context.Context, upsertIDs []string, changeType model.CDCChangeType) {
 	if o.accountBatch == nil {
 		slog.WarnContext(ctx, "cdc: accountBatch reader not wired — skipping Account upsert; use /admin/reindex to repair",
 			"record_count", len(upsertIDs), "publish_failed_for_backfill_repair", true)
@@ -299,10 +330,7 @@ func (o *CDCConsumer) handleAccountUpsertBatch(ctx context.Context, upsertIDs []
 
 	orgs, convErrSFIDs, err := o.accountBatch.FetchAccountsBySFIDs(ctx, upsertIDs)
 	if err != nil {
-		for _, id := range upsertIDs {
-			slog.ErrorContext(ctx, "cdc: handler failed",
-				"entity", "Account", "uid", id, "change_type", "upsert", "error", err)
-		}
+		logBatchFetchError(ctx, "Account", upsertIDs, changeType, err)
 		return
 	}
 
@@ -322,9 +350,6 @@ func (o *CDCConsumer) handleAccountUpsertBatch(ctx context.Context, upsertIDs []
 		"absent_delete_count", len(upsertIDs)-len(returned))
 }
 
-// handleAbsentAsDelete routes IDs that were requested in a batch upsert but
-// absent from the SOQL result (soft-deleted or no longer qualifying) to the
-// provided delete handler for index/FGA convergence.
 // makeReturnedSet builds a set of UIDs from a batch-fetch result. Items in
 // seenButFailed were present in the SOQL result but could not be converted;
 // they are included so the caller does not treat them as absent records.
@@ -339,6 +364,9 @@ func makeReturnedSet[T any](items []T, uid func(T) string, seenButFailed []strin
 	return m
 }
 
+// handleAbsentAsDelete routes IDs that were requested in a batch upsert but
+// absent from the SOQL result (soft-deleted or no longer qualifying) to the
+// provided delete handler for index/FGA convergence.
 func (o *CDCConsumer) handleAbsentAsDelete(ctx context.Context, entity string, upsertIDs []string, returned map[string]struct{}, deleteHandler func(context.Context, string) error) {
 	for _, id := range upsertIDs {
 		if _, found := returned[id]; !found {
@@ -374,23 +402,7 @@ func (o *CDCConsumer) handleAccountDelete(ctx context.Context, uid string) error
 // ── Asset (project_membership) ────────────────────────────────────────────────
 
 func (o *CDCConsumer) handleAsset(ctx context.Context, event model.CDCEvent) error {
-	var deleteIDs, upsertIDs []string
-	for _, id := range event.RecordIDs {
-		if isDelete(event.ChangeType) {
-			deleteIDs = append(deleteIDs, id)
-		} else {
-			upsertIDs = append(upsertIDs, id)
-		}
-	}
-
-	for _, id := range deleteIDs {
-		if err := o.handleAssetDelete(ctx, id); err != nil {
-			slog.ErrorContext(ctx, "cdc: handler failed",
-				"entity", "Asset", "uid", id, "change_type", event.ChangeType, "error", err)
-		}
-	}
-
-	if len(upsertIDs) > 0 {
+	if upsertIDs := o.dispatchEntity(ctx, "Asset", event, o.handleAssetDelete); len(upsertIDs) > 0 {
 		o.handleAssetUpsertBatch(ctx, upsertIDs, event.ChangeType)
 	}
 	return nil
@@ -417,10 +429,7 @@ func (o *CDCConsumer) handleAssetUpsertBatch(ctx context.Context, upsertIDs []st
 
 	memberships, convErrSFIDs, err := o.membershipBatch.FetchMembershipsBySFIDs(ctx, upsertIDs)
 	if err != nil {
-		for _, id := range upsertIDs {
-			slog.ErrorContext(ctx, "cdc: handler failed",
-				"entity", "Asset", "uid", id, "change_type", changeType, "error", err)
-		}
+		logBatchFetchError(ctx, "Asset", upsertIDs, changeType, err)
 		return
 	}
 
@@ -459,23 +468,7 @@ func (o *CDCConsumer) handleAssetDelete(ctx context.Context, uid string) error {
 // ── Project_Role__c (key_contact) ─────────────────────────────────────────────
 
 func (o *CDCConsumer) handleProjectRole(ctx context.Context, event model.CDCEvent) error {
-	var deleteIDs, upsertIDs []string
-	for _, id := range event.RecordIDs {
-		if isDelete(event.ChangeType) {
-			deleteIDs = append(deleteIDs, id)
-		} else {
-			upsertIDs = append(upsertIDs, id)
-		}
-	}
-
-	for _, id := range deleteIDs {
-		if err := o.handleProjectRoleDelete(ctx, id); err != nil {
-			slog.ErrorContext(ctx, "cdc: handler failed",
-				"entity", "Project_Role__c", "uid", id, "change_type", event.ChangeType, "error", err)
-		}
-	}
-
-	if len(upsertIDs) > 0 {
+	if upsertIDs := o.dispatchEntity(ctx, "Project_Role__c", event, o.handleProjectRoleDelete); len(upsertIDs) > 0 {
 		o.handleProjectRoleUpsertBatch(ctx, upsertIDs, event.ChangeType)
 	}
 	return nil
@@ -500,10 +493,7 @@ func (o *CDCConsumer) handleProjectRoleUpsertBatch(ctx context.Context, upsertID
 
 	contacts, convErrSFIDs, err := o.keyContactBatch.FetchKeyContactsBySFIDs(ctx, upsertIDs)
 	if err != nil {
-		for _, id := range upsertIDs {
-			slog.ErrorContext(ctx, "cdc: handler failed",
-				"entity", "Project_Role__c", "uid", id, "change_type", changeType, "error", err)
-		}
+		logBatchFetchError(ctx, "Project_Role__c", upsertIDs, changeType, err)
 		return
 	}
 
