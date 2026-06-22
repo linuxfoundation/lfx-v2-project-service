@@ -73,6 +73,13 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, domain.ErrServiceUnavailable
 	}
 
+	// An Archived project must carry an entity dissolution date.
+	// Checked before any DB calls so invalid payloads are rejected cheaply.
+	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
+		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
+		return nil, err
+	}
+
 	// Check if slug exists
 	exists, err := s.ProjectRepository.ProjectSlugExists(ctx, payload.Slug)
 	if err != nil {
@@ -311,6 +318,14 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	if payload == nil || payload.UID == nil {
 		slog.WarnContext(ctx, "project UID is required")
 		return nil, domain.ErrValidationFailed
+	}
+
+	// An Archived project must carry an entity dissolution date.
+	// Validated before any repository access so invalid payloads are rejected cheaply,
+	// including when SkipEtagValidation is true (which would otherwise trigger a DB read first).
+	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
+		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
+		return nil, err
 	}
 
 	var revision uint64
@@ -742,6 +757,27 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 // This matches v1's strict validation where Type must equal "Crowdfunding" (not in combination with other types).
 func isCrowdfundingOnly(fundingModels []string) bool {
 	return len(fundingModels) == 1 && fundingModels[0] == "Crowdfunding"
+}
+
+// projectStageArchived is the project lifecycle stage that requires an entity
+// dissolution date.
+const projectStageArchived = "Archived"
+
+// validateArchivedRequiresDissolutionDate checks that a project whose
+// stage is "Archived" must carry an entity dissolution date. The arguments are
+// the Goa payload pointers (stage and entity_dissolution_date); a nil, empty, or
+// whitespace-only dissolution date is treated as absent. The check only fires
+// when the submitted stage is "Archived", so non-Archived writes and un-archiving
+// are unaffected. Validation runs against the submitted payload (PUT replaces the
+// stored record), so an Archived update must always include the dissolution date.
+func validateArchivedRequiresDissolutionDate(stage, dissolutionDate *string) error {
+	if stage == nil || *stage != projectStageArchived {
+		return nil
+	}
+	if dissolutionDate == nil || strings.TrimSpace(*dissolutionDate) == "" {
+		return domain.ErrArchivedRequiresDissolutionDate
+	}
+	return nil
 }
 
 // enrichAllRoleFields overwrites Username, Name, and Avatar on every UserInfo across all supplied

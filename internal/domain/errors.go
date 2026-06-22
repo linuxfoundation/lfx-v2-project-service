@@ -25,6 +25,8 @@ var (
 	ErrValidationFailed = errors.New("validation failed")
 	// ErrCannotDeleteNonCrowdfundingProject is returned when attempting to delete a project whose funding model is not exactly ["Crowdfunding"].
 	ErrCannotDeleteNonCrowdfundingProject = errors.New("project can only be deleted if its funding model is Crowdfunding only")
+	// ErrArchivedRequiresDissolutionDate is returned when a project's stage is set to "Archived" without an entity dissolution date.
+	ErrArchivedRequiresDissolutionDate = errors.New("entity dissolution date is required when project stage is 'Archived'")
 
 	// ErrDocumentNotFound is returned when a document is not found.
 	ErrDocumentNotFound = errors.New("document not found")

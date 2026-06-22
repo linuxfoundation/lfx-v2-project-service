@@ -47,7 +47,9 @@ type CreateProjectRequestBody struct {
 	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
@@ -110,7 +112,9 @@ type UpdateProjectBaseRequestBody struct {
 	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
@@ -224,7 +228,9 @@ type CreateProjectResponseBody struct {
 	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
@@ -301,7 +307,9 @@ type UpdateProjectBaseResponseBody struct {
 	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
@@ -1159,7 +1167,9 @@ type ProjectFullResponseBody struct {
 	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`
@@ -1205,7 +1215,8 @@ type UserInfoResponseBody struct {
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// The avatar URL of the user
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
-	// Pending invite details; present only for users without an LFID
+	// Pending invite details; present only for users without an LFID.
+	// Server-managed — ignored on write requests.
 	Invite *InviteInfoResponseBody `form:"invite,omitempty" json:"invite,omitempty" xml:"invite,omitempty"`
 }
 
@@ -1229,7 +1240,8 @@ type UserInfoRequestBody struct {
 	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
 	// The avatar URL of the user
 	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
-	// Pending invite details; present only for users without an LFID
+	// Pending invite details; present only for users without an LFID.
+	// Server-managed — ignored on write requests.
 	Invite *InviteInfoRequestBody `form:"invite,omitempty" json:"invite,omitempty" xml:"invite,omitempty"`
 }
 
@@ -1275,7 +1287,9 @@ type ProjectBaseResponseBody struct {
 	LegalEntityName *string `form:"legal_entity_name,omitempty" json:"legal_entity_name,omitempty" xml:"legal_entity_name,omitempty"`
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string `form:"legal_parent_uid,omitempty" json:"legal_parent_uid,omitempty" xml:"legal_parent_uid,omitempty"`
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string `form:"entity_dissolution_date,omitempty" json:"entity_dissolution_date,omitempty" xml:"entity_dissolution_date,omitempty"`
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string `form:"entity_formation_document_url,omitempty" json:"entity_formation_document_url,omitempty" xml:"entity_formation_document_url,omitempty"`

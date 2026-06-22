@@ -171,7 +171,9 @@ type CreateProjectPayload struct {
 	LegalEntityName *string
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string
@@ -458,7 +460,9 @@ type ProjectBase struct {
 	LegalEntityName *string
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string
@@ -555,7 +559,9 @@ type ProjectFull struct {
 	LegalEntityName *string
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string
@@ -689,7 +695,9 @@ type UpdateProjectBasePayload struct {
 	LegalEntityName *string
 	// The UID of the legal parent entity, should be empty if there is none
 	LegalParentUID *string
-	// The date the project entity was dissolved
+	// The date the project entity was dissolved. Required when the project stage
+	// is set to "Archived"; creates and updates that result in stage "Archived"
+	// are rejected if this field is empty. Not required for any other stage.
 	EntityDissolutionDate *string
 	// The URL of the project entity formation document
 	EntityFormationDocumentURL *string
@@ -771,7 +779,8 @@ type UserInfo struct {
 	Username *string
 	// The avatar URL of the user
 	Avatar *string
-	// Pending invite details; present only for users without an LFID
+	// Pending invite details; present only for users without an LFID.
+	// Server-managed — ignored on write requests.
 	Invite *InviteInfo
 }
 
