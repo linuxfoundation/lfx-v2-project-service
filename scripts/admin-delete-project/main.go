@@ -62,8 +62,15 @@ const (
 // stringSliceFlag collects repeated --uid values.
 type stringSliceFlag []string
 
-func (s *stringSliceFlag) String() string     { return strings.Join(*s, ",") }
-func (s *stringSliceFlag) Set(v string) error { *s = append(*s, strings.TrimSpace(v)); return nil }
+func (s *stringSliceFlag) String() string { return strings.Join(*s, ",") }
+func (s *stringSliceFlag) Set(v string) error {
+	uid := strings.TrimSpace(v)
+	if uid == "" {
+		return errors.New("--uid cannot be empty")
+	}
+	*s = append(*s, uid)
+	return nil
+}
 
 type config struct {
 	natsURL         string
@@ -103,6 +110,10 @@ func parseConfig() (config, error) {
 		return cfg, errors.New("at least one --uid is required")
 	}
 	cfg.uids = uids
+
+	if cfg.cascadeChildren && cfg.skipChildScan {
+		return cfg, errors.New("--cascade-children and --skip-child-scan are mutually exclusive")
+	}
 
 	if cfg.auditPath == "" {
 		cfg.auditPath = fmt.Sprintf("./admin-delete-audit-%s.json", time.Now().UTC().Format("20060102-150405"))
@@ -693,7 +704,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			return fmt.Errorf("publish link %s deleted: %w", l.UID, err)
 		}
 		if kv.Links != nil {
-			if err := kv.Links.Purge(ctx, l.UID); err != nil {
+			if err := kv.Links.Delete(ctx, l.UID); err != nil {
 				return fmt.Errorf("delete project-links/%s: %w", l.UID, err)
 			}
 			lookupKey := fmt.Sprintf(constants.KVLookupLinkKey, l.ProjectUID, l.UID)
@@ -716,7 +727,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			return fmt.Errorf("publish folder %s deleted: %w", f.UID, err)
 		}
 		if kv.Folders != nil {
-			if err := kv.Folders.Purge(ctx, f.UID); err != nil {
+			if err := kv.Folders.Delete(ctx, f.UID); err != nil {
 				return fmt.Errorf("delete project-folders/%s: %w", f.UID, err)
 			}
 			uniqueKey := fmt.Sprintf(constants.KVLookupFolderPrefix, f.BuildIndexKey(ctx))
@@ -739,7 +750,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			return fmt.Errorf("publish document %s deleted: %w", d.UID, err)
 		}
 		if kv.Documents != nil {
-			if err := kv.Documents.Purge(ctx, d.UID); err != nil {
+			if err := kv.Documents.Delete(ctx, d.UID); err != nil {
 				return fmt.Errorf("delete project-documents-metadata/%s: %w", d.UID, err)
 			}
 			uniqueKey := fmt.Sprintf(constants.KVLookupDocumentPrefix, d.BuildIndexKey(ctx))

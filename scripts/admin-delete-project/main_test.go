@@ -81,65 +81,72 @@ func TestExtractSlugFromBase(t *testing.T) {
 }
 
 func TestListAllKeys(t *testing.T) {
-	t.Run("returns all keys when channel closes normally", func(t *testing.T) {
-		ch := make(chan string, 3)
-		ch <- "key1"
-		ch <- "key2"
-		ch <- "key3"
-		close(ch)
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-		kv := &stubKeyValue{
+	tests := []struct {
+		name       string
+		ctx        context.Context
+		listKeysFn func(context.Context, ...jetstream.WatchOpt) (jetstream.KeyLister, error)
+		wantKeys   []string
+		wantErr    error
+		wantErrStr string
+	}{
+		{
+			name: "returns all keys when channel closes normally",
+			ctx:  context.Background(),
 			listKeysFn: func(_ context.Context, _ ...jetstream.WatchOpt) (jetstream.KeyLister, error) {
+				ch := make(chan string, 3)
+				ch <- "key1"
+				ch <- "key2"
+				ch <- "key3"
+				close(ch)
 				return &stubKeyLister{ch: ch}, nil
 			},
-		}
-
-		got, err := listAllKeys(context.Background(), kv)
-		require.NoError(t, err)
-		assert.Equal(t, []string{"key1", "key2", "key3"}, got)
-	})
-
-	t.Run("empty bucket returns empty slice", func(t *testing.T) {
-		ch := make(chan string)
-		close(ch)
-
-		kv := &stubKeyValue{
+			wantKeys: []string{"key1", "key2", "key3"},
+		},
+		{
+			name: "empty bucket returns empty slice",
+			ctx:  context.Background(),
 			listKeysFn: func(_ context.Context, _ ...jetstream.WatchOpt) (jetstream.KeyLister, error) {
+				ch := make(chan string)
+				close(ch)
 				return &stubKeyLister{ch: ch}, nil
 			},
-		}
-
-		got, err := listAllKeys(context.Background(), kv)
-		require.NoError(t, err)
-		assert.Empty(t, got)
-	})
-
-	t.Run("context cancellation returns context error", func(t *testing.T) {
-		ch := make(chan string) // unbuffered; never sends — forces ctx.Done() to fire
-
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-
-		kv := &stubKeyValue{
+			wantKeys: nil,
+		},
+		{
+			name: "context cancellation returns context error",
+			ctx:  canceledCtx,
 			listKeysFn: func(_ context.Context, _ ...jetstream.WatchOpt) (jetstream.KeyLister, error) {
-				return &stubKeyLister{ch: ch}, nil
+				return &stubKeyLister{ch: make(chan string)}, nil // never sends
 			},
-		}
-
-		_, err := listAllKeys(ctx, kv)
-		require.Error(t, err)
-		assert.ErrorIs(t, err, context.Canceled)
-	})
-
-	t.Run("ListKeys error is propagated", func(t *testing.T) {
-		kv := &stubKeyValue{
+			wantErr: context.Canceled,
+		},
+		{
+			name: "ListKeys error is propagated",
+			ctx:  context.Background(),
 			listKeysFn: func(_ context.Context, _ ...jetstream.WatchOpt) (jetstream.KeyLister, error) {
 				return nil, errors.New("NATS unavailable")
 			},
-		}
+			wantErrStr: "NATS unavailable",
+		},
+	}
 
-		_, err := listAllKeys(context.Background(), kv)
-		require.Error(t, err)
-		assert.EqualError(t, err, "NATS unavailable")
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kv := &stubKeyValue{listKeysFn: tt.listKeysFn}
+			got, err := listAllKeys(tt.ctx, kv)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+			if tt.wantErrStr != "" {
+				require.EqualError(t, err, tt.wantErrStr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantKeys, got)
+		})
+	}
 }

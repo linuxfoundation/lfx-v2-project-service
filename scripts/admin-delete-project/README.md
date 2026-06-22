@@ -36,13 +36,11 @@ they are orphaned / no longer visible in the UI / created in error).
   Per operator policy, FGA reconciliation is handled out-of-band by another
   job; the messages are idempotent and the orphaned tuples are inert because
   the corresponding `project:<uid>` objects no longer exist anywhere else.
-- **Cascading link/folder/document deletes.** Children are reported but left in
-  place as orphaned/inert records. If you need them removed too, do the child
-  cleanup separately (or extend the script).
-- **Direct OpenSearch writes.** OpenSearch is updated exclusively via the
-  indexer service. If the indexer is unhealthy at the time of run, the KV
-  delete still happens, but the OpenSearch documents may linger until the
-  indexer catches up or is repaired. See the verification section below.
+- **OpenSearch write guarantee.** OpenSearch is updated synchronously via the
+  indexer NATS subject (request/reply, ack-before-delete). If the indexer is
+  unhealthy at the time of run, the publish fails and the script aborts before
+  deleting the KV record. Use `--sync=false` for fire-and-forget (not
+  recommended for production cleanups). See the verification section below.
 
 ## Safety properties
 
@@ -81,7 +79,7 @@ Build into `bin/scripts/` (the whole `bin/` tree is gitignored, so the
 compiled binary never gets committed):
 
 ```bash
-go build -o bin/scripts/admin-delete-project ./cmd/project-api/admin-delete-project
+go build -o bin/scripts/admin-delete-project ./scripts/admin-delete-project
 ```
 
 ### 3. Dry-run first (default)

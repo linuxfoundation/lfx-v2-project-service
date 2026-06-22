@@ -73,7 +73,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, domain.ErrServiceUnavailable
 	}
 
-	// An Archived project must carry an entity dissolution date (LFXV2-1733).
+	// An Archived project must carry an entity dissolution date.
 	// Checked before any DB calls so invalid payloads are rejected cheaply.
 	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
 		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
@@ -320,6 +320,14 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrValidationFailed
 	}
 
+	// An Archived project must carry an entity dissolution date.
+	// Validated before any repository access so invalid payloads are rejected cheaply,
+	// including when SkipEtagValidation is true (which would otherwise trigger a DB read first).
+	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
+		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
+		return nil, err
+	}
+
 	var revision uint64
 	var err error
 	if !s.Config.SkipEtagValidation {
@@ -347,13 +355,6 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
 	ctx = log.AppendCtx(ctx, slog.String("etag", strconv.FormatUint(revision, 10)))
-
-	// An Archived project must carry an entity dissolution date (LFXV2-1733).
-	// Checked before any DB calls so invalid payloads are rejected cheaply.
-	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
-		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
-		return nil, err
-	}
 
 	// Check if the project exists and use some of the existing project data for the update.
 	existingProjectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
@@ -759,10 +760,10 @@ func isCrowdfundingOnly(fundingModels []string) bool {
 }
 
 // projectStageArchived is the project lifecycle stage that requires an entity
-// dissolution date. It mirrors the legacy "Archived" project status (LFXV2-1733).
+// dissolution date.
 const projectStageArchived = "Archived"
 
-// validateArchivedRequiresDissolutionDate enforces LFXV2-1733: a project whose
+// validateArchivedRequiresDissolutionDate checks that a project whose
 // stage is "Archived" must carry an entity dissolution date. The arguments are
 // the Goa payload pointers (stage and entity_dissolution_date); a nil, empty, or
 // whitespace-only dissolution date is treated as absent. The check only fires
