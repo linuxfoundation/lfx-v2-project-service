@@ -440,7 +440,7 @@ func ProjectCharterURLAttribute() {
 
 // ProjectEntityDissolutionDateAttribute is the DSL attribute for a project entity dissolution date.
 func ProjectEntityDissolutionDateAttribute() {
-	Attribute("entity_dissolution_date", String, "The date the project entity was dissolved", func() {
+	Attribute("entity_dissolution_date", String, "The date the project entity was dissolved. Required when the project stage is set to \"Archived\"; creates and updates that result in stage \"Archived\" are rejected if this field is empty. Not required for any other stage.", func() {
 		Example("2021-12-31")
 		Format(FormatDate)
 	})

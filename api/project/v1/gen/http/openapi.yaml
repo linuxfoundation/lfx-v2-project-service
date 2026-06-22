@@ -1411,7 +1411,7 @@ definitions:
                 example: project foo is a project about bar
             entity_dissolution_date:
                 type: string
-                description: The date the project entity was dissolved
+                description: The date the project entity was dissolved. Required when the project stage is set to "Archived"; creates and updates that result in stage "Archived" are rejected if this field is empty. Not required for any other stage.
                 example: "2021-12-31"
                 format: date
             entity_formation_document_url:
@@ -1727,7 +1727,7 @@ definitions:
                 example: project foo is a project about bar
             entity_dissolution_date:
                 type: string
-                description: The date the project entity was dissolved
+                description: The date the project entity was dissolved. Required when the project stage is set to "Archived"; creates and updates that result in stage "Archived" are rejected if this field is empty. Not required for any other stage.
                 example: "2021-12-31"
                 format: date
             entity_formation_document_url:
@@ -2114,7 +2114,7 @@ definitions:
                 example: project foo is a project about bar
             entity_dissolution_date:
                 type: string
-                description: The date the project entity was dissolved
+                description: The date the project entity was dissolved. Required when the project stage is set to "Archived"; creates and updates that result in stage "Archived" are rejected if this field is empty. Not required for any other stage.
                 example: "2021-12-31"
                 format: date
             entity_formation_document_url:
@@ -2815,7 +2815,7 @@ definitions:
                 example: project foo is a project about bar
             entity_dissolution_date:
                 type: string
-                description: The date the project entity was dissolved
+                description: The date the project entity was dissolved. Required when the project stage is set to "Archived"; creates and updates that result in stage "Archived" are rejected if this field is empty. Not required for any other stage.
                 example: "2021-12-31"
                 format: date
             entity_formation_document_url:

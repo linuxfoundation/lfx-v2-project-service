@@ -208,6 +208,54 @@ func TestProjectsService_CreateProject(t *testing.T) {
 			expectedErr: domain.ErrProjectSlugExists,
 		},
 		{
+			name: "archived stage without dissolution date is rejected",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:  "archived-project",
+				Name:  "Archived Project",
+				Stage: misc.StringPtr("Archived"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Validation fails before any DB call; no mocks required.
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name: "archived stage with empty dissolution date is rejected",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:                  "archived-empty-date",
+				Name:                  "Archived Project",
+				Stage:                 misc.StringPtr("Archived"),
+				EntityDissolutionDate: misc.StringPtr("   "),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				// Validation fails before any DB call; no mocks required.
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name: "archived stage with dissolution date succeeds",
+			payload: &projsvc.CreateProjectPayload{
+				Slug:                  "archived-with-date",
+				Name:                  "Archived Project",
+				Description:           "Desc",
+				Stage:                 misc.StringPtr("Archived"),
+				EntityDissolutionDate: misc.StringPtr("2021-12-31"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "archived-with-date").Return(false, nil)
+				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil).Times(2)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+			},
+			wantErr: false,
+			validate: func(t *testing.T, result *projsvc.ProjectFull) {
+				require.NotNil(t, result)
+				assert.Equal(t, "Archived", *result.Stage)
+			},
+		},
+		{
 			name: "repository creation error",
 			payload: &projsvc.CreateProjectPayload{
 				Slug: "test-project",
@@ -840,6 +888,66 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
 			wantErr:     true,
 			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name: "archived stage without dissolution date is rejected",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Archived"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+				// Validation fails before any DB call; no mocks required.
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrArchivedRequiresDissolutionDate,
+		},
+		{
+			name: "archived stage with dissolution date succeeds",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:                   misc.StringPtr("project-uid-1"),
+				IfMatch:               misc.StringPtr("1"),
+				Slug:                  "test-project",
+				Name:                  "Test Project",
+				Stage:                 misc.StringPtr("Archived"),
+				EntityDissolutionDate: misc.StringPtr("2021-12-31"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}
+				settingsDB := &models.ProjectSettings{UID: "project-uid-1"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+			},
+			wantErr: false,
+			validate: func(t *testing.T, result *projsvc.ProjectBase) {
+				require.NotNil(t, result)
+				assert.Equal(t, "Archived", *result.Stage)
+			},
+		},
+		{
+			name: "non-archived stage without dissolution date succeeds",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Slug:    "test-project",
+				Name:    "Test Project",
+				Stage:   misc.StringPtr("Active"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}
+				settingsDB := &models.ProjectSettings{UID: "project-uid-1"}
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+			},
+			wantErr: false,
 		},
 	}
 
