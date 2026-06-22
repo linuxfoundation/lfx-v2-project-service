@@ -226,7 +226,8 @@ func (o *keyContactWriterOrchestrator) revokeOrDowngradeOrgDashboardRole(ctx con
 			OrgUID: kc.B2BOrgUID, Email: kc.Email,
 		}); err != nil && !pkgerrors.IsNotFound(err) && !pkgerrors.IsConflict(err) {
 			slog.WarnContext(ctx, "key contact org-dashboard revoke failed (best-effort)",
-				"org_uid", kc.B2BOrgUID, "error", err)
+				"org_uid", kc.B2BOrgUID, "error", err,
+				"org_dashboard_sync_failed", true)
 		}
 	case orgRoleLevel(maxRemainingRole) < orgRoleLevel(departingRole):
 		// Remaining contacts only warrant a lower role — downgrade.
@@ -237,7 +238,8 @@ func (o *keyContactWriterOrchestrator) revokeOrDowngradeOrgDashboardRole(ctx con
 			OrgUID: kc.B2BOrgUID, Email: kc.Email, InvitedAs: maxRemainingRole,
 		}); err != nil && !pkgerrors.IsNotFound(err) && !pkgerrors.IsConflict(err) {
 			slog.WarnContext(ctx, "key contact org-dashboard role downgrade failed (best-effort)",
-				"org_uid", kc.B2BOrgUID, "error", err)
+				"org_uid", kc.B2BOrgUID, "error", err,
+				"org_dashboard_sync_failed", true)
 		}
 		// maxRemainingRole >= departingRole: another contact already holds equal or
 		// higher access — current org-settings role is already correct, no change.

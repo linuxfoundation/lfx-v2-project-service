@@ -47,7 +47,7 @@ func TestInviteAcceptedService_MultiOrg_PromotesBothOrgs(t *testing.T) {
 	for _, uid := range []string{testOrgUID, testOrgUID2} {
 		saved, _, _ := store.GetSettings(context.Background(), uid)
 		require.Len(t, saved.Writers, 1, "org %s must still have one writer", uid)
-		assert.Equal(t, "auth0|multi", saved.Writers[0].Username, "org %s: writer must be promoted", uid)
+		assert.Equal(t, "multi", saved.Writers[0].Username, "org %s: auth0| prefix must be stripped on promotion", uid)
 		assert.Equal(t, model.InviteStatusAccepted, saved.Writers[0].InviteStatus, "org %s", uid)
 	}
 }
@@ -74,7 +74,7 @@ func TestInviteAcceptedService_RoleTieBreak_ManagePromotesWriters(t *testing.T) 
 	require.NoError(t, err)
 
 	saved, _, _ := store.GetSettings(context.Background(), testOrgUID)
-	assert.Equal(t, "auth0|tie", saved.Writers[0].Username, "writer must be promoted")
+	assert.Equal(t, "tie", saved.Writers[0].Username, "auth0| prefix must be stripped on promotion")
 	assert.Equal(t, model.InviteStatusAccepted, saved.Writers[0].InviteStatus)
 	assert.Empty(t, saved.Auditors[0].Username, "auditor must NOT be promoted on Manage role")
 	assert.Equal(t, model.InviteStatusPending, saved.Auditors[0].InviteStatus)
@@ -102,7 +102,7 @@ func TestInviteAcceptedService_RoleTieBreak_ViewPromotesAuditors(t *testing.T) {
 	saved, _, _ := store.GetSettings(context.Background(), testOrgUID)
 	assert.Empty(t, saved.Writers[0].Username, "writer must NOT be promoted on View role")
 	assert.Equal(t, model.InviteStatusPending, saved.Writers[0].InviteStatus)
-	assert.Equal(t, "auth0|view", saved.Auditors[0].Username, "auditor must be promoted")
+	assert.Equal(t, "view", saved.Auditors[0].Username, "auth0| prefix must be stripped on promotion")
 	assert.Equal(t, model.InviteStatusAccepted, saved.Auditors[0].InviteStatus)
 }
 

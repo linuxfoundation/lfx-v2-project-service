@@ -433,6 +433,9 @@ func PublishB2BOrgIndexer(ctx context.Context, p port.MemberPublisher, org *mode
 			"uid", org.UID,
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
+	} else {
+		slog.DebugContext(ctx, "b2b org indexer published",
+			"uid", org.UID, "subject", constants.IndexB2BOrgSubject)
 	}
 }
 
@@ -549,6 +552,9 @@ func PublishProjectMembershipIndexer(ctx context.Context, p port.MemberPublisher
 			"uid", pm.UID,
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
+	} else {
+		slog.DebugContext(ctx, "project membership indexer published",
+			"uid", pm.UID, "subject", constants.IndexProjectMembershipSubject)
 	}
 }
 
@@ -562,6 +568,9 @@ func PublishProjectMembershipFGA(ctx context.Context, p port.MemberPublisher, pm
 			"uid", pm.UID,
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
+	} else {
+		slog.DebugContext(ctx, "project membership FGA published",
+			"uid", pm.UID, "subject", constants.FGASyncUpdateAccessSubject)
 	}
 }
 
@@ -577,6 +586,10 @@ func PublishKeyContactFGA(ctx context.Context, p port.MemberPublisher, kc *model
 		slog.WarnContext(ctx, "key_contact FGA member_put publish failed",
 			"uid", kc.UID, "membership_uid", kc.MembershipUID,
 			"error", err, "publish_failed_for_backfill_repair", true)
+	} else {
+		slog.DebugContext(ctx, "key_contact FGA member_put published",
+			"uid", kc.UID, "membership_uid", kc.MembershipUID,
+			"subject", fgaconstants.GenericMemberPutSubject)
 	}
 }
 
@@ -601,6 +614,9 @@ func PublishKeyContactIndexer(ctx context.Context, p port.MemberPublisher, kc *m
 			"uid", kc.UID,
 			"error", pubErr,
 			"publish_failed_for_backfill_repair", true)
+	} else {
+		slog.DebugContext(ctx, "key contact indexer published",
+			"uid", kc.UID, "subject", constants.IndexKeyContactSubject)
 	}
 }
 

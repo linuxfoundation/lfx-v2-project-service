@@ -149,7 +149,7 @@ func (s *InviteAcceptedService) resolveKeyContactsInOrg(ctx context.Context, org
 		if normalizeSettingsEmail(kc.Email) != normalizedEmail {
 			continue
 		}
-		kc.Username = acceptedBy
+		kc.Username = strings.TrimPrefix(acceptedBy, legacyAuth0UsernamePrefix)
 		PublishKeyContactFGA(ctx, s.publisher, kc)
 		PublishKeyContactIndexer(ctx, s.publisher, kc, indexerConstants.ActionUpdated)
 	}
@@ -161,9 +161,10 @@ func (s *InviteAcceptedService) resolveKeyContactsInOrg(ctx context.Context, org
 //   - Entries in both lists → ev.Role selects: Manage→writers, View→auditors.
 //     Unknown/empty role → skip + warn (no over-grant).
 //
-// Returns true if a pending entry was found for this email (regardless of whether
-// the promotion write succeeded). The caller uses this to drive resolveKeyContactsInOrg
-// over the same org set.
+// Returns true only when a pending entry was found AND the promotion write
+// succeeded. Returns false on write failure or after exhausting CAS retries,
+// so the caller only adds the org to the FGA/indexer resolution set when
+// the promotion actually committed.
 //
 // Uses an optimistic-CAS retry loop (up to 3 attempts) to handle concurrent writes.
 // Errors are logged but not returned.
@@ -228,7 +229,7 @@ func (s *InviteAcceptedService) promoteInviteInOrg(ctx context.Context, orgUID, 
 		if promoteWriters {
 			writers := slices.Clone(settings.Writers)
 			for _, i := range writerIdxs {
-				writers[i].Username = ev.AcceptedBy
+				writers[i].Username = strings.TrimPrefix(ev.AcceptedBy, legacyAuth0UsernamePrefix)
 				writers[i].InviteStatus = model.InviteStatusAccepted
 				writers[i].AcceptedAt = &now
 				writers[i].InviteUUID = ""
@@ -239,7 +240,7 @@ func (s *InviteAcceptedService) promoteInviteInOrg(ctx context.Context, orgUID, 
 		if promoteAuditors {
 			auditors := slices.Clone(settings.Auditors)
 			for _, i := range auditorIdxs {
-				auditors[i].Username = ev.AcceptedBy
+				auditors[i].Username = strings.TrimPrefix(ev.AcceptedBy, legacyAuth0UsernamePrefix)
 				auditors[i].InviteStatus = model.InviteStatusAccepted
 				auditors[i].AcceptedAt = &now
 				auditors[i].InviteUUID = ""
@@ -260,11 +261,11 @@ func (s *InviteAcceptedService) promoteInviteInOrg(ctx context.Context, orgUID, 
 			}
 			slog.WarnContext(ctx, "invite_accepted: revision conflict after 3 retries",
 				"org_uid", orgUID)
-			return true
+			return false
 		}
 		slog.WarnContext(ctx, "invite_accepted: failed to update org settings",
 			"org_uid", orgUID, "error", err)
-		return true
+		return false
 	}
 	return false
 }

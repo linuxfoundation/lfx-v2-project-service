@@ -92,7 +92,7 @@ func TestInviteAcceptedService_Handle_PromotesPendingWriter(t *testing.T) {
 	saved, _, _ := store.GetSettings(context.Background(), testOrgUID)
 	require.Len(t, saved.Writers, 1)
 	w := saved.Writers[0]
-	assert.Equal(t, "auth0|alice", w.Username, "Username must be stamped from AcceptedBy")
+	assert.Equal(t, "alice", w.Username, "auth0| prefix must be stripped from AcceptedBy")
 	assert.Equal(t, model.InviteStatusAccepted, w.InviteStatus)
 	assert.NotNil(t, w.AcceptedAt)
 	assert.Empty(t, w.InviteUUID, "InviteUUID must be cleared on acceptance")
@@ -119,7 +119,7 @@ func TestInviteAcceptedService_Handle_PromotesPendingAuditor(t *testing.T) {
 	saved, _, _ := store.GetSettings(context.Background(), testOrgUID)
 	require.Len(t, saved.Auditors, 1)
 	a := saved.Auditors[0]
-	assert.Equal(t, "auth0|bob", a.Username)
+	assert.Equal(t, "bob", a.Username)
 	assert.Equal(t, model.InviteStatusAccepted, a.InviteStatus)
 	assert.Empty(t, a.InviteUUID)
 }

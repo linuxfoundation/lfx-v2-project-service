@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/linuxfoundation/lfx-v2-member-service/internal/domain/model"
@@ -334,21 +333,9 @@ func sobjectAccountToB2BOrg(ctx context.Context, raw *sobjectAccount, uid string
 		}
 	}
 
-	// Normalize domain aliases (comma-separated).
-	if rawAlias := derefString(raw.DomainAlias); rawAlias != "" {
-		for _, item := range strings.Split(rawAlias, ",") {
-			item = strings.TrimSpace(item)
-			if item == "" {
-				continue
-			}
-			if normalized, ok := normalizeDomain(item); ok {
-				org.DomainAliases = append(org.DomainAliases, normalized)
-			} else {
-				slog.WarnContext(ctx, "account domain alias invalid, omitting",
-					"uid", uid, "raw_value", item)
-			}
-		}
-	}
+	// Normalize domain aliases using the shared parser that also handles
+	// account-merge CRLF artifacts.
+	org.DomainAliases = parseDomainAliases(ctx, uid, derefString(raw.DomainAlias))
 
 	org.Description = derefString(raw.Description)
 	org.Phone = derefString(raw.Phone)
