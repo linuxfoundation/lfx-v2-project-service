@@ -174,7 +174,7 @@ func run() int {
 	natsOpts := []natsio.Option{
 		natsio.DrainTimeout(gracefulShutdownSec * time.Second),
 		natsio.ConnectHandler(func(_ *natsio.Conn) {
-			slog.With("nats_url", cfg.natsURL).Info("NATS connection established")
+			slog.With("nats_url", sanitizeNATSURL(cfg.natsURL)).Info("NATS connection established")
 		}),
 		natsio.ErrorHandler(func(_ *natsio.Conn, s *natsio.Subscription, e error) {
 			if s != nil {

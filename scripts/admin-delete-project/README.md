@@ -19,14 +19,20 @@ they are orphaned / no longer visible in the UI / created in error).
    and reports them (logged + captured in the audit file). Children do **not**
    block the delete: once the parent project is gone, any remaining children are
    orphaned and inert, so they are intentionally left in place.
-3. **Publishes indexer deletes** to NATS (synchronous request/reply by default):
+3. **Deletes `projects/<uid>`** with `LastRevision` CAS — this is the authoritative
+   ownership check. If the revision has changed since the audit (concurrent update),
+   the run aborts here before any external side-effects.
+4. **Publishes indexer deletes** to NATS (synchronous request/reply by default),
+   *after* the CAS succeeds:
    - `lfx.index.project` with `{"action":"deleted","data":"<uid>"}`
    - `lfx.index.project_settings` with the same shape
 
-   The indexer service consumes these and removes the matching documents from
-   OpenSearch.
-4. **Deletes NATS KV entries**:
-   - `projects/<uid>` with `LastRevision` CAS (the production code path)
+   Publishing after the KV delete avoids the inconsistency window where the
+   project is absent from OpenSearch but still live in NATS. If the indexer
+   publish fails, the base record is already deleted — re-run the script to
+   retry the indexer publish (the KV entry is gone so the CAS step will be
+   skipped cleanly).
+5. **Deletes remaining KV entries**:
    - `projects/slug/<slug>` (no CAS — slug mapping is single-writer)
    - `project-settings/<uid>`
 
@@ -36,11 +42,11 @@ they are orphaned / no longer visible in the UI / created in error).
   Per operator policy, FGA reconciliation is handled out-of-band by another
   job; the messages are idempotent and the orphaned tuples are inert because
   the corresponding `project:<uid>` objects no longer exist anywhere else.
-- **OpenSearch write guarantee.** OpenSearch is updated synchronously via the
-  indexer NATS subject (request/reply, ack-before-delete). If the indexer is
-  unhealthy at the time of run, the publish fails and the script aborts before
-  deleting the KV record. Use `--sync=false` for fire-and-forget (not
-  recommended for production cleanups). See the verification section below.
+- **KV-CAS-first ordering.** The base KV record is deleted with CAS before any
+  indexer publish. If the indexer is unhealthy, the base record will already
+  be gone — re-run the script to retry the indexer publish (the missing KV
+  entry is skipped cleanly). Use `--sync=false` for fire-and-forget indexer
+  publishes (not recommended for production cleanups).
 
 ## Safety properties
 
@@ -57,7 +63,7 @@ they are orphaned / no longer visible in the UI / created in error).
   are already gone are logged and skipped.
 - **CAS on base delete.** Won't clobber a concurrent update to `projects/<uid>`.
 - **Sync indexer publish (default).** We use NATS request/reply so we get an
-  ack from a subscriber before deleting the KV record. Disable with `--sync=false`
+  ack from the indexer after the KV record is deleted. Disable with `--sync=false`
   for fire-and-forget (not recommended for prod cleanups).
 - **Children are non-blocking.** Any `project_link`, `project_folder`, or
   `project_document` referencing the UID is reported but left in place; the
