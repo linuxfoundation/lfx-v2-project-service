@@ -48,8 +48,11 @@ Each message carries `object_type`, `operation`, and a `data` map. The sections 
 | `auditor` | Usernames from `ProjectSettings.Auditors` | Only when `Auditors` is non-empty |
 | `meeting_coordinator` | Usernames from `ProjectSettings.MeetingCoordinators` | Only when `MeetingCoordinators` is non-empty |
 | `executive_director` | Username from `ProjectSettings.ExecutiveDirector` | Only when `ExecutiveDirector.Username` is non-empty |
+| `marketing_ops` | `"team:{teamUID}#member"` from `ProjectSettings.MarketingOpsTeam.UID` | Only on ROOT project (`ProjectBase.Slug == "ROOT"`) when team UID is non-empty |
 
 > Usernames are the `Username` field of each `UserInfo` entry (LFX usernames). Before publishing, `enrichAllRoleFields` overwrites `Username` on every entry that includes an email address with the value returned by `lfx.auth-service.email_to_username`; unknown emails clear `Username` to an empty string. Entries with a username but no email are left untouched.
+
+> Non-ROOT project FGA updates include `exclude_relations: ["marketing_ops"]` so child-project settings syncs never remove the ROOT marketing ops tuple.
 
 ### References
 

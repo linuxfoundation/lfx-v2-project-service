@@ -116,6 +116,10 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		runSync = *payload.XSync
 	}
 
+	if err := validateMarketingOpsTeamAssignment(payload.Slug, payload.MarketingOpsTeam); err != nil {
+		return nil, err
+	}
+
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
 	if err := s.enrichAllRoleFields(ctx,
 		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
@@ -161,6 +165,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		ExecutiveDirector:   payload.ExecutiveDirector,
 		ProgramManager:      payload.ProgramManager,
 		OpportunityOwner:    payload.OpportunityOwner,
+		MarketingOpsTeam:    payload.MarketingOpsTeam,
 	}
 
 	projectDB, err := ConvertToDBProjectBase(project)
@@ -535,6 +540,16 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrProjectNotFound
 	}
 
+	projectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+	if err != nil {
+		slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	if err := validateMarketingOpsTeamAssignment(projectDB.Slug, payload.MarketingOpsTeam); err != nil {
+		return nil, err
+	}
+
 	// Get the existing project settings
 	existingProjectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
 	if err != nil {
@@ -572,6 +587,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		ExecutiveDirector:   payload.ExecutiveDirector,
 		ProgramManager:      payload.ProgramManager,
 		OpportunityOwner:    payload.OpportunityOwner,
+		MarketingOpsTeam:    payload.MarketingOpsTeam,
 		UpdatedAt:           misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
 	if existingProjectSettingsDB.CreatedAt != nil {
@@ -595,12 +611,6 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 			slog.ErrorContext(ctx, "error updating project settings in store", constants.ErrKey, err)
 			return nil, domain.ErrInternal
 		}
-		return nil, domain.ErrInternal
-	}
-
-	projectDB, err := s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
-	if err != nil {
-		slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
 		return nil, domain.ErrInternal
 	}
 
@@ -912,6 +922,21 @@ func (s *ProjectsService) enrichAllRoleFields(
 					u.Avatar = misc.StringPtr(r.metadata.Picture)
 				}
 			}
+		}
+	}
+	return nil
+}
+
+func validateMarketingOpsTeamAssignment(projectSlug string, team *projsvc.TeamReference) error {
+	if team == nil {
+		return nil
+	}
+	if projectSlug != constants.RootProjectSlug {
+		return domain.ErrValidationFailed
+	}
+	if team.UID != "" {
+		if _, err := uuid.Parse(team.UID); err != nil {
+			return domain.ErrValidationFailed
 		}
 	}
 	return nil

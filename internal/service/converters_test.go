@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"github.com/stretchr/testify/assert"
@@ -614,6 +617,7 @@ func TestDomainSettingsToEvent(t *testing.T) {
 			assert.Equal(t, tt.expected.ExecutiveDirector, result.ExecutiveDirector)
 			assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 			assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
+			assert.Equal(t, tt.expected.MarketingOpsTeam, result.MarketingOpsTeam)
 			assert.Equal(t, tt.expected.CreatedAt, result.CreatedAt)
 			assert.Equal(t, tt.expected.UpdatedAt, result.UpdatedAt)
 		})
@@ -764,4 +768,41 @@ func TestDomainLinkToEvent(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestBuildFGAUpdateAccessMessage_MarketingOpsTeam(t *testing.T) {
+	teamUID := "7cad5a8d-19d0-41a4-81a6-043453daf9ee"
+	settings := &models.ProjectSettings{
+		MarketingOpsTeam: &models.TeamReference{UID: teamUID, Name: "LF Marketing Ops"},
+	}
+
+	t.Run("ROOT project emits marketing_ops team tuple", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(
+			&models.ProjectBase{UID: "root-uid", Slug: constants.RootProjectSlug},
+			settings,
+		)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, []string{fgaconstants.ObjectTypeTeam + teamUID + "#member"}, data.Relations[constants.RelationMarketingOps])
+		assert.NotContains(t, data.ExcludeRelations, constants.RelationMarketingOps)
+	})
+
+	t.Run("non-ROOT project excludes marketing_ops from sync", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(
+			&models.ProjectBase{UID: "child-uid", Slug: "linux"},
+			settings,
+		)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.NotContains(t, data.Relations, constants.RelationMarketingOps)
+		assert.Contains(t, data.ExcludeRelations, constants.RelationMarketingOps)
+	})
+}
+
+func TestValidateMarketingOpsTeamAssignment(t *testing.T) {
+	team := &projsvc.TeamReference{UID: "7cad5a8d-19d0-41a4-81a6-043453daf9ee"}
+
+	assert.NoError(t, validateMarketingOpsTeamAssignment(constants.RootProjectSlug, team))
+	assert.NoError(t, validateMarketingOpsTeamAssignment(constants.RootProjectSlug, nil))
+	assert.Error(t, validateMarketingOpsTeamAssignment("linux", team))
 }

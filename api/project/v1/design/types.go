@@ -106,6 +106,7 @@ func ProjectSettingsAttributes() {
 	ProjectExecutiveDirectorAttribute()
 	ProjectProgramManagerAttribute()
 	ProjectOpportunityOwnerAttribute()
+	ProjectMarketingOpsTeamAttribute()
 	ProjectCreatedAtAttribute()
 	ProjectUpdatedAtAttribute()
 }
@@ -277,6 +278,20 @@ var UserInfo = Type("UserInfo", func() {
 	Attribute("invite", InviteInfo, "Pending invite details; present only for users without an LFID. Server-managed — ignored on write requests.")
 })
 
+// TeamReference is the DSL type for an LFX team reference.
+var TeamReference = Type("TeamReference", func() {
+	Description("Reference to an LFX team by UID.")
+
+	Attribute("uid", String, "Team UID", func() {
+		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")
+		Format(FormatUUID)
+	})
+	Attribute("name", String, "Team display name", func() {
+		Example("LF Marketing Ops")
+	})
+	Required("uid")
+})
+
 // ProjectAuditorsAttribute is the DSL attribute for a project auditors.
 func ProjectAuditorsAttribute() {
 	Attribute("auditors", ArrayOf(UserInfo), "A list of project auditors with their profile information", func() {
@@ -349,6 +364,16 @@ func ProjectOpportunityOwnerAttribute() {
 			"email":    "jane.smith@example.com",
 			"username": "janesmith456",
 			"avatar":   "https://example.com/avatar.jpg",
+		})
+	})
+}
+
+// ProjectMarketingOpsTeamAttribute is the DSL attribute for the global Marketing Ops team on ROOT.
+func ProjectMarketingOpsTeamAttribute() {
+	Attribute("marketing_ops_team", TeamReference, "Global Marketing Ops team assignment (ROOT project only)", func() {
+		Example(map[string]interface{}{
+			"uid":  "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
+			"name": "LF Marketing Ops",
 		})
 	})
 }

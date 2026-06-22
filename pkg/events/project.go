@@ -19,6 +19,12 @@ type InviteInfo struct {
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
+// TeamReference identifies an LFX team by UID with an optional display name.
+type TeamReference struct {
+	UID  string `json:"uid"`
+	Name string `json:"name,omitempty"`
+}
+
 // UserInfo is the user representation used in project event payloads.
 type UserInfo struct {
 	Name     string      `json:"name"`
@@ -30,17 +36,18 @@ type UserInfo struct {
 
 // ProjectSettings is the project-settings representation used in event payloads.
 type ProjectSettings struct {
-	UID                 string     `json:"uid"`
-	MissionStatement    string     `json:"mission_statement"`
-	AnnouncementDate    *time.Time `json:"announcement_date"`
-	Auditors            []UserInfo `json:"auditors"`
-	Writers             []UserInfo `json:"writers"`
-	MeetingCoordinators []UserInfo `json:"meeting_coordinators"`
-	ExecutiveDirector   *UserInfo  `json:"executive_director,omitempty"`
-	ProgramManager      *UserInfo  `json:"program_manager,omitempty"`
-	OpportunityOwner    *UserInfo  `json:"opportunity_owner,omitempty"`
-	CreatedAt           *time.Time `json:"created_at"`
-	UpdatedAt           *time.Time `json:"updated_at"`
+	UID                 string         `json:"uid"`
+	MissionStatement    string         `json:"mission_statement"`
+	AnnouncementDate    *time.Time     `json:"announcement_date"`
+	Auditors            []UserInfo     `json:"auditors"`
+	Writers             []UserInfo     `json:"writers"`
+	MeetingCoordinators []UserInfo     `json:"meeting_coordinators"`
+	ExecutiveDirector   *UserInfo      `json:"executive_director,omitempty"`
+	ProgramManager      *UserInfo      `json:"program_manager,omitempty"`
+	OpportunityOwner    *UserInfo      `json:"opportunity_owner,omitempty"`
+	MarketingOpsTeam    *TeamReference `json:"marketing_ops_team,omitempty"`
+	CreatedAt           *time.Time     `json:"created_at"`
+	UpdatedAt           *time.Time     `json:"updated_at"`
 }
 
 // Actor represents the user who triggered a settings change.

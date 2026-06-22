@@ -96,6 +96,7 @@ var _ = Service("project-service", func() {
 			ProjectExecutiveDirectorAttribute()
 			ProjectProgramManagerAttribute()
 			ProjectOpportunityOwnerAttribute()
+			ProjectMarketingOpsTeamAttribute()
 
 			// TODO: figure out what the required attributes are for projects
 			// Same requirements apply to PUT endpoints.
@@ -274,6 +275,7 @@ var _ = Service("project-service", func() {
 			ProjectExecutiveDirectorAttribute()
 			ProjectProgramManagerAttribute()
 			ProjectOpportunityOwnerAttribute()
+			ProjectMarketingOpsTeamAttribute()
 		})
 
 		Result(ProjectSettings)

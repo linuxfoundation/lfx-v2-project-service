@@ -2913,6 +2913,9 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 	if v.OpportunityOwner != nil {
 		res.OpportunityOwner = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.OpportunityOwner)
 	}
+	if v.MarketingOpsTeam != nil {
+		res.MarketingOpsTeam = unmarshalTeamReferenceResponseBodyToProjectserviceTeamReference(v.MarketingOpsTeam)
+	}
 
 	return res
 }
@@ -2946,6 +2949,21 @@ func unmarshalInviteInfoResponseBodyToProjectserviceInviteInfo(v *InviteInfoResp
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// unmarshalTeamReferenceResponseBodyToProjectserviceTeamReference builds a
+// value of type *projectservice.TeamReference from a value of type
+// *TeamReferenceResponseBody.
+func unmarshalTeamReferenceResponseBodyToProjectserviceTeamReference(v *TeamReferenceResponseBody) *projectservice.TeamReference {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.TeamReference{
+		UID:  *v.UID,
+		Name: v.Name,
 	}
 
 	return res
@@ -2985,6 +3003,21 @@ func marshalProjectserviceInviteInfoToInviteInfoRequestBody(v *projectservice.In
 	return res
 }
 
+// marshalProjectserviceTeamReferenceToTeamReferenceRequestBody builds a value
+// of type *TeamReferenceRequestBody from a value of type
+// *projectservice.TeamReference.
+func marshalProjectserviceTeamReferenceToTeamReferenceRequestBody(v *projectservice.TeamReference) *TeamReferenceRequestBody {
+	if v == nil {
+		return nil
+	}
+	res := &TeamReferenceRequestBody{
+		UID:  v.UID,
+		Name: v.Name,
+	}
+
+	return res
+}
+
 // marshalUserInfoRequestBodyToProjectserviceUserInfo builds a value of type
 // *projectservice.UserInfo from a value of type *UserInfoRequestBody.
 func marshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody) *projectservice.UserInfo {
@@ -3014,6 +3047,21 @@ func marshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoRequest
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// marshalTeamReferenceRequestBodyToProjectserviceTeamReference builds a value
+// of type *projectservice.TeamReference from a value of type
+// *TeamReferenceRequestBody.
+func marshalTeamReferenceRequestBodyToProjectserviceTeamReference(v *TeamReferenceRequestBody) *projectservice.TeamReference {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.TeamReference{
+		UID:  v.UID,
+		Name: v.Name,
 	}
 
 	return res

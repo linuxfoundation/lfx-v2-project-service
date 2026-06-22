@@ -74,6 +74,9 @@ paths:
                                       legal_entity_type: Subproject
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       logo_url: https://example.com/logo.png
+                                      marketing_ops_team:
+                                        name: LF Marketing Ops
+                                        uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       meeting_coordinators:
                                         - avatar: https://example.com/avatar1.jpg
                                           email: john.doe@example.com
@@ -143,6 +146,9 @@ paths:
                                       legal_entity_type: Subproject
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       logo_url: https://example.com/logo.png
+                                      marketing_ops_team:
+                                        name: LF Marketing Ops
+                                        uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       meeting_coordinators:
                                         - avatar: https://example.com/avatar1.jpg
                                           email: john.doe@example.com
@@ -212,6 +218,9 @@ paths:
                                       legal_entity_type: Subproject
                                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       logo_url: https://example.com/logo.png
+                                      marketing_ops_team:
+                                        name: LF Marketing Ops
+                                        uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                       meeting_coordinators:
                                         - avatar: https://example.com/avatar1.jpg
                                           email: john.doe@example.com
@@ -343,6 +352,9 @@ paths:
                             legal_entity_type: Subproject
                             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                             logo_url: https://example.com/logo.png
+                            marketing_ops_team:
+                                name: LF Marketing Ops
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                             meeting_coordinators:
                                 - avatar: https://example.com/avatar1.jpg
                                   email: john.doe@example.com
@@ -418,6 +430,9 @@ paths:
                                 legal_entity_type: Subproject
                                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 logo_url: https://example.com/logo.png
+                                marketing_ops_team:
+                                    name: LF Marketing Ops
+                                    uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 meeting_coordinators:
                                     - avatar: https://example.com/avatar1.jpg
                                       email: john.doe@example.com
@@ -1908,6 +1923,9 @@ paths:
                                     email: jane.smith@example.com
                                     name: Jane Smith
                                     username: janesmith456
+                                marketing_ops_team:
+                                    name: LF Marketing Ops
+                                    uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 meeting_coordinators:
                                     - avatar: https://example.com/avatar1.jpg
                                       email: john.doe@example.com
@@ -2036,6 +2054,9 @@ paths:
                                 email: jane.smith@example.com
                                 name: Jane Smith
                                 username: janesmith456
+                            marketing_ops_team:
+                                name: LF Marketing Ops
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                             meeting_coordinators:
                                 - avatar: https://example.com/avatar1.jpg
                                   email: john.doe@example.com
@@ -2089,6 +2110,9 @@ paths:
                                     email: jane.smith@example.com
                                     name: Jane Smith
                                     username: janesmith456
+                                marketing_ops_team:
+                                    name: LF Marketing Ops
+                                    uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 meeting_coordinators:
                                     - avatar: https://example.com/avatar1.jpg
                                       email: john.doe@example.com
@@ -2372,6 +2396,8 @@ components:
                     description: The URL of the project logo
                     example: https://example.com/logo.png
                     format: uri
+                marketing_ops_team:
+                    $ref: '#/components/schemas/TeamReference'
                 meeting_coordinators:
                     type: array
                     items:
@@ -2480,6 +2506,9 @@ components:
                 legal_entity_type: Subproject
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 logo_url: https://example.com/logo.png
+                marketing_ops_team:
+                    name: LF Marketing Ops
+                    uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -2561,6 +2590,9 @@ components:
                           legal_entity_type: Subproject
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           logo_url: https://example.com/logo.png
+                          marketing_ops_team:
+                            name: LF Marketing Ops
+                            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           meeting_coordinators:
                             - avatar: https://example.com/avatar1.jpg
                               email: john.doe@example.com
@@ -2630,6 +2662,9 @@ components:
                           legal_entity_type: Subproject
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           logo_url: https://example.com/logo.png
+                          marketing_ops_team:
+                            name: LF Marketing Ops
+                            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           meeting_coordinators:
                             - avatar: https://example.com/avatar1.jpg
                               email: john.doe@example.com
@@ -2699,6 +2734,9 @@ components:
                           legal_entity_type: Subproject
                           legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           logo_url: https://example.com/logo.png
+                          marketing_ops_team:
+                            name: LF Marketing Ops
+                            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                           meeting_coordinators:
                             - avatar: https://example.com/avatar1.jpg
                               email: john.doe@example.com
@@ -2770,6 +2808,9 @@ components:
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
+                      marketing_ops_team:
+                        name: LF Marketing Ops
+                        uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2839,6 +2880,9 @@ components:
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
+                      marketing_ops_team:
+                        name: LF Marketing Ops
+                        uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2908,6 +2952,9 @@ components:
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
+                      marketing_ops_team:
+                        name: LF Marketing Ops
+                        uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2977,6 +3024,9 @@ components:
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       logo_url: https://example.com/logo.png
+                      marketing_ops_team:
+                        name: LF Marketing Ops
+                        uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -3500,6 +3550,8 @@ components:
                     description: The URL of the project logo
                     example: https://example.com/logo.png
                     format: uri
+                marketing_ops_team:
+                    $ref: '#/components/schemas/TeamReference'
                 meeting_coordinators:
                     type: array
                     items:
@@ -3620,6 +3672,9 @@ components:
                 legal_entity_type: Subproject
                 legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 logo_url: https://example.com/logo.png
+                marketing_ops_team:
+                    name: LF Marketing Ops
+                    uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -3744,6 +3799,8 @@ components:
                     format: date-time
                 executive_director:
                     $ref: '#/components/schemas/UserInfo'
+                marketing_ops_team:
+                    $ref: '#/components/schemas/TeamReference'
                 meeting_coordinators:
                     type: array
                     items:
@@ -3808,6 +3865,9 @@ components:
                     email: jane.smith@example.com
                     name: Jane Smith
                     username: janesmith456
+                marketing_ops_team:
+                    name: LF Marketing Ops
+                    uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -3856,6 +3916,24 @@ components:
             required:
                 - code
                 - message
+        TeamReference:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: Team display name
+                    example: LF Marketing Ops
+                uid:
+                    type: string
+                    description: Team UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+            description: Reference to an LFX team by UID.
+            example:
+                name: LF Marketing Ops
+                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            required:
+                - uid
         UpdateProjectBaseRequestBody:
             type: object
             properties:
@@ -4055,6 +4133,8 @@ components:
                           username: janesmith456
                 executive_director:
                     $ref: '#/components/schemas/UserInfo'
+                marketing_ops_team:
+                    $ref: '#/components/schemas/TeamReference'
                 meeting_coordinators:
                     type: array
                     items:
@@ -4107,6 +4187,9 @@ components:
                     email: jane.smith@example.com
                     name: Jane Smith
                     username: janesmith456
+                marketing_ops_team:
+                    name: LF Marketing Ops
+                    uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com

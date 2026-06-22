@@ -203,6 +203,8 @@ type CreateProjectPayload struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Global Marketing Ops team assignment (ROOT project only)
+	MarketingOpsTeam *TeamReference
 }
 
 // DeleteProjectDocumentPayload is the payload type of the project-service
@@ -595,6 +597,8 @@ type ProjectFull struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Global Marketing Ops team assignment (ROOT project only)
+	MarketingOpsTeam *TeamReference
 }
 
 // ProjectLink is the result type of the project-service service
@@ -641,6 +645,8 @@ type ProjectSettings struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Global Marketing Ops team assignment (ROOT project only)
+	MarketingOpsTeam *TeamReference
 	// The date and time the project was created
 	CreatedAt *string
 	// The date and time the project was last updated
@@ -652,6 +658,14 @@ type ServiceUnavailableError struct {
 	Code string
 	// Error message
 	Message string
+}
+
+// Reference to an LFX team by UID.
+type TeamReference struct {
+	// Team UID
+	UID string
+	// Team display name
+	Name *string
 }
 
 // UpdateProjectBasePayload is the payload type of the project-service service
@@ -742,6 +756,8 @@ type UpdateProjectSettingsPayload struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
+	// Global Marketing Ops team assignment (ROOT project only)
+	MarketingOpsTeam *TeamReference
 }
 
 // UploadProjectDocumentPayload is the payload type of the project-service

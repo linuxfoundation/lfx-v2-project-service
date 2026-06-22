@@ -119,6 +119,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `marketing_ops_team` | object (optional) | Global Marketing Ops team on ROOT only. Object has `uid` (string — team UID) and `name` (string, optional display name) |
 | `created_at` | timestamp (optional) | Creation time (RFC3339); null if not yet set |
 | `updated_at` | timestamp (optional) | Last update time (RFC3339); null if not yet set |
 

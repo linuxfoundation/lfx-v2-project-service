@@ -11,6 +11,7 @@ import (
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
@@ -118,6 +119,9 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 		}
 		if settings.OpportunityOwner != nil {
 			full.OpportunityOwner = convertUserToAPI(settings.OpportunityOwner)
+		}
+		if settings.MarketingOpsTeam != nil {
+			full.MarketingOpsTeam = convertTeamToAPI(settings.MarketingOpsTeam)
 		}
 
 		// Handle settings fields that are pointers
@@ -359,6 +363,9 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings, existing *mod
 	if settings.OpportunityOwner != nil {
 		s.OpportunityOwner = convertUserFromAPI(settings.OpportunityOwner)
 	}
+	if settings.MarketingOpsTeam != nil {
+		s.MarketingOpsTeam = convertTeamFromAPI(settings.MarketingOpsTeam)
+	}
 	if settings.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
 		if err != nil {
@@ -410,6 +417,9 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 	}
 	if s.OpportunityOwner != nil {
 		settings.OpportunityOwner = convertUserToAPI(s.OpportunityOwner)
+	}
+	if s.MarketingOpsTeam != nil {
+		settings.MarketingOpsTeam = convertTeamToAPI(s.MarketingOpsTeam)
 	}
 
 	// Handle settings fields that are pointers
@@ -525,8 +535,40 @@ func convertUserFromAPI(apiUser *projsvc.UserInfo) *models.UserInfo {
 	if apiUser.Avatar != nil {
 		user.Avatar = *apiUser.Avatar
 	}
-	// invite is server-managed — never accepted from API requests.
 	return user
+}
+
+func convertTeamToAPI(team *models.TeamReference) *projsvc.TeamReference {
+	if team == nil || team.UID == "" {
+		return nil
+	}
+	apiTeam := &projsvc.TeamReference{
+		UID: team.UID,
+	}
+	if team.Name != "" {
+		apiTeam.Name = misc.StringPtr(team.Name)
+	}
+	return apiTeam
+}
+
+func convertTeamFromAPI(apiTeam *projsvc.TeamReference) *models.TeamReference {
+	if apiTeam == nil || apiTeam.UID == "" {
+		return nil
+	}
+	team := &models.TeamReference{
+		UID: apiTeam.UID,
+	}
+	if apiTeam.Name != nil {
+		team.Name = *apiTeam.Name
+	}
+	return team
+}
+
+func marketingOpsTeamUID(team *models.TeamReference) string {
+	if team == nil {
+		return ""
+	}
+	return team.UID
 }
 
 // extractUsername extracts the username from a single UserInfo pointer. Returns empty string if nil.
@@ -574,6 +616,13 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 		relations["executive_director"] = []string{ed}
 	}
 
+	var excludeRelations []string
+	if projectDB.Slug != constants.RootProjectSlug {
+		excludeRelations = append(excludeRelations, constants.RelationMarketingOps)
+	} else if teamUID := marketingOpsTeamUID(projectSettingsDB.MarketingOpsTeam); teamUID != "" {
+		relations[constants.RelationMarketingOps] = []string{fgaconstants.ObjectTypeTeam + teamUID + "#member"}
+	}
+
 	// Build references map for parent relationship
 	references := make(map[string][]string)
 	if projectDB.ParentUID != "" {
@@ -584,10 +633,11 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 		ObjectType: "project",
 		Operation:  "update_access",
 		Data: fgatypes.GenericAccessData{
-			UID:        projectDB.UID,
-			Public:     projectDB.Public,
-			Relations:  relations,
-			References: references,
+			UID:              projectDB.UID,
+			Public:           projectDB.Public,
+			Relations:        relations,
+			References:       references,
+			ExcludeRelations: excludeRelations,
 		},
 	}
 }
@@ -608,6 +658,7 @@ func DomainSettingsToEvent(s *models.ProjectSettings) events.ProjectSettings {
 		ExecutiveDirector:   domainUserPtrToEvent(s.ExecutiveDirector),
 		ProgramManager:      domainUserPtrToEvent(s.ProgramManager),
 		OpportunityOwner:    domainUserPtrToEvent(s.OpportunityOwner),
+		MarketingOpsTeam:    domainTeamPtrToEvent(s.MarketingOpsTeam),
 		CreatedAt:           s.CreatedAt,
 		UpdatedAt:           s.UpdatedAt,
 	}
@@ -647,6 +698,16 @@ func domainUserPtrToEvent(u *models.UserInfo) *events.UserInfo {
 	}
 	ev := domainUserToEvent(*u)
 	return &ev
+}
+
+func domainTeamPtrToEvent(team *models.TeamReference) *events.TeamReference {
+	if team == nil || team.UID == "" {
+		return nil
+	}
+	return &events.TeamReference{
+		UID:  team.UID,
+		Name: team.Name,
+	}
 }
 
 // createTestUserInfo creates a UserInfo for testing purposes

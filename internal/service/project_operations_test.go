@@ -813,10 +813,11 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 						ObjectType: "project",
 						Operation:  "update_access",
 						Data: fgatypes.GenericAccessData{
-							UID:        "project-uid-1",
-							Public:     true,
-							Relations:  make(map[string][]string),
-							References: make(map[string][]string),
+							UID:              "project-uid-1",
+							Public:           true,
+							Relations:        make(map[string][]string),
+							References:       make(map[string][]string),
+							ExcludeRelations: []string{"marketing_ops"},
 						},
 					},
 					mock.AnythingOfType("bool"),
@@ -857,10 +858,11 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 						ObjectType: "project",
 						Operation:  "update_access",
 						Data: fgatypes.GenericAccessData{
-							UID:        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-							Public:     false,
-							Relations:  make(map[string][]string),
-							References: map[string][]string{"parent": {"project:11111111-2222-3333-4444-555555555555"}},
+							UID:              "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+							Public:           false,
+							Relations:        make(map[string][]string),
+							References:       map[string][]string{"parent": {"project:11111111-2222-3333-4444-555555555555"}},
+							ExcludeRelations: []string{"marketing_ops"},
 						},
 					},
 					mock.AnythingOfType("bool"),
@@ -1014,9 +1016,9 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Public: true}
 
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.AnythingOfType("*models.ProjectSettings"), uint64(3)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				// After update, GetProjectSettings is called again to build the FGA message — use updated settings
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(updatedSettings, nil).Maybe()
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
@@ -1055,11 +1057,11 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Public: false}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "real-bob"
 				}), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1082,11 +1084,11 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == ""
 				}), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1106,11 +1108,11 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) == 1 && s.Auditors[0].Username == ""
 				}), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1132,6 +1134,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1", Slug: "test-project"}, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 			},
 			wantErr:     true,
@@ -1161,12 +1164,12 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				// Username must be "" — the stale "stale-lfid" must not be preserved.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == ""
 				}), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1188,12 +1191,12 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				// Username must be preserved unchanged — no Auth0 lookup should have been attempted.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "client-credentials|my-service"
 				}), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1220,6 +1223,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				// Username, name, and avatar must all come from auth service, not the caller.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
@@ -1228,7 +1232,6 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 						s.Writers[0].Name == "Carol Real Name" &&
 						s.Writers[0].Avatar == "https://auth.example.com/carol.png"
 				}), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1252,6 +1255,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				// Username is enriched; name/avatar keep caller-supplied values when metadata fails.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
@@ -1260,7 +1264,6 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 						s.Writers[0].Name == "Dave" && // caller-supplied — not overwritten on metadata failure
 						s.Writers[0].Avatar == "" // caller supplied no avatar — still empty
 				}), uint64(1)).Return(nil)
-				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)

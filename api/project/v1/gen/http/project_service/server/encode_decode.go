@@ -2524,6 +2524,9 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 	if v.OpportunityOwner != nil {
 		res.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoResponseBody(v.OpportunityOwner)
 	}
+	if v.MarketingOpsTeam != nil {
+		res.MarketingOpsTeam = marshalProjectserviceTeamReferenceToTeamReferenceResponseBody(v.MarketingOpsTeam)
+	}
 
 	return res
 }
@@ -2562,6 +2565,21 @@ func marshalProjectserviceInviteInfoToInviteInfoResponseBody(v *projectservice.I
 	return res
 }
 
+// marshalProjectserviceTeamReferenceToTeamReferenceResponseBody builds a value
+// of type *TeamReferenceResponseBody from a value of type
+// *projectservice.TeamReference.
+func marshalProjectserviceTeamReferenceToTeamReferenceResponseBody(v *projectservice.TeamReference) *TeamReferenceResponseBody {
+	if v == nil {
+		return nil
+	}
+	res := &TeamReferenceResponseBody{
+		UID:  v.UID,
+		Name: v.Name,
+	}
+
+	return res
+}
+
 // unmarshalUserInfoRequestBodyToProjectserviceUserInfo builds a value of type
 // *projectservice.UserInfo from a value of type *UserInfoRequestBody.
 func unmarshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody) *projectservice.UserInfo {
@@ -2591,6 +2609,21 @@ func unmarshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoReque
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// unmarshalTeamReferenceRequestBodyToProjectserviceTeamReference builds a
+// value of type *projectservice.TeamReference from a value of type
+// *TeamReferenceRequestBody.
+func unmarshalTeamReferenceRequestBodyToProjectserviceTeamReference(v *TeamReferenceRequestBody) *projectservice.TeamReference {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.TeamReference{
+		UID:  *v.UID,
+		Name: v.Name,
 	}
 
 	return res
