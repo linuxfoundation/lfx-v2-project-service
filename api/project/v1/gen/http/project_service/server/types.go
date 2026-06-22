@@ -79,8 +79,6 @@ type CreateProjectRequestBody struct {
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
-	// Global Marketing Ops team assignment (ROOT project only)
-	MarketingOpsTeam *TeamReferenceRequestBody `form:"marketing_ops_team,omitempty" json:"marketing_ops_team,omitempty" xml:"marketing_ops_team,omitempty"`
 }
 
 // UpdateProjectBaseRequestBody is the type of the "project-service" service
@@ -2611,9 +2609,6 @@ func NewCreateProjectPayload(body *CreateProjectRequestBody, version *string, be
 	if body.OpportunityOwner != nil {
 		v.OpportunityOwner = unmarshalUserInfoRequestBodyToProjectserviceUserInfo(body.OpportunityOwner)
 	}
-	if body.MarketingOpsTeam != nil {
-		v.MarketingOpsTeam = unmarshalTeamReferenceRequestBodyToProjectserviceTeamReference(body.MarketingOpsTeam)
-	}
 	v.Version = version
 	v.BearerToken = bearerToken
 	v.XSync = xSync
@@ -2988,11 +2983,6 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	}
 	if body.OpportunityOwner != nil {
 		if err2 := ValidateUserInfoRequestBody(body.OpportunityOwner); err2 != nil {
-			err = goa.MergeErrors(err, err2)
-		}
-	}
-	if body.MarketingOpsTeam != nil {
-		if err2 := ValidateTeamReferenceRequestBody(body.MarketingOpsTeam); err2 != nil {
 			err = goa.MergeErrors(err, err2)
 		}
 	}

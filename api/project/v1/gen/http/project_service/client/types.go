@@ -79,8 +79,6 @@ type CreateProjectRequestBody struct {
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfoRequestBody `form:"opportunity_owner,omitempty" json:"opportunity_owner,omitempty" xml:"opportunity_owner,omitempty"`
-	// Global Marketing Ops team assignment (ROOT project only)
-	MarketingOpsTeam *TeamReferenceRequestBody `form:"marketing_ops_team,omitempty" json:"marketing_ops_team,omitempty" xml:"marketing_ops_team,omitempty"`
 }
 
 // UpdateProjectBaseRequestBody is the type of the "project-service" service
@@ -1273,14 +1271,6 @@ type InviteInfoRequestBody struct {
 	ExpiresAt *string `form:"expires_at,omitempty" json:"expires_at,omitempty" xml:"expires_at,omitempty"`
 }
 
-// TeamReferenceRequestBody is used to define fields on request body types.
-type TeamReferenceRequestBody struct {
-	// Team UID
-	UID string `form:"uid" json:"uid" xml:"uid"`
-	// Team display name
-	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-}
-
 // ProjectBaseResponseBody is used to define fields on response body types.
 type ProjectBaseResponseBody struct {
 	// Project UID -- v2 uid, not related to v1 id directly
@@ -1361,6 +1351,14 @@ type ProjectSettingsResponseBody struct {
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// The date and time the project was last updated
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
+}
+
+// TeamReferenceRequestBody is used to define fields on request body types.
+type TeamReferenceRequestBody struct {
+	// Team UID
+	UID string `form:"uid" json:"uid" xml:"uid"`
+	// Team display name
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 }
 
 // ProjectLinkResponseBody is used to define fields on response body types.
@@ -1486,9 +1484,6 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 	}
 	if p.OpportunityOwner != nil {
 		body.OpportunityOwner = marshalProjectserviceUserInfoToUserInfoRequestBody(p.OpportunityOwner)
-	}
-	if p.MarketingOpsTeam != nil {
-		body.MarketingOpsTeam = marshalProjectserviceTeamReferenceToTeamReferenceRequestBody(p.MarketingOpsTeam)
 	}
 	return body
 }
@@ -4326,13 +4321,6 @@ func ValidateInviteInfoRequestBody(body *InviteInfoRequestBody) (err error) {
 	return
 }
 
-// ValidateTeamReferenceRequestBody runs the validations defined on
-// TeamReferenceRequestBody
-func ValidateTeamReferenceRequestBody(body *TeamReferenceRequestBody) (err error) {
-	err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", body.UID, goa.FormatUUID))
-	return
-}
-
 // ValidateProjectBaseResponseBody runs the validations defined on
 // ProjectBaseResponseBody
 func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) {
@@ -4459,6 +4447,13 @@ func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
 	}
+	return
+}
+
+// ValidateTeamReferenceRequestBody runs the validations defined on
+// TeamReferenceRequestBody
+func ValidateTeamReferenceRequestBody(body *TeamReferenceRequestBody) (err error) {
+	err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", body.UID, goa.FormatUUID))
 	return
 }
 

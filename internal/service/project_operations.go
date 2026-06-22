@@ -116,10 +116,6 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		runSync = *payload.XSync
 	}
 
-	if err := validateMarketingOpsTeamAssignment(payload.Slug, payload.MarketingOpsTeam); err != nil {
-		return nil, err
-	}
-
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
 	if err := s.enrichAllRoleFields(ctx,
 		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
@@ -165,7 +161,6 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		ExecutiveDirector:   payload.ExecutiveDirector,
 		ProgramManager:      payload.ProgramManager,
 		OpportunityOwner:    payload.OpportunityOwner,
-		MarketingOpsTeam:    payload.MarketingOpsTeam,
 	}
 
 	projectDB, err := ConvertToDBProjectBase(project)

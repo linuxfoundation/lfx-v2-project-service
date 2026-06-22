@@ -2183,8 +2183,6 @@ definitions:
                 description: The URL of the project logo
                 example: https://example.com/logo.png
                 format: uri
-            marketing_ops_team:
-                $ref: '#/definitions/TeamReference'
             meeting_coordinators:
                 type: array
                 items:
@@ -2293,9 +2291,6 @@ definitions:
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             logo_url: https://example.com/logo.png
-            marketing_ops_team:
-                name: LF Marketing Ops
-                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com

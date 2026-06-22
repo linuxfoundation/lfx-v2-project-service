@@ -203,8 +203,6 @@ type CreateProjectPayload struct {
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
 	OpportunityOwner *UserInfo
-	// Global Marketing Ops team assignment (ROOT project only)
-	MarketingOpsTeam *TeamReference
 }
 
 // DeleteProjectDocumentPayload is the payload type of the project-service

@@ -3003,21 +3003,6 @@ func marshalProjectserviceInviteInfoToInviteInfoRequestBody(v *projectservice.In
 	return res
 }
 
-// marshalProjectserviceTeamReferenceToTeamReferenceRequestBody builds a value
-// of type *TeamReferenceRequestBody from a value of type
-// *projectservice.TeamReference.
-func marshalProjectserviceTeamReferenceToTeamReferenceRequestBody(v *projectservice.TeamReference) *TeamReferenceRequestBody {
-	if v == nil {
-		return nil
-	}
-	res := &TeamReferenceRequestBody{
-		UID:  v.UID,
-		Name: v.Name,
-	}
-
-	return res
-}
-
 // marshalUserInfoRequestBodyToProjectserviceUserInfo builds a value of type
 // *projectservice.UserInfo from a value of type *UserInfoRequestBody.
 func marshalUserInfoRequestBodyToProjectserviceUserInfo(v *UserInfoRequestBody) *projectservice.UserInfo {
@@ -3047,6 +3032,21 @@ func marshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoRequest
 		UID:       v.UID,
 		Email:     v.Email,
 		ExpiresAt: v.ExpiresAt,
+	}
+
+	return res
+}
+
+// marshalProjectserviceTeamReferenceToTeamReferenceRequestBody builds a value
+// of type *TeamReferenceRequestBody from a value of type
+// *projectservice.TeamReference.
+func marshalProjectserviceTeamReferenceToTeamReferenceRequestBody(v *projectservice.TeamReference) *TeamReferenceRequestBody {
+	if v == nil {
+		return nil
+	}
+	res := &TeamReferenceRequestBody{
+		UID:  v.UID,
+		Name: v.Name,
 	}
 
 	return res

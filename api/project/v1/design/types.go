@@ -370,12 +370,7 @@ func ProjectOpportunityOwnerAttribute() {
 
 // ProjectMarketingOpsTeamAttribute is the DSL attribute for the global Marketing Ops team on ROOT.
 func ProjectMarketingOpsTeamAttribute() {
-	Attribute("marketing_ops_team", TeamReference, "Global Marketing Ops team assignment (ROOT project only)", func() {
-		Example(map[string]interface{}{
-			"uid":  "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
-			"name": "LF Marketing Ops",
-		})
-	})
+	Attribute("marketing_ops_team", TeamReference, "Global Marketing Ops team assignment (ROOT project only)")
 }
 
 // ProjectMeetingCoordinatorsAttribute is the DSL attribute for a project meeting coordinators.
