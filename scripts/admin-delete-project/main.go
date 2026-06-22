@@ -13,11 +13,12 @@
 //     --cascade-children they are deleted too (KV records, lookup keys, document
 //     object-store blobs, and indexer deletes), mirroring the production
 //     per-resource delete paths.
-//  3. Publishes deleted-action indexer envelopes for `lfx.index.project` and
+//  3. Deletes projects/<uid> with last-revision CAS (authoritative ownership check).
+//     If the CAS fails (concurrent update), the run aborts before any external side-effects.
+//  4. Publishes deleted-action indexer envelopes for `lfx.index.project` and
 //     `lfx.index.project_settings` so the indexer service removes the docs from
-//     OpenSearch.
-//  4. Deletes projects/<uid> with last-revision CAS, then projects/slug/<slug>,
-//     then project-settings/<uid>.
+//     OpenSearch (published after the CAS to avoid a search/KV inconsistency window).
+//  5. Deletes projects/slug/<slug> and project-settings/<uid>.
 //
 // FGA cleanup (`lfx.fga-sync.delete_access`) is intentionally NOT performed by
 // this script — operator has opted to let another reconciliation job handle it.
@@ -32,7 +33,9 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -49,7 +52,6 @@ import (
 )
 
 const (
-	errKey              = "error"
 	gracefulShutdownSec = 25
 	// auditTimeoutPerUID is the per-UID budget for the read-only audit phase
 	// (KV reads + full child bucket scan, each key fetched individually).
@@ -59,6 +61,20 @@ const (
 	executeTimeoutPerUID = 120 * time.Second
 )
 
+// uuidRE matches a canonical UUID (8-4-4-4-12 hex groups, case-insensitive).
+var uuidRE = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// sanitizeNATSURL returns the URL with any embedded user:password redacted,
+// safe to include in log output.
+func sanitizeNATSURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.User == nil {
+		return raw
+	}
+	u.User = url.User(u.User.Username())
+	return u.String()
+}
+
 // stringSliceFlag collects repeated --uid values.
 type stringSliceFlag []string
 
@@ -67,6 +83,9 @@ func (s *stringSliceFlag) Set(v string) error {
 	uid := strings.TrimSpace(v)
 	if uid == "" {
 		return errors.New("--uid cannot be empty")
+	}
+	if !uuidRE.MatchString(uid) {
+		return fmt.Errorf("--uid %q is not a valid UUID", uid)
 	}
 	*s = append(*s, uid)
 	return nil
@@ -129,13 +148,13 @@ func main() {
 func run() int {
 	cfg, err := parseConfig()
 	if err != nil {
-		slog.With(errKey, err).Error("invalid arguments")
+		slog.With(constants.ErrKey, err).Error("invalid arguments")
 		flag.Usage()
 		return 2
 	}
 
 	slog.Info("admin-delete-project starting",
-		"nats_url", cfg.natsURL,
+		"nats_url", sanitizeNATSURL(cfg.natsURL),
 		"nats_user", cfg.natsUser,
 		"uids", cfg.uids,
 		"dry_run", cfg.dryRun,
@@ -159,9 +178,9 @@ func run() int {
 		}),
 		natsio.ErrorHandler(func(_ *natsio.Conn, s *natsio.Subscription, e error) {
 			if s != nil {
-				slog.With(errKey, e, "subject", s.Subject, "queue", s.Queue).Error("async NATS error")
+				slog.With(constants.ErrKey, e, "subject", s.Subject, "queue", s.Queue).Error("async NATS error")
 			} else {
-				slog.With(errKey, e).Error("async NATS error outside subscription")
+				slog.With(constants.ErrKey, e).Error("async NATS error outside subscription")
 			}
 		}),
 	}
@@ -171,21 +190,21 @@ func run() int {
 
 	nc, err := natsio.Connect(cfg.natsURL, natsOpts...)
 	if err != nil {
-		slog.With(errKey, err).Error("failed to connect to NATS")
+		slog.With(constants.ErrKey, err).Error("failed to connect to NATS")
 		return 1
 	}
 	defer nc.Close()
 
 	js, err := jetstream.New(nc)
 	if err != nil {
-		slog.With(errKey, err).Error("failed to create JetStream client")
+		slog.With(constants.ErrKey, err).Error("failed to create JetStream client")
 		return 1
 	}
 
 	needChildBuckets := !cfg.skipChildScan || cfg.cascadeChildren
 	buckets, err := openBuckets(ctx, js, needChildBuckets)
 	if err != nil {
-		slog.With(errKey, err).Error("failed to open required NATS KV buckets")
+		slog.With(constants.ErrKey, err).Error("failed to open required NATS KV buckets")
 		return 1
 	}
 
@@ -197,7 +216,7 @@ func run() int {
 	for _, uid := range cfg.uids {
 		record, err := auditProject(ctx, buckets, uid, cfg.skipChildScan)
 		if err != nil {
-			slog.With(errKey, err, "uid", uid).Error("audit failed; aborting this UID")
+			slog.With(constants.ErrKey, err, "uid", uid).Error("audit failed; aborting this UID")
 			hadFailure = true
 			continue
 		}
@@ -205,7 +224,7 @@ func run() int {
 	}
 
 	if err := writeAudit(cfg.auditPath, auditRecords); err != nil {
-		slog.With(errKey, err, "audit_file", cfg.auditPath).Error("failed to write audit file")
+		slog.With(constants.ErrKey, err, "audit_file", cfg.auditPath).Error("failed to write audit file")
 		return 1
 	}
 	slog.With("audit_file", cfg.auditPath, "records", len(auditRecords)).Info("audit file written")
@@ -245,7 +264,7 @@ func run() int {
 	exitCode := 0
 	for _, rec := range auditRecords {
 		if err := executeDelete(ctx, buckets, mb, rec, cfg.sync, cfg.cascadeChildren); err != nil {
-			slog.With(errKey, err, "uid", rec.UID).Error("delete failed for UID")
+			slog.With(constants.ErrKey, err, "uid", rec.UID).Error("delete failed for UID")
 			exitCode = 1
 			continue
 		}
@@ -293,19 +312,19 @@ func openBuckets(ctx context.Context, js jetstream.JetStream, needChildBuckets b
 
 	// Optional child buckets — only opened when scan or cascade is needed.
 	if kv.Links, err = js.KeyValue(ctx, constants.KVStoreNameProjectLinks); err != nil {
-		slog.With(errKey, err, "bucket", constants.KVStoreNameProjectLinks).Warn("optional KV bucket not present; child scan will skip it")
+		slog.With(constants.ErrKey, err, "bucket", constants.KVStoreNameProjectLinks).Warn("optional KV bucket not present; child scan will skip it")
 		kv.Links = nil
 	}
 	if kv.Folders, err = js.KeyValue(ctx, constants.KVStoreNameProjectFolders); err != nil {
-		slog.With(errKey, err, "bucket", constants.KVStoreNameProjectFolders).Warn("optional KV bucket not present; child scan will skip it")
+		slog.With(constants.ErrKey, err, "bucket", constants.KVStoreNameProjectFolders).Warn("optional KV bucket not present; child scan will skip it")
 		kv.Folders = nil
 	}
 	if kv.Documents, err = js.KeyValue(ctx, constants.KVStoreNameProjectDocuments); err != nil {
-		slog.With(errKey, err, "bucket", constants.KVStoreNameProjectDocuments).Warn("optional KV bucket not present; child scan will skip it")
+		slog.With(constants.ErrKey, err, "bucket", constants.KVStoreNameProjectDocuments).Warn("optional KV bucket not present; child scan will skip it")
 		kv.Documents = nil
 	}
 	if kv.DocumentFiles, err = js.ObjectStore(ctx, constants.ObjectStoreNameProjectDocuments); err != nil {
-		slog.With(errKey, err, "store", constants.ObjectStoreNameProjectDocuments).Warn("optional object store not present; cascade will skip document blob deletes")
+		slog.With(constants.ErrKey, err, "store", constants.ObjectStoreNameProjectDocuments).Warn("optional object store not present; cascade will skip document blob deletes")
 		kv.DocumentFiles = nil
 	}
 	return kv, nil
@@ -523,7 +542,7 @@ func scanLinks(ctx context.Context, kv jetstream.KeyValue, uid string) ([]models
 		}
 		var l models.ProjectLink
 		if uerr := json.Unmarshal(entry.Value(), &l); uerr != nil {
-			slog.With(errKey, uerr, "key", k).Warn("could not unmarshal link record while scanning; skipping")
+			slog.With(constants.ErrKey, uerr, "key", k).Warn("could not unmarshal link record while scanning; skipping")
 			continue
 		}
 		if l.ProjectUID == uid {
@@ -552,7 +571,7 @@ func scanFolders(ctx context.Context, kv jetstream.KeyValue, uid string) ([]mode
 		}
 		var f models.ProjectFolder
 		if uerr := json.Unmarshal(entry.Value(), &f); uerr != nil {
-			slog.With(errKey, uerr, "key", k).Warn("could not unmarshal folder record while scanning; skipping")
+			slog.With(constants.ErrKey, uerr, "key", k).Warn("could not unmarshal folder record while scanning; skipping")
 			continue
 		}
 		if f.ProjectUID == uid {
@@ -581,7 +600,7 @@ func scanDocuments(ctx context.Context, kv jetstream.KeyValue, uid string) ([]mo
 		}
 		var d models.ProjectDocument
 		if uerr := json.Unmarshal(entry.Value(), &d); uerr != nil {
-			slog.With(errKey, uerr, "key", k).Warn("could not unmarshal document record while scanning; skipping")
+			slog.With(constants.ErrKey, uerr, "key", k).Warn("could not unmarshal document record while scanning; skipping")
 			continue
 		}
 		if d.ProjectUID == uid {
@@ -622,10 +641,15 @@ func printPlan(records []projectAudit, cascade bool) {
 	}
 }
 
-// executeDelete performs the write phase for a single project, in the safest
-// order possible: publish indexer deletes (so OpenSearch is cleaned up before
-// we lose the ability to re-derive anything), then delete the KV records.
-// When cascade is true, children are deleted first (before the parent project).
+// executeDelete performs the write phase for a single project in the following order:
+//  1. Cascade children (when requested), so orphaned children are removed before the parent.
+//  2. KV CAS delete of the base record — this is the authoritative ownership check.
+//     If a concurrent update has bumped the revision, we abort here before touching anything else.
+//  3. Indexer deletes for project + settings (after KV ownership is confirmed).
+//  4. Slug reverse-lookup key and settings KV cleanup.
+//
+// Doing the CAS first eliminates the consistency window where the project is removed from
+// OpenSearch but still live in NATS KV (the window that exists when indexer is published first).
 func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, rec projectAudit, sync, cascade bool) error {
 	uid := rec.UID
 
@@ -637,7 +661,18 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 		}
 	}
 
-	// 1. Indexer: project + project_settings.
+	// 1. KV CAS delete — confirm ownership before any external side-effects.
+	// If the revision has changed since audit (concurrent update), abort cleanly.
+	if rec.Base.Found {
+		if err := kv.Projects.Delete(ctx, uid, jetstream.LastRevision(rec.Base.Revision)); err != nil {
+			return fmt.Errorf("delete projects/%s (rev %d): %w", uid, rec.Base.Revision, err)
+		}
+		slog.With("uid", uid, "revision", rec.Base.Revision).Info("deleted projects/<uid>")
+	}
+
+	// 2. Indexer: project + project_settings.
+	// Published after the CAS succeeds so there is no window where the project is
+	// absent from OpenSearch but still present in NATS KV.
 	// Passing the UID as a string tells SendIndexerMessage to construct an
 	// ActionDeleted envelope (see internal/infrastructure/nats/message.go).
 	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSubject, uid, sync); err != nil {
@@ -651,15 +686,6 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 	slog.With("uid", uid, "subject", constants.IndexProjectSettingsSubject).Info("published indexer delete")
 
 	// FGA cleanup intentionally skipped per operator policy.
-
-	// 2. NATS KV deletes.
-	if rec.Base.Found {
-		// CAS on the base record so a concurrent update doesn't get clobbered.
-		if err := kv.Projects.Delete(ctx, uid, jetstream.LastRevision(rec.Base.Revision)); err != nil {
-			return fmt.Errorf("delete projects/%s (rev %d): %w", uid, rec.Base.Revision, err)
-		}
-		slog.With("uid", uid, "revision", rec.Base.Revision).Info("deleted projects/<uid>")
-	}
 
 	if rec.SlugKV.Found {
 		// Slug mapping is single-writer; CAS not required.
@@ -709,7 +735,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			}
 			lookupKey := fmt.Sprintf(constants.KVLookupLinkKey, l.ProjectUID, l.UID)
 			if err := kv.Links.Purge(ctx, lookupKey); err != nil {
-				slog.With(errKey, err, "key", lookupKey).Warn("could not purge link lookup key; continuing")
+				slog.With(constants.ErrKey, err, "key", lookupKey).Warn("could not purge link lookup key; continuing")
 			}
 		}
 		slog.With("uid", uid, "link_uid", l.UID).Info("cascade-deleted link")
@@ -732,7 +758,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			}
 			uniqueKey := fmt.Sprintf(constants.KVLookupFolderPrefix, f.BuildIndexKey(ctx))
 			if err := kv.Folders.Purge(ctx, uniqueKey); err != nil {
-				slog.With(errKey, err, "key", uniqueKey).Warn("could not purge folder lookup key; continuing")
+				slog.With(constants.ErrKey, err, "key", uniqueKey).Warn("could not purge folder lookup key; continuing")
 			}
 		}
 		slog.With("uid", uid, "folder_uid", f.UID).Info("cascade-deleted folder")
@@ -755,12 +781,12 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			}
 			uniqueKey := fmt.Sprintf(constants.KVLookupDocumentPrefix, d.BuildIndexKey(ctx))
 			if err := kv.Documents.Purge(ctx, uniqueKey); err != nil {
-				slog.With(errKey, err, "key", uniqueKey).Warn("could not purge document lookup key; continuing")
+				slog.With(constants.ErrKey, err, "key", uniqueKey).Warn("could not purge document lookup key; continuing")
 			}
 		}
 		if kv.DocumentFiles != nil {
 			if err := kv.DocumentFiles.Delete(ctx, d.UID); err != nil {
-				slog.With(errKey, err, "document_uid", d.UID).Warn("could not delete document blob from object store; continuing")
+				slog.With(constants.ErrKey, err, "document_uid", d.UID).Warn("could not delete document blob from object store; continuing")
 			}
 		}
 		slog.With("uid", uid, "document_uid", d.UID).Info("cascade-deleted document")

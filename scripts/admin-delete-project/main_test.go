@@ -80,6 +80,90 @@ func TestExtractSlugFromBase(t *testing.T) {
 	}
 }
 
+func TestSanitizeNATSURL(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{
+			name: "URL with user and password is redacted",
+			raw:  "nats://user:secret@localhost:4222",
+			want: "nats://user@localhost:4222",
+		},
+		{
+			name: "URL with only username is unchanged",
+			raw:  "nats://user@localhost:4222",
+			want: "nats://user@localhost:4222",
+		},
+		{
+			name: "URL without credentials is unchanged",
+			raw:  "nats://localhost:4222",
+			want: "nats://localhost:4222",
+		},
+		{
+			name: "invalid URL is returned as-is",
+			raw:  "://bad-url",
+			want: "://bad-url",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, sanitizeNATSURL(tt.raw))
+		})
+	}
+}
+
+func TestStringSliceFlagSet(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		{
+			name:  "valid UUID is accepted",
+			input: "550e8400-e29b-41d4-a716-446655440000",
+		},
+		{
+			name:  "valid UUID uppercase is accepted",
+			input: "550E8400-E29B-41D4-A716-446655440000",
+		},
+		{
+			name:    "empty string is rejected",
+			input:   "",
+			wantErr: "--uid cannot be empty",
+		},
+		{
+			name:    "whitespace-only is rejected",
+			input:   "   ",
+			wantErr: "--uid cannot be empty",
+		},
+		{
+			name:    "non-UUID string is rejected",
+			input:   "not-a-uuid",
+			wantErr: `--uid "not-a-uuid" is not a valid UUID`,
+		},
+		{
+			name:    "short hex string is rejected",
+			input:   "abc123",
+			wantErr: `--uid "abc123" is not a valid UUID`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var f stringSliceFlag
+			err := f.Set(tt.input)
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				assert.Empty(t, f)
+				return
+			}
+			require.NoError(t, err)
+			assert.Len(t, f, 1)
+		})
+	}
+}
+
 func TestListAllKeys(t *testing.T) {
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()

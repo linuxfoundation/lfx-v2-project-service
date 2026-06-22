@@ -48,6 +48,11 @@ they are orphaned / no longer visible in the UI / created in error).
   pass `--dry-run=false` to perform any writes.
 - **Audit-before-write.** The JSON audit file is written to disk *before* any
   mutating call. Keep it as your rollback record.
+
+  > ⚠️ **Sensitive data:** the audit file captures the full `project-settings` KV
+  > value, which includes member emails and other PII. Delete the file after you
+  > no longer need it as a rollback reference (e.g. once you've confirmed the
+  > deletion was successful).
 - **Idempotent.** Re-running after partial completion is safe — entries that
   are already gone are logged and skipped.
 - **CAS on base delete.** Won't clobber a concurrent update to `projects/<uid>`.
