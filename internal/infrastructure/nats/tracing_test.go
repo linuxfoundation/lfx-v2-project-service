@@ -40,6 +40,12 @@ func TestNatsHeaderCarrier_Get(t *testing.T) {
 }
 
 func TestNatsHeaderCarrier_Set(t *testing.T) {
+	t.Run("is a no-op for nil carrier", func(t *testing.T) {
+		var carrier natsHeaderCarrier
+		carrier.Set("key", "value") // must not panic
+		assert.Equal(t, "", carrier.Get("key"))
+	})
+
 	t.Run("sets value on new key", func(t *testing.T) {
 		carrier := natsHeaderCarrier(make(natsgo.Header))
 		carrier.Set("traceparent", "00-abc-def-01")
