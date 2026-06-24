@@ -201,7 +201,9 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 				if batchErr != nil {
 					log.WarnContext(ctx, "failed to bulk-fetch child UIDs for backfill page",
 						"error", batchErr, "publish_failed_for_backfill_repair", true)
-					batchedChildren = map[string][]string{}
+					if batchedChildren == nil {
+						batchedChildren = map[string][]string{}
+					}
 				}
 				orgChildrenCache = batchedChildren
 			}

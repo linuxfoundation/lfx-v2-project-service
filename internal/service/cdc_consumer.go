@@ -353,7 +353,9 @@ func (o *CDCConsumer) handleAccountUpsertBatch(ctx context.Context, upsertIDs []
 	if childMapErr != nil {
 		slog.WarnContext(ctx, "cdc: failed to bulk-fetch child UIDs; is_parent will be false for this batch",
 			"error", childMapErr, "publish_failed_for_backfill_repair", true)
-		childMap = map[string][]string{}
+		if childMap == nil {
+			childMap = map[string][]string{}
+		}
 	}
 	for _, org := range orgs {
 		org.IsParent = len(childMap[org.UID]) > 0
