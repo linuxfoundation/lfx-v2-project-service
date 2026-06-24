@@ -205,7 +205,11 @@ func (r *AccountRepo) fetchChildUIDsByParents(
 		}
 
 		for _, rec := range records {
-			callerUID, ok := sfidToUID[rec.ParentID]
+			pid, pidErr := sfuuid.Normalize18(rec.ParentID)
+			if pidErr != nil {
+				continue
+			}
+			callerUID, ok := sfidToUID[pid]
 			if !ok {
 				continue
 			}

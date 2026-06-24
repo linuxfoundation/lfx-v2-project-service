@@ -242,9 +242,7 @@ func TestBackfillRunner_B2BOrgs_PopulatesChildrenFromCache(t *testing.T) {
 	childReader := &seededB2BOrgReaderWithChildren{
 		orgs: []*model.B2BOrg{parentOrg, child1Org, child2Org},
 		children: map[string][]string{
-			"parent-uid":  {"child-1-uid", "child-2-uid"},
-			"child-1-uid": {},
-			"child-2-uid": {},
+			"parent-uid": {"child-1-uid", "child-2-uid"},
 		},
 		fetchedUIDs: map[string]bool{},
 	}
