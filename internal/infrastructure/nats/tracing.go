@@ -20,6 +20,9 @@ var tracer = otel.Tracer("github.com/linuxfoundation/lfx-v2-project-service/inte
 
 // natsHeaderCarrier adapts nats.Header to the OTel TextMapCarrier interface
 // so trace context can be injected/extracted from NATS message headers.
+// Callers must provide an initialized (non-nil) header map before injection;
+// Set is a no-op on a nil map to safely support extraction from messages
+// that arrive without headers.
 type natsHeaderCarrier natsgo.Header
 
 func (c natsHeaderCarrier) Get(key string) string {
