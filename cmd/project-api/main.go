@@ -199,7 +199,7 @@ func parseEnv() environment {
 
 // LFXSelfServeBaseURL derives the LFX Self-Serve base URL from environment variables.
 // LFX_SELF_SERVE_BASE_URL takes precedence; otherwise it falls back to LFX_ENVIRONMENT.
-// When LFX_ENVIRONMENT is unset, prod is assumed (safe default for deployed environments).
+// When LFX_ENVIRONMENT is unset or unrecognized, prod is assumed (safe default for deployed environments).
 func LFXSelfServeBaseURL() string {
 	if url := os.Getenv("LFX_SELF_SERVE_BASE_URL"); url != "" {
 		return url
