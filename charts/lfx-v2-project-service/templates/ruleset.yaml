@@ -61,9 +61,6 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
 
-    # TODO: remove this rule once we remove the list projects endpoint.
-    # It is not meant to be used by applications, it should only be used
-    # in local development, therefore the authorizer allows all requests.
     - id: "rule:lfx:lfx-v2-project-service:projects:list"
       allow_encoded_slashes: "off"
       match:
@@ -77,7 +74,11 @@ spec:
         {{- if .Values.app.use_oidc_contextualizer }}
         - contextualizer: oidc_contextualizer
         {{- end }}
+        {{- if .Values.openfga.enabled }}
+        - authorizer: deny_all
+        {{- else }}
         - authorizer: allow_all
+        {{- end }}
         - finalizer: create_jwt
           config:
             values:
