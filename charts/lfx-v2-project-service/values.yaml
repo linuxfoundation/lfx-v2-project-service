@@ -79,6 +79,12 @@ app:
   # invitesEnabled gates outbound invite requests for non-LFID users via the invite service.
   # Disabled by default; set to true in environments where invite sending should be active.
   invitesEnabled: false
+  # lfxEnvironment is the deployment environment (dev, staging, prod).
+  # Drives LFXSelfServeBaseURL() when LFX_SELF_SERVE_BASE_URL is empty.
+  lfxEnvironment: ""
+  # lfxSelfServeBaseURL is the base URL for project links in notification emails.
+  # When empty, the service derives the URL from LFX_ENVIRONMENT (defaulting to prod).
+  lfxSelfServeBaseURL: ""
   # jwtAuthDisabledMockLocalPrincipal mocks auth for local development to use a set principal
   # (only use for local development)
   jwtAuthDisabledMockLocalPrincipal: ""

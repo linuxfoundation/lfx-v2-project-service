@@ -335,8 +335,8 @@ func TestEndpoint(t *testing.T) {
 | `AUDIENCE` | JWT audience | lfx-v2-project-service | No |
 | `JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL` | Mock auth for local dev | - | No |
 | `SKIP_ETAG_VALIDATION` | Skip If-Match/ETag revision enforcement on writes (`true` to skip; local dev only) | false | No |
-| `LFX_ENVIRONMENT` | Deployment environment (`prod`, `staging`/`stg`, else dev); drives the default self-serve base URL | - | No |
-| `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails | derived from `LFX_ENVIRONMENT` | No |
+| `LFX_ENVIRONMENT` | Deployment environment (`prod`/`production`, `staging`/`stg`/`stage`, `dev`/`development`); drives the default self-serve base URL when `LFX_SELF_SERVE_BASE_URL` is empty; defaults to prod when unset | - | No |
+| `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails; takes precedence over `LFX_ENVIRONMENT` | derived from `LFX_ENVIRONMENT` (prod when unset) | No |
 | `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
 | `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
 
