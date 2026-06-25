@@ -49,6 +49,8 @@ spec:
               value: {{ .Values.app.emailsEnabled | quote }}
             - name: INVITES_ENABLED
               value: {{ .Values.app.invitesEnabled | quote }}
+            - name: LFX_SELF_SERVE_BASE_URL
+              value: {{ .Values.app.lfxSelfServeBaseURL | quote }}
             - name: JWT_AUTH_DISABLED_MOCK_LOCAL_PRINCIPAL
               value: {{ .Values.app.jwtAuthDisabledMockLocalPrincipal }}
             {{- with .Values.app.extraEnv }}

@@ -186,17 +186,7 @@ func parseEnv() environment {
 	if skipEtagValidationStr == "true" {
 		skipEtagValidation = true
 	}
-	lfxSelfServeBaseURL := os.Getenv("LFX_SELF_SERVE_BASE_URL")
-	if lfxSelfServeBaseURL == "" {
-		switch os.Getenv("LFX_ENVIRONMENT") {
-		case "prod":
-			lfxSelfServeBaseURL = "https://app.lfx.dev"
-		case "staging", "stg":
-			lfxSelfServeBaseURL = "https://app.staging.lfx.dev"
-		default:
-			lfxSelfServeBaseURL = "https://app.dev.lfx.dev"
-		}
-	}
+	lfxSelfServeBaseURL := LFXSelfServeBaseURL()
 	return environment{
 		NatsURL:             natsURL,
 		Port:                port,
@@ -204,6 +194,25 @@ func parseEnv() environment {
 		LFXSelfServeBaseURL: lfxSelfServeBaseURL,
 		EmailsEnabled:       os.Getenv("EMAILS_ENABLED") == "true",
 		InvitesEnabled:      os.Getenv("INVITES_ENABLED") == "true",
+	}
+}
+
+// LFXSelfServeBaseURL derives the LFX Self-Serve base URL from environment variables.
+// LFX_SELF_SERVE_BASE_URL takes precedence; otherwise it falls back to LFX_ENVIRONMENT.
+// When LFX_ENVIRONMENT is unset, prod is assumed (safe default for deployed environments).
+func LFXSelfServeBaseURL() string {
+	if url := os.Getenv("LFX_SELF_SERVE_BASE_URL"); url != "" {
+		return url
+	}
+	switch os.Getenv("LFX_ENVIRONMENT") {
+	case "prod", "production":
+		return "https://app.lfx.dev"
+	case "staging", "stg", "stage":
+		return "https://app.staging.lfx.dev"
+	case "dev", "development":
+		return "https://app.dev.lfx.dev"
+	default:
+		return "https://app.lfx.dev"
 	}
 }
 
