@@ -563,6 +563,25 @@ func KeyContactWriterUseCase(ctx context.Context) usecaseSvc.KeyContactWriter {
 	)
 }
 
+// LFXSelfServeBaseURL derives the LFX Self-Serve base URL from environment variables.
+// LFX_SELF_SERVE_BASE_URL takes precedence; otherwise it falls back to LFX_ENVIRONMENT.
+// When LFX_ENVIRONMENT is unset, prod is assumed (safe default for deployed environments).
+func LFXSelfServeBaseURL() string {
+	if url := os.Getenv("LFX_SELF_SERVE_BASE_URL"); url != "" {
+		return url
+	}
+	switch os.Getenv("LFX_ENVIRONMENT") {
+	case "prod", "production":
+		return "https://app.lfx.dev"
+	case "staging", "stg", "stage":
+		return "https://app.staging.lfx.dev"
+	case "dev", "development":
+		return "https://app.dev.lfx.dev"
+	default:
+		return "https://app.lfx.dev"
+	}
+}
+
 // InviteSenderImpl returns the port.InviteSender implementation selected by the
 // MESSAGING_SOURCE environment variable:
 //
@@ -600,7 +619,7 @@ func OrgRoleNotifierImpl(ctx context.Context) port.OrgRoleNotifier {
 		slog.InfoContext(ctx, "initialising NATS org role notifier")
 		natsInit(ctx)
 		var orgDashboardURL string
-		if base := strings.TrimRight(os.Getenv("LFX_SELF_SERVE_BASE_URL"), "/"); base != "" {
+		if base := strings.TrimRight(LFXSelfServeBaseURL(), "/"); base != "" {
 			orgDashboardURL = base + "/org"
 		}
 		return nats.NewOrgRoleNotifier(natsClient, orgDashboardURL)
@@ -690,7 +709,7 @@ func OrgSettingsWriterUseCase(ctx context.Context) usecaseSvc.OrgSettingsWriter 
 		usecaseSvc.WithOrgSettingsUserReader(UserReaderImpl(ctx)),
 		usecaseSvc.WithOrgSettingsInviteSender(InviteSenderImpl(ctx)),
 		usecaseSvc.WithOrgSettingsRoleNotifier(OrgRoleNotifierImpl(ctx)),
-		usecaseSvc.WithOrgSettingsSelfServeBaseURL(os.Getenv("LFX_SELF_SERVE_BASE_URL")),
+		usecaseSvc.WithOrgSettingsSelfServeBaseURL(LFXSelfServeBaseURL()),
 	)
 }
 

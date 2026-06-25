@@ -104,6 +104,17 @@ lint: ## Run golangci-lint (local Go linting)
 	@which golangci-lint >/dev/null 2>&1 || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION))
 	@golangci-lint run ./... && echo "==> Lint OK"
 
+# Check license headers (basic validation - full check runs in CI)
+.PHONY: license-check
+license-check: ## Check license headers on all tracked source files
+	@echo "==> Checking license headers..."
+	@missing=$$(git ls-files | grep -E '\.(go|html|txt)$$' | grep -v "^gen/" | grep -v "^vendor/" | grep -v "^internal/infrastructure/salesforce/pubsub/proto/" | grep -v "^internal/infrastructure/email/templates/" | while IFS= read -r f; do \
+		head -4 "$$f" | grep -q "Copyright The Linux Foundation and each contributor to LFX" || echo "Missing copyright: $$f"; \
+		head -4 "$$f" | grep -q "SPDX-License-Identifier: MIT" || echo "Missing SPDX: $$f"; \
+	done); \
+	if [ -n "$$missing" ]; then echo "$$missing"; exit 1; fi
+	@echo "==> License header check passed"
+
 # Format code
 .PHONY: fmt
 fmt:
