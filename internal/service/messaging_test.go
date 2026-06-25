@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
@@ -691,4 +692,89 @@ func TestBuildB2BOrgSettingsIndexerView_EmptySettingsProducesEmptySlice(t *testi
 
 	assert.NotNil(t, view.Members, "members must be [] not nil")
 	assert.Empty(t, view.Members)
+}
+
+// ── Workspace indexer delete payload ───────────────────────────────────────────
+
+func TestBuildWorkspaceIndexerInput_DeleteCarriesUIDString(t *testing.T) {
+	ws := &model.Workspace{UID: "ws-uid-001", Name: "North America Programs"}
+	input := buildWorkspaceIndexerInput(ws, indexerConstants.ActionDeleted)
+	assert.Equal(t, "ws-uid-001", input)
+}
+
+func TestBuildWorkspaceIndexerInput_CreateCarriesStruct(t *testing.T) {
+	ws := &model.Workspace{UID: "ws-uid-001", Name: "North America Programs"}
+	input := buildWorkspaceIndexerInput(ws, indexerConstants.ActionCreated)
+	assert.Equal(t, ws, input)
+}
+
+func TestBuildWorkspaceProjectIndexerInput_DeleteCarriesCompoundID(t *testing.T) {
+	wp := model.WorkspaceProject{ProjectUID: "proj-uid-001"}
+	input := buildWorkspaceProjectIndexerInput(
+		"org-uid-001",
+		"ws-uid-001",
+		wp,
+		model.WorkspaceProjects{},
+		indexerConstants.ActionDeleted,
+	)
+	assert.Equal(t, "ws-uid-001/proj-uid-001", input)
+}
+
+func TestBuildWorkspaceProjectIndexerInput_CreateCarriesView(t *testing.T) {
+	wp := model.WorkspaceProject{ProjectUID: "proj-uid-001", ProjectSlug: "cncf"}
+	wps := model.WorkspaceProjects{}
+	input := buildWorkspaceProjectIndexerInput(
+		"org-uid-001",
+		"ws-uid-001",
+		wp,
+		wps,
+		indexerConstants.ActionCreated,
+	)
+	assert.Equal(t, buildWorkspaceProjectIndexerView("org-uid-001", "ws-uid-001", wp, wps), input)
+	assert.NotEqual(t, "ws-uid-001/proj-uid-001", input, "create must carry the view struct, not the delete ID string")
+}
+
+func TestPublishWorkspaceIndexer_DeleteMessageDataIsUIDString(t *testing.T) {
+	pub := mock.NewMockMemberPublisher()
+	org := &model.B2BOrg{UID: "0014100000Te2QjAAJ", Name: "Red Hat LLC"}
+	ws := &model.Workspace{UID: "ws-uid-del-001", Name: "Delete probe"}
+
+	PublishWorkspaceIndexer(context.Background(), pub, org, ws, indexerConstants.ActionDeleted)
+
+	require.NotNil(t, pub.LastIndexerPayload)
+	msg, ok := pub.LastIndexerPayload.(*model.MemberIndexerMessage)
+	require.True(t, ok)
+	assert.Equal(t, indexerConstants.ActionDeleted, msg.Action)
+	assert.Equal(t, "ws-uid-del-001", msg.Data,
+		"deleted workspace indexer message must carry UID string as data")
+	assert.Equal(t, constants.IndexOrgWorkspaceSubject, pub.LastIndexSubject)
+
+	payload, err := json.Marshal(msg)
+	require.NoError(t, err)
+	var wire map[string]any
+	require.NoError(t, json.Unmarshal(payload, &wire))
+	assert.IsType(t, "", wire["data"], "indexer wire format requires string data for delete actions")
+}
+
+func TestPublishWorkspaceProjectIndexer_DeleteMessageDataIsCompoundID(t *testing.T) {
+	pub := mock.NewMockMemberPublisher()
+	org := &model.B2BOrg{UID: "0014100000Te2QjAAJ", Name: "Red Hat LLC"}
+	ws := &model.Workspace{UID: "ws-uid-del-001", Name: "Delete probe"}
+	wp := model.WorkspaceProject{ProjectUID: "proj-uid-cncf", ProjectSlug: "cncf"}
+	wps := model.WorkspaceProjects{WorkspaceUID: ws.UID, OrgUID: org.UID}
+
+	PublishWorkspaceProjectIndexer(context.Background(), pub, org, ws, wp, wps, indexerConstants.ActionDeleted)
+
+	require.NotNil(t, pub.LastIndexerPayload)
+	msg, ok := pub.LastIndexerPayload.(*model.MemberIndexerMessage)
+	require.True(t, ok)
+	assert.Equal(t, indexerConstants.ActionDeleted, msg.Action)
+	assert.Equal(t, "ws-uid-del-001/proj-uid-cncf", msg.Data)
+	assert.Equal(t, constants.IndexOrgWorkspaceProjectSubject, pub.LastIndexSubject)
+
+	payload, err := json.Marshal(msg)
+	require.NoError(t, err)
+	var wire map[string]any
+	require.NoError(t, json.Unmarshal(payload, &wire))
+	assert.IsType(t, "", wire["data"], "indexer wire format requires string data for delete actions")
 }

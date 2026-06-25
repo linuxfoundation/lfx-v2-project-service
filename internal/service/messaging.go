@@ -652,6 +652,23 @@ func buildWorkspaceIndexerView(ws *model.Workspace) any {
 	return ws
 }
 
+// buildWorkspaceIndexerInput returns the indexer message data for a workspace.
+// Delete actions must carry the UID string (indexer contract); create/update carry the struct.
+func buildWorkspaceIndexerInput(ws *model.Workspace, action indexerConstants.MessageAction) any {
+	if action == indexerConstants.ActionDeleted {
+		return ws.UID
+	}
+	return buildWorkspaceIndexerView(ws)
+}
+
+// buildWorkspaceProjectIndexerInput returns the indexer message data for a workspace-project association.
+func buildWorkspaceProjectIndexerInput(orgUID, workspaceUID string, wp model.WorkspaceProject, wps model.WorkspaceProjects, action indexerConstants.MessageAction) any {
+	if action == indexerConstants.ActionDeleted {
+		return wp.AssociationID(workspaceUID)
+	}
+	return buildWorkspaceProjectIndexerView(orgUID, workspaceUID, wp, wps)
+}
+
 // PublishWorkspaceIndexer builds and publishes a MemberIndexerMessage for a Workspace.
 // Errors are swallowed and logged — /admin/reindex recovers missed records.
 func PublishWorkspaceIndexer(ctx context.Context, p port.MemberPublisher, org *model.B2BOrg, ws *model.Workspace, action indexerConstants.MessageAction) {
@@ -660,7 +677,7 @@ func PublishWorkspaceIndexer(ctx context.Context, p port.MemberPublisher, org *m
 		Tags:           ws.Tags(org.UID),
 		IndexingConfig: BuildWorkspaceIndexingConfig(org, ws),
 	}
-	builtMsg, err := indexMsg.Build(ctx, buildWorkspaceIndexerView(ws))
+	builtMsg, err := indexMsg.Build(ctx, buildWorkspaceIndexerInput(ws, action))
 	if err != nil {
 		slog.WarnContext(ctx, "failed to build workspace indexer message",
 			"workspace_uid", ws.UID,
@@ -687,7 +704,7 @@ func PublishWorkspaceProjectIndexer(ctx context.Context, p port.MemberPublisher,
 		Tags:           wp.Tags(org.UID, ws.UID),
 		IndexingConfig: BuildWorkspaceProjectIndexingConfig(org, ws, wp),
 	}
-	builtMsg, err := indexMsg.Build(ctx, buildWorkspaceProjectIndexerView(org.UID, ws.UID, wp, wps))
+	builtMsg, err := indexMsg.Build(ctx, buildWorkspaceProjectIndexerInput(org.UID, ws.UID, wp, wps, action))
 	if err != nil {
 		slog.WarnContext(ctx, "failed to build workspace project indexer message",
 			"workspace_uid", ws.UID,
