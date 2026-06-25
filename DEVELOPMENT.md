@@ -443,7 +443,7 @@ openfga:
 
 When OpenFGA is enabled, the following authorization checks are enforced:
 
-- **GET /projects** - No OpenFGA check (returns list of all projects)
+- **GET /projects** - Denied in deployed environments (local development only)
 - **POST /projects** - Requires `writer` relation on the parent project (if parent_uid is specified)
 - **GET /projects/:id** - Requires `viewer` relation on the specific project
 - **GET /projects/:id/settings** - Requires `auditor` relation on the specific project
