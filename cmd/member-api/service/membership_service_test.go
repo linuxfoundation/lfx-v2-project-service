@@ -88,6 +88,10 @@ func (r *seededB2BOrgReader) FetchChildUIDsByParentUID(_ context.Context, _ stri
 	return nil, nil
 }
 
+func (r *seededB2BOrgReader) FetchChildUIDsByParentUIDs(_ context.Context, _ []string) (map[string][]string, error) {
+	return map[string][]string{}, nil
+}
+
 // sampleB2BOrg is the canonical test fixture returned by seeded mocks.
 var sampleB2BOrg = &model.B2BOrg{
 	UID:       "lf-uid-001",

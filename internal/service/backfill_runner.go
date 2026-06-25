@@ -193,16 +193,19 @@ func (r *Runner) runType(ctx context.Context, log *slog.Logger, req BackfillRequ
 						seen[org.ParentUID] = struct{}{}
 					}
 				}
+				seenUIDs := make([]string, 0, len(seen))
 				for uid := range seen {
-					children, err := r.b2bReader.FetchChildUIDsByParentUID(ctx, uid)
-					if err != nil {
-						log.WarnContext(ctx, "failed to fetch child UIDs for indexer",
-							"parent_uid", uid, "error", err,
-							"publish_failed_for_backfill_repair", true)
-						continue
-					}
-					orgChildrenCache[uid] = children
+					seenUIDs = append(seenUIDs, uid)
 				}
+				batchedChildren, batchErr := r.b2bReader.FetchChildUIDsByParentUIDs(ctx, seenUIDs)
+				if batchErr != nil {
+					log.WarnContext(ctx, "failed to bulk-fetch child UIDs for backfill page",
+						"error", batchErr, "publish_failed_for_backfill_repair", true)
+					if batchedChildren == nil {
+						batchedChildren = map[string][]string{}
+					}
+				}
+				orgChildrenCache = batchedChildren
 			}
 
 			for _, org := range orgs {
