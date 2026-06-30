@@ -23,6 +23,7 @@ paths = [
     '''(go.mod|go.sum)$''',
     '''(.*?)(swagger\.yml|swagger\.yaml)$''',
     '''(.*?)(serverless\.yml|serverless\.yaml)$''',
+    '''gen/''',
 ]
 regexTarget = "match"
 regexes = [
