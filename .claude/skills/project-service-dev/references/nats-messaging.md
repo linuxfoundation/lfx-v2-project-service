@@ -12,11 +12,12 @@ Contents: subject inventory, KV bucket inventory, optimistic-locking pattern, an
 "lfx.projects-api.get_name"       // get project name by UID
 "lfx.projects-api.get_slug"       // get project slug by UID
 "lfx.projects-api.get_logo"       // get project logo URL by UID
+"lfx.projects-api.get_writers"    // get project writers ([]models.UserInfo) by UID; empty array when none configured
 "lfx.projects-api.slug_to_uid"    // convert slug to UID
 "lfx.projects-api.get_parent_uid" // get parent project UID
 ```
 
-All five live as `Project*Subject` constants in `pkg/constants/nats.go`.
+All six live as `Project*Subject` constants in `pkg/constants/nats.go`.
 
 ## Outbound subjects (published by this service)
 

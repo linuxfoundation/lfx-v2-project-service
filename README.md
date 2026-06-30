@@ -46,6 +46,7 @@ This service handles the following NATS subjects for inter-service communication
 - `lfx.projects-api.get_slug`: Get a project slug from a given project UID
 - `lfx.projects-api.get_logo`: Get a project logo URL from a given project UID
 - `lfx.projects-api.get_parent_uid`: Get a project's parent UID from a given project UID
+- `lfx.projects-api.get_writers`: Get a project's configured writers from a given project UID
 - `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
 ### NATS Events Published
