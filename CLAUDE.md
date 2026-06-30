@@ -221,6 +221,7 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 "lfx.projects-api.get_name"            // Get project name by UID
 "lfx.projects-api.get_slug"            // Get project slug by UID
 "lfx.projects-api.get_logo"            // Get project logo URL by UID
+"lfx.projects-api.get_writers"         // Get project writers by UID
 "lfx.projects-api.slug_to_uid"         // Convert slug to UID
 "lfx.projects-api.get_parent_uid"      // Get parent project UID
 

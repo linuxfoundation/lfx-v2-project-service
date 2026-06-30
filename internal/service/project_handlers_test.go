@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -105,6 +106,23 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 						ParentUID: "parent-uid-123",
 						CreatedAt: &now,
 						UpdatedAt: &now,
+					},
+					nil,
+				)
+			},
+			expectCalls: true,
+		},
+		{
+			name:        "handle project get writers message",
+			subject:     constants.ProjectGetWritersSubject,
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectSettings{
+						UID: "01234567-89ab-cdef-0123-456789abcdef",
+						Writers: []models.UserInfo{
+							{Username: "writer1", Email: "writer1@example.com", Name: "Writer One"},
+						},
 					},
 					nil,
 				)
@@ -581,6 +599,114 @@ func TestProjectsService_HandleProjectGetParentUID(t *testing.T) {
 			mockMsg := newMockMessage(constants.ProjectGetParentUIDSubject, tt.messageData)
 
 			response, err := service.HandleProjectGetParentUID(ctx, mockMsg)
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				assert.Nil(t, response)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, response)
+				if tt.validate != nil {
+					tt.validate(t, response)
+				}
+			}
+
+			mockRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestProjectsService_HandleProjectGetWriters(t *testing.T) {
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		messageData []byte
+		setupMocks  func(*domain.MockProjectRepository)
+		expectedErr bool
+		validate    func(*testing.T, []byte)
+	}{
+		{
+			name:        "successful get project writers",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectSettings{
+						UID: "01234567-89ab-cdef-0123-456789abcdef",
+						Writers: []models.UserInfo{
+							{Username: "writer1", Email: "writer1@example.com", Name: "Writer One"},
+							{Username: "writer2", Email: "writer2@example.com", Name: "Writer Two"},
+						},
+					},
+					nil,
+				)
+			},
+			expectedErr: false,
+			validate: func(t *testing.T, response []byte) {
+				var writers []models.UserInfo
+				assert.NoError(t, json.Unmarshal(response, &writers))
+				assert.Len(t, writers, 2)
+				assert.Equal(t, "writer1", writers[0].Username)
+				assert.Equal(t, "writer1@example.com", writers[0].Email)
+				assert.Equal(t, "writer2", writers[1].Username)
+			},
+		},
+		{
+			name:        "returns empty array when no writers configured",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectSettings{
+						UID:     "01234567-89ab-cdef-0123-456789abcdef",
+						Writers: nil,
+					},
+					nil,
+				)
+			},
+			expectedErr: false,
+			validate: func(t *testing.T, response []byte) {
+				var writers []models.UserInfo
+				assert.NoError(t, json.Unmarshal(response, &writers))
+				assert.Empty(t, writers)
+			},
+		},
+		{
+			name:        "project settings not found",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
+					nil, domain.ErrProjectNotFound,
+				)
+			},
+			expectedErr: true,
+		},
+		{
+			name:        "invalid UUID format",
+			messageData: []byte("not-a-uuid"),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				// No repo calls expected
+			},
+			expectedErr: true,
+		},
+		{
+			name:        "empty project UID",
+			messageData: []byte(""),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				// No repo calls expected
+			},
+			expectedErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, mockRepo, _, _ := setupServiceForTesting()
+			tt.setupMocks(mockRepo)
+
+			mockMsg := newMockMessage(constants.ProjectGetWritersSubject, tt.messageData)
+
+			response, err := service.HandleProjectGetWriters(ctx, mockMsg)
 
 			if tt.expectedErr {
 				assert.Error(t, err)

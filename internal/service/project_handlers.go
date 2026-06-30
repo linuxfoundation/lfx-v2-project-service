@@ -5,12 +5,14 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	structs "github.com/linuxfoundation/lfx-v2-project-service/pkg/struct"
@@ -31,6 +33,7 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 		constants.ProjectGetLogoSubject:      s.HandleProjectGetLogo,
 		constants.ProjectSlugToUIDSubject:    s.HandleProjectSlugToUID,
 		constants.ProjectGetParentUIDSubject: s.HandleProjectGetParentUID,
+		constants.ProjectGetWritersSubject:   s.HandleProjectGetWriters,
 	}
 
 	handler, ok := handlers[subject]
@@ -144,4 +147,41 @@ func (s *ProjectsService) HandleProjectSlugToUID(ctx context.Context, msg domain
 // HandleProjectGetParentUID is the message handler for the project-get-parent-uid subject.
 func (s *ProjectsService) HandleProjectGetParentUID(ctx context.Context, msg domain.Message) ([]byte, error) {
 	return s.handleProjectGetAttribute(ctx, msg, constants.ProjectGetParentUIDSubject, "parent_uid")
+}
+
+// HandleProjectGetWriters is the message handler for the project-get-writers subject.
+// Request: plain-text project UID. Reply: JSON-encoded []models.UserInfo writers list.
+// Returns an empty JSON array when the project has no writers configured.
+func (s *ProjectsService) HandleProjectGetWriters(ctx context.Context, msg domain.Message) ([]byte, error) {
+	if !s.ServiceReady() {
+		slog.ErrorContext(ctx, "NATS KV store not initialized")
+		return nil, fmt.Errorf("NATS KV store not initialized")
+	}
+
+	projectUID := string(msg.Data())
+
+	ctx = log.AppendCtx(ctx, slog.String("project_id", projectUID))
+	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectGetWritersSubject))
+
+	_, err := uuid.Parse(projectUID)
+	if err != nil {
+		return nil, err
+	}
+
+	settings, err := s.ProjectRepository.GetProjectSettings(ctx, projectUID)
+	if err != nil {
+		return nil, err
+	}
+
+	writers := settings.Writers
+	if writers == nil {
+		writers = []models.UserInfo{}
+	}
+
+	out, err := json.Marshal(writers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal writers: %w", err)
+	}
+
+	return out, nil
 }
