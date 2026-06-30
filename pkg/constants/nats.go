@@ -93,6 +93,10 @@ const (
 	// ProjectGetParentUIDSubject is the subject for getting the parent project UID.
 	// The subject is of the form: lfx.projects-api.get_parent_uid
 	ProjectGetParentUIDSubject = "lfx.projects-api.get_parent_uid"
+	// ProjectGetWritersSubject is the subject for getting the writers list from project settings.
+	// Request: plain-text project UID. Reply: JSON-encoded []models.UserInfo (empty array when no writers).
+	// The subject is of the form: lfx.projects-api.get_writers
+	ProjectGetWritersSubject = "lfx.projects-api.get_writers"
 )
 
 // NATS subjects for external service lookups.
