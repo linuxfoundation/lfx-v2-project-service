@@ -317,13 +317,18 @@ if (!changed) { ctx.op='noop'; }
 	}
 
 	var result struct {
-		Total            int `json:"total"`
-		Updated          int `json:"updated"`
-		VersionConflicts int `json:"version_conflicts"`
-		Noops            int `json:"noops"`
+		Total            int               `json:"total"`
+		Updated          int               `json:"updated"`
+		VersionConflicts int               `json:"version_conflicts"`
+		Noops            int               `json:"noops"`
+		Failures         []json.RawMessage `json:"failures"`
 	}
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("failed to decode update_by_query response: %w", err)
+	}
+	if len(result.Failures) > 0 {
+		return result.Total, result.Updated, result.Noops, result.VersionConflicts,
+			fmt.Errorf("update_by_query completed with %d document failures", len(result.Failures))
 	}
 
 	return result.Total, result.Updated, result.Noops, result.VersionConflicts, nil

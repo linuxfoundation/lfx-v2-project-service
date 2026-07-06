@@ -87,6 +87,7 @@ go build -o bin/project-cli ./cmd/project-cli
 ```sh
 make docker-build-cli
 # tags: ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli:latest
+# (via DOCKER_CLI_IMAGE in the Makefile; ko/CI publish the same registry path)
 ```
 
 In CI, the image is built and published automatically by the existing `ko-build-*.yaml` workflows alongside the API image.
