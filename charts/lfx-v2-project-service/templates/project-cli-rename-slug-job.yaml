@@ -1,0 +1,63 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+{{- if .Values.jobs.renameProjectSlug.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: {{ .Chart.Name }}-rename-project-slug-
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: project-cli
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 604800
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/component: project-cli
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: project-cli
+          image: "{{ .Values.cliImage.repository }}:{{ .Values.cliImage.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.cliImage.pullPolicy }}
+          args:
+            - sync
+            - rename-project-slug
+          env:
+            - name: NATS_URL
+              value: {{ .Values.nats.url | quote }}
+            - name: OPENSEARCH_URL
+              value: {{ .Values.jobs.renameProjectSlug.opensearchURL | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.jobs.renameProjectSlug.logLevel | quote }}
+            - name: JOB_RUN_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OLD_SLUG
+              value: {{ required "jobs.renameProjectSlug.oldSlug is required when the job is enabled" .Values.jobs.renameProjectSlug.oldSlug | quote }}
+            - name: NEW_SLUG
+              value: {{ required "jobs.renameProjectSlug.newSlug is required when the job is enabled" .Values.jobs.renameProjectSlug.newSlug | quote }}
+            - name: DRY_RUN
+              value: {{ .Values.jobs.renameProjectSlug.dryRun | quote }}
+            - name: TARGET
+              value: {{ .Values.jobs.renameProjectSlug.target | quote }}
+            - name: CONCURRENCY
+              value: {{ .Values.jobs.renameProjectSlug.concurrency | quote }}
+            {{- with .Values.jobs.renameProjectSlug.natsBuckets }}
+            - name: NATS_BUCKETS
+              value: {{ . | quote }}
+            {{- end }}
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+{{- end }}

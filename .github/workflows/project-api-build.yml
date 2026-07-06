@@ -28,7 +28,9 @@ jobs:
         run: make apigen
 
       - name: Build
-        run: make build
+        run: |
+          make build
+          make build-cli
 
       - name: Test
         run: go test ./... -v

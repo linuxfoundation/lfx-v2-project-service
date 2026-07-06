@@ -19,6 +19,12 @@ initImage:
   # pullPolicy is the init container image pull policy
   pullPolicy: IfNotPresent
 
+# cliImage is the configuration for the project-cli operational tool image
+cliImage:
+  repository: ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli
+  tag: ""
+  pullPolicy: IfNotPresent
+
 # replicaCount is the number of replicas for the deployment
 replicaCount: 3
 
@@ -310,3 +316,17 @@ heimdall:
   # jwksUrl is the JWKS URL for JWT verification (note: uses port 4457)
   jwksUrl: http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks
   add_middleware: false
+
+# jobs configures optional one-shot Kubernetes Jobs rendered by the chart.
+jobs:
+  renameProjectSlug:
+    # enabled renders a Job that runs project-cli sync rename-project-slug.
+    enabled: false
+    oldSlug: ""
+    newSlug: ""
+    dryRun: "true"
+    target: both
+    concurrency: "50"
+    natsBuckets: ""
+    opensearchURL: http://opensearch-cluster-master.lfx.svc.cluster.local:9200
+    logLevel: info

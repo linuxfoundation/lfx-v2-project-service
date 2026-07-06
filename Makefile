@@ -24,6 +24,7 @@ TEST_TIMEOUT=5m
 
 # Docker variables
 DOCKER_IMAGE=linuxfoundation/lfx-v2-project-service
+DOCKER_CLI_IMAGE=linuxfoundation/lfx-v2-project-service/project-cli
 DOCKER_TAG=latest
 
 # Helm variables
@@ -56,6 +57,8 @@ help:
 	@echo "  license-check  - Check for license headers (basic validation)"
 	@echo "  verify         - Verify API generation is up to date"
 	@echo "  docker-build   - Build Docker image"
+	@echo "  build-cli      - Build the project-cli binary"
+	@echo "  docker-build-cli - Build the project-cli Docker image"
 	@echo "  helm-install   - Install Helm chart"
 	@echo "  helm-install-local - Install Helm chart with local values"
 	@echo "  helm-templates   - Print templates for Helm chart"
@@ -195,6 +198,21 @@ docker-build:
 	@echo "==> Building Docker image..."
 	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f Dockerfile .
 	@echo "==> Docker image built: $(DOCKER_IMAGE):$(DOCKER_TAG)"
+
+# Build the project-cli binary
+.PHONY: build-cli
+build-cli:
+	@echo "==> Building project-cli..."
+	@mkdir -p bin
+	go build $(LDFLAGS) -o bin/project-cli ./cmd/project-cli
+	@echo "==> Build complete: bin/project-cli"
+
+# Build the project-cli Docker image
+.PHONY: docker-build-cli
+docker-build-cli:
+	@echo "==> Building project-cli Docker image..."
+	docker build -f Dockerfile.cli -t $(DOCKER_CLI_IMAGE):$(DOCKER_TAG) .
+	@echo "==> Docker image built: $(DOCKER_CLI_IMAGE):$(DOCKER_TAG)"
 
 # Install Helm chart
 .PHONY: helm-install
