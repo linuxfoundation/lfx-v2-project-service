@@ -24,7 +24,7 @@ TEST_TIMEOUT=5m
 
 # Docker variables
 DOCKER_IMAGE=linuxfoundation/lfx-v2-project-service
-DOCKER_CLI_IMAGE=linuxfoundation/lfx-v2-project-service/project-cli
+DOCKER_CLI_IMAGE=ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli
 DOCKER_TAG=latest
 
 # Helm variables

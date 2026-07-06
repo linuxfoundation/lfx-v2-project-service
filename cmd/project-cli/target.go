@@ -4,7 +4,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"strings"
 )
@@ -15,12 +14,23 @@ func resolveTarget(args []string) string {
 		target = "both"
 	}
 
-	fs := flag.NewFlagSet("target", flag.ContinueOnError)
-	t := fs.String("target", target, "")
-	_ = fs.Parse(args)
-	if parsed := strings.ToLower(strings.TrimSpace(*t)); parsed != "" {
-		target = parsed
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if strings.HasPrefix(arg, "--target=") {
+			if v := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--target="))); v != "" {
+				target = v
+			}
+			continue
+		}
+		if arg == "--target" && i+1 < len(args) {
+			next := strings.TrimSpace(args[i+1])
+			if next != "" && !strings.HasPrefix(next, "-") {
+				target = strings.ToLower(next)
+				i++
+			}
+		}
 	}
+
 	return target
 }
 

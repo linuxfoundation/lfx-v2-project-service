@@ -337,7 +337,6 @@ func (r *Runner) runNATS(ctx context.Context, oldSlug, newSlug string, dryRun bo
 		if err != nil {
 			if errors.Is(err, jetstream.ErrBucketNotFound) {
 				slog.WarnContext(ctx, "bucket not found, skipping", "bucket", bucket)
-				summary.Errors++
 				continue
 			}
 			slog.ErrorContext(ctx, "bucket migration failed", "bucket", bucket, "error", err)

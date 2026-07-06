@@ -14,6 +14,14 @@ func TestResolveTarget(t *testing.T) {
 	if got := resolveTarget([]string{"--target=opensearch"}); got != "opensearch" {
 		t.Fatalf("expected opensearch from flag, got %q", got)
 	}
+
+	if got := resolveTarget([]string{"--dry-run=false", "--target=opensearch", "old", "new"}); got != "opensearch" {
+		t.Fatalf("expected opensearch when flag follows other flags, got %q", got)
+	}
+
+	if got := resolveTarget([]string{"--dry-run=false", "--target", "nats", "old", "new"}); got != "nats" {
+		t.Fatalf("expected nats from spaced flag form, got %q", got)
+	}
 }
 
 func TestNeedsConnections(t *testing.T) {
