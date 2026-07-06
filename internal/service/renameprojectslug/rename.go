@@ -92,13 +92,13 @@ func (r *Runner) Run(ctx context.Context, opts Options) error {
 	if opts.OldSlug == opts.NewSlug {
 		return fmt.Errorf("old slug and new slug must differ")
 	}
-	if opts.Concurrency < 1 {
-		return fmt.Errorf("concurrency must be at least 1")
-	}
 
 	target := strings.ToLower(strings.TrimSpace(opts.Target))
 	if target != "both" && target != "opensearch" && target != "nats" {
 		return fmt.Errorf("target must be one of: opensearch, nats, both")
+	}
+	if (target == "nats" || target == "both") && opts.Concurrency < 1 {
+		return fmt.Errorf("concurrency must be at least 1")
 	}
 
 	buckets := opts.NATSBuckets
@@ -557,7 +557,9 @@ func processKVRecord(ctx context.Context, kvStore jetstream.KeyValue, key string
 		if attempt < maxRetries {
 			slog.WarnContext(ctx, "optimistic lock failed, retrying",
 				"key", key, "attempt", attempt, "error", updateErr)
-			time.Sleep(time.Duration(attempt*100) * time.Millisecond)
+			if err := sleepWithContext(ctx, time.Duration(attempt*100)*time.Millisecond); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -607,4 +609,18 @@ func jsonBody(v any) (io.Reader, error) {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 	return bytes.NewReader(b), nil
+}
+
+func sleepWithContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
