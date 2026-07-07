@@ -5,8 +5,8 @@
 package env
 
 import (
-	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -39,13 +39,14 @@ func GetBool(key string, defaultValue bool) bool {
 
 // GetInt returns the integer value of the environment variable named by key.
 // If the variable is unset or unparsable, defaultValue is returned.
+// Values like "50abc" are rejected (unlike fmt.Sscanf which parses the prefix).
 func GetInt(key string, defaultValue int) int {
 	v := strings.TrimSpace(os.Getenv(key))
 	if v == "" {
 		return defaultValue
 	}
-	var parsed int
-	if _, err := fmt.Sscanf(v, "%d", &parsed); err != nil {
+	parsed, err := strconv.Atoi(v)
+	if err != nil {
 		return defaultValue
 	}
 	return parsed

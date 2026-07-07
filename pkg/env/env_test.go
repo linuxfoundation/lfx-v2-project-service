@@ -60,4 +60,14 @@ func TestGetInt(t *testing.T) {
 	if got := GetInt("TEST_INT_UNSET", 50); got != 50 {
 		t.Fatalf("GetInt unset = %d, want 50", got)
 	}
+
+	t.Setenv("TEST_INT", "50abc")
+	if got := GetInt("TEST_INT", 99); got != 99 {
+		t.Fatalf("GetInt partial parse = %d, want default 99", got)
+	}
+
+	t.Setenv("TEST_INT", "10 seconds")
+	if got := GetInt("TEST_INT", 99); got != 99 {
+		t.Fatalf("GetInt partial parse with suffix = %d, want default 99", got)
+	}
 }
