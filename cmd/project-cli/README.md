@@ -8,13 +8,17 @@ Operational scripts such as slug renames need a repeatable, auditable, cluster-n
 
 Like `committee-cli`, **the Helm chart deploys only the API**. Operational jobs are not rendered by the chart — create a one-off Kubernetes Job when you need to run a command in-cluster.
 
+`main` always wires shared infrastructure (NATS JetStream and OpenSearch) before dispatching a subcommand, matching the `committee-cli` pattern of unconditional client setup in `main.go`. Subcommand-specific flags may also read defaults from environment variables via `pkg/env`.
+
 ## Usage
 
 ```text
 project-cli <command> <subcommand> [subcommand flags]
 ```
 
-### Environment variables
+### Environment variables (global)
+
+These apply to every subcommand. `main` reads `NATS_URL` and `OPENSEARCH_URL` before connecting.
 
 | Env var | Default | Description |
 |---|---|---|
@@ -22,18 +26,12 @@ project-cli <command> <subcommand> [subcommand flags]
 | `OPENSEARCH_URL` | `http://localhost:9200` | OpenSearch base URL |
 | `LOG_LEVEL` | `debug` | Log verbosity (e.g. `info`) |
 | `JOB_RUN_ID` | pod hostname or UUID | Run identifier included in structured logs |
-| `OLD_SLUG` | — | Current slug (Job env alternative to flags) |
-| `NEW_SLUG` | — | New slug (Job env alternative to flags) |
-| `DRY_RUN` | `true` | Preview without writing (`true`/`false`) |
-| `TARGET` | `both` | `opensearch`, `nats`, or `both` |
-| `CONCURRENCY` | `50` | Max concurrent NATS KV updates per bucket |
-| `NATS_BUCKETS` | see command help | Comma-separated KV buckets to scan |
 
 ### Commands
 
 #### `sync rename-project-slug`
 
-Renames a project slug across OpenSearch (`resources` index) and NATS JetStream KV buckets.
+Renames a project slug across **both** OpenSearch (`resources` index) and NATS JetStream KV buckets in a single run. There is no store selector — OpenSearch is updated first, then NATS KV.
 
 **Subcommand flags**
 
@@ -41,32 +39,49 @@ Renames a project slug across OpenSearch (`resources` index) and NATS JetStream 
 |---|---|---|
 | `--old-slug` | `""` | Current slug (or first positional arg) |
 | `--new-slug` | `""` | New slug (or second positional arg) |
-| `--target` | `both` | Stores to migrate: `opensearch`, `nats`, or `both` |
 | `--dry-run` | `true` | Preview changes without writing |
 | `--concurrency` | `50` | Max concurrent NATS KV record updates per bucket |
-| `--nats-buckets` | committee + project buckets | Comma-separated KV bucket names |
+| `--nats-buckets` | see below | Comma-separated KV bucket names |
+
+Flag defaults can be overridden by environment variables (useful in Kubernetes Jobs):
+
+| Env var | Default | Description |
+|---|---|---|
+| `OLD_SLUG` | — | Current slug (alternative to `--old-slug` or positional args) |
+| `NEW_SLUG` | — | New slug (alternative to `--new-slug` or positional args) |
+| `DRY_RUN` | `true` | Preview without writing (`true`/`false`) |
+| `CONCURRENCY` | `50` | Max concurrent NATS KV updates per bucket |
+| `NATS_BUCKETS` | see below | Comma-separated KV bucket names |
+
+Default `--nats-buckets` / `NATS_BUCKETS`:
+
+`committee-members`, `committees`, `committee-settings`, `projects`, `project-settings`
+
+Provide slugs either as two positional args **or** via `--old-slug` / `--new-slug` (or `OLD_SLUG` / `NEW_SLUG` env vars), not both.
 
 **Exit code:** `0` on success, `1` on failure.
 
+**Output:** Structured JSON logs include `job_run_id`, `old_slug`, `new_slug`, and `dry_run`. Per-store summaries log `store` (`opensearch` or `nats`), counts, and `dry_run`.
+
 **Examples**
 
-Dry-run against both stores (safe first step):
+Dry-run across OpenSearch and NATS (safe first step):
 
 ```sh
 NATS_URL=nats://localhost:4222 OPENSEARCH_URL=http://localhost:9200 \
   project-cli sync rename-project-slug old-slug new-slug
 ```
 
-Apply OpenSearch changes only:
+Apply changes (review dry-run logs first):
 
 ```sh
-project-cli sync rename-project-slug --target=opensearch --dry-run=false old-slug new-slug
+project-cli sync rename-project-slug --dry-run=false old-slug new-slug
 ```
 
-Apply NATS KV changes with lower concurrency:
+Lower NATS KV concurrency:
 
 ```sh
-project-cli sync rename-project-slug --target=nats --dry-run=false --concurrency=20 old-slug new-slug
+project-cli sync rename-project-slug --dry-run=false --concurrency=20 old-slug new-slug
 ```
 
 ## Building
@@ -98,18 +113,7 @@ In CI, the image is built and published automatically by the existing `ko-build-
 
 Create a one-off Job from the published `project-cli` image. Replace `<tag>` with the image tag you want to run (for example the chart `appVersion` or a CI build tag).
 
-### Quick start (`kubectl create job`)
-
-Use this when the command only needs flags and the image defaults are acceptable for your cluster:
-
-```sh
-kubectl create job lfx-project-cli-rename-slug-dry-run \
-  --image=ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli:<tag> \
-  --namespace=lfx \
-  -- sync rename-project-slug old-slug new-slug
-```
-
-`kubectl create job` does not set environment variables. For in-cluster runs you typically need `NATS_URL`, `OPENSEARCH_URL`, and slug settings — use the manifest below instead.
+`kubectl create job` does not set environment variables. For in-cluster runs you need cluster `NATS_URL`, `OPENSEARCH_URL`, and slug settings — use the manifest below.
 
 ### Recommended: apply a Job manifest
 
@@ -150,8 +154,6 @@ spec:
               value: new-slug
             - name: DRY_RUN
               value: "true"
-            - name: TARGET
-              value: both
             - name: CONCURRENCY
               value: "50"
           resources:
@@ -169,18 +171,30 @@ kubectl apply -f rename-project-slug-job.yaml
 
 Run a live migration by setting `DRY_RUN` to `"false"` (and reviewing dry-run logs first).
 
+### Quick start (`kubectl create job`)
+
+Only suitable for local/minimal setups where default `NATS_URL` / `OPENSEARCH_URL` inside the cluster are acceptable (usually not in LFX deployments):
+
+```sh
+kubectl create job lfx-project-cli-rename-slug-dry-run \
+  --image=ghcr.io/linuxfoundation/lfx-v2-project-service/project-cli:<tag> \
+  --namespace=lfx \
+  -- sync rename-project-slug old-slug new-slug
+```
+
 ### Monitor and re-run
 
 ```sh
 kubectl get jobs -n lfx | grep project-cli-rename-slug
-kubectl logs -f job/<job-name> -n lfx
+kubectl logs -f -n lfx job/<job-name>
 ```
 
-The Job is kept after completion so its logs and exit status remain accessible as a run record. Re-trigger by creating a new Job (new `generateName` prefix or a different job name).
+The Job is kept after completion so its logs and exit status remain accessible as a run record. Re-trigger by applying a new manifest (`generateName` assigns a unique name) or creating a new `kubectl create job`.
 
 ## Adding new commands
 
 1. Create `cmd/project-cli/commands/<group>/` and implement the `Command` and `Subcommand` interfaces from `commands/command.go`.
 2. Register the new command in `buildRegistry()` in `cmd/project-cli/main.go`.
+3. Use `pkg/env` for flag defaults backed by environment variables when Jobs need env-based configuration.
 
 No changes to the Helm chart are required. Document the new command here with a `kubectl create job` or Job manifest example when it is intended for in-cluster use.

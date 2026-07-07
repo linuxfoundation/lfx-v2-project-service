@@ -17,9 +17,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	osinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/opensearch"
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
-	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 )
 
 // Build-time variables set via ldflags.
@@ -88,29 +85,16 @@ func run() error {
 
 	natsCfg := natsinfra.NatsConfigFromEnv()
 	osCfg := osinfra.ConfigFromEnv()
-	target := resolveTarget(parsed.SubArgs)
 
-	var (
-		natsConn         *nats.Conn
-		js               jetstream.JetStream
-		openSearchClient *opensearchgo.Client
-	)
-
-	if needsNATS(target) {
-		var err error
-		natsConn, js, err = natsinfra.Connect(ctx, natsCfg)
-		if err != nil {
-			return err
-		}
-		defer natsConn.Close()
+	natsConn, js, err := natsinfra.Connect(ctx, natsCfg)
+	if err != nil {
+		return err
 	}
+	defer natsConn.Close()
 
-	if needsOpenSearch(target) {
-		var err error
-		openSearchClient, err = osinfra.NewClient(ctx, osCfg)
-		if err != nil {
-			return err
-		}
+	openSearchClient, err := osinfra.NewClient(ctx, osCfg)
+	if err != nil {
+		return err
 	}
 
 	rc := commands.RunContext{
@@ -149,11 +133,8 @@ func printUsage(w io.Writer, registry map[string]commands.Command) {
 	_, _ = fmt.Fprintln(w, "  OPENSEARCH_URL   OpenSearch base URL (default: http://localhost:9200)")
 	_, _ = fmt.Fprintln(w, "  LOG_LEVEL        Log verbosity, e.g. info (default: debug)")
 	_, _ = fmt.Fprintln(w, "  JOB_RUN_ID       Optional run identifier for structured logs")
-	_, _ = fmt.Fprintln(w, "  OLD_SLUG         Current slug (Kubernetes Job env alternative to flags)")
-	_, _ = fmt.Fprintln(w, "  NEW_SLUG         New slug (Kubernetes Job env alternative to flags)")
-	_, _ = fmt.Fprintln(w, "  DRY_RUN          true/false (default: true)")
-	_, _ = fmt.Fprintln(w, "  TARGET           opensearch, nats, or both (default: both)")
 	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Subcommand-specific environment variables are documented in cmd/project-cli/README.md.")
 	_, _ = fmt.Fprintln(w, "commands:")
 	for _, cmd := range registry {
 		_, _ = fmt.Fprintf(w, "  %-30s %s\n", cmd.Name(), cmd.Help())

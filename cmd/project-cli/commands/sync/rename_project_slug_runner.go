@@ -47,14 +47,12 @@ var bucketSlugFields = map[string][]string{
 type RenameSlugOptions struct {
 	OldSlug     string
 	NewSlug     string
-	Target      string
 	DryRun      bool
 	Concurrency int
 	NATSBuckets []string
 }
 
 type renameSlugSummary struct {
-	Target    string
 	DryRun    bool
 	Total     int
 	Updated   int
@@ -82,7 +80,7 @@ func NewRenameSlugRunner(openSearch *opensearchgo.Client, jetStream jetstream.Je
 	}
 }
 
-// Run renames oldSlug to newSlug across the configured targets.
+// Run renames oldSlug to newSlug across OpenSearch and NATS KV stores.
 func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) error {
 	if opts.OldSlug == "" || opts.NewSlug == "" {
 		return fmt.Errorf("old slug and new slug are required")
@@ -90,13 +88,14 @@ func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) erro
 	if opts.OldSlug == opts.NewSlug {
 		return fmt.Errorf("old slug and new slug must differ")
 	}
-
-	target := strings.ToLower(strings.TrimSpace(opts.Target))
-	if target != "both" && target != "opensearch" && target != "nats" {
-		return fmt.Errorf("target must be one of: opensearch, nats, both")
-	}
-	if (target == "nats" || target == "both") && opts.Concurrency < 1 {
+	if opts.Concurrency < 1 {
 		return fmt.Errorf("concurrency must be at least 1")
+	}
+	if r.openSearch == nil {
+		return fmt.Errorf("OpenSearch client is required")
+	}
+	if r.jetStream == nil {
+		return fmt.Errorf("JetStream client is required")
 	}
 
 	buckets := opts.NATSBuckets
@@ -104,30 +103,18 @@ func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) erro
 		buckets = DefaultNATSBuckets
 	}
 
-	slog.InfoContext(ctx, "starting rename-project-slug",
-		"target", target,
-	)
+	slog.InfoContext(ctx, "starting rename-project-slug")
 
-	if target == "opensearch" || target == "both" {
-		if r.openSearch == nil {
-			return fmt.Errorf("OpenSearch client is required for target %q", target)
-		}
-		summary, err := r.runOpenSearch(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun)
-		logRenameSlugSummary(ctx, summary)
-		if err != nil {
-			return fmt.Errorf("opensearch migration failed: %w", err)
-		}
+	summary, err := r.runOpenSearch(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun)
+	logRenameSlugSummary(ctx, summary)
+	if err != nil {
+		return fmt.Errorf("opensearch migration failed: %w", err)
 	}
 
-	if target == "nats" || target == "both" {
-		if r.jetStream == nil {
-			return fmt.Errorf("NATS JetStream client is required for target %q", target)
-		}
-		summary, err := r.runNATS(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun, opts.Concurrency, buckets)
-		logRenameSlugSummary(ctx, summary)
-		if err != nil {
-			return fmt.Errorf("nats migration failed: %w", err)
-		}
+	summary, err = r.runNATS(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun, opts.Concurrency, buckets)
+	logRenameSlugSummary(ctx, summary)
+	if err != nil {
+		return fmt.Errorf("nats migration failed: %w", err)
 	}
 
 	return nil

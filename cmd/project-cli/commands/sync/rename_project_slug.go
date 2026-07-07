@@ -8,11 +8,11 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
-	"os"
 	"strings"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/env"
 )
 
 type renameProjectSlugSubcommand struct{}
@@ -29,12 +29,11 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 		_, _ = fmt.Fprintf(fs.Output(), "usage: project-cli sync rename-project-slug [flags] [<old-slug> <new-slug>]\n\nflags:\n")
 		fs.PrintDefaults()
 	}
-	target := fs.String("target", envOrDefault("TARGET", "both"), "stores to migrate: opensearch, nats, or both")
-	dryRun := fs.Bool("dry-run", envBoolOrDefault("DRY_RUN", true), "preview changes without writing")
-	concurrency := fs.Int("concurrency", envIntOrDefault("CONCURRENCY", 50), "max concurrent NATS KV record updates per bucket")
-	natsBuckets := fs.String("nats-buckets", envOrDefault("NATS_BUCKETS", strings.Join(DefaultNATSBuckets, ",")), "comma-separated NATS KV bucket names to migrate")
-	oldSlugFlag := fs.String("old-slug", envOrDefault("OLD_SLUG", ""), "current slug (alternative to first positional arg)")
-	newSlugFlag := fs.String("new-slug", envOrDefault("NEW_SLUG", ""), "new slug (alternative to second positional arg)")
+	dryRun := fs.Bool("dry-run", env.GetBool("DRY_RUN", true), "preview changes without writing")
+	concurrency := fs.Int("concurrency", env.GetInt("CONCURRENCY", 50), "max concurrent NATS KV record updates per bucket")
+	natsBuckets := fs.String("nats-buckets", env.Get("NATS_BUCKETS", strings.Join(DefaultNATSBuckets, ",")), "comma-separated NATS KV bucket names to migrate")
+	oldSlugFlag := fs.String("old-slug", env.Get("OLD_SLUG", ""), "current slug (alternative to first positional arg)")
+	newSlugFlag := fs.String("new-slug", env.Get("NEW_SLUG", ""), "new slug (alternative to second positional arg)")
 	if err := fs.Parse(rc.Args); err != nil {
 		if err == flag.ErrHelp {
 			return nil
@@ -47,10 +46,16 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 		return err
 	}
 
+	if rc.OpenSearch == nil {
+		return fmt.Errorf("OpenSearch client is not wired in RunContext")
+	}
+	if rc.JetStream == nil {
+		return fmt.Errorf("JetStream client is not wired in RunContext")
+	}
+
 	ctx = withSlugContext(ctx, oldSlug, newSlug, *dryRun)
 
 	slog.InfoContext(ctx, "rename-project-slug configured",
-		"target", *target,
 		"concurrency", *concurrency,
 		"opensearch_url", redactURL(rc.OpenSearchURL),
 		"nats_url", redactURL(rc.NATSURL),
@@ -60,7 +65,6 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 	return runner.Run(ctx, RenameSlugOptions{
 		OldSlug:     oldSlug,
 		NewSlug:     newSlug,
-		Target:      *target,
 		DryRun:      *dryRun,
 		Concurrency: *concurrency,
 		NATSBuckets: parseNATSBuckets(*natsBuckets),
@@ -95,38 +99,4 @@ func withSlugContext(ctx context.Context, oldSlug, newSlug string, dryRun bool) 
 	ctx = log.AppendCtx(ctx, slog.String("new_slug", newSlug))
 	ctx = log.AppendCtx(ctx, slog.Bool("dry_run", dryRun))
 	return ctx
-}
-
-func envOrDefault(key, defaultValue string) string {
-	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
-		return v
-	}
-	return defaultValue
-}
-
-func envBoolOrDefault(key string, defaultValue bool) bool {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return defaultValue
-	}
-	switch strings.ToLower(v) {
-	case "true", "1", "t", "yes":
-		return true
-	case "false", "0", "f", "no":
-		return false
-	default:
-		return defaultValue
-	}
-}
-
-func envIntOrDefault(key string, defaultValue int) int {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return defaultValue
-	}
-	var parsed int
-	if _, err := fmt.Sscanf(v, "%d", &parsed); err != nil || parsed < 1 {
-		return defaultValue
-	}
-	return parsed
 }
