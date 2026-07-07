@@ -27,7 +27,7 @@ type Subcommand interface {
 // RunContext carries infrastructure configs and subcommand args. Connections are
 // not established here — each subcommand dials only what it needs in its Run().
 type RunContext struct {
-	NatsConfig       natsinfra.NatsConfig
+	NATSConfig       natsinfra.Config
 	OpenSearchConfig osinfra.Config
 	JobRunID         string
 	// DryRun is set by each subcommand after it parses its own --dry-run flag,

@@ -108,14 +108,14 @@ func TestBuildOSQuery_containsOldSlug(t *testing.T) {
 		for k, v := range term {
 			fields[k] = true
 			if str, ok := v.(string); ok {
-				if str != slug && str != "project:"+slug && str != "project_slug:"+slug {
+				if str != slug && str != "project_slug:"+slug {
 					t.Errorf("unexpected term value for field %q: %q", k, str)
 				}
 			}
 		}
 	}
 
-	for _, required := range []string{"data.project_slug", "object_ref", "parent_refs"} {
+	for _, required := range []string{"data.project_slug", "data.slug", "tags"} {
 		if !fields[required] {
 			t.Errorf("expected should clause for field %q, but it was missing", required)
 		}

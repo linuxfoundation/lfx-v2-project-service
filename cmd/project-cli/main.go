@@ -84,7 +84,7 @@ func run() error {
 	}
 
 	rc := commands.RunContext{
-		NatsConfig:       natsinfra.NatsConfigFromEnv(),
+		NATSConfig:       natsinfra.ConfigFromEnv(),
 		OpenSearchConfig: osinfra.ConfigFromEnv(),
 		JobRunID:         jobRunID,
 		Args:             parsed.SubArgs,

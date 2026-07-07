@@ -172,12 +172,21 @@ func (r *RenameSlugRunner) runOpenSearch(ctx context.Context, oldSlug, newSlug s
 	summary.Noops = noops
 	summary.Conflicts = conflicts
 	summary.Skipped = noops
-	if conflicts > 0 {
+	if conflicts > 0 || err != nil {
+		if conflicts > 0 && err != nil {
+			return summary, fmt.Errorf("update_by_query completed with %d version conflicts: %w", conflicts, err)
+		}
+		if err != nil {
+			return summary, err
+		}
 		return summary, fmt.Errorf("update_by_query completed with %d version conflicts — re-run after resolving concurrent writers", conflicts)
 	}
-	return summary, err
+	return summary, nil
 }
 
+// buildOSQuery matches documents in the shared resources index by slug-bearing
+// fields. project-service indexes object_ref/parent_refs with project UIDs, not
+// slugs, so those fields are not used as query clauses here.
 func buildOSQuery(oldSlug string) map[string]any {
 	return map[string]any{
 		"bool": map[string]any{
@@ -188,8 +197,6 @@ func buildOSQuery(oldSlug string) map[string]any {
 				map[string]any{"term": map[string]any{"data.project_slug": oldSlug}},
 				map[string]any{"term": map[string]any{"data.slug": oldSlug}},
 				map[string]any{"term": map[string]any{"tags": "project_slug:" + oldSlug}},
-				map[string]any{"term": map[string]any{"object_ref": "project:" + oldSlug}},
-				map[string]any{"term": map[string]any{"parent_refs": "project:" + oldSlug}},
 			},
 			"minimum_should_match": 1,
 		},
@@ -253,6 +260,7 @@ if (tags instanceof List) {
   }
 }
 String objectRef=(String) ctx._source.get('object_ref');
+// Legacy slug-based refs in the shared index, if any.
 if (objectRef!=null && ('project:'+oldSlug).equals(objectRef)) { ctx._source.put('object_ref', 'project:'+newSlug); changed=true; }
 def parentRefs=ctx._source.get('parent_refs');
 if (parentRefs instanceof List) {

@@ -8,7 +8,7 @@ Operational scripts such as slug renames need a repeatable, auditable, cluster-n
 
 Like `committee-cli`, **the Helm chart deploys only the API**. Operational jobs are not rendered by the chart — create a one-off Kubernetes Job when you need to run a command in-cluster.
 
-`main` always wires shared infrastructure (NATS JetStream and OpenSearch) before dispatching a subcommand, matching the `committee-cli` pattern of unconditional client setup in `main.go`. Subcommand-specific flags may also read defaults from environment variables via `pkg/env`.
+`main` loads shared infrastructure config (`NATS_URL`, `OPENSEARCH_URL`) into `RunContext`. Each subcommand dials the clients it needs in its own `Run()` (for example `rename-project-slug` connects NATS JetStream and OpenSearch). Subcommand flags may read defaults from environment variables via `pkg/env`.
 
 ## Usage
 
@@ -25,7 +25,7 @@ go run ./cmd/project-cli <command> <subcommand> [subcommand flags]
 
 ### Environment variables (global)
 
-These apply to every subcommand. `main` reads `NATS_URL` and `OPENSEARCH_URL` before connecting.
+These env vars are read in `main` and passed to subcommands via `RunContext`. Subcommands establish connections in their own `Run()`.
 
 | Env var | Default | Description |
 |---|---|---|
@@ -38,7 +38,7 @@ These apply to every subcommand. `main` reads `NATS_URL` and `OPENSEARCH_URL` be
 
 #### `sync rename-project-slug`
 
-Renames a project slug across **both** OpenSearch (`resources` index) and NATS JetStream KV buckets in a single run. There is no store selector — OpenSearch is updated first, then NATS KV.
+Renames a project slug across **both** OpenSearch (`resources` index) and NATS JetStream KV buckets in a single run. Connects to NATS and OpenSearch at the start of `Run()`. OpenSearch is updated first, then NATS KV.
 
 **Subcommand flags**
 

@@ -50,7 +50,7 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 
 	rc.DryRun = *dryRun
 
-	natsConn, js, err := natsinfra.Connect(ctx, rc.NatsConfig)
+	natsConn, js, err := natsinfra.Connect(ctx, rc.NATSConfig)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 	slog.InfoContext(ctx, "rename-project-slug configured",
 		"concurrency", *concurrency,
 		"opensearch_url", redactURL(rc.OpenSearchConfig.URL),
-		"nats_url", redactURL(rc.NatsConfig.URL),
+		"nats_url", redactURL(rc.NATSConfig.URL),
 	)
 
 	runner := NewRenameSlugRunner(osClient, js)

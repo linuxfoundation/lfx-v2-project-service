@@ -15,27 +15,22 @@ import (
 
 const defaultNATSURL = "nats://localhost:4222"
 
-// NatsConfig holds NATS connection settings.
-type NatsConfig struct {
+// Config holds NATS connection settings.
+type Config struct {
 	URL           string
 	Timeout       time.Duration
 	MaxReconnect  int
 	ReconnectWait time.Duration
 }
 
-// NatsConfigFromEnv builds NatsConfig using NATS_URL when set.
-func NatsConfigFromEnv() NatsConfig {
-	url := env.Get("NATS_URL", defaultNATSURL)
-	return NatsConfig{
-		URL:           url,
-		Timeout:       10 * time.Second,
-		MaxReconnect:  3,
-		ReconnectWait: 2 * time.Second,
-	}
+// ConfigFromEnv builds Config using NATS_URL when set.
+func ConfigFromEnv() Config {
+	return applyConfigDefaults(Config{
+		URL: env.Get("NATS_URL", defaultNATSURL),
+	})
 }
 
-// Connect establishes a NATS connection and JetStream context.
-func Connect(_ context.Context, cfg NatsConfig) (*nats.Conn, jetstream.JetStream, error) {
+func applyConfigDefaults(cfg Config) Config {
 	if cfg.URL == "" {
 		cfg.URL = defaultNATSURL
 	}
@@ -48,6 +43,12 @@ func Connect(_ context.Context, cfg NatsConfig) (*nats.Conn, jetstream.JetStream
 	if cfg.ReconnectWait == 0 {
 		cfg.ReconnectWait = 2 * time.Second
 	}
+	return cfg
+}
+
+// Connect establishes a NATS connection and JetStream context.
+func Connect(_ context.Context, cfg Config) (*nats.Conn, jetstream.JetStream, error) {
+	cfg = applyConfigDefaults(cfg)
 
 	nc, err := nats.Connect(cfg.URL,
 		nats.Timeout(cfg.Timeout),
