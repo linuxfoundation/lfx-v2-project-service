@@ -57,3 +57,18 @@ jobs:
             -t ${{ github.sha }} \
             -t ${{ steps.container_tag.outputs.tag }} \
             --sbom spdx
+      - name: Build project-cli for PR
+        env:
+          VERSION: ${{ steps.container_tag.outputs.tag }}
+          GIT_COMMIT: ${{ github.sha }}
+        run: |
+          BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
+          export BUILD_TIME
+          GIT_COMMIT=${GIT_COMMIT:0:7}
+          export GIT_COMMIT
+          ko build github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli \
+            -B \
+            --platform linux/amd64,linux/arm64 \
+            -t ${{ github.sha }} \
+            -t ${{ steps.container_tag.outputs.tag }} \
+            --sbom spdx

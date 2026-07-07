@@ -288,7 +288,8 @@ This service uses the generic FGA sync handlers for managing fine-grained access
 │           └── gen/                # Generated code from Goa design
 ├── charts/                         # Helm charts for running the service in kubernetes
 ├── cmd/                            # Services (main packages)
-│   └── project-api/                # Project service API entry point
+│   ├── project-api/                # Project service API entry point
+│   └── project-cli/                # Operational CLI for sync/migration jobs
 ├── internal/                       # Internal service packages
 │   ├── domain/                     # Domain logic layer (business logic)
 │   │   └── models/                 # Domain models and entities
@@ -336,7 +337,7 @@ To create a new release of the project service:
    `v{version}` (e.g., `v0.2.0`). The tag version used will be the same as the chart version and app version for the helm chart.
 
 3. **The GitHub Actions workflow will automatically**:
-   - Build and publish the container images (project-api and root-project-setup)
+   - Build and publish the container images (project-api, project-cli, and root-project-setup)
    - Package and publish the Helm chart to GitHub Pages
    - Publish the chart to GitHub Container Registry (GHCR)
    - Sign the chart with Cosign
@@ -347,7 +348,7 @@ To create a new release of the project service:
 - The `appVersion` in `Chart.yaml` should always remain `"latest"` in the committed code.
 - During the release process, the `ko-build-tag.yaml` workflow automatically overrides the `appVersion` and `version` with the actual tag version (e.g., `v0.2.0` becomes `0.2.0`).
 - The container image tags are automatically managed by the consolidated CI/CD pipeline using the git tag.
-- Both container images (project-api and root-project-setup) and the Helm chart are published together in a single workflow.
+- Container images (project-api, project-cli, and root-project-setup) and the Helm chart are published together in a single workflow.
 
 ## License
 

@@ -17,7 +17,7 @@ type ctxKey string
 
 const (
 	slogFields      ctxKey = "slog_fields"
-	logLevelDefault        = slog.LevelDebug
+	logLevelDefault        = slog.LevelInfo
 
 	debug = "debug"
 	warn  = "warn"
