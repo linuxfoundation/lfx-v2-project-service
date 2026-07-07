@@ -115,7 +115,7 @@ func printUsage(w io.Writer, registry map[string]commands.Command) {
 	_, _ = fmt.Fprintln(w, "environment variables:")
 	_, _ = fmt.Fprintln(w, "  NATS_URL         NATS server address (default: nats://localhost:4222)")
 	_, _ = fmt.Fprintln(w, "  OPENSEARCH_URL   OpenSearch base URL (default: http://localhost:9200)")
-	_, _ = fmt.Fprintln(w, "  LOG_LEVEL        Log verbosity, e.g. info (default: debug)")
+	_, _ = fmt.Fprintln(w, "  LOG_LEVEL        Log verbosity, e.g. debug (default: info)")
 	_, _ = fmt.Fprintln(w, "  JOB_RUN_ID       Optional run identifier for structured logs")
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Subcommand-specific environment variables are documented in cmd/project-cli/README.md.")

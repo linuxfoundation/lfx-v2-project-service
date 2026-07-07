@@ -31,7 +31,7 @@ These apply to every subcommand. `main` reads `NATS_URL` and `OPENSEARCH_URL` be
 |---|---|---|
 | `NATS_URL` | `nats://localhost:4222` | NATS server address |
 | `OPENSEARCH_URL` | `http://localhost:9200` | OpenSearch base URL |
-| `LOG_LEVEL` | `debug` | Log verbosity (e.g. `info`) |
+| `LOG_LEVEL` | `info` | Log verbosity (e.g. `debug`) |
 | `JOB_RUN_ID` | pod hostname or UUID | Run identifier included in structured logs |
 
 ### Commands

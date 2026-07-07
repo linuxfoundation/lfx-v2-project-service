@@ -115,9 +115,6 @@ func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) erro
 	}
 
 	summary, err = r.runNATS(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun, opts.Concurrency, buckets)
-	if err != nil {
-		summary.Failed = 1
-	}
 	logRenameSlugSummary(ctx, summary)
 	if err != nil {
 		return fmt.Errorf("nats migration failed: %w", err)
@@ -345,10 +342,14 @@ func (r *RenameSlugRunner) runNATS(ctx context.Context, oldSlug, newSlug string,
 		summary.Skipped += bucketSummary.Skipped
 		summary.Failed += bucketSummary.Failed
 
+		countKey := "updated"
+		if dryRun {
+			countKey = "matched"
+		}
 		slog.InfoContext(ctx, "bucket migration complete",
 			"bucket", bucket,
 			"total", bucketSummary.Total,
-			"updated", bucketSummary.Updated,
+			countKey, bucketSummary.Updated,
 			"skipped", bucketSummary.Skipped,
 			"failed", bucketSummary.Failed,
 			"dry_run", dryRun,
