@@ -106,12 +106,18 @@ func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) erro
 	slog.InfoContext(ctx, "starting rename-project-slug")
 
 	summary, err := r.runOpenSearch(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun)
+	if err != nil {
+		summary.Failed = 1
+	}
 	logRenameSlugSummary(ctx, summary)
 	if err != nil {
 		return fmt.Errorf("opensearch migration failed: %w", err)
 	}
 
 	summary, err = r.runNATS(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun, opts.Concurrency, buckets)
+	if err != nil {
+		summary.Failed = 1
+	}
 	logRenameSlugSummary(ctx, summary)
 	if err != nil {
 		return fmt.Errorf("nats migration failed: %w", err)
@@ -128,8 +134,8 @@ func logRenameSlugSummary(ctx context.Context, summary renameSlugSummary) {
 		"skipped", summary.Skipped,
 		"failed", summary.Failed,
 	}
-	if summary.DryRun && summary.Store == "opensearch" {
-		attrs = append(attrs, "matched", summary.Total)
+	if summary.DryRun {
+		attrs = append(attrs, "matched", summary.Updated)
 	} else {
 		attrs = append(attrs, "updated", summary.Updated)
 	}
