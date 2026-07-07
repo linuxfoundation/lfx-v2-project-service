@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/nats-io/nats.go/jetstream"
-	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
+	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
+	osinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/opensearch"
 )
 
 // Command represents a top-level CLI command group (e.g. "sync").
@@ -26,13 +26,12 @@ type Subcommand interface {
 	Run(ctx context.Context, rc RunContext) error
 }
 
-// RunContext carries wired infrastructure and subcommand args.
+// RunContext carries infrastructure configs and subcommand args. Connections are
+// not established here — each subcommand dials only what it needs in its Run().
 type RunContext struct {
-	OpenSearch    *opensearchgo.Client
-	JetStream     jetstream.JetStream
-	OpenSearchURL string
-	NATSURL       string
-	JobRunID      string
+	NatsConfig       natsinfra.NatsConfig
+	OpenSearchConfig osinfra.Config
+	JobRunID         string
 	// DryRun is set by each subcommand after it parses its own --dry-run flag,
 	// making the value available to any helper that receives a RunContext.
 	DryRun bool

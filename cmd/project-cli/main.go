@@ -83,27 +83,11 @@ func run() error {
 		return fmt.Errorf("unknown subcommand: %s %s", commandName, subcommandName)
 	}
 
-	natsCfg := natsinfra.NatsConfigFromEnv()
-	osCfg := osinfra.ConfigFromEnv()
-
-	natsConn, js, err := natsinfra.Connect(ctx, natsCfg)
-	if err != nil {
-		return err
-	}
-	defer natsConn.Close()
-
-	openSearchClient, err := osinfra.NewClient(ctx, osCfg)
-	if err != nil {
-		return err
-	}
-
 	rc := commands.RunContext{
-		OpenSearch:    openSearchClient,
-		JetStream:     js,
-		OpenSearchURL: osCfg.URL,
-		NATSURL:       natsCfg.URL,
-		JobRunID:      jobRunID,
-		Args:          parsed.SubArgs,
+		NatsConfig:       natsinfra.NatsConfigFromEnv(),
+		OpenSearchConfig: osinfra.ConfigFromEnv(),
+		JobRunID:         jobRunID,
+		Args:             parsed.SubArgs,
 	}
 
 	return sub.Run(ctx, rc)

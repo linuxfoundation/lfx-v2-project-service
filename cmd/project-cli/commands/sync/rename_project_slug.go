@@ -12,6 +12,8 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
+	natsinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
+	osinfra "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/opensearch"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/env"
 )
 
@@ -48,22 +50,26 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 
 	rc.DryRun = *dryRun
 
-	if rc.OpenSearch == nil {
-		return fmt.Errorf("OpenSearch client is not wired in RunContext")
+	natsConn, js, err := natsinfra.Connect(ctx, rc.NatsConfig)
+	if err != nil {
+		return err
 	}
-	if rc.JetStream == nil {
-		return fmt.Errorf("JetStream client is not wired in RunContext")
+	defer natsConn.Close()
+
+	osClient, err := osinfra.NewClient(ctx, rc.OpenSearchConfig)
+	if err != nil {
+		return err
 	}
 
 	ctx = withSlugContext(ctx, oldSlug, newSlug, *dryRun)
 
 	slog.InfoContext(ctx, "rename-project-slug configured",
 		"concurrency", *concurrency,
-		"opensearch_url", redactURL(rc.OpenSearchURL),
-		"nats_url", redactURL(rc.NATSURL),
+		"opensearch_url", redactURL(rc.OpenSearchConfig.URL),
+		"nats_url", redactURL(rc.NatsConfig.URL),
 	)
 
-	runner := NewRenameSlugRunner(rc.OpenSearch, rc.JetStream)
+	runner := NewRenameSlugRunner(osClient, js)
 	return runner.Run(ctx, RenameSlugOptions{
 		OldSlug:     oldSlug,
 		NewSlug:     newSlug,

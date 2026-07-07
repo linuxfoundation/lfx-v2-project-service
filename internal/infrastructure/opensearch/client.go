@@ -7,8 +7,8 @@ package opensearch
 import (
 	"context"
 	"fmt"
-	"os"
 
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/env"
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 )
 
@@ -21,11 +21,7 @@ type Config struct {
 
 // ConfigFromEnv builds Config using OPENSEARCH_URL when set.
 func ConfigFromEnv() Config {
-	url := os.Getenv("OPENSEARCH_URL")
-	if url == "" {
-		url = defaultURL
-	}
-	return Config{URL: url}
+	return Config{URL: env.Get("OPENSEARCH_URL", defaultURL)}
 }
 
 // NewClient creates an OpenSearch client from the given configuration.
