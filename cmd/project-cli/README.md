@@ -12,8 +12,15 @@ Like `committee-cli`, **the Helm chart deploys only the API**. Operational jobs 
 
 ## Usage
 
-```text
-project-cli <command> <subcommand> [subcommand flags]
+No binary is committed to the repository. Build it first or use `go run` directly:
+
+```sh
+# Build once, then run the binary
+go build -o bin/project-cli ./cmd/project-cli
+./bin/project-cli <command> <subcommand> [subcommand flags]
+
+# Or run without building (useful for one-off local runs)
+go run ./cmd/project-cli <command> <subcommand> [subcommand flags]
 ```
 
 ### Environment variables (global)
@@ -69,19 +76,25 @@ Dry-run across OpenSearch and NATS (safe first step):
 
 ```sh
 NATS_URL=nats://localhost:4222 OPENSEARCH_URL=http://localhost:9200 \
-  project-cli sync rename-project-slug old-slug new-slug
+  ./bin/project-cli sync rename-project-slug old-slug new-slug
+
+# Or without building first:
+NATS_URL=nats://localhost:4222 OPENSEARCH_URL=http://localhost:9200 \
+  go run ./cmd/project-cli sync rename-project-slug old-slug new-slug
 ```
 
 Apply changes (review dry-run logs first):
 
 ```sh
-project-cli sync rename-project-slug --dry-run=false old-slug new-slug
+./bin/project-cli sync rename-project-slug --dry-run=false old-slug new-slug
+# Or:
+go run ./cmd/project-cli sync rename-project-slug --dry-run=false old-slug new-slug
 ```
 
 Lower NATS KV concurrency:
 
 ```sh
-project-cli sync rename-project-slug --dry-run=false --concurrency=20 old-slug new-slug
+./bin/project-cli sync rename-project-slug --dry-run=false --concurrency=20 old-slug new-slug
 ```
 
 ## Building
