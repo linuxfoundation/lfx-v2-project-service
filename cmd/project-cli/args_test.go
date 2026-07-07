@@ -3,29 +3,133 @@
 
 package main
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestSplitArgs(t *testing.T) {
-	got := splitArgs([]string{"sync", "rename-project-slug", "--dry-run", "old", "new"}, 2)
-	if len(got.Positionals) != 2 || got.Positionals[0] != "sync" || got.Positionals[1] != "rename-project-slug" {
-		t.Fatalf("unexpected positionals: %#v", got.Positionals)
+	tests := []struct {
+		name            string
+		args            []string
+		positionalLimit int
+		wantPositionals []string
+		wantSubArgs     []string
+	}{
+		{
+			name:            "command and subcommand only",
+			args:            []string{"sync", "rename-project-slug"},
+			positionalLimit: 2,
+			wantPositionals: []string{"sync", "rename-project-slug"},
+			wantSubArgs:     nil,
+		},
+		{
+			name:            "subcommand flags after subcommand",
+			args:            []string{"sync", "rename-project-slug", "--dry-run", "--concurrency=10"},
+			positionalLimit: 2,
+			wantPositionals: []string{"sync", "rename-project-slug"},
+			wantSubArgs:     []string{"--dry-run", "--concurrency=10"},
+		},
+		{
+			name:            "slug positionals forwarded as sub args",
+			args:            []string{"sync", "rename-project-slug", "--dry-run", "old-slug", "new-slug"},
+			positionalLimit: 2,
+			wantPositionals: []string{"sync", "rename-project-slug"},
+			wantSubArgs:     []string{"--dry-run", "old-slug", "new-slug"},
+		},
+		{
+			name:            "flag before first positional goes to SubArgs",
+			args:            []string{"--unknown", "sync", "rename-project-slug"},
+			positionalLimit: 2,
+			wantPositionals: []string{"sync", "rename-project-slug"},
+			wantSubArgs:     []string{"--unknown"},
+		},
+		{
+			name:            "help flag after subcommand goes to SubArgs",
+			args:            []string{"sync", "rename-project-slug", "--help"},
+			positionalLimit: 2,
+			wantPositionals: []string{"sync", "rename-project-slug"},
+			wantSubArgs:     []string{"--help"},
+		},
+		{
+			name:            "help flag before command goes to SubArgs",
+			args:            []string{"--help"},
+			positionalLimit: 2,
+			wantPositionals: nil,
+			wantSubArgs:     []string{"--help"},
+		},
+		{
+			name:            "only one positional",
+			args:            []string{"sync"},
+			positionalLimit: 2,
+			wantPositionals: []string{"sync"},
+			wantSubArgs:     nil,
+		},
+		{
+			name:            "no args",
+			args:            []string{},
+			positionalLimit: 2,
+			wantPositionals: nil,
+			wantSubArgs:     nil,
+		},
 	}
-	wantSubArgs := []string{"--dry-run", "old", "new"}
-	if len(got.SubArgs) != len(wantSubArgs) {
-		t.Fatalf("unexpected sub args: %#v", got.SubArgs)
-	}
-	for i := range wantSubArgs {
-		if got.SubArgs[i] != wantSubArgs[i] {
-			t.Fatalf("sub arg %d: want %q got %q", i, wantSubArgs[i], got.SubArgs[i])
-		}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitArgs(tt.args, tt.positionalLimit)
+			if !reflect.DeepEqual(got.Positionals, tt.wantPositionals) {
+				t.Errorf("Positionals = %v, want %v", got.Positionals, tt.wantPositionals)
+			}
+			if !reflect.DeepEqual(got.SubArgs, tt.wantSubArgs) {
+				t.Errorf("SubArgs = %v, want %v", got.SubArgs, tt.wantSubArgs)
+			}
+		})
 	}
 }
 
 func TestHasHelpFlag(t *testing.T) {
-	if !hasHelpFlag([]string{"--dry-run", "--help"}) {
-		t.Fatal("expected help flag to be detected")
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{
+			name: "long form --help",
+			args: []string{"--help"},
+			want: true,
+		},
+		{
+			name: "short form -h",
+			args: []string{"-h"},
+			want: true,
+		},
+		{
+			name: "help among other flags",
+			args: []string{"--dry-run", "--help", "--old-slug=abc"},
+			want: true,
+		},
+		{
+			name: "no help flag",
+			args: []string{"--dry-run", "--old-slug=abc"},
+			want: false,
+		},
+		{
+			name: "empty args",
+			args: []string{},
+			want: false,
+		},
+		{
+			name: "nil args",
+			args: nil,
+			want: false,
+		},
 	}
-	if hasHelpFlag([]string{"--dry-run"}) {
-		t.Fatal("did not expect help flag")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := hasHelpFlag(tt.args); got != tt.want {
+				t.Errorf("hasHelpFlag(%v) = %v, want %v", tt.args, got, tt.want)
+			}
+		})
 	}
 }

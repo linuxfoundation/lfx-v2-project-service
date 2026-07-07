@@ -33,7 +33,10 @@ type RunContext struct {
 	OpenSearchURL string
 	NATSURL       string
 	JobRunID      string
-	Args          []string
+	// DryRun is set by each subcommand after it parses its own --dry-run flag,
+	// making the value available to any helper that receives a RunContext.
+	DryRun bool
+	Args   []string
 }
 
 // Stats tracks counters for a command run.

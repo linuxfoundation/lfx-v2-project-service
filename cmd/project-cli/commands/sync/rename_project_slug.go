@@ -46,6 +46,8 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 		return err
 	}
 
+	rc.DryRun = *dryRun
+
 	if rc.OpenSearch == nil {
 		return fmt.Errorf("OpenSearch client is not wired in RunContext")
 	}

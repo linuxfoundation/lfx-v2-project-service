@@ -5,9 +5,14 @@ package main
 
 import "strings"
 
+// parsedArgs holds the result of splitting raw CLI arguments into positionals
+// (command, subcommand) and subcommand args (everything else).
 type parsedArgs struct {
+	// Positionals contains the non-flag arguments up to positionalLimit (command, subcommand).
 	Positionals []string
-	SubArgs     []string
+	// SubArgs contains everything after both positionals, forwarded as-is to
+	// the subcommand's own FlagSet.
+	SubArgs []string
 }
 
 func splitArgs(args []string, positionalLimit int) parsedArgs {

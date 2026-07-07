@@ -6,9 +6,9 @@ package nats
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/env"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -25,10 +25,7 @@ type NatsConfig struct {
 
 // NatsConfigFromEnv builds NatsConfig using NATS_URL when set.
 func NatsConfigFromEnv() NatsConfig {
-	url := os.Getenv("NATS_URL")
-	if url == "" {
-		url = defaultNATSURL
-	}
+	url := env.Get("NATS_URL", defaultNATSURL)
 	return NatsConfig{
 		URL:           url,
 		Timeout:       10 * time.Second,
