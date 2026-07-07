@@ -13,7 +13,6 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/service/renameprojectslug"
 )
 
 type renameProjectSlugSubcommand struct{}
@@ -33,7 +32,7 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 	target := fs.String("target", envOrDefault("TARGET", "both"), "stores to migrate: opensearch, nats, or both")
 	dryRun := fs.Bool("dry-run", envBoolOrDefault("DRY_RUN", true), "preview changes without writing")
 	concurrency := fs.Int("concurrency", envIntOrDefault("CONCURRENCY", 50), "max concurrent NATS KV record updates per bucket")
-	natsBuckets := fs.String("nats-buckets", envOrDefault("NATS_BUCKETS", strings.Join(renameprojectslug.DefaultNATSBuckets, ",")), "comma-separated NATS KV bucket names to migrate")
+	natsBuckets := fs.String("nats-buckets", envOrDefault("NATS_BUCKETS", strings.Join(DefaultNATSBuckets, ",")), "comma-separated NATS KV bucket names to migrate")
 	oldSlugFlag := fs.String("old-slug", envOrDefault("OLD_SLUG", ""), "current slug (alternative to first positional arg)")
 	newSlugFlag := fs.String("new-slug", envOrDefault("NEW_SLUG", ""), "new slug (alternative to second positional arg)")
 	if err := fs.Parse(rc.Args); err != nil {
@@ -53,18 +52,18 @@ func (s *renameProjectSlugSubcommand) Run(ctx context.Context, rc commands.RunCo
 	slog.InfoContext(ctx, "rename-project-slug configured",
 		"target", *target,
 		"concurrency", *concurrency,
-		"opensearch_url", renameprojectslug.RedactURL(rc.OpenSearchURL),
-		"nats_url", renameprojectslug.RedactURL(rc.NATSURL),
+		"opensearch_url", redactURL(rc.OpenSearchURL),
+		"nats_url", redactURL(rc.NATSURL),
 	)
 
-	runner := renameprojectslug.NewRunner(rc.OpenSearch, rc.JetStream)
-	return runner.Run(ctx, renameprojectslug.Options{
+	runner := NewRenameSlugRunner(rc.OpenSearch, rc.JetStream)
+	return runner.Run(ctx, RenameSlugOptions{
 		OldSlug:     oldSlug,
 		NewSlug:     newSlug,
 		Target:      *target,
 		DryRun:      *dryRun,
 		Concurrency: *concurrency,
-		NATSBuckets: renameprojectslug.ParseBuckets(*natsBuckets),
+		NATSBuckets: parseNATSBuckets(*natsBuckets),
 	})
 }
 

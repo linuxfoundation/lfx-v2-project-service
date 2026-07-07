@@ -86,7 +86,7 @@ func run() error {
 		return fmt.Errorf("unknown subcommand: %s %s", commandName, subcommandName)
 	}
 
-	natsCfg := natsinfra.CLIConfigFromEnv()
+	natsCfg := natsinfra.NatsConfigFromEnv()
 	osCfg := osinfra.ConfigFromEnv()
 	target := resolveTarget(parsed.SubArgs)
 
@@ -98,7 +98,7 @@ func run() error {
 
 	if needsNATS(target) {
 		var err error
-		natsConn, js, err = natsinfra.ConnectCLI(ctx, natsCfg)
+		natsConn, js, err = natsinfra.Connect(ctx, natsCfg)
 		if err != nil {
 			return err
 		}

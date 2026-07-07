@@ -15,21 +15,21 @@ import (
 
 const defaultNATSURL = "nats://localhost:4222"
 
-// CLIConfig holds NATS connection settings for operational CLI tools.
-type CLIConfig struct {
+// NatsConfig holds NATS connection settings.
+type NatsConfig struct {
 	URL           string
 	Timeout       time.Duration
 	MaxReconnect  int
 	ReconnectWait time.Duration
 }
 
-// CLIConfigFromEnv builds CLIConfig using NATS_URL when set.
-func CLIConfigFromEnv() CLIConfig {
+// NatsConfigFromEnv builds NatsConfig using NATS_URL when set.
+func NatsConfigFromEnv() NatsConfig {
 	url := os.Getenv("NATS_URL")
 	if url == "" {
 		url = defaultNATSURL
 	}
-	return CLIConfig{
+	return NatsConfig{
 		URL:           url,
 		Timeout:       10 * time.Second,
 		MaxReconnect:  3,
@@ -37,8 +37,8 @@ func CLIConfigFromEnv() CLIConfig {
 	}
 }
 
-// ConnectCLI establishes a NATS connection and JetStream context for CLI tools.
-func ConnectCLI(_ context.Context, cfg CLIConfig) (*nats.Conn, jetstream.JetStream, error) {
+// Connect establishes a NATS connection and JetStream context.
+func Connect(_ context.Context, cfg NatsConfig) (*nats.Conn, jetstream.JetStream, error) {
 	if cfg.URL == "" {
 		cfg.URL = defaultNATSURL
 	}

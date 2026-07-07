@@ -1,8 +1,7 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
-// Package renameprojectslug renames a project slug across OpenSearch and NATS KV stores.
-package renameprojectslug
+package sync
 
 import (
 	"bytes"
@@ -44,8 +43,8 @@ var bucketSlugFields = map[string][]string{
 	"project-settings":   {"project_slug"},
 }
 
-// Options configures a rename-project-slug run.
-type Options struct {
+// RenameSlugOptions configures a rename-project-slug run.
+type RenameSlugOptions struct {
 	OldSlug     string
 	NewSlug     string
 	Target      string
@@ -54,8 +53,7 @@ type Options struct {
 	NATSBuckets []string
 }
 
-// Summary captures aggregate counters for a migration run.
-type Summary struct {
+type renameSlugSummary struct {
 	Target    string
 	DryRun    bool
 	Total     int
@@ -70,22 +68,22 @@ type Summary struct {
 	Conflicts int
 }
 
-// Runner executes slug rename migrations using shared infrastructure clients.
-type Runner struct {
+// RenameSlugRunner executes slug rename migrations using shared infrastructure clients.
+type RenameSlugRunner struct {
 	openSearch *opensearchgo.Client
 	jetStream  jetstream.JetStream
 }
 
-// NewRunner creates a Runner backed by the provided clients.
-func NewRunner(openSearch *opensearchgo.Client, jetStream jetstream.JetStream) *Runner {
-	return &Runner{
+// NewRenameSlugRunner creates a RenameSlugRunner backed by the provided clients.
+func NewRenameSlugRunner(openSearch *opensearchgo.Client, jetStream jetstream.JetStream) *RenameSlugRunner {
+	return &RenameSlugRunner{
 		openSearch: openSearch,
 		jetStream:  jetStream,
 	}
 }
 
 // Run renames oldSlug to newSlug across the configured targets.
-func (r *Runner) Run(ctx context.Context, opts Options) error {
+func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) error {
 	if opts.OldSlug == "" || opts.NewSlug == "" {
 		return fmt.Errorf("old slug and new slug are required")
 	}
@@ -115,7 +113,7 @@ func (r *Runner) Run(ctx context.Context, opts Options) error {
 			return fmt.Errorf("OpenSearch client is required for target %q", target)
 		}
 		summary, err := r.runOpenSearch(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun)
-		logSummary(ctx, summary)
+		logRenameSlugSummary(ctx, summary)
 		if err != nil {
 			return fmt.Errorf("opensearch migration failed: %w", err)
 		}
@@ -126,7 +124,7 @@ func (r *Runner) Run(ctx context.Context, opts Options) error {
 			return fmt.Errorf("NATS JetStream client is required for target %q", target)
 		}
 		summary, err := r.runNATS(ctx, opts.OldSlug, opts.NewSlug, opts.DryRun, opts.Concurrency, buckets)
-		logSummary(ctx, summary)
+		logRenameSlugSummary(ctx, summary)
 		if err != nil {
 			return fmt.Errorf("nats migration failed: %w", err)
 		}
@@ -135,7 +133,7 @@ func (r *Runner) Run(ctx context.Context, opts Options) error {
 	return nil
 }
 
-func logSummary(ctx context.Context, summary Summary) {
+func logRenameSlugSummary(ctx context.Context, summary renameSlugSummary) {
 	attrs := []any{
 		"store", summary.Store,
 		"dry_run", summary.DryRun,
@@ -166,8 +164,8 @@ func logSummary(ctx context.Context, summary Summary) {
 	slog.InfoContext(ctx, "rename-project-slug store complete", attrs...)
 }
 
-func (r *Runner) runOpenSearch(ctx context.Context, oldSlug, newSlug string, dryRun bool) (Summary, error) {
-	summary := Summary{Store: "opensearch", DryRun: dryRun}
+func (r *RenameSlugRunner) runOpenSearch(ctx context.Context, oldSlug, newSlug string, dryRun bool) (renameSlugSummary, error) {
+	summary := renameSlugSummary{Store: "opensearch", DryRun: dryRun}
 	query := buildOSQuery(oldSlug)
 
 	if dryRun {
@@ -208,7 +206,7 @@ func buildOSQuery(oldSlug string) map[string]any {
 	}
 }
 
-func (r *Runner) auditOpenSearch(ctx context.Context, query map[string]any) (int, error) {
+func (r *RenameSlugRunner) auditOpenSearch(ctx context.Context, query map[string]any) (int, error) {
 	body, err := jsonBody(map[string]any{
 		"size":             0,
 		"track_total_hits": true,
@@ -247,7 +245,7 @@ func (r *Runner) auditOpenSearch(ctx context.Context, query map[string]any) (int
 	return result.Hits.Total.Value, nil
 }
 
-func (r *Runner) updateOpenSearch(ctx context.Context, query map[string]any, oldSlug, newSlug string) (examined, updated, noops, conflicts int, err error) {
+func (r *RenameSlugRunner) updateOpenSearch(ctx context.Context, query map[string]any, oldSlug, newSlug string) (examined, updated, noops, conflicts int, err error) {
 	painlessSource := `
 def oldSlug=params.oldSlug;
 def newSlug=params.newSlug;
@@ -334,8 +332,8 @@ if (!changed) { ctx.op='noop'; }
 	return result.Total, result.Updated, result.Noops, result.VersionConflicts, nil
 }
 
-func (r *Runner) runNATS(ctx context.Context, oldSlug, newSlug string, dryRun bool, concurrency int, buckets []string) (Summary, error) {
-	summary := Summary{Store: "nats", DryRun: dryRun}
+func (r *RenameSlugRunner) runNATS(ctx context.Context, oldSlug, newSlug string, dryRun bool, concurrency int, buckets []string) (renameSlugSummary, error) {
+	summary := renameSlugSummary{Store: "nats", DryRun: dryRun}
 
 	for _, bucket := range buckets {
 		bucketSummary, err := r.migrateBucket(ctx, bucket, oldSlug, newSlug, dryRun, concurrency)
@@ -380,13 +378,13 @@ type bucketStats struct {
 	Failed  int
 }
 
-func (r *Runner) migrateBucket(ctx context.Context, bucket, oldSlug, newSlug string, dryRun bool, concurrency int) (*bucketStats, error) {
+func (r *RenameSlugRunner) migrateBucket(ctx context.Context, bucket, oldSlug, newSlug string, dryRun bool, concurrency int) (*bucketStats, error) {
 	kvStore, err := r.jetStream.KeyValue(ctx, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open KV bucket %q: %w", bucket, err)
 	}
 
-	fields := BucketFieldsFor(bucket)
+	fields := bucketFieldsFor(bucket)
 
 	slog.InfoContext(ctx, "scanning bucket", "bucket", bucket, "slug_fields", fields)
 
@@ -570,17 +568,14 @@ func processKVRecord(ctx context.Context, kvStore jetstream.KeyValue, key string
 	return nil
 }
 
-// BucketFieldsFor returns the JSON field names that hold a project slug for the
-// given bucket name.
-func BucketFieldsFor(bucket string) []string {
+func bucketFieldsFor(bucket string) []string {
 	if fields, ok := bucketSlugFields[bucket]; ok {
 		return fields
 	}
 	return []string{"project_slug"}
 }
 
-// ParseBuckets splits a comma-separated bucket list.
-func ParseBuckets(s string) []string {
+func parseNATSBuckets(s string) []string {
 	var out []string
 	for _, b := range strings.Split(s, ",") {
 		b = strings.TrimSpace(b)
@@ -591,8 +586,7 @@ func ParseBuckets(s string) []string {
 	return out
 }
 
-// RedactURL removes credentials from a URL for safe logging.
-func RedactURL(raw string) string {
+func redactURL(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return "<invalid>"
