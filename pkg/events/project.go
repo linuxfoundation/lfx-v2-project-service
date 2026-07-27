@@ -93,7 +93,9 @@ type InviteAccepted struct {
 
 // V1UserDeletedEvent is the payload published by v1-sync-helper on
 // lfx.v1-sync-helper.user.deleted when a merged user record is soft-deleted.
-// Username is the user's LFID.
+// Username is the normalized LFID; Email is the deleted account's primary email when
+// available so scrubbers can distinguish LFID reuse.
 type V1UserDeletedEvent struct {
 	Username string `json:"username"`
+	Email    string `json:"email,omitempty"`
 }

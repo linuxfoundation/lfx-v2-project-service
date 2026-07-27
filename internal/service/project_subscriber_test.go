@@ -1193,6 +1193,26 @@ func TestHandleUserDeleted(t *testing.T) {
 			payload: makeEvent(""),
 		},
 		{
+			name:    "case-insensitive prefilter — stored Alice scrubbed for event alice",
+			payload: makeEvent("alice"),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:     projectUID,
+					Writers: []models.UserInfo{{Username: "Alice", Email: "deleted@example.com"}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(2)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == ""
+				}), uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).Return(nil)
+			},
+		},
+		{
 			name:    "settings match — writer username cleared and reindexed",
 			payload: makeEvent(deletedUsername),
 			setupRepo: func(r *domain.MockProjectRepository) {
@@ -1411,11 +1431,12 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name       string
-		entry      models.UserInfo
-		setupUser  func(*domain.MockUserReader)
-		userReader bool
-		want       bool
+		name         string
+		entry        models.UserInfo
+		deletedEmail string
+		setupUser    func(*domain.MockUserReader)
+		userReader   bool
+		want         bool
 	}{
 		{
 			name:  "no email — always scrub",
@@ -1463,6 +1484,12 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 			userReader: true,
 			want:       false,
 		},
+		{
+			name:         "event email differs from entry email — do not scrub",
+			entry:        models.UserInfo{Username: deletedUsername, Email: "new@example.com"},
+			deletedEmail: "old@example.com",
+			want:         false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1476,7 +1503,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 				svc.UserReader = mockUser
 				t.Cleanup(func() { mockUser.AssertExpectations(t) })
 			}
-			got := svc.shouldScrubSettingsUsername(ctx, tt.entry, deletedUsername)
+			got := svc.shouldScrubSettingsUsername(ctx, tt.entry, deletedUsername, tt.deletedEmail)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -1499,7 +1526,7 @@ func TestScrubProjectSettingsUsernameRetryExhaustion(t *testing.T) {
 		Return(domain.ErrRevisionMismatch)
 
 	svc := &ProjectsService{ProjectRepository: mockRepo}
-	svc.scrubProjectSettingsUsername(context.Background(), projectUID, deletedUsername)
+	svc.scrubProjectSettingsUsername(context.Background(), projectUID, deletedUsername, "")
 
 	mockRepo.AssertNumberOfCalls(t, "UpdateProjectSettings", scrubMaxRetries)
 	mockRepo.AssertExpectations(t)
@@ -1514,6 +1541,7 @@ func TestProjectSettingsHasUsername(t *testing.T) {
 	}{
 		{name: "nil settings", settings: nil, want: false},
 		{name: "writer match", settings: &models.ProjectSettings{Writers: []models.UserInfo{{Username: username}}}, want: true},
+		{name: "writer case-insensitive match", settings: &models.ProjectSettings{Writers: []models.UserInfo{{Username: "Alice"}}}, want: true},
 		{name: "auditor match", settings: &models.ProjectSettings{Auditors: []models.UserInfo{{Username: username}}}, want: true},
 		{name: "meeting coordinator match", settings: &models.ProjectSettings{MeetingCoordinators: []models.UserInfo{{Username: username}}}, want: true},
 		{name: "executive director match", settings: &models.ProjectSettings{ExecutiveDirector: &models.UserInfo{Username: username}}, want: true},

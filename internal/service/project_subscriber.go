@@ -546,7 +546,7 @@ func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Mess
 		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal user.deleted event", constants.ErrKey, err)
 		return nil
 	}
-	if event.Username == "" {
+	if strings.TrimSpace(event.Username) == "" {
 		slog.WarnContext(ctx, "project_subscriber: user.deleted event missing username — nothing to scrub")
 		return nil
 	}
@@ -568,11 +568,21 @@ func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Mess
 			continue
 		}
 		scrubCtx, scrubCancel := context.WithTimeout(ctx, settingsScanTimeout)
-		s.scrubProjectSettingsUsername(scrubCtx, candidate.UID, event.Username)
+		s.scrubProjectSettingsUsername(scrubCtx, candidate.UID, event.Username, event.Email)
 		scrubCancel()
 	}
 
 	return nil
+}
+
+// usernameMatches reports whether storedUsername represents the same LFID as deletedUsername.
+func usernameMatches(deletedUsername, storedUsername string) bool {
+	deleted := strings.TrimSpace(deletedUsername)
+	stored := strings.TrimSpace(storedUsername)
+	if deleted == "" || stored == "" {
+		return false
+	}
+	return strings.EqualFold(deleted, stored)
 }
 
 // projectSettingsHasUsername reports whether any role-bearing field in settings carries username.
@@ -581,27 +591,27 @@ func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool
 		return false
 	}
 	for _, u := range s.Writers {
-		if u.Username == username {
+		if usernameMatches(username, u.Username) {
 			return true
 		}
 	}
 	for _, u := range s.Auditors {
-		if u.Username == username {
+		if usernameMatches(username, u.Username) {
 			return true
 		}
 	}
 	for _, u := range s.MeetingCoordinators {
-		if u.Username == username {
+		if usernameMatches(username, u.Username) {
 			return true
 		}
 	}
-	if s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == username {
+	if s.ExecutiveDirector != nil && usernameMatches(username, s.ExecutiveDirector.Username) {
 		return true
 	}
-	if s.ProgramManager != nil && s.ProgramManager.Username == username {
+	if s.ProgramManager != nil && usernameMatches(username, s.ProgramManager.Username) {
 		return true
 	}
-	if s.OpportunityOwner != nil && s.OpportunityOwner.Username == username {
+	if s.OpportunityOwner != nil && usernameMatches(username, s.OpportunityOwner.Username) {
 		return true
 	}
 	return false
@@ -609,13 +619,13 @@ func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool
 
 // clearUsernameInSettings clears username on every matching entry in settings
 // that still represents the deleted account. Returns true when at least one field was changed.
-func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings *models.ProjectSettings, username string) bool {
+func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings *models.ProjectSettings, username, deletedEmail string) bool {
 	changed := false
 	clearIfMatch := func(u *models.UserInfo) {
-		if u == nil || u.Username != username {
+		if u == nil || !usernameMatches(username, u.Username) {
 			return
 		}
-		if !s.shouldScrubSettingsUsername(ctx, *u, username) {
+		if !s.shouldScrubSettingsUsername(ctx, *u, username, deletedEmail) {
 			slog.DebugContext(ctx, "project_subscriber: skipping username scrub — email still maps to active LFID",
 				"username", username, "email", u.Email)
 			return
@@ -641,15 +651,19 @@ func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings 
 
 // shouldScrubSettingsUsername reports whether a settings entry carrying deletedUsername should
 // be cleared. When the entry has an email, auth is consulted so a reassigned LFID reused by a
-// new account (same username string, different lifecycle) is not scrubbed.
+// new account (same username string, different lifecycle) is not scrubbed. When the deletion
+// event carries an email, entries with a different non-empty email are treated as reuse and
+// skipped even before auth lookup.
 //
 // Entries without email always scrub when the username matches. That is intentional: M2M and
-// legacy email-less settings cannot be disambiguated via auth lookup. Downstream scrub is gated
-// by the v1-sync-helper user.deleted publish ACL (project-api subscribes only from trusted
-// service accounts); carrying email in the event would be a follow-up hardening step.
-func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u models.UserInfo, deletedUsername string) bool {
-	email := strings.ToLower(strings.TrimSpace(u.Email))
-	if email == "" {
+// legacy email-less settings cannot be disambiguated via auth lookup.
+func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u models.UserInfo, deletedUsername, deletedEmail string) bool {
+	entryEmail := strings.ToLower(strings.TrimSpace(u.Email))
+	deletedEmailNorm := strings.ToLower(strings.TrimSpace(deletedEmail))
+	if deletedEmailNorm != "" && entryEmail != "" && entryEmail != deletedEmailNorm {
+		return false
+	}
+	if entryEmail == "" {
 		return true
 	}
 	if s.UserReader == nil {
@@ -659,7 +673,7 @@ func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u mod
 	lookupCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
 	defer cancel()
 
-	resolved, err := s.UserReader.UsernameByEmail(lookupCtx, email)
+	resolved, err := s.UserReader.UsernameByEmail(lookupCtx, entryEmail)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
 			return true
@@ -668,12 +682,12 @@ func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u mod
 			constants.ErrKey, err)
 		return false
 	}
-	return resolved != deletedUsername
+	return !usernameMatches(resolved, deletedUsername)
 }
 
 // scrubProjectSettingsUsername fetches settings for a single project, clears the
 // username on any matching entry, persists, and reindexes. Retries on revision conflicts.
-func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, projectUID, username string) {
+func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, projectUID, username, deletedEmail string) {
 	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
 		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
@@ -685,7 +699,7 @@ func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, proj
 			return
 		}
 
-		if !s.clearUsernameInSettings(ctx, settings, username) {
+		if !s.clearUsernameInSettings(ctx, settings, username, deletedEmail) {
 			return
 		}
 
