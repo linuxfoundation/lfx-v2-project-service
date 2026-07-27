@@ -607,41 +607,63 @@ func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool
 	return false
 }
 
-// scrubUsernameInProjectSettings clears username on every matching entry in settings.
-// Returns true when at least one field was changed.
-func scrubUsernameInProjectSettings(settings *models.ProjectSettings, username string) bool {
+// scrubUsernameInProjectSettings clears username on every matching entry in settings
+// that still represents the deleted account. Returns true when at least one field was changed.
+func (s *ProjectsService) scrubUsernameInProjectSettings(ctx context.Context, settings *models.ProjectSettings, username string) bool {
 	changed := false
-	for i := range settings.Writers {
-		if settings.Writers[i].Username == username {
-			settings.Writers[i].Username = ""
-			changed = true
+	clearIfMatch := func(u *models.UserInfo) {
+		if u == nil || u.Username != username {
+			return
 		}
+		if !s.shouldScrubSettingsUsername(ctx, *u, username) {
+			slog.DebugContext(ctx, "project_subscriber: skipping username scrub — email still maps to active LFID",
+				"username", username, "email", u.Email)
+			return
+		}
+		u.Username = ""
+		changed = true
+	}
+
+	for i := range settings.Writers {
+		clearIfMatch(&settings.Writers[i])
 	}
 	for i := range settings.Auditors {
-		if settings.Auditors[i].Username == username {
-			settings.Auditors[i].Username = ""
-			changed = true
-		}
+		clearIfMatch(&settings.Auditors[i])
 	}
 	for i := range settings.MeetingCoordinators {
-		if settings.MeetingCoordinators[i].Username == username {
-			settings.MeetingCoordinators[i].Username = ""
-			changed = true
-		}
+		clearIfMatch(&settings.MeetingCoordinators[i])
 	}
-	if settings.ExecutiveDirector != nil && settings.ExecutiveDirector.Username == username {
-		settings.ExecutiveDirector.Username = ""
-		changed = true
-	}
-	if settings.ProgramManager != nil && settings.ProgramManager.Username == username {
-		settings.ProgramManager.Username = ""
-		changed = true
-	}
-	if settings.OpportunityOwner != nil && settings.OpportunityOwner.Username == username {
-		settings.OpportunityOwner.Username = ""
-		changed = true
-	}
+	clearIfMatch(settings.ExecutiveDirector)
+	clearIfMatch(settings.ProgramManager)
+	clearIfMatch(settings.OpportunityOwner)
 	return changed
+}
+
+// shouldScrubSettingsUsername reports whether a settings entry carrying deletedUsername should
+// be cleared. When the entry has an email, auth is consulted so a reassigned LFID reused by a
+// new account (same username string, different lifecycle) is not scrubbed.
+func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u models.UserInfo, deletedUsername string) bool {
+	email := strings.ToLower(strings.TrimSpace(u.Email))
+	if email == "" {
+		return true
+	}
+	if s.UserReader == nil {
+		return true
+	}
+
+	lookupCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
+	defer cancel()
+
+	resolved, err := s.UserReader.UsernameByEmail(lookupCtx, email)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return true
+		}
+		slog.WarnContext(ctx, "project_subscriber: auth lookup failed during username scrub — skipping entry",
+			constants.ErrKey, err, "email", u.Email)
+		return false
+	}
+	return resolved != deletedUsername
 }
 
 // scrubUsernameFromProjectSettings fetches settings for a single project, clears the
@@ -659,7 +681,7 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 			return
 		}
 
-		if !scrubUsernameInProjectSettings(settings, username) {
+		if !s.scrubUsernameInProjectSettings(ctx, settings, username) {
 			return
 		}
 
@@ -681,13 +703,13 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 }
 
 // publishProjectSettingsScrubSideEffects reindexes scrubbed settings and refreshes OpenFGA
-// access tuples. Each attempt reloads the current KV record so retries cannot publish a
-// stale snapshot if another writer updated settings concurrently after the scrub commit.
-// ProjectSettingsUpdatedSubject is intentionally omitted to avoid role-change emails.
+// access tuples. Each attempt reloads the current KV record and confirms the revision has
+// not advanced before publishing, so a concurrent settings write cannot be overwritten by a
+// stale snapshot. ProjectSettingsUpdatedSubject is intentionally omitted to avoid role-change emails.
 func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string) {
 	ctx = ctxWithServiceAuth(ctx)
 	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
-		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
 			if attempt == scrubSideEffectMaxRetries-1 {
 				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for scrub side effects",
@@ -702,6 +724,35 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 			return
 		}
 
+		projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
+		if baseErr != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
+				constants.ErrKey, baseErr, "project_uid", projectUID)
+			if attempt == scrubSideEffectMaxRetries-1 {
+				return
+			}
+			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after project load failure",
+				"attempt", attempt+1, "project_uid", projectUID)
+			continue
+		}
+
+		_, confirmRevision, confirmErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if confirmErr != nil {
+			if attempt == scrubSideEffectMaxRetries-1 {
+				slog.WarnContext(ctx, "project_subscriber: failed to confirm settings revision for scrub side effects",
+					constants.ErrKey, confirmErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
+				return
+			}
+			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after revision confirm failure",
+				"attempt", attempt+1, "project_uid", projectUID)
+			continue
+		}
+		if confirmRevision != revision {
+			slog.DebugContext(ctx, "project_subscriber: settings revision advanced before side-effect publish — retrying",
+				"expected_revision", revision, "current_revision", confirmRevision, "project_uid", projectUID)
+			continue
+		}
+
 		indexMsg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
 			Data:           *settings,
@@ -709,16 +760,8 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 		}
 		indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
 
-		var accessErr error
-		projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
-		if baseErr != nil {
-			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
-				constants.ErrKey, baseErr, "project_uid", projectUID)
-			accessErr = baseErr
-		} else {
-			fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-			accessErr = s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false)
-		}
+		fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
+		accessErr := s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false)
 
 		if indexErr == nil && accessErr == nil {
 			return
