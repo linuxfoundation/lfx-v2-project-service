@@ -1182,7 +1182,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(2)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "" && s.Writers[0].Email == "deleted@example.com"
 				}), uint64(1)).Return(nil)
@@ -1224,6 +1224,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) == 1 && s.Auditors[0].Username == ""
 				}), uint64(2)).Return(nil).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(secondRead, uint64(2), nil).Once()
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
@@ -1250,7 +1251,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					OpportunityOwner:    &models.UserInfo{Username: deletedUsername, Email: "oo@example.com"},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(2)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.MeetingCoordinators) == 1 && s.MeetingCoordinators[0].Username == "" &&
 						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "" &&
@@ -1273,12 +1274,12 @@ func TestHandleUserDeleted(t *testing.T) {
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(3)
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
-				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil).Times(2)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil).Times(2)
 				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).
 					Return(errors.New("transient nats failure")).Once()
 				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).
@@ -1298,7 +1299,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					Writers: []models.UserInfo{{Username: "other", Email: "other@example.com"}},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{match, other}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(match, uint64(1), nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(match, uint64(1), nil).Times(2)
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},

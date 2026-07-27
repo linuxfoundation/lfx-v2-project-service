@@ -662,7 +662,7 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 		if updateErr == nil {
 			slog.InfoContext(ctx, "project_subscriber: cleared username from project settings",
 				"project_uid", projectUID, "username", username)
-			s.publishProjectSettingsScrubSideEffects(ctx, projectUID, settings)
+			s.publishProjectSettingsScrubSideEffects(ctx, projectUID)
 			return
 		}
 		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
@@ -676,51 +676,57 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 }
 
 // publishProjectSettingsScrubSideEffects reindexes scrubbed settings and refreshes OpenFGA
-// access tuples. Indexer and FGA publishes retry independently of the username match so a
-// transient NATS failure after the KV write does not leave stale access tuples.
+// access tuples. Each attempt reloads the current KV record so retries cannot publish a
+// stale snapshot if another writer updated settings concurrently after the scrub commit.
 // ProjectSettingsUpdatedSubject is intentionally omitted to avoid role-change emails.
-func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string, settings *models.ProjectSettings) {
-	indexMsg := indexerTypes.IndexerMessageEnvelope{
-		Action:         indexerConstants.ActionUpdated,
-		Data:           *settings,
-		IndexingConfig: settings.IndexingConfig(projectUID),
-	}
-	var indexErr error
+func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string) {
 	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
-		indexErr = s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
-		if indexErr == nil {
-			break
-		}
-		if attempt < scrubSideEffectMaxRetries-1 {
-			slog.DebugContext(ctx, "project_subscriber: retrying reindex after username scrub",
-				"attempt", attempt+1, "project_uid", projectUID)
-		}
-	}
-	if indexErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
-			constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
-	}
-
-	projectBase, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
-	if err != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
-			constants.ErrKey, err, "project_uid", projectUID)
-		return
-	}
-	fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-	var accessErr error
-	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
-		accessErr = s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false)
-		if accessErr == nil {
+		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if err != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to reload settings for scrub side effects",
+				constants.ErrKey, err, "project_uid", projectUID)
 			return
 		}
-		if attempt < scrubSideEffectMaxRetries-1 {
-			slog.DebugContext(ctx, "project_subscriber: retrying FGA publish after username scrub",
-				"attempt", attempt+1, "project_uid", projectUID)
+		if settings == nil {
+			return
 		}
+
+		indexMsg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *settings,
+			IndexingConfig: settings.IndexingConfig(projectUID),
+		}
+		indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
+
+		var accessErr error
+		projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
+		if baseErr != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
+				constants.ErrKey, baseErr, "project_uid", projectUID)
+		} else {
+			fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
+			accessErr = s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false)
+		}
+
+		if indexErr == nil && accessErr == nil {
+			return
+		}
+
+		if attempt == scrubSideEffectMaxRetries-1 {
+			if indexErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
+					constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
+			}
+			if accessErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
+					constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
+			}
+			return
+		}
+
+		slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after reload",
+			"attempt", attempt+1, "project_uid", projectUID)
 	}
-	slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
-		constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
 }
 
 // buildProjectURL constructs the deep-link URL for a project's overview page.
