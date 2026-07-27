@@ -683,9 +683,14 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
 		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
-			slog.WarnContext(ctx, "project_subscriber: failed to reload settings for scrub side effects",
-				constants.ErrKey, err, "project_uid", projectUID)
-			return
+			if attempt == scrubSideEffectMaxRetries-1 {
+				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for scrub side effects",
+					constants.ErrKey, err, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
+				return
+			}
+			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after settings reload failure",
+				"attempt", attempt+1, "project_uid", projectUID)
+			continue
 		}
 		if settings == nil {
 			return
@@ -703,6 +708,7 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 		if baseErr != nil {
 			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
 				constants.ErrKey, baseErr, "project_uid", projectUID)
+			accessErr = baseErr
 		} else {
 			fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
 			accessErr = s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false)
