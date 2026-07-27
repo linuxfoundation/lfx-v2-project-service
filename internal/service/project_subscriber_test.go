@@ -12,6 +12,7 @@ import (
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/stretchr/testify/assert"
@@ -1185,9 +1186,11 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "" && s.Writers[0].Email == "deleted@example.com"
 				}), uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).Return(nil)
 			},
 		},
 		{
@@ -1221,9 +1224,11 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) == 1 && s.Auditors[0].Username == ""
 				}), uint64(2)).Return(nil).Once()
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).Return(nil)
 			},
 		},
 		{
@@ -1248,9 +1253,11 @@ func TestHandleUserDeleted(t *testing.T) {
 					return len(s.MeetingCoordinators) == 1 && s.MeetingCoordinators[0].Username == "" &&
 						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == ""
 				}), uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).Return(nil)
 			},
 		},
 		{
@@ -1268,9 +1275,11 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{match, other}, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(match, uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).Return(nil)
 			},
 		},
 	}

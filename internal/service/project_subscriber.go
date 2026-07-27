@@ -13,6 +13,7 @@ import (
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
@@ -657,15 +658,7 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 		if updateErr == nil {
 			slog.InfoContext(ctx, "project_subscriber: cleared username from project settings",
 				"project_uid", projectUID, "username", username)
-			indexMsg := indexerTypes.IndexerMessageEnvelope{
-				Action:         indexerConstants.ActionUpdated,
-				Data:           *settings,
-				IndexingConfig: settings.IndexingConfig(projectUID),
-			}
-			if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
-				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
-					constants.ErrKey, indexErr, "project_uid", projectUID)
-			}
+			s.publishProjectSettingsScrubSideEffects(ctx, projectUID, settings)
 			return
 		}
 		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
@@ -675,6 +668,33 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 		}
 		slog.DebugContext(ctx, "project_subscriber: revision mismatch scrubbing username — retrying",
 			"attempt", attempt+1, "project_uid", projectUID)
+	}
+}
+
+// publishProjectSettingsScrubSideEffects reindexes scrubbed settings and refreshes OpenFGA
+// access tuples. Best-effort: failures are logged but do not fail the scrub handler.
+// ProjectSettingsUpdatedSubject is intentionally omitted to avoid role-change emails.
+func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string, settings *models.ProjectSettings) {
+	indexMsg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *settings,
+		IndexingConfig: settings.IndexingConfig(projectUID),
+	}
+	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
+			constants.ErrKey, indexErr, "project_uid", projectUID)
+	}
+
+	projectBase, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
+	if err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
+			constants.ErrKey, err, "project_uid", projectUID)
+		return
+	}
+	fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
+	if accessErr := s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false); accessErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
+			constants.ErrKey, accessErr, "project_uid", projectUID)
 	}
 }
 
