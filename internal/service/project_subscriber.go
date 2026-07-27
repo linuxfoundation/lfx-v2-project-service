@@ -520,6 +520,164 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 	}
 }
 
+// V1UserDeletedEvent is the payload published by v1-sync-helper on "lfx.v1-sync-helper.user.deleted"
+// when a merged user record is soft-deleted. Username is the user's LFID.
+type V1UserDeletedEvent struct {
+	Username string `json:"username"`
+}
+
+// HandleUserDeleted scrubs the deleted user's username from project settings.
+// Best-effort: partial failures are logged but do not block the overall scrub.
+// Unlike committee data, project settings have no separate member records — only
+// the settings writers/auditors/meeting coordinators and named role fields are updated.
+func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Message) error {
+	var event V1UserDeletedEvent
+	if err := json.Unmarshal(msg.Data(), &event); err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal user.deleted event", constants.ErrKey, err)
+		return nil
+	}
+	if event.Username == "" {
+		slog.WarnContext(ctx, "project_subscriber: user.deleted event missing username — nothing to scrub")
+		return nil
+	}
+
+	slog.InfoContext(ctx, "project_subscriber: scrubbing deleted user's username from project settings",
+		"username", event.Username)
+
+	listCtx, listCancel := context.WithTimeout(ctx, notificationTimeout)
+	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
+	listCancel()
+	if listErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for username scrub",
+			constants.ErrKey, listErr, "username", event.Username)
+		return nil
+	}
+
+	for _, candidate := range allSettings {
+		if !projectSettingsHasUsername(candidate, event.Username) {
+			continue
+		}
+		scrubCtx, scrubCancel := context.WithTimeout(ctx, notificationTimeout)
+		s.scrubUsernameFromProjectSettings(scrubCtx, candidate.UID, event.Username)
+		scrubCancel()
+	}
+
+	return nil
+}
+
+// projectSettingsHasUsername reports whether any role-bearing field in settings carries username.
+func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool {
+	if s == nil {
+		return false
+	}
+	for _, u := range s.Writers {
+		if u.Username == username {
+			return true
+		}
+	}
+	for _, u := range s.Auditors {
+		if u.Username == username {
+			return true
+		}
+	}
+	for _, u := range s.MeetingCoordinators {
+		if u.Username == username {
+			return true
+		}
+	}
+	if s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == username {
+		return true
+	}
+	if s.ProgramManager != nil && s.ProgramManager.Username == username {
+		return true
+	}
+	if s.OpportunityOwner != nil && s.OpportunityOwner.Username == username {
+		return true
+	}
+	return false
+}
+
+// scrubUsernameInProjectSettings clears username on every matching entry in settings.
+// Returns true when at least one field was changed.
+func scrubUsernameInProjectSettings(settings *models.ProjectSettings, username string) bool {
+	changed := false
+	for i := range settings.Writers {
+		if settings.Writers[i].Username == username {
+			settings.Writers[i].Username = ""
+			changed = true
+		}
+	}
+	for i := range settings.Auditors {
+		if settings.Auditors[i].Username == username {
+			settings.Auditors[i].Username = ""
+			changed = true
+		}
+	}
+	for i := range settings.MeetingCoordinators {
+		if settings.MeetingCoordinators[i].Username == username {
+			settings.MeetingCoordinators[i].Username = ""
+			changed = true
+		}
+	}
+	if settings.ExecutiveDirector != nil && settings.ExecutiveDirector.Username == username {
+		settings.ExecutiveDirector.Username = ""
+		changed = true
+	}
+	if settings.ProgramManager != nil && settings.ProgramManager.Username == username {
+		settings.ProgramManager.Username = ""
+		changed = true
+	}
+	if settings.OpportunityOwner != nil && settings.OpportunityOwner.Username == username {
+		settings.OpportunityOwner.Username = ""
+		changed = true
+	}
+	return changed
+}
+
+// scrubUsernameFromProjectSettings fetches settings for a single project, clears the
+// username on any matching entry, persists, and reindexes. Retries on revision conflicts.
+func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, projectUID, username string) {
+	const maxRetries = 4
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if err != nil {
+			slog.DebugContext(ctx, "project_subscriber: failed to get settings for username scrub — skipping",
+				constants.ErrKey, err, "project_uid", projectUID)
+			return
+		}
+		if settings == nil {
+			return
+		}
+
+		if !scrubUsernameInProjectSettings(settings, username) {
+			return
+		}
+
+		updateErr := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision)
+		if updateErr == nil {
+			slog.InfoContext(ctx, "project_subscriber: cleared username from project settings",
+				"project_uid", projectUID, "username", username)
+			indexMsg := indexerTypes.IndexerMessageEnvelope{
+				Action:         indexerConstants.ActionUpdated,
+				Data:           *settings,
+				IndexingConfig: settings.IndexingConfig(projectUID),
+			}
+			if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
+					constants.ErrKey, indexErr, "project_uid", projectUID)
+			}
+			return
+		}
+		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
+			slog.WarnContext(ctx, "project_subscriber: failed to clear username from project settings",
+				constants.ErrKey, updateErr, "project_uid", projectUID)
+			return
+		}
+		slog.DebugContext(ctx, "project_subscriber: revision mismatch scrubbing username — retrying",
+			"attempt", attempt+1, "project_uid", projectUID)
+	}
+}
+
 // buildProjectURL constructs the deep-link URL for a project's overview page.
 func buildProjectURL(baseURL, slug string) string {
 	base := strings.TrimRight(baseURL, "/") + "/project/overview"

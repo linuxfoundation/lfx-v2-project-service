@@ -20,6 +20,7 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
 
@@ -1144,6 +1145,185 @@ func TestHandleInviteAccepted(t *testing.T) {
 
 			mockRepo.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+func TestHandleUserDeleted(t *testing.T) {
+	const deletedUsername = "deleted.user"
+	const projectUID = "proj-1"
+	const project2UID = "proj-2"
+
+	makeEvent := func(username string) V1UserDeletedEvent {
+		return V1UserDeletedEvent{Username: username}
+	}
+
+	tests := []struct {
+		name      string
+		payload   any
+		setupRepo func(*domain.MockProjectRepository)
+		setupMsg  func(*domain.MockMessageBuilder)
+	}{
+		{
+			name:    "malformed payload — returns nil without crashing",
+			payload: []byte("not json"),
+		},
+		{
+			name:    "empty username — discarded",
+			payload: makeEvent(""),
+		},
+		{
+			name:    "settings match — writer username cleared and reindexed",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:     projectUID,
+					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == "" && s.Writers[0].Email == "deleted@example.com"
+				}), uint64(1)).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name:    "settings no match — no update",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:     projectUID,
+					Writers: []models.UserInfo{{Username: "other", Email: "other@example.com"}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+			},
+		},
+		{
+			name:    "conflict retry — succeeds on second attempt",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				firstRead := &models.ProjectSettings{
+					UID:      projectUID,
+					Auditors: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
+				}
+				secondRead := &models.ProjectSettings{
+					UID:      projectUID,
+					Auditors: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{firstRead}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(firstRead, uint64(1), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).
+					Return(domain.ErrRevisionMismatch).Once()
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(secondRead, uint64(2), nil).Once()
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Auditors) == 1 && s.Auditors[0].Username == ""
+				}), uint64(2)).Return(nil).Once()
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name:    "ListAllProjectsSettings error — early return",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return(nil, errors.New("kv unavailable"))
+			},
+		},
+		{
+			name:    "meeting coordinator and named roles cleared",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:                 projectUID,
+					MeetingCoordinators: []models.UserInfo{{Username: deletedUsername, Email: "mc@example.com"}},
+					ExecutiveDirector:   &models.UserInfo{Username: deletedUsername, Email: "ed@example.com"},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.MeetingCoordinators) == 1 && s.MeetingCoordinators[0].Username == "" &&
+						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == ""
+				}), uint64(1)).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+			},
+		},
+		{
+			name:    "multiple projects — only matching project updated",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				match := &models.ProjectSettings{
+					UID:     projectUID,
+					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
+				}
+				other := &models.ProjectSettings{
+					UID:     project2UID,
+					Writers: []models.UserInfo{{Username: "other", Email: "other@example.com"}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{match, other}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(match, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := &domain.MockProjectRepository{}
+			mockMsg := &domain.MockMessageBuilder{}
+			if tt.setupRepo != nil {
+				tt.setupRepo(mockRepo)
+			}
+			if tt.setupMsg != nil {
+				tt.setupMsg(mockMsg)
+			}
+
+			svc := &ProjectsService{
+				ProjectRepository: mockRepo,
+				MessageBuilder:    mockMsg,
+			}
+
+			var data []byte
+			if raw, ok := tt.payload.([]byte); ok {
+				data = raw
+			} else {
+				data = marshalEvent(t, tt.payload)
+			}
+			msg := domain.NewMockMessage(data, constants.V1SyncHelperUserDeletedSubject)
+			err := svc.HandleUserDeleted(context.Background(), msg)
+			assert.NoError(t, err)
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
+func TestProjectSettingsHasUsername(t *testing.T) {
+	const username = "alice"
+	tests := []struct {
+		name     string
+		settings *models.ProjectSettings
+		want     bool
+	}{
+		{name: "nil settings", settings: nil, want: false},
+		{name: "writer match", settings: &models.ProjectSettings{Writers: []models.UserInfo{{Username: username}}}, want: true},
+		{name: "auditor match", settings: &models.ProjectSettings{Auditors: []models.UserInfo{{Username: username}}}, want: true},
+		{name: "meeting coordinator match", settings: &models.ProjectSettings{MeetingCoordinators: []models.UserInfo{{Username: username}}}, want: true},
+		{name: "executive director match", settings: &models.ProjectSettings{ExecutiveDirector: &models.UserInfo{Username: username}}, want: true},
+		{name: "no match", settings: &models.ProjectSettings{Writers: []models.UserInfo{{Username: "other"}}}, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, projectSettingsHasUsername(tt.settings, username))
 		})
 	}
 }

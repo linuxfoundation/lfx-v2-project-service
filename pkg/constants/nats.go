@@ -109,3 +109,12 @@ const (
 	// Request: plain-text email. Reply: plain-text username on success, JSON error envelope on miss.
 	AuthEmailToUsernameSubject = "lfx.auth-service.email_to_username"
 )
+
+// NATS subjects consumed from other services.
+const (
+	// V1SyncHelperUserDeletedSubject is emitted by v1-sync-helper when a merged user record is
+	// soft-deleted. The project service subscribes to scrub the deleted user's username from
+	// project settings writers/auditors/meeting coordinators and named role fields.
+	// Payload: JSON-encoded {"username":"<lfid>"} (see internal/service/project_subscriber.go).
+	V1SyncHelperUserDeletedSubject = "lfx.v1-sync-helper.user.deleted"
+)
