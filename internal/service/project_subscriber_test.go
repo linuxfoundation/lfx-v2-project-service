@@ -1201,7 +1201,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(3)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(2)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "" && s.Writers[0].Email == "deleted@example.com"
 				}), uint64(1)).Return(nil)
@@ -1243,7 +1243,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) == 1 && s.Auditors[0].Username == ""
 				}), uint64(2)).Return(nil).Once()
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(secondRead, uint64(2), nil).Times(2)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(secondRead, uint64(2), nil).Once()
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
 			setupMsg: func(m *domain.MockMessageBuilder) {
@@ -1285,7 +1285,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					OpportunityOwner:    &models.UserInfo{Username: deletedUsername, Email: "oo@example.com"},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(3)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(2)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.MeetingCoordinators) == 1 && s.MeetingCoordinators[0].Username == "" &&
 						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "" &&
@@ -1308,7 +1308,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(4)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(3)
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).
 					Return((*models.ProjectBase)(nil), errors.New("transient read failure")).Once()
@@ -1329,7 +1329,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(5)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(3)
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil).Times(2)
 			},
@@ -1354,7 +1354,7 @@ func TestHandleUserDeleted(t *testing.T) {
 					Writers: []models.UserInfo{{Username: "other", Email: "other@example.com"}},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{match, other}, nil)
-				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(match, uint64(1), nil).Times(3)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(match, uint64(1), nil).Times(2)
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
@@ -1404,6 +1404,105 @@ func TestHandleUserDeleted(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestShouldScrubSettingsUsername(t *testing.T) {
+	const deletedUsername = "deleted.user"
+	ctx := context.Background()
+
+	tests := []struct {
+		name       string
+		entry      models.UserInfo
+		setupUser  func(*domain.MockUserReader)
+		userReader bool
+		want       bool
+	}{
+		{
+			name:  "no email — always scrub",
+			entry: models.UserInfo{Username: deletedUsername},
+			want:  true,
+		},
+		{
+			name:  "nil user reader with email — scrub",
+			entry: models.UserInfo{Username: deletedUsername, Email: "a@example.com"},
+			want:  true,
+		},
+		{
+			name:  "email maps to same username — do not scrub",
+			entry: models.UserInfo{Username: deletedUsername, Email: "active@example.com"},
+			setupUser: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, "active@example.com").Return(deletedUsername, nil)
+			},
+			userReader: true,
+			want:       false,
+		},
+		{
+			name:  "email maps to different username — scrub",
+			entry: models.UserInfo{Username: deletedUsername, Email: "reassigned@example.com"},
+			setupUser: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, "reassigned@example.com").Return("new.user", nil)
+			},
+			userReader: true,
+			want:       true,
+		},
+		{
+			name:  "email not found in auth — scrub",
+			entry: models.UserInfo{Username: deletedUsername, Email: "gone@example.com"},
+			setupUser: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, "gone@example.com").Return("", domain.ErrUserNotFound)
+			},
+			userReader: true,
+			want:       true,
+		},
+		{
+			name:  "auth lookup error — skip entry",
+			entry: models.UserInfo{Username: deletedUsername, Email: "err@example.com"},
+			setupUser: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, "err@example.com").Return("", errors.New("auth unavailable"))
+			},
+			userReader: true,
+			want:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &ProjectsService{}
+			if tt.userReader {
+				mockUser := &domain.MockUserReader{}
+				if tt.setupUser != nil {
+					tt.setupUser(mockUser)
+				}
+				svc.UserReader = mockUser
+				t.Cleanup(func() { mockUser.AssertExpectations(t) })
+			}
+			got := svc.shouldScrubSettingsUsername(ctx, tt.entry, deletedUsername)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestScrubProjectSettingsUsernameRetryExhaustion(t *testing.T) {
+	const (
+		deletedUsername = "deleted.user"
+		projectUID      = "proj-1"
+	)
+	mockRepo := &domain.MockProjectRepository{}
+	for range scrubMaxRetries {
+		mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
+			Return(&models.ProjectSettings{
+				UID:     projectUID,
+				Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
+			}, uint64(1), nil).Once()
+	}
+	mockRepo.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).
+		Return(domain.ErrRevisionMismatch)
+
+	svc := &ProjectsService{ProjectRepository: mockRepo}
+	svc.scrubProjectSettingsUsername(context.Background(), projectUID, deletedUsername)
+
+	mockRepo.AssertNumberOfCalls(t, "UpdateProjectSettings", scrubMaxRetries)
+	mockRepo.AssertExpectations(t)
 }
 
 func TestProjectSettingsHasUsername(t *testing.T) {

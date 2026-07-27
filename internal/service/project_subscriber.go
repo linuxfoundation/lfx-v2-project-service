@@ -35,10 +35,10 @@ const notificationTimeout = 5 * time.Second
 // many sequential KV reads under load.
 const settingsScanTimeout = 2 * time.Minute
 
-// scrubSideEffectMaxRetries is the number of attempts for indexer/FGA publishes after a
-// successful KV write. Retries are independent of the username match so a transient NATS
-// failure does not leave access tuples stale after the settings record was already scrubbed.
-const scrubSideEffectMaxRetries = 4
+// scrubMaxRetries is the number of attempts for settings KV writes and indexer/FGA publishes
+// after a successful scrub. Retries are independent of the username match so a transient
+// conflict or NATS failure does not leave access tuples stale after settings were scrubbed.
+const scrubMaxRetries = 4
 
 // serviceAuthBearer is the static JWT audience token used for background NATS handler
 // side effects (indexer/FGA) that have no originating HTTP request context.
@@ -568,7 +568,7 @@ func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Mess
 			continue
 		}
 		scrubCtx, scrubCancel := context.WithTimeout(ctx, settingsScanTimeout)
-		s.scrubUsernameFromProjectSettings(scrubCtx, candidate.UID, event.Username)
+		s.scrubProjectSettingsUsername(scrubCtx, candidate.UID, event.Username)
 		scrubCancel()
 	}
 
@@ -607,9 +607,9 @@ func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool
 	return false
 }
 
-// scrubUsernameInProjectSettings clears username on every matching entry in settings
+// clearUsernameInSettings clears username on every matching entry in settings
 // that still represents the deleted account. Returns true when at least one field was changed.
-func (s *ProjectsService) scrubUsernameInProjectSettings(ctx context.Context, settings *models.ProjectSettings, username string) bool {
+func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings *models.ProjectSettings, username string) bool {
 	changed := false
 	clearIfMatch := func(u *models.UserInfo) {
 		if u == nil || u.Username != username {
@@ -642,6 +642,11 @@ func (s *ProjectsService) scrubUsernameInProjectSettings(ctx context.Context, se
 // shouldScrubSettingsUsername reports whether a settings entry carrying deletedUsername should
 // be cleared. When the entry has an email, auth is consulted so a reassigned LFID reused by a
 // new account (same username string, different lifecycle) is not scrubbed.
+//
+// Entries without email always scrub when the username matches. That is intentional: M2M and
+// legacy email-less settings cannot be disambiguated via auth lookup. Downstream scrub is gated
+// by the v1-sync-helper user.deleted publish ACL (project-api subscribes only from trusted
+// service accounts); carrying email in the event would be a follow-up hardening step.
 func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u models.UserInfo, deletedUsername string) bool {
 	email := strings.ToLower(strings.TrimSpace(u.Email))
 	if email == "" {
@@ -660,17 +665,16 @@ func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u mod
 			return true
 		}
 		slog.WarnContext(ctx, "project_subscriber: auth lookup failed during username scrub — skipping entry",
-			constants.ErrKey, err, "email", u.Email)
+			constants.ErrKey, err)
 		return false
 	}
 	return resolved != deletedUsername
 }
 
-// scrubUsernameFromProjectSettings fetches settings for a single project, clears the
+// scrubProjectSettingsUsername fetches settings for a single project, clears the
 // username on any matching entry, persists, and reindexes. Retries on revision conflicts.
-func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, projectUID, username string) {
-	const maxRetries = 4
-	for attempt := 0; attempt < maxRetries; attempt++ {
+func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, projectUID, username string) {
+	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
 		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
 			slog.DebugContext(ctx, "project_subscriber: failed to get settings for username scrub — skipping",
@@ -681,7 +685,7 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 			return
 		}
 
-		if !s.scrubUsernameInProjectSettings(ctx, settings, username) {
+		if !s.clearUsernameInSettings(ctx, settings, username) {
 			return
 		}
 
@@ -692,7 +696,7 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 			s.publishProjectSettingsScrubSideEffects(ctx, projectUID)
 			return
 		}
-		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
+		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == scrubMaxRetries-1 {
 			slog.WarnContext(ctx, "project_subscriber: failed to clear username from project settings",
 				constants.ErrKey, updateErr, "project_uid", projectUID)
 			return
@@ -703,17 +707,17 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 }
 
 // publishProjectSettingsScrubSideEffects reindexes scrubbed settings and refreshes OpenFGA
-// access tuples. Each attempt reloads the current KV record and confirms the revision has
-// not advanced before publishing, so a concurrent settings write cannot be overwritten by a
-// stale snapshot. ProjectSettingsUpdatedSubject is intentionally omitted to avoid role-change emails.
+// access tuples. Each attempt reloads the current KV record before publishing; indexer and FGA
+// projections are full-state and idempotent. ProjectSettingsUpdatedSubject is intentionally
+// omitted to avoid role-change emails.
 func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string) {
 	ctx = ctxWithServiceAuth(ctx)
-	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
-		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
+		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
-			if attempt == scrubSideEffectMaxRetries-1 {
+			if attempt == scrubMaxRetries-1 {
 				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for scrub side effects",
-					constants.ErrKey, err, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
+					constants.ErrKey, err, "project_uid", projectUID, "attempts", scrubMaxRetries)
 				return
 			}
 			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after settings reload failure",
@@ -728,28 +732,11 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 		if baseErr != nil {
 			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
 				constants.ErrKey, baseErr, "project_uid", projectUID)
-			if attempt == scrubSideEffectMaxRetries-1 {
+			if attempt == scrubMaxRetries-1 {
 				return
 			}
 			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after project load failure",
 				"attempt", attempt+1, "project_uid", projectUID)
-			continue
-		}
-
-		_, confirmRevision, confirmErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
-		if confirmErr != nil {
-			if attempt == scrubSideEffectMaxRetries-1 {
-				slog.WarnContext(ctx, "project_subscriber: failed to confirm settings revision for scrub side effects",
-					constants.ErrKey, confirmErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
-				return
-			}
-			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after revision confirm failure",
-				"attempt", attempt+1, "project_uid", projectUID)
-			continue
-		}
-		if confirmRevision != revision {
-			slog.DebugContext(ctx, "project_subscriber: settings revision advanced before side-effect publish — retrying",
-				"expected_revision", revision, "current_revision", confirmRevision, "project_uid", projectUID)
 			continue
 		}
 
@@ -767,14 +754,14 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 			return
 		}
 
-		if attempt == scrubSideEffectMaxRetries-1 {
+		if attempt == scrubMaxRetries-1 {
 			if indexErr != nil {
 				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
-					constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
+					constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
 			}
 			if accessErr != nil {
 				slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
-					constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
+					constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
 			}
 			return
 		}
