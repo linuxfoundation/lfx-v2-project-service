@@ -501,6 +501,9 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 		{constants.ProjectDocumentCreatedSubject, svc.service.HandleProjectDocumentCreated},
 		{constants.ProjectLinkCreatedSubject, svc.service.HandleProjectLinkCreated},
 	} {
+		// Inbound lifecycle events use core NATS queue subscriptions, matching
+		// lfx-v2-committee-service (LFXV2-2645). v1-sync-helper publishes with core NATS
+		// Publish; missed messages during disconnect are not replayed automatically.
 		slog.With("subject", eh.subject, "queue", queueName).Debug("subscribing to NATS subject")
 		_, err := natsConn.QueueSubscribe(eh.subject, queueName, func(msg *nats.Msg) {
 			msgCtx, end := internalnats.ExtractMsgContext(ctx, msg, eh.subject)

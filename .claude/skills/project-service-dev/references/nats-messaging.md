@@ -46,6 +46,12 @@ All six live as `Project*Subject` constants in `pkg/constants/nats.go`.
 "lfx.projects-api.project_link.created"       // handled by HandleProjectLinkCreated
 ```
 
+### Inbound event delivery (core NATS)
+
+Lifecycle handlers (`invite_accepted`, `user.deleted`, document/link created) subscribe via core NATS queue groups (`QueueSubscribe`), the same transport used by `lfx-v2-committee-service` for `user.deleted` (LFXV2-2645). v1-sync-helper publishes deletions with core NATS `Publish`. Messages emitted while this service is disconnected are not automatically replayed; durable JetStream delivery or a periodic reconciliation job would be a cross-service follow-up.
+
+Full project-settings scans inside those handlers use `settingsScanTimeout` (2 minutes), not `notificationTimeout` (5 seconds).
+
 ## Owned KV buckets
 
 | Bucket | Purpose | History |

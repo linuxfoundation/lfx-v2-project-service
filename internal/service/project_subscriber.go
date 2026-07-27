@@ -30,6 +30,16 @@ import (
 // auth-service actor name lookup all run under this deadline.
 const notificationTimeout = 5 * time.Second
 
+// settingsScanTimeout caps ListAllProjectsSettings and per-project reconciliation work.
+// Unlike notificationTimeout (single RPC), a full project-settings bucket scan can require
+// many sequential KV reads under load.
+const settingsScanTimeout = 2 * time.Minute
+
+// scrubSideEffectMaxRetries is the number of attempts for indexer/FGA publishes after a
+// successful KV write. Retries are independent of the username match so a transient NATS
+// failure does not leave access tuples stale after the settings record was already scrubbed.
+const scrubSideEffectMaxRetries = 4
+
 const (
 	roleWriter             = "Writer"
 	roleAuditor            = "Auditor"
@@ -403,7 +413,7 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	}
 
 	// Scan all project settings for email-only entries that match the recipient.
-	listCtx, listCancel := context.WithTimeout(ctx, notificationTimeout)
+	listCtx, listCancel := context.WithTimeout(ctx, settingsScanTimeout)
 	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
 	listCancel()
 	if listErr != nil {
@@ -417,7 +427,7 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			continue
 		}
 		projectUID := candidate.UID
-		promoteCtx, promoteCancel := context.WithTimeout(ctx, notificationTimeout)
+		promoteCtx, promoteCancel := context.WithTimeout(ctx, settingsScanTimeout)
 		s.promoteInvitedUserInProjectSettings(promoteCtx, projectUID, normalizedEmail, event.AcceptedBy, event.UID, event.Role)
 		promoteCancel()
 	}
@@ -539,7 +549,7 @@ func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Mess
 	slog.InfoContext(ctx, "project_subscriber: scrubbing deleted user's username from project settings",
 		"username", event.Username)
 
-	listCtx, listCancel := context.WithTimeout(ctx, notificationTimeout)
+	listCtx, listCancel := context.WithTimeout(ctx, settingsScanTimeout)
 	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
 	listCancel()
 	if listErr != nil {
@@ -552,7 +562,7 @@ func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Mess
 		if !projectSettingsHasUsername(candidate, event.Username) {
 			continue
 		}
-		scrubCtx, scrubCancel := context.WithTimeout(ctx, notificationTimeout)
+		scrubCtx, scrubCancel := context.WithTimeout(ctx, settingsScanTimeout)
 		s.scrubUsernameFromProjectSettings(scrubCtx, candidate.UID, event.Username)
 		scrubCancel()
 	}
@@ -666,7 +676,8 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 }
 
 // publishProjectSettingsScrubSideEffects reindexes scrubbed settings and refreshes OpenFGA
-// access tuples. Best-effort: failures are logged but do not fail the scrub handler.
+// access tuples. Indexer and FGA publishes retry independently of the username match so a
+// transient NATS failure after the KV write does not leave stale access tuples.
 // ProjectSettingsUpdatedSubject is intentionally omitted to avoid role-change emails.
 func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string, settings *models.ProjectSettings) {
 	indexMsg := indexerTypes.IndexerMessageEnvelope{
@@ -674,9 +685,20 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 		Data:           *settings,
 		IndexingConfig: settings.IndexingConfig(projectUID),
 	}
-	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+	var indexErr error
+	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
+		indexErr = s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
+		if indexErr == nil {
+			break
+		}
+		if attempt < scrubSideEffectMaxRetries-1 {
+			slog.DebugContext(ctx, "project_subscriber: retrying reindex after username scrub",
+				"attempt", attempt+1, "project_uid", projectUID)
+		}
+	}
+	if indexErr != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
-			constants.ErrKey, indexErr, "project_uid", projectUID)
+			constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
 	}
 
 	projectBase, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
@@ -686,10 +708,19 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 		return
 	}
 	fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-	if accessErr := s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false); accessErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
-			constants.ErrKey, accessErr, "project_uid", projectUID)
+	var accessErr error
+	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
+		accessErr = s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false)
+		if accessErr == nil {
+			return
+		}
+		if attempt < scrubSideEffectMaxRetries-1 {
+			slog.DebugContext(ctx, "project_subscriber: retrying FGA publish after username scrub",
+				"attempt", attempt+1, "project_uid", projectUID)
+		}
 	}
+	slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
+		constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubSideEffectMaxRetries)
 }
 
 // buildProjectURL constructs the deep-link URL for a project's overview page.

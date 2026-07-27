@@ -1265,6 +1265,27 @@ func TestHandleUserDeleted(t *testing.T) {
 			},
 		},
 		{
+			name:    "FGA publish retry — succeeds on second attempt",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domain.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:     projectUID,
+					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
+			},
+			setupMsg: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).
+					Return(errors.New("transient nats failure")).Once()
+				m.On("SendAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.Anything, false).
+					Return(nil).Once()
+			},
+		},
+		{
 			name:    "multiple projects — only matching project updated",
 			payload: makeEvent(deletedUsername),
 			setupRepo: func(r *domain.MockProjectRepository) {
