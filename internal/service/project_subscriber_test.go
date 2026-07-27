@@ -1490,6 +1490,12 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 			deletedEmail: "old@example.com",
 			want:         false,
 		},
+		{
+			name:         "event email with username-only entry — do not scrub",
+			entry:        models.UserInfo{Username: deletedUsername},
+			deletedEmail: "deleted@example.com",
+			want:         false,
+		},
 	}
 
 	for _, tt := range tests {

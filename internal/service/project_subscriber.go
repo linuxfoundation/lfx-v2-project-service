@@ -655,13 +655,19 @@ func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings 
 // event carries an email, entries with a different non-empty email are treated as reuse and
 // skipped even before auth lookup.
 //
-// Entries without email always scrub when the username matches. That is intentional: M2M and
-// legacy email-less settings cannot be disambiguated via auth lookup.
+// Entries without email scrub when the username matches only when the deletion event
+// also omits email (M2M/legacy). When the event carries email, username-only entries are
+// skipped because they cannot be verified as the deleted account.
 func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u models.UserInfo, deletedUsername, deletedEmail string) bool {
 	entryEmail := strings.ToLower(strings.TrimSpace(u.Email))
 	deletedEmailNorm := strings.ToLower(strings.TrimSpace(deletedEmail))
-	if deletedEmailNorm != "" && entryEmail != "" && entryEmail != deletedEmailNorm {
-		return false
+	if deletedEmailNorm != "" {
+		if entryEmail == "" {
+			return false
+		}
+		if entryEmail != deletedEmailNorm {
+			return false
+		}
 	}
 	if entryEmail == "" {
 		return true
