@@ -40,6 +40,11 @@ const settingsScanTimeout = 2 * time.Minute
 // failure does not leave access tuples stale after the settings record was already scrubbed.
 const scrubSideEffectMaxRetries = 4
 
+// serviceAuthBearer is the static JWT audience token used for background NATS handler
+// side effects (indexer/FGA) that have no originating HTTP request context.
+// Pattern matches lfx-v2-committee-service message_handler.go.
+const serviceAuthBearer = "Bearer lfx-v2-project-service"
+
 const (
 	roleWriter             = "Writer"
 	roleAuditor            = "Auditor"
@@ -515,7 +520,7 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 				Data:           *settings,
 				IndexingConfig: settings.IndexingConfig(projectUID),
 			}
-			if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+			if indexErr := s.MessageBuilder.SendIndexerMessage(ctxWithServiceAuth(ctx), constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
 				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
 					constants.ErrKey, indexErr, "project_uid", projectUID)
 			}
@@ -680,6 +685,7 @@ func (s *ProjectsService) scrubUsernameFromProjectSettings(ctx context.Context, 
 // stale snapshot if another writer updated settings concurrently after the scrub commit.
 // ProjectSettingsUpdatedSubject is intentionally omitted to avoid role-change emails.
 func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string) {
+	ctx = ctxWithServiceAuth(ctx)
 	for attempt := 0; attempt < scrubSideEffectMaxRetries; attempt++ {
 		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
 		if err != nil {
@@ -733,6 +739,16 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 		slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after reload",
 			"attempt", attempt+1, "project_uid", projectUID)
 	}
+}
+
+// ctxWithServiceAuth returns ctx with a service-identity bearer when no inbound JWT is present.
+// NATS queue subscribers have no HTTP middleware, but indexer V2 transactions require an
+// authorization header in the message envelope.
+func ctxWithServiceAuth(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
+		return ctx
+	}
+	return context.WithValue(ctx, constants.AuthorizationContextID, serviceAuthBearer)
 }
 
 // buildProjectURL constructs the deep-link URL for a project's overview page.

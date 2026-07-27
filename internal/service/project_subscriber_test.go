@@ -1150,6 +1150,24 @@ func TestHandleInviteAccepted(t *testing.T) {
 	}
 }
 
+func TestCtxWithServiceAuth(t *testing.T) {
+	t.Run("injects service bearer when absent", func(t *testing.T) {
+		ctx := ctxWithServiceAuth(context.Background())
+		auth, ok := ctx.Value(constants.AuthorizationContextID).(string)
+		require.True(t, ok)
+		assert.Equal(t, serviceAuthBearer, auth)
+	})
+
+	t.Run("preserves existing bearer", func(t *testing.T) {
+		existing := "Bearer caller-jwt"
+		ctx := context.WithValue(context.Background(), constants.AuthorizationContextID, existing)
+		ctx = ctxWithServiceAuth(ctx)
+		auth, ok := ctx.Value(constants.AuthorizationContextID).(string)
+		require.True(t, ok)
+		assert.Equal(t, existing, auth)
+	})
+}
+
 func TestHandleUserDeleted(t *testing.T) {
 	const deletedUsername = "deleted.user"
 	const projectUID = "proj-1"
