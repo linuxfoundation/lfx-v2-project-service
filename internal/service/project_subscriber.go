@@ -521,18 +521,12 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 	}
 }
 
-// V1UserDeletedEvent is the payload published by v1-sync-helper on "lfx.v1-sync-helper.user.deleted"
-// when a merged user record is soft-deleted. Username is the user's LFID.
-type V1UserDeletedEvent struct {
-	Username string `json:"username"`
-}
-
 // HandleUserDeleted scrubs the deleted user's username from project settings.
 // Best-effort: partial failures are logged but do not block the overall scrub.
 // Unlike committee data, project settings have no separate member records — only
 // the settings writers/auditors/meeting coordinators and named role fields are updated.
 func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Message) error {
-	var event V1UserDeletedEvent
+	var event events.V1UserDeletedEvent
 	if err := json.Unmarshal(msg.Data(), &event); err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal user.deleted event", constants.ErrKey, err)
 		return nil

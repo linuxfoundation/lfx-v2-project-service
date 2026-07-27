@@ -1155,8 +1155,8 @@ func TestHandleUserDeleted(t *testing.T) {
 	const projectUID = "proj-1"
 	const project2UID = "proj-2"
 
-	makeEvent := func(username string) V1UserDeletedEvent {
-		return V1UserDeletedEvent{Username: username}
+	makeEvent := func(username string) events.V1UserDeletedEvent {
+		return events.V1UserDeletedEvent{Username: username}
 	}
 
 	tests := []struct {
@@ -1246,12 +1246,16 @@ func TestHandleUserDeleted(t *testing.T) {
 					UID:                 projectUID,
 					MeetingCoordinators: []models.UserInfo{{Username: deletedUsername, Email: "mc@example.com"}},
 					ExecutiveDirector:   &models.UserInfo{Username: deletedUsername, Email: "ed@example.com"},
+					ProgramManager:      &models.UserInfo{Username: deletedUsername, Email: "pm@example.com"},
+					OpportunityOwner:    &models.UserInfo{Username: deletedUsername, Email: "oo@example.com"},
 				}
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.MeetingCoordinators) == 1 && s.MeetingCoordinators[0].Username == "" &&
-						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == ""
+						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "" &&
+						s.ProgramManager != nil && s.ProgramManager.Username == "" &&
+						s.OpportunityOwner != nil && s.OpportunityOwner.Username == ""
 				}), uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
@@ -1328,6 +1332,8 @@ func TestProjectSettingsHasUsername(t *testing.T) {
 		{name: "auditor match", settings: &models.ProjectSettings{Auditors: []models.UserInfo{{Username: username}}}, want: true},
 		{name: "meeting coordinator match", settings: &models.ProjectSettings{MeetingCoordinators: []models.UserInfo{{Username: username}}}, want: true},
 		{name: "executive director match", settings: &models.ProjectSettings{ExecutiveDirector: &models.UserInfo{Username: username}}, want: true},
+		{name: "program manager match", settings: &models.ProjectSettings{ProgramManager: &models.UserInfo{Username: username}}, want: true},
+		{name: "opportunity owner match", settings: &models.ProjectSettings{OpportunityOwner: &models.UserInfo{Username: username}}, want: true},
 		{name: "no match", settings: &models.ProjectSettings{Writers: []models.UserInfo{{Username: "other"}}}, want: false},
 	}
 	for _, tt := range tests {

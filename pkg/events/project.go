@@ -90,3 +90,10 @@ type InviteAccepted struct {
 	InviteUID string `json:"invite_uid"`
 	Username  string `json:"username"`
 }
+
+// V1UserDeletedEvent is the payload published by v1-sync-helper on
+// lfx.v1-sync-helper.user.deleted when a merged user record is soft-deleted.
+// Username is the user's LFID.
+type V1UserDeletedEvent struct {
+	Username string `json:"username"`
+}

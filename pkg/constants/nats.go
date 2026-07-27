@@ -115,6 +115,6 @@ const (
 	// V1SyncHelperUserDeletedSubject is emitted by v1-sync-helper when a merged user record is
 	// soft-deleted. The project service subscribes to scrub the deleted user's username from
 	// project settings writers/auditors/meeting coordinators and named role fields.
-	// Payload: JSON-encoded {"username":"<lfid>"} (see internal/service/project_subscriber.go).
+	// Payload: JSON-encoded events.V1UserDeletedEvent.
 	V1SyncHelperUserDeletedSubject = "lfx.v1-sync-helper.user.deleted"
 )
