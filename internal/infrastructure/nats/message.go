@@ -218,21 +218,14 @@ func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string,
 	}
 }
 
-// SendAccessMessage sends access control messages to NATS using the generic FGA sync format.
-func (m *MessageBuilder) SendAccessMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
-	switch msg := message.(type) {
-	case fgatypes.GenericFGAMessage:
-		messageBytes, err := json.Marshal(msg)
-		if err != nil {
-			slog.ErrorContext(ctx, "error marshalling FGA message into JSON", constants.ErrKey, err)
-			return err
-		}
-		return m.sendMessage(ctx, subject, messageBytes, sync)
-
-	default:
-		slog.ErrorContext(ctx, "unsupported access message type", "type", fmt.Sprintf("%T", message))
-		return fmt.Errorf("unsupported access message type: %T", message)
+// PublishAccessMessage publishes access control messages asynchronously using the generic FGA sync format.
+func (m *MessageBuilder) PublishAccessMessage(ctx context.Context, subject string, message fgatypes.GenericFGAMessage) error {
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		slog.ErrorContext(ctx, "error marshalling FGA message into JSON", constants.ErrKey, err)
+		return err
 	}
+	return m.sendMessage(ctx, subject, messageBytes, false)
 }
 
 // SendProjectEventMessage sends project event messages to NATS asynchronously.

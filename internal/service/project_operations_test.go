@@ -152,12 +152,24 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				Public:      misc.BoolPtr(true),
 				Stage:       misc.StringPtr("incubating"),
 				Category:    misc.StringPtr("foundation"),
+				XSync:       misc.BoolPtr(true),
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "test-project").Return(false, nil)
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), true).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage",
+					mock.Anything,
+					"lfx.fga-sync.update_access",
+					mock.MatchedBy(func(msg fgatypes.GenericFGAMessage) bool {
+						data, ok := msg.Data.(fgatypes.GenericAccessData)
+						return ok &&
+							msg.ObjectType == "project" &&
+							msg.Operation == "update_access" &&
+							data.UID != "" &&
+							data.Public
+					}),
+				).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -168,6 +180,21 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				assert.Equal(t, "Test Description", *result.Description)
 				assert.Equal(t, true, *result.Public)
 			},
+		},
+		{
+			name: "FGA publish failure after repository creation returns internal error",
+			payload: &projsvc.CreateProjectPayload{
+				Slug: "publish-failure",
+				Name: "Publish Failure",
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("ProjectSlugExists", mock.Anything, "publish-failure").Return(false, nil)
+				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil).Once()
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access", mock.AnythingOfType("types.GenericFGAMessage")).Return(domain.ErrInternal).Once()
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
 		},
 		{
 			name: "service not ready",
@@ -242,12 +269,13 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				Description:           "Desc",
 				Stage:                 misc.StringPtr("Archived"),
 				EntityDissolutionDate: misc.StringPtr("2021-12-31"),
+				XSync:                 misc.BoolPtr(false),
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				mockRepo.On("ProjectSlugExists", mock.Anything, "archived-with-date").Return(false, nil)
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -287,8 +315,8 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "carol-lfid"
 				})).Return(nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -456,6 +484,7 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 			payload: &projsvc.DeleteProjectPayload{
 				UID:     misc.StringPtr("test-project-uid"),
 				IfMatch: misc.StringPtr("123"),
+				XSync:   misc.BoolPtr(true),
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				// Project has Crowdfunding in funding model - deletion allowed
@@ -469,14 +498,36 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 					nil,
 				)
 				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), fgatypes.GenericFGAMessage{
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", true).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.delete_access", fgatypes.GenericFGAMessage{
 					ObjectType: "project",
 					Operation:  "delete_access",
 					Data:       fgatypes.GenericDeleteData{UID: "test-project-uid"},
-				}, mock.AnythingOfType("bool")).Return(nil)
+				}).Return(nil)
 			},
 			wantErr: false,
+		},
+		{
+			name: "FGA publish failure after repository deletion returns internal error",
+			payload: &projsvc.DeleteProjectPayload{
+				UID:     misc.StringPtr("test-project-uid"),
+				IfMatch: misc.StringPtr("123"),
+				XSync:   misc.BoolPtr(false),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectBase", mock.Anything, "test-project-uid").Return(
+					&models.ProjectBase{
+						UID:          "test-project-uid",
+						FundingModel: []string{"Crowdfunding"},
+					},
+					nil,
+				)
+				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(123)).Return(nil).Once()
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", false).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.delete_access", mock.AnythingOfType("types.GenericFGAMessage")).Return(domain.ErrInternal).Once()
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
 		},
 		{
 			name: "deletion rejected - project with Crowdfunding and other funding models",
@@ -639,12 +690,12 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 					nil,
 				)
 				mockRepo.On("DeleteProject", mock.Anything, "test-project-uid", uint64(456)).Return(nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", mock.AnythingOfType("bool")).Return(nil).Times(2)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), fgatypes.GenericFGAMessage{
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), "test-project-uid", false).Return(nil).Times(2)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.delete_access", fgatypes.GenericFGAMessage{
 					ObjectType: "project",
 					Operation:  "delete_access",
 					Data:       fgatypes.GenericDeleteData{UID: "test-project-uid"},
-				}, mock.AnythingOfType("bool")).Return(nil)
+				}).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -791,6 +842,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				Slug:    "test-project",
 				Name:    "Test Project",
 				Public:  misc.BoolPtr(true),
+				XSync:   misc.BoolPtr(true),
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				projectDB := &models.ProjectBase{
@@ -805,8 +857,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
-				mockBuilder.On("SendAccessMessage",
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), true).Return(nil)
+				mockBuilder.On("PublishAccessMessage",
 					mock.Anything,
 					"lfx.fga-sync.update_access",
 					fgatypes.GenericFGAMessage{
@@ -819,7 +871,6 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 							References: make(map[string][]string),
 						},
 					},
-					mock.AnythingOfType("bool"),
 				).Return(nil)
 			},
 			wantErr: false,
@@ -836,6 +887,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				Slug:      "child-project",
 				Name:      "Child Project",
 				ParentUID: "11111111-2222-3333-4444-555555555555",
+				XSync:     misc.BoolPtr(false),
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
 				projectDB := &models.ProjectBase{
@@ -849,8 +901,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				mockRepo.On("ProjectExists", mock.Anything, "11111111-2222-3333-4444-555555555555").Return(true, nil)
 				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(5)).Return(nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(settingsDB, nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
-				mockBuilder.On("SendAccessMessage",
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				mockBuilder.On("PublishAccessMessage",
 					mock.Anything,
 					"lfx.fga-sync.update_access",
 					fgatypes.GenericFGAMessage{
@@ -863,7 +915,6 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 							References: map[string][]string{"parent": {"project:11111111-2222-3333-4444-555555555555"}},
 						},
 					},
-					mock.AnythingOfType("bool"),
 				).Return(nil)
 			},
 			wantErr: false,
@@ -920,8 +971,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectBase) {
@@ -945,7 +996,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(settingsDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage"), mock.AnythingOfType("bool")).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 			wantErr: false,
 		},
@@ -997,6 +1048,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("3"),
+				XSync:   misc.BoolPtr(true),
 				Writers: []*projsvc.UserInfo{
 					{Username: misc.StringPtr("alice"), Name: misc.StringPtr("Alice"), Email: misc.StringPtr("alice@example.com"), Avatar: misc.StringPtr("")},
 				},
@@ -1019,12 +1071,11 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				// After update, GetProjectSettings is called again to build the FGA message — use updated settings
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(updatedSettings, nil).Maybe()
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), mock.AnythingOfType("bool")).Return(nil)
-				mockBuilder.On("SendAccessMessage",
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), true).Return(nil)
+				mockBuilder.On("PublishAccessMessage",
 					mock.Anything,
 					"lfx.fga-sync.update_access",
 					mock.AnythingOfType("types.GenericFGAMessage"),
-					mock.AnythingOfType("bool"),
 				).Return(nil).Run(func(args mock.Arguments) {
 					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
 					require.True(t, ok)
@@ -1033,6 +1084,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 					data, ok := msg.Data.(fgatypes.GenericAccessData)
 					require.True(t, ok)
 					assert.Equal(t, "project-uid-1", data.UID)
+					assert.Equal(t, []string{"alice"}, data.Relations["writer"])
 				})
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything).Return(nil)
 			},
@@ -1043,6 +1095,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
+				XSync:   misc.BoolPtr(false),
 				Writers: []*projsvc.UserInfo{
 					{Username: misc.StringPtr("UNTRUSTED"), Name: misc.StringPtr("Bob"), Email: misc.StringPtr("bob@example.com")},
 				},
@@ -1060,8 +1113,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 					return len(s.Writers) == 1 && s.Writers[0].Username == "real-bob"
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access", mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
@@ -1087,8 +1140,8 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 					return len(s.Writers) == 1 && s.Writers[0].Username == ""
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access", mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
@@ -1112,7 +1165,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
@@ -1168,7 +1221,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
@@ -1195,7 +1248,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
@@ -1230,7 +1283,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
@@ -1262,7 +1315,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendAccessMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,

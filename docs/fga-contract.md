@@ -25,6 +25,12 @@ All messages use the generic FGA message format on the following NATS subjects:
 
 Each message carries `object_type`, `operation`, and a `data` map. The sections below describe the `data` contents for each object type.
 
+### Delivery Semantics
+
+Project create, base update, and settings update publish `lfx.fga-sync.update_access` asynchronously. For those operations, `X-Sync` controls indexer synchronization only; it does not wait for FGA processing or OpenFGA convergence.
+
+Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-Sync` continues to control both project indexer deletion messages, but it does not wait for FGA deletion processing or OpenFGA convergence.
+
 ---
 
 ## Project

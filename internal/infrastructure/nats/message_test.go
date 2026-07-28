@@ -4,9 +4,12 @@
 package nats
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -23,6 +26,12 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 // backgroundCtx is a reusable function that returns context.Background()
@@ -253,14 +262,65 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 	}
 }
 
+// matchFGAEnvelope builds a mock.MatchedBy predicate asserting that a published
+// NATS message carries the given subject and decodes to the expected FGA
+// envelope fields (object_type, operation, and the data's uid).
+func matchFGAEnvelope(subject, operation, uid string) func(msg *nats.Msg) bool {
+	return func(msg *nats.Msg) bool {
+		if msg.Subject != subject {
+			return false
+		}
+		var envelope struct {
+			ObjectType string `json:"object_type"`
+			Operation  string `json:"operation"`
+			Data       struct {
+				UID string `json:"uid"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(msg.Data, &envelope); err != nil {
+			return false
+		}
+		return envelope.ObjectType == "project" &&
+			envelope.Operation == operation &&
+			envelope.Data.UID == uid
+	}
+}
+
+// accessMessageSpanRecorder/accessMessageTracerProvider back the trace
+// assertions in TestMessageBuilder_PublishAccessMessage. otel.SetTracerProvider
+// only performs a one-time delegate upgrade for already-resolved package-level
+// Tracer handles (see tracing.go), so it must be installed at most once for
+// the lifetime of the test binary — including across repeated runs of the
+// same test function under `go test -count=N`. Trace assertions therefore
+// compare span-count deltas against this shared recorder instead of resetting it.
+var (
+	accessMessageTracerOnce     sync.Once
+	accessMessageSpanRecorder   *tracetest.SpanRecorder
+	accessMessageTracerProvider *sdktrace.TracerProvider
+)
+
+func setupAccessMessageTracing() *tracetest.SpanRecorder {
+	accessMessageTracerOnce.Do(func() {
+		accessMessageSpanRecorder = tracetest.NewSpanRecorder()
+		accessMessageTracerProvider = sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(accessMessageSpanRecorder))
+		otel.SetTracerProvider(accessMessageTracerProvider)
+		otel.SetTextMapPropagator(propagation.TraceContext{})
+	})
+	return accessMessageSpanRecorder
+}
+
 func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
+	spanRecorder := setupAccessMessageTracing()
+
 	tests := []struct {
-		name       string
-		subject    string
-		message    interface{}
-		setupMocks func(*MockNATSConn)
-		setupCtx   func() context.Context
-		wantErr    bool
+		name             string
+		subject          string
+		message          fgatypes.GenericFGAMessage
+		setupMocks       func(*MockNATSConn)
+		setupCtx         func() context.Context
+		wantErr          bool
+		verifyTrace      bool
+		verifyFailureLog bool
 	}{
 		{
 			name:    "successful send update access message",
@@ -281,12 +341,13 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
-					return msg.Subject == fgaconstants.GenericUpdateAccessSubject
-				})).Return(nil)
+				mockConn.On("PublishMsg", mock.MatchedBy(
+					matchFGAEnvelope(fgaconstants.GenericUpdateAccessSubject, "update_access", "test-uid"),
+				)).Return(nil)
 			},
-			setupCtx: backgroundCtx,
-			wantErr:  false,
+			setupCtx:    backgroundCtx,
+			wantErr:     false,
+			verifyTrace: true,
 		},
 		{
 			name:    "successful send delete access message",
@@ -299,22 +360,13 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 				},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
-					return msg.Subject == fgaconstants.GenericDeleteAccessSubject
-				})).Return(nil)
+				mockConn.On("PublishMsg", mock.MatchedBy(
+					matchFGAEnvelope(fgaconstants.GenericDeleteAccessSubject, "delete_access", "test-uid-to-delete"),
+				)).Return(nil)
 			},
-			setupCtx: backgroundCtx,
-			wantErr:  false,
-		},
-		{
-			name:    "unsupported message type",
-			subject: fgaconstants.GenericUpdateAccessSubject,
-			message: 123, // Invalid type - int is not supported
-			setupMocks: func(mockConn *MockNATSConn) {
-				// No publish expected
-			},
-			setupCtx: backgroundCtx,
-			wantErr:  true,
+			setupCtx:    backgroundCtx,
+			wantErr:     false,
+			verifyTrace: true,
 		},
 		{
 			name:    "nats publish error",
@@ -329,97 +381,20 @@ func TestMessageBuilder_PublishAccessMessage(t *testing.T) {
 					return msg.Subject == fgaconstants.GenericUpdateAccessSubject
 				})).Return(errors.New("nats error"))
 			},
-			setupCtx: backgroundCtx,
-			wantErr:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			tt.setupMocks(mockConn)
-
-			mb := &MessageBuilder{
-				NatsConn: mockConn,
-			}
-
-			ctx := tt.setupCtx()
-			err := mb.SendAccessMessage(ctx, tt.subject, tt.message, false)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			mockConn.AssertExpectations(t)
-		})
-	}
-}
-
-func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
-	tests := []struct {
-		name       string
-		subject    string
-		message    interface{}
-		setupMocks func(*MockNATSConn)
-		setupCtx   func() context.Context
-		wantErr    bool
-	}{
-		{
-			name:    "successful sync send update access message",
-			subject: fgaconstants.GenericUpdateAccessSubject,
-			message: fgatypes.GenericFGAMessage{
-				ObjectType: "project",
-				Operation:  "update_access",
-				Data: fgatypes.GenericAccessData{
-					UID:    "test-uid",
-					Public: true,
-					Relations: map[string][]string{
-						"writer":  {"user1"},
-						"auditor": {"user2"},
-					},
-					References: map[string][]string{
-						"parent": {"project:parent-uid"},
-					},
-				},
-			},
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
-					return msg.Subject == fgaconstants.GenericUpdateAccessSubject
-				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
-			},
-			setupCtx: backgroundCtx,
-			wantErr:  false,
+			setupCtx:         backgroundCtx,
+			wantErr:          true,
+			verifyFailureLog: true,
 		},
 		{
-			name:    "successful sync send delete access message",
+			name:    "marshal error",
 			subject: fgaconstants.GenericDeleteAccessSubject,
 			message: fgatypes.GenericFGAMessage{
 				ObjectType: "project",
 				Operation:  "delete_access",
-				Data: fgatypes.GenericDeleteData{
-					UID: "test-uid-to-delete",
-				},
+				Data:       make(chan int),
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
-					return msg.Subject == fgaconstants.GenericDeleteAccessSubject
-				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
-			},
-			setupCtx: backgroundCtx,
-			wantErr:  false,
-		},
-		{
-			name:    "nats request error - sync mode",
-			subject: fgaconstants.GenericUpdateAccessSubject,
-			message: fgatypes.GenericFGAMessage{
-				ObjectType: "project",
-				Operation:  "update_access",
-				Data:       fgatypes.GenericAccessData{UID: "test"},
-			},
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).Return(nil, errors.New("nats request timeout"))
+				// No publish expected when JSON marshalling fails.
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  true,
@@ -428,6 +403,17 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			spansBefore := len(spanRecorder.Ended())
+
+			var logs bytes.Buffer
+			if tt.verifyFailureLog {
+				previousLogger := slog.Default()
+				slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+				t.Cleanup(func() {
+					slog.SetDefault(previousLogger)
+				})
+			}
+
 			mockConn := &MockNATSConn{}
 			tt.setupMocks(mockConn)
 
@@ -436,7 +422,7 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 			}
 
 			ctx := tt.setupCtx()
-			err := mb.SendAccessMessage(ctx, tt.subject, tt.message, true)
+			err := mb.PublishAccessMessage(ctx, tt.subject, tt.message)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -445,6 +431,19 @@ func TestMessageBuilder_PublishAccessMessage_Sync(t *testing.T) {
 			}
 
 			mockConn.AssertExpectations(t)
+
+			if tt.verifyTrace {
+				require.NoError(t, accessMessageTracerProvider.ForceFlush(context.Background()))
+				spans := spanRecorder.Ended()
+				require.Len(t, spans, spansBefore+1)
+				newSpan := spans[len(spans)-1]
+				assert.Equal(t, "nats.publish", newSpan.Name())
+				assert.Equal(t, oteltrace.SpanKindProducer, newSpan.SpanKind())
+			}
+
+			if tt.verifyFailureLog {
+				assert.Contains(t, logs.String(), "subject="+tt.subject)
+			}
 		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
@@ -242,8 +243,8 @@ func (m *MockMessageBuilder) SendIndexerMessage(ctx context.Context, subject str
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendAccessMessage(ctx context.Context, subject string, message any, sync bool) error {
-	args := m.Called(ctx, subject, message, sync)
+func (m *MockMessageBuilder) PublishAccessMessage(ctx context.Context, subject string, message fgatypes.GenericFGAMessage) error {
+	args := m.Called(ctx, subject, message)
 	return args.Error(0)
 }
 
