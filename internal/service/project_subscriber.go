@@ -13,6 +13,7 @@ import (
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
@@ -28,6 +29,21 @@ import (
 // email-service request/reply, invite-service request/reply (SendInviteRequest), and
 // auth-service actor name lookup all run under this deadline.
 const notificationTimeout = 5 * time.Second
+
+// settingsScanTimeout caps ListAllProjectsSettings and per-project reconciliation work.
+// Unlike notificationTimeout (single RPC), a full project-settings bucket scan can require
+// many sequential KV reads under load.
+const settingsScanTimeout = 2 * time.Minute
+
+// scrubMaxRetries is the number of attempts for settings KV writes and indexer/FGA publishes
+// after a successful scrub. Retries are independent of the username match so a transient
+// conflict or NATS failure does not leave access tuples stale after settings were scrubbed.
+const scrubMaxRetries = 4
+
+// serviceAuthBearer is the static JWT audience token used for background NATS handler
+// side effects (indexer/FGA) that have no originating HTTP request context.
+// Pattern matches lfx-v2-committee-service message_handler.go.
+const serviceAuthBearer = "Bearer lfx-v2-project-service"
 
 const (
 	roleWriter             = "Writer"
@@ -402,7 +418,7 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 	}
 
 	// Scan all project settings for email-only entries that match the recipient.
-	listCtx, listCancel := context.WithTimeout(ctx, notificationTimeout)
+	listCtx, listCancel := context.WithTimeout(ctx, settingsScanTimeout)
 	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
 	listCancel()
 	if listErr != nil {
@@ -416,7 +432,7 @@ func (s *ProjectsService) HandleInviteAccepted(ctx context.Context, msg domain.M
 			continue
 		}
 		projectUID := candidate.UID
-		promoteCtx, promoteCancel := context.WithTimeout(ctx, notificationTimeout)
+		promoteCtx, promoteCancel := context.WithTimeout(ctx, settingsScanTimeout)
 		s.promoteInvitedUserInProjectSettings(promoteCtx, projectUID, normalizedEmail, event.AcceptedBy, event.UID, event.Role)
 		promoteCancel()
 	}
@@ -504,7 +520,7 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 				Data:           *settings,
 				IndexingConfig: settings.IndexingConfig(projectUID),
 			}
-			if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
+			if indexErr := s.MessageBuilder.SendIndexerMessage(ctxWithServiceAuth(ctx), constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
 				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
 					constants.ErrKey, indexErr, "project_uid", projectUID)
 			}
@@ -518,6 +534,271 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 		slog.DebugContext(ctx, "project_subscriber: revision mismatch promoting invite — retrying",
 			"attempt", attempt+1, "project_uid", projectUID, "invite_uid", inviteUID)
 	}
+}
+
+// HandleUserDeleted scrubs the deleted user's username from project settings.
+// Best-effort: partial failures are logged but do not block the overall scrub.
+// Unlike committee data, project settings have no separate member records — only
+// the settings writers/auditors/meeting coordinators and named role fields are updated.
+func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Message) error {
+	var event events.V1UserDeletedEvent
+	if err := json.Unmarshal(msg.Data(), &event); err != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to unmarshal user.deleted event", constants.ErrKey, err)
+		return nil
+	}
+	if strings.TrimSpace(event.Username) == "" {
+		slog.WarnContext(ctx, "project_subscriber: user.deleted event missing username — nothing to scrub")
+		return nil
+	}
+
+	slog.InfoContext(ctx, "project_subscriber: scrubbing deleted user's username from project settings")
+
+	listCtx, listCancel := context.WithTimeout(ctx, settingsScanTimeout)
+	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
+	listCancel()
+	if listErr != nil {
+		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for username scrub",
+			constants.ErrKey, listErr)
+		return nil
+	}
+
+	for _, candidate := range allSettings {
+		if !projectSettingsHasUsername(candidate, event.Username) {
+			continue
+		}
+		scrubCtx, scrubCancel := context.WithTimeout(ctx, settingsScanTimeout)
+		s.scrubProjectSettingsUsername(scrubCtx, candidate.UID, event.Username, event.Email)
+		scrubCancel()
+	}
+
+	return nil
+}
+
+// usernameMatches reports whether storedUsername represents the same LFID as deletedUsername.
+func usernameMatches(deletedUsername, storedUsername string) bool {
+	deleted := strings.TrimSpace(deletedUsername)
+	stored := strings.TrimSpace(storedUsername)
+	if deleted == "" || stored == "" {
+		return false
+	}
+	return strings.EqualFold(deleted, stored)
+}
+
+// projectSettingsHasUsername reports whether any role-bearing field in settings carries username.
+func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool {
+	if s == nil {
+		return false
+	}
+	for _, u := range s.Writers {
+		if usernameMatches(username, u.Username) {
+			return true
+		}
+	}
+	for _, u := range s.Auditors {
+		if usernameMatches(username, u.Username) {
+			return true
+		}
+	}
+	for _, u := range s.MeetingCoordinators {
+		if usernameMatches(username, u.Username) {
+			return true
+		}
+	}
+	if s.ExecutiveDirector != nil && usernameMatches(username, s.ExecutiveDirector.Username) {
+		return true
+	}
+	if s.ProgramManager != nil && usernameMatches(username, s.ProgramManager.Username) {
+		return true
+	}
+	if s.OpportunityOwner != nil && usernameMatches(username, s.OpportunityOwner.Username) {
+		return true
+	}
+	return false
+}
+
+// clearUsernameInSettings clears username on every matching entry in settings
+// that still represents the deleted account. Returns true when at least one field was changed.
+func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings *models.ProjectSettings, username, deletedEmail string) bool {
+	changed := false
+	clearIfMatch := func(u *models.UserInfo) {
+		if u == nil || !usernameMatches(username, u.Username) {
+			return
+		}
+		if !s.shouldScrubSettingsUsername(ctx, *u, username, deletedEmail) {
+			slog.DebugContext(ctx, "project_subscriber: skipping username scrub — email still maps to active LFID",
+				"username", username, "email", u.Email)
+			return
+		}
+		u.Username = ""
+		changed = true
+	}
+
+	for i := range settings.Writers {
+		clearIfMatch(&settings.Writers[i])
+	}
+	for i := range settings.Auditors {
+		clearIfMatch(&settings.Auditors[i])
+	}
+	for i := range settings.MeetingCoordinators {
+		clearIfMatch(&settings.MeetingCoordinators[i])
+	}
+	clearIfMatch(settings.ExecutiveDirector)
+	clearIfMatch(settings.ProgramManager)
+	clearIfMatch(settings.OpportunityOwner)
+	return changed
+}
+
+// shouldScrubSettingsUsername reports whether a settings entry carrying deletedUsername should
+// be cleared. When the deletion event carries an email, entries with a different non-empty email
+// are treated as reuse and skipped; a matching entry email is a definitive identification and
+// scrubs without auth lookup. When the event omits email, auth is consulted for entries that
+// have an email so a reassigned LFID reused by a new account is not scrubbed.
+//
+// Entries without email scrub when the username matches only when the deletion event
+// also omits email (M2M/legacy). When the event carries email, username-only entries are
+// skipped because they cannot be verified as the deleted account.
+func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u models.UserInfo, deletedUsername, deletedEmail string) bool {
+	entryEmail := strings.ToLower(strings.TrimSpace(u.Email))
+	deletedEmailNorm := strings.ToLower(strings.TrimSpace(deletedEmail))
+	if deletedEmailNorm != "" {
+		if entryEmail == "" {
+			return false
+		}
+		if entryEmail != deletedEmailNorm {
+			return false
+		}
+		return true // definitive match — scrub without auth lookup
+	}
+	if entryEmail == "" {
+		return true
+	}
+	if s.UserReader == nil {
+		return true
+	}
+
+	lookupCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
+	defer cancel()
+
+	resolved, err := s.UserReader.UsernameByEmail(lookupCtx, entryEmail)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return true
+		}
+		slog.WarnContext(ctx, "project_subscriber: auth lookup failed during username scrub — skipping entry",
+			constants.ErrKey, err)
+		return false
+	}
+	return !usernameMatches(resolved, deletedUsername)
+}
+
+// scrubProjectSettingsUsername fetches settings for a single project, clears the
+// username on any matching entry, persists, and reindexes. Retries on revision conflicts.
+func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, projectUID, username, deletedEmail string) {
+	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
+		settings, revision, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if err != nil {
+			slog.DebugContext(ctx, "project_subscriber: failed to get settings for username scrub — skipping",
+				constants.ErrKey, err, "project_uid", projectUID)
+			return
+		}
+		if settings == nil {
+			return
+		}
+
+		if !s.clearUsernameInSettings(ctx, settings, username, deletedEmail) {
+			return
+		}
+
+		updateErr := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision)
+		if updateErr == nil {
+			slog.InfoContext(ctx, "project_subscriber: cleared username from project settings",
+				"project_uid", projectUID)
+			s.publishProjectSettingsScrubSideEffects(ctx, projectUID)
+			return
+		}
+		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == scrubMaxRetries-1 {
+			slog.WarnContext(ctx, "project_subscriber: failed to clear username from project settings",
+				constants.ErrKey, updateErr, "project_uid", projectUID)
+			return
+		}
+		slog.DebugContext(ctx, "project_subscriber: revision mismatch scrubbing username — retrying",
+			"attempt", attempt+1, "project_uid", projectUID)
+	}
+}
+
+// publishProjectSettingsScrubSideEffects reindexes scrubbed settings and refreshes OpenFGA
+// access tuples. Each attempt reloads the current KV record before publishing; indexer and FGA
+// projections are full-state and idempotent. ProjectSettingsUpdatedSubject is intentionally
+// omitted to avoid role-change emails.
+func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Context, projectUID string) {
+	ctx = ctxWithServiceAuth(ctx)
+	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
+		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if err != nil {
+			if attempt == scrubMaxRetries-1 {
+				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for scrub side effects",
+					constants.ErrKey, err, "project_uid", projectUID, "attempts", scrubMaxRetries)
+				return
+			}
+			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after settings reload failure",
+				"attempt", attempt+1, "project_uid", projectUID)
+			continue
+		}
+		if settings == nil {
+			return
+		}
+
+		projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
+		if baseErr != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after username scrub",
+				constants.ErrKey, baseErr, "project_uid", projectUID)
+			if attempt == scrubMaxRetries-1 {
+				return
+			}
+			slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after project load failure",
+				"attempt", attempt+1, "project_uid", projectUID)
+			continue
+		}
+
+		indexMsg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *settings,
+			IndexingConfig: settings.IndexingConfig(projectUID),
+		}
+		indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
+
+		fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
+		accessErr := s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
+
+		if indexErr == nil && accessErr == nil {
+			return
+		}
+
+		if attempt == scrubMaxRetries-1 {
+			if indexErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after username scrub",
+					constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
+			}
+			if accessErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after username scrub",
+					constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
+			}
+			return
+		}
+
+		slog.DebugContext(ctx, "project_subscriber: retrying scrub side effects after reload",
+			"attempt", attempt+1, "project_uid", projectUID)
+	}
+}
+
+// ctxWithServiceAuth returns ctx with a service-identity bearer when no inbound JWT is present.
+// NATS queue subscribers have no HTTP middleware, but indexer V2 transactions require an
+// authorization header in the message envelope.
+func ctxWithServiceAuth(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
+		return ctx
+	}
+	return context.WithValue(ctx, constants.AuthorizationContextID, serviceAuthBearer)
 }
 
 // buildProjectURL constructs the deep-link URL for a project's overview page.
