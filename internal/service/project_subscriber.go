@@ -769,7 +769,7 @@ func (s *ProjectsService) publishProjectSettingsScrubSideEffects(ctx context.Con
 		indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
 
 		fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-		accessErr := s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg, false)
+		accessErr := s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
 
 		if indexErr == nil && accessErr == nil {
 			return

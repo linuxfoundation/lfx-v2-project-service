@@ -206,7 +206,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g.Go(func() error {
 		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg, runSync)
+		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -473,7 +473,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	g.Go(func() error {
 		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg, runSync)
+		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
@@ -616,7 +616,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	g.Go(func() error {
 		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg, runSync)
+		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg)
 	})
 
 	g.Go(func() error {
@@ -741,7 +741,7 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 				UID: *payload.UID,
 			},
 		}
-		return s.MessageBuilder.SendAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg, runSync)
+		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, msg)
 	})
 
 	if err := g.Wait(); err != nil {
