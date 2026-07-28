@@ -650,10 +650,10 @@ func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings 
 }
 
 // shouldScrubSettingsUsername reports whether a settings entry carrying deletedUsername should
-// be cleared. When the entry has an email, auth is consulted so a reassigned LFID reused by a
-// new account (same username string, different lifecycle) is not scrubbed. When the deletion
-// event carries an email, entries with a different non-empty email are treated as reuse and
-// skipped even before auth lookup.
+// be cleared. When the deletion event carries an email, entries with a different non-empty email
+// are treated as reuse and skipped; a matching entry email is a definitive identification and
+// scrubs without auth lookup. When the event omits email, auth is consulted for entries that
+// have an email so a reassigned LFID reused by a new account is not scrubbed.
 //
 // Entries without email scrub when the username matches only when the deletion event
 // also omits email (M2M/legacy). When the event carries email, username-only entries are
@@ -668,6 +668,7 @@ func (s *ProjectsService) shouldScrubSettingsUsername(ctx context.Context, u mod
 		if entryEmail != deletedEmailNorm {
 			return false
 		}
+		return true // definitive match — scrub without auth lookup
 	}
 	if entryEmail == "" {
 		return true

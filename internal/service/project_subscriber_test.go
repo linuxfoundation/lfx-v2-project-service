@@ -1431,12 +1431,13 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name         string
-		entry        models.UserInfo
-		deletedEmail string
-		setupUser    func(*domain.MockUserReader)
-		userReader   bool
-		want         bool
+		name           string
+		entry          models.UserInfo
+		deletedEmail   string
+		setupUser      func(*domain.MockUserReader)
+		userReader     bool
+		skipAuthLookup bool
+		want           bool
 	}{
 		{
 			name:  "no email — always scrub",
@@ -1496,6 +1497,17 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 			deletedEmail: "deleted@example.com",
 			want:         false,
 		},
+		{
+			name:         "event email matches entry email — scrub without auth lookup",
+			entry:        models.UserInfo{Username: deletedUsername, Email: "deleted@example.com"},
+			deletedEmail: "deleted@example.com",
+			setupUser: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, "deleted@example.com").Return(deletedUsername, nil)
+			},
+			userReader:     true,
+			skipAuthLookup: true,
+			want:           true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1507,7 +1519,14 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 					tt.setupUser(mockUser)
 				}
 				svc.UserReader = mockUser
-				t.Cleanup(func() { mockUser.AssertExpectations(t) })
+				got := svc.shouldScrubSettingsUsername(ctx, tt.entry, deletedUsername, tt.deletedEmail)
+				assert.Equal(t, tt.want, got)
+				if tt.skipAuthLookup {
+					mockUser.AssertNumberOfCalls(t, "UsernameByEmail", 0)
+				} else {
+					mockUser.AssertExpectations(t)
+				}
+				return
 			}
 			got := svc.shouldScrubSettingsUsername(ctx, tt.entry, deletedUsername, tt.deletedEmail)
 			assert.Equal(t, tt.want, got)
