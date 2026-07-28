@@ -551,15 +551,14 @@ func (s *ProjectsService) HandleUserDeleted(ctx context.Context, msg domain.Mess
 		return nil
 	}
 
-	slog.InfoContext(ctx, "project_subscriber: scrubbing deleted user's username from project settings",
-		"username", event.Username)
+	slog.InfoContext(ctx, "project_subscriber: scrubbing deleted user's username from project settings")
 
 	listCtx, listCancel := context.WithTimeout(ctx, settingsScanTimeout)
 	allSettings, listErr := s.ProjectRepository.ListAllProjectsSettings(listCtx)
 	listCancel()
 	if listErr != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to list project settings for username scrub",
-			constants.ErrKey, listErr, "username", event.Username)
+			constants.ErrKey, listErr)
 		return nil
 	}
 
@@ -713,7 +712,7 @@ func (s *ProjectsService) scrubProjectSettingsUsername(ctx context.Context, proj
 		updateErr := s.ProjectRepository.UpdateProjectSettings(ctx, settings, revision)
 		if updateErr == nil {
 			slog.InfoContext(ctx, "project_subscriber: cleared username from project settings",
-				"project_uid", projectUID, "username", username)
+				"project_uid", projectUID)
 			s.publishProjectSettingsScrubSideEffects(ctx, projectUID)
 			return
 		}
