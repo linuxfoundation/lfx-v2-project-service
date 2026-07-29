@@ -107,7 +107,7 @@ Connects to NATS at the start of `Run()`. Does **not** use OpenSearch directly â
 
 | Flag | Default | Description |
 |---|---|---|
-| `--dry-run` | `true` | Log what would change without writing |
+| `--update` | `false` | Write KV changes and publish indexer messages (default is preview-only) |
 | `--sleep` | `0` | Pause between auth-service profile lookups (e.g. `200ms`, `1s`) |
 | `--project-uid` | `""` | Limit migration to one project |
 | `--resource-type` | `""` | Optional filter: `folder`, `link`, or `document` |
@@ -117,7 +117,7 @@ Connects to NATS at the start of `Run()`. Does **not** use OpenSearch directly â
 
 **Examples**
 
-Dry-run all document resources:
+Preview all document resources (default):
 
 ```sh
 NATS_URL=nats://localhost:4222 \
@@ -128,14 +128,14 @@ Apply for one project with rate limiting:
 
 ```sh
 go run ./cmd/project-cli sync document-audit-users \
-  --dry-run=false --project-uid=<uid> --sleep=200ms
+  --update --project-uid=<uid> --sleep=200ms
 ```
 
 Migrate documents only:
 
 ```sh
 go run ./cmd/project-cli sync document-audit-users \
-  --dry-run=false --resource-type=document --sleep=200ms
+  --update --resource-type=document --sleep=200ms
 ```
 
 ## Building

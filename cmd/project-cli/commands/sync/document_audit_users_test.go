@@ -76,7 +76,7 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 			wantSkipped: true,
 		},
 		{
-			name: "dry run counts updated",
+			name: "preview counts updated",
 			runner: &documentAuditUsersRunner{
 				userReader: aliceReader(t),
 				dryRun:     true,
