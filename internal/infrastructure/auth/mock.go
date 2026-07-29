@@ -21,5 +21,10 @@ func (m *MockJWTAuth) ParsePrincipal(ctx context.Context, token string, logger *
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockJWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string, logger *slog.Logger) (string, string, error) {
+	args := m.Called(ctx, token, logger)
+	return args.String(0), args.String(1), args.Error(2)
+}
+
 // Ensure MockJWTAuth implements domain.Authenticator interface
 var _ domain.Authenticator = (*MockJWTAuth)(nil)

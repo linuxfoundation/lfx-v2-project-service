@@ -8,6 +8,7 @@ import (
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -21,14 +22,13 @@ func toServiceLink(l *models.ProjectLink) *projsvc.ProjectLink {
 		FolderUID:  l.FolderUID,
 		Name:       &l.Name,
 		URL:        &l.URL,
+		CreatedBy:  service.ConvertUserToAPI(l.CreatedBy),
+		UpdatedBy:  service.ConvertUserToAPI(l.UpdatedBy),
 		CreatedAt:  misc.StringPtr(l.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
 		UpdatedAt:  misc.StringPtr(l.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
 	if l.Description != "" {
 		link.Description = &l.Description
-	}
-	if l.CreatedByUsername != "" {
-		link.CreatedByUsername = &l.CreatedByUsername
 	}
 	return link
 }

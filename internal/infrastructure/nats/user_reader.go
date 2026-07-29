@@ -210,3 +210,66 @@ func (u *UserReaderNATS) UsernameByEmail(ctx context.Context, email string) (str
 	span.SetStatus(codes.Ok, "")
 	return body, nil
 }
+
+type userEmailsRequest struct {
+	User struct {
+		AuthToken string `json:"auth_token"`
+	} `json:"user"`
+}
+
+type userEmailsResponse struct {
+	Success *bool  `json:"success"`
+	Error   string `json:"error,omitempty"`
+	Data    struct {
+		PrimaryEmail string `json:"primary_email"`
+	} `json:"data"`
+}
+
+// PrimaryEmailByUsername resolves the user's primary email via auth-service user_emails.read.
+func (u *UserReaderNATS) PrimaryEmailByUsername(ctx context.Context, username string) (string, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return "", nil
+	}
+
+	ctx, span := tracer.Start(ctx, "nats.request",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "nats"),
+			attribute.String("messaging.destination.name", constants.AuthUserEmailsReadSubject),
+		),
+	)
+	defer span.End()
+
+	body := userEmailsRequest{}
+	body.User.AuthToken = username
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal user_emails request: %w", err)
+	}
+
+	msg := natsgo.NewMsg(constants.AuthUserEmailsReadSubject)
+	msg.Header = make(natsgo.Header)
+	msg.Data = payload
+	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
+
+	reply, err := u.NatsConn.RequestMsgWithContext(ctx, msg)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return "", fmt.Errorf("user_emails request failed: %w", err)
+	}
+
+	var emails userEmailsResponse
+	if err := json.Unmarshal(reply.Data, &emails); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return "", fmt.Errorf("failed to parse user_emails response: %w", err)
+	}
+	if emails.Success == nil || !*emails.Success {
+		return "", nil
+	}
+
+	span.SetStatus(codes.Ok, "")
+	return strings.TrimSpace(emails.Data.PrimaryEmail), nil
+}

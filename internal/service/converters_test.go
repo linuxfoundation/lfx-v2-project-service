@@ -630,11 +630,11 @@ func TestDomainDocumentToEvent(t *testing.T) {
 		{
 			name: "all fields mapped — no folder",
 			input: &models.ProjectDocument{
-				UID:                "doc-1",
-				ProjectUID:         "proj-1",
-				Name:               "Charter",
-				FileName:           "charter.pdf",
-				UploadedByUsername: "alice",
+				UID:        "doc-1",
+				ProjectUID: "proj-1",
+				Name:       "Charter",
+				FileName:   "charter.pdf",
+				CreatedBy:  &models.UserInfo{Username: "alice"},
 			},
 			expected: events.ProjectDocumentCreatedMessage{
 				DocumentUID: "doc-1",
@@ -648,12 +648,12 @@ func TestDomainDocumentToEvent(t *testing.T) {
 		{
 			name: "nil FolderUID coerced to empty string",
 			input: &models.ProjectDocument{
-				UID:                "doc-2",
-				ProjectUID:         "proj-2",
-				Name:               "Spec",
-				FileName:           "spec.pdf",
-				FolderUID:          nil,
-				UploadedByUsername: "bob",
+				UID:        "doc-2",
+				ProjectUID: "proj-2",
+				Name:       "Spec",
+				FileName:   "spec.pdf",
+				FolderUID:  nil,
+				CreatedBy:  &models.UserInfo{Username: "bob"},
 			},
 			expected: events.ProjectDocumentCreatedMessage{
 				DocumentUID: "doc-2",
@@ -667,12 +667,12 @@ func TestDomainDocumentToEvent(t *testing.T) {
 		{
 			name: "non-nil FolderUID passed through",
 			input: &models.ProjectDocument{
-				UID:                "doc-3",
-				ProjectUID:         "proj-3",
-				Name:               "Report",
-				FileName:           "report.pdf",
-				FolderUID:          &folderUID,
-				UploadedByUsername: "carol",
+				UID:        "doc-3",
+				ProjectUID: "proj-3",
+				Name:       "Report",
+				FileName:   "report.pdf",
+				FolderUID:  &folderUID,
+				CreatedBy:  &models.UserInfo{Username: "carol"},
 			},
 			expected: events.ProjectDocumentCreatedMessage{
 				DocumentUID: "doc-3",
@@ -703,11 +703,11 @@ func TestDomainLinkToEvent(t *testing.T) {
 		{
 			name: "all fields mapped — no folder",
 			input: &models.ProjectLink{
-				UID:               "link-1",
-				ProjectUID:        "proj-1",
-				Name:              "Governance",
-				URL:               "https://example.com/governance",
-				CreatedByUsername: "alice",
+				UID:        "link-1",
+				ProjectUID: "proj-1",
+				Name:       "Governance",
+				URL:        "https://example.com/governance",
+				CreatedBy:  &models.UserInfo{Username: "alice"},
 			},
 			expected: events.ProjectLinkCreatedMessage{
 				LinkUID:    "link-1",
@@ -721,12 +721,12 @@ func TestDomainLinkToEvent(t *testing.T) {
 		{
 			name: "nil FolderUID coerced to empty string",
 			input: &models.ProjectLink{
-				UID:               "link-2",
-				ProjectUID:        "proj-2",
-				Name:              "Spec",
-				URL:               "https://example.com/spec",
-				FolderUID:         nil,
-				CreatedByUsername: "bob",
+				UID:        "link-2",
+				ProjectUID: "proj-2",
+				Name:       "Spec",
+				URL:        "https://example.com/spec",
+				FolderUID:  nil,
+				CreatedBy:  &models.UserInfo{Username: "bob"},
 			},
 			expected: events.ProjectLinkCreatedMessage{
 				LinkUID:    "link-2",
@@ -740,12 +740,12 @@ func TestDomainLinkToEvent(t *testing.T) {
 		{
 			name: "non-nil FolderUID passed through",
 			input: &models.ProjectLink{
-				UID:               "link-3",
-				ProjectUID:        "proj-3",
-				Name:              "RFC",
-				URL:               "https://example.com/rfc",
-				FolderUID:         &folderUID,
-				CreatedByUsername: "carol",
+				UID:        "link-3",
+				ProjectUID: "proj-3",
+				Name:       "RFC",
+				URL:        "https://example.com/rfc",
+				FolderUID:  &folderUID,
+				CreatedBy:  &models.UserInfo{Username: "carol"},
 			},
 			expected: events.ProjectLinkCreatedMessage{
 				LinkUID:    "link-3",

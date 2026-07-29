@@ -284,6 +284,11 @@ func (m *MockUserReader) UsernameByEmail(ctx context.Context, email string) (str
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockUserReader) PrimaryEmailByUsername(ctx context.Context, username string) (string, error) {
+	args := m.Called(ctx, username)
+	return args.String(0), args.Error(1)
+}
+
 // MockMessage implements Message for testing
 type MockMessage struct {
 	mock.Mock

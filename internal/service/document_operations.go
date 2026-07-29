@@ -88,20 +88,21 @@ func (s *ProjectsService) UploadDocument(
 		}
 	}
 
-	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+	createdBy, updatedBy := s.stampDocumentAuditUsers(ctx)
 	now := time.Now().UTC()
 	doc := &models.ProjectDocument{
-		UID:                uuid.NewString(),
-		ProjectUID:         projectUID,
-		FolderUID:          folderUID,
-		Name:               name,
-		Description:        description,
-		FileName:           fileName,
-		FileSize:           int64(len(fileData)),
-		ContentType:        contentType,
-		UploadedByUsername: principal,
-		CreatedAt:          now,
-		UpdatedAt:          now,
+		UID:         uuid.NewString(),
+		ProjectUID:  projectUID,
+		FolderUID:   folderUID,
+		Name:        name,
+		Description: description,
+		FileName:    fileName,
+		FileSize:    int64(len(fileData)),
+		ContentType: contentType,
+		CreatedBy:   createdBy,
+		UpdatedBy:   updatedBy,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	// Reserve the unique document name before writing any data.
@@ -178,6 +179,8 @@ func (s *ProjectsService) GetDocumentMetadata(ctx context.Context, projectUID, d
 		return nil, "", domain.ErrInternal
 	}
 
+	s.normalizeDocumentAuditUsers(ctx, &doc.CreatedBy, &doc.UpdatedBy, "", "")
+
 	revisionStr := strconv.FormatUint(revision, 10)
 	return doc, revisionStr, nil
 }
@@ -200,6 +203,8 @@ func (s *ProjectsService) GetDocumentFile(ctx context.Context, projectUID, docum
 		slog.ErrorContext(ctx, "error getting document metadata", constants.ErrKey, err)
 		return nil, nil, domain.ErrInternal
 	}
+
+	s.normalizeDocumentAuditUsers(ctx, &doc.CreatedBy, &doc.UpdatedBy, "", "")
 
 	fileData, err := s.DocumentRepository.GetDocumentFile(ctx, documentUID)
 	if err != nil {

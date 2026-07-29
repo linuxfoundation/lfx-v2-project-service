@@ -36,6 +36,12 @@ type contextPrincipal string
 // PrincipalContextID is the context ID for the principal
 const PrincipalContextID contextPrincipal = "x-on-behalf-of"
 
+// contextEmail is the type for the JWT email claim context key.
+type contextEmail string
+
+// EmailContextID is the context ID for the optional JWT email claim.
+const EmailContextID contextEmail = "jwt-email"
+
 type contextEtag string
 
 // ETagContextID is the context ID for the ETag

@@ -501,8 +501,10 @@ type ProjectDocument struct {
 	FileSize *int64
 	// MIME type of the file
 	ContentType *string
-	// Username of the principal who created this resource
-	UploadedByUsername *string
+	// User who created this resource
+	CreatedBy *UserInfo
+	// User who last updated this resource
+	UpdatedBy *UserInfo
 	// RFC3339 timestamp
 	CreatedAt *string
 	// RFC3339 timestamp
@@ -518,8 +520,10 @@ type ProjectFolder struct {
 	ProjectUID *string
 	// Folder display name
 	Name *string
-	// Username of the principal who created this resource
-	CreatedByUsername *string
+	// User who created this resource
+	CreatedBy *UserInfo
+	// User who last updated this resource
+	UpdatedBy *UserInfo
 	// RFC3339 timestamp
 	CreatedAt *string
 	// RFC3339 timestamp
@@ -612,8 +616,10 @@ type ProjectLink struct {
 	URL *string
 	// A description of the link
 	Description *string
-	// Username of the principal who created this resource
-	CreatedByUsername *string
+	// User who created this resource
+	CreatedBy *UserInfo
+	// User who last updated this resource
+	UpdatedBy *UserInfo
 	// RFC3339 timestamp
 	CreatedAt *string
 	// RFC3339 timestamp

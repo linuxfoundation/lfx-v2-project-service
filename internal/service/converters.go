@@ -482,6 +482,11 @@ func convertUsersFromAPI(apiUsers []*projsvc.UserInfo, existing []models.UserInf
 	return users
 }
 
+// ConvertUserToAPI converts a single domain UserInfo pointer to an API UserInfo pointer.
+func ConvertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
+	return convertUserToAPI(user)
+}
+
 // convertUserToAPI converts a single domain UserInfo pointer to an API UserInfo pointer.
 func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
 	if user == nil {
@@ -681,7 +686,7 @@ func DomainDocumentToEvent(doc *models.ProjectDocument) events.ProjectDocumentCr
 		Name:        doc.Name,
 		FileName:    doc.FileName,
 		FolderUID:   folderUID,
-		CreatedBy:   doc.UploadedByUsername,
+		CreatedBy:   models.AuditCreatorUsername(doc.CreatedBy),
 	}
 }
 
@@ -697,6 +702,6 @@ func DomainLinkToEvent(link *models.ProjectLink) events.ProjectLinkCreatedMessag
 		Name:       link.Name,
 		URL:        link.URL,
 		FolderUID:  folderUID,
-		CreatedBy:  link.CreatedByUsername,
+		CreatedBy:  models.AuditCreatorUsername(link.CreatedBy),
 	}
 }

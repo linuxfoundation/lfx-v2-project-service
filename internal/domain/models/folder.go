@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,12 +16,55 @@ import (
 
 // ProjectFolder represents an organizational folder for project links and documents.
 type ProjectFolder struct {
+	UID        string    `json:"uid"`
+	ProjectUID string    `json:"project_uid"`
+	Name       string    `json:"name"`
+	CreatedBy  *UserInfo `json:"created_by,omitempty"`
+	UpdatedBy  *UserInfo `json:"updated_by,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+type projectFolderJSON struct {
 	UID               string    `json:"uid"`
 	ProjectUID        string    `json:"project_uid"`
 	Name              string    `json:"name"`
+	CreatedBy         *UserInfo `json:"created_by,omitempty"`
+	UpdatedBy         *UserInfo `json:"updated_by,omitempty"`
 	CreatedByUsername string    `json:"created_by_username,omitempty"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (f *ProjectFolder) UnmarshalJSON(data []byte) error {
+	var raw projectFolderJSON
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	f.UID = raw.UID
+	f.ProjectUID = raw.ProjectUID
+	f.Name = raw.Name
+	f.CreatedBy = raw.CreatedBy
+	f.UpdatedBy = raw.UpdatedBy
+	f.CreatedAt = raw.CreatedAt
+	f.UpdatedAt = raw.UpdatedAt
+	NormalizeLegacyAuditUsers(&f.CreatedBy, &f.UpdatedBy, raw.CreatedByUsername, "")
+	return nil
+}
+
+func (f *ProjectFolder) MarshalJSON() ([]byte, error) {
+	if f == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(&projectFolderJSON{
+		UID:        f.UID,
+		ProjectUID: f.ProjectUID,
+		Name:       f.Name,
+		CreatedBy:  f.CreatedBy,
+		UpdatedBy:  f.UpdatedBy,
+		CreatedAt:  f.CreatedAt,
+		UpdatedAt:  f.UpdatedAt,
+	})
 }
 
 // BuildIndexKey returns a SHA-256 hash of projectUID|name for uniqueness enforcement.
@@ -62,6 +106,10 @@ func (f *ProjectFolder) Tags() []string {
 
 	if f.ProjectUID != "" {
 		tags = append(tags, fmt.Sprintf("project_uid:%s", f.ProjectUID))
+	}
+
+	if username := AuditCreatorUsername(f.CreatedBy); username != "" {
+		tags = append(tags, fmt.Sprintf("uploaded_by:%s", username))
 	}
 
 	return tags

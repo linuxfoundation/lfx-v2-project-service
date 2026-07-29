@@ -13,6 +13,7 @@ import (
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -27,6 +28,8 @@ func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
 		Name:       &d.Name,
 		FileName:   &d.FileName,
 		FileSize:   &d.FileSize,
+		CreatedBy:  service.ConvertUserToAPI(d.CreatedBy),
+		UpdatedBy:  service.ConvertUserToAPI(d.UpdatedBy),
 		CreatedAt:  misc.StringPtr(d.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
 		UpdatedAt:  misc.StringPtr(d.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
@@ -35,9 +38,6 @@ func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
 	}
 	if d.ContentType != "" {
 		doc.ContentType = &d.ContentType
-	}
-	if d.UploadedByUsername != "" {
-		doc.UploadedByUsername = &d.UploadedByUsername
 	}
 	return doc
 }

@@ -371,8 +371,10 @@ type CreateProjectLinkResponseBody struct {
 	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
 	// A description of the link
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -392,8 +394,10 @@ type CreateProjectFolderResponseBody struct {
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -423,8 +427,10 @@ type UploadProjectDocumentResponseBody struct {
 	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
 	// MIME type of the file
 	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
-	// Username of the principal who created this resource
-	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1324,8 +1330,10 @@ type ProjectLinkResponseBody struct {
 	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
 	// A description of the link
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1340,8 +1348,10 @@ type ProjectFolderResponseBody struct {
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1366,8 +1376,10 @@ type ProjectDocumentResponseBody struct {
 	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
 	// MIME type of the file
 	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
-	// Username of the principal who created this resource
-	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1643,15 +1655,20 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 // service.
 func NewCreateProjectLinkResponseBody(res *projectservice.ProjectLink) *CreateProjectLinkResponseBody {
 	body := &CreateProjectLinkResponseBody{
-		UID:               res.UID,
-		ProjectUID:        res.ProjectUID,
-		FolderUID:         res.FolderUID,
-		Name:              res.Name,
-		URL:               res.URL,
-		Description:       res.Description,
-		CreatedByUsername: res.CreatedByUsername,
-		CreatedAt:         res.CreatedAt,
-		UpdatedAt:         res.UpdatedAt,
+		UID:         res.UID,
+		ProjectUID:  res.ProjectUID,
+		FolderUID:   res.FolderUID,
+		Name:        res.Name,
+		URL:         res.URL,
+		Description: res.Description,
+		CreatedAt:   res.CreatedAt,
+		UpdatedAt:   res.UpdatedAt,
+	}
+	if res.CreatedBy != nil {
+		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.CreatedBy)
+	}
+	if res.UpdatedBy != nil {
+		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.UpdatedBy)
 	}
 	return body
 }
@@ -1660,15 +1677,20 @@ func NewCreateProjectLinkResponseBody(res *projectservice.ProjectLink) *CreatePr
 // of the "get-project-link" endpoint of the "project-service" service.
 func NewGetProjectLinkResponseBody(res *projectservice.GetProjectLinkResult) *GetProjectLinkResponseBody {
 	body := &GetProjectLinkResponseBody{
-		UID:               res.Link.UID,
-		ProjectUID:        res.Link.ProjectUID,
-		FolderUID:         res.Link.FolderUID,
-		Name:              res.Link.Name,
-		URL:               res.Link.URL,
-		Description:       res.Link.Description,
-		CreatedByUsername: res.Link.CreatedByUsername,
-		CreatedAt:         res.Link.CreatedAt,
-		UpdatedAt:         res.Link.UpdatedAt,
+		UID:         res.Link.UID,
+		ProjectUID:  res.Link.ProjectUID,
+		FolderUID:   res.Link.FolderUID,
+		Name:        res.Link.Name,
+		URL:         res.Link.URL,
+		Description: res.Link.Description,
+		CreatedAt:   res.Link.CreatedAt,
+		UpdatedAt:   res.Link.UpdatedAt,
+	}
+	if res.Link.CreatedBy != nil {
+		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Link.CreatedBy)
+	}
+	if res.Link.UpdatedBy != nil {
+		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Link.UpdatedBy)
 	}
 	return body
 }
@@ -1678,12 +1700,17 @@ func NewGetProjectLinkResponseBody(res *projectservice.GetProjectLinkResult) *Ge
 // service.
 func NewCreateProjectFolderResponseBody(res *projectservice.ProjectFolder) *CreateProjectFolderResponseBody {
 	body := &CreateProjectFolderResponseBody{
-		UID:               res.UID,
-		ProjectUID:        res.ProjectUID,
-		Name:              res.Name,
-		CreatedByUsername: res.CreatedByUsername,
-		CreatedAt:         res.CreatedAt,
-		UpdatedAt:         res.UpdatedAt,
+		UID:        res.UID,
+		ProjectUID: res.ProjectUID,
+		Name:       res.Name,
+		CreatedAt:  res.CreatedAt,
+		UpdatedAt:  res.UpdatedAt,
+	}
+	if res.CreatedBy != nil {
+		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.CreatedBy)
+	}
+	if res.UpdatedBy != nil {
+		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.UpdatedBy)
 	}
 	return body
 }
@@ -1692,12 +1719,17 @@ func NewCreateProjectFolderResponseBody(res *projectservice.ProjectFolder) *Crea
 // result of the "get-project-folder" endpoint of the "project-service" service.
 func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult) *GetProjectFolderResponseBody {
 	body := &GetProjectFolderResponseBody{
-		UID:               res.Folder.UID,
-		ProjectUID:        res.Folder.ProjectUID,
-		Name:              res.Folder.Name,
-		CreatedByUsername: res.Folder.CreatedByUsername,
-		CreatedAt:         res.Folder.CreatedAt,
-		UpdatedAt:         res.Folder.UpdatedAt,
+		UID:        res.Folder.UID,
+		ProjectUID: res.Folder.ProjectUID,
+		Name:       res.Folder.Name,
+		CreatedAt:  res.Folder.CreatedAt,
+		UpdatedAt:  res.Folder.UpdatedAt,
+	}
+	if res.Folder.CreatedBy != nil {
+		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Folder.CreatedBy)
+	}
+	if res.Folder.UpdatedBy != nil {
+		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Folder.UpdatedBy)
 	}
 	return body
 }
@@ -1707,17 +1739,22 @@ func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult)
 // service.
 func NewUploadProjectDocumentResponseBody(res *projectservice.ProjectDocument) *UploadProjectDocumentResponseBody {
 	body := &UploadProjectDocumentResponseBody{
-		UID:                res.UID,
-		ProjectUID:         res.ProjectUID,
-		FolderUID:          res.FolderUID,
-		Name:               res.Name,
-		Description:        res.Description,
-		FileName:           res.FileName,
-		FileSize:           res.FileSize,
-		ContentType:        res.ContentType,
-		UploadedByUsername: res.UploadedByUsername,
-		CreatedAt:          res.CreatedAt,
-		UpdatedAt:          res.UpdatedAt,
+		UID:         res.UID,
+		ProjectUID:  res.ProjectUID,
+		FolderUID:   res.FolderUID,
+		Name:        res.Name,
+		Description: res.Description,
+		FileName:    res.FileName,
+		FileSize:    res.FileSize,
+		ContentType: res.ContentType,
+		CreatedAt:   res.CreatedAt,
+		UpdatedAt:   res.UpdatedAt,
+	}
+	if res.CreatedBy != nil {
+		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.CreatedBy)
+	}
+	if res.UpdatedBy != nil {
+		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.UpdatedBy)
 	}
 	return body
 }
@@ -1727,17 +1764,22 @@ func NewUploadProjectDocumentResponseBody(res *projectservice.ProjectDocument) *
 // service.
 func NewGetProjectDocumentResponseBody(res *projectservice.GetProjectDocumentResult) *GetProjectDocumentResponseBody {
 	body := &GetProjectDocumentResponseBody{
-		UID:                res.Document.UID,
-		ProjectUID:         res.Document.ProjectUID,
-		FolderUID:          res.Document.FolderUID,
-		Name:               res.Document.Name,
-		Description:        res.Document.Description,
-		FileName:           res.Document.FileName,
-		FileSize:           res.Document.FileSize,
-		ContentType:        res.Document.ContentType,
-		UploadedByUsername: res.Document.UploadedByUsername,
-		CreatedAt:          res.Document.CreatedAt,
-		UpdatedAt:          res.Document.UpdatedAt,
+		UID:         res.Document.UID,
+		ProjectUID:  res.Document.ProjectUID,
+		FolderUID:   res.Document.FolderUID,
+		Name:        res.Document.Name,
+		Description: res.Document.Description,
+		FileName:    res.Document.FileName,
+		FileSize:    res.Document.FileSize,
+		ContentType: res.Document.ContentType,
+		CreatedAt:   res.Document.CreatedAt,
+		UpdatedAt:   res.Document.UpdatedAt,
+	}
+	if res.Document.CreatedBy != nil {
+		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Document.CreatedBy)
+	}
+	if res.Document.UpdatedBy != nil {
+		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Document.UpdatedBy)
 	}
 	return body
 }

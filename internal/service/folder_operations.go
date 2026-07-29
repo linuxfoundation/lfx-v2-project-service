@@ -41,15 +41,16 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 		return nil, domain.ErrProjectNotFound
 	}
 
-	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+	createdBy, updatedBy := s.stampDocumentAuditUsers(ctx)
 	now := time.Now().UTC()
 	folder := &models.ProjectFolder{
-		UID:               uuid.NewString(),
-		ProjectUID:        projectUID,
-		Name:              name,
-		CreatedByUsername: principal,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		UID:        uuid.NewString(),
+		ProjectUID: projectUID,
+		Name:       name,
+		CreatedBy:  createdBy,
+		UpdatedBy:  updatedBy,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 
 	// Reserve the unique name before writing the record so concurrent creates fail atomically.
@@ -106,6 +107,8 @@ func (s *ProjectsService) GetFolder(ctx context.Context, projectUID, folderUID s
 		slog.ErrorContext(ctx, "error getting folder", constants.ErrKey, err)
 		return nil, "", domain.ErrInternal
 	}
+
+	s.normalizeDocumentAuditUsers(ctx, &folder.CreatedBy, &folder.UpdatedBy, "", "")
 
 	revisionStr := strconv.FormatUint(revision, 10)
 	return folder, revisionStr, nil

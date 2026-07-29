@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,15 +16,67 @@ import (
 
 // ProjectLink represents a URL reference associated with a project.
 type ProjectLink struct {
+	UID         string    `json:"uid"`
+	ProjectUID  string    `json:"project_uid"`
+	FolderUID   *string   `json:"folder_uid,omitempty"`
+	Name        string    `json:"name"`
+	URL         string    `json:"url"`
+	Description string    `json:"description,omitempty"`
+	CreatedBy   *UserInfo `json:"created_by,omitempty"`
+	UpdatedBy   *UserInfo `json:"updated_by,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type projectLinkJSON struct {
 	UID               string    `json:"uid"`
 	ProjectUID        string    `json:"project_uid"`
 	FolderUID         *string   `json:"folder_uid,omitempty"`
 	Name              string    `json:"name"`
 	URL               string    `json:"url"`
 	Description       string    `json:"description,omitempty"`
+	CreatedBy         *UserInfo `json:"created_by,omitempty"`
+	UpdatedBy         *UserInfo `json:"updated_by,omitempty"`
 	CreatedByUsername string    `json:"created_by_username,omitempty"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (l *ProjectLink) UnmarshalJSON(data []byte) error {
+	var raw projectLinkJSON
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	l.UID = raw.UID
+	l.ProjectUID = raw.ProjectUID
+	l.FolderUID = raw.FolderUID
+	l.Name = raw.Name
+	l.URL = raw.URL
+	l.Description = raw.Description
+	l.CreatedBy = raw.CreatedBy
+	l.UpdatedBy = raw.UpdatedBy
+	l.CreatedAt = raw.CreatedAt
+	l.UpdatedAt = raw.UpdatedAt
+	NormalizeLegacyAuditUsers(&l.CreatedBy, &l.UpdatedBy, raw.CreatedByUsername, "")
+	return nil
+}
+
+func (l *ProjectLink) MarshalJSON() ([]byte, error) {
+	if l == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(&projectLinkJSON{
+		UID:         l.UID,
+		ProjectUID:  l.ProjectUID,
+		FolderUID:   l.FolderUID,
+		Name:        l.Name,
+		URL:         l.URL,
+		Description: l.Description,
+		CreatedBy:   l.CreatedBy,
+		UpdatedBy:   l.UpdatedBy,
+		CreatedAt:   l.CreatedAt,
+		UpdatedAt:   l.UpdatedAt,
+	})
 }
 
 // BuildIndexKey returns a SHA-256 hash of projectUID|uid used by the indexer service.
@@ -72,6 +125,10 @@ func (l *ProjectLink) Tags() []string {
 
 	if l.FolderUID != nil && *l.FolderUID != "" {
 		tags = append(tags, fmt.Sprintf("folder_uid:%s", *l.FolderUID))
+	}
+
+	if username := AuditCreatorUsername(l.CreatedBy); username != "" {
+		tags = append(tags, fmt.Sprintf("uploaded_by:%s", username))
 	}
 
 	return tags
