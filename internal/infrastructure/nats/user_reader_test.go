@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	natsgo "github.com/nats-io/nats.go"
@@ -106,6 +107,79 @@ func TestUserReaderNATS_UsernameByEmail(t *testing.T) {
 			default:
 				require.NoError(t, err)
 				assert.Equal(t, tt.wantUser, got)
+			}
+			mockConn.AssertExpectations(t)
+		})
+	}
+}
+
+func TestUserReaderNATS_PrimaryEmailByUsername(t *testing.T) {
+	tests := []struct {
+		name       string
+		username   string
+		reply      *natsgo.Msg
+		replyErr   error
+		wantEmail  string
+		wantErrStr string
+	}{
+		{
+			name:      "empty username returns empty email",
+			username:  "  ",
+			wantEmail: "",
+		},
+		{
+			name:      "success returns trimmed primary email",
+			username:  "alice",
+			reply:     replyMsg([]byte(`{"success":true,"data":{"primary_email":"alice@lf.org"}}`)),
+			wantEmail: "alice@lf.org",
+		},
+		{
+			name:      "success=false returns empty email",
+			username:  "alice",
+			reply:     replyMsg([]byte(`{"success":false,"error":"not found"}`)),
+			wantEmail: "",
+		},
+		{
+			name:      "missing success field returns empty email",
+			username:  "alice",
+			reply:     replyMsg([]byte(`{"data":{"primary_email":"alice@lf.org"}}`)),
+			wantEmail: "",
+		},
+		{
+			name:       "malformed JSON returns parse error",
+			username:   "alice",
+			reply:      replyMsg([]byte(`not-json`)),
+			wantErrStr: "failed to parse user_emails response",
+		},
+		{
+			name:       "transport error is wrapped and returned",
+			username:   "alice",
+			reply:      nil,
+			replyErr:   errors.New("nats: timeout"),
+			wantErrStr: "user_emails request failed",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+			if strings.TrimSpace(tt.username) != "" {
+				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *natsgo.Msg) bool {
+					return msg.Subject == constants.AuthUserEmailsReadSubject &&
+						strings.Contains(string(msg.Data), `"auth_token":"alice"`)
+				})).Return(tt.reply, tt.replyErr)
+			}
+
+			reader := &UserReaderNATS{NatsConn: mockConn}
+			got, err := reader.PrimaryEmailByUsername(context.Background(), tt.username)
+
+			if tt.wantErrStr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErrStr)
+				assert.Empty(t, got)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantEmail, got)
 			}
 			mockConn.AssertExpectations(t)
 		})

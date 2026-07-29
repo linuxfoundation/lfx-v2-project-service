@@ -9,11 +9,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"goa.design/goa/v3/security"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
 func TestReadyz(t *testing.T) {
@@ -83,16 +85,20 @@ func TestJWTAuth(t *testing.T) {
 		bearerToken   string
 		schema        *security.JWTScheme
 		expectedError bool
+		expectedEmail string
+		expectedUser  string
 		setupMocks    func(*auth.MockJWTAuth)
 	}{
 		{
-			name: "valid token",
+			name: "valid token with email",
 			// This token is just an example token value generated from jwt.io.
 			bearerToken:   "eyJhbGciOiJQUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.iOeNU4dAFFeBwNj6qdhdvm-IvDQrTa6R22lQVJVuWJxorJfeQww5Nwsra0PjaOYhAMj9jNMO5YLmud8U7iQ5gJK2zYyepeSuXhfSi8yjFZfRiSkelqSkU19I-Ja8aQBDbqXf2SAWA8mHF8VS3F08rgEaLCyv98fLLH4vSvsJGf6ueZSLKDVXz24rZRXGWtYYk_OYYTVgR1cg0BLCsuCvqZvHleImJKiWmtS0-CymMO4MMjCy_FIl6I56NqLE9C87tUVpo1mT-kbg5cHDD8I7MjCW5Iii5dethB4Vid3mZ6emKjVYgXrtkOQ-JyGMh6fnQxEFN1ft33GX2eRHluK9eg",
 			schema:        &security.JWTScheme{},
 			expectedError: false,
+			expectedUser:  "user1",
+			expectedEmail: "user1@example.com",
 			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
-				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything, mock.Anything).Return("user1", "", nil)
+				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything, mock.Anything).Return("user1", "user1@example.com", nil)
 			},
 		},
 		{
@@ -115,9 +121,12 @@ func TestJWTAuth(t *testing.T) {
 
 			if tt.expectedError {
 				assert.Error(t, err)
-			} else if assert.NoError(t, err) {
-				// For valid tokens, we expect the context to be modified
-				assert.NotEqual(t, context.Background(), ctx)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedUser, ctx.Value(constants.PrincipalContextID))
+			if tt.expectedEmail != "" {
+				assert.Equal(t, tt.expectedEmail, ctx.Value(constants.EmailContextID))
 			}
 		})
 	}

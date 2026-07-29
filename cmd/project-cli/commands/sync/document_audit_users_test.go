@@ -17,96 +17,116 @@ import (
 )
 
 func TestParseDocumentResourceType(t *testing.T) {
-	t.Run("empty means all", func(t *testing.T) {
-		folders, links, docs, err := parseDocumentResourceType("")
-		require.NoError(t, err)
-		assert.True(t, folders)
-		assert.True(t, links)
-		assert.True(t, docs)
-	})
+	tests := []struct {
+		name        string
+		in          string
+		wantFolders bool
+		wantLinks   bool
+		wantDocs    bool
+		wantErr     bool
+	}{
+		{name: "empty means all", wantFolders: true, wantLinks: true, wantDocs: true},
+		{name: "folder only", in: "folder", wantFolders: true},
+		{name: "invalid", in: "bad", wantErr: true},
+	}
 
-	t.Run("folder only", func(t *testing.T) {
-		folders, links, docs, err := parseDocumentResourceType("folder")
-		require.NoError(t, err)
-		assert.True(t, folders)
-		assert.False(t, links)
-		assert.False(t, docs)
-	})
-
-	t.Run("invalid", func(t *testing.T) {
-		_, _, _, err := parseDocumentResourceType("bad")
-		assert.Error(t, err)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			folders, links, docs, err := parseDocumentResourceType(tt.in)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantFolders, folders)
+			assert.Equal(t, tt.wantLinks, links)
+			assert.Equal(t, tt.wantDocs, docs)
+		})
+	}
 }
 
-func TestDocumentAuditUsersRunner_applyAuditUsers_skipsEnriched(t *testing.T) {
-	runner := &documentAuditUsersRunner{
-		stats: commands.NewStats(),
+func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
+	aliceReader := func(t *testing.T) *domain.MockUserReader {
+		t.Helper()
+		mockUser := &domain.MockUserReader{}
+		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
+			Name: "Alice Example",
+		}, nil)
+		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
+		return mockUser
 	}
-	err := runner.applyAuditUsers(context.Background(), freshAuditResource{
-		resourceType: "folder",
-		uid:          "f1",
-		projectUID:   "p1",
-		createdBy:    &models.UserInfo{Username: "alice", Name: "Alice Example"},
-	}, func(*models.UserInfo) error {
-		t.Fatal("apply should not be called")
-		return nil
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, runner.stats.Skipped)
-}
 
-func TestDocumentAuditUsersRunner_applyAuditUsers_dryRun(t *testing.T) {
-	mockUser := &domain.MockUserReader{}
-	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
-		Name: "Alice Example",
-	}, nil)
-	mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
-
-	runner := &documentAuditUsersRunner{
-		userReader: mockUser,
-		dryRun:     true,
-		stats:      commands.NewStats(),
+	tests := []struct {
+		name        string
+		runner      *documentAuditUsersRunner
+		resource    freshAuditResource
+		wantSkipped bool
+		wantUpdated bool
+		wantApplied bool
+	}{
+		{
+			name:   "skips enriched records",
+			runner: &documentAuditUsersRunner{stats: commands.NewStats()},
+			resource: freshAuditResource{
+				resourceType: "folder",
+				uid:          "f1",
+				projectUID:   "p1",
+				createdBy:    &models.UserInfo{Username: "alice", Name: "Alice Example"},
+			},
+			wantSkipped: true,
+		},
+		{
+			name: "dry run counts updated",
+			runner: &documentAuditUsersRunner{
+				userReader: aliceReader(t),
+				dryRun:     true,
+				stats:      commands.NewStats(),
+			},
+			resource: freshAuditResource{
+				resourceType: "link",
+				uid:          "l1",
+				projectUID:   "p1",
+				createdBy:    &models.UserInfo{Username: "alice"},
+			},
+			wantUpdated: true,
+		},
+		{
+			name: "writes enriched profile",
+			runner: &documentAuditUsersRunner{
+				userReader: aliceReader(t),
+				dryRun:     false,
+				stats:      commands.NewStats(),
+			},
+			resource: freshAuditResource{
+				resourceType: "document",
+				uid:          "d1",
+				projectUID:   "p1",
+				createdBy:    &models.UserInfo{Username: "alice"},
+			},
+			wantUpdated: true,
+			wantApplied: true,
+		},
 	}
-	err := runner.applyAuditUsers(context.Background(), freshAuditResource{
-		resourceType: "link",
-		uid:          "l1",
-		projectUID:   "p1",
-		createdBy:    &models.UserInfo{Username: "alice"},
-	}, func(*models.UserInfo) error {
-		t.Fatal("apply should not be called in dry-run")
-		return nil
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 1, runner.stats.Updated)
-	mockUser.AssertExpectations(t)
-}
 
-func TestDocumentAuditUsersRunner_applyAuditUsers_writes(t *testing.T) {
-	mockUser := &domain.MockUserReader{}
-	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
-		Name: "Alice Example",
-	}, nil)
-	mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
-
-	var applied bool
-	runner := &documentAuditUsersRunner{
-		userReader: mockUser,
-		dryRun:     false,
-		stats:      commands.NewStats(),
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			applied := false
+			err := tt.runner.applyAuditUsers(context.Background(), tt.resource, func(profile *models.UserInfo) error {
+				applied = true
+				assert.Equal(t, "Alice Example", profile.Name)
+				return nil
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantApplied, applied)
+			if tt.wantSkipped {
+				assert.Equal(t, 1, tt.runner.stats.Skipped)
+			}
+			if tt.wantUpdated {
+				assert.Equal(t, 1, tt.runner.stats.Updated)
+			}
+			if mockUser, ok := tt.runner.userReader.(*domain.MockUserReader); ok {
+				mockUser.AssertExpectations(t)
+			}
+		})
 	}
-	err := runner.applyAuditUsers(context.Background(), freshAuditResource{
-		resourceType: "document",
-		uid:          "d1",
-		projectUID:   "p1",
-		createdBy:    &models.UserInfo{Username: "alice"},
-	}, func(profile *models.UserInfo) error {
-		applied = true
-		assert.Equal(t, "Alice Example", profile.Name)
-		return nil
-	})
-	require.NoError(t, err)
-	assert.True(t, applied)
-	assert.Equal(t, 1, runner.stats.Updated)
-	mockUser.AssertExpectations(t)
 }

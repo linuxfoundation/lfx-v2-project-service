@@ -49,6 +49,9 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 		}
 		return err
 	}
+	if fs.NArg() > 0 {
+		return fmt.Errorf("unexpected arguments: %s", strings.Join(fs.Args(), " "))
+	}
 
 	includeFolders, includeLinks, includeDocuments, err := parseDocumentResourceType(*resourceType)
 	if err != nil {
@@ -87,6 +90,9 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 	runner.stats.Log(ctx, "sync document-audit-users")
 	if runner.stats.Failed > 0 {
 		return fmt.Errorf("%d resource(s) failed to migrate", runner.stats.Failed)
+	}
+	if err := natsConn.FlushTimeout(5 * time.Second); err != nil {
+		return fmt.Errorf("flush NATS connection: %w", err)
 	}
 	return nil
 }

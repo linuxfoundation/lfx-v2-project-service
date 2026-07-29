@@ -204,8 +204,6 @@ func (s *ProjectsService) GetDocumentFile(ctx context.Context, projectUID, docum
 		return nil, nil, domain.ErrInternal
 	}
 
-	s.normalizeDocumentAuditUsers(ctx, &doc.CreatedBy, &doc.UpdatedBy, "", "")
-
 	fileData, err := s.DocumentRepository.GetDocumentFile(ctx, documentUID)
 	if err != nil {
 		return nil, nil, err

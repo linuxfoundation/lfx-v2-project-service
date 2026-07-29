@@ -202,8 +202,9 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `project_link_uid:{uid}` | `project_link_uid:abc-123` | Find links by UID |
 | `project_uid:{project_uid}` | `project_uid:proj-456` | Find all links for a project |
 | `folder_uid:{folder_uid}` | `folder_uid:folder-789` | Find all links in a folder |
+| `uploaded_by:{username}` | `uploaded_by:alice` | Filter links by creator (username from `created_by.username`) |
 
-> `folder_uid` tag is only emitted when `folder_uid` is set and non-empty.
+> `folder_uid` tag is only emitted when `folder_uid` is set and non-empty. `uploaded_by` is only emitted when `created_by.username` is non-empty.
 
 ### Access Control (IndexingConfig)
 
@@ -259,6 +260,9 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `{uid}` | `folder-123` | Direct lookup by UID |
 | `project_folder_uid:{uid}` | `project_folder_uid:folder-123` | Find folders by UID |
 | `project_uid:{project_uid}` | `project_uid:proj-456` | Find all folders for a project |
+| `uploaded_by:{username}` | `uploaded_by:alice` | Filter folders by creator (username from `created_by.username`) |
+
+> `uploaded_by` is only emitted when `created_by.username` is non-empty.
 
 ### Access Control (IndexingConfig)
 
