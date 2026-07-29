@@ -42,7 +42,7 @@ func (s *ProjectsAPI) CreateProjectLink(ctx context.Context, payload *projsvc.Cr
 
 	link, err := s.service.CreateLink(ctx, payload.UID, payload.Name, payload.URL, nilStr(payload.Description), payload.FolderUID, xSync)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return toServiceLink(link), nil
@@ -52,7 +52,7 @@ func (s *ProjectsAPI) CreateProjectLink(ctx context.Context, payload *projsvc.Cr
 func (s *ProjectsAPI) GetProjectLink(ctx context.Context, payload *projsvc.GetProjectLinkPayload) (*projsvc.GetProjectLinkResult, error) {
 	link, etag, err := s.service.GetLink(ctx, payload.UID, payload.LinkUID)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return &projsvc.GetProjectLinkResult{
@@ -69,7 +69,7 @@ func (s *ProjectsAPI) DeleteProjectLink(ctx context.Context, payload *projsvc.De
 	}
 
 	if err := s.service.DeleteLink(ctx, payload.UID, payload.LinkUID, payload.IfMatch, xSync); err != nil {
-		return handleError(err)
+		return handleError(ctx, err)
 	}
 
 	return nil

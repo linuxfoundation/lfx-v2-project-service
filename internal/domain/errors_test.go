@@ -10,6 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestNewValidationError(t *testing.T) {
+	assert.ErrorIs(t, NewValidationError("name is required"), ErrValidationFailed)
+	assert.Equal(t, "validation failed: name is required", NewValidationError("name is required").Error())
+	assert.Equal(t, ErrValidationFailed, NewValidationError(""))
+}
+
 func TestDomainErrors(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -36,7 +36,7 @@ func (s *ProjectsAPI) CreateProjectFolder(ctx context.Context, payload *projsvc.
 
 	folder, err := s.service.CreateFolder(ctx, payload.UID, payload.Name, xSync)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return toServiceFolder(folder), nil
@@ -46,7 +46,7 @@ func (s *ProjectsAPI) CreateProjectFolder(ctx context.Context, payload *projsvc.
 func (s *ProjectsAPI) GetProjectFolder(ctx context.Context, payload *projsvc.GetProjectFolderPayload) (*projsvc.GetProjectFolderResult, error) {
 	folder, etag, err := s.service.GetFolder(ctx, payload.UID, payload.FolderUID)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return &projsvc.GetProjectFolderResult{
@@ -63,7 +63,7 @@ func (s *ProjectsAPI) DeleteProjectFolder(ctx context.Context, payload *projsvc.
 	}
 
 	if err := s.service.DeleteFolder(ctx, payload.UID, payload.FolderUID, payload.IfMatch, xSync); err != nil {
-		return handleError(err)
+		return handleError(ctx, err)
 	}
 
 	return nil

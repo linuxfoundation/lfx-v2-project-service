@@ -66,7 +66,7 @@ func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsv
 		xSync,
 	)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return toServiceDocument(doc), nil
@@ -76,7 +76,7 @@ func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsv
 func (s *ProjectsAPI) GetProjectDocument(ctx context.Context, payload *projsvc.GetProjectDocumentPayload) (*projsvc.GetProjectDocumentResult, error) {
 	doc, etag, err := s.service.GetDocumentMetadata(ctx, payload.UID, payload.DocumentUID)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return &projsvc.GetProjectDocumentResult{
@@ -89,7 +89,7 @@ func (s *ProjectsAPI) GetProjectDocument(ctx context.Context, payload *projsvc.G
 func (s *ProjectsAPI) DownloadProjectDocument(ctx context.Context, payload *projsvc.DownloadProjectDocumentPayload) (io.ReadCloser, error) {
 	fileData, doc, err := s.service.GetDocumentFile(ctx, payload.UID, payload.DocumentUID)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return &documentDownloadBody{
@@ -157,7 +157,7 @@ func (s *ProjectsAPI) DeleteProjectDocument(ctx context.Context, payload *projsv
 	}
 
 	if err := s.service.DeleteDocument(ctx, payload.UID, payload.DocumentUID, payload.IfMatch, xSync); err != nil {
-		return handleError(err)
+		return handleError(ctx, err)
 	}
 
 	return nil

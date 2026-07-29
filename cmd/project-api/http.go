@@ -48,7 +48,7 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 			}
 			if int64(len(data)) > maxTextPartSize {
 				slog.Warn("multipart field exceeds max size", "field", "name", "max_bytes", maxTextPartSize)
-				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
+				return createResponse(http.StatusBadRequest, domain.NewValidationError("multipart field name exceeds max size"))
 			}
 			payload.Name = string(data)
 
@@ -59,7 +59,7 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 			}
 			if int64(len(data)) > maxTextPartSize {
 				slog.Warn("multipart field exceeds max size", "field", "description", "max_bytes", maxTextPartSize)
-				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
+				return createResponse(http.StatusBadRequest, domain.NewValidationError("multipart field description exceeds max size"))
 			}
 			s := string(data)
 			payload.Description = &s
@@ -71,7 +71,7 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 			}
 			if int64(len(data)) > maxTextPartSize {
 				slog.Warn("multipart field exceeds max size", "field", "folder_uid", "max_bytes", maxTextPartSize)
-				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
+				return createResponse(http.StatusBadRequest, domain.NewValidationError("multipart field folder_uid exceeds max size"))
 			}
 			if s := string(data); s != "" {
 				payload.FolderUID = &s
@@ -84,7 +84,7 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 			}
 			if int64(len(data)) > maxTextPartSize {
 				slog.Warn("multipart field exceeds max size", "field", "file_name", "max_bytes", maxTextPartSize)
-				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
+				return createResponse(http.StatusBadRequest, domain.NewValidationError("multipart field file_name exceeds max size"))
 			}
 			payload.FileName = string(data)
 
@@ -95,7 +95,7 @@ func uploadDocumentDecoder(mr *multipart.Reader, p **projsvc.UploadProjectDocume
 			}
 			if int64(len(data)) > maxTextPartSize {
 				slog.Warn("multipart field exceeds max size", "field", "content_type", "max_bytes", maxTextPartSize)
-				return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
+				return createResponse(http.StatusBadRequest, domain.NewValidationError("multipart field content_type exceeds max size"))
 			}
 			if ct, _, err := mime.ParseMediaType(string(data)); err == nil {
 				payload.ContentType = ct
