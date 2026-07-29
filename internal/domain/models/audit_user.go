@@ -45,3 +45,14 @@ func AuditCreatorUsername(createdBy *UserInfo) string {
 	}
 	return strings.TrimSpace(createdBy.Username)
 }
+
+// AuditUserNeedsMigration reports whether a record still needs auth-service profile backfill.
+func AuditUserNeedsMigration(u *UserInfo) bool {
+	if u == nil {
+		return false
+	}
+	if strings.TrimSpace(u.Username) == "" {
+		return false
+	}
+	return strings.TrimSpace(u.Name) == ""
+}

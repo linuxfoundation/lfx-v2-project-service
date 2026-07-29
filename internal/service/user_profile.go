@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
@@ -114,4 +115,14 @@ func (s *ProjectsService) stampDocumentAuditUsers(ctx context.Context) (*models.
 	}
 	updated := models.CloneUserInfo(creator)
 	return creator, updated
+}
+
+// ResolveAuditUserProfile best-effort resolves a username into a full UserInfo via auth-service.
+func ResolveAuditUserProfile(ctx context.Context, reader domain.UserReader, username string) *models.UserInfo {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil
+	}
+	svc := &ProjectsService{UserReader: reader}
+	return svc.enrichAuditUserIfMissing(ctx, &models.UserInfo{Username: username})
 }
