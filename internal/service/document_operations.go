@@ -88,7 +88,7 @@ func (s *ProjectsService) UploadDocument(
 		}
 	}
 
-	createdBy, updatedBy := s.stampDocumentAuditUsers(ctx)
+	createdBy, updatedBy := s.stampAuditUsers(ctx)
 	now := time.Now().UTC()
 	doc := &models.ProjectDocument{
 		UID:         uuid.NewString(),
@@ -179,7 +179,7 @@ func (s *ProjectsService) GetDocumentMetadata(ctx context.Context, projectUID, d
 		return nil, "", domain.ErrInternal
 	}
 
-	s.normalizeDocumentAuditUsers(ctx, &doc.CreatedBy, &doc.UpdatedBy, "", "")
+	doc.CreatedBy, doc.UpdatedBy = s.normalizeAuditUsers(ctx, doc.CreatedBy, doc.UpdatedBy, "", "")
 
 	revisionStr := strconv.FormatUint(revision, 10)
 	return doc, revisionStr, nil

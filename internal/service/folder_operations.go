@@ -41,7 +41,7 @@ func (s *ProjectsService) CreateFolder(ctx context.Context, projectUID, name str
 		return nil, domain.ErrProjectNotFound
 	}
 
-	createdBy, updatedBy := s.stampDocumentAuditUsers(ctx)
+	createdBy, updatedBy := s.stampAuditUsers(ctx)
 	now := time.Now().UTC()
 	folder := &models.ProjectFolder{
 		UID:        uuid.NewString(),
@@ -108,7 +108,7 @@ func (s *ProjectsService) GetFolder(ctx context.Context, projectUID, folderUID s
 		return nil, "", domain.ErrInternal
 	}
 
-	s.normalizeDocumentAuditUsers(ctx, &folder.CreatedBy, &folder.UpdatedBy, "", "")
+	folder.CreatedBy, folder.UpdatedBy = s.normalizeAuditUsers(ctx, folder.CreatedBy, folder.UpdatedBy, "", "")
 
 	revisionStr := strconv.FormatUint(revision, 10)
 	return folder, revisionStr, nil

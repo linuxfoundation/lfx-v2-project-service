@@ -20,22 +20,20 @@ func CloneUserInfo(u *UserInfo) *UserInfo {
 
 // NormalizeLegacyAuditUsers populates CreatedBy/UpdatedBy from legacy flat username
 // fields when reading older KV records. Idempotent for records already migrated.
-func NormalizeLegacyAuditUsers(createdBy **UserInfo, updatedBy **UserInfo, legacyCreatedByUsername, legacyUploadedByUsername string) {
-	if createdBy == nil || updatedBy == nil {
-		return
-	}
-	if *createdBy == nil {
+func NormalizeLegacyAuditUsers(createdBy, updatedBy *UserInfo, legacyCreatedByUsername, legacyUploadedByUsername string) (*UserInfo, *UserInfo) {
+	if createdBy == nil {
 		legacy := strings.TrimSpace(legacyCreatedByUsername)
 		if legacy == "" {
 			legacy = strings.TrimSpace(legacyUploadedByUsername)
 		}
 		if legacy != "" {
-			*createdBy = &UserInfo{Username: legacy}
+			createdBy = &UserInfo{Username: legacy}
 		}
 	}
-	if *updatedBy == nil && *createdBy != nil {
-		*updatedBy = CloneUserInfo(*createdBy)
+	if updatedBy == nil && createdBy != nil {
+		updatedBy = CloneUserInfo(createdBy)
 	}
+	return createdBy, updatedBy
 }
 
 // AuditCreatorUsername returns the LFID username used for indexer tags.

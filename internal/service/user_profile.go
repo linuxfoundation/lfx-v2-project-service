@@ -16,8 +16,7 @@ import (
 
 const userProfileResolveTimeout = 2 * time.Second
 
-// resolveRequestingUser resolves the requesting principal from ctx into a UserInfo suitable
-// for stamping created_by / updated_by on document resources. Mirrors meeting-service auditStamper.
+// resolveRequestingUser resolves the JWT principal into a UserInfo for stamping created_by/updated_by.
 func (s *ProjectsService) resolveRequestingUser(ctx context.Context) *models.UserInfo {
 	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
 	principal = strings.TrimSpace(principal)
@@ -43,9 +42,10 @@ func (s *ProjectsService) resolveRequestingUser(ctx context.Context) *models.Use
 
 	user := &models.UserInfo{Username: principal}
 	if meta != nil {
-		user.Name = meta.Name
-		if user.Name == "" {
-			user.Name = strings.TrimSpace(meta.GivenName + " " + meta.FamilyName)
+		if name := strings.TrimSpace(meta.Name); name != "" {
+			user.Name = name
+		} else if full := strings.TrimSpace(meta.GivenName + " " + meta.FamilyName); full != "" {
+			user.Name = full
 		}
 		user.Avatar = meta.Picture
 	}
@@ -63,9 +63,12 @@ func (s *ProjectsService) resolveRequestingUser(ctx context.Context) *models.Use
 	return user
 }
 
-// enrichAuditUserIfMissing best-effort enriches an audit user when name is absent (legacy records).
+// enrichAuditUserIfMissing best-effort enriches sparse audit users on read paths (legacy KV records).
 func (s *ProjectsService) enrichAuditUserIfMissing(ctx context.Context, user *models.UserInfo) *models.UserInfo {
-	if user == nil || strings.TrimSpace(user.Username) == "" || strings.TrimSpace(user.Name) != "" || s.UserReader == nil {
+	if user == nil || strings.TrimSpace(user.Username) == "" || s.UserReader == nil {
+		return user
+	}
+	if auditUserProfileComplete(user) {
 		return user
 	}
 	lookupCtx, cancel := context.WithTimeout(ctx, userProfileResolveTimeout)
@@ -75,10 +78,12 @@ func (s *ProjectsService) enrichAuditUserIfMissing(ctx context.Context, user *mo
 		return user
 	}
 	enriched := models.CloneUserInfo(user)
-	if meta.Name != "" {
-		enriched.Name = meta.Name
-	} else if full := strings.TrimSpace(meta.GivenName + " " + meta.FamilyName); full != "" {
-		enriched.Name = full
+	if strings.TrimSpace(enriched.Name) == "" {
+		if name := strings.TrimSpace(meta.Name); name != "" {
+			enriched.Name = name
+		} else if full := strings.TrimSpace(meta.GivenName + " " + meta.FamilyName); full != "" {
+			enriched.Name = full
+		}
 	}
 	if enriched.Avatar == "" {
 		enriched.Avatar = meta.Picture
@@ -91,24 +96,28 @@ func (s *ProjectsService) enrichAuditUserIfMissing(ctx context.Context, user *mo
 	return enriched
 }
 
-// normalizeDocumentAuditUsers ensures legacy flat fields are migrated in-memory and enriches when needed.
-func (s *ProjectsService) normalizeDocumentAuditUsers(ctx context.Context, createdBy, updatedBy **models.UserInfo, legacyCreatedByUsername, legacyUploadedByUsername string) {
-	models.NormalizeLegacyAuditUsers(createdBy, updatedBy, legacyCreatedByUsername, legacyUploadedByUsername)
-	if createdBy != nil && *createdBy != nil {
-		*createdBy = s.enrichAuditUserIfMissing(ctx, *createdBy)
-	}
-	if updatedBy != nil && createdBy != nil && *createdBy != nil {
-		if *updatedBy == nil || (*updatedBy).Username == (*createdBy).Username {
-			// Legacy records and create-time stamps keep both fields identical.
-			*updatedBy = models.CloneUserInfo(*createdBy)
-		} else {
-			*updatedBy = s.enrichAuditUserIfMissing(ctx, *updatedBy)
-		}
-	}
+func auditUserProfileComplete(u *models.UserInfo) bool {
+	return strings.TrimSpace(u.Name) != "" &&
+		strings.TrimSpace(u.Avatar) != "" &&
+		strings.TrimSpace(u.Email) != ""
 }
 
-// stampDocumentAuditUsers sets created_by and updated_by on a new resource from the requesting user.
-func (s *ProjectsService) stampDocumentAuditUsers(ctx context.Context) (*models.UserInfo, *models.UserInfo) {
+// normalizeAuditUsers ensures legacy flat fields are migrated in-memory and enriches when needed.
+func (s *ProjectsService) normalizeAuditUsers(ctx context.Context, createdBy, updatedBy *models.UserInfo, legacyCreatedByUsername, legacyUploadedByUsername string) (*models.UserInfo, *models.UserInfo) {
+	createdBy, updatedBy = models.NormalizeLegacyAuditUsers(createdBy, updatedBy, legacyCreatedByUsername, legacyUploadedByUsername)
+	if createdBy != nil {
+		createdBy = s.enrichAuditUserIfMissing(ctx, createdBy)
+	}
+	if updatedBy == nil && createdBy != nil {
+		updatedBy = models.CloneUserInfo(createdBy)
+	} else if updatedBy != nil {
+		updatedBy = s.enrichAuditUserIfMissing(ctx, updatedBy)
+	}
+	return createdBy, updatedBy
+}
+
+// stampAuditUsers sets created_by and updated_by from the requesting user on resource writes.
+func (s *ProjectsService) stampAuditUsers(ctx context.Context) (*models.UserInfo, *models.UserInfo) {
 	creator := s.resolveRequestingUser(ctx)
 	if creator == nil {
 		return nil, nil

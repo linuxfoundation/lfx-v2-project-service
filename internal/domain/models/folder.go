@@ -48,7 +48,7 @@ func (f *ProjectFolder) UnmarshalJSON(data []byte) error {
 	f.UpdatedBy = raw.UpdatedBy
 	f.CreatedAt = raw.CreatedAt
 	f.UpdatedAt = raw.UpdatedAt
-	NormalizeLegacyAuditUsers(&f.CreatedBy, &f.UpdatedBy, raw.CreatedByUsername, "")
+	f.CreatedBy, f.UpdatedBy = NormalizeLegacyAuditUsers(f.CreatedBy, f.UpdatedBy, raw.CreatedByUsername, "")
 	return nil
 }
 

@@ -60,7 +60,7 @@ func (s *ProjectsService) CreateLink(ctx context.Context, projectUID string, nam
 		}
 	}
 
-	createdBy, updatedBy := s.stampDocumentAuditUsers(ctx)
+	createdBy, updatedBy := s.stampAuditUsers(ctx)
 	now := time.Now().UTC()
 	link := &models.ProjectLink{
 		UID:         uuid.NewString(),
@@ -129,7 +129,7 @@ func (s *ProjectsService) GetLink(ctx context.Context, projectUID, linkUID strin
 		return nil, "", domain.ErrInternal
 	}
 
-	s.normalizeDocumentAuditUsers(ctx, &link.CreatedBy, &link.UpdatedBy, "", "")
+	link.CreatedBy, link.UpdatedBy = s.normalizeAuditUsers(ctx, link.CreatedBy, link.UpdatedBy, "", "")
 
 	revisionStr := strconv.FormatUint(revision, 10)
 	return link, revisionStr, nil

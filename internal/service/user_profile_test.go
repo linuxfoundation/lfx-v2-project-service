@@ -93,9 +93,9 @@ func TestProjectsService_resolveRequestingUser(t *testing.T) {
 }
 
 func TestProjectsService_enrichAuditUserIfMissing(t *testing.T) {
-	t.Run("skips when name already set", func(t *testing.T) {
+	t.Run("skips when profile is complete", func(t *testing.T) {
 		svc, _, _, _ := setupServiceForTesting()
-		user := &models.UserInfo{Username: "alice", Name: "Alice Example"}
+		user := &models.UserInfo{Username: "alice", Name: "Alice Example", Avatar: "a.png", Email: "a@lf.org"}
 
 		got := svc.enrichAuditUserIfMissing(context.Background(), user)
 
@@ -134,7 +134,7 @@ func TestProjectsService_enrichAuditUserIfMissing(t *testing.T) {
 	})
 }
 
-func TestProjectsService_stampDocumentAuditUsers(t *testing.T) {
+func TestProjectsService_stampAuditUsers(t *testing.T) {
 	svc, _, _, _ := setupServiceForTesting()
 	mockUser := svc.UserReader.(*domain.MockUserReader)
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
@@ -143,7 +143,7 @@ func TestProjectsService_stampDocumentAuditUsers(t *testing.T) {
 	mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("alice@lf.org", nil)
 
 	ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "alice")
-	created, updated := svc.stampDocumentAuditUsers(ctx)
+	created, updated := svc.stampAuditUsers(ctx)
 
 	assert.NotNil(t, created)
 	assert.NotNil(t, updated)
@@ -153,7 +153,7 @@ func TestProjectsService_stampDocumentAuditUsers(t *testing.T) {
 	mockUser.AssertExpectations(t)
 }
 
-func TestProjectsService_normalizeDocumentAuditUsers(t *testing.T) {
+func TestProjectsService_normalizeAuditUsers(t *testing.T) {
 	svc, _, _, _ := setupServiceForTesting()
 	mockUser := svc.UserReader.(*domain.MockUserReader)
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
@@ -161,8 +161,7 @@ func TestProjectsService_normalizeDocumentAuditUsers(t *testing.T) {
 	}, nil)
 	mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 
-	var createdBy, updatedBy *models.UserInfo
-	svc.normalizeDocumentAuditUsers(context.Background(), &createdBy, &updatedBy, "alice", "")
+	createdBy, updatedBy := svc.normalizeAuditUsers(context.Background(), nil, nil, "alice", "")
 
 	assert.NotNil(t, createdBy)
 	assert.Equal(t, "alice", createdBy.Username)
