@@ -56,6 +56,16 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 		return mockUser
 	}
 
+	aliceAndBobReader := func(t *testing.T) *domain.MockUserReader {
+		t.Helper()
+		mockUser := &domain.MockUserReader{}
+		mockUser.On("UserMetadataByPrincipal", mock.Anything, "bob").Return(&domain.UserMetadata{
+			Name: "Bob Example",
+		}, nil)
+		mockUser.On("PrimaryEmailByUsername", mock.Anything, "bob").Return("", nil)
+		return mockUser
+	}
+
 	tests := []struct {
 		name        string
 		runner      *documentAuditUsersRunner
@@ -106,14 +116,38 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 			wantUpdated: true,
 			wantApplied: true,
 		},
+		{
+			name: "migrates distinct updated_by independently",
+			runner: &documentAuditUsersRunner{
+				userReader: aliceAndBobReader(t),
+				dryRun:     false,
+				stats:      commands.NewStats(),
+			},
+			resource: freshAuditResource{
+				resourceType: "link",
+				uid:          "l2",
+				projectUID:   "p1",
+				createdBy:    &models.UserInfo{Username: "alice", Name: "Alice Example"},
+				updatedBy:    &models.UserInfo{Username: "bob"},
+			},
+			wantUpdated: true,
+			wantApplied: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			applied := false
-			err := tt.runner.applyAuditUsers(context.Background(), tt.resource, func(profile *models.UserInfo) error {
+			err := tt.runner.applyAuditUsers(context.Background(), tt.resource, func(createdBy, updatedBy *models.UserInfo) error {
 				applied = true
-				assert.Equal(t, "Alice Example", profile.Name)
+				if tt.resource.updatedBy != nil && models.AuditUserNeedsMigration(tt.resource.updatedBy) {
+					require.NotNil(t, updatedBy)
+					assert.Equal(t, "bob", updatedBy.Username)
+					assert.Equal(t, "Bob Example", updatedBy.Name)
+					return nil
+				}
+				require.NotNil(t, createdBy)
+				assert.Equal(t, "Alice Example", createdBy.Name)
 				return nil
 			})
 			require.NoError(t, err)
@@ -129,4 +163,9 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDocumentAuditUsersRunner_throttle(t *testing.T) {
+	runner := &documentAuditUsersRunner{sleep: 0}
+	require.NoError(t, runner.throttle(context.Background()))
 }

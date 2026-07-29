@@ -161,21 +161,21 @@ func (r *documentAuditUsersRunner) migrateFolder(ctx context.Context, folder *mo
 		name:         fresh.Name,
 		createdBy:    fresh.CreatedBy,
 		updatedBy:    fresh.UpdatedBy,
-	}, func(profile *models.UserInfo) error {
-		fresh.CreatedBy = profile
-		fresh.UpdatedBy = models.CloneUserInfo(profile)
+	}, func(createdBy, updatedBy *models.UserInfo) error {
+		fresh.CreatedBy = createdBy
+		fresh.UpdatedBy = updatedBy
 		if r.dryRun {
 			return nil
+		}
+		if err := r.repo.UpdateFolder(ctx, fresh, revision); err != nil {
+			return err
 		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false); err != nil {
-			return err
-		}
-		return r.repo.UpdateFolder(ctx, fresh, revision)
+		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false)
 	})
 }
 
@@ -243,21 +243,21 @@ func (r *documentAuditUsersRunner) migrateLink(ctx context.Context, link *models
 		name:         fresh.Name,
 		createdBy:    fresh.CreatedBy,
 		updatedBy:    fresh.UpdatedBy,
-	}, func(profile *models.UserInfo) error {
-		fresh.CreatedBy = profile
-		fresh.UpdatedBy = models.CloneUserInfo(profile)
+	}, func(createdBy, updatedBy *models.UserInfo) error {
+		fresh.CreatedBy = createdBy
+		fresh.UpdatedBy = updatedBy
 		if r.dryRun {
 			return nil
+		}
+		if err := r.repo.UpdateLink(ctx, fresh, revision); err != nil {
+			return err
 		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false); err != nil {
-			return err
-		}
-		return r.repo.UpdateLink(ctx, fresh, revision)
+		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false)
 	})
 }
 
@@ -325,21 +325,21 @@ func (r *documentAuditUsersRunner) migrateDocument(ctx context.Context, doc *mod
 		name:         fresh.Name,
 		createdBy:    fresh.CreatedBy,
 		updatedBy:    fresh.UpdatedBy,
-	}, func(profile *models.UserInfo) error {
-		fresh.CreatedBy = profile
-		fresh.UpdatedBy = models.CloneUserInfo(profile)
+	}, func(createdBy, updatedBy *models.UserInfo) error {
+		fresh.CreatedBy = createdBy
+		fresh.UpdatedBy = updatedBy
 		if r.dryRun {
 			return nil
+		}
+		if err := r.repo.UpdateDocumentMetadata(ctx, fresh, revision); err != nil {
+			return err
 		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
-			return err
-		}
-		return r.repo.UpdateDocumentMetadata(ctx, fresh, revision)
+		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false)
 	})
 }
 
@@ -384,23 +384,47 @@ type freshAuditResource struct {
 func (r *documentAuditUsersRunner) applyAuditUsers(
 	ctx context.Context,
 	res freshAuditResource,
-	apply func(*models.UserInfo) error,
+	apply func(createdBy, updatedBy *models.UserInfo) error,
 ) error {
-	if !models.AuditUserNeedsMigration(res.createdBy) {
+	createdNeeds := models.AuditUserNeedsMigration(res.createdBy)
+	updatedNeeds := res.updatedBy != nil && models.AuditUserNeedsMigration(res.updatedBy)
+	if !createdNeeds && !updatedNeeds {
 		r.stats.Skipped++
 		return nil
 	}
 
-	username := models.AuditCreatorUsername(res.createdBy)
-	profile := service.ResolveAuditUserProfile(ctx, r.userReader, username)
-	if profile == nil || models.AuditUserNeedsMigration(profile) {
-		slog.WarnContext(ctx, "failed to resolve audit user profile for migration",
-			"resource_type", res.resourceType,
-			"resource_uid", res.uid,
-			"project_uid", res.projectUID,
-		)
-		r.stats.Failed++
-		return nil
+	var newCreated, newUpdated *models.UserInfo
+
+	if createdNeeds {
+		profile, ok := r.resolveAuditProfile(ctx, res, models.AuditCreatorUsername(res.createdBy))
+		if err := r.throttle(ctx); err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		newCreated = profile
+	} else {
+		newCreated = res.createdBy
+	}
+
+	switch {
+	case updatedNeeds && res.updatedBy != nil &&
+		strings.TrimSpace(res.updatedBy.Username) == models.AuditCreatorUsername(newCreated):
+		newUpdated = models.CloneUserInfo(newCreated)
+	case updatedNeeds && res.updatedBy != nil:
+		profile, ok := r.resolveAuditProfile(ctx, res, strings.TrimSpace(res.updatedBy.Username))
+		if err := r.throttle(ctx); err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		newUpdated = profile
+	case res.updatedBy != nil:
+		newUpdated = res.updatedBy
+	case newCreated != nil:
+		newUpdated = models.CloneUserInfo(newCreated)
 	}
 
 	slog.InfoContext(ctx, "document audit user drift detected",
@@ -413,13 +437,10 @@ func (r *documentAuditUsersRunner) applyAuditUsers(
 
 	if r.dryRun {
 		r.stats.Updated++
-		if r.sleep > 0 {
-			return documentAuditSleep(ctx, r.sleep)
-		}
-		return nil
+		return r.throttle(ctx)
 	}
 
-	if err := apply(profile); err != nil {
+	if err := apply(newCreated, newUpdated); err != nil {
 		slog.WarnContext(ctx, "failed to migrate document audit users",
 			"resource_type", res.resourceType,
 			"resource_uid", res.uid,
@@ -431,10 +452,29 @@ func (r *documentAuditUsersRunner) applyAuditUsers(
 	}
 
 	r.stats.Updated++
-	if r.sleep > 0 {
-		return documentAuditSleep(ctx, r.sleep)
+	return r.throttle(ctx)
+}
+
+func (r *documentAuditUsersRunner) resolveAuditProfile(ctx context.Context, res freshAuditResource, username string) (*models.UserInfo, bool) {
+	profile := service.ResolveAuditUserProfile(ctx, r.userReader, username)
+	if profile == nil || models.AuditUserNeedsMigration(profile) {
+		slog.WarnContext(ctx, "failed to resolve audit user profile for migration",
+			"resource_type", res.resourceType,
+			"resource_uid", res.uid,
+			"project_uid", res.projectUID,
+			"username", username,
+		)
+		r.stats.Failed++
+		return nil, false
 	}
-	return nil
+	return profile, true
+}
+
+func (r *documentAuditUsersRunner) throttle(ctx context.Context) error {
+	if r.sleep <= 0 {
+		return nil
+	}
+	return documentAuditSleep(ctx, r.sleep)
 }
 
 func parseDocumentResourceType(raw string) (folders, links, documents bool, err error) {

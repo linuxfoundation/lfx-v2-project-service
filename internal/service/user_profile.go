@@ -33,15 +33,12 @@ func (s *ProjectsService) resolveRequestingUser(ctx context.Context) *models.Use
 	lookupCtx, cancel := context.WithTimeout(ctx, userProfileResolveTimeout)
 	defer cancel()
 
+	user := &models.UserInfo{Username: principal}
 	meta, err := s.UserReader.UserMetadataByPrincipal(lookupCtx, principal)
 	if err != nil {
 		slog.WarnContext(ctx, "failed to resolve user profile for audit stamp; stamping username/email only",
 			"username", principal, constants.ErrKey, err)
-		return &models.UserInfo{Username: principal, Email: email}
-	}
-
-	user := &models.UserInfo{Username: principal}
-	if meta != nil {
+	} else if meta != nil {
 		if name := strings.TrimSpace(meta.Name); name != "" {
 			user.Name = name
 		} else if full := strings.TrimSpace(meta.GivenName + " " + meta.FamilyName); full != "" {
@@ -75,6 +72,13 @@ func (s *ProjectsService) enrichAuditUserIfMissing(ctx context.Context, user *mo
 	defer cancel()
 	meta, err := s.UserReader.UserMetadataByPrincipal(lookupCtx, user.Username)
 	if err != nil || meta == nil {
+		enriched := models.CloneUserInfo(user)
+		if enriched.Email == "" {
+			if resolvedEmail, emailErr := s.UserReader.PrimaryEmailByUsername(lookupCtx, user.Username); emailErr == nil && resolvedEmail != "" {
+				enriched.Email = resolvedEmail
+				return enriched
+			}
+		}
 		return user
 	}
 	enriched := models.CloneUserInfo(user)

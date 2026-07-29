@@ -61,6 +61,7 @@ func TestProjectsService_resolveRequestingUser(t *testing.T) {
 		svc, _, _, _ := setupServiceForTesting()
 		mockUser := svc.UserReader.(*domain.MockUserReader)
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("nats unavailable"))
+		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 
 		ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "alice")
 		ctx = context.WithValue(ctx, constants.EmailContextID, "jwt@example.com")
@@ -117,7 +118,22 @@ func TestProjectsService_enrichAuditUserIfMissing(t *testing.T) {
 		assert.Equal(t, "Alice Example", got.Name)
 		assert.Equal(t, "https://cdn.example/avatar.png", got.Avatar)
 		assert.Equal(t, "alice@lf.org", got.Email)
-		assert.Equal(t, "alice", user.Username, "original struct must not be mutated")
+		assert.Equal(t, &models.UserInfo{Username: "alice"}, user)
+		assert.NotSame(t, user, got)
+		mockUser.AssertExpectations(t)
+	})
+
+	t.Run("enriches email when metadata lookup fails", func(t *testing.T) {
+		svc, _, _, _ := setupServiceForTesting()
+		mockUser := svc.UserReader.(*domain.MockUserReader)
+		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
+		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("alice@lf.org", nil)
+
+		user := &models.UserInfo{Username: "alice"}
+		got := svc.enrichAuditUserIfMissing(context.Background(), user)
+
+		assert.Equal(t, "alice@lf.org", got.Email)
+		assert.NotSame(t, user, got)
 		mockUser.AssertExpectations(t)
 	})
 
@@ -125,6 +141,7 @@ func TestProjectsService_enrichAuditUserIfMissing(t *testing.T) {
 		svc, _, _, _ := setupServiceForTesting()
 		mockUser := svc.UserReader.(*domain.MockUserReader)
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
+		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 
 		user := &models.UserInfo{Username: "alice"}
 		got := svc.enrichAuditUserIfMissing(context.Background(), user)

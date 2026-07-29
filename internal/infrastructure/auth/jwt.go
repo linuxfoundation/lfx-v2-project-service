@@ -171,7 +171,6 @@ func (j *JWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string, logg
 
 	logger.DebugContext(ctx, "JWT principal parsed",
 		"principal", customClaims.Principal,
-		"email", customClaims.Email,
 	)
 
 	return customClaims.Principal, customClaims.Email, nil
