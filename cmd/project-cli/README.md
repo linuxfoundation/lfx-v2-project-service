@@ -111,6 +111,7 @@ Connects to NATS at the start of `Run()`. Does **not** use OpenSearch directly â
 | `--sleep` | `0` | Pause between auth-service profile lookups (e.g. `200ms`, `1s`) |
 | `--project-uid` | `""` | Limit migration to one project |
 | `--resource-type` | `""` | Optional filter: `folder`, `link`, or `document` |
+| `--reindex-only` | `false` | Re-publish indexer messages without KV writes (recovery after partial migration) |
 
 **Exit code:** `0` on success, `1` on failure.
 

@@ -41,6 +41,7 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 	projectUID := fs.String("project-uid", "", "limit migration to a single project UID")
 	resourceType := fs.String("resource-type", "", "optional filter: folder, link, or document")
 	sleep := fs.Duration("sleep", 0, "wait between each auth-service lookup (e.g. 200ms, 1s)")
+	reindexOnly := fs.Bool("reindex-only", false, "re-publish ActionUpdated indexer messages without KV writes (recovery after a partial migration run)")
 	dryRun := fs.Bool("dry-run", true, "log what would change without writing (pass --dry-run=false to write)")
 	if err := fs.Parse(rc.Args); err != nil {
 		if err == flag.ErrHelp {
@@ -69,12 +70,13 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 	}
 
 	runner := &documentAuditUsersRunner{
-		repo:       repo,
-		userReader: &natsinfra.UserReaderNATS{NatsConn: natsConn},
-		publisher:  &natsinfra.MessageBuilder{NatsConn: natsConn},
-		dryRun:     rc.DryRun,
-		sleep:      *sleep,
-		stats:      commands.NewStats(),
+		repo:        repo,
+		userReader:  &natsinfra.UserReaderNATS{NatsConn: natsConn},
+		publisher:   &natsinfra.MessageBuilder{NatsConn: natsConn},
+		dryRun:      rc.DryRun,
+		reindexOnly: *reindexOnly,
+		sleep:       *sleep,
+		stats:       commands.NewStats(),
 	}
 	runner.stats.DryRun = rc.DryRun
 
@@ -90,12 +92,13 @@ func (s *documentAuditUsersSubcommand) Run(ctx context.Context, rc commands.RunC
 }
 
 type documentAuditUsersRunner struct {
-	repo       *natsinfra.NatsRepository
-	userReader domain.UserReader
-	publisher  domain.MessageBuilder
-	dryRun     bool
-	sleep      time.Duration
-	stats      *commands.Stats
+	repo        *natsinfra.NatsRepository
+	userReader  domain.UserReader
+	publisher   domain.MessageBuilder
+	dryRun      bool
+	reindexOnly bool
+	sleep       time.Duration
+	stats       *commands.Stats
 }
 
 func (r *documentAuditUsersRunner) run(ctx context.Context, projectUID string, folders, links, documents bool) error {
@@ -124,6 +127,12 @@ func (r *documentAuditUsersRunner) migrateFolders(ctx context.Context, projectUI
 	}
 	for _, folder := range folders {
 		r.stats.Total++
+		if r.reindexOnly {
+			if err := r.reindexFolder(ctx, folder); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := r.migrateFolder(ctx, folder); err != nil {
 			return err
 		}
@@ -152,16 +161,45 @@ func (r *documentAuditUsersRunner) migrateFolder(ctx context.Context, folder *mo
 		if r.dryRun {
 			return nil
 		}
-		if err := r.repo.UpdateFolder(ctx, fresh, revision); err != nil {
-			return err
-		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false)
+		if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false); err != nil {
+			return err
+		}
+		return r.repo.UpdateFolder(ctx, fresh, revision)
 	})
+}
+
+func (r *documentAuditUsersRunner) reindexFolder(ctx context.Context, folder *models.ProjectFolder) error {
+	fresh, _, err := r.repo.GetFolder(ctx, folder.ProjectUID, folder.UID)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to re-read folder before reindex",
+			"folder_uid", folder.UID, "project_uid", folder.ProjectUID, constants.ErrKey, err)
+		r.stats.Failed++
+		return nil
+	}
+	if r.dryRun {
+		slog.InfoContext(ctx, "dry-run: would reindex folder",
+			"folder_uid", fresh.UID, "project_uid", fresh.ProjectUID)
+		r.stats.Updated++
+		return nil
+	}
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *fresh,
+		IndexingConfig: fresh.IndexingConfig(),
+	}
+	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false); err != nil {
+		slog.WarnContext(ctx, "failed to reindex folder",
+			"folder_uid", fresh.UID, "project_uid", fresh.ProjectUID, constants.ErrKey, err)
+		r.stats.Failed++
+		return nil
+	}
+	r.stats.Updated++
+	return nil
 }
 
 func (r *documentAuditUsersRunner) migrateLinks(ctx context.Context, projectUID string) error {
@@ -171,6 +209,12 @@ func (r *documentAuditUsersRunner) migrateLinks(ctx context.Context, projectUID 
 	}
 	for _, link := range links {
 		r.stats.Total++
+		if r.reindexOnly {
+			if err := r.reindexLink(ctx, link); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := r.migrateLink(ctx, link); err != nil {
 			return err
 		}
@@ -199,16 +243,45 @@ func (r *documentAuditUsersRunner) migrateLink(ctx context.Context, link *models
 		if r.dryRun {
 			return nil
 		}
-		if err := r.repo.UpdateLink(ctx, fresh, revision); err != nil {
-			return err
-		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false)
+		if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false); err != nil {
+			return err
+		}
+		return r.repo.UpdateLink(ctx, fresh, revision)
 	})
+}
+
+func (r *documentAuditUsersRunner) reindexLink(ctx context.Context, link *models.ProjectLink) error {
+	fresh, _, err := r.repo.GetLink(ctx, link.ProjectUID, link.UID)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to re-read link before reindex",
+			"link_uid", link.UID, "project_uid", link.ProjectUID, constants.ErrKey, err)
+		r.stats.Failed++
+		return nil
+	}
+	if r.dryRun {
+		slog.InfoContext(ctx, "dry-run: would reindex link",
+			"link_uid", fresh.UID, "project_uid", fresh.ProjectUID)
+		r.stats.Updated++
+		return nil
+	}
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *fresh,
+		IndexingConfig: fresh.IndexingConfig(),
+	}
+	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false); err != nil {
+		slog.WarnContext(ctx, "failed to reindex link",
+			"link_uid", fresh.UID, "project_uid", fresh.ProjectUID, constants.ErrKey, err)
+		r.stats.Failed++
+		return nil
+	}
+	r.stats.Updated++
+	return nil
 }
 
 func (r *documentAuditUsersRunner) migrateDocuments(ctx context.Context, projectUID string) error {
@@ -218,6 +291,12 @@ func (r *documentAuditUsersRunner) migrateDocuments(ctx context.Context, project
 	}
 	for _, doc := range docs {
 		r.stats.Total++
+		if r.reindexOnly {
+			if err := r.reindexDocument(ctx, doc); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := r.migrateDocument(ctx, doc); err != nil {
 			return err
 		}
@@ -246,16 +325,45 @@ func (r *documentAuditUsersRunner) migrateDocument(ctx context.Context, doc *mod
 		if r.dryRun {
 			return nil
 		}
-		if err := r.repo.UpdateDocumentMetadata(ctx, fresh, revision); err != nil {
-			return err
-		}
 		msg := indexerTypes.IndexerMessageEnvelope{
 			Action:         indexerConstants.ActionUpdated,
 			Data:           *fresh,
 			IndexingConfig: fresh.IndexingConfig(),
 		}
-		return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false)
+		if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
+			return err
+		}
+		return r.repo.UpdateDocumentMetadata(ctx, fresh, revision)
 	})
+}
+
+func (r *documentAuditUsersRunner) reindexDocument(ctx context.Context, doc *models.ProjectDocument) error {
+	fresh, _, err := r.repo.GetDocumentMetadata(ctx, doc.ProjectUID, doc.UID)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to re-read document before reindex",
+			"document_uid", doc.UID, "project_uid", doc.ProjectUID, constants.ErrKey, err)
+		r.stats.Failed++
+		return nil
+	}
+	if r.dryRun {
+		slog.InfoContext(ctx, "dry-run: would reindex document",
+			"document_uid", fresh.UID, "project_uid", fresh.ProjectUID)
+		r.stats.Updated++
+		return nil
+	}
+	msg := indexerTypes.IndexerMessageEnvelope{
+		Action:         indexerConstants.ActionUpdated,
+		Data:           *fresh,
+		IndexingConfig: fresh.IndexingConfig(),
+	}
+	if err := r.publisher.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
+		slog.WarnContext(ctx, "failed to reindex document",
+			"document_uid", fresh.UID, "project_uid", fresh.ProjectUID, constants.ErrKey, err)
+		r.stats.Failed++
+		return nil
+	}
+	r.stats.Updated++
+	return nil
 }
 
 type freshAuditResource struct {
@@ -279,8 +387,13 @@ func (r *documentAuditUsersRunner) applyAuditUsers(
 
 	username := models.AuditCreatorUsername(res.createdBy)
 	profile := service.ResolveAuditUserProfile(ctx, r.userReader, username)
-	if profile == nil {
-		r.stats.Skipped++
+	if profile == nil || models.AuditUserNeedsMigration(profile) {
+		slog.WarnContext(ctx, "failed to resolve audit user profile for migration",
+			"resource_type", res.resourceType,
+			"resource_uid", res.uid,
+			"project_uid", res.projectUID,
+		)
+		r.stats.Failed++
 		return nil
 	}
 
@@ -289,8 +402,6 @@ func (r *documentAuditUsersRunner) applyAuditUsers(
 		"resource_uid", res.uid,
 		"project_uid", res.projectUID,
 		"name", res.name,
-		"username", username,
-		"resolved_name", profile.Name,
 		"dry_run", r.dryRun,
 	)
 

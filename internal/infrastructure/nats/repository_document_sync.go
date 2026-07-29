@@ -132,7 +132,7 @@ func (s *NatsRepository) UpdateFolder(ctx context.Context, folder *models.Projec
 		return domain.ErrInternal
 	}
 	if _, err = s.Folders.Update(ctx, folder.UID, data, revision); err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch updating folder", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
@@ -150,7 +150,7 @@ func (s *NatsRepository) UpdateLink(ctx context.Context, link *models.ProjectLin
 		return domain.ErrInternal
 	}
 	if _, err = s.Links.Update(ctx, link.UID, data, revision); err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch updating link", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
@@ -168,7 +168,7 @@ func (s *NatsRepository) UpdateDocumentMetadata(ctx context.Context, doc *models
 		return domain.ErrInternal
 	}
 	if _, err = s.Documents.Update(ctx, doc.UID, data, revision); err != nil {
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if isJetStreamCASConflict(err) {
 			slog.WarnContext(ctx, "revision mismatch updating document", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
@@ -176,4 +176,14 @@ func (s *NatsRepository) UpdateDocumentMetadata(ctx context.Context, doc *models
 		return domain.ErrInternal
 	}
 	return nil
+}
+
+func isJetStreamCASConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, jetstream.ErrKeyExists) {
+		return true
+	}
+	return strings.Contains(err.Error(), "wrong last sequence")
 }
