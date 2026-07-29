@@ -908,6 +908,11 @@ paths:
                             example:
                                 content_type: application/pdf
                                 created_at: "2024-01-01T00:00:00Z"
+                                created_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 description: A description of the resource
                                 file_name: report.pdf
                                 file_size: 204800
@@ -916,7 +921,11 @@ paths:
                                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2024-01-01T00:00:00Z"
-                                uploaded_by_username: johndoe
+                                updated_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -1127,6 +1136,11 @@ paths:
                             example:
                                 content_type: application/pdf
                                 created_at: "2024-01-01T00:00:00Z"
+                                created_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 description: A description of the resource
                                 file_name: report.pdf
                                 file_size: 204800
@@ -1135,7 +1149,11 @@ paths:
                                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2024-01-01T00:00:00Z"
-                                uploaded_by_username: johndoe
+                                updated_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                 "404":
                     description: 'NotFound: Resource not found'
                     content:
@@ -1296,11 +1314,20 @@ paths:
                                 $ref: '#/components/schemas/ProjectFolder'
                             example:
                                 created_at: "2024-01-01T00:00:00Z"
-                                created_by_username: johndoe
+                                created_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 name: My Resource
                                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2024-01-01T00:00:00Z"
+                                updated_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -1510,11 +1537,20 @@ paths:
                                 $ref: '#/components/schemas/ProjectFolder'
                             example:
                                 created_at: "2024-01-01T00:00:00Z"
-                                created_by_username: johndoe
+                                created_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 name: My Resource
                                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2024-01-01T00:00:00Z"
+                                updated_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                 "404":
                     description: 'NotFound: Resource not found'
                     content:
@@ -1602,13 +1638,22 @@ paths:
                                 $ref: '#/components/schemas/ProjectLink'
                             example:
                                 created_at: "2024-01-01T00:00:00Z"
-                                created_by_username: johndoe
+                                created_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 description: A description of the resource
                                 folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 name: My Resource
                                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2024-01-01T00:00:00Z"
+                                updated_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 url: https://example.com
                 "400":
                     description: 'BadRequest: Bad request'
@@ -1810,13 +1855,22 @@ paths:
                                 $ref: '#/components/schemas/ProjectLink'
                             example:
                                 created_at: "2024-01-01T00:00:00Z"
-                                created_by_username: johndoe
+                                created_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 description: A description of the resource
                                 folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 name: My Resource
                                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                                 updated_at: "2024-01-01T00:00:00Z"
+                                updated_by:
+                                    avatar: https://example.com/avatar.jpg
+                                    email: john.doe@example.com
+                                    name: John Doe
+                                    username: johndoe
                                 url: https://example.com
                 "404":
                     description: 'NotFound: Resource not found'
@@ -3273,6 +3327,8 @@ components:
                     description: RFC3339 timestamp
                     example: "2024-01-01T00:00:00Z"
                     format: date-time
+                created_by:
+                    $ref: '#/components/schemas/UserInfo'
                 description:
                     type: string
                     description: A description of the document
@@ -3311,14 +3367,17 @@ components:
                     description: RFC3339 timestamp
                     example: "2024-01-01T00:00:00Z"
                     format: date-time
-                uploaded_by_username:
-                    type: string
-                    description: Username of the principal who created this resource
-                    example: johndoe
+                updated_by:
+                    $ref: '#/components/schemas/UserInfo'
             description: A file attachment associated with a project.
             example:
                 content_type: application/pdf
                 created_at: "2024-01-01T00:00:00Z"
+                created_by:
+                    avatar: https://example.com/avatar.jpg
+                    email: john.doe@example.com
+                    name: John Doe
+                    username: johndoe
                 description: A description of the resource
                 file_name: report.pdf
                 file_size: 204800
@@ -3327,7 +3386,11 @@ components:
                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2024-01-01T00:00:00Z"
-                uploaded_by_username: johndoe
+                updated_by:
+                    avatar: https://example.com/avatar.jpg
+                    email: john.doe@example.com
+                    name: John Doe
+                    username: johndoe
         ProjectFolder:
             type: object
             properties:
@@ -3336,10 +3399,8 @@ components:
                     description: RFC3339 timestamp
                     example: "2024-01-01T00:00:00Z"
                     format: date-time
-                created_by_username:
-                    type: string
-                    description: Username of the principal who created this resource
-                    example: johndoe
+                created_by:
+                    $ref: '#/components/schemas/UserInfo'
                 name:
                     type: string
                     description: Folder display name
@@ -3360,14 +3421,25 @@ components:
                     description: RFC3339 timestamp
                     example: "2024-01-01T00:00:00Z"
                     format: date-time
+                updated_by:
+                    $ref: '#/components/schemas/UserInfo'
             description: An organizational folder for project links and documents.
             example:
                 created_at: "2024-01-01T00:00:00Z"
-                created_by_username: johndoe
+                created_by:
+                    avatar: https://example.com/avatar.jpg
+                    email: john.doe@example.com
+                    name: John Doe
+                    username: johndoe
                 name: My Resource
                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2024-01-01T00:00:00Z"
+                updated_by:
+                    avatar: https://example.com/avatar.jpg
+                    email: john.doe@example.com
+                    name: John Doe
+                    username: johndoe
         ProjectFull:
             type: object
             properties:
@@ -3666,10 +3738,8 @@ components:
                     description: RFC3339 timestamp
                     example: "2024-01-01T00:00:00Z"
                     format: date-time
-                created_by_username:
-                    type: string
-                    description: Username of the principal who created this resource
-                    example: johndoe
+                created_by:
+                    $ref: '#/components/schemas/UserInfo'
                 description:
                     type: string
                     description: A description of the link
@@ -3699,6 +3769,8 @@ components:
                     description: RFC3339 timestamp
                     example: "2024-01-01T00:00:00Z"
                     format: date-time
+                updated_by:
+                    $ref: '#/components/schemas/UserInfo'
                 url:
                     type: string
                     description: The URL of the link
@@ -3707,13 +3779,22 @@ components:
             description: A URL bookmark associated with a project.
             example:
                 created_at: "2024-01-01T00:00:00Z"
-                created_by_username: johndoe
+                created_by:
+                    avatar: https://example.com/avatar.jpg
+                    email: john.doe@example.com
+                    name: John Doe
+                    username: johndoe
                 description: A description of the resource
                 folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 name: My Resource
                 project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                 updated_at: "2024-01-01T00:00:00Z"
+                updated_by:
+                    avatar: https://example.com/avatar.jpg
+                    email: john.doe@example.com
+                    name: John Doe
+                    username: johndoe
                 url: https://example.com
         ProjectSettings:
             type: object

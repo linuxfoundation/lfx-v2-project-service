@@ -108,6 +108,10 @@ const (
 	// AuthEmailToUsernameSubject resolves a registered LFID username by primary email.
 	// Request: plain-text email. Reply: plain-text username on success, JSON error envelope on miss.
 	AuthEmailToUsernameSubject = "lfx.auth-service.email_to_username"
+
+	// AuthUserEmailsReadSubject resolves a user's primary email by username/principal.
+	// Request: JSON {"user":{"auth_token":"<username>"}}. Reply: JSON envelope with primary_email.
+	AuthUserEmailsReadSubject = "lfx.auth-service.user_emails.read"
 )
 
 // NATS subjects consumed from other services.

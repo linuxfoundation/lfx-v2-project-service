@@ -122,6 +122,24 @@ func TestProjectsService_GetFolder(t *testing.T) {
 			},
 		},
 		{
+			name:       "enriches legacy username on read",
+			projectUID: "proj-1",
+			folderUID:  "folder-1",
+			setupMocks: func(mockFolder *domain.MockFolderRepository) {
+				mockFolder.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(
+					&models.ProjectFolder{
+						UID:        "folder-1",
+						ProjectUID: "proj-1",
+						Name:       "Governance",
+						CreatedBy:  &models.UserInfo{Username: "alice"},
+						CreatedAt:  now,
+						UpdatedAt:  now,
+					},
+					uint64(2), nil,
+				)
+			},
+		},
+		{
 			name:       "not found",
 			projectUID: "proj-1",
 			folderUID:  "missing",
@@ -136,6 +154,14 @@ func TestProjectsService_GetFolder(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, _, _, _ := setupServiceForTesting()
 			mockFolder := svc.FolderRepository.(*domain.MockFolderRepository)
+			if tt.name == "enriches legacy username on read" {
+				mockUser := svc.UserReader.(*domain.MockUserReader)
+				mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
+					Name: "Alice Example",
+				}, nil)
+				mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
+				t.Cleanup(func() { mockUser.AssertExpectations(t) })
+			}
 			tt.setupMocks(mockFolder)
 
 			folder, etag, err := svc.GetFolder(context.Background(), tt.projectUID, tt.folderUID)
@@ -148,6 +174,11 @@ func TestProjectsService_GetFolder(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, folder)
 				assert.Equal(t, "2", etag)
+				if tt.name == "enriches legacy username on read" {
+					assert.Equal(t, "Alice Example", folder.CreatedBy.Name)
+					assert.NotNil(t, folder.UpdatedBy)
+					assert.Equal(t, folder.CreatedBy.Name, folder.UpdatedBy.Name)
+				}
 			}
 
 			mockFolder.AssertExpectations(t)

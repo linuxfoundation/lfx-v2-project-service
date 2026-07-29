@@ -8,6 +8,7 @@ import (
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -21,14 +22,13 @@ func toServiceLink(l *models.ProjectLink) *projsvc.ProjectLink {
 		FolderUID:  l.FolderUID,
 		Name:       &l.Name,
 		URL:        &l.URL,
+		CreatedBy:  service.ConvertUserToAPI(l.CreatedBy),
+		UpdatedBy:  service.ConvertUserToAPI(l.UpdatedBy),
 		CreatedAt:  misc.StringPtr(l.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
 		UpdatedAt:  misc.StringPtr(l.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
 	if l.Description != "" {
 		link.Description = &l.Description
-	}
-	if l.CreatedByUsername != "" {
-		link.CreatedByUsername = &l.CreatedByUsername
 	}
 	return link
 }
@@ -42,7 +42,7 @@ func (s *ProjectsAPI) CreateProjectLink(ctx context.Context, payload *projsvc.Cr
 
 	link, err := s.service.CreateLink(ctx, payload.UID, payload.Name, payload.URL, nilStr(payload.Description), payload.FolderUID, xSync)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return toServiceLink(link), nil
@@ -52,7 +52,7 @@ func (s *ProjectsAPI) CreateProjectLink(ctx context.Context, payload *projsvc.Cr
 func (s *ProjectsAPI) GetProjectLink(ctx context.Context, payload *projsvc.GetProjectLinkPayload) (*projsvc.GetProjectLinkResult, error) {
 	link, etag, err := s.service.GetLink(ctx, payload.UID, payload.LinkUID)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return &projsvc.GetProjectLinkResult{
@@ -69,7 +69,7 @@ func (s *ProjectsAPI) DeleteProjectLink(ctx context.Context, payload *projsvc.De
 	}
 
 	if err := s.service.DeleteLink(ctx, payload.UID, payload.LinkUID, payload.IfMatch, xSync); err != nil {
-		return handleError(err)
+		return handleError(ctx, err)
 	}
 
 	return nil

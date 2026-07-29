@@ -3,7 +3,10 @@
 
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Domain errors
 var (
@@ -51,3 +54,12 @@ var (
 	// It is handled internally (treated as a lookup miss) and is never surfaced to the HTTP layer.
 	ErrUserNotFound = errors.New("user not found")
 )
+
+// NewValidationError wraps ErrValidationFailed with a debug reason logged at the HTTP layer.
+// The client still receives the generic "validation failed" message.
+func NewValidationError(reason string) error {
+	if reason == "" {
+		return ErrValidationFailed
+	}
+	return fmt.Errorf("%w: %s", ErrValidationFailed, reason)
+}

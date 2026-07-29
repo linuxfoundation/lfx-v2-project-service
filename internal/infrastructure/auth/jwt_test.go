@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHeimdallClaims_Validate(t *testing.T) {
@@ -170,6 +171,21 @@ func TestJWTAuth_ParsePrincipal_MockMode(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestJWTAuth_ParsePrincipalAndEmail_MockMode(t *testing.T) {
+	auth := &JWTAuth{
+		validator: nil,
+		config: JWTAuthConfig{
+			MockLocalPrincipal: "test-user-123",
+		},
+	}
+
+	principal, email, err := auth.ParsePrincipalAndEmail(context.Background(), "any-token", slog.Default())
+
+	require.NoError(t, err)
+	assert.Equal(t, "test-user-123", principal)
+	assert.Empty(t, email)
 }
 
 func TestJWTAuth_ParsePrincipal_ValidationErrors(t *testing.T) {

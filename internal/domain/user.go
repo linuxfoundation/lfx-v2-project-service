@@ -30,4 +30,7 @@ type UserReader interface {
 	// UsernameByEmail resolves the registered LFID username for the given primary email address.
 	// Returns ErrUserNotFound when no user is registered with that email.
 	UsernameByEmail(ctx context.Context, email string) (string, error)
+	// PrimaryEmailByUsername resolves the user's primary email via auth-service user_emails.read.
+	// Returns empty string when the user has no primary email; errors indicate transport or parsing failures.
+	PrimaryEmailByUsername(ctx context.Context, username string) (string, error)
 }

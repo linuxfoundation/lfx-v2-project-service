@@ -371,8 +371,10 @@ type CreateProjectLinkResponseBody struct {
 	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
 	// A description of the link
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -392,8 +394,10 @@ type CreateProjectFolderResponseBody struct {
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -423,8 +427,10 @@ type UploadProjectDocumentResponseBody struct {
 	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
 	// MIME type of the file
 	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
-	// Username of the principal who created this resource
-	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1349,8 +1355,10 @@ type ProjectLinkResponseBody struct {
 	URL *string `form:"url,omitempty" json:"url,omitempty" xml:"url,omitempty"`
 	// A description of the link
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1365,8 +1373,10 @@ type ProjectFolderResponseBody struct {
 	ProjectUID *string `form:"project_uid,omitempty" json:"project_uid,omitempty" xml:"project_uid,omitempty"`
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
-	// Username of the principal who created this resource
-	CreatedByUsername *string `form:"created_by_username,omitempty" json:"created_by_username,omitempty" xml:"created_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1391,8 +1401,10 @@ type ProjectDocumentResponseBody struct {
 	FileSize *int64 `form:"file_size,omitempty" json:"file_size,omitempty" xml:"file_size,omitempty"`
 	// MIME type of the file
 	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
-	// Username of the principal who created this resource
-	UploadedByUsername *string `form:"uploaded_by_username,omitempty" json:"uploaded_by_username,omitempty" xml:"uploaded_by_username,omitempty"`
+	// User who created this resource
+	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	// User who last updated this resource
+	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -2142,15 +2154,20 @@ func NewReadyzServiceUnavailable(body *ReadyzServiceUnavailableResponseBody) *pr
 // "create-project-link" endpoint result from a HTTP "Created" response.
 func NewCreateProjectLinkProjectLinkCreated(body *CreateProjectLinkResponseBody) *projectservice.ProjectLink {
 	v := &projectservice.ProjectLink{
-		UID:               body.UID,
-		ProjectUID:        body.ProjectUID,
-		FolderUID:         body.FolderUID,
-		Name:              body.Name,
-		URL:               body.URL,
-		Description:       body.Description,
-		CreatedByUsername: body.CreatedByUsername,
-		CreatedAt:         body.CreatedAt,
-		UpdatedAt:         body.UpdatedAt,
+		UID:         body.UID,
+		ProjectUID:  body.ProjectUID,
+		FolderUID:   body.FolderUID,
+		Name:        body.Name,
+		URL:         body.URL,
+		Description: body.Description,
+		CreatedAt:   body.CreatedAt,
+		UpdatedAt:   body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.UpdatedBy)
 	}
 
 	return v
@@ -2204,15 +2221,20 @@ func NewCreateProjectLinkServiceUnavailable(body *CreateProjectLinkServiceUnavai
 // "get-project-link" endpoint result from a HTTP "OK" response.
 func NewGetProjectLinkResultOK(body *GetProjectLinkResponseBody, etag *string) *projectservice.GetProjectLinkResult {
 	v := &projectservice.ProjectLink{
-		UID:               body.UID,
-		ProjectUID:        body.ProjectUID,
-		FolderUID:         body.FolderUID,
-		Name:              body.Name,
-		URL:               body.URL,
-		Description:       body.Description,
-		CreatedByUsername: body.CreatedByUsername,
-		CreatedAt:         body.CreatedAt,
-		UpdatedAt:         body.UpdatedAt,
+		UID:         body.UID,
+		ProjectUID:  body.ProjectUID,
+		FolderUID:   body.FolderUID,
+		Name:        body.Name,
+		URL:         body.URL,
+		Description: body.Description,
+		CreatedAt:   body.CreatedAt,
+		UpdatedAt:   body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.UpdatedBy)
 	}
 	res := &projectservice.GetProjectLinkResult{
 		Link: v,
@@ -2315,12 +2337,17 @@ func NewDeleteProjectLinkServiceUnavailable(body *DeleteProjectLinkServiceUnavai
 // response.
 func NewCreateProjectFolderProjectFolderCreated(body *CreateProjectFolderResponseBody) *projectservice.ProjectFolder {
 	v := &projectservice.ProjectFolder{
-		UID:               body.UID,
-		ProjectUID:        body.ProjectUID,
-		Name:              body.Name,
-		CreatedByUsername: body.CreatedByUsername,
-		CreatedAt:         body.CreatedAt,
-		UpdatedAt:         body.UpdatedAt,
+		UID:        body.UID,
+		ProjectUID: body.ProjectUID,
+		Name:       body.Name,
+		CreatedAt:  body.CreatedAt,
+		UpdatedAt:  body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.UpdatedBy)
 	}
 
 	return v
@@ -2385,12 +2412,17 @@ func NewCreateProjectFolderServiceUnavailable(body *CreateProjectFolderServiceUn
 // "get-project-folder" endpoint result from a HTTP "OK" response.
 func NewGetProjectFolderResultOK(body *GetProjectFolderResponseBody, etag *string) *projectservice.GetProjectFolderResult {
 	v := &projectservice.ProjectFolder{
-		UID:               body.UID,
-		ProjectUID:        body.ProjectUID,
-		Name:              body.Name,
-		CreatedByUsername: body.CreatedByUsername,
-		CreatedAt:         body.CreatedAt,
-		UpdatedAt:         body.UpdatedAt,
+		UID:        body.UID,
+		ProjectUID: body.ProjectUID,
+		Name:       body.Name,
+		CreatedAt:  body.CreatedAt,
+		UpdatedAt:  body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.UpdatedBy)
 	}
 	res := &projectservice.GetProjectFolderResult{
 		Folder: v,
@@ -2493,17 +2525,22 @@ func NewDeleteProjectFolderServiceUnavailable(body *DeleteProjectFolderServiceUn
 // response.
 func NewUploadProjectDocumentProjectDocumentCreated(body *UploadProjectDocumentResponseBody) *projectservice.ProjectDocument {
 	v := &projectservice.ProjectDocument{
-		UID:                body.UID,
-		ProjectUID:         body.ProjectUID,
-		FolderUID:          body.FolderUID,
-		Name:               body.Name,
-		Description:        body.Description,
-		FileName:           body.FileName,
-		FileSize:           body.FileSize,
-		ContentType:        body.ContentType,
-		UploadedByUsername: body.UploadedByUsername,
-		CreatedAt:          body.CreatedAt,
-		UpdatedAt:          body.UpdatedAt,
+		UID:         body.UID,
+		ProjectUID:  body.ProjectUID,
+		FolderUID:   body.FolderUID,
+		Name:        body.Name,
+		Description: body.Description,
+		FileName:    body.FileName,
+		FileSize:    body.FileSize,
+		ContentType: body.ContentType,
+		CreatedAt:   body.CreatedAt,
+		UpdatedAt:   body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.UpdatedBy)
 	}
 
 	return v
@@ -2568,17 +2605,22 @@ func NewUploadProjectDocumentServiceUnavailable(body *UploadProjectDocumentServi
 // "get-project-document" endpoint result from a HTTP "OK" response.
 func NewGetProjectDocumentResultOK(body *GetProjectDocumentResponseBody, etag *string) *projectservice.GetProjectDocumentResult {
 	v := &projectservice.ProjectDocument{
-		UID:                body.UID,
-		ProjectUID:         body.ProjectUID,
-		FolderUID:          body.FolderUID,
-		Name:               body.Name,
-		Description:        body.Description,
-		FileName:           body.FileName,
-		FileSize:           body.FileSize,
-		ContentType:        body.ContentType,
-		UploadedByUsername: body.UploadedByUsername,
-		CreatedAt:          body.CreatedAt,
-		UpdatedAt:          body.UpdatedAt,
+		UID:         body.UID,
+		ProjectUID:  body.ProjectUID,
+		FolderUID:   body.FolderUID,
+		Name:        body.Name,
+		Description: body.Description,
+		FileName:    body.FileName,
+		FileSize:    body.FileSize,
+		ContentType: body.ContentType,
+		CreatedAt:   body.CreatedAt,
+		UpdatedAt:   body.UpdatedAt,
+	}
+	if body.CreatedBy != nil {
+		v.CreatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.CreatedBy)
+	}
+	if body.UpdatedBy != nil {
+		v.UpdatedBy = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.UpdatedBy)
 	}
 	res := &projectservice.GetProjectDocumentResult{
 		Document: v,
@@ -3102,6 +3144,16 @@ func ValidateCreateProjectLinkResponseBody(body *CreateProjectLinkResponseBody) 
 	if body.URL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
 	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -3131,6 +3183,16 @@ func ValidateGetProjectLinkResponseBody(body *GetProjectLinkResponseBody) (err e
 	if body.URL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
 	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -3154,6 +3216,16 @@ func ValidateCreateProjectFolderResponseBody(body *CreateProjectFolderResponseBo
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
 		}
 	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -3175,6 +3247,16 @@ func ValidateGetProjectFolderResponseBody(body *GetProjectFolderResponseBody) (e
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
 		}
 	}
 	if body.CreatedAt != nil {
@@ -3203,6 +3285,16 @@ func ValidateUploadProjectDocumentResponseBody(body *UploadProjectDocumentRespon
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
 		}
 	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -3227,6 +3319,16 @@ func ValidateGetProjectDocumentResponseBody(body *GetProjectDocumentResponseBody
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
 		}
 	}
 	if body.CreatedAt != nil {
@@ -4395,6 +4497,16 @@ func ValidateProjectLinkResponseBody(body *ProjectLinkResponseBody) (err error) 
 	if body.URL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.url", *body.URL, goa.FormatURI))
 	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
 	if body.CreatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.created_at", *body.CreatedAt, goa.FormatDateTime))
 	}
@@ -4416,6 +4528,16 @@ func ValidateProjectFolderResponseBody(body *ProjectFolderResponseBody) (err err
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
 		}
 	}
 	if body.CreatedAt != nil {
@@ -4442,6 +4564,16 @@ func ValidateProjectDocumentResponseBody(body *ProjectDocumentResponseBody) (err
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
+	if body.CreatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.CreatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
+		}
+	}
+	if body.UpdatedBy != nil {
+		if err2 := ValidateUserInfoResponseBody(body.UpdatedBy); err2 != nil {
+			err = goa.MergeErrors(err, err2)
 		}
 	}
 	if body.CreatedAt != nil {

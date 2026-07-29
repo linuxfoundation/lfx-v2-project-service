@@ -15,7 +15,8 @@ func (c *command) Help() string {
 
 func (c *command) Subcommands() map[string]commands.Subcommand {
 	return map[string]commands.Subcommand{
-		"rename-project-slug": &renameProjectSlugSubcommand{},
+		"rename-project-slug":  &renameProjectSlugSubcommand{},
+		"document-audit-users": &documentAuditUsersSubcommand{},
 	}
 }
 

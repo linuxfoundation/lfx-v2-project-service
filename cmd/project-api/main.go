@@ -404,58 +404,20 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulC
 	return natsConn, nil
 }
 
-// getKeyValueStores creates a JetStream client and gets the key-value store for projects.
+// getKeyValueStores creates a JetStream client and opens the project repository stores.
 func getKeyValueStores(ctx context.Context, natsConn *nats.Conn) (*internalnats.NatsRepository, error) {
-	kvStores := &internalnats.NatsRepository{}
-
 	js, err := jetstream.New(natsConn)
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating NATS JetStream client", "nats_url", natsConn.ConnectedUrl(), errKey, err)
-		return kvStores, err
+		return nil, err
 	}
-	projectsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjects)
-	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjects)
-		return kvStores, err
-	}
-	kvStores.Projects = projectsKV
 
-	projectSettingsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectSettings)
+	repo, err := internalnats.OpenRepository(ctx, js)
 	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectSettings)
-		return kvStores, err
+		slog.ErrorContext(ctx, "error opening NATS repository stores", "nats_url", natsConn.ConnectedUrl(), errKey, err)
+		return nil, err
 	}
-	kvStores.ProjectSettings = projectSettingsKV
-
-	linksKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectLinks)
-	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectLinks)
-		return kvStores, err
-	}
-	kvStores.Links = linksKV
-
-	foldersKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectFolders)
-	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectFolders)
-		return kvStores, err
-	}
-	kvStores.Folders = foldersKV
-
-	documentsKV, err := js.KeyValue(ctx, constants.KVStoreNameProjectDocuments)
-	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream key-value store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.KVStoreNameProjectDocuments)
-		return kvStores, err
-	}
-	kvStores.Documents = documentsKV
-
-	documentFiles, err := js.ObjectStore(ctx, constants.ObjectStoreNameProjectDocuments)
-	if err != nil {
-		slog.ErrorContext(ctx, "error getting NATS JetStream object store", "nats_url", natsConn.ConnectedUrl(), errKey, err, "store", constants.ObjectStoreNameProjectDocuments)
-		return kvStores, err
-	}
-	kvStores.DocumentFiles = documentFiles
-
-	return kvStores, nil
+	return repo, nil
 }
 
 // createNatsSubcriptions creates the NATS subscriptions for the project service.

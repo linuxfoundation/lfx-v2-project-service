@@ -1564,6 +1564,8 @@ definitions:
                 description: RFC3339 timestamp
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
+            created_by:
+                $ref: '#/definitions/UserInfo'
             description:
                 type: string
                 description: A description of the document
@@ -1602,13 +1604,16 @@ definitions:
                 description: RFC3339 timestamp
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
-            uploaded_by_username:
-                type: string
-                description: Username of the principal who created this resource
-                example: johndoe
+            updated_by:
+                $ref: '#/definitions/UserInfo'
         example:
             content_type: application/pdf
             created_at: "2024-01-01T00:00:00Z"
+            created_by:
+                avatar: https://example.com/avatar.jpg
+                email: john.doe@example.com
+                name: John Doe
+                username: johndoe
             description: A description of the resource
             file_name: report.pdf
             file_size: 204800
@@ -1617,7 +1622,11 @@ definitions:
             project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2024-01-01T00:00:00Z"
-            uploaded_by_username: johndoe
+            updated_by:
+                avatar: https://example.com/avatar.jpg
+                email: john.doe@example.com
+                name: John Doe
+                username: johndoe
     ProjectFolder:
         title: ProjectFolder
         type: object
@@ -1627,10 +1636,8 @@ definitions:
                 description: RFC3339 timestamp
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
-            created_by_username:
-                type: string
-                description: Username of the principal who created this resource
-                example: johndoe
+            created_by:
+                $ref: '#/definitions/UserInfo'
             name:
                 type: string
                 description: Folder display name
@@ -1651,13 +1658,24 @@ definitions:
                 description: RFC3339 timestamp
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
+            updated_by:
+                $ref: '#/definitions/UserInfo'
         example:
             created_at: "2024-01-01T00:00:00Z"
-            created_by_username: johndoe
+            created_by:
+                avatar: https://example.com/avatar.jpg
+                email: john.doe@example.com
+                name: John Doe
+                username: johndoe
             name: My Resource
             project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2024-01-01T00:00:00Z"
+            updated_by:
+                avatar: https://example.com/avatar.jpg
+                email: john.doe@example.com
+                name: John Doe
+                username: johndoe
     ProjectFull:
         title: ProjectFull
         type: object
@@ -1958,10 +1976,8 @@ definitions:
                 description: RFC3339 timestamp
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
-            created_by_username:
-                type: string
-                description: Username of the principal who created this resource
-                example: johndoe
+            created_by:
+                $ref: '#/definitions/UserInfo'
             description:
                 type: string
                 description: A description of the link
@@ -1991,6 +2007,8 @@ definitions:
                 description: RFC3339 timestamp
                 example: "2024-01-01T00:00:00Z"
                 format: date-time
+            updated_by:
+                $ref: '#/definitions/UserInfo'
             url:
                 type: string
                 description: The URL of the link
@@ -1998,13 +2016,22 @@ definitions:
                 format: uri
         example:
             created_at: "2024-01-01T00:00:00Z"
-            created_by_username: johndoe
+            created_by:
+                avatar: https://example.com/avatar.jpg
+                email: john.doe@example.com
+                name: John Doe
+                username: johndoe
             description: A description of the resource
             folder_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             name: My Resource
             project_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             updated_at: "2024-01-01T00:00:00Z"
+            updated_by:
+                avatar: https://example.com/avatar.jpg
+                email: john.doe@example.com
+                name: John Doe
+                username: johndoe
             url: https://example.com
     ProjectServiceCreateProjectFolderRequestBody:
         title: ProjectServiceCreateProjectFolderRequestBody

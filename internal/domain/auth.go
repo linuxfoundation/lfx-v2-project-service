@@ -15,4 +15,7 @@ type Authenticator interface {
 	// ParsePrincipal extracts the principal (user identifier) from an authentication token.
 	// Returns the principal string and any error that occurred during parsing.
 	ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error)
+	// ParsePrincipalAndEmail extracts the principal and, when present, the email claim.
+	// Email may be empty even on success.
+	ParsePrincipalAndEmail(ctx context.Context, token string, logger *slog.Logger) (principal, email string, err error)
 }

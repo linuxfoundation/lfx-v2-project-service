@@ -588,6 +588,26 @@ func ResourceDescriptionAttribute(field, description string) {
 	})
 }
 
+// ResourceAuditUserAttributes adds created_by and updated_by user profile objects.
+func ResourceAuditUserAttributes() {
+	Attribute("created_by", UserInfo, "User who created this resource", func() {
+		Example(map[string]interface{}{
+			"name":     "John Doe",
+			"email":    "john.doe@example.com",
+			"username": "johndoe",
+			"avatar":   "https://example.com/avatar.jpg",
+		})
+	})
+	Attribute("updated_by", UserInfo, "User who last updated this resource", func() {
+		Example(map[string]interface{}{
+			"name":     "John Doe",
+			"email":    "john.doe@example.com",
+			"username": "johndoe",
+			"avatar":   "https://example.com/avatar.jpg",
+		})
+	})
+}
+
 // ResourceCreatedByAttribute is the DSL attribute for the username who created a resource.
 func ResourceCreatedByAttribute(field string) {
 	Attribute(field, String, "Username of the principal who created this resource", func() {
@@ -619,7 +639,7 @@ var ProjectLink = Type("ProjectLink", func() {
 		Example("https://example.com")
 	})
 	ResourceDescriptionAttribute("description", "A description of the link")
-	ResourceCreatedByAttribute("created_by_username")
+	ResourceAuditUserAttributes()
 	ResourceTimestampAttribute("created_at")
 	ResourceTimestampAttribute("updated_at")
 })
@@ -634,7 +654,7 @@ var ProjectFolder = Type("ProjectFolder", func() {
 	ResourceUIDAttribute("uid", "Folder UID")
 	ResourceUIDAttribute("project_uid", "Project UID this folder belongs to")
 	ResourceNameAttribute("name", "Folder display name")
-	ResourceCreatedByAttribute("created_by_username")
+	ResourceAuditUserAttributes()
 	ResourceTimestampAttribute("created_at")
 	ResourceTimestampAttribute("updated_at")
 })
@@ -660,7 +680,7 @@ var ProjectDocument = Type("ProjectDocument", func() {
 	Attribute("content_type", String, "MIME type of the file", func() {
 		Example("application/pdf")
 	})
-	ResourceCreatedByAttribute("uploaded_by_username")
+	ResourceAuditUserAttributes()
 	ResourceTimestampAttribute("created_at")
 	ResourceTimestampAttribute("updated_at")
 })

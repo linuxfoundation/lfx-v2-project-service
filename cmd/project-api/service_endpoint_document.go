@@ -13,6 +13,7 @@ import (
 
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
 
@@ -27,6 +28,8 @@ func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
 		Name:       &d.Name,
 		FileName:   &d.FileName,
 		FileSize:   &d.FileSize,
+		CreatedBy:  service.ConvertUserToAPI(d.CreatedBy),
+		UpdatedBy:  service.ConvertUserToAPI(d.UpdatedBy),
 		CreatedAt:  misc.StringPtr(d.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
 		UpdatedAt:  misc.StringPtr(d.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
@@ -35,9 +38,6 @@ func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
 	}
 	if d.ContentType != "" {
 		doc.ContentType = &d.ContentType
-	}
-	if d.UploadedByUsername != "" {
-		doc.UploadedByUsername = &d.UploadedByUsername
 	}
 	return doc
 }
@@ -66,7 +66,7 @@ func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsv
 		xSync,
 	)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return toServiceDocument(doc), nil
@@ -76,7 +76,7 @@ func (s *ProjectsAPI) UploadProjectDocument(ctx context.Context, payload *projsv
 func (s *ProjectsAPI) GetProjectDocument(ctx context.Context, payload *projsvc.GetProjectDocumentPayload) (*projsvc.GetProjectDocumentResult, error) {
 	doc, etag, err := s.service.GetDocumentMetadata(ctx, payload.UID, payload.DocumentUID)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return &projsvc.GetProjectDocumentResult{
@@ -89,7 +89,7 @@ func (s *ProjectsAPI) GetProjectDocument(ctx context.Context, payload *projsvc.G
 func (s *ProjectsAPI) DownloadProjectDocument(ctx context.Context, payload *projsvc.DownloadProjectDocumentPayload) (io.ReadCloser, error) {
 	fileData, doc, err := s.service.GetDocumentFile(ctx, payload.UID, payload.DocumentUID)
 	if err != nil {
-		return nil, handleError(err)
+		return nil, handleError(ctx, err)
 	}
 
 	return &documentDownloadBody{
@@ -157,7 +157,7 @@ func (s *ProjectsAPI) DeleteProjectDocument(ctx context.Context, payload *projsv
 	}
 
 	if err := s.service.DeleteDocument(ctx, payload.UID, payload.DocumentUID, payload.IfMatch, xSync); err != nil {
-		return handleError(err)
+		return handleError(ctx, err)
 	}
 
 	return nil

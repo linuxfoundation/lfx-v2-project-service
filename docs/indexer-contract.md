@@ -189,7 +189,8 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `name` | string | Display name of the link |
 | `url` | string | Target URL |
 | `description` | string (optional) | Link description |
-| `created_by_username` | string (optional) | Username of the creator |
+| `created_by` | object (optional) | User who created the link. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `updated_by` | object (optional) | User who last updated the link. Same shape as `created_by`; identical to `created_by` on create |
 | `created_at` | timestamp | Creation time (RFC3339) |
 | `updated_at` | timestamp | Last update time (RFC3339) |
 
@@ -201,8 +202,9 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `project_link_uid:{uid}` | `project_link_uid:abc-123` | Find links by UID |
 | `project_uid:{project_uid}` | `project_uid:proj-456` | Find all links for a project |
 | `folder_uid:{folder_uid}` | `folder_uid:folder-789` | Find all links in a folder |
+| `uploaded_by:{username}` | `uploaded_by:alice` | Filter links by creator (username from `created_by.username`) |
 
-> `folder_uid` tag is only emitted when `folder_uid` is set and non-empty.
+> `folder_uid` tag is only emitted when `folder_uid` is set and non-empty. `uploaded_by` is only emitted when `created_by.username` is non-empty.
 
 ### Access Control (IndexingConfig)
 
@@ -246,7 +248,8 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `uid` | string | Folder unique identifier |
 | `project_uid` | string | UID of the owning project |
 | `name` | string | Display name of the folder (unique per project) |
-| `created_by_username` | string (optional) | Username of the creator |
+| `created_by` | object (optional) | User who created the folder. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `updated_by` | object (optional) | User who last updated the folder. Same shape as `created_by`; identical to `created_by` on create |
 | `created_at` | timestamp | Creation time (RFC3339) |
 | `updated_at` | timestamp | Last update time (RFC3339) |
 
@@ -257,6 +260,9 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `{uid}` | `folder-123` | Direct lookup by UID |
 | `project_folder_uid:{uid}` | `project_folder_uid:folder-123` | Find folders by UID |
 | `project_uid:{project_uid}` | `project_uid:proj-456` | Find all folders for a project |
+| `uploaded_by:{username}` | `uploaded_by:alice` | Filter folders by creator (username from `created_by.username`) |
+
+> `uploaded_by` is only emitted when `created_by.username` is non-empty.
 
 ### Access Control (IndexingConfig)
 
@@ -305,7 +311,8 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `file_name` | string | Original file name from the upload |
 | `file_size` | int64 | File size in bytes |
 | `content_type` | string | MIME type of the file |
-| `uploaded_by_username` | string (optional) | Username of the uploader |
+| `created_by` | object (optional) | User who uploaded the document. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
+| `updated_by` | object (optional) | User who last updated the document. Same shape as `created_by`; identical to `created_by` on upload |
 | `created_at` | timestamp | Creation time (RFC3339) |
 | `updated_at` | timestamp | Last update time (RFC3339) |
 
@@ -318,9 +325,9 @@ Tags are sent as template placeholders inside `IndexingConfig.Tags` and resolved
 | `project_uid:{project_uid}` | `project_uid:proj-456` | Find all documents for a project |
 | `folder_uid:{folder_uid}` | `folder_uid:folder-789` | Find all documents in a folder |
 | `content_type:{content_type}` | `content_type:application/pdf` | Filter documents by MIME type |
-| `uploaded_by:{username}` | `uploaded_by:alice` | Filter documents by uploader |
+| `uploaded_by:{username}` | `uploaded_by:alice` | Filter documents by uploader (username from `created_by.username`) |
 
-> `folder_uid` tag is only emitted when `folder_uid` is set and non-empty. `content_type` and `uploaded_by` tags are only emitted when their respective fields are non-empty.
+> `folder_uid` tag is only emitted when `folder_uid` is set and non-empty. `content_type` and `uploaded_by` tags are only emitted when their respective fields are non-empty. Legacy KV records with only `uploaded_by_username` are normalized to `created_by.username` at index time after migration.
 
 ### Access Control (IndexingConfig)
 

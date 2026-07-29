@@ -35,14 +35,14 @@ func (s *ProjectsService) UploadDocument(
 		return nil, domain.ErrServiceUnavailable
 	}
 
-	if name == "" || fileName == "" {
-		return nil, domain.ErrValidationFailed
-	}
-
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 
+	if name == "" || fileName == "" {
+		return nil, domain.NewValidationError("name and file_name are required")
+	}
+
 	if len(fileData) == 0 {
-		return nil, domain.ErrValidationFailed
+		return nil, domain.NewValidationError("file is empty")
 	}
 	if !models.AllowedDocumentContentTypes[contentType] {
 		return nil, domain.ErrInvalidContentType
@@ -88,20 +88,21 @@ func (s *ProjectsService) UploadDocument(
 		}
 	}
 
-	principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+	createdBy, updatedBy := s.stampAuditUsers(ctx)
 	now := time.Now().UTC()
 	doc := &models.ProjectDocument{
-		UID:                uuid.NewString(),
-		ProjectUID:         projectUID,
-		FolderUID:          folderUID,
-		Name:               name,
-		Description:        description,
-		FileName:           fileName,
-		FileSize:           int64(len(fileData)),
-		ContentType:        contentType,
-		UploadedByUsername: principal,
-		CreatedAt:          now,
-		UpdatedAt:          now,
+		UID:         uuid.NewString(),
+		ProjectUID:  projectUID,
+		FolderUID:   folderUID,
+		Name:        name,
+		Description: description,
+		FileName:    fileName,
+		FileSize:    int64(len(fileData)),
+		ContentType: contentType,
+		CreatedBy:   createdBy,
+		UpdatedBy:   updatedBy,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	// Reserve the unique document name before writing any data.
@@ -178,6 +179,8 @@ func (s *ProjectsService) GetDocumentMetadata(ctx context.Context, projectUID, d
 		return nil, "", domain.ErrInternal
 	}
 
+	doc.CreatedBy, doc.UpdatedBy = s.normalizeAuditUsers(ctx, doc.CreatedBy, doc.UpdatedBy, "", "")
+
 	revisionStr := strconv.FormatUint(revision, 10)
 	return doc, revisionStr, nil
 }
@@ -225,12 +228,12 @@ func (s *ProjectsService) DeleteDocument(ctx context.Context, projectUID, docume
 	if !s.Config.SkipEtagValidation {
 		if ifMatch == nil {
 			slog.WarnContext(ctx, "If-Match header is missing")
-			return domain.ErrValidationFailed
+			return domain.NewValidationError("If-Match header is required")
 		}
 		revision, err = strconv.ParseUint(*ifMatch, 10, 64)
 		if err != nil {
 			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
-			return domain.ErrValidationFailed
+			return domain.NewValidationError("If-Match header must be a revision number")
 		}
 	} else {
 		_, revision, err = s.DocumentRepository.GetDocumentMetadata(ctx, projectUID, documentUID)
