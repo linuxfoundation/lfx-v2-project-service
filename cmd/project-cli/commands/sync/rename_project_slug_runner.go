@@ -24,12 +24,22 @@ import (
 
 var errSlugMismatch = errors.New("project_slug does not match old slug")
 
+// errSlugIndexCollision indicates the new slug's lookup index already points
+// at a different project than the one being renamed.
+var errSlugIndexCollision = errors.New("new slug is already indexed to a different project")
+
+// projectsBucket is the only bucket that carries a "slug/<slug>" -> uid
+// lookup index (see GetProjectUIDFromSlug in internal/infrastructure/nats),
+// which needs its own reconciliation logic distinct from the plain
+// field-rename path used by every other bucket.
+const projectsBucket = "projects"
+
 // DefaultNATSBuckets are the KV buckets scanned during a slug rename migration.
 var DefaultNATSBuckets = []string{
 	"committee-members",
 	"committees",
 	"committee-settings",
-	"projects",
+	projectsBucket,
 	"project-settings",
 }
 
@@ -39,7 +49,7 @@ var bucketSlugFields = map[string][]string{
 	"committee-members":  {"project_slug"},
 	"committees":         {"project_slug"},
 	"committee-settings": {"project_slug"},
-	"projects":           {"slug"},
+	projectsBucket:       {"slug"},
 	"project-settings":   {"project_slug"},
 }
 
@@ -419,7 +429,12 @@ func (r *RenameSlugRunner) migrateBucket(ctx context.Context, bucket, oldSlug, n
 	for _, key := range recordKeys {
 		key := key
 		g.Go(func() error {
-			err := processKVRecord(gCtx, kvStore, key, fields, oldSlug, newSlug, dryRun)
+			var err error
+			if bucket == projectsBucket {
+				err = processProjectRecord(gCtx, kvStore, key, fields, oldSlug, newSlug, dryRun)
+			} else {
+				err = processKVRecord(gCtx, kvStore, key, fields, oldSlug, newSlug, dryRun)
+			}
 
 			statsMu.Lock()
 			if err != nil {
@@ -457,7 +472,18 @@ func (r *RenameSlugRunner) migrateBucket(ctx context.Context, bucket, oldSlug, n
 	return stats, nil
 }
 
-func processKVRecord(ctx context.Context, kvStore jetstream.KeyValue, key string, fields []string, oldSlug, newSlug string, dryRun bool) error {
+// recordKV is the subset of jetstream.KeyValue needed by processKVRecord and
+// processProjectRecord to read/update a record and reconcile the projects
+// bucket's slug index. Narrowing it lets tests exercise the wiring with a
+// small fake instead of a full jetstream.KeyValue implementation.
+type recordKV interface {
+	Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error)
+	Update(ctx context.Context, key string, value []byte, revision uint64) (uint64, error)
+	Put(ctx context.Context, key string, value []byte) (uint64, error)
+	Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error
+}
+
+func processKVRecord(ctx context.Context, kvStore recordKV, key string, fields []string, oldSlug, newSlug string, dryRun bool) error {
 	entry, err := kvStore.Get(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to get entry: %w", err)
@@ -468,6 +494,14 @@ func processKVRecord(ctx context.Context, kvStore jetstream.KeyValue, key string
 		return fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
+	return updateSlugField(ctx, kvStore, key, fields, oldSlug, newSlug, dryRun, entry, raw)
+}
+
+// updateSlugField renames oldSlug to newSlug on an already-fetched record.
+// Callers that already hold the record's entry/raw JSON (e.g.
+// processProjectRecord, which fetches it to inspect the current slug) pass
+// them in directly to avoid a redundant re-fetch.
+func updateSlugField(ctx context.Context, kvStore recordKV, key string, fields []string, oldSlug, newSlug string, dryRun bool, entry jetstream.KeyValueEntry, raw map[string]json.RawMessage) error {
 	matched := false
 	for _, field := range fields {
 		val, ok := raw[field]
@@ -505,6 +539,7 @@ func processKVRecord(ctx context.Context, kvStore jetstream.KeyValue, key string
 	var updateErr error
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		if attempt > 1 {
+			var err error
 			entry, err = kvStore.Get(ctx, key)
 			if err != nil {
 				return fmt.Errorf("failed to re-fetch entry: %w", err)
@@ -567,6 +602,103 @@ func processKVRecord(ctx context.Context, kvStore jetstream.KeyValue, key string
 		return fmt.Errorf("failed to update after %d attempts: %w", maxRetries, updateErr)
 	}
 
+	return nil
+}
+
+// processProjectRecord handles the projects bucket's per-key dispatch. Unlike
+// processKVRecord (used by the other four buckets), it reconciles the slug
+// index off the record's observed current slug rather than off whether this
+// run performed the field write — so a record left inconsistent by a prior
+// partial failure (field already renamed, index still stale) is repaired on
+// rerun instead of becoming permanently invisible to the migration.
+func processProjectRecord(ctx context.Context, kvStore recordKV, key string, fields []string, oldSlug, newSlug string, dryRun bool) error {
+	entry, err := kvStore.Get(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to get entry: %w", err)
+	}
+
+	raw := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(entry.Value(), &raw); err != nil {
+		return fmt.Errorf("failed to unmarshal JSON: %w", err)
+	}
+
+	currentSlug := ""
+	for _, field := range fields {
+		val, ok := raw[field]
+		if !ok {
+			continue
+		}
+		var s string
+		if err := json.Unmarshal(val, &s); err == nil {
+			currentSlug = s
+			break
+		}
+	}
+
+	// Pre-flight the collision check before mutating anything, so a colliding
+	// rename leaves both the record's field and the index untouched instead
+	// of renaming the field and then failing to reconcile the index.
+	switch currentSlug {
+	case oldSlug, newSlug:
+		if err := checkSlugIndexCollision(ctx, kvStore, key, newSlug); err != nil {
+			return err
+		}
+	default:
+		slog.DebugContext(ctx, "no matching slug field, skipping", "key", key)
+		return errSlugMismatch
+	}
+
+	if currentSlug == oldSlug {
+		if err := updateSlugField(ctx, kvStore, key, fields, oldSlug, newSlug, dryRun, entry, raw); err != nil {
+			return err
+		}
+	} else {
+		slog.DebugContext(ctx, "record already renamed, repairing slug index", "key", key)
+	}
+
+	return writeSlugIndex(ctx, kvStore, key, oldSlug, newSlug, dryRun)
+}
+
+// slugIndexKV is the subset of jetstream.KeyValue used by checkSlugIndexCollision and writeSlugIndex.
+type slugIndexKV interface {
+	Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error)
+	Put(ctx context.Context, key string, value []byte) (uint64, error)
+	Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error
+}
+
+// checkSlugIndexCollision hard-fails if "slug/<newSlug>" already exists and
+// points at a uid other than the record being processed, so a rename never
+// silently clobbers another project's lookup mapping.
+func checkSlugIndexCollision(ctx context.Context, kv slugIndexKV, uid, newSlug string) error {
+	existing, err := kv.Get(ctx, "slug/"+newSlug)
+	switch {
+	case err == nil:
+		if string(existing.Value()) != uid {
+			return fmt.Errorf("%w: slug/%s is indexed to %q, not %q", errSlugIndexCollision, newSlug, existing.Value(), uid)
+		}
+		return nil
+	case errors.Is(err, jetstream.ErrKeyNotFound):
+		return nil
+	default:
+		return fmt.Errorf("failed to check slug index %q for collision: %w", newSlug, err)
+	}
+}
+
+// writeSlugIndex performs the actual index rename, assuming any collision
+// pre-flight has already passed.
+func writeSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug, newSlug string, dryRun bool) error {
+	if dryRun {
+		slog.InfoContext(ctx, "dry run: would reconcile slug index",
+			"uid", uid, "from", "slug/"+oldSlug, "to", "slug/"+newSlug)
+		return nil
+	}
+
+	if _, err := kv.Put(ctx, "slug/"+newSlug, []byte(uid)); err != nil {
+		return fmt.Errorf("failed to put slug index %q: %w", newSlug, err)
+	}
+	if err := kv.Delete(ctx, "slug/"+oldSlug); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return fmt.Errorf("failed to delete stale slug index %q: %w", oldSlug, err)
+	}
 	return nil
 }
 

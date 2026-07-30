@@ -40,6 +40,8 @@ These env vars are read in `main` and passed to subcommands via `RunContext`. Su
 
 Renames a project slug across **both** OpenSearch (`resources` index) and NATS JetStream KV buckets in a single run. Connects to NATS and OpenSearch at the start of `Run()`. OpenSearch is updated first, then NATS KV.
 
+For the `projects` bucket, the migration also keeps the secondary `slug/<slug>` -> uid lookup index (used by `GetProjectUIDFromSlug` and the `lfx.projects-api.slug_to_uid` NATS RPC) in sync with the record's `slug` field. Reconciliation is driven off each record's **observed current slug**, not whether the current run performed the field write, so a record left inconsistent by a prior partial failure (field renamed, index still stale) is repaired on rerun instead of becoming permanently unresolvable. A pre-flight check fails the operation for a given record (without mutating it) if `slug/<newSlug>` already resolves to a different project.
+
 **Subcommand flags**
 
 | Flag | Default | Description |
