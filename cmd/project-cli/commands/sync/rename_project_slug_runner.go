@@ -91,6 +91,13 @@ func NewRenameSlugRunner(openSearch *opensearchgo.Client, jetStream jetstream.Je
 }
 
 // Run renames oldSlug to newSlug across OpenSearch and NATS KV stores.
+//
+// The projects bucket's slug index reservation (reserveSlugIndex) only
+// guards against concurrent runs of this migration; it cannot protect
+// against project-api's own live writes, which use an unconditional Put for
+// slug mappings (see putProjectSlugMapping in internal/infrastructure/nats).
+// Run this migration only during a maintenance window with project-api
+// write traffic stopped.
 func (r *RenameSlugRunner) Run(ctx context.Context, opts RenameSlugOptions) error {
 	if opts.OldSlug == "" || opts.NewSlug == "" {
 		return fmt.Errorf("old slug and new slug are required")
@@ -710,17 +717,16 @@ func reserveSlugIndex(ctx context.Context, kv slugIndexKV, uid, newSlug string, 
 // between this check and the delete causes a conflict error instead of
 // losing that writer's mapping.
 func deleteOldSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug string, dryRun bool) error {
-	if dryRun {
-		slog.InfoContext(ctx, "dry run: would delete stale slug index", "uid", uid, "key", "slug/"+oldSlug)
-		return nil
-	}
-
 	existingOld, err := kv.Get(ctx, "slug/"+oldSlug)
 	switch {
 	case err == nil:
 		if string(existingOld.Value()) != uid {
 			slog.DebugContext(ctx, "stale slug index no longer owned by this project, leaving in place",
 				"uid", uid, "key", "slug/"+oldSlug)
+			return nil
+		}
+		if dryRun {
+			slog.InfoContext(ctx, "dry run: would delete stale slug index", "uid", uid, "key", "slug/"+oldSlug)
 			return nil
 		}
 		if err := kv.Delete(ctx, "slug/"+oldSlug, jetstream.LastRevision(existingOld.Revision())); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
