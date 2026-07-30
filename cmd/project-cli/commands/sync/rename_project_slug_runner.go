@@ -479,7 +479,7 @@ func (r *RenameSlugRunner) migrateBucket(ctx context.Context, bucket, oldSlug, n
 type recordKV interface {
 	Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error)
 	Update(ctx context.Context, key string, value []byte, revision uint64) (uint64, error)
-	Put(ctx context.Context, key string, value []byte) (uint64, error)
+	Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error)
 	Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error
 }
 
@@ -662,7 +662,7 @@ func processProjectRecord(ctx context.Context, kvStore recordKV, key string, fie
 // slugIndexKV is the subset of jetstream.KeyValue used by checkSlugIndexCollision and writeSlugIndex.
 type slugIndexKV interface {
 	Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error)
-	Put(ctx context.Context, key string, value []byte) (uint64, error)
+	Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error)
 	Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error
 }
 
@@ -684,8 +684,14 @@ func checkSlugIndexCollision(ctx context.Context, kv slugIndexKV, uid, newSlug s
 	}
 }
 
-// writeSlugIndex performs the actual index rename, assuming any collision
-// pre-flight has already passed.
+// writeSlugIndex performs the actual index rename. checkSlugIndexCollision is
+// only a best-effort pre-flight and can race with a concurrent writer, so the
+// new key is reserved here with an atomic Create: if a concurrent writer won
+// the race and created "slug/<newSlug>" first, Create fails with
+// ErrKeyExists and the owning uid is re-checked instead of blindly
+// overwriting it. The old key is deleted only if it still maps to this uid,
+// so a concurrent writer that has since reused the old slug for another
+// project is not clobbered.
 func writeSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug, newSlug string, dryRun bool) error {
 	if dryRun {
 		slog.InfoContext(ctx, "dry run: would reconcile slug index",
@@ -693,11 +699,34 @@ func writeSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug, newSlug s
 		return nil
 	}
 
-	if _, err := kv.Put(ctx, "slug/"+newSlug, []byte(uid)); err != nil {
-		return fmt.Errorf("failed to put slug index %q: %w", newSlug, err)
+	if _, err := kv.Create(ctx, "slug/"+newSlug, []byte(uid)); err != nil {
+		if !errors.Is(err, jetstream.ErrKeyExists) {
+			return fmt.Errorf("failed to create slug index %q: %w", newSlug, err)
+		}
+		existing, getErr := kv.Get(ctx, "slug/"+newSlug)
+		if getErr != nil {
+			return fmt.Errorf("failed to verify slug index %q after create conflict: %w", newSlug, getErr)
+		}
+		if string(existing.Value()) != uid {
+			return fmt.Errorf("%w: slug/%s is indexed to %q, not %q", errSlugIndexCollision, newSlug, existing.Value(), uid)
+		}
 	}
-	if err := kv.Delete(ctx, "slug/"+oldSlug); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to delete stale slug index %q: %w", oldSlug, err)
+
+	existingOld, err := kv.Get(ctx, "slug/"+oldSlug)
+	switch {
+	case err == nil:
+		if string(existingOld.Value()) != uid {
+			slog.DebugContext(ctx, "stale slug index no longer owned by this project, leaving in place",
+				"uid", uid, "key", "slug/"+oldSlug)
+			return nil
+		}
+		if err := kv.Delete(ctx, "slug/"+oldSlug); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+			return fmt.Errorf("failed to delete stale slug index %q: %w", oldSlug, err)
+		}
+	case errors.Is(err, jetstream.ErrKeyNotFound):
+		return nil
+	default:
+		return fmt.Errorf("failed to check slug index %q before delete: %w", oldSlug, err)
 	}
 	return nil
 }
