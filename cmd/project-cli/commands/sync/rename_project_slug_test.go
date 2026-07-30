@@ -4,8 +4,82 @@
 package sync
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
+
+type fakeKVEntry struct {
+	key      string
+	value    []byte
+	revision uint64
+}
+
+func (f fakeKVEntry) Bucket() string                  { return "projects" }
+func (f fakeKVEntry) Key() string                     { return f.key }
+func (f fakeKVEntry) Value() []byte                   { return f.value }
+func (f fakeKVEntry) Revision() uint64                { return f.revision }
+func (f fakeKVEntry) Created() time.Time              { return time.Time{} }
+func (f fakeKVEntry) Delta() uint64                   { return 0 }
+func (f fakeKVEntry) Operation() jetstream.KeyValueOp { return jetstream.KeyValuePut }
+
+// fakeRecordKV implements recordKV over an in-memory map keyed by both
+// record keys (e.g. project uids) and "slug/<slug>" index keys, so it can
+// back processProjectRecord/processKVRecord tests without a full
+// jetstream.KeyValue fake.
+type fakeRecordKV struct {
+	entries   map[string][]byte
+	revisions map[string]uint64
+}
+
+func newFakeRecordKV(entries map[string][]byte) *fakeRecordKV {
+	if entries == nil {
+		entries = map[string][]byte{}
+	}
+	revisions := make(map[string]uint64, len(entries))
+	for k := range entries {
+		revisions[k] = 1
+	}
+	return &fakeRecordKV{entries: entries, revisions: revisions}
+}
+
+func (f *fakeRecordKV) Get(_ context.Context, key string) (jetstream.KeyValueEntry, error) {
+	v, ok := f.entries[key]
+	if !ok {
+		return nil, jetstream.ErrKeyNotFound
+	}
+	return fakeKVEntry{key: key, value: v, revision: f.revisions[key]}, nil
+}
+
+func (f *fakeRecordKV) Update(_ context.Context, key string, value []byte, revision uint64) (uint64, error) {
+	if f.revisions[key] != revision {
+		return 0, jetstream.ErrKeyExists
+	}
+	f.entries[key] = value
+	f.revisions[key]++
+	return f.revisions[key], nil
+}
+
+func (f *fakeRecordKV) Create(_ context.Context, key string, value []byte, _ ...jetstream.KVCreateOpt) (uint64, error) {
+	if _, ok := f.entries[key]; ok {
+		return 0, jetstream.ErrKeyExists
+	}
+	f.entries[key] = value
+	f.revisions[key] = 1
+	return 1, nil
+}
+
+func (f *fakeRecordKV) Delete(_ context.Context, key string, _ ...jetstream.KVDeleteOpt) error {
+	if _, ok := f.entries[key]; !ok {
+		return jetstream.ErrKeyNotFound
+	}
+	delete(f.entries, key)
+	delete(f.revisions, key)
+	return nil
+}
 
 func TestResolveSlugs_fromFlags(t *testing.T) {
 	old, new, err := resolveSlugs("old-slug", "new-slug", nil)
@@ -120,6 +194,198 @@ func TestBuildOSQuery_containsOldSlug(t *testing.T) {
 			t.Errorf("expected should clause for field %q, but it was missing", required)
 		}
 	}
+}
+
+// reconcile runs the same reserve-then-delete sequence processProjectRecord
+// uses to keep the slug index in sync (reserveSlugIndex, then
+// deleteOldSlugIndex).
+func reconcile(ctx context.Context, kv recordKV, uid, oldSlug, newSlug string, dryRun bool) error {
+	if err := reserveSlugIndex(ctx, kv, uid, newSlug, dryRun); err != nil {
+		return err
+	}
+	return deleteOldSlugIndex(ctx, kv, uid, oldSlug, dryRun)
+}
+
+func TestReconcileProjectSlugIndex(t *testing.T) {
+	const uid = "00000000-0000-0000-0000-000000000001"
+	const otherUID = "00000000-0000-0000-0000-000000000002"
+
+	t.Run("renames the index key", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			"slug/old-slug": []byte(uid),
+		})
+		if err := reconcile(context.Background(), kv, uid, "old-slug", "new-slug", false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, ok := kv.entries["slug/new-slug"]; !ok || string(got) != uid {
+			t.Errorf("expected slug/new-slug to map to %q, got %q (present=%v)", uid, got, ok)
+		}
+		if _, ok := kv.entries["slug/old-slug"]; ok {
+			t.Errorf("expected stale slug/old-slug to be deleted")
+		}
+	})
+
+	t.Run("is idempotent when the old index key is already gone", func(t *testing.T) {
+		kv := newFakeRecordKV(nil)
+		if err := reconcile(context.Background(), kv, uid, "old-slug", "new-slug", false); err != nil {
+			t.Fatalf("unexpected error re-running on an already-migrated index: %v", err)
+		}
+		if got, ok := kv.entries["slug/new-slug"]; !ok || string(got) != uid {
+			t.Errorf("expected slug/new-slug to map to %q, got %q (present=%v)", uid, got, ok)
+		}
+	})
+
+	t.Run("fails on collision with another project's index", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			"slug/old-slug": []byte(uid),
+			"slug/new-slug": []byte(otherUID),
+		})
+		err := reconcile(context.Background(), kv, uid, "old-slug", "new-slug", false)
+		if !errors.Is(err, errSlugIndexCollision) {
+			t.Fatalf("expected errSlugIndexCollision, got %v", err)
+		}
+		if got := kv.entries["slug/new-slug"]; string(got) != otherUID {
+			t.Errorf("expected slug/new-slug to remain untouched at %q, got %q", otherUID, got)
+		}
+		if got, ok := kv.entries["slug/old-slug"]; !ok || string(got) != uid {
+			t.Errorf("expected slug/old-slug to remain untouched, got %q (present=%v)", got, ok)
+		}
+	})
+
+	t.Run("dry run makes no writes", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			"slug/old-slug": []byte(uid),
+		})
+		if err := reconcile(context.Background(), kv, uid, "old-slug", "new-slug", true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := kv.entries["slug/new-slug"]; ok {
+			t.Errorf("expected no write to slug/new-slug during dry run")
+		}
+		if got, ok := kv.entries["slug/old-slug"]; !ok || string(got) != uid {
+			t.Errorf("expected slug/old-slug to remain untouched during dry run, got %q (present=%v)", got, ok)
+		}
+	})
+
+	t.Run("reserveSlugIndex catches a collision from a concurrent writer", func(t *testing.T) {
+		// Simulates a concurrent writer creating slug/new-slug for another
+		// project just before reserveSlugIndex's atomic Create runs.
+		kv := newFakeRecordKV(map[string][]byte{
+			"slug/old-slug": []byte(uid),
+			"slug/new-slug": []byte(otherUID),
+		})
+		err := reserveSlugIndex(context.Background(), kv, uid, "new-slug", false)
+		if !errors.Is(err, errSlugIndexCollision) {
+			t.Fatalf("expected errSlugIndexCollision, got %v", err)
+		}
+		if got := kv.entries["slug/new-slug"]; string(got) != otherUID {
+			t.Errorf("expected slug/new-slug to remain owned by the other project, got %q", got)
+		}
+	})
+
+	t.Run("deleteOldSlugIndex does not delete the old index key if it was reassigned to another project", func(t *testing.T) {
+		// Simulates a concurrent writer reusing old-slug for another project
+		// after this record's field was renamed but before the index was
+		// reconciled; the stale-looking slug/old-slug entry must be left in
+		// place rather than deleted out from under its new owner.
+		kv := newFakeRecordKV(map[string][]byte{
+			"slug/old-slug": []byte(otherUID),
+		})
+		if err := deleteOldSlugIndex(context.Background(), kv, uid, "old-slug", false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got, ok := kv.entries["slug/old-slug"]; !ok || string(got) != otherUID {
+			t.Errorf("expected slug/old-slug to remain owned by the other project, got %q (present=%v)", got, ok)
+		}
+	})
+}
+
+func TestProcessProjectRecord(t *testing.T) {
+	const uid = "00000000-0000-0000-0000-000000000001"
+	const otherUID = "00000000-0000-0000-0000-000000000002"
+	fields := []string{"slug"}
+
+	t.Run("forward match renames the field and the index", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			uid:             []byte(`{"slug":"old-slug"}`),
+			"slug/old-slug": []byte(uid),
+		})
+		if err := processProjectRecord(context.Background(), kv, uid, fields, "old-slug", "new-slug", false); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := string(kv.entries[uid]); got != `{"slug":"new-slug"}` {
+			t.Errorf("expected record slug field renamed, got %s", got)
+		}
+		if got, ok := kv.entries["slug/new-slug"]; !ok || string(got) != uid {
+			t.Errorf("expected slug/new-slug to map to %q, got %q (present=%v)", uid, got, ok)
+		}
+		if _, ok := kv.entries["slug/old-slug"]; ok {
+			t.Errorf("expected stale slug/old-slug to be deleted")
+		}
+	})
+
+	t.Run("repairs a stale index when the field is already renamed", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			uid:             []byte(`{"slug":"new-slug"}`),
+			"slug/old-slug": []byte(uid),
+		})
+		if err := processProjectRecord(context.Background(), kv, uid, fields, "old-slug", "new-slug", false); err != nil {
+			t.Fatalf("unexpected error repairing an already-migrated record: %v", err)
+		}
+		if got, ok := kv.entries["slug/new-slug"]; !ok || string(got) != uid {
+			t.Errorf("expected slug/new-slug to map to %q, got %q (present=%v)", uid, got, ok)
+		}
+		if _, ok := kv.entries["slug/old-slug"]; ok {
+			t.Errorf("expected stale slug/old-slug to be deleted")
+		}
+	})
+
+	t.Run("skips a record whose slug matches neither old nor new", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			uid: []byte(`{"slug":"unrelated-slug"}`),
+		})
+		err := processProjectRecord(context.Background(), kv, uid, fields, "old-slug", "new-slug", false)
+		if !errors.Is(err, errSlugMismatch) {
+			t.Fatalf("expected errSlugMismatch, got %v", err)
+		}
+	})
+
+	t.Run("fails without renaming the field when the index has a collision", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			uid:             []byte(`{"slug":"old-slug"}`),
+			"slug/old-slug": []byte(uid),
+			"slug/new-slug": []byte(otherUID),
+		})
+		err := processProjectRecord(context.Background(), kv, uid, fields, "old-slug", "new-slug", false)
+		if !errors.Is(err, errSlugIndexCollision) {
+			t.Fatalf("expected errSlugIndexCollision, got %v", err)
+		}
+		if got := string(kv.entries[uid]); got != `{"slug":"old-slug"}` {
+			t.Errorf("expected record field left untouched after collision, got %s", got)
+		}
+		if got := kv.entries["slug/new-slug"]; string(got) != otherUID {
+			t.Errorf("expected slug/new-slug to remain untouched at %q, got %q", otherUID, got)
+		}
+	})
+
+	t.Run("dry run makes no writes to the record or the index", func(t *testing.T) {
+		kv := newFakeRecordKV(map[string][]byte{
+			uid:             []byte(`{"slug":"old-slug"}`),
+			"slug/old-slug": []byte(uid),
+		})
+		if err := processProjectRecord(context.Background(), kv, uid, fields, "old-slug", "new-slug", true); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got := string(kv.entries[uid]); got != `{"slug":"old-slug"}` {
+			t.Errorf("expected no write to record during dry run, got %s", got)
+		}
+		if _, ok := kv.entries["slug/new-slug"]; ok {
+			t.Errorf("expected no write to slug/new-slug during dry run")
+		}
+		if _, ok := kv.entries["slug/old-slug"]; !ok {
+			t.Errorf("expected slug/old-slug to remain untouched during dry run")
+		}
+	})
 }
 
 func assertEqual[T comparable](t *testing.T, want, got []T) {
