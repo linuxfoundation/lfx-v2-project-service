@@ -635,12 +635,14 @@ func processProjectRecord(ctx context.Context, kvStore recordKV, key string, fie
 		}
 	}
 
-	// Pre-flight the collision check before mutating anything, so a colliding
-	// rename leaves both the record's field and the index untouched instead
-	// of renaming the field and then failing to reconcile the index.
 	switch currentSlug {
 	case oldSlug, newSlug:
-		if err := checkSlugIndexCollision(ctx, kvStore, key, newSlug); err != nil {
+		// Reserve the new index key before touching the record's field, so a
+		// losing race (another writer claims "slug/<newSlug>" first) is
+		// caught before the field is renamed, instead of after — which would
+		// otherwise leave the field pointing at a slug now legitimately
+		// owned by another project.
+		if err := reserveSlugIndex(ctx, kvStore, key, newSlug, dryRun); err != nil {
 			return err
 		}
 	default:
@@ -656,47 +658,36 @@ func processProjectRecord(ctx context.Context, kvStore recordKV, key string, fie
 		slog.DebugContext(ctx, "record already renamed, repairing slug index", "key", key)
 	}
 
-	return writeSlugIndex(ctx, kvStore, key, oldSlug, newSlug, dryRun)
+	return deleteOldSlugIndex(ctx, kvStore, key, oldSlug, dryRun)
 }
 
-// slugIndexKV is the subset of jetstream.KeyValue used by checkSlugIndexCollision and writeSlugIndex.
+// slugIndexKV is the subset of jetstream.KeyValue used by reserveSlugIndex and deleteOldSlugIndex.
 type slugIndexKV interface {
 	Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error)
 	Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error)
 	Delete(ctx context.Context, key string, opts ...jetstream.KVDeleteOpt) error
 }
 
-// checkSlugIndexCollision hard-fails if "slug/<newSlug>" already exists and
-// points at a uid other than the record being processed, so a rename never
-// silently clobbers another project's lookup mapping.
-func checkSlugIndexCollision(ctx context.Context, kv slugIndexKV, uid, newSlug string) error {
-	existing, err := kv.Get(ctx, "slug/"+newSlug)
-	switch {
-	case err == nil:
-		if string(existing.Value()) != uid {
-			return fmt.Errorf("%w: slug/%s is indexed to %q, not %q", errSlugIndexCollision, newSlug, existing.Value(), uid)
-		}
-		return nil
-	case errors.Is(err, jetstream.ErrKeyNotFound):
-		return nil
-	default:
-		return fmt.Errorf("failed to check slug index %q for collision: %w", newSlug, err)
-	}
-}
-
-// writeSlugIndex performs the actual index rename. checkSlugIndexCollision is
-// only a best-effort pre-flight and can race with a concurrent writer, so the
-// new key is reserved here with an atomic Create: if a concurrent writer won
-// the race and created "slug/<newSlug>" first, Create fails with
-// ErrKeyExists and the owning uid is re-checked instead of blindly
-// overwriting it. The old key is deleted only if it still maps to this uid,
-// so a concurrent writer that has since reused the old slug for another
-// project is not clobbered.
-func writeSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug, newSlug string, dryRun bool) error {
+// reserveSlugIndex is the authoritative check-and-claim for "slug/<newSlug>".
+// In dry-run mode it performs a non-mutating Get-based check, since Create
+// would actually write. In apply mode it atomically reserves the key with
+// Create: if a concurrent writer won the race and created the key first,
+// Create fails with ErrKeyExists and the owning uid is re-checked instead of
+// blindly overwriting it.
+func reserveSlugIndex(ctx context.Context, kv slugIndexKV, uid, newSlug string, dryRun bool) error {
 	if dryRun {
-		slog.InfoContext(ctx, "dry run: would reconcile slug index",
-			"uid", uid, "from", "slug/"+oldSlug, "to", "slug/"+newSlug)
-		return nil
+		existing, err := kv.Get(ctx, "slug/"+newSlug)
+		switch {
+		case err == nil:
+			if string(existing.Value()) != uid {
+				return fmt.Errorf("%w: slug/%s is indexed to %q, not %q", errSlugIndexCollision, newSlug, existing.Value(), uid)
+			}
+			return nil
+		case errors.Is(err, jetstream.ErrKeyNotFound):
+			return nil
+		default:
+			return fmt.Errorf("failed to check slug index %q for collision: %w", newSlug, err)
+		}
 	}
 
 	if _, err := kv.Create(ctx, "slug/"+newSlug, []byte(uid)); err != nil {
@@ -711,6 +702,18 @@ func writeSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug, newSlug s
 			return fmt.Errorf("%w: slug/%s is indexed to %q, not %q", errSlugIndexCollision, newSlug, existing.Value(), uid)
 		}
 	}
+	return nil
+}
+
+// deleteOldSlugIndex removes "slug/<oldSlug>" only if it still maps to uid,
+// using a revision-conditional delete so a writer that reassigns the key
+// between this check and the delete causes a conflict error instead of
+// losing that writer's mapping.
+func deleteOldSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug string, dryRun bool) error {
+	if dryRun {
+		slog.InfoContext(ctx, "dry run: would delete stale slug index", "uid", uid, "key", "slug/"+oldSlug)
+		return nil
+	}
 
 	existingOld, err := kv.Get(ctx, "slug/"+oldSlug)
 	switch {
@@ -720,7 +723,7 @@ func writeSlugIndex(ctx context.Context, kv slugIndexKV, uid, oldSlug, newSlug s
 				"uid", uid, "key", "slug/"+oldSlug)
 			return nil
 		}
-		if err := kv.Delete(ctx, "slug/"+oldSlug); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+		if err := kv.Delete(ctx, "slug/"+oldSlug, jetstream.LastRevision(existingOld.Revision())); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 			return fmt.Errorf("failed to delete stale slug index %q: %w", oldSlug, err)
 		}
 	case errors.Is(err, jetstream.ErrKeyNotFound):

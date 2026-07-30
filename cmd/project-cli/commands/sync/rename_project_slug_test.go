@@ -196,14 +196,14 @@ func TestBuildOSQuery_containsOldSlug(t *testing.T) {
 	}
 }
 
-// reconcile runs the same collision-then-write sequence processProjectRecord
-// uses to keep the slug index in sync (checkSlugIndexCollision, then
-// writeSlugIndex).
+// reconcile runs the same reserve-then-delete sequence processProjectRecord
+// uses to keep the slug index in sync (reserveSlugIndex, then
+// deleteOldSlugIndex).
 func reconcile(ctx context.Context, kv recordKV, uid, oldSlug, newSlug string, dryRun bool) error {
-	if err := checkSlugIndexCollision(ctx, kv, uid, newSlug); err != nil {
+	if err := reserveSlugIndex(ctx, kv, uid, newSlug, dryRun); err != nil {
 		return err
 	}
-	return writeSlugIndex(ctx, kv, uid, oldSlug, newSlug, dryRun)
+	return deleteOldSlugIndex(ctx, kv, uid, oldSlug, dryRun)
 }
 
 func TestReconcileProjectSlugIndex(t *testing.T) {
@@ -267,28 +267,23 @@ func TestReconcileProjectSlugIndex(t *testing.T) {
 		}
 	})
 
-	t.Run("catches a collision that appears after the check-collision pre-flight", func(t *testing.T) {
+	t.Run("reserveSlugIndex catches a collision from a concurrent writer", func(t *testing.T) {
 		// Simulates a concurrent writer creating slug/new-slug for another
-		// project between checkSlugIndexCollision's Get and writeSlugIndex's
-		// write; writeSlugIndex's own atomic Create must still catch it.
+		// project just before reserveSlugIndex's atomic Create runs.
 		kv := newFakeRecordKV(map[string][]byte{
 			"slug/old-slug": []byte(uid),
+			"slug/new-slug": []byte(otherUID),
 		})
-		kv.entries["slug/new-slug"] = []byte(otherUID)
-		kv.revisions["slug/new-slug"] = 1
-		err := writeSlugIndex(context.Background(), kv, uid, "old-slug", "new-slug", false)
+		err := reserveSlugIndex(context.Background(), kv, uid, "new-slug", false)
 		if !errors.Is(err, errSlugIndexCollision) {
 			t.Fatalf("expected errSlugIndexCollision, got %v", err)
 		}
 		if got := kv.entries["slug/new-slug"]; string(got) != otherUID {
 			t.Errorf("expected slug/new-slug to remain owned by the other project, got %q", got)
 		}
-		if got, ok := kv.entries["slug/old-slug"]; !ok || string(got) != uid {
-			t.Errorf("expected slug/old-slug to remain untouched, got %q (present=%v)", got, ok)
-		}
 	})
 
-	t.Run("does not delete the old index key if it was reassigned to another project", func(t *testing.T) {
+	t.Run("deleteOldSlugIndex does not delete the old index key if it was reassigned to another project", func(t *testing.T) {
 		// Simulates a concurrent writer reusing old-slug for another project
 		// after this record's field was renamed but before the index was
 		// reconciled; the stale-looking slug/old-slug entry must be left in
@@ -296,14 +291,11 @@ func TestReconcileProjectSlugIndex(t *testing.T) {
 		kv := newFakeRecordKV(map[string][]byte{
 			"slug/old-slug": []byte(otherUID),
 		})
-		if err := writeSlugIndex(context.Background(), kv, uid, "old-slug", "new-slug", false); err != nil {
+		if err := deleteOldSlugIndex(context.Background(), kv, uid, "old-slug", false); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if got, ok := kv.entries["slug/old-slug"]; !ok || string(got) != otherUID {
 			t.Errorf("expected slug/old-slug to remain owned by the other project, got %q (present=%v)", got, ok)
-		}
-		if got, ok := kv.entries["slug/new-slug"]; !ok || string(got) != uid {
-			t.Errorf("expected slug/new-slug to map to %q, got %q (present=%v)", uid, got, ok)
 		}
 	})
 }
