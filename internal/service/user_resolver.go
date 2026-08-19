@@ -116,8 +116,8 @@ func (r *UserResolver) EnrichAuditUser(ctx context.Context, user *models.UserInf
 }
 
 // ResolveDisplayName returns the display name for the given actor, suitable for use in
-// notification emails. It falls back to "A project administrator" when the actor carries
-// no name and the auth-service lookup fails or returns empty.
+// notification emails. It falls back to "A project member" when the actor carries no name
+// and the auth-service lookup fails or returns empty.
 func (r *UserResolver) ResolveDisplayName(ctx context.Context, actor events.Actor) string {
 	if actor.Name != "" {
 		return actor.Name
@@ -134,7 +134,7 @@ func (r *UserResolver) ResolveDisplayName(ctx context.Context, actor events.Acto
 			}
 		}
 	}
-	return "A project administrator"
+	return "A project member"
 }
 
 // auditUserProfileComplete reports whether a UserInfo record is already fully enriched

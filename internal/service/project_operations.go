@@ -520,6 +520,10 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
 		_, rev, fetchErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
 		if fetchErr != nil {
+			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project settings not found", constants.ErrKey, fetchErr)
+				return 0, domain.ErrProjectNotFound
+			}
 			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, fetchErr)
 			return 0, domain.ErrInternal
 		}

@@ -943,6 +943,16 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			expectedErr: domain.ErrValidationFailed,
 		},
 		{
+			name: "malformed If-Match header",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("not-a-number"),
+			},
+			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
+			wantErr:     true,
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
 			name: "archived stage without dissolution date is rejected",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:     misc.StringPtr("project-uid-1"),
@@ -1395,85 +1405,6 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 // Note: isCrowdfundingOnly helper is fully covered through TestProjectsService_DeleteProject
 // test cases (successful deletion, rejection with mixed models, rejection without Crowdfunding,
 // rejection with empty/nil funding models). Testing unexported helpers directly is avoided per
-// project testing guidelines.
-
-func TestProjectsService_resolveRevision(t *testing.T) {
-	var fetchCalled bool
-	alwaysSucceedFetch := func() (uint64, error) {
-		fetchCalled = true
-		return uint64(99), nil
-	}
-	alwaysFailFetch := func() (uint64, error) {
-		fetchCalled = true
-		return 0, domain.ErrInternal
-	}
-
-	tests := []struct {
-		name               string
-		skipEtagValidation bool
-		ifMatch            *string
-		fetchFn            func() (uint64, error)
-		wantRevision       uint64
-		wantErr            error
-		wantFetchCalled    bool
-	}{
-		{
-			name:               "non-skip: nil IfMatch returns ErrValidationFailed",
-			skipEtagValidation: false,
-			ifMatch:            nil,
-			fetchFn:            alwaysSucceedFetch,
-			wantErr:            domain.ErrValidationFailed,
-			wantFetchCalled:    false,
-		},
-		{
-			name:               "non-skip: unparseable IfMatch returns ErrValidationFailed",
-			skipEtagValidation: false,
-			ifMatch:            misc.StringPtr("not-a-number"),
-			fetchFn:            alwaysSucceedFetch,
-			wantErr:            domain.ErrValidationFailed,
-			wantFetchCalled:    false,
-		},
-		{
-			name:               "non-skip: valid IfMatch returns parsed revision without calling fetchFn",
-			skipEtagValidation: false,
-			ifMatch:            misc.StringPtr("42"),
-			fetchFn:            alwaysSucceedFetch,
-			wantRevision:       uint64(42),
-			wantFetchCalled:    false,
-		},
-		{
-			name:               "skip: fetchFn is called and its revision is returned",
-			skipEtagValidation: true,
-			ifMatch:            nil,
-			fetchFn:            alwaysSucceedFetch,
-			wantRevision:       uint64(99),
-			wantFetchCalled:    true,
-		},
-		{
-			name:               "skip: fetchFn error is propagated",
-			skipEtagValidation: true,
-			ifMatch:            misc.StringPtr("1"),
-			fetchFn:            alwaysFailFetch,
-			wantErr:            domain.ErrInternal,
-			wantFetchCalled:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fetchCalled = false
-
-			svc := NewProjectsService(&auth.MockJWTAuth{}, ServiceConfig{SkipEtagValidation: tt.skipEtagValidation})
-			revision, err := svc.resolveRevision(context.Background(), tt.ifMatch, tt.fetchFn)
-
-			assert.Equal(t, tt.wantFetchCalled, fetchCalled)
-			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
-				assert.Equal(t, uint64(0), revision)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantRevision, revision)
-			}
-		})
-	}
-}
+// project testing guidelines. The resolveRevision helper is covered through the exported
+// UpdateProjectBase, UpdateProjectSettings, and DeleteProject tests (nil IfMatch, malformed
+// IfMatch, valid IfMatch, and SkipEtagValidation branches are all exercised there).

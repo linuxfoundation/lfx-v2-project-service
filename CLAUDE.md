@@ -648,7 +648,7 @@ The `internal/service/` layer contains three focused modules extracted to avoid 
 
 | Module | File | Purpose | How to use |
 |---|---|---|---|
-| `UserResolver` | `user_resolver.go` | Centralised user identity lookup: resolves display names from JWT, auth service, or falls back gracefully | Call `s.Resolver.ResolveDisplayName(ctx, username)` or `s.Resolver.ResolveRequestingUser(ctx)` — never inline the auth-service lookup |
+| `UserResolver` | `user_resolver.go` | Centralised user identity lookup: resolves display names from JWT, auth service, or falls back gracefully | Call `s.Resolver.ResolveDisplayName(ctx, events.Actor{Username: username})` or `s.Resolver.ResolveRequestingUser(ctx)` — never inline the auth-service lookup |
 | `NotificationDispatcher` | `notification_dispatcher.go` | Orchestrates role-change emails and invite requests for LFID and non-LFID users, respects `EmailsEnabled`/`InvitesEnabled` feature flags | Call `s.Dispatcher.Dispatch(ctx, projectUID, name, url, actor, changes)` from `HandleProjectSettingsUpdated` — never add notification logic to subscribers or operations directly |
 | `ProjectProjection` | `converters.go` | Bundles a `(base, settings)` domain pair and exposes typed output methods for each target type universe | Call `NewProjectProjection(base, settings)` once then `.ToFull()`, `.ToFGAMessage()`, `.ToEventSettings()`, etc. — never forward the same pair to multiple standalone converters |
 
