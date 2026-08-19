@@ -2242,12 +2242,14 @@ paths:
                   example: "1"
                 - name: slug
                   in: path
-                  description: The slug to resolve to a UID
+                  description: Project slug, a short slugified name of the project
                   required: true
                   schema:
                     type: string
-                    description: The slug to resolve to a UID
+                    description: Project slug, a short slugified name of the project
                     example: project-slug
+                    format: regexp
+                    pattern: ^[a-z][a-z0-9_\-]*[a-z0-9]$
                   example: project-slug
             responses:
                 "200":

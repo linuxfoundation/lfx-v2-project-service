@@ -2846,7 +2846,7 @@ func NewDeleteProjectPayload(uid string, version *string, bearerToken *string, x
 // resolve-project-slug endpoint payload.
 func NewResolveProjectSlugPayload(slug string, version *string, bearerToken *string) *projectservice.ResolveProjectSlugPayload {
 	v := &projectservice.ResolveProjectSlugPayload{}
-	v.Slug = &slug
+	v.Slug = slug
 	v.Version = version
 	v.BearerToken = bearerToken
 

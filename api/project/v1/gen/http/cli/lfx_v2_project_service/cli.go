@@ -92,7 +92,7 @@ func ParseEndpoint(
 		projectServiceDeleteProjectIfMatchFlag     = projectServiceDeleteProjectFlags.String("if-match", "", "")
 
 		projectServiceResolveProjectSlugFlags           = flag.NewFlagSet("resolve-project-slug", flag.ExitOnError)
-		projectServiceResolveProjectSlugSlugFlag        = projectServiceResolveProjectSlugFlags.String("slug", "REQUIRED", "The slug to resolve to a UID")
+		projectServiceResolveProjectSlugSlugFlag        = projectServiceResolveProjectSlugFlags.String("slug", "REQUIRED", "Project slug, a short slugified name of the project")
 		projectServiceResolveProjectSlugVersionFlag     = projectServiceResolveProjectSlugFlags.String("version", "", "")
 		projectServiceResolveProjectSlugBearerTokenFlag = projectServiceResolveProjectSlugFlags.String("bearer-token", "", "")
 
@@ -591,7 +591,7 @@ func projectServiceResolveProjectSlugUsage() {
 	fmt.Fprintln(os.Stderr, `Resolve a project slug to its UID.`)
 
 	// Flags list
-	fmt.Fprintln(os.Stderr, `    -slug STRING: The slug to resolve to a UID`)
+	fmt.Fprintln(os.Stderr, `    -slug STRING: Project slug, a short slugified name of the project`)
 	fmt.Fprintln(os.Stderr, `    -version STRING: `)
 	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
 

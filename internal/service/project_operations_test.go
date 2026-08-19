@@ -1402,7 +1402,7 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 		{
 			name: "successful slug resolution",
 			payload: &projsvc.ResolveProjectSlugPayload{
-				Slug: misc.StringPtr("test-project"),
+				Slug: "test-project",
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").
@@ -1414,7 +1414,7 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 		{
 			name: "project not found by slug",
 			payload: &projsvc.ResolveProjectSlugPayload{
-				Slug: misc.StringPtr("nonexistent-slug"),
+				Slug: "nonexistent-slug",
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "nonexistent-slug").
@@ -1426,7 +1426,7 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 		{
 			name: "service not ready",
 			payload: &projsvc.ResolveProjectSlugPayload{
-				Slug: misc.StringPtr("test-project"),
+				Slug: "test-project",
 			},
 			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
 			wantErr:     true,
@@ -1442,7 +1442,7 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 		{
 			name: "internal error during resolution",
 			payload: &projsvc.ResolveProjectSlugPayload{
-				Slug: misc.StringPtr("test-project"),
+				Slug: "test-project",
 			},
 			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").

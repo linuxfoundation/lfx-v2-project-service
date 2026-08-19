@@ -1020,6 +1020,8 @@ func DecodeResolveProjectSlugRequest(mux goahttp.Muxer, decoder func(*http.Reque
 			params = mux.Vars(r)
 		)
 		slug = params["slug"]
+		err = goa.MergeErrors(err, goa.ValidateFormat("slug", slug, goa.FormatRegexp))
+		err = goa.MergeErrors(err, goa.ValidatePattern("slug", slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 		versionRaw := r.URL.Query().Get("v")
 		if versionRaw != "" {
 			version = &versionRaw

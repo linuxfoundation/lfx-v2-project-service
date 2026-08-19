@@ -662,8 +662,8 @@ type ResolveProjectSlugPayload struct {
 	BearerToken *string
 	// Version of the API
 	Version *string
-	// The slug to resolve to a UID
-	Slug *string
+	// Project slug, a short slugified name of the project
+	Slug string
 }
 
 // ResolveProjectSlugResult is the result type of the project-service service

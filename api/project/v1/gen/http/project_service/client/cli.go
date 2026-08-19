@@ -624,6 +624,11 @@ func BuildResolveProjectSlugPayload(projectServiceResolveProjectSlugSlug string,
 	var slug string
 	{
 		slug = projectServiceResolveProjectSlugSlug
+		err = goa.MergeErrors(err, goa.ValidateFormat("slug", slug, goa.FormatRegexp))
+		err = goa.MergeErrors(err, goa.ValidatePattern("slug", slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		if err != nil {
+			return nil, err
+		}
 	}
 	var version *string
 	{
@@ -644,7 +649,7 @@ func BuildResolveProjectSlugPayload(projectServiceResolveProjectSlugSlug string,
 		}
 	}
 	v := &projectservice.ResolveProjectSlugPayload{}
-	v.Slug = &slug
+	v.Slug = slug
 	v.Version = version
 	v.BearerToken = bearerToken
 

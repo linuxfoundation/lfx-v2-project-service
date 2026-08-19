@@ -760,14 +760,14 @@ func (s *ProjectsService) ResolveProjectSlug(ctx context.Context, payload *projs
 		return nil, domain.ErrServiceUnavailable
 	}
 
-	if payload == nil || payload.Slug == nil {
+	if payload == nil || payload.Slug == "" {
 		slog.WarnContext(ctx, "project slug is required")
 		return nil, domain.ErrValidationFailed
 	}
 
-	ctx = log.AppendCtx(ctx, slog.String("project_slug", *payload.Slug))
+	ctx = log.AppendCtx(ctx, slog.String("project_slug", payload.Slug))
 
-	uid, err := s.ProjectRepository.GetProjectUIDFromSlug(ctx, *payload.Slug)
+	uid, err := s.ProjectRepository.GetProjectUIDFromSlug(ctx, payload.Slug)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project not found by slug", constants.ErrKey, err)

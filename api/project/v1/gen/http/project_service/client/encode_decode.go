@@ -1145,9 +1145,7 @@ func (c *Client) BuildResolveProjectSlugRequest(ctx context.Context, v any) (*ht
 		if !ok {
 			return nil, goahttp.ErrInvalidType("project-service", "resolve-project-slug", "*projectservice.ResolveProjectSlugPayload", v)
 		}
-		if p.Slug != nil {
-			slug = *p.Slug
-		}
+		slug = p.Slug
 	}
 	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ResolveProjectSlugProjectServicePath(slug)}
 	req, err := http.NewRequest("GET", u.String(), nil)

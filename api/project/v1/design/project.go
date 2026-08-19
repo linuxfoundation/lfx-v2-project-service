@@ -347,10 +347,8 @@ var _ = Service("project-service", func() {
 		Payload(func() {
 			BearerTokenAttribute()
 			VersionAttribute()
-			Attribute("slug", String, "Project slug", func() {
-				Description("The slug to resolve to a UID")
-				Example("project-slug")
-			})
+			ProjectSlugAttribute()
+			Required("slug")
 		})
 
 		Result(ResolveProjectSlugResult)
