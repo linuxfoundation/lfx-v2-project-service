@@ -27,6 +27,32 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// resolveRevision returns the write revision for a mutating operation.
+// It centralises the SkipEtagValidation branching shared by UpdateProjectBase,
+// UpdateProjectSettings, and DeleteProject:
+//   - SkipEtagValidation=false: validates and parses the If-Match header.
+//   - SkipEtagValidation=true:  calls fetchFn; the closure is responsible for
+//     the repository call and may populate caller-owned state as a side effect
+//     (e.g. capturing a fetched model for later use).
+//
+// Returns ErrValidationFailed when the If-Match header is missing or unparseable.
+// All other errors originate from fetchFn.
+func (s *ProjectsService) resolveRevision(ctx context.Context, ifMatch *string, fetchFn func() (uint64, error)) (uint64, error) {
+	if !s.Config.SkipEtagValidation {
+		if ifMatch == nil {
+			slog.WarnContext(ctx, "If-Match header is missing")
+			return 0, domain.ErrValidationFailed
+		}
+		revision, err := strconv.ParseUint(*ifMatch, 10, 64)
+		if err != nil {
+			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
+			return 0, domain.ErrValidationFailed
+		}
+		return revision, nil
+	}
+	return fetchFn()
+}
+
 // GetProjects fetches all projects
 func (s *ProjectsService) GetProjects(ctx context.Context) ([]*projsvc.ProjectFull, error) {
 	if !s.ServiceReady() {
@@ -328,29 +354,20 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, err
 	}
 
-	var revision uint64
-	var err error
-	if !s.Config.SkipEtagValidation {
-		if payload.IfMatch == nil {
-			slog.WarnContext(ctx, "If-Match header is missing")
-			return nil, domain.ErrValidationFailed
-		}
-		revision, err = strconv.ParseUint(*payload.IfMatch, 10, 64)
-		if err != nil {
-			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
-			return nil, domain.ErrValidationFailed
-		}
-	} else {
-		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
-		_, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
-		if err != nil {
-			if errors.Is(err, domain.ErrProjectNotFound) {
-				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
-				return nil, domain.ErrProjectNotFound
+	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
+		_, rev, fetchErr := s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+		if fetchErr != nil {
+			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project not found", constants.ErrKey, fetchErr)
+				return 0, domain.ErrProjectNotFound
 			}
-			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
-			return nil, domain.ErrInternal
+			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, fetchErr)
+			return 0, domain.ErrInternal
 		}
+		return rev, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
@@ -500,25 +517,16 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrValidationFailed
 	}
 
-	var revision uint64
-	var err error
-	if !s.Config.SkipEtagValidation {
-		if payload.IfMatch == nil {
-			slog.WarnContext(ctx, "If-Match header is missing")
-			return nil, domain.ErrValidationFailed
+	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
+		_, rev, fetchErr := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
+		if fetchErr != nil {
+			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, fetchErr)
+			return 0, domain.ErrInternal
 		}
-		revision, err = strconv.ParseUint(*payload.IfMatch, 10, 64)
-		if err != nil {
-			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
-			return nil, domain.ErrValidationFailed
-		}
-	} else {
-		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
-		_, revision, err = s.ProjectRepository.GetProjectSettingsWithRevision(ctx, *payload.UID)
-		if err != nil {
-			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
-			return nil, domain.ErrInternal
-		}
+		return rev, nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", *payload.UID))
@@ -652,40 +660,37 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 		return domain.ErrValidationFailed
 	}
 
-	var revision uint64
-	var err error
+	// projectDB is captured by the skip-etag closure below; in the non-skip-etag path
+	// it remains nil and is fetched separately after revision resolution.
 	var projectDB *models.ProjectBase
-
-	if !s.Config.SkipEtagValidation {
-		if payload.IfMatch == nil {
-			slog.WarnContext(ctx, "If-Match header is missing")
-			return domain.ErrValidationFailed
+	revision, err := s.resolveRevision(ctx, payload.IfMatch, func() (uint64, error) {
+		// Skip-etag path: single RPC returns both the model and the revision.
+		var rev uint64
+		var fetchErr error
+		projectDB, rev, fetchErr = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
+		if fetchErr != nil {
+			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project not found", constants.ErrKey, fetchErr)
+				return 0, domain.ErrProjectNotFound
+			}
+			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, fetchErr)
+			return 0, domain.ErrInternal
 		}
-		revision, err = strconv.ParseUint(*payload.IfMatch, 10, 64)
-		if err != nil {
-			slog.ErrorContext(ctx, "error parsing If-Match header", constants.ErrKey, err)
-			return domain.ErrValidationFailed
-		}
-		// Fetch the project to validate funding model before deletion
-		projectDB, err = s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
-		if err != nil {
-			if errors.Is(err, domain.ErrProjectNotFound) {
-				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
+		return rev, nil
+	})
+	if err != nil {
+		return err
+	}
+	// Non-skip-etag path: projectDB was not pre-fetched; get it now for funding model validation.
+	if projectDB == nil {
+		var fetchErr error
+		projectDB, fetchErr = s.ProjectRepository.GetProjectBase(ctx, *payload.UID)
+		if fetchErr != nil {
+			if errors.Is(fetchErr, domain.ErrProjectNotFound) {
+				slog.WarnContext(ctx, "project not found", constants.ErrKey, fetchErr)
 				return domain.ErrProjectNotFound
 			}
-			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
-			return domain.ErrInternal
-		}
-	} else {
-		// If skipping the Etag validation, we need to get the key revision from the store with a Get request.
-		// Also get the project data for funding model validation (single fetch).
-		projectDB, revision, err = s.ProjectRepository.GetProjectBaseWithRevision(ctx, *payload.UID)
-		if err != nil {
-			if errors.Is(err, domain.ErrProjectNotFound) {
-				slog.WarnContext(ctx, "project not found", constants.ErrKey, err)
-				return domain.ErrProjectNotFound
-			}
-			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, err)
+			slog.ErrorContext(ctx, "error getting project from store", constants.ErrKey, fetchErr)
 			return domain.ErrInternal
 		}
 	}
