@@ -49,6 +49,15 @@ This service handles the following NATS subjects for inter-service communication
 - `lfx.projects-api.get_writers`: Get a project's configured writers from a given project UID
 - `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
 
+### NATS Inbound Event Subscriptions
+
+In addition to request/reply handlers, this service subscribes to the following events (fire-and-forget; no reply is sent):
+
+- `lfx.projects-api.project_settings.updated`: Self-published event. Sends role-notification emails or invite requests when project membership changes.
+- `lfx.invite-service.invite_accepted`: Published by the invite service when an invited user accepts. Promotes matching email-only members to full LFID membership across all their projects.
+- `lfx.projects-api.project_document.created`: Self-published event. Emails project writers and auditors about the newly uploaded document.
+- `lfx.projects-api.project_link.created`: Self-published event. Emails project writers and auditors about the newly added link.
+
 ### NATS Events Published
 
 This service publishes the following NATS events:
@@ -64,6 +73,9 @@ This service publishes the following NATS events:
     "new_settings": { /* ProjectSettings object */ }
   }
   ```
+
+- `lfx.projects-api.project_document.created`: Published when a file document is uploaded. Triggers email notifications to project writers and auditors.
+- `lfx.projects-api.project_link.created`: Published when a link is added to a project. Triggers email notifications to project writers and auditors.
 
 #### Indexer Contract
 
@@ -294,27 +306,37 @@ This service uses the generic FGA sync handlers for managing fine-grained access
 │   ├── domain/                     # Domain logic layer (business logic)
 │   │   └── models/                 # Domain models and entities
 │   ├── service/                    # Service logic layer (service implementations)
-│   ├── infrastructure/             # Infrastructure layer
-│   │   ├── auth/                   # Authentication abstractions
-│   │   └── nats/                   # NATS messaging and repository implementation
-│   ├── middleware/                 # HTTP middleware components
-│   └── log/                        # Logging utilities
+│   └── infrastructure/             # Infrastructure layer
+│       ├── auth/                   # Authentication abstractions
+│       ├── log/                    # Logging utilities
+│       ├── middleware/             # HTTP middleware components
+│       ├── nats/                   # NATS messaging and repository implementation
+│       └── opensearch/             # OpenSearch client
 └── pkg/                            # Shared packages
     └── constants/                  # Shared constants and configurations
 ```
 
 ## Development
 
+Before making any changes, read [CLAUDE.md](CLAUDE.md) — it is the authoritative guide for AI agents and human contributors alike. Non-Claude AI tools should read [AGENTS.md](AGENTS.md), which redirects to the same guide.
+
 To contribute to this repository:
 
-1. Fork the repository
-2. Commit your changes to a feature branch in your fork. Ensure your commits
-   are signed with the [Developer Certificate of Origin
-   (DCO)](https://developercertificate.org/).
-   You can use the `git commit -s` command to sign your commits.
-3. Ensure the chart version in `charts/lfx-v2-project-service/Chart.yaml` has been
+1. Fork the repository and install the git hooks: `make hooks` (or `make deps` which also installs them).
+2. Commit your changes to a feature branch. Branch names should follow the pattern `type/LFXV2-NNNN-short-topic`.
+3. Write commit messages following Angular conventional commits:
+   ```
+   type(scope): summary [LFXV2-NNNN]
+   ```
+   Valid types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `build`, `ci`, `perf`, `style`, `revert`.
+4. Every commit must be signed with both a GPG signature and a DCO sign-off:
+   ```bash
+   git commit -s -S
+   ```
+   See [CLAUDE.md](CLAUDE.md) for one-time GPG setup instructions.
+5. Ensure the chart version in `charts/lfx-v2-project-service/Chart.yaml` has been
    updated following semantic version conventions if you are making changes to the chart.
-4. Submit your pull request
+6. Submit your pull request. PR titles follow the same `type(scope): summary` format.
 
 For more details about development on this repository, read the [DEVELOPMENT.md](DEVELOPMENT.md).
 
