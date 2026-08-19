@@ -78,7 +78,7 @@ deps:
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	}
 	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
-		git config --local core.hooksPath .githooks; \
+		git config --local core.hooksPath .githooks || { echo "ERROR: git config failed"; exit 1; }; \
 		echo "==> Git hooks installed from .githooks/"; \
 	else \
 		echo "==> Skipping git hooks install (not a git worktree)"; \
@@ -254,7 +254,7 @@ helm-uninstall:
 .PHONY: hooks
 hooks:
 	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
-		git config --local core.hooksPath .githooks; \
+		git config --local core.hooksPath .githooks || { echo "ERROR: git config failed"; exit 1; }; \
 		echo "==> Git hooks installed from .githooks/"; \
 	else \
 		echo "==> Skipping git hooks install (not a git worktree)"; \

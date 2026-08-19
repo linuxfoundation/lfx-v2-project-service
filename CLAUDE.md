@@ -48,34 +48,36 @@ git commit --amend -s
 
 Follow Angular conventional commits. Jira tickets are optional — include one when the work has a known ticket, anywhere in the commit message (subject or body). The preferred placement is at the end of the subject line.
 
-```
+```text
 type(scope): summary [LFXV2-NNNN]
 ```
 
 | Part | Rule |
 |---|---|
-| `type` | Required: `feat` \| `fix` \| `refactor` \| `docs` \| `chore` \| `test` \| `perf` |
+| `type` | Required: `feat` \| `fix` \| `docs` \| `test` \| `refactor` \| `chore` \| `build` \| `ci` \| `perf` \| `style` \| `revert` |
 | `(scope)` | Optional but recommended; lowercase, e.g. `(project)`, `(nats)`, `(service)` |
-| `summary` | Lowercase, imperative mood, no trailing period; max 72 chars total on first line |
+| `!` | Optional breaking-change marker, placed after scope: `feat(api)!:` |
+| `summary` | Lowercase first letter, imperative mood, no trailing period; max 72 chars total on first line |
 | `[LFXV2-NNNN]` | Optional; include when a Jira ticket exists — omit entirely if there is none |
 
 **Examples:**
 
-```
+```text
 feat(project): add slug validation on create [LFXV2-1234]
 fix(nats): handle stale KV entry on concurrent update [LFXV2-5678]
 refactor(service): extract email renderer into dedicated package
 docs: update NATS subject table in README
 chore: bump golangci-lint to v1.62
+feat(api)!: remove deprecated slug endpoint [LFXV2-9999]
 ```
 
-The `commit-msg` hook enforces the `type(scope): summary` shape and DCO sign-off (see Pre-commit Hooks below). Ticket inclusion and placement are conventions, not mechanically enforced.
+The `commit-msg` hook enforces type format, lowercase summary, no trailing period, 72-char limit, and DCO sign-off (see Pre-commit Hooks below). Ticket inclusion and placement are conventions, not mechanically enforced.
 
 ### Pull Request Standards
 
 **Title** — same pattern as the commit message:
 
-```
+```text
 type(scope): summary [LFXV2-NNNN]
 ```
 
