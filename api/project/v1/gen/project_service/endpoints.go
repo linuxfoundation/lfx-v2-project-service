@@ -26,6 +26,7 @@ type Endpoints struct {
 	UpdateProjectBase       goa.Endpoint
 	UpdateProjectSettings   goa.Endpoint
 	DeleteProject           goa.Endpoint
+	ResolveProjectSlug      goa.Endpoint
 	Readyz                  goa.Endpoint
 	Livez                   goa.Endpoint
 	CreateProjectLink       goa.Endpoint
@@ -60,6 +61,7 @@ func NewEndpoints(s Service) *Endpoints {
 		UpdateProjectBase:       NewUpdateProjectBaseEndpoint(s, a.JWTAuth),
 		UpdateProjectSettings:   NewUpdateProjectSettingsEndpoint(s, a.JWTAuth),
 		DeleteProject:           NewDeleteProjectEndpoint(s, a.JWTAuth),
+		ResolveProjectSlug:      NewResolveProjectSlugEndpoint(s, a.JWTAuth),
 		Readyz:                  NewReadyzEndpoint(s),
 		Livez:                   NewLivezEndpoint(s),
 		CreateProjectLink:       NewCreateProjectLinkEndpoint(s, a.JWTAuth),
@@ -85,6 +87,7 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.UpdateProjectBase = m(e.UpdateProjectBase)
 	e.UpdateProjectSettings = m(e.UpdateProjectSettings)
 	e.DeleteProject = m(e.DeleteProject)
+	e.ResolveProjectSlug = m(e.ResolveProjectSlug)
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
 	e.CreateProjectLink = m(e.CreateProjectLink)
@@ -257,6 +260,29 @@ func NewDeleteProjectEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.End
 			return nil, err
 		}
 		return nil, s.DeleteProject(ctx, p)
+	}
+}
+
+// NewResolveProjectSlugEndpoint returns an endpoint function that calls the
+// method "resolve-project-slug" of service "project-service".
+func NewResolveProjectSlugEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*ResolveProjectSlugPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.ResolveProjectSlug(ctx, p)
 	}
 }
 

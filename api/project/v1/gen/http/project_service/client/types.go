@@ -356,6 +356,13 @@ type UpdateProjectSettingsResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// ResolveProjectSlugResponseBody is the type of the "project-service" service
+// "resolve-project-slug" endpoint HTTP response body.
+type ResolveProjectSlugResponseBody struct {
+	// Project UID
+	UID *string `form:"uid,omitempty" json:"uid,omitempty" xml:"uid,omitempty"`
+}
+
 // CreateProjectLinkResponseBody is the type of the "project-service" service
 // "create-project-link" endpoint HTTP response body.
 type CreateProjectLinkResponseBody struct {
@@ -715,6 +722,46 @@ type DeleteProjectNotFoundResponseBody struct {
 // "project-service" service "delete-project" endpoint HTTP response body for
 // the "ServiceUnavailable" error.
 type DeleteProjectServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ResolveProjectSlugBadRequestResponseBody is the type of the
+// "project-service" service "resolve-project-slug" endpoint HTTP response body
+// for the "BadRequest" error.
+type ResolveProjectSlugBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ResolveProjectSlugInternalServerErrorResponseBody is the type of the
+// "project-service" service "resolve-project-slug" endpoint HTTP response body
+// for the "InternalServerError" error.
+type ResolveProjectSlugInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ResolveProjectSlugNotFoundResponseBody is the type of the "project-service"
+// service "resolve-project-slug" endpoint HTTP response body for the
+// "NotFound" error.
+type ResolveProjectSlugNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// ResolveProjectSlugServiceUnavailableResponseBody is the type of the
+// "project-service" service "resolve-project-slug" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type ResolveProjectSlugServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
 	// Error message
@@ -2139,6 +2186,60 @@ func NewDeleteProjectServiceUnavailable(body *DeleteProjectServiceUnavailableRes
 	return v
 }
 
+// NewResolveProjectSlugResultOK builds a "project-service" service
+// "resolve-project-slug" endpoint result from a HTTP "OK" response.
+func NewResolveProjectSlugResultOK(body *ResolveProjectSlugResponseBody) *projectservice.ResolveProjectSlugResult {
+	v := &projectservice.ResolveProjectSlugResult{
+		UID: *body.UID,
+	}
+
+	return v
+}
+
+// NewResolveProjectSlugBadRequest builds a project-service service
+// resolve-project-slug endpoint BadRequest error.
+func NewResolveProjectSlugBadRequest(body *ResolveProjectSlugBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewResolveProjectSlugInternalServerError builds a project-service service
+// resolve-project-slug endpoint InternalServerError error.
+func NewResolveProjectSlugInternalServerError(body *ResolveProjectSlugInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewResolveProjectSlugNotFound builds a project-service service
+// resolve-project-slug endpoint NotFound error.
+func NewResolveProjectSlugNotFound(body *ResolveProjectSlugNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewResolveProjectSlugServiceUnavailable builds a project-service service
+// resolve-project-slug endpoint ServiceUnavailable error.
+func NewResolveProjectSlugServiceUnavailable(body *ResolveProjectSlugServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
 // NewReadyzServiceUnavailable builds a project-service service readyz endpoint
 // ServiceUnavailable error.
 func NewReadyzServiceUnavailable(body *ReadyzServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
@@ -3124,6 +3225,18 @@ func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsRespon
 	return
 }
 
+// ValidateResolveProjectSlugResponseBody runs the validations defined on
+// Resolve-Project-SlugResponseBody
+func ValidateResolveProjectSlugResponseBody(body *ResolveProjectSlugResponseBody) (err error) {
+	if body.UID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("uid", "body"))
+	}
+	if body.UID != nil {
+		err = goa.MergeErrors(err, goa.ValidateFormat("body.uid", *body.UID, goa.FormatUUID))
+	}
+	return
+}
+
 // ValidateCreateProjectLinkResponseBody runs the validations defined on
 // Create-Project-LinkResponseBody
 func ValidateCreateProjectLinkResponseBody(body *CreateProjectLinkResponseBody) (err error) {
@@ -3671,6 +3784,54 @@ func ValidateDeleteProjectNotFoundResponseBody(body *DeleteProjectNotFoundRespon
 // ValidateDeleteProjectServiceUnavailableResponseBody runs the validations
 // defined on delete-project_ServiceUnavailable_response_body
 func ValidateDeleteProjectServiceUnavailableResponseBody(body *DeleteProjectServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateResolveProjectSlugBadRequestResponseBody runs the validations
+// defined on resolve-project-slug_BadRequest_response_body
+func ValidateResolveProjectSlugBadRequestResponseBody(body *ResolveProjectSlugBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateResolveProjectSlugInternalServerErrorResponseBody runs the
+// validations defined on resolve-project-slug_InternalServerError_response_body
+func ValidateResolveProjectSlugInternalServerErrorResponseBody(body *ResolveProjectSlugInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateResolveProjectSlugNotFoundResponseBody runs the validations defined
+// on resolve-project-slug_NotFound_response_body
+func ValidateResolveProjectSlugNotFoundResponseBody(body *ResolveProjectSlugNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateResolveProjectSlugServiceUnavailableResponseBody runs the
+// validations defined on resolve-project-slug_ServiceUnavailable_response_body
+func ValidateResolveProjectSlugServiceUnavailableResponseBody(body *ResolveProjectSlugServiceUnavailableResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}

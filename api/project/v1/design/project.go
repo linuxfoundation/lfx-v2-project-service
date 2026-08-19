@@ -339,6 +339,40 @@ var _ = Service("project-service", func() {
 		})
 	})
 
+	Method("resolve-project-slug", func() {
+		Description("Resolve a project slug to its UID.")
+
+		Security(JWTAuth)
+
+		Payload(func() {
+			BearerTokenAttribute()
+			VersionAttribute()
+			Attribute("slug", String, "Project slug", func() {
+				Description("The slug to resolve to a UID")
+				Example("project-slug")
+			})
+		})
+
+		Result(ResolveProjectSlugResult)
+
+		Error("NotFound", NotFoundError, "Project not found")
+		Error("BadRequest", BadRequestError, "Bad request")
+		Error("InternalServerError", InternalServerError, "Internal server error")
+		Error("ServiceUnavailable", ServiceUnavailableError, "Service unavailable")
+
+		HTTP(func() {
+			GET("/projects/slug-to-uid/{slug}")
+			Param("version:v")
+			Param("slug")
+			Header("bearer_token:Authorization")
+			Response(StatusOK)
+			Response("NotFound", StatusNotFound)
+			Response("BadRequest", StatusBadRequest)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
 	Method("readyz", func() {
 		Description("Check if the service is able to take inbound requests.")
 		Meta("swagger:generate", "false")

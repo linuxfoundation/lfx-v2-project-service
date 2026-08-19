@@ -356,6 +356,13 @@ type UpdateProjectSettingsResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// ResolveProjectSlugResponseBody is the type of the "project-service" service
+// "resolve-project-slug" endpoint HTTP response body.
+type ResolveProjectSlugResponseBody struct {
+	// Project UID
+	UID string `form:"uid" json:"uid" xml:"uid"`
+}
+
 // CreateProjectLinkResponseBody is the type of the "project-service" service
 // "create-project-link" endpoint HTTP response body.
 type CreateProjectLinkResponseBody struct {
@@ -715,6 +722,46 @@ type DeleteProjectNotFoundResponseBody struct {
 // "project-service" service "delete-project" endpoint HTTP response body for
 // the "ServiceUnavailable" error.
 type DeleteProjectServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ResolveProjectSlugBadRequestResponseBody is the type of the
+// "project-service" service "resolve-project-slug" endpoint HTTP response body
+// for the "BadRequest" error.
+type ResolveProjectSlugBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ResolveProjectSlugInternalServerErrorResponseBody is the type of the
+// "project-service" service "resolve-project-slug" endpoint HTTP response body
+// for the "InternalServerError" error.
+type ResolveProjectSlugInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ResolveProjectSlugNotFoundResponseBody is the type of the "project-service"
+// service "resolve-project-slug" endpoint HTTP response body for the
+// "NotFound" error.
+type ResolveProjectSlugNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// ResolveProjectSlugServiceUnavailableResponseBody is the type of the
+// "project-service" service "resolve-project-slug" endpoint HTTP response body
+// for the "ServiceUnavailable" error.
+type ResolveProjectSlugServiceUnavailableResponseBody struct {
 	// HTTP status code
 	Code string `form:"code" json:"code" xml:"code"`
 	// Error message
@@ -1650,6 +1697,16 @@ func NewUpdateProjectSettingsResponseBody(res *projectservice.ProjectSettings) *
 	return body
 }
 
+// NewResolveProjectSlugResponseBody builds the HTTP response body from the
+// result of the "resolve-project-slug" endpoint of the "project-service"
+// service.
+func NewResolveProjectSlugResponseBody(res *projectservice.ResolveProjectSlugResult) *ResolveProjectSlugResponseBody {
+	body := &ResolveProjectSlugResponseBody{
+		UID: res.UID,
+	}
+	return body
+}
+
 // NewCreateProjectLinkResponseBody builds the HTTP response body from the
 // result of the "create-project-link" endpoint of the "project-service"
 // service.
@@ -2080,6 +2137,50 @@ func NewDeleteProjectNotFoundResponseBody(res *projectservice.NotFoundError) *De
 // service.
 func NewDeleteProjectServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *DeleteProjectServiceUnavailableResponseBody {
 	body := &DeleteProjectServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewResolveProjectSlugBadRequestResponseBody builds the HTTP response body
+// from the result of the "resolve-project-slug" endpoint of the
+// "project-service" service.
+func NewResolveProjectSlugBadRequestResponseBody(res *projectservice.BadRequestError) *ResolveProjectSlugBadRequestResponseBody {
+	body := &ResolveProjectSlugBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewResolveProjectSlugInternalServerErrorResponseBody builds the HTTP
+// response body from the result of the "resolve-project-slug" endpoint of the
+// "project-service" service.
+func NewResolveProjectSlugInternalServerErrorResponseBody(res *projectservice.InternalServerError) *ResolveProjectSlugInternalServerErrorResponseBody {
+	body := &ResolveProjectSlugInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewResolveProjectSlugNotFoundResponseBody builds the HTTP response body from
+// the result of the "resolve-project-slug" endpoint of the "project-service"
+// service.
+func NewResolveProjectSlugNotFoundResponseBody(res *projectservice.NotFoundError) *ResolveProjectSlugNotFoundResponseBody {
+	body := &ResolveProjectSlugNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewResolveProjectSlugServiceUnavailableResponseBody builds the HTTP response
+// body from the result of the "resolve-project-slug" endpoint of the
+// "project-service" service.
+func NewResolveProjectSlugServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *ResolveProjectSlugServiceUnavailableResponseBody {
+	body := &ResolveProjectSlugServiceUnavailableResponseBody{
 		Code:    res.Code,
 		Message: res.Message,
 	}
@@ -2737,6 +2838,17 @@ func NewDeleteProjectPayload(uid string, version *string, bearerToken *string, x
 	v.BearerToken = bearerToken
 	v.XSync = xSync
 	v.IfMatch = ifMatch
+
+	return v
+}
+
+// NewResolveProjectSlugPayload builds a project-service service
+// resolve-project-slug endpoint payload.
+func NewResolveProjectSlugPayload(slug string, version *string, bearerToken *string) *projectservice.ResolveProjectSlugPayload {
+	v := &projectservice.ResolveProjectSlugPayload{}
+	v.Slug = &slug
+	v.Version = version
+	v.BearerToken = bearerToken
 
 	return v
 }

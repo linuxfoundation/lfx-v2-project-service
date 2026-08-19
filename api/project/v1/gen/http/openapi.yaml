@@ -1262,6 +1262,70 @@ paths:
                 - http
             security:
                 - jwt_header_Authorization: []
+    /projects/slug-to-uid/{slug}:
+        get:
+            tags:
+                - project-service
+            summary: resolve-project-slug project-service
+            description: Resolve a project slug to its UID.
+            operationId: project-service#resolve-project-slug
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  required: false
+                  type: string
+                  enum:
+                    - "1"
+                - name: slug
+                  in: path
+                  description: The slug to resolve to a UID
+                  required: true
+                  type: string
+                - name: Authorization
+                  in: header
+                  description: JWT token issued by Heimdall
+                  required: false
+                  type: string
+            responses:
+                "200":
+                    description: OK response.
+                    schema:
+                        $ref: '#/definitions/ResolveProjectSlugResult'
+                        required:
+                            - uid
+                "400":
+                    description: Bad Request response.
+                    schema:
+                        $ref: '#/definitions/BadRequestError'
+                        required:
+                            - code
+                            - message
+                "404":
+                    description: Not Found response.
+                    schema:
+                        $ref: '#/definitions/NotFoundError'
+                        required:
+                            - code
+                            - message
+                "500":
+                    description: Internal Server Error response.
+                    schema:
+                        $ref: '#/definitions/InternalServerError'
+                        required:
+                            - code
+                            - message
+                "503":
+                    description: Service Unavailable response.
+                    schema:
+                        $ref: '#/definitions/ServiceUnavailableError'
+                        required:
+                            - code
+                            - message
+            schemes:
+                - http
+            security:
+                - jwt_header_Authorization: []
 definitions:
     BadRequestError:
         title: BadRequestError
@@ -3253,6 +3317,19 @@ definitions:
                   email: bob.wilson@example.com
                   name: Bob Wilson
                   username: bobwilson101
+    ResolveProjectSlugResult:
+        title: ResolveProjectSlugResult
+        type: object
+        properties:
+            uid:
+                type: string
+                description: Project UID
+                example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                format: uuid
+        example:
+            uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+        required:
+            - uid
     ServiceUnavailableError:
         title: ServiceUnavailableError
         type: object

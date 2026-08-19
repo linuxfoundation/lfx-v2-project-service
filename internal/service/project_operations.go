@@ -753,6 +753,36 @@ func (s *ProjectsService) DeleteProject(ctx context.Context, payload *projsvc.De
 	return nil
 }
 
+// ResolveProjectSlug resolves a project slug to its UID.
+func (s *ProjectsService) ResolveProjectSlug(ctx context.Context, payload *projsvc.ResolveProjectSlugPayload) (*projsvc.ResolveProjectSlugResult, error) {
+	if !s.ServiceReady() {
+		slog.ErrorContext(ctx, "NATS connection or store not initialized")
+		return nil, domain.ErrServiceUnavailable
+	}
+
+	if payload == nil || payload.Slug == nil {
+		slog.WarnContext(ctx, "project slug is required")
+		return nil, domain.ErrValidationFailed
+	}
+
+	ctx = log.AppendCtx(ctx, slog.String("project_slug", *payload.Slug))
+
+	uid, err := s.ProjectRepository.GetProjectUIDFromSlug(ctx, *payload.Slug)
+	if err != nil {
+		if errors.Is(err, domain.ErrProjectNotFound) {
+			slog.WarnContext(ctx, "project not found by slug", constants.ErrKey, err)
+			return nil, domain.ErrProjectNotFound
+		}
+		slog.ErrorContext(ctx, "error resolving slug to UID", constants.ErrKey, err)
+		return nil, domain.ErrInternal
+	}
+
+	slog.DebugContext(ctx, "resolved project slug to UID", "uid", uid)
+	return &projsvc.ResolveProjectSlugResult{
+		UID: uid,
+	}, nil
+}
+
 // isCrowdfundingOnly checks if the funding model is exactly ["Crowdfunding"] and nothing else.
 // This matches v1's strict validation where Type must equal "Crowdfunding" (not in combination with other types).
 func isCrowdfundingOnly(fundingModels []string) bool {

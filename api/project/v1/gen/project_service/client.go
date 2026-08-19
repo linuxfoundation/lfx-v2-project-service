@@ -25,6 +25,7 @@ type Client struct {
 	UpdateProjectBaseEndpoint       goa.Endpoint
 	UpdateProjectSettingsEndpoint   goa.Endpoint
 	DeleteProjectEndpoint           goa.Endpoint
+	ResolveProjectSlugEndpoint      goa.Endpoint
 	ReadyzEndpoint                  goa.Endpoint
 	LivezEndpoint                   goa.Endpoint
 	CreateProjectLinkEndpoint       goa.Endpoint
@@ -40,7 +41,7 @@ type Client struct {
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, readyz, livez, createProjectLink, getProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
+func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
 	return &Client{
 		GetProjectsEndpoint:             getProjects,
 		CreateProjectEndpoint:           createProject,
@@ -49,6 +50,7 @@ func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSetti
 		UpdateProjectBaseEndpoint:       updateProjectBase,
 		UpdateProjectSettingsEndpoint:   updateProjectSettings,
 		DeleteProjectEndpoint:           deleteProject,
+		ResolveProjectSlugEndpoint:      resolveProjectSlug,
 		ReadyzEndpoint:                  readyz,
 		LivezEndpoint:                   livez,
 		CreateProjectLinkEndpoint:       createProjectLink,
@@ -177,6 +179,23 @@ func (c *Client) UpdateProjectSettings(ctx context.Context, p *UpdateProjectSett
 func (c *Client) DeleteProject(ctx context.Context, p *DeleteProjectPayload) (err error) {
 	_, err = c.DeleteProjectEndpoint(ctx, p)
 	return
+}
+
+// ResolveProjectSlug calls the "resolve-project-slug" endpoint of the
+// "project-service" service.
+// ResolveProjectSlug may return the following errors:
+//   - "NotFound" (type *NotFoundError): Project not found
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) ResolveProjectSlug(ctx context.Context, p *ResolveProjectSlugPayload) (res *ResolveProjectSlugResult, err error) {
+	var ires any
+	ires, err = c.ResolveProjectSlugEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*ResolveProjectSlugResult), nil
 }
 
 // Readyz calls the "readyz" endpoint of the "project-service" service.

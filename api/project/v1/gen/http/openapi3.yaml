@@ -2221,6 +2221,81 @@ paths:
                                 message: The service is unavailable.
             security:
                 - jwt_header_Authorization: []
+    /projects/slug-to-uid/{slug}:
+        get:
+            tags:
+                - project-service
+            summary: resolve-project-slug project-service
+            description: Resolve a project slug to its UID.
+            operationId: project-service#resolve-project-slug
+            parameters:
+                - name: v
+                  in: query
+                  description: Version of the API
+                  allowEmptyValue: true
+                  schema:
+                    type: string
+                    description: Version of the API
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: slug
+                  in: path
+                  description: The slug to resolve to a UID
+                  required: true
+                  schema:
+                    type: string
+                    description: The slug to resolve to a UID
+                    example: project-slug
+                  example: project-slug
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ResolveProjectSlugResult'
+                            example:
+                                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/BadRequestError'
+                            example:
+                                code: "400"
+                                message: The request was invalid.
+                "404":
+                    description: 'NotFound: Project not found'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/NotFoundError'
+                            example:
+                                code: "404"
+                                message: The resource was not found.
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/InternalServerError'
+                            example:
+                                code: "500"
+                                message: An internal server error occurred.
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ServiceUnavailableError'
+                            example:
+                                code: "503"
+                                message: The service is unavailable.
+            security:
+                - jwt_header_Authorization: []
 components:
     schemas:
         BadRequestError:
@@ -3920,6 +3995,19 @@ components:
                       email: bob.wilson@example.com
                       name: Bob Wilson
                       username: bobwilson101
+        ResolveProjectSlugResult:
+            type: object
+            properties:
+                uid:
+                    type: string
+                    description: Project UID
+                    example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                    format: uuid
+            description: Result of resolving a project slug to its UID.
+            example:
+                uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+            required:
+                - uid
         ServiceUnavailableError:
             type: object
             properties:

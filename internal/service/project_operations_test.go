@@ -1390,6 +1390,100 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 	}
 }
 
+func TestProjectsService_ResolveProjectSlug(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     *projsvc.ResolveProjectSlugPayload
+		setupMocks  func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		wantErr     bool
+		expectedErr error
+		expectedUID string
+	}{
+		{
+			name: "successful slug resolution",
+			payload: &projsvc.ResolveProjectSlugPayload{
+				Slug: misc.StringPtr("test-project"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").
+					Return("7cad5a8d-19d0-41a4-81a6-043453daf9ee", nil)
+			},
+			wantErr:     false,
+			expectedUID: "7cad5a8d-19d0-41a4-81a6-043453daf9ee",
+		},
+		{
+			name: "project not found by slug",
+			payload: &projsvc.ResolveProjectSlugPayload{
+				Slug: misc.StringPtr("nonexistent-slug"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "nonexistent-slug").
+					Return("", domain.ErrProjectNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name: "service not ready",
+			payload: &projsvc.ResolveProjectSlugPayload{
+				Slug: misc.StringPtr("test-project"),
+			},
+			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
+			wantErr:     true,
+			expectedErr: domain.ErrServiceUnavailable,
+		},
+		{
+			name:        "missing slug",
+			payload:     &projsvc.ResolveProjectSlugPayload{},
+			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
+			wantErr:     true,
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name: "internal error during resolution",
+			payload: &projsvc.ResolveProjectSlugPayload{
+				Slug: misc.StringPtr("test-project"),
+			},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").
+					Return("", domain.ErrInternal)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+
+			if tt.expectedErr == domain.ErrServiceUnavailable {
+				service.ProjectRepository = nil
+			}
+
+			tt.setupMocks(mockRepo, mockBuilder)
+
+			result, err := service.ResolveProjectSlug(context.Background(), tt.payload)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.expectedErr != nil {
+					assert.Equal(t, tt.expectedErr, err)
+				}
+				assert.Nil(t, result)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.expectedUID, result.UID)
+			}
+
+			mockRepo.AssertExpectations(t)
+			mockBuilder.AssertExpectations(t)
+			mockAuth.AssertExpectations(t)
+		})
+	}
+}
+
 // Note: isCrowdfundingOnly helper is fully covered through TestProjectsService_DeleteProject
 // test cases (successful deletion, rejection with mixed models, rejection without Crowdfunding,
 // rejection with empty/nil funding models). Testing unexported helpers directly is avoided per

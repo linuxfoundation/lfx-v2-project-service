@@ -25,7 +25,7 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|readyz|livez|create-project-link|get-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
+		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
 	}
 }
 
@@ -90,6 +90,11 @@ func ParseEndpoint(
 		projectServiceDeleteProjectBearerTokenFlag = projectServiceDeleteProjectFlags.String("bearer-token", "", "")
 		projectServiceDeleteProjectXSyncFlag       = projectServiceDeleteProjectFlags.String("x-sync", "", "")
 		projectServiceDeleteProjectIfMatchFlag     = projectServiceDeleteProjectFlags.String("if-match", "", "")
+
+		projectServiceResolveProjectSlugFlags           = flag.NewFlagSet("resolve-project-slug", flag.ExitOnError)
+		projectServiceResolveProjectSlugSlugFlag        = projectServiceResolveProjectSlugFlags.String("slug", "REQUIRED", "The slug to resolve to a UID")
+		projectServiceResolveProjectSlugVersionFlag     = projectServiceResolveProjectSlugFlags.String("version", "", "")
+		projectServiceResolveProjectSlugBearerTokenFlag = projectServiceResolveProjectSlugFlags.String("bearer-token", "", "")
 
 		projectServiceReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
 
@@ -172,6 +177,7 @@ func ParseEndpoint(
 	projectServiceUpdateProjectBaseFlags.Usage = projectServiceUpdateProjectBaseUsage
 	projectServiceUpdateProjectSettingsFlags.Usage = projectServiceUpdateProjectSettingsUsage
 	projectServiceDeleteProjectFlags.Usage = projectServiceDeleteProjectUsage
+	projectServiceResolveProjectSlugFlags.Usage = projectServiceResolveProjectSlugUsage
 	projectServiceReadyzFlags.Usage = projectServiceReadyzUsage
 	projectServiceLivezFlags.Usage = projectServiceLivezUsage
 	projectServiceCreateProjectLinkFlags.Usage = projectServiceCreateProjectLinkUsage
@@ -239,6 +245,9 @@ func ParseEndpoint(
 
 			case "delete-project":
 				epf = projectServiceDeleteProjectFlags
+
+			case "resolve-project-slug":
+				epf = projectServiceResolveProjectSlugFlags
 
 			case "readyz":
 				epf = projectServiceReadyzFlags
@@ -322,6 +331,9 @@ func ParseEndpoint(
 			case "delete-project":
 				endpoint = c.DeleteProject()
 				data, err = projectservicec.BuildDeleteProjectPayload(*projectServiceDeleteProjectUIDFlag, *projectServiceDeleteProjectVersionFlag, *projectServiceDeleteProjectBearerTokenFlag, *projectServiceDeleteProjectXSyncFlag, *projectServiceDeleteProjectIfMatchFlag)
+			case "resolve-project-slug":
+				endpoint = c.ResolveProjectSlug()
+				data, err = projectservicec.BuildResolveProjectSlugPayload(*projectServiceResolveProjectSlugSlugFlag, *projectServiceResolveProjectSlugVersionFlag, *projectServiceResolveProjectSlugBearerTokenFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -379,6 +391,7 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, `    update-project-base: Update an existing project's base information.`)
 	fmt.Fprintln(os.Stderr, `    update-project-settings: Update an existing project's settings.`)
 	fmt.Fprintln(os.Stderr, `    delete-project: Delete an existing project.`)
+	fmt.Fprintln(os.Stderr, `    resolve-project-slug: Resolve a project slug to its UID.`)
 	fmt.Fprintln(os.Stderr, `    readyz: Check if the service is able to take inbound requests.`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if the service is alive.`)
 	fmt.Fprintln(os.Stderr, `    create-project-link: Create a new link for a project.`)
@@ -563,6 +576,28 @@ func projectServiceDeleteProjectUsage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
 	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service delete-project --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true --if-match \"123\"")
+}
+
+func projectServiceResolveProjectSlugUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service resolve-project-slug", os.Args[0])
+	fmt.Fprint(os.Stderr, " -slug STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Resolve a project slug to its UID.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -slug STRING: The slug to resolve to a UID`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service resolve-project-slug --slug \"project-slug\" --version \"1\" --bearer-token \"eyJhbGci...\"")
 }
 
 func projectServiceReadyzUsage() {
