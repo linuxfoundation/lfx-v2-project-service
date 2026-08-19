@@ -230,16 +230,16 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
 
+	proj := NewProjectProjection(projectDB, projectSettingsDB)
 	g.Go(func() error {
-		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg)
+		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
 	if err := g.Wait(); err != nil {
 		return nil, domain.ErrInternal
 	}
 
-	projectFull := ConvertToProjectFull(projectDB, projectSettingsDB)
+	projectFull := proj.ToFull()
 
 	slog.DebugContext(ctx, "returning created project", "project", projectFull)
 
@@ -488,9 +488,9 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
 
+	proj := NewProjectProjection(projectDB, projectSettingsDB)
 	g.Go(func() error {
-		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg)
+		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
 	if err := g.Wait(); err != nil {
@@ -500,7 +500,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	slog.DebugContext(ctx, "returning updated project", "project", project)
 
-	projectResp := ConvertToServiceProjectBase(projectDB)
+	projectResp := proj.ToServiceBase()
 
 	return projectResp, nil
 }
@@ -622,9 +622,9 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, runSync)
 	})
 
+	proj := NewProjectProjection(projectDB, projectSettingsDB)
 	g.Go(func() error {
-		msg := buildFGAUpdateAccessMessage(projectDB, projectSettingsDB)
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, msg)
+		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
 	g.Go(func() error {
@@ -632,7 +632,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  *payload.UID,
 			OldSettings: DomainSettingsToEvent(existingProjectSettingsDB),
-			NewSettings: DomainSettingsToEvent(projectSettingsDB),
+			NewSettings: proj.ToEventSettings(),
 			Actor:       events.Actor{Username: principal},
 		}
 		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
