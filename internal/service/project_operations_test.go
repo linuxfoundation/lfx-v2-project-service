@@ -762,6 +762,7 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 				service.MessageBuilder = mockBuilder
 				service.UserReader = &domain.MockUserReader{}
 				service.Resolver = NewUserResolver(service.UserReader)
+				service.Dispatcher = NewNotificationDispatcher(service.MessageBuilder, service.Resolver, false, false)
 			} else {
 				// Use default setup
 				service, mockRepo, mockBuilder, mockAuth = setupServiceForTesting()
