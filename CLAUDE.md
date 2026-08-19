@@ -46,7 +46,7 @@ git commit --amend -s
 
 ### Commit Message Format
 
-Follow Angular conventional commits. Ticket goes at the **end** and is optional:
+Follow Angular conventional commits. Jira tickets are optional — include one when the work has a known ticket, anywhere in the commit message (subject or body). The preferred placement is at the end of the subject line.
 
 ```
 type(scope): summary [LFXV2-NNNN]
@@ -57,7 +57,7 @@ type(scope): summary [LFXV2-NNNN]
 | `type` | Required: `feat` \| `fix` \| `refactor` \| `docs` \| `chore` \| `test` \| `perf` |
 | `(scope)` | Optional but recommended; lowercase, e.g. `(project)`, `(nats)`, `(service)` |
 | `summary` | Lowercase, imperative mood, no trailing period; max 72 chars total on first line |
-| `[LFXV2-NNNN]` | Optional; include only when a real Jira ID exists — never use `[LFXV2-0000]` |
+| `[LFXV2-NNNN]` | Optional; include when a Jira ticket exists — omit entirely if there is none |
 
 **Examples:**
 
@@ -69,7 +69,7 @@ docs: update NATS subject table in README
 chore: bump golangci-lint to v1.62
 ```
 
-The `commit-msg` hook enforces this automatically (see Pre-commit Hooks below).
+The `commit-msg` hook enforces the `type(scope): summary` shape and DCO sign-off (see Pre-commit Hooks below). Ticket inclusion and placement are conventions, not mechanically enforced.
 
 ### Pull Request Standards
 

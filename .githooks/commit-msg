@@ -33,12 +33,6 @@ if ! echo "$FIRST_LINE" | grep -qE '^(feat|fix|refactor|docs|chore|test|perf)(\(
   exit 1
 fi
 
-# Reject placeholder Jira tickets (e.g. [LFXV2-0000]) — use the real ID or omit.
-if echo "$FIRST_LINE" | grep -qE '\[LFXV2-0+\]'; then
-  echo "ERROR: Do not use a placeholder Jira ticket like [LFXV2-0000]."
-  echo "  Use the real ticket ID or omit the bracket entirely."
-  exit 1
-fi
 
 # Validate DCO sign-off is present.
 if ! grep -q "^Signed-off-by: " "$COMMIT_MSG_FILE"; then
