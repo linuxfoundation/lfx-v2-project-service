@@ -177,7 +177,9 @@ internal/                   # Core business logic
 │   ├── project_handlers.go    # Inbound NATS request/reply RPC handlers
 │   ├── project_subscriber.go  # Inbound NATS event subscribers (settings updates, invite acceptance)
 │   ├── document_subscriber.go # Inbound NATS event subscribers (document/link created notifications)
-│   ├── converters.go     # Domain ↔ Goa ↔ pkg/events wire-type converters
+│   ├── converters.go     # Domain ↔ Goa ↔ pkg/events wire-type converters; ProjectProjection for multi-output fan-out
+│   ├── user_resolver.go  # UserResolver: centralised user identity lookup (JWT, auth service, fallback)
+│   ├── notification_dispatcher.go # NotificationDispatcher: role-change email/invite orchestration
 │   └── email/            # Email template rendering (one file per email type)
 └── infrastructure/        # Infrastructure layer
     ├── auth/             # JWT authentication
@@ -618,6 +620,7 @@ NATS message payload types that other services consume belong in `pkg/events/`, 
 - Domain types in `internal/domain/models/` may differ from wire types and can evolve independently.
 - Explicit converter functions in `internal/service/converters.go` map from domain → event type before publishing.
 - Example: `DomainSettingsToEvent(*models.ProjectSettings) events.ProjectSettings`
+- When a single `(base, settings)` domain pair needs to produce multiple output shapes, construct a `ProjectProjection` via `NewProjectProjection(base, settings)` and call the appropriate methods (`ToFull`, `ToFGAMessage`, `ToEventSettings`, etc.) rather than forwarding the pair to each standalone converter independently.
 
 **Rule:** if a struct appears in a NATS message payload, it belongs in `pkg/events/`, not `internal/`.
 
@@ -638,6 +641,18 @@ Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP
 - `ErrValidationFailed` / `ErrInvalidParentProject` / `ErrInvalidContentType` / `ErrFileTooLarge` / `ErrCannotDeleteNonCrowdfundingProject` → 400
 - `ErrInternal` / `ErrUnmarshal` → 500
 - `ErrServiceUnavailable` → 503
+
+### 6. Service Modules — use these, do not duplicate
+
+The `internal/service/` layer contains three focused modules extracted to avoid duplication. **Always reach for these before adding new logic inline.**
+
+| Module | File | Purpose | How to use |
+|---|---|---|---|
+| `UserResolver` | `user_resolver.go` | Centralised user identity lookup: resolves display names from JWT, auth service, or falls back gracefully | Call `s.Resolver.ResolveDisplayName(ctx, username)` or `s.Resolver.ResolveRequestingUser(ctx)` — never inline the auth-service lookup |
+| `NotificationDispatcher` | `notification_dispatcher.go` | Orchestrates role-change emails and invite requests for LFID and non-LFID users, respects `EmailsEnabled`/`InvitesEnabled` feature flags | Call `s.Dispatcher.Dispatch(ctx, projectUID, name, url, actor, changes)` from `HandleProjectSettingsUpdated` — never add notification logic to subscribers or operations directly |
+| `ProjectProjection` | `converters.go` | Bundles a `(base, settings)` domain pair and exposes typed output methods for each target type universe | Call `NewProjectProjection(base, settings)` once then `.ToFull()`, `.ToFGAMessage()`, `.ToEventSettings()`, etc. — never forward the same pair to multiple standalone converters |
+
+**`resolveRevision` pattern** (`project_operations.go`): write operations (update, delete) must resolve the resource revision either from an `If-Match` header or by fetching it from the repository. Use the `s.resolveRevision(ctx, ifMatch, fetchFn)` helper — do not duplicate the `SkipEtagValidation` branching inline.
 
 ## Debugging Tips
 
