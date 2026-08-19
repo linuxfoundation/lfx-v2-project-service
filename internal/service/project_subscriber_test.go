@@ -552,6 +552,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
 				MessageBuilder:    mockMsg,
+				Resolver:          NewUserResolver(nil),
 				Config: ServiceConfig{
 					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 					EmailsEnabled:       true,
@@ -596,6 +597,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
 			MessageBuilder:    mockMsg,
+			Resolver:          NewUserResolver(nil),
 			Config: ServiceConfig{
 				LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 				EmailsEnabled:       false,
@@ -628,6 +630,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
 			MessageBuilder:    mockMsg,
+			Resolver:          NewUserResolver(nil),
 			Config: ServiceConfig{
 				LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 				EmailsEnabled:       true,

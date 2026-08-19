@@ -118,7 +118,7 @@ func (s *ProjectsService) handleProjectContentCreated(ctx context.Context, item 
 	}
 
 	projectURL := buildProjectURL(s.Config.LFXSelfServeBaseURL, projectBase.Slug)
-	uploaderName := s.resolveActorDisplayName(ctx, events.Actor{Username: item.createdBy})
+	uploaderName := s.Resolver.ResolveDisplayName(ctx, events.Actor{Username: item.createdBy})
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(5)

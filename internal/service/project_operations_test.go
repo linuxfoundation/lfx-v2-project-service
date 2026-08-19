@@ -761,6 +761,7 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 				service.FolderRepository = &domain.MockFolderRepository{}
 				service.MessageBuilder = mockBuilder
 				service.UserReader = &domain.MockUserReader{}
+				service.Resolver = NewUserResolver(service.UserReader)
 			} else {
 				// Use default setup
 				service, mockRepo, mockBuilder, mockAuth = setupServiceForTesting()

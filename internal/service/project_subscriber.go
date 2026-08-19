@@ -109,7 +109,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	}
 
 	projectURL := buildProjectURL(s.Config.LFXSelfServeBaseURL, projectBase.Slug)
-	inviterName := s.resolveActorDisplayName(ctx, event.Actor)
+	inviterName := s.Resolver.ResolveDisplayName(ctx, event.Actor)
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(5)
@@ -367,27 +367,6 @@ func (s *ProjectsService) sendRoleRemovedEmail(ctx context.Context, projectUID, 
 		slog.DebugContext(ctx, "project_subscriber: sent role removed email", "project_uid", projectUID)
 	}
 	return nil
-}
-
-// resolveActorDisplayName looks up the actor's display name from the auth service.
-// Falls back to "A project administrator" if the lookup fails or returns no name.
-func (s *ProjectsService) resolveActorDisplayName(ctx context.Context, actor events.Actor) string {
-	if actor.Name != "" {
-		return actor.Name
-	}
-	if actor.Username != "" && s.UserReader != nil {
-		lookupCtx, cancel := context.WithTimeout(ctx, notificationTimeout)
-		defer cancel()
-		if meta, err := s.UserReader.UserMetadataByPrincipal(lookupCtx, actor.Username); err == nil && meta != nil {
-			if meta.Name != "" {
-				return meta.Name
-			}
-			if full := strings.TrimSpace(meta.GivenName + " " + meta.FamilyName); full != "" {
-				return full
-			}
-		}
-	}
-	return "A project administrator"
 }
 
 // HandleInviteAccepted processes an invite acceptance event published by the invite service.
