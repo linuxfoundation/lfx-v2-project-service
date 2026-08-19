@@ -65,6 +65,7 @@ help:
 	@echo "  helm-templates-local - Print templates for Helm chart with local values"
 	@echo "  helm-uninstall - Uninstall Helm chart"
 	@echo "  helm-restart   - Restart the deployment pod in Kubernetes"
+	@echo "  hooks          - Install git hooks from .githooks/ (also run by 'make deps')"
 
 # Install dependencies
 .PHONY: deps
@@ -77,7 +78,7 @@ deps:
 		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
 	}
 	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
-		git config --local core.hooksPath .githooks; \
+		git config --local core.hooksPath .githooks || { echo "ERROR: git config failed"; exit 1; }; \
 		echo "==> Git hooks installed from .githooks/"; \
 	else \
 		echo "==> Skipping git hooks install (not a git worktree)"; \
@@ -248,6 +249,16 @@ helm-uninstall:
 	@echo "==> Uninstalling Helm chart..."
 	helm uninstall $(HELM_RELEASE_NAME) --namespace $(HELM_NAMESPACE)
 	@echo "==> Helm chart uninstalled: $(HELM_RELEASE_NAME)"
+
+# Install git hooks (lightweight; also called by make deps)
+.PHONY: hooks
+hooks:
+	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
+		git config --local core.hooksPath .githooks || { echo "ERROR: git config failed"; exit 1; }; \
+		echo "==> Git hooks installed from .githooks/"; \
+	else \
+		echo "==> Skipping git hooks install (not a git worktree)"; \
+	fi
 
 # Restart the deployment pod
 .PHONY: helm-restart

@@ -21,6 +21,7 @@ go vet ./...
 
 # Run golangci-lint if available.
 if command -v golangci-lint >/dev/null 2>&1; then
+  echo "==> Running golangci-lint..."
   golangci-lint run ./...
 fi
 

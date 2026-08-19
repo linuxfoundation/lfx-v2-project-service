@@ -1,0 +1,73 @@
+#!/bin/sh
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+#
+# Commit-msg hook: validate Angular conventional commit format and DCO sign-off.
+# Installed automatically by `make deps` via `git config core.hooksPath .githooks`.
+
+COMMIT_MSG_FILE="$1"
+FIRST_LINE=$(head -1 "$COMMIT_MSG_FILE")
+
+# Skip merge commits, reverts, and interactive-rebase fixup/squash markers.
+case "$FIRST_LINE" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *)
+    exit 0
+    ;;
+esac
+
+# Validate Angular conventional commit format.
+# Pattern: type[(scope)][!]: summary  (scope and ! are optional)
+# Types aligned with project-service-pr-readiness SKILL.md line 113.
+if ! echo "$FIRST_LINE" | grep -qE '^(feat|fix|docs|test|refactor|chore|build|ci|perf|style|revert)(\([a-z0-9/._-]+\))?!?: .+'; then
+  echo "ERROR: Commit message does not follow Angular conventional commit format."
+  echo ""
+  echo "  Expected: type(scope): summary [LFXV2-NNNN]"
+  echo "  Got:      $FIRST_LINE"
+  echo ""
+  echo "  Valid types: feat | fix | docs | test | refactor | chore | build | ci | perf | style | revert"
+  echo "  Examples:"
+  echo "    feat(project): add slug validation on create [LFXV2-1234]"
+  echo "    fix(nats): handle stale KV entry on concurrent update [LFXV2-5678]"
+  echo "    refactor(service): extract email renderer into dedicated package"
+  echo "    chore!: drop support for Go 1.21"
+  echo ""
+  exit 1
+fi
+
+# Reject uppercase first character in the summary (after the colon-space).
+SUMMARY=$(echo "$FIRST_LINE" | sed 's/^[^:]*: //')
+FIRST_CHAR=$(printf '%s' "$SUMMARY" | cut -c1)
+if echo "$FIRST_CHAR" | grep -qE '[A-Z]'; then
+  echo "ERROR: Summary must start with a lowercase letter."
+  echo "  Got: $FIRST_LINE"
+  exit 1
+fi
+
+# Reject trailing period in the summary.
+if echo "$SUMMARY" | grep -qE '\.$'; then
+  echo "ERROR: Summary must not end with a period."
+  echo "  Got: $FIRST_LINE"
+  exit 1
+fi
+
+# Reject first lines longer than 72 characters.
+LINE_LEN=$(printf '%s' "$FIRST_LINE" | wc -c | tr -d ' ')
+if [ "$LINE_LEN" -gt 72 ]; then
+  echo "ERROR: First line is ${LINE_LEN} characters; maximum is 72."
+  echo "  Got: $FIRST_LINE"
+  exit 1
+fi
+
+# Validate DCO sign-off with non-empty Name <email> identity.
+if ! grep -qE "^Signed-off-by: .+ <.+>" "$COMMIT_MSG_FILE"; then
+  echo "ERROR: DCO sign-off is missing or malformed."
+  echo ""
+  echo "  Add it now:  git commit --amend -s"
+  echo "  Prevent it:  always use git commit -s -S"
+  echo ""
+  echo "  Required format: Signed-off-by: Your Name <your@email.com>"
+  echo ""
+  exit 1
+fi
+
+exit 0

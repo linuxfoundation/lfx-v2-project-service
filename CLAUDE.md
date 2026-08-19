@@ -13,6 +13,127 @@ This guide provides essential information for Claude instances working with the 
 > - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates.
 > - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
 
+## Developer Standards
+
+These rules apply to all contributors and AI agents working in this repo. Read this section first — it governs commit signing, message format, PR shape, and data hygiene across all work.
+
+### Commit Signing
+
+Every commit must carry both a GPG signature and a DCO sign-off:
+
+```bash
+git commit -s -S
+# -s  adds: Signed-off-by: Your Name <your@email.com>
+# -S  attaches a GPG signature
+```
+
+**One-time git config setup:**
+
+```bash
+# Tell git which key to use (replace with your key ID from the command below)
+gpg --list-secret-keys --keyid-format LONG
+git config --global user.signingkey <YOUR_KEY_ID>
+git config --global commit.gpgsign true
+```
+
+For GPG key generation and uploading your public key to GitHub, see the [GitHub GPG documentation](https://docs.github.com/en/authentication/managing-commit-signature-verification).
+
+If you forget the sign-off on the last commit, fix it with:
+
+```bash
+git commit --amend -s
+```
+
+### Commit Message Format
+
+Follow Angular conventional commits. Jira tickets are optional — include one when the work has a known ticket, anywhere in the commit message (subject or body). The preferred placement is at the end of the subject line.
+
+```text
+type(scope): summary [LFXV2-NNNN]
+```
+
+| Part | Rule |
+|---|---|
+| `type` | Required: `feat` \| `fix` \| `docs` \| `test` \| `refactor` \| `chore` \| `build` \| `ci` \| `perf` \| `style` \| `revert` |
+| `(scope)` | Optional but recommended; lowercase, e.g. `(project)`, `(nats)`, `(service)` |
+| `!` | Optional breaking-change marker, placed after scope: `feat(api)!:` |
+| `summary` | Lowercase first letter, imperative mood, no trailing period; max 72 chars total on first line |
+| `[LFXV2-NNNN]` | Optional; include when a Jira ticket exists — omit entirely if there is none |
+
+**Examples:**
+
+```text
+feat(project): add slug validation on create [LFXV2-1234]
+fix(nats): handle stale KV entry on concurrent update [LFXV2-5678]
+refactor(service): extract email renderer into dedicated package
+docs: update NATS subject table in README
+chore: bump golangci-lint to v1.62
+feat(api)!: remove deprecated slug endpoint [LFXV2-9999]
+```
+
+The `commit-msg` hook enforces type format, lowercase summary, no trailing period, 72-char limit, and DCO sign-off (see Pre-commit Hooks below). Ticket inclusion and placement are conventions, not mechanically enforced.
+
+### Pull Request Standards
+
+**Title** — same pattern as the commit message:
+
+```text
+type(scope): summary [LFXV2-NNNN]
+```
+
+**Required description sections:**
+
+```markdown
+## Summary
+What changed and why (2–4 bullet points).
+
+## Ticket
+[LFXV2-NNNN](https://linuxfoundation.atlassian.net/browse/LFXV2-NNNN)
+*(Omit this section entirely if there is no associated Jira ticket.)*
+
+## Changes
+- Bullet describing each meaningful change made in this PR.
+
+## API Changes
+*(Required when the PR touches `api/`, `cmd/project-api/service_endpoint_*.go`,
+or Goa design files. Omit this section entirely otherwise.)*
+
+| Endpoint | Method | Change Type | Before | After | Breaking? |
+|---|---|---|---|---|---|
+| `/projects/:id` | PUT | New field | — | `display_name` | No |
+```
+
+### No PII in Source
+
+**No production data may appear anywhere in committed files** — code, tests, comments, or documentation. This covers real names, email addresses, organization names, user IDs, and domain names from production or staging environments.
+
+Approved fake-data conventions for tests and mocks:
+
+| Data type | Approved pattern |
+|---|---|
+| Names | `Test User`, `Alice Example`, `Bob Fixture` |
+| Emails | `*@example.com` — e.g. `alice@example.com` |
+| UUIDs | Sequential: `00000000-0000-0000-0000-000000000001` |
+| Orgs | `Test Org`, `Example Foundation` |
+| Domains | `example.com`, `test.invalid` |
+
+Real-looking names, corporate domains, or UUIDs that appear to come from production data must not appear even if slightly modified or "anonymized." When in doubt, make the data unmistakably fictional.
+
+### Pre-commit Hooks
+
+Hooks live in `.githooks/` and are installed by `make deps` (also available standalone as `make hooks`). Two hooks run on every commit:
+
+**`pre-commit`** (runs before the message is written):
+- Auto-formats staged `.go` files with `gofmt` and re-stages them
+- Checks license headers across all tracked source files
+
+**`commit-msg`** (runs after the message is written):
+- Validates Angular conventional commit format
+- Rejects placeholder Jira tickets (`[LFXV2-0000]`)
+- Verifies the `Signed-off-by:` DCO trailer is present
+
+If a hook blocks your commit, fix the issue and re-run `git commit`. To amend a missing sign-off: `git commit --amend -s`.
+
 ## Project Overview
 
 The LFX V2 Project Service is a RESTful API service that manages projects within the Linux Foundation's LFX platform. It provides CRUD operations for projects with built-in authorization and audit capabilities.

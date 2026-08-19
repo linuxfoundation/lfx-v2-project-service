@@ -8,46 +8,51 @@ The LFX v2 Project Service is a RESTful API service that manages projects within
 
 ### API Endpoints
 
-- `/readyz`: `GET` - checks that the service is able to take in inbound requests
-- `/livez`: `GET` - checks that the service is alive
-- `/projects`:
-  - `GET` - fetch the list of projects (Note: this will be removed in favor of using the query service, once implemented)
-  - `POST` - create a new project
-- `/projects/:id`:
-  - `GET` - fetch a project's base information by its UID
-  - `PUT` - update a project's base information by its UID - only certain attributes can be updated, read the openapi spec for more details
-  - `DELETE` - delete a project by its UID
-- `/projects/:id/settings`:
-  - `GET` - fetch a project's settings information by its UID
-  - `PUT` - update a project's settings by its UID
-- `/projects/:id/links`:
-  - `POST` - create a new link for a project
-- `/projects/:id/links/:link_uid`:
-  - `GET` - fetch a single link by its UID (returns ETag header)
-  - `DELETE` - delete a link (requires `If-Match: <etag>`)
-- `/projects/:id/folders`:
-  - `POST` - create a new folder for a project (name must be unique per project)
-- `/projects/:id/folders/:folder_uid`:
-  - `GET` - fetch a single folder by its UID (returns ETag header)
-  - `DELETE` - delete a folder (requires `If-Match: <etag>`; blocked if folder has links or documents)
-- `/projects/:id/documents`:
-  - `POST` - upload a document file for a project (multipart/form-data: `name`, `description`, `folder_uid`, `file`; max 10 MB; allowed MIME types: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, PNG, JPEG, GIF, ZIP)
-- `/projects/:id/documents/:document_uid`:
-  - `GET` - fetch document metadata (returns ETag header)
-  - `DELETE` - delete a document (requires `If-Match: <etag>`)
-- `/projects/:id/documents/:document_uid/download`:
-  - `GET` - download the document binary (returns `Content-Disposition: attachment` with the original file name)
+| Method | Path | Description | Notes |
+|---|---|---|---|
+| `GET` | `/readyz` | Readiness check | |
+| `GET` | `/livez` | Liveness check | |
+| `GET` | `/projects` | List all projects | Will be removed in favour of the query service |
+| `POST` | `/projects` | Create a project | |
+| `GET` | `/projects/:id` | Get project base info | |
+| `PUT` | `/projects/:id` | Update project base info | See OpenAPI spec for updatable fields |
+| `DELETE` | `/projects/:id` | Delete a project | |
+| `GET` | `/projects/:id/settings` | Get project settings | |
+| `PUT` | `/projects/:id/settings` | Update project settings | |
+| `POST` | `/projects/:id/links` | Create a link | |
+| `GET` | `/projects/:id/links/:link_uid` | Get a link | Returns `ETag` header |
+| `DELETE` | `/projects/:id/links/:link_uid` | Delete a link | Requires `If-Match: <etag>` |
+| `POST` | `/projects/:id/folders` | Create a folder | Name must be unique per project |
+| `GET` | `/projects/:id/folders/:folder_uid` | Get a folder | Returns `ETag` header |
+| `DELETE` | `/projects/:id/folders/:folder_uid` | Delete a folder | Requires `If-Match: <etag>`; blocked if folder has contents |
+| `POST` | `/projects/:id/documents` | Upload a document | `multipart/form-data`: `name`, `description`, `folder_uid`, `file`; max 10 MB; PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, PNG, JPEG, GIF, ZIP |
+| `GET` | `/projects/:id/documents/:document_uid` | Get document metadata | Returns `ETag` header |
+| `DELETE` | `/projects/:id/documents/:document_uid` | Delete a document | Requires `If-Match: <etag>` |
+| `GET` | `/projects/:id/documents/:document_uid/download` | Download document binary | Returns `Content-Disposition: attachment` with original filename |
 
 ### NATS Message Handlers
 
-This service handles the following NATS subjects for inter-service communication:
+Request/reply RPC subjects — callers block waiting for a response:
 
-- `lfx.projects-api.get_name`: Get a project name from a given project UID
-- `lfx.projects-api.get_slug`: Get a project slug from a given project UID
-- `lfx.projects-api.get_logo`: Get a project logo URL from a given project UID
-- `lfx.projects-api.get_parent_uid`: Get a project's parent UID from a given project UID
-- `lfx.projects-api.get_writers`: Get a project's configured writers from a given project UID
-- `lfx.projects-api.slug_to_uid`: Get a project UID from a given project slug
+| Subject | Description |
+|---|---|
+| `lfx.projects-api.get_name` | Get a project name from a given project UID |
+| `lfx.projects-api.get_slug` | Get a project slug from a given project UID |
+| `lfx.projects-api.get_logo` | Get a project logo URL from a given project UID |
+| `lfx.projects-api.get_parent_uid` | Get a project's parent UID from a given project UID |
+| `lfx.projects-api.get_writers` | Get a project's configured writers from a given project UID |
+| `lfx.projects-api.slug_to_uid` | Get a project UID from a given project slug |
+
+### NATS Inbound Event Subscriptions
+
+Fire-and-forget event subscribers — no reply is sent to the publisher:
+
+| Subject | Publisher | Effect |
+|---|---|---|
+| `lfx.projects-api.project_settings.updated` | Self | Sends role-notification emails or invite requests when project membership changes |
+| `lfx.invite-service.invite_accepted` | invite-service | Promotes matching email-only members to full LFID membership across all their projects |
+| `lfx.projects-api.project_document.created` | Self | Emails project writers and auditors about the newly uploaded document |
+| `lfx.projects-api.project_link.created` | Self | Emails project writers and auditors about the newly added link |
 
 ### NATS Events Published
 
@@ -64,6 +69,9 @@ This service publishes the following NATS events:
     "new_settings": { /* ProjectSettings object */ }
   }
   ```
+
+- `lfx.projects-api.project_document.created`: Published when a file document is uploaded. Triggers email notifications to project writers and auditors.
+- `lfx.projects-api.project_link.created`: Published when a link is added to a project. Triggers email notifications to project writers and auditors.
 
 #### Indexer Contract
 
@@ -294,27 +302,37 @@ This service uses the generic FGA sync handlers for managing fine-grained access
 │   ├── domain/                     # Domain logic layer (business logic)
 │   │   └── models/                 # Domain models and entities
 │   ├── service/                    # Service logic layer (service implementations)
-│   ├── infrastructure/             # Infrastructure layer
-│   │   ├── auth/                   # Authentication abstractions
-│   │   └── nats/                   # NATS messaging and repository implementation
-│   ├── middleware/                 # HTTP middleware components
-│   └── log/                        # Logging utilities
+│   └── infrastructure/             # Infrastructure layer
+│       ├── auth/                   # Authentication abstractions
+│       ├── log/                    # Logging utilities
+│       ├── middleware/             # HTTP middleware components
+│       ├── nats/                   # NATS messaging and repository implementation
+│       └── opensearch/             # OpenSearch client
 └── pkg/                            # Shared packages
     └── constants/                  # Shared constants and configurations
 ```
 
 ## Development
 
+Before making any changes, read [CLAUDE.md](CLAUDE.md) — it is the authoritative guide for AI agents and human contributors alike. Non-Claude AI tools should read [AGENTS.md](AGENTS.md), which redirects to the same guide.
+
 To contribute to this repository:
 
-1. Fork the repository
-2. Commit your changes to a feature branch in your fork. Ensure your commits
-   are signed with the [Developer Certificate of Origin
-   (DCO)](https://developercertificate.org/).
-   You can use the `git commit -s` command to sign your commits.
-3. Ensure the chart version in `charts/lfx-v2-project-service/Chart.yaml` has been
+1. Fork the repository and install the git hooks: `make hooks` (or `make deps` which also installs them).
+2. Commit your changes to a feature branch. Branch names should follow the pattern `type/LFXV2-NNNN-short-topic`.
+3. Write commit messages following Angular conventional commits:
+   ```
+   type(scope): summary [LFXV2-NNNN]
+   ```
+   Valid types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `build`, `ci`, `perf`, `style`, `revert`.
+4. Every commit must be signed with both a GPG signature and a DCO sign-off:
+   ```bash
+   git commit -s -S
+   ```
+   See [CLAUDE.md](CLAUDE.md) for one-time GPG setup instructions.
+5. Ensure the chart version in `charts/lfx-v2-project-service/Chart.yaml` has been
    updated following semantic version conventions if you are making changes to the chart.
-4. Submit your pull request
+6. Submit your pull request. PR titles follow the same `type(scope): summary` format.
 
 For more details about development on this repository, read the [DEVELOPMENT.md](DEVELOPMENT.md).
 
