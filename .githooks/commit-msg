@@ -1,0 +1,55 @@
+#!/bin/sh
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+#
+# Commit-msg hook: validate Angular conventional commit format and DCO sign-off.
+# Installed automatically by `make deps` via `git config core.hooksPath .githooks`.
+
+COMMIT_MSG_FILE="$1"
+FIRST_LINE=$(head -1 "$COMMIT_MSG_FILE")
+
+# Skip merge commits, reverts, and interactive-rebase fixup/squash markers.
+case "$FIRST_LINE" in
+  Merge\ *|Revert\ *|fixup!\ *|squash!\ *)
+    exit 0
+    ;;
+esac
+
+# Validate Angular conventional commit format.
+# Pattern: type(scope): summary [LFXV2-NNNN]  (scope and ticket are optional)
+if ! echo "$FIRST_LINE" | grep -qE '^(feat|fix|refactor|docs|chore|test|perf)(\([a-z0-9/._-]+\))?: .+'; then
+  echo "ERROR: Commit message does not follow Angular conventional commit format."
+  echo ""
+  echo "  Expected: type(scope): summary [LFXV2-NNNN]"
+  echo "  Got:      $FIRST_LINE"
+  echo ""
+  echo "  Valid types: feat | fix | refactor | docs | chore | test | perf"
+  echo "  Examples:"
+  echo "    feat(project): add slug validation on create [LFXV2-1234]"
+  echo "    fix(nats): handle stale KV entry on concurrent update [LFXV2-5678]"
+  echo "    refactor(service): extract email renderer into dedicated package"
+  echo "    chore: bump golangci-lint to v1.62"
+  echo ""
+  exit 1
+fi
+
+# Reject placeholder Jira tickets (e.g. [LFXV2-0000]) — use the real ID or omit.
+if echo "$FIRST_LINE" | grep -qE '\[LFXV2-0+\]'; then
+  echo "ERROR: Do not use a placeholder Jira ticket like [LFXV2-0000]."
+  echo "  Use the real ticket ID or omit the bracket entirely."
+  exit 1
+fi
+
+# Validate DCO sign-off is present.
+if ! grep -q "^Signed-off-by: " "$COMMIT_MSG_FILE"; then
+  echo "ERROR: DCO sign-off is missing."
+  echo ""
+  echo "  Add it now:  git commit --amend -s"
+  echo "  Prevent it:  always use git commit -s -S"
+  echo ""
+  echo "  Required format: Signed-off-by: Your Name <your@email.com>"
+  echo ""
+  exit 1
+fi
+
+exit 0
