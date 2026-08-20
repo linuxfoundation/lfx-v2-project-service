@@ -223,3 +223,67 @@ func TestCreateProject(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveProjectSlug(t *testing.T) {
+	tests := []struct {
+		name            string
+		payload         *projsvc.ResolveProjectSlugPayload
+		setupMocks      func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		expectedError   bool
+		expectedErrType error
+		expectedUID     string
+	}{
+		{
+			name:    "success",
+			payload: &projsvc.ResolveProjectSlugPayload{Slug: "test-project"},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").
+					Return("787620d0-d7de-449a-b0bf-9d28b13da818", nil)
+			},
+			expectedError: false,
+			expectedUID:   "787620d0-d7de-449a-b0bf-9d28b13da818",
+		},
+		{
+			name:    "not found maps to 404",
+			payload: &projsvc.ResolveProjectSlugPayload{Slug: "nonexistent-slug"},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "nonexistent-slug").
+					Return("", domain.ErrProjectNotFound)
+			},
+			expectedError:   true,
+			expectedErrType: &projsvc.NotFoundError{},
+		},
+		{
+			name:    "repository error maps to 500",
+			payload: &projsvc.ResolveProjectSlugPayload{Slug: "test-project"},
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockMsg *domain.MockMessageBuilder) {
+				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").
+					Return("", domain.ErrInternal)
+			},
+			expectedError:   true,
+			expectedErrType: &projsvc.InternalServerError{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			api, mockRepo, mockMsg := setupAPI()
+			tt.setupMocks(mockRepo, mockMsg)
+
+			result, err := api.ResolveProjectSlug(context.Background(), tt.payload)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+				assert.IsType(t, tt.expectedErrType, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.expectedUID, result.UID)
+			}
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}

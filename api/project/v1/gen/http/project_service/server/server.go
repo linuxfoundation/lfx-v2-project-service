@@ -32,6 +32,7 @@ type Server struct {
 	UpdateProjectBase       http.Handler
 	UpdateProjectSettings   http.Handler
 	DeleteProject           http.Handler
+	ResolveProjectSlug      http.Handler
 	Readyz                  http.Handler
 	Livez                   http.Handler
 	CreateProjectLink       http.Handler
@@ -110,6 +111,7 @@ func New(
 			{"UpdateProjectBase", "PUT", "/projects/{uid}"},
 			{"UpdateProjectSettings", "PUT", "/projects/{uid}/settings"},
 			{"DeleteProject", "DELETE", "/projects/{uid}"},
+			{"ResolveProjectSlug", "GET", "/projects/slug-to-uid/{slug}"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"CreateProjectLink", "POST", "/projects/{uid}/links"},
@@ -134,6 +136,7 @@ func New(
 		UpdateProjectBase:       NewUpdateProjectBaseHandler(e.UpdateProjectBase, mux, decoder, encoder, errhandler, formatter),
 		UpdateProjectSettings:   NewUpdateProjectSettingsHandler(e.UpdateProjectSettings, mux, decoder, encoder, errhandler, formatter),
 		DeleteProject:           NewDeleteProjectHandler(e.DeleteProject, mux, decoder, encoder, errhandler, formatter),
+		ResolveProjectSlug:      NewResolveProjectSlugHandler(e.ResolveProjectSlug, mux, decoder, encoder, errhandler, formatter),
 		Readyz:                  NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
 		Livez:                   NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
 		CreateProjectLink:       NewCreateProjectLinkHandler(e.CreateProjectLink, mux, decoder, encoder, errhandler, formatter),
@@ -165,6 +168,7 @@ func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.UpdateProjectBase = m(s.UpdateProjectBase)
 	s.UpdateProjectSettings = m(s.UpdateProjectSettings)
 	s.DeleteProject = m(s.DeleteProject)
+	s.ResolveProjectSlug = m(s.ResolveProjectSlug)
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
 	s.CreateProjectLink = m(s.CreateProjectLink)
@@ -191,6 +195,7 @@ func Mount(mux goahttp.Muxer, h *Server) {
 	MountUpdateProjectBaseHandler(mux, h.UpdateProjectBase)
 	MountUpdateProjectSettingsHandler(mux, h.UpdateProjectSettings)
 	MountDeleteProjectHandler(mux, h.DeleteProject)
+	MountResolveProjectSlugHandler(mux, h.ResolveProjectSlug)
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
 	MountCreateProjectLinkHandler(mux, h.CreateProjectLink)
@@ -566,6 +571,60 @@ func NewDeleteProjectHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "delete-project")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountResolveProjectSlugHandler configures the mux to serve the
+// "project-service" service "resolve-project-slug" endpoint.
+func MountResolveProjectSlugHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/projects/slug-to-uid/{slug}", f)
+}
+
+// NewResolveProjectSlugHandler creates a HTTP handler which loads the HTTP
+// request and calls the "project-service" service "resolve-project-slug"
+// endpoint.
+func NewResolveProjectSlugHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeResolveProjectSlugRequest(mux, decoder)
+		encodeResponse = EncodeResolveProjectSlugResponse(encoder)
+		encodeError    = EncodeResolveProjectSlugError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "resolve-project-slug")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
 		payload, err := decodeRequest(r)
 		if err != nil {

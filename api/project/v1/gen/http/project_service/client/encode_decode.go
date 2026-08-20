@@ -1133,6 +1133,159 @@ func DecodeDeleteProjectResponse(decoder func(*http.Response) goahttp.Decoder, r
 	}
 }
 
+// BuildResolveProjectSlugRequest instantiates a HTTP request object with
+// method and path set to call the "project-service" service
+// "resolve-project-slug" endpoint
+func (c *Client) BuildResolveProjectSlugRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		slug string
+	)
+	{
+		p, ok := v.(*projectservice.ResolveProjectSlugPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "resolve-project-slug", "*projectservice.ResolveProjectSlugPayload", v)
+		}
+		slug = p.Slug
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: ResolveProjectSlugProjectServicePath(slug)}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "resolve-project-slug", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeResolveProjectSlugRequest returns an encoder for requests sent to the
+// project-service resolve-project-slug server.
+func EncodeResolveProjectSlugRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.ResolveProjectSlugPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "resolve-project-slug", "*projectservice.ResolveProjectSlugPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeResolveProjectSlugResponse returns a decoder for responses returned by
+// the project-service resolve-project-slug endpoint. restoreBody controls
+// whether the response body should be restored after having been read.
+// DecodeResolveProjectSlugResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeResolveProjectSlugResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body ResolveProjectSlugResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "resolve-project-slug", err)
+			}
+			err = ValidateResolveProjectSlugResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "resolve-project-slug", err)
+			}
+			res := NewResolveProjectSlugResultOK(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body ResolveProjectSlugBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "resolve-project-slug", err)
+			}
+			err = ValidateResolveProjectSlugBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "resolve-project-slug", err)
+			}
+			return nil, NewResolveProjectSlugBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body ResolveProjectSlugInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "resolve-project-slug", err)
+			}
+			err = ValidateResolveProjectSlugInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "resolve-project-slug", err)
+			}
+			return nil, NewResolveProjectSlugInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body ResolveProjectSlugNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "resolve-project-slug", err)
+			}
+			err = ValidateResolveProjectSlugNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "resolve-project-slug", err)
+			}
+			return nil, NewResolveProjectSlugNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body ResolveProjectSlugServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "resolve-project-slug", err)
+			}
+			err = ValidateResolveProjectSlugServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "resolve-project-slug", err)
+			}
+			return nil, NewResolveProjectSlugServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "resolve-project-slug", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // BuildReadyzRequest instantiates a HTTP request object with method and path
 // set to call the "project-service" service "readyz" endpoint
 func (c *Client) BuildReadyzRequest(ctx context.Context, v any) (*http.Request, error) {

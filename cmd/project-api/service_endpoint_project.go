@@ -124,3 +124,12 @@ func (s *ProjectsAPI) DeleteProject(ctx context.Context, payload *projsvc.Delete
 	}
 	return nil
 }
+
+// ResolveProjectSlug resolves a project slug to its UID.
+func (s *ProjectsAPI) ResolveProjectSlug(ctx context.Context, payload *projsvc.ResolveProjectSlugPayload) (*projsvc.ResolveProjectSlugResult, error) {
+	result, err := s.service.ResolveProjectSlug(ctx, payload)
+	if err != nil {
+		return nil, handleError(ctx, err)
+	}
+	return result, nil
+}

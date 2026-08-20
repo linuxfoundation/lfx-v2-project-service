@@ -48,6 +48,11 @@ func DeleteProjectProjectServicePath(uid string) string {
 	return fmt.Sprintf("/projects/%v", uid)
 }
 
+// ResolveProjectSlugProjectServicePath returns the URL path to the project-service service resolve-project-slug HTTP endpoint.
+func ResolveProjectSlugProjectServicePath(slug string) string {
+	return fmt.Sprintf("/projects/slug-to-uid/%v", slug)
+}
+
 // ReadyzProjectServicePath returns the URL path to the project-service service readyz HTTP endpoint.
 func ReadyzProjectServicePath() string {
 	return "/readyz"

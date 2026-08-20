@@ -29,6 +29,35 @@ spec:
           config:
             values:
               aud: {{ .Values.app.audience }}
+
+    # Internal-only: called by lfx-v2-helm's project_slug_resolver_contextualizer
+    # (from other services' Heimdall pipelines, e.g. lfx-v2-campaign-service),
+    # never directly by an end user. No anonymous_authenticator pairing here,
+    # unlike the public openapi:get rule above — the oidc authenticator is
+    # oauth2_introspection (validates against Authelia directly, not a
+    # Heimdall-minted JWT), so it accepts the raw end-user token the
+    # contextualizer forwards. Pairing it with anonymous_authenticator would
+    # let unauthenticated callers reach allow_all and get a free create_jwt
+    # token that then satisfies this endpoint's own Security(JWTAuth) check —
+    # i.e. anonymous slug-to-UID enumeration. Do not add it back.
+    - id: "rule:lfx:lfx-v2-project-service:projects:slug-to-uid"
+      allow_encoded_slashes: "off"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /projects/slug-to-uid/:slug
+      execute:
+        - authenticator: oidc
+        {{- if .Values.app.use_oidc_contextualizer }}
+        - contextualizer: oidc_contextualizer
+        {{- end }}
+        - authorizer: allow_all
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: {{ .Values.app.audience }}
+
     - id: "rule:lfx:lfx-v2-project-service:projects:create"
       allow_encoded_slashes: "off"
       match:

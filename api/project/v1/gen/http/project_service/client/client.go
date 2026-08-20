@@ -49,6 +49,10 @@ type Client struct {
 	// delete-project endpoint.
 	DeleteProjectDoer goahttp.Doer
 
+	// ResolveProjectSlug Doer is the HTTP client used to make requests to the
+	// resolve-project-slug endpoint.
+	ResolveProjectSlugDoer goahttp.Doer
+
 	// Readyz Doer is the HTTP client used to make requests to the readyz endpoint.
 	ReadyzDoer goahttp.Doer
 
@@ -128,6 +132,7 @@ func NewClient(
 		UpdateProjectBaseDoer:       doer,
 		UpdateProjectSettingsDoer:   doer,
 		DeleteProjectDoer:           doer,
+		ResolveProjectSlugDoer:      doer,
 		ReadyzDoer:                  doer,
 		LivezDoer:                   doer,
 		CreateProjectLinkDoer:       doer,
@@ -311,6 +316,30 @@ func (c *Client) DeleteProject() goa.Endpoint {
 		resp, err := c.DeleteProjectDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("project-service", "delete-project", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// ResolveProjectSlug returns an endpoint that makes HTTP requests to the
+// project-service service resolve-project-slug server.
+func (c *Client) ResolveProjectSlug() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeResolveProjectSlugRequest(c.encoder)
+		decodeResponse = DecodeResolveProjectSlugResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildResolveProjectSlugRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.ResolveProjectSlugDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "resolve-project-slug", err)
 		}
 		return decodeResponse(resp)
 	}

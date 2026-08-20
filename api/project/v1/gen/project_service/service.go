@@ -32,6 +32,8 @@ type Service interface {
 	UpdateProjectSettings(context.Context, *UpdateProjectSettingsPayload) (res *ProjectSettings, err error)
 	// Delete an existing project.
 	DeleteProject(context.Context, *DeleteProjectPayload) (err error)
+	// Resolve a project slug to its UID.
+	ResolveProjectSlug(context.Context, *ResolveProjectSlugPayload) (res *ResolveProjectSlugResult, err error)
 	// Check if the service is able to take inbound requests.
 	Readyz(context.Context) (res []byte, err error)
 	// Check if the service is alive.
@@ -82,7 +84,7 @@ const ServiceName = "project-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [19]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "readyz", "livez", "create-project-link", "get-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
+var MethodNames = [20]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
 
 type BadRequestError struct {
 	// HTTP status code
@@ -651,6 +653,24 @@ type ProjectSettings struct {
 	CreatedAt *string
 	// The date and time the project was last updated
 	UpdatedAt *string
+}
+
+// ResolveProjectSlugPayload is the payload type of the project-service service
+// resolve-project-slug method.
+type ResolveProjectSlugPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// Version of the API
+	Version *string
+	// Project slug, a short slugified name of the project
+	Slug string
+}
+
+// ResolveProjectSlugResult is the result type of the project-service service
+// resolve-project-slug method.
+type ResolveProjectSlugResult struct {
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
 }
 
 type ServiceUnavailableError struct {

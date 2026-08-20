@@ -617,6 +617,45 @@ func BuildDeleteProjectPayload(projectServiceDeleteProjectUID string, projectSer
 	return v, nil
 }
 
+// BuildResolveProjectSlugPayload builds the payload for the project-service
+// resolve-project-slug endpoint from CLI flags.
+func BuildResolveProjectSlugPayload(projectServiceResolveProjectSlugSlug string, projectServiceResolveProjectSlugVersion string, projectServiceResolveProjectSlugBearerToken string) (*projectservice.ResolveProjectSlugPayload, error) {
+	var err error
+	var slug string
+	{
+		slug = projectServiceResolveProjectSlugSlug
+		err = goa.MergeErrors(err, goa.ValidateFormat("slug", slug, goa.FormatRegexp))
+		err = goa.MergeErrors(err, goa.ValidatePattern("slug", slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceResolveProjectSlugVersion != "" {
+			version = &projectServiceResolveProjectSlugVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceResolveProjectSlugBearerToken != "" {
+			bearerToken = &projectServiceResolveProjectSlugBearerToken
+		}
+	}
+	v := &projectservice.ResolveProjectSlugPayload{}
+	v.Slug = slug
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v, nil
+}
+
 // BuildCreateProjectLinkPayload builds the payload for the project-service
 // create-project-link endpoint from CLI flags.
 func BuildCreateProjectLinkPayload(projectServiceCreateProjectLinkBody string, projectServiceCreateProjectLinkUID string, projectServiceCreateProjectLinkVersion string, projectServiceCreateProjectLinkBearerToken string, projectServiceCreateProjectLinkXSync string) (*projectservice.CreateProjectLinkPayload, error) {

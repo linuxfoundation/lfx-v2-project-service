@@ -110,6 +110,15 @@ func ProjectSettingsAttributes() {
 	ProjectUpdatedAtAttribute()
 }
 
+// ResolveProjectSlugResult is the DSL type for a project slug resolution result.
+var ResolveProjectSlugResult = Type("ResolveProjectSlugResult", func() {
+	Description("Result of resolving a project slug to its UID.")
+
+	ProjectUIDAttribute()
+
+	Required("uid")
+})
+
 //
 // Project attributes
 //
