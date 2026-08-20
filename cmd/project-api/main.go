@@ -394,6 +394,13 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulC
 	svc.service.UserReader = &internalnats.UserReaderNATS{
 		NatsConn: natsConn,
 	}
+	svc.service.Resolver = service.NewUserResolver(svc.service.UserReader)
+	svc.service.Dispatcher = service.NewNotificationDispatcher(
+		svc.service.MessageBuilder,
+		svc.service.Resolver,
+		svc.service.Config.EmailsEnabled,
+		svc.service.Config.InvitesEnabled,
+	)
 
 	// Create NATS subscriptions for the service.
 	err = createNatsSubcriptions(ctx, svc, natsConn)

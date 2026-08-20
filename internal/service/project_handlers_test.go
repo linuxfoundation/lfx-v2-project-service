@@ -755,14 +755,17 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					nil, domain.ErrInternal,
 				)
-
+				mockBuilder := &domain.MockMessageBuilder{}
+				resolver := NewUserResolver(&domain.MockUserReader{})
 				return &ProjectsService{
 					ProjectRepository:  mockRepo,
 					DocumentRepository: &domain.MockDocumentRepository{},
 					LinkRepository:     &domain.MockLinkRepository{},
 					FolderRepository:   &domain.MockFolderRepository{},
-					MessageBuilder:     &domain.MockMessageBuilder{},
+					MessageBuilder:     mockBuilder,
 					UserReader:         &domain.MockUserReader{},
+					Resolver:           resolver,
+					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
 					Auth:               &auth.MockJWTAuth{},
 				}
 			},

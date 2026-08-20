@@ -674,6 +674,49 @@ func createTestAPIUserInfo(username, name, email, avatar string) *projsvc.UserIn
 	}
 }
 
+// ProjectProjection wraps a fully-loaded project's domain models and provides
+// typed conversion methods to the Goa, event, and FGA type universes. Callers
+// that need multiple output shapes from the same (base, settings) pair build one
+// projection and call the relevant methods, rather than forwarding the pair to
+// each standalone converter independently.
+type ProjectProjection struct {
+	Base     *models.ProjectBase
+	Settings *models.ProjectSettings
+}
+
+// NewProjectProjection wraps base and settings into a projection. For most
+// methods both fields should be non-nil; nil-safety matches the behaviour of
+// the underlying converter helpers (ToFull and ToEventSettings are nil-safe;
+// ToServiceBase, ToServiceSettings, and ToFGAMessage require non-nil fields).
+func NewProjectProjection(base *models.ProjectBase, settings *models.ProjectSettings) ProjectProjection {
+	return ProjectProjection{Base: base, Settings: settings}
+}
+
+// ToFull converts to a Goa ProjectFull wire type (combines base and settings).
+func (p ProjectProjection) ToFull() *projsvc.ProjectFull {
+	return ConvertToProjectFull(p.Base, p.Settings)
+}
+
+// ToServiceBase converts the base model to a Goa ProjectBase wire type.
+func (p ProjectProjection) ToServiceBase() *projsvc.ProjectBase {
+	return ConvertToServiceProjectBase(p.Base)
+}
+
+// ToServiceSettings converts the settings model to a Goa ProjectSettings wire type.
+func (p ProjectProjection) ToServiceSettings() *projsvc.ProjectSettings {
+	return ConvertToServiceProjectSettings(p.Settings)
+}
+
+// ToEventSettings converts the settings model to a NATS event wire type.
+func (p ProjectProjection) ToEventSettings() events.ProjectSettings {
+	return DomainSettingsToEvent(p.Settings)
+}
+
+// ToFGAMessage builds the FGA update-access message for this project.
+func (p ProjectProjection) ToFGAMessage() fgatypes.GenericFGAMessage {
+	return buildFGAUpdateAccessMessage(p.Base, p.Settings)
+}
+
 // DomainDocumentToEvent converts an internal ProjectDocument to the NATS wire type.
 func DomainDocumentToEvent(doc *models.ProjectDocument) events.ProjectDocumentCreatedMessage {
 	folderUID := ""

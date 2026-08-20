@@ -15,6 +15,8 @@ type ProjectsService struct {
 	FolderRepository   domain.FolderRepository
 	MessageBuilder     domain.MessageBuilder
 	UserReader         domain.UserReader
+	Resolver           *UserResolver
+	Dispatcher         *NotificationDispatcher
 	Auth               domain.Authenticator
 	Config             ServiceConfig
 }
@@ -31,7 +33,7 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig) *Projec
 func (s *ProjectsService) ServiceReady() bool {
 	return s.ProjectRepository != nil && s.MessageBuilder != nil &&
 		s.DocumentRepository != nil && s.LinkRepository != nil && s.FolderRepository != nil &&
-		s.UserReader != nil
+		s.UserReader != nil && s.Resolver != nil && s.Dispatcher != nil
 }
 
 // ServiceConfig is the configuration for the ProjectsService.
