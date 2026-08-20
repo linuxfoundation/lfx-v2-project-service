@@ -226,11 +226,12 @@ func TestCreateProject(t *testing.T) {
 
 func TestResolveProjectSlug(t *testing.T) {
 	tests := []struct {
-		name          string
-		payload       *projsvc.ResolveProjectSlugPayload
-		setupMocks    func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
-		expectedError bool
-		expectedUID   string
+		name            string
+		payload         *projsvc.ResolveProjectSlugPayload
+		setupMocks      func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		expectedError   bool
+		expectedErrType error
+		expectedUID     string
 	}{
 		{
 			name:    "success",
@@ -249,7 +250,8 @@ func TestResolveProjectSlug(t *testing.T) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "nonexistent-slug").
 					Return("", domain.ErrProjectNotFound)
 			},
-			expectedError: true,
+			expectedError:   true,
+			expectedErrType: &projsvc.NotFoundError{},
 		},
 		{
 			name:    "repository error maps to 500",
@@ -258,7 +260,8 @@ func TestResolveProjectSlug(t *testing.T) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").
 					Return("", domain.ErrInternal)
 			},
-			expectedError: true,
+			expectedError:   true,
+			expectedErrType: &projsvc.InternalServerError{},
 		},
 	}
 
@@ -272,6 +275,7 @@ func TestResolveProjectSlug(t *testing.T) {
 			if tt.expectedError {
 				assert.Error(t, err)
 				assert.Nil(t, result)
+				assert.IsType(t, tt.expectedErrType, err)
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
