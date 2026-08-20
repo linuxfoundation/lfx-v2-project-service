@@ -114,10 +114,7 @@ func ProjectSettingsAttributes() {
 var ResolveProjectSlugResult = Type("ResolveProjectSlugResult", func() {
 	Description("Result of resolving a project slug to its UID.")
 
-	Attribute("uid", String, "Project UID", func() {
-		Example("7cad5a8d-19d0-41a4-81a6-043453daf9ee")
-		Format(FormatUUID)
-	})
+	ProjectUIDAttribute()
 
 	Required("uid")
 })

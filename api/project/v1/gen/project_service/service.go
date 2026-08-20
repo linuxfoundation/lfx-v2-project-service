@@ -669,7 +669,7 @@ type ResolveProjectSlugPayload struct {
 // ResolveProjectSlugResult is the result type of the project-service service
 // resolve-project-slug method.
 type ResolveProjectSlugResult struct {
-	// Project UID
+	// Project UID -- v2 uid, not related to v1 id directly
 	UID string
 }
 

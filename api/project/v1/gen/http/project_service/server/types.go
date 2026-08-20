@@ -359,7 +359,7 @@ type UpdateProjectSettingsResponseBody struct {
 // ResolveProjectSlugResponseBody is the type of the "project-service" service
 // "resolve-project-slug" endpoint HTTP response body.
 type ResolveProjectSlugResponseBody struct {
-	// Project UID
+	// Project UID -- v2 uid, not related to v1 id directly
 	UID string `form:"uid" json:"uid" xml:"uid"`
 }
 
