@@ -761,6 +761,8 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 				service.FolderRepository = &domain.MockFolderRepository{}
 				service.MessageBuilder = mockBuilder
 				service.UserReader = &domain.MockUserReader{}
+				service.Resolver = NewUserResolver(service.UserReader)
+				service.Dispatcher = NewNotificationDispatcher(service.MessageBuilder, service.Resolver, false, false)
 			} else {
 				// Use default setup
 				service, mockRepo, mockBuilder, mockAuth = setupServiceForTesting()
@@ -936,6 +938,16 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 		{
 			name:        "missing If-Match header",
 			payload:     &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1")},
+			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
+			wantErr:     true,
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name: "malformed If-Match header",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("not-a-number"),
+			},
 			setupMocks:  func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
 			wantErr:     true,
 			expectedErr: domain.ErrValidationFailed,
@@ -1393,4 +1405,6 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 // Note: isCrowdfundingOnly helper is fully covered through TestProjectsService_DeleteProject
 // test cases (successful deletion, rejection with mixed models, rejection without Crowdfunding,
 // rejection with empty/nil funding models). Testing unexported helpers directly is avoided per
-// project testing guidelines.
+// project testing guidelines. The resolveRevision helper is covered through the exported
+// UpdateProjectBase, UpdateProjectSettings, and DeleteProject tests (nil IfMatch, malformed
+// IfMatch, valid IfMatch, and SkipEtagValidation branches are all exercised there).

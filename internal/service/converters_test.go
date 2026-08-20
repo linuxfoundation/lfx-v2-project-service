@@ -765,3 +765,77 @@ func TestDomainLinkToEvent(t *testing.T) {
 		})
 	}
 }
+
+func TestProjectProjection(t *testing.T) {
+	base := &models.ProjectBase{
+		UID:    "00000000-0000-0000-0000-000000000001",
+		Slug:   "test-project",
+		Name:   "Test Project",
+		Public: true,
+	}
+	settings := &models.ProjectSettings{
+		UID:     "00000000-0000-0000-0000-000000000001",
+		Writers: []models.UserInfo{{Username: "alice"}},
+	}
+
+	tests := []struct {
+		name string
+		run  func(t *testing.T)
+	}{
+		{
+			name: "ToFull delegates to ConvertToProjectFull",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(base, settings)
+				assert.Equal(t, ConvertToProjectFull(base, settings), proj.ToFull())
+			},
+		},
+		{
+			name: "ToServiceBase delegates to ConvertToServiceProjectBase",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(base, settings)
+				assert.Equal(t, ConvertToServiceProjectBase(base), proj.ToServiceBase())
+			},
+		},
+		{
+			name: "ToServiceSettings delegates to ConvertToServiceProjectSettings",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(base, settings)
+				assert.Equal(t, ConvertToServiceProjectSettings(settings), proj.ToServiceSettings())
+			},
+		},
+		{
+			name: "ToEventSettings delegates to DomainSettingsToEvent",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(base, settings)
+				assert.Equal(t, DomainSettingsToEvent(settings), proj.ToEventSettings())
+			},
+		},
+		{
+			name: "ToFGAMessage delegates to buildFGAUpdateAccessMessage",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(base, settings)
+				assert.Equal(t, buildFGAUpdateAccessMessage(base, settings), proj.ToFGAMessage())
+			},
+		},
+		{
+			name: "ToFull with nil base returns nil",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(nil, settings)
+				assert.Nil(t, proj.ToFull())
+			},
+		},
+		{
+			name: "ToEventSettings with nil settings returns empty struct",
+			run: func(t *testing.T) {
+				proj := NewProjectProjection(base, nil)
+				assert.Equal(t, events.ProjectSettings{}, proj.ToEventSettings())
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.run(t)
+		})
+	}
+}

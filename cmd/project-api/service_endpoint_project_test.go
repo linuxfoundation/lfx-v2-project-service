@@ -40,6 +40,8 @@ func setupAPI() (*ProjectsAPI, *domain.MockProjectRepository, *domain.MockMessag
 		MessageBuilder:     mockMessageBuilder,
 		Auth:               mockJwtAuth,
 		UserReader:         mockUserReader,
+		Resolver:           service.NewUserResolver(mockUserReader),
+		Dispatcher:         service.NewNotificationDispatcher(mockMessageBuilder, service.NewUserResolver(mockUserReader), false, false),
 	}
 
 	api := &ProjectsAPI{

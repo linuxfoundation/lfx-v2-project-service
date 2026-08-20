@@ -123,6 +123,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 				FolderRepository:  mockFolder,
 				MessageBuilder:    mockMsg,
 				UserReader:        mockUserReader,
+				Resolver:          NewUserResolver(mockUserReader),
 				Config: ServiceConfig{
 					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 					EmailsEnabled:       tt.emailsEnabled,
@@ -168,6 +169,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			FolderRepository:  &domain.MockFolderRepository{},
 			MessageBuilder:    mockMsg,
 			UserReader:        mockUserReader,
+			Resolver:          NewUserResolver(mockUserReader),
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
 		}
 
@@ -200,6 +202,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 			FolderRepository:  &domain.MockFolderRepository{},
 			MessageBuilder:    mockMsg,
 			UserReader:        mockUserReader,
+			Resolver:          NewUserResolver(mockUserReader),
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
 		}
 
@@ -273,6 +276,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 				FolderRepository:  &domain.MockFolderRepository{},
 				MessageBuilder:    mockMsg,
 				UserReader:        mockUserReader,
+				Resolver:          NewUserResolver(mockUserReader),
 				Config: ServiceConfig{
 					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 					EmailsEnabled:       tt.emailsEnabled,

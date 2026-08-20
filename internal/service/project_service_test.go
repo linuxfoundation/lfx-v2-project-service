@@ -47,14 +47,19 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 		{
 			name: "service ready with all dependencies",
 			setupService: func() *ProjectsService {
+				mockUserReader := &domain.MockUserReader{}
+				mockBuilder := &domain.MockMessageBuilder{}
+				resolver := NewUserResolver(mockUserReader)
 				return &ProjectsService{
 					ProjectRepository:  &domain.MockProjectRepository{},
 					DocumentRepository: &domain.MockDocumentRepository{},
 					LinkRepository:     &domain.MockLinkRepository{},
 					FolderRepository:   &domain.MockFolderRepository{},
-					MessageBuilder:     &domain.MockMessageBuilder{},
+					MessageBuilder:     mockBuilder,
 					Auth:               &auth.MockJWTAuth{},
-					UserReader:         &domain.MockUserReader{},
+					UserReader:         mockUserReader,
+					Resolver:           resolver,
+					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
 				}
 			},
 			expectedReady: true,
@@ -95,17 +100,40 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 		{
 			name: "service ready without auth (auth is not checked in ServiceReady)",
 			setupService: func() *ProjectsService {
+				mockUserReader := &domain.MockUserReader{}
+				mockBuilder := &domain.MockMessageBuilder{}
+				resolver := NewUserResolver(mockUserReader)
+				return &ProjectsService{
+					ProjectRepository:  &domain.MockProjectRepository{},
+					DocumentRepository: &domain.MockDocumentRepository{},
+					LinkRepository:     &domain.MockLinkRepository{},
+					FolderRepository:   &domain.MockFolderRepository{},
+					MessageBuilder:     mockBuilder,
+					UserReader:         mockUserReader,
+					Resolver:           resolver,
+					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
+					Auth:               nil,
+				}
+			},
+			expectedReady: true,
+		},
+		{
+			name: "service not ready - missing dispatcher",
+			setupService: func() *ProjectsService {
+				mockUserReader := &domain.MockUserReader{}
 				return &ProjectsService{
 					ProjectRepository:  &domain.MockProjectRepository{},
 					DocumentRepository: &domain.MockDocumentRepository{},
 					LinkRepository:     &domain.MockLinkRepository{},
 					FolderRepository:   &domain.MockFolderRepository{},
 					MessageBuilder:     &domain.MockMessageBuilder{},
-					UserReader:         &domain.MockUserReader{},
-					Auth:               nil,
+					UserReader:         mockUserReader,
+					Resolver:           NewUserResolver(mockUserReader),
+					Dispatcher:         nil,
+					Auth:               &auth.MockJWTAuth{},
 				}
 			},
-			expectedReady: true,
+			expectedReady: false,
 		},
 		{
 			name: "service not ready - missing user reader",
@@ -171,6 +199,8 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	service.FolderRepository = &domain.MockFolderRepository{}
 	service.MessageBuilder = mockBuilder
 	service.UserReader = mockUserReader
+	service.Resolver = NewUserResolver(mockUserReader)
+	service.Dispatcher = NewNotificationDispatcher(mockBuilder, service.Resolver, false, false)
 
 	return service, mockRepo, mockBuilder, mockAuth
 }
