@@ -273,9 +273,10 @@ make check  # Check format and lint without modifying
 4. **Post-commit mode prompt for all three children (exact; identical apart from the skill name, filling in the pinned SHAs):**
 
    ```text
-   Load the skill <skill-name> with the Skill tool and follow it to review, then return its Markdown report verbatim as your final message.
+   Load the skill <skill-name> with the Skill tool and follow it to review, then return its Markdown report verbatim as your final message. If the Skill tool does not list <skill-name>, read <repo-root>/.claude/skills/<skill-name>/SKILL.md and follow that file exactly.
 
    target repo: lfx-v2-project-service
+   repo root: <absolute path to the repo checkout under review>
    target_sha: <target_sha>
    base_sha: <base_sha>
    review exactly: git diff <base_sha> <target_sha>
@@ -297,7 +298,7 @@ When the work is done and no more code commits are planned:
 
 1. **Wait for every running review to complete.**
 2. **If any returned review flags Critical or reasonable Important:** add a fix commit, then relaunch the same batch type you were draining (per-commit trio in normal flow; the full-branch sweep in the final-commit path), wait, and loop until clean or explicitly documented as a trade-off.
-3. **Full-branch sweep — if the branch has more than one commit, or always when the final commit's trio was skipped.** Run `git fetch origin`, pin `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git merge-base origin/main HEAD)`, then launch the same three children again (one parallel batch, generic subagents, `model: opus`, `run_in_background: true`, one skill each) with the same prompt shape, replacing the body with **`target repo: lfx-v2-project-service\nbranch\ntarget_sha: <target_sha>\nbase_sha: <base_sha>\nreview exactly: git diff <base_sha> <target_sha>\n\nReview the branch's diff against origin/main.`**. Address any new findings, then re-run the sweep until clean.
+3. **Full-branch sweep — if the branch has more than one commit, or always when the final commit's trio was skipped.** Run `git fetch origin`, pin `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git merge-base origin/main HEAD)`, then launch the same three children again (one parallel batch, generic subagents, `model: opus`, `run_in_background: true`, one skill each) with the same prompt shape (including the load-the-skill line, its fallback, and the `repo root:` line), replacing the body with **`target repo: lfx-v2-project-service\nrepo root: <path>\nbranch\ntarget_sha: <target_sha>\nbase_sha: <base_sha>\nreview exactly: git diff <base_sha> <target_sha>\n\nReview the branch's diff against origin/main.`**. Address any new findings, then re-run the sweep until clean.
 4. **Run `/project-service-pr-readiness`** for branch and commit shape only.
 5. **Run `/project-service-preflight`** for mechanical Go validation and PR summary.
 6. **Only then push and open the PR.**
