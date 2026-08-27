@@ -276,6 +276,7 @@ make check  # Check format and lint without modifying
    Load exactly one review skill: <skill-name>. Follow it to review and return its Markdown report as your final message.
    <fallback-line>
    The repo root line below is authoritative: run all git commands there and skip the loaded skill's repo-location search. The pinned target_sha/base_sha range below overrides any diff command in the loaded skill; never re-derive the range from HEAD or origin/main.
+   For file-content evidence, read added or modified files with git show <target_sha>:<path>; read deleted files with git show <base_sha>:<path>; and for renames read both git show <base_sha>:<old-path> and git show <target_sha>:<new-path>. Never use the moving working-tree copy as evidence.
    Report findings only; never edit tracked files, stage, commit, push, or write GitHub state.
 
    target repo: lfx-v2-project-service
@@ -310,6 +311,7 @@ When the work is done and no more code commits are planned:
    Load exactly one review skill: <skill-name>. Follow it to review and return its Markdown report as your final message.
    <fallback-line>
    The repo root line below is authoritative: run all git commands there and skip the loaded skill's repo-location search. The pinned target_sha/base_sha range below overrides any diff command in the loaded skill; never re-derive the range from HEAD or origin/main.
+   For file-content evidence, read added or modified files with git show <target_sha>:<path>; read deleted files with git show <base_sha>:<path>; and for renames read both git show <base_sha>:<old-path> and git show <target_sha>:<new-path>. Never use the moving working-tree copy as evidence.
    Report findings only; never edit tracked files, stage, commit, push, or write GitHub state.
 
    target repo: lfx-v2-project-service
