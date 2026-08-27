@@ -10,7 +10,7 @@ This guide provides essential information for Claude instances working with the 
 > - `/project-service-dev` at `.claude/skills/project-service-dev/` auto-attaches on Go and service paths and owns logging, errors, request context, pagination, generated-code boundary, NATS/KV publishing, tests, formatting, linting, and license headers for this repo.
 > - `/project-service-pr-readiness` checks pre-PR shape only: branch/JIRA/conventional commits/rebase/DCO+GPG/diff size/protected files.
 > - `/project-service-preflight` runs the mechanical Go pre-PR pipeline after readiness: working tree, license, formatting, lint, build, tests, protected files, commit verification, generated-code freshness, and change summary.
-> - `project-service-code-reviewer` at `.claude/skills/project-service-code-reviewer/` (alias `local-code-review`) and `project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` (alias `local-learnings-review`) are the repo-owned review brains loaded by the work cycle's review subagents — not skills a developer invokes by hand. The alias names are the ones that register with the Skill tool; a session that does not list them reads the skill's `SKILL.md` directly.
+> - `project-service-code-reviewer` at `.claude/skills/project-service-code-reviewer/` and `project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` are the repo-owned review brains loaded by the work cycle's review subagents — not skills a developer invokes by hand. Their stable path/discovery aliases are `local-code-review` and `local-learnings-review`; the physical skills' declared names are the canonical names used in launch prompts. A session that does not list a declared repo skill reads its physical `SKILL.md` directly.
 > - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates.
 > - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
 
@@ -261,45 +261,71 @@ make check  # Check format and lint without modifying
 
 ## Work cycle — post-commit and pre-PR reviews
 
-> **CRITICAL — while the branch is pre-PR, post-commit review is mandatory.** After every commit on the local branch, launch exactly three generic subagents via the Agent tool in one parallel batch (a single message), each with `model: opus` and `run_in_background: true` — then keep working while they run. Each child explicitly loads exactly one review skill: `lfx-skills:lfx-general-code-review`, this repo's `local-code-review` (the registered alias of `.claude/skills/project-service-code-reviewer/`), or this repo's `local-learnings-review` (the registered alias of `.claude/skills/project-service-learnings-reviewer/`). If Claude displays the plugin skill without the `lfx-skills:` namespace, use the displayed general code-review skill name. Before opening a PR, every running review must return clean (or remaining findings explicitly documented as trade-offs), the **full-branch sweep** must run clean if the branch has more than one commit or the final commit's trio was skipped (`branch` keyword), AND `/project-service-pr-readiness` must clear every Critical finding before `/project-service-preflight` runs.
+> **CRITICAL — while the branch is pre-PR, post-commit review is mandatory.** After every development commit on the local branch — except the final planned commit under the Final-commit optimization below — launch exactly three generic subagents via the Agent tool in one parallel batch (a single message), each with `model: opus` and `run_in_background: true`, then keep working while they run. Each child explicitly loads exactly one review skill: `lfx-skills:lfx-general-code-review`, this repo's `project-service-code-reviewer`, or this repo's `project-service-learnings-reviewer`. If Claude displays the plugin skill without the `lfx-skills:` namespace, use the displayed general code-review skill name. Before opening a PR, every review batch must complete successfully (or remaining findings must be explicitly documented as trade-offs), the **full-branch sweep** must run clean if the branch has more than one commit or the final commit's trio was skipped (`branch` keyword), AND `/project-service-pr-readiness` must clear every Critical finding before `/project-service-preflight` runs.
 >
 > **Once the PR is open, do NOT invoke these reviewers on iteration commits.** CodeRabbit + Copilot auto-trigger on every push and own the audit surface from that point. The general, project-service, and learnings reviewers are pre-PR insurance only.
 
 ### Post-commit (pre-PR phase, after every commit, asynchronous)
 
 1. **Commit your work.** `git commit -s -S`. Do not wait for any prior review to finish.
-2. **Pin the review range.** Compute once, before launching: `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git rev-parse HEAD^)` (the commit's first parent). All three children get these same immutable values; a child never re-derives them from a moving `HEAD`.
-3. **Launch all three review subagents in one parallel batch as soon as no batch is active.** Use the generic Agent tool (`subagent_type: general-purpose`) three times in a single message, each with `model: opus` and `run_in_background: true`. Each child loads exactly one skill: child 1 → `lfx-skills:lfx-general-code-review`; child 2 → `local-code-review` (the registered alias of `.claude/skills/project-service-code-reviewer/`); child 3 → `local-learnings-review` (the registered alias of `.claude/skills/project-service-learnings-reviewer/`). The alias names are the ones observed to register with the Skill tool (two paths to the same skill are deduplicated, and the alias name wins). If the Skill tool does not list a repo-owned skill, the child MUST read that skill's `SKILL.md` under `.claude/skills/` and follow it exactly; a missing `lfx-skills:*` plugin skill means the plugin needs installing, not a local file read.
-4. **Post-commit mode prompt for all three children (exact; identical apart from the skill name, filling in the pinned SHAs):**
+2. **Pin the review range before launching.** When no batch is active, compute `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git rev-parse HEAD^)` (the commit's first parent), and label the range `the latest commit`. If a commit lands while a batch is active, defer its launch. After that batch drains successfully, launch one coalesced batch with `base_sha` equal to the last successfully reviewed `target_sha`, `target_sha=$(git rev-parse HEAD)`, and the label `the commits since the last review`. This coalesced range covers every commit made while the previous batch ran, including two or more interim commits. All three children get the same immutable values and label; a child never re-derives them from a moving `HEAD`.
+3. **Launch all three review subagents in one parallel batch as soon as no batch is active.** Use the generic Agent tool (`subagent_type: general-purpose`) three times in a single message, each with `model: opus` and `run_in_background: true`. Child 1 loads only `lfx-skills:lfx-general-code-review`; child 2 loads only `project-service-code-reviewer`; child 3 loads only `project-service-learnings-reviewer`. `local-code-review` and `local-learnings-review` remain stable path/discovery aliases, but launch prompts use the physical skills' declared names. If the Skill tool does not list a declared repo skill, that child MUST read its physical `.claude/skills/<skill-name>/SKILL.md` and follow it exactly. A missing `lfx-skills:*` plugin skill means the plugin needs installing, not a local file read.
+4. **Post-commit mode prompt for each child (exact; substitute the assigned skill, its fallback line, the absolute repo root, pinned full SHAs, and range label):**
 
    ```text
-   Load the skill <skill-name> with the Skill tool and follow it to review, then return its Markdown report verbatim as your final message. If the Skill tool does not list a repo-owned skill (local-code-review, local-learnings-review), read <repo-root>/.claude/skills/<skill-name>/SKILL.md and follow that file exactly; if the plugin skill lfx-skills:lfx-general-code-review is not listed, the lfx-skills plugin needs installing — do not look for it under .claude/skills/.
-   The repo root: line below is authoritative — run all git commands there and skip the loaded skill's own repo-location search. The pinned target_sha/base_sha range below overrides any diff command in the loaded skill; never re-derive the range from HEAD or origin/main.
+   Load exactly one review skill: <skill-name>. Follow it to review and return its Markdown report as your final message.
+   <fallback-line>
+   The repo root line below is authoritative: run all git commands there and skip the loaded skill's repo-location search. The pinned target_sha/base_sha range below overrides any diff command in the loaded skill; never re-derive the range from HEAD or origin/main.
+   Report findings only; never edit tracked files, stage, commit, push, or write GitHub state.
 
    target repo: lfx-v2-project-service
    repo root: <absolute path to the repo checkout under review>
-   target_sha: <target_sha>
-   base_sha: <base_sha>
+   target_sha: <full 40-character target_sha>
+   base_sha: <full 40-character base_sha>
    review exactly: git diff <base_sha> <target_sha>
+   range label: <the latest commit | the commits since the last review>
 
-   Review the latest commit.
+   Lead your report with `Reviewed range: target_sha=<target_sha> base_sha=<base_sha>`, using the full 40-character SHAs. If the report is INCOMPLETE, the INCOMPLETE line must lead and that exact Reviewed range line must follow on the next line.
+
+   Review <range label>.
    ```
 
-   Append `extra: <focus>` on a new line only when there is a priority hint to add. Do NOT pass `branch` here. If this work cycle is launched from the LFX workspace parent, the `target repo:` line is required so all three children operate in this repo.
-5. **Keep working.** Start the next commit while the reviews run. Do not block on them.
-6. **When reviews return:** roll every Critical finding and every reasonable Important finding into the next commit. Review children only report; every fix lands in this parent session's next commit, never inside a review child.
+   The exact `<fallback-line>` for child 1 is: `If lfx-skills:lfx-general-code-review is not in the Skill tool, do not review unguided; return an INCOMPLETE report.` For child 2 it is: `If project-service-code-reviewer is not in the Skill tool, read <repo-root>/.claude/skills/project-service-code-reviewer/SKILL.md and follow it exactly as if loaded.` For child 3 it is: `If project-service-learnings-reviewer is not in the Skill tool, read <repo-root>/.claude/skills/project-service-learnings-reviewer/SKILL.md and follow it exactly as if loaded.` Append `extra: <focus>` on a new line only when there is a priority hint to add. Do NOT pass `branch` here. If this work cycle is launched from the LFX workspace parent, the `target repo:` and `repo root:` lines keep all three children in this repo.
+5. **Keep working.** Start the next commit while the reviews run. Do not block on them. If more commits land before the batch drains, use the coalesced range in step 2 after it completes.
+6. **Validate the whole batch, then use its findings.** Completion is all-or-none: all three children must return non-empty reports, load their assigned skills, avoid `INCOMPLETE`, and lead with the exact pinned full-SHA range. A failed, empty, wrong-range, or `INCOMPLETE` child invalidates the whole batch. Resolve the cause and relaunch all three children as one complete batch on the required range — never relaunch only one role. Only a valid three-report batch advances the last successfully reviewed `target_sha`. Then roll every Critical finding and every reasonable Important finding into the next commit. Review children only report; every fix lands in this parent session's next commit, never inside a review child.
 
-**Final-commit optimization.** When the commit just made is the final planned commit and work moves immediately into pre-PR, skip that commit's post-commit trio: drain the earlier reviews, then run only the full-branch sweep below — mandatory in this path even for a single-commit branch, since it covers the final commit. If sweep findings force a fix commit, do not run a per-commit trio on it; rerun the full-branch sweep instead. If development resumes with further commits, return to normal per-commit review.
+**Final-commit optimization.** When the commit just made is the final planned commit and work moves immediately into pre-PR, skip that commit's post-commit trio: drain the earlier reviews, then run only the full-branch sweep below — mandatory in this path even for a single-commit branch, since it covers the final commit. If sweep findings force a fix commit, do not run a per-commit trio on it; rerun the full-branch sweep instead. If development resumes with further commits, return to normal post-commit review.
 
-**Batch invariant.** At most ONE review batch may be active at a time, and every batch is exactly THREE children — one per skill, never six reviewers at once. You MUST drain the active batch (all three children returned) before launching another. NEVER launch the full-branch trio while a post-commit trio is still running, and NEVER launch both trios for the same final commit. In the final-commit path, launch NO post-commit batch at all — only the three-child full-branch batch. If a commit lands while a batch is still active, do NOT launch for it; that commit is covered by the next batch launched after the drain, or by the full-branch sweep.
+**Batch invariant.** At most ONE review batch may be active at a time, and every batch is exactly THREE children — one per skill, never six reviewers at once. You MUST drain and validate the active batch before launching another. NEVER launch the full-branch trio while a post-commit trio is still running, and NEVER launch both trios for the same final commit. In the final-commit path, launch NO post-commit batch at all — only the three-child full-branch batch. Commits made while a post-commit batch runs are covered after it drains by one coalesced batch from the last successfully reviewed target through current `HEAD`; they are never split into overlapping batches or skipped.
 
 ### Pre-PR (drain the queue, sweep cumulative state, then open)
 
 When the work is done and no more code commits are planned:
 
-1. **Wait for every running review to complete.**
-2. **If any returned review flags Critical or reasonable Important:** add a fix commit, then relaunch the same batch type you were draining (per-commit trio in normal flow; the full-branch sweep in the final-commit path), wait, and loop until clean or explicitly documented as a trade-off.
-3. **Full-branch sweep — if the branch has more than one commit, or always when the final commit's trio was skipped.** Run `git fetch origin`, pin `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git merge-base origin/main HEAD)`, then launch the same three children again (one parallel batch, generic subagents, `model: opus`, `run_in_background: true`, one skill each) with the same prompt shape (including the load-the-skill line, its fallback, and the `repo root:` line), replacing the body with **`target repo: lfx-v2-project-service\nrepo root: <path>\nbranch\ntarget_sha: <target_sha>\nbase_sha: <base_sha>\nreview exactly: git diff <base_sha> <target_sha>\n\nReview the branch's diff against origin/main.`**. Address any new findings, then re-run the sweep until clean.
+1. **Wait for every running review to complete and validate it all-or-none.** If any child failed, returned an empty or `INCOMPLETE` report, or reported a range other than the pinned full SHAs, reject the whole batch, resolve the cause, and relaunch all three roles together on the required range.
+2. **If a valid batch flags Critical or reasonable Important findings:** add a fix commit, then relaunch the same batch type on the new state (a coalesced post-commit batch in normal flow; the full-branch sweep in the final-commit path), wait, and loop until clean or explicitly documented as a trade-off.
+3. **Full-branch sweep — if the branch has more than one commit, or always when the final commit's trio was skipped.** Run `git fetch origin`, pin `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git merge-base origin/main HEAD)`, then launch the same three children in one parallel batch (`subagent_type: general-purpose`, `model: opus`, `run_in_background: true`, one physical declared skill name each) with this exact prompt, substituting the assigned skill, its step 4 fallback line, the absolute repo root, and pinned full SHAs:
+
+   ```text
+   Load exactly one review skill: <skill-name>. Follow it to review and return its Markdown report as your final message.
+   <fallback-line>
+   The repo root line below is authoritative: run all git commands there and skip the loaded skill's repo-location search. The pinned target_sha/base_sha range below overrides any diff command in the loaded skill; never re-derive the range from HEAD or origin/main.
+   Report findings only; never edit tracked files, stage, commit, push, or write GitHub state.
+
+   target repo: lfx-v2-project-service
+   repo root: <absolute path to the repo checkout under review>
+   branch
+   target_sha: <full 40-character target_sha>
+   base_sha: <full 40-character base_sha>
+   review exactly: git diff <base_sha> <target_sha>
+   range label: the branch's diff against origin/main
+
+   Lead your report with `Reviewed range: target_sha=<target_sha> base_sha=<base_sha>`, using the full 40-character SHAs. If the report is INCOMPLETE, the INCOMPLETE line must lead and that exact Reviewed range line must follow on the next line.
+
+   Review the branch's diff against origin/main.
+   ```
+
+   Validate the sweep all-or-none against the pinned range exactly as in post-commit step 6. A failed, empty, wrong-range, or `INCOMPLETE` child invalidates the whole sweep; resolve the cause and relaunch all three roles, never only one. Address any new findings, then rerun the complete sweep until clean or the remaining findings are explicitly documented as trade-offs.
 4. **Run `/project-service-pr-readiness`** for branch and commit shape only.
 5. **Run `/project-service-preflight`** for mechanical Go validation and PR summary.
 6. **Only then push and open the PR.**
