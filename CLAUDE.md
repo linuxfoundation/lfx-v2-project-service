@@ -10,6 +10,7 @@ This guide provides essential information for Claude instances working with the 
 > - `/project-service-dev` at `.claude/skills/project-service-dev/` auto-attaches on Go and service paths and owns logging, errors, request context, pagination, generated-code boundary, NATS/KV publishing, tests, formatting, linting, and license headers for this repo.
 > - `/project-service-pr-readiness` checks pre-PR shape only: branch/JIRA/conventional commits/rebase/DCO+GPG/diff size/protected files.
 > - `/project-service-preflight` runs the mechanical Go pre-PR pipeline after readiness: working tree, license, formatting, lint, build, tests, protected files, commit verification, generated-code freshness, and change summary.
+> - `project-service-code-reviewer` at `.claude/skills/project-service-code-reviewer/` (alias `local-code-review`) and `project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` (alias `local-learnings-review`) are the repo-owned review brains loaded by the work cycle's review subagents — not skills a developer invokes by hand.
 > - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates.
 > - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
 
@@ -260,25 +261,39 @@ make check  # Check format and lint without modifying
 
 ## Work cycle — post-commit and pre-PR reviews
 
-> **CRITICAL — while the branch is pre-PR, post-commit review is mandatory.** After every commit on the local branch, launch all three reviewer subagents via the Agent tool in parallel: `lfx-skills:lfx-general-code-reviewer`, `lfx-skills:lfx-project-service-code-reviewer`, AND `lfx-skills:lfx-project-service-learnings-reviewer` (each with `run_in_background: true`) — then keep working while they run. If Claude displays plugin agents without the `lfx-skills:` namespace, use the equivalent displayed general, project-service, and learnings reviewer names. Before opening a PR, every running review must return clean (or remaining findings explicitly documented as trade-offs), the **full-branch sweep** must run clean if the branch has more than one commit (`branch` arg), AND `/project-service-pr-readiness` must clear every Critical finding before `/project-service-preflight` runs.
+> **CRITICAL — while the branch is pre-PR, post-commit review is mandatory.** After every commit on the local branch, launch exactly three generic subagents via the Agent tool in one parallel batch (a single message), each with `model: opus` and `run_in_background: true` — then keep working while they run. Each child explicitly loads exactly one review skill: `lfx-skills:lfx-general-code-review`, this repo's `project-service-code-reviewer` (alias `local-code-review`), or this repo's `project-service-learnings-reviewer` (alias `local-learnings-review`). If Claude displays the plugin skill without the `lfx-skills:` namespace, use the displayed general code-review skill name. Before opening a PR, every running review must return clean (or remaining findings explicitly documented as trade-offs), the **full-branch sweep** must run clean if the branch has more than one commit (`branch` keyword), AND `/project-service-pr-readiness` must clear every Critical finding before `/project-service-preflight` runs.
 >
 > **Once the PR is open, do NOT invoke these reviewers on iteration commits.** CodeRabbit + Copilot auto-trigger on every push and own the audit surface from that point. The general, project-service, and learnings reviewers are pre-PR insurance only.
 
 ### Post-commit (pre-PR phase, after every commit, asynchronous)
 
 1. **Commit your work.** `git commit -s -S`. Do not wait for any prior review to finish.
-2. **Immediately launch all three reviewer subagents in parallel.** Use `subagent_type: lfx-skills:lfx-general-code-reviewer`, `subagent_type: lfx-skills:lfx-project-service-code-reviewer`, and `subagent_type: lfx-skills:lfx-project-service-learnings-reviewer`, each with `run_in_background: true`.
-3. **Post-commit mode prompt for all three reviewers (exact):** `target repo: lfx-v2-project-service\n\nReview the latest commit.` Append `extra: <focus>` on a new line only when there is a priority hint to add. Do NOT pass `branch` here. If this work cycle is launched from the LFX workspace parent, the `target repo:` line is required so all three reviewers operate in this repo.
-4. **Keep working.** Start the next commit while the reviewers run. Do not block on them.
-5. **When reviews return:** roll every Critical finding and every reasonable Important finding into the next commit.
+2. **Pin the review range.** Compute once, before launching: `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git rev-parse HEAD^)` (the commit's first parent). All three children get these same immutable values; a child never re-derives them from a moving `HEAD`.
+3. **Immediately launch all three review subagents in one parallel batch.** Use the generic Agent tool (`subagent_type: general-purpose`) three times in a single message, each with `model: opus` and `run_in_background: true`. Each child loads exactly one skill: child 1 → `lfx-skills:lfx-general-code-review`; child 2 → `project-service-code-reviewer` (at `.claude/skills/project-service-code-reviewer/`, alias `local-code-review`); child 3 → `project-service-learnings-reviewer` (at `.claude/skills/project-service-learnings-reviewer/`, alias `local-learnings-review`).
+4. **Post-commit mode prompt for all three children (exact; identical apart from the skill name, filling in the pinned SHAs):**
+
+   ```text
+   Load the skill <skill-name> with the Skill tool and follow it to review, then return its Markdown report verbatim as your final message.
+
+   target repo: lfx-v2-project-service
+   target_sha: <target_sha>
+   base_sha: <base_sha>
+   review exactly: git diff <base_sha> <target_sha>
+
+   Review the latest commit.
+   ```
+
+   Append `extra: <focus>` on a new line only when there is a priority hint to add. Do NOT pass `branch` here. If this work cycle is launched from the LFX workspace parent, the `target repo:` line is required so all three children operate in this repo.
+5. **Keep working.** Start the next commit while the reviews run. Do not block on them.
+6. **When reviews return:** roll every Critical finding and every reasonable Important finding into the next commit. Review children only report; every fix lands in this parent session's next commit, never inside a review child.
 
 ### Pre-PR (drain the queue, sweep cumulative state, then open)
 
 When the work is done and no more code commits are planned:
 
 1. **Wait for every running review to complete.**
-2. **If any returned review flags Critical or reasonable Important:** add a fix commit, launch all three reviewers again on the new state, wait, and loop until clean or explicitly documented as a trade-off.
-3. **Full-branch sweep — only if the branch has more than one commit.** Launch `lfx-skills:lfx-general-code-reviewer`, `lfx-skills:lfx-project-service-code-reviewer`, and `lfx-skills:lfx-project-service-learnings-reviewer` again with prompt **`target repo: lfx-v2-project-service\nbranch\n\nReview the branch's diff against origin/main.`**. Address any new findings, then re-run the sweep until clean.
+2. **If any returned review flags Critical or reasonable Important:** add a fix commit, launch all three review children again on the new state, wait, and loop until clean or explicitly documented as a trade-off.
+3. **Full-branch sweep — only if the branch has more than one commit.** Run `git fetch origin`, pin `target_sha=$(git rev-parse HEAD)` and `base_sha=$(git merge-base origin/main HEAD)`, then launch the same three children again (one parallel batch, generic subagents, `model: opus`, `run_in_background: true`, one skill each) with the same prompt shape, replacing the body with **`target repo: lfx-v2-project-service\nbranch\ntarget_sha: <target_sha>\nbase_sha: <base_sha>\nreview exactly: git diff <base_sha> <target_sha>\n\nReview the branch's diff against origin/main.`**. Address any new findings, then re-run the sweep until clean.
 4. **Run `/project-service-pr-readiness`** for branch and commit shape only.
 5. **Run `/project-service-preflight`** for mechanical Go validation and PR summary.
 6. **Only then push and open the PR.**
