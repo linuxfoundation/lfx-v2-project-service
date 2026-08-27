@@ -20,22 +20,28 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: go.mod
-      - uses: ko-build/setup-ko@v0.8
+      - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d # v0.9
         with:
           version: v0.17.1
-      - run: |
+      - env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/cmd/project-api \
             -B \
             --platform linux/amd64,linux/arm64 \
-            -t ${{ github.sha }} \
+            -t "${IMAGE_TAG}" \
             --sbom spdx
-      - run: |
+      - env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
           ko build github.com/linuxfoundation/lfx-v2-project-service/scripts/root-project-setup \
             -B \
             --platform linux/amd64,linux/arm64 \
-            -t ${{ github.sha }} \
+            -t "${IMAGE_TAG}" \
             --sbom spdx
