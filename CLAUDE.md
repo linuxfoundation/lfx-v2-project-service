@@ -289,6 +289,8 @@ make check  # Check format and lint without modifying
 
 **Final-commit optimization.** When the commit just made is the final planned commit and work moves immediately into pre-PR, skip that commit's post-commit trio: drain the earlier reviews, then run only the full-branch sweep below — mandatory in this path even for a single-commit branch, since it covers the final commit. If sweep findings force a fix commit, do not run a per-commit trio on it; rerun the full-branch sweep instead. If development resumes with further commits, return to normal per-commit review.
 
+**Batch invariant.** At most ONE review batch may be active at a time, and every batch is exactly THREE children — one per skill, never six reviewers at once. You MUST drain the active batch (all three children returned) before launching another. NEVER launch the full-branch trio while a post-commit trio is still running, and NEVER launch both trios for the same final commit. In the final-commit path, launch NO post-commit batch at all — only the three-child full-branch batch.
+
 ### Pre-PR (drain the queue, sweep cumulative state, then open)
 
 When the work is done and no more code commits are planned:
