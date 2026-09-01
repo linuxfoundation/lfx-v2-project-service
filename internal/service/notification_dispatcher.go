@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
@@ -129,6 +130,16 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 		return nil
 	}
 
+	// Check whether the recipient already has an LFX account so the invite service
+	// can choose the correct email template. Best-effort: any lookup error leaves
+	// recipientHasAccount false, which falls back to the new-user template safely.
+	recipientHasAccount := false
+	acctCtx, acctCancel := context.WithTimeout(ctx, notificationTimeout)
+	if username, lookupErr := d.resolver.UsernameByEmail(acctCtx, strings.TrimSpace(change.User.Email)); lookupErr == nil && username != "" {
+		recipientHasAccount = true
+	}
+	acctCancel()
+
 	// For Added: send an invite for every new role.
 	// For Changed: send an invite only for roles that are new (delta), not ones already held.
 	// Skip entirely when the only new roles are View-level while the user already holds Manage.
@@ -154,7 +165,7 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 			continue
 		}
 		seenInviteRole[inviteRole] = true
-		if err := d.sendInvite(ctx, projectUID, projectName, role, change.User.Email, recipientName, inviterName, projectURL); err != nil {
+		if err := d.sendInvite(ctx, projectUID, projectName, role, change.User.Email, recipientName, inviterName, projectURL, recipientHasAccount); err != nil {
 			return err
 		}
 	}
@@ -163,7 +174,7 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 
 // sendInvite sends a send-invite request to the invite service for a user
 // who does not yet have an LFID. The invite service renders and delivers the email.
-func (d *NotificationDispatcher) sendInvite(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, deepLinkURL string) error {
+func (d *NotificationDispatcher) sendInvite(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, deepLinkURL string, recipientHasAccount bool) error {
 	inviteRole := mapRoleToInviteRole(role)
 	if inviteRole == "" {
 		slog.WarnContext(ctx, "project_subscriber: skipping invite — unrecognised role",
@@ -190,9 +201,10 @@ func (d *NotificationDispatcher) sendInvite(ctx context.Context, projectUID, pro
 			Name: projectName,
 			Type: "project",
 		},
-		Role:           inviteRole,
-		ReturnURL:      deepLinkURL,
-		ExpirationDays: 30,
+		Role:                inviteRole,
+		ReturnURL:           deepLinkURL,
+		ExpirationDays:      30,
+		RecipientHasAccount: recipientHasAccount,
 	})
 	if err != nil {
 		slog.WarnContext(ctx, "project_subscriber: failed to send invite request",
