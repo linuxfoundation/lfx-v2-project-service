@@ -20,7 +20,7 @@ func TestAddProjectMarketingOpsMember(t *testing.T) {
 	tests := []struct {
 		name          string
 		payload       *projsvc.AddProjectMarketingOpsMemberPayload
-		setupMocks    func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		setupMocks    func(*domain.MockProjectRepository, *domain.MockMessageBuilder, *domain.MockUserReader)
 		expectedError bool
 	}{
 		{
@@ -29,7 +29,8 @@ func TestAddProjectMarketingOpsMember(t *testing.T) {
 				UID:      "project-uid-1",
 				Username: "bob-fixture",
 			},
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(&domain.UserMetadata{}, nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(&models.ProjectBase{UID: "project-uid-1"}, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(&models.ProjectSettings{UID: "project-uid-1"}, nil)
 				mockBuilder.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
@@ -42,7 +43,8 @@ func TestAddProjectMarketingOpsMember(t *testing.T) {
 				UID:      "missing",
 				Username: "bob-fixture",
 			},
-			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(&domain.UserMetadata{}, nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "missing").Return(nil, domain.ErrProjectNotFound)
 			},
 			expectedError: true,
@@ -53,7 +55,7 @@ func TestAddProjectMarketingOpsMember(t *testing.T) {
 				UID:      "project-uid-1",
 				Username: "",
 			},
-			setupMocks:    func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
+			setupMocks:    func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder, _ *domain.MockUserReader) {},
 			expectedError: true,
 		},
 	}
@@ -61,7 +63,8 @@ func TestAddProjectMarketingOpsMember(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			api, mockRepo, mockBuilder := setupAPI()
-			tt.setupMocks(mockRepo, mockBuilder)
+			mockUserReader := api.service.UserReader.(*domain.MockUserReader)
+			tt.setupMocks(mockRepo, mockBuilder, mockUserReader)
 
 			err := api.AddProjectMarketingOpsMember(context.Background(), tt.payload)
 

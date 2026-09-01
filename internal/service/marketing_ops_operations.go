@@ -32,6 +32,12 @@ func (s *ProjectsService) AddMarketingOpsMember(ctx context.Context, projectUID,
 		return domain.ErrValidationFailed
 	}
 
+	if _, err := s.UserReader.UserMetadataByPrincipal(ctx, username); err != nil {
+		slog.WarnContext(ctx, "marketing ops grant rejected: username does not resolve to a known user",
+			constants.ErrKey, err)
+		return domain.ErrValidationFailed
+	}
+
 	projectDB, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
 	if err != nil {
 		if errors.Is(err, domain.ErrProjectNotFound) {

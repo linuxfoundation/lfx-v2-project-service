@@ -19,7 +19,7 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 		name       string
 		projectUID string
 		username   string
-		setupMocks func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		setupMocks func(*domain.MockProjectRepository, *domain.MockMessageBuilder, *domain.MockUserReader)
 		notReady   bool
 		wantErr    error
 	}{
@@ -27,7 +27,8 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			name:       "success",
 			projectUID: "project-uid-1",
 			username:   "bob-fixture",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(&domain.UserMetadata{}, nil)
 				projectDB := &models.ProjectBase{UID: "project-uid-1", Slug: "test-project", Name: "Test Project"}
 				settingsDB := &models.ProjectSettings{UID: "project-uid-1"}
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
@@ -48,14 +49,24 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			name:       "empty username",
 			projectUID: "project-uid-1",
 			username:   "",
-			setupMocks: func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
+			setupMocks: func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder, _ *domain.MockUserReader) {},
 			wantErr:    domain.ErrValidationFailed,
+		},
+		{
+			name:       "username does not resolve",
+			projectUID: "project-uid-1",
+			username:   "unknown-user",
+			setupMocks: func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "unknown-user").Return(nil, domain.ErrUserNotFound)
+			},
+			wantErr: domain.ErrValidationFailed,
 		},
 		{
 			name:       "project not found",
 			projectUID: "missing",
 			username:   "bob-fixture",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(&domain.UserMetadata{}, nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "missing").Return(nil, domain.ErrProjectNotFound)
 			},
 			wantErr: domain.ErrProjectNotFound,
@@ -64,7 +75,8 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			name:       "get project base error",
 			projectUID: "project-uid-1",
 			username:   "bob-fixture",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(&domain.UserMetadata{}, nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(nil, domain.ErrInternal)
 			},
 			wantErr: domain.ErrInternal,
@@ -73,7 +85,8 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			name:       "get project settings error",
 			projectUID: "project-uid-1",
 			username:   "bob-fixture",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository, _ *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(&domain.UserMetadata{}, nil)
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(nil, domain.ErrInternal)
@@ -84,7 +97,8 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			name:       "publish failure",
 			projectUID: "project-uid-1",
 			username:   "bob-fixture",
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(&domain.UserMetadata{}, nil)
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				settingsDB := &models.ProjectSettings{UID: "project-uid-1"}
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
@@ -98,7 +112,7 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			name:       "service not ready",
 			projectUID: "project-uid-1",
 			username:   "bob-fixture",
-			setupMocks: func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder) {},
+			setupMocks: func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder, _ *domain.MockUserReader) {},
 			notReady:   true,
 			wantErr:    domain.ErrServiceUnavailable,
 		},
@@ -107,10 +121,11 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder, _ := setupServiceForTesting()
+			mockUserReader := service.UserReader.(*domain.MockUserReader)
 			if tt.notReady {
 				service.ProjectRepository = nil
 			}
-			tt.setupMocks(mockRepo, mockBuilder)
+			tt.setupMocks(mockRepo, mockBuilder, mockUserReader)
 
 			err := service.AddMarketingOpsMember(t.Context(), tt.projectUID, tt.username)
 
@@ -121,6 +136,7 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			}
 			mockRepo.AssertExpectations(t)
 			mockBuilder.AssertExpectations(t)
+			mockUserReader.AssertExpectations(t)
 		})
 	}
 }
