@@ -180,8 +180,9 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 	return nil
 }
 
-// sendInvite sends a send-invite request to the invite service for a user
-// who does not yet have an LFID. The invite service renders and delivers the email.
+// sendInvite sends a send-invite request to the invite service for a non-LFID user.
+// recipientHasAccount controls which email template the invite service renders:
+// true → existing-account path ("Accept invitation"); false → new-user path ("Accept invitation & create account").
 func (d *NotificationDispatcher) sendInvite(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, deepLinkURL string, recipientHasAccount bool) error {
 	inviteRole := mapRoleToInviteRole(role)
 	if inviteRole == "" {
