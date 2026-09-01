@@ -62,6 +62,15 @@ func TestProjectsService_AddMarketingOpsMember(t *testing.T) {
 			wantErr: domain.ErrValidationFailed,
 		},
 		{
+			name:       "user metadata lookup transport error",
+			projectUID: "project-uid-1",
+			username:   "bob-fixture",
+			setupMocks: func(_ *domain.MockProjectRepository, _ *domain.MockMessageBuilder, mockUserReader *domain.MockUserReader) {
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "bob-fixture").Return(nil, domain.ErrInternal)
+			},
+			wantErr: domain.ErrInternal,
+		},
+		{
 			name:       "project not found",
 			projectUID: "missing",
 			username:   "bob-fixture",

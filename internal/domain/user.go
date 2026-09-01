@@ -26,6 +26,7 @@ type UserMetadata struct {
 // UserReader retrieves user profile information from the auth service.
 type UserReader interface {
 	// UserMetadataByPrincipal retrieves profile metadata for a user by their principal.
+	// Returns ErrUserNotFound when no user is registered with that principal.
 	UserMetadataByPrincipal(ctx context.Context, principal string) (*UserMetadata, error)
 	// UsernameByEmail resolves the registered LFID username for the given primary email address.
 	// Returns ErrUserNotFound when no user is registered with that email.
