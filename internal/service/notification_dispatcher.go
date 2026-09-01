@@ -153,9 +153,11 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 	// can choose the correct email template. Best-effort: any lookup error leaves
 	// recipientHasAccount false, which falls back to the new-user template safely.
 	// Lookup runs after role resolution so we skip the RPC when no invites will be sent.
+	// Re-checking here despite the write path having confirmed no LFID: a sub-second race
+	// exists where the account could be created between the PUT and this event delivery.
 	recipientHasAccount := false
 	acctCtx, acctCancel := context.WithTimeout(ctx, notificationTimeout)
-	if username, lookupErr := d.resolver.UsernameByEmail(acctCtx, strings.TrimSpace(change.User.Email)); lookupErr == nil && username != "" {
+	if username, lookupErr := d.resolver.UsernameByEmail(acctCtx, strings.ToLower(strings.TrimSpace(change.User.Email))); lookupErr == nil && username != "" {
 		recipientHasAccount = true
 	} else if lookupErr != nil && !errors.Is(lookupErr, domain.ErrUserNotFound) {
 		slog.WarnContext(ctx, "project_subscriber: LFID lookup failed; falling back to new-user invite template",
@@ -180,9 +182,10 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 	return nil
 }
 
-// sendInvite sends a send-invite request to the invite service for a non-LFID user.
-// recipientHasAccount controls which email template the invite service renders:
-// true → existing-account path ("Accept invitation"); false → new-user path ("Accept invitation & create account").
+// sendInvite sends a send-invite request to the invite service for a member who has
+// no LFID recorded in the project settings entry. recipientHasAccount controls which
+// email template the invite service renders: true → existing-account path ("Accept
+// invitation"); false → new-user path ("Accept invitation & create account").
 func (d *NotificationDispatcher) sendInvite(ctx context.Context, projectUID, projectName, role, recipientEmail, recipientName, inviterName, deepLinkURL string, recipientHasAccount bool) error {
 	inviteRole := mapRoleToInviteRole(role)
 	if inviteRole == "" {

@@ -538,6 +538,49 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			},
 			wantRecipientHasAccount: false,
 		},
+		{
+			name: "non-LFID writer added — ErrUserNotFound — RecipientHasAccount false, invite still sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{noLFIDWriter},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-uid-new",
+			setupUserReader: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, noLFIDWriter.Email).Return("", domain.ErrUserNotFound)
+			},
+			wantRecipientHasAccount: false,
+		},
+		{
+			// The len(rolesToInvite)==0 early-return must skip the LFID lookup entirely.
+			// An empty setupUserReader mock panics on any unexpected UsernameByEmail call,
+			// which is the assertion.
+			name: "non-LFID writer loses writer (keeps auditor) — no lookup, no invite sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{noLFIDWriter},
+					Auditors: []events.UserInfo{noLFIDWriter},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{noLFIDWriter},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+			setupUserReader: func(u *domain.MockUserReader) {
+				// intentionally empty: any call to UsernameByEmail fails the test
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -576,7 +619,6 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				inviteReturnUID := tt.inviteUID
 				inviteReturnErr := tt.msgBuilderErr
 				mockMsg.On("SendInviteRequest", mock.Anything, mock.MatchedBy(func(req inviteapi.SendInviteRequest) bool {
-					capturedInviteReqs = append(capturedInviteReqs, req)
 					return req.Resource != nil &&
 						req.Resource.UID == wantProjectUID &&
 						(wantRole == "" || req.Role == wantRole) &&
@@ -587,7 +629,10 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					InviteUID:      inviteReturnUID,
 					RecipientEmail: "nonlfid@example.com",
 					ExpiresAt:      time.Now().Add(30 * 24 * time.Hour),
-				}, inviteReturnErr).Times(tt.wantInviteCount)
+				}, inviteReturnErr).Run(func(args mock.Arguments) {
+					req := args.Get(1).(inviteapi.SendInviteRequest)
+					capturedInviteReqs = append(capturedInviteReqs, req)
+				}).Times(tt.wantInviteCount)
 			}
 
 			if tt.setupRepoExtra != nil {
@@ -620,7 +665,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 			mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", tt.wantEmailCount)
 			mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", tt.wantInviteCount)
-			if tt.wantInviteCount > 0 && len(capturedInviteReqs) > 0 {
+			require.Len(t, capturedInviteReqs, tt.wantInviteCount)
+			if tt.wantInviteCount > 0 {
 				assert.Equal(t, tt.wantRecipientHasAccount, capturedInviteReqs[0].RecipientHasAccount, "RecipientHasAccount")
 			}
 			mockRepo.AssertExpectations(t)
