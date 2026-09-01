@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -130,16 +131,6 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 		return nil
 	}
 
-	// Check whether the recipient already has an LFX account so the invite service
-	// can choose the correct email template. Best-effort: any lookup error leaves
-	// recipientHasAccount false, which falls back to the new-user template safely.
-	recipientHasAccount := false
-	acctCtx, acctCancel := context.WithTimeout(ctx, notificationTimeout)
-	if username, lookupErr := d.resolver.UsernameByEmail(acctCtx, strings.TrimSpace(change.User.Email)); lookupErr == nil && username != "" {
-		recipientHasAccount = true
-	}
-	acctCancel()
-
 	// For Added: send an invite for every new role.
 	// For Changed: send an invite only for roles that are new (delta), not ones already held.
 	// Skip entirely when the only new roles are View-level while the user already holds Manage.
@@ -154,6 +145,20 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 		}
 		rolesToInvite = setDiffRoles(change.NewRoles, change.OldRoles)
 	}
+
+	// Check whether the recipient already has an LFX account so the invite service
+	// can choose the correct email template. Best-effort: any lookup error leaves
+	// recipientHasAccount false, which falls back to the new-user template safely.
+	// Lookup runs after role resolution so we skip the RPC when no invites will be sent.
+	recipientHasAccount := false
+	acctCtx, acctCancel := context.WithTimeout(ctx, notificationTimeout)
+	if username, lookupErr := d.resolver.UsernameByEmail(acctCtx, strings.TrimSpace(change.User.Email)); lookupErr == nil && username != "" {
+		recipientHasAccount = true
+	} else if lookupErr != nil && !errors.Is(lookupErr, domain.ErrUserNotFound) {
+		slog.WarnContext(ctx, "project_subscriber: LFID lookup failed; falling back to new-user invite template",
+			"project_uid", projectUID, constants.ErrKey, lookupErr)
+	}
+	acctCancel()
 
 	// Deduplicate by mapped invite role before sending — Writer and Meeting Coordinator
 	// both map to Manage, so having both in rolesToInvite would otherwise trigger two
