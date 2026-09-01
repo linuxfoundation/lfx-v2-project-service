@@ -870,7 +870,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 							UID:        "project-uid-1",
 							Public:     true,
 							Relations:  make(map[string][]string),
-							References: make(map[string][]string),
+							References: map[string][]string{"marketing_ops": {"team:marketing-ops-project-uid-1#member"}},
 						},
 					},
 				).Return(nil)
@@ -911,10 +911,13 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 						ObjectType: "project",
 						Operation:  "update_access",
 						Data: fgatypes.GenericAccessData{
-							UID:        "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
-							Public:     false,
-							Relations:  make(map[string][]string),
-							References: map[string][]string{"parent": {"project:11111111-2222-3333-4444-555555555555"}},
+							UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+							Public:    false,
+							Relations: make(map[string][]string),
+							References: map[string][]string{
+								"parent":        {"project:11111111-2222-3333-4444-555555555555"},
+								"marketing_ops": {"team:marketing-ops-aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee#member"},
+							},
 						},
 					},
 				).Return(nil)

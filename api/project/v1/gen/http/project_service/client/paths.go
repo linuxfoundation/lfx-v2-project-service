@@ -13,6 +13,16 @@ import (
 	"fmt"
 )
 
+// AddProjectMarketingOpsMemberProjectServicePath returns the URL path to the project-service service add-project-marketing-ops-member HTTP endpoint.
+func AddProjectMarketingOpsMemberProjectServicePath(uid string) string {
+	return fmt.Sprintf("/projects/%v/marketing-ops-members", uid)
+}
+
+// RemoveProjectMarketingOpsMemberProjectServicePath returns the URL path to the project-service service remove-project-marketing-ops-member HTTP endpoint.
+func RemoveProjectMarketingOpsMemberProjectServicePath(uid string, username string) string {
+	return fmt.Sprintf("/projects/%v/marketing-ops-members/%v", uid, username)
+}
+
 // GetProjectsProjectServicePath returns the URL path to the project-service service get-projects HTTP endpoint.
 func GetProjectsProjectServicePath() string {
 	return "/projects"

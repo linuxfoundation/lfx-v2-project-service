@@ -25,13 +25,13 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"project-service (get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
+		"project-service (add-project-marketing-ops-member|remove-project-marketing-ops-member|get-projects|create-project|get-one-project-base|get-one-project-settings|update-project-base|update-project-settings|delete-project|resolve-project-slug|readyz|livez|create-project-link|get-project-link|delete-project-link|create-project-folder|get-project-folder|delete-project-folder|upload-project-document|get-project-document|download-project-document|delete-project-document)",
 	}
 }
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " " + "project-service get-projects --version \"1\" --bearer-token \"eyJhbGci...\"" + "\n" +
+	return os.Args[0] + " " + "project-service add-project-marketing-ops-member --body '{\n      \"username\": \"johndoe123\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true" + "\n" +
 		""
 }
 
@@ -47,6 +47,20 @@ func ParseEndpoint(
 ) (goa.Endpoint, any, error) {
 	var (
 		projectServiceFlags = flag.NewFlagSet("project-service", flag.ContinueOnError)
+
+		projectServiceAddProjectMarketingOpsMemberFlags           = flag.NewFlagSet("add-project-marketing-ops-member", flag.ExitOnError)
+		projectServiceAddProjectMarketingOpsMemberBodyFlag        = projectServiceAddProjectMarketingOpsMemberFlags.String("body", "REQUIRED", "")
+		projectServiceAddProjectMarketingOpsMemberUIDFlag         = projectServiceAddProjectMarketingOpsMemberFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceAddProjectMarketingOpsMemberVersionFlag     = projectServiceAddProjectMarketingOpsMemberFlags.String("version", "", "")
+		projectServiceAddProjectMarketingOpsMemberBearerTokenFlag = projectServiceAddProjectMarketingOpsMemberFlags.String("bearer-token", "", "")
+		projectServiceAddProjectMarketingOpsMemberXSyncFlag       = projectServiceAddProjectMarketingOpsMemberFlags.String("x-sync", "", "")
+
+		projectServiceRemoveProjectMarketingOpsMemberFlags           = flag.NewFlagSet("remove-project-marketing-ops-member", flag.ExitOnError)
+		projectServiceRemoveProjectMarketingOpsMemberUIDFlag         = projectServiceRemoveProjectMarketingOpsMemberFlags.String("uid", "REQUIRED", "Project UID -- v2 uid, not related to v1 id directly")
+		projectServiceRemoveProjectMarketingOpsMemberUsernameFlag    = projectServiceRemoveProjectMarketingOpsMemberFlags.String("username", "REQUIRED", "The username/LFID of the user to grant or revoke marketing ops access")
+		projectServiceRemoveProjectMarketingOpsMemberVersionFlag     = projectServiceRemoveProjectMarketingOpsMemberFlags.String("version", "", "")
+		projectServiceRemoveProjectMarketingOpsMemberBearerTokenFlag = projectServiceRemoveProjectMarketingOpsMemberFlags.String("bearer-token", "", "")
+		projectServiceRemoveProjectMarketingOpsMemberXSyncFlag       = projectServiceRemoveProjectMarketingOpsMemberFlags.String("x-sync", "", "")
 
 		projectServiceGetProjectsFlags           = flag.NewFlagSet("get-projects", flag.ExitOnError)
 		projectServiceGetProjectsVersionFlag     = projectServiceGetProjectsFlags.String("version", "", "")
@@ -170,6 +184,8 @@ func ParseEndpoint(
 		projectServiceDeleteProjectDocumentIfMatchFlag     = projectServiceDeleteProjectDocumentFlags.String("if-match", "", "")
 	)
 	projectServiceFlags.Usage = projectServiceUsage
+	projectServiceAddProjectMarketingOpsMemberFlags.Usage = projectServiceAddProjectMarketingOpsMemberUsage
+	projectServiceRemoveProjectMarketingOpsMemberFlags.Usage = projectServiceRemoveProjectMarketingOpsMemberUsage
 	projectServiceGetProjectsFlags.Usage = projectServiceGetProjectsUsage
 	projectServiceCreateProjectFlags.Usage = projectServiceCreateProjectUsage
 	projectServiceGetOneProjectBaseFlags.Usage = projectServiceGetOneProjectBaseUsage
@@ -225,6 +241,12 @@ func ParseEndpoint(
 		switch svcn {
 		case "project-service":
 			switch epn {
+			case "add-project-marketing-ops-member":
+				epf = projectServiceAddProjectMarketingOpsMemberFlags
+
+			case "remove-project-marketing-ops-member":
+				epf = projectServiceRemoveProjectMarketingOpsMemberFlags
+
 			case "get-projects":
 				epf = projectServiceGetProjectsFlags
 
@@ -310,6 +332,12 @@ func ParseEndpoint(
 		case "project-service":
 			c := projectservicec.NewClient(scheme, host, doer, enc, dec, restore)
 			switch epn {
+			case "add-project-marketing-ops-member":
+				endpoint = c.AddProjectMarketingOpsMember()
+				data, err = projectservicec.BuildAddProjectMarketingOpsMemberPayload(*projectServiceAddProjectMarketingOpsMemberBodyFlag, *projectServiceAddProjectMarketingOpsMemberUIDFlag, *projectServiceAddProjectMarketingOpsMemberVersionFlag, *projectServiceAddProjectMarketingOpsMemberBearerTokenFlag, *projectServiceAddProjectMarketingOpsMemberXSyncFlag)
+			case "remove-project-marketing-ops-member":
+				endpoint = c.RemoveProjectMarketingOpsMember()
+				data, err = projectservicec.BuildRemoveProjectMarketingOpsMemberPayload(*projectServiceRemoveProjectMarketingOpsMemberUIDFlag, *projectServiceRemoveProjectMarketingOpsMemberUsernameFlag, *projectServiceRemoveProjectMarketingOpsMemberVersionFlag, *projectServiceRemoveProjectMarketingOpsMemberBearerTokenFlag, *projectServiceRemoveProjectMarketingOpsMemberXSyncFlag)
 			case "get-projects":
 				endpoint = c.GetProjects()
 				data, err = projectservicec.BuildGetProjectsPayload(*projectServiceGetProjectsVersionFlag, *projectServiceGetProjectsBearerTokenFlag)
@@ -384,6 +412,8 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, `The project service provides LFX Project resources.`)
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] project-service COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
+	fmt.Fprintln(os.Stderr, `    add-project-marketing-ops-member: Grant a user Marketing Ops access (Campaign Impact and Campaigns) scoped to a single project.`)
+	fmt.Fprintln(os.Stderr, `    remove-project-marketing-ops-member: Revoke a user's Marketing Ops access for a single project.`)
 	fmt.Fprintln(os.Stderr, `    get-projects: Get all projects.`)
 	fmt.Fprintln(os.Stderr, `    create-project: Create a new project.`)
 	fmt.Fprintln(os.Stderr, `    get-one-project-base: Get a single project's base information.`)
@@ -408,6 +438,58 @@ func projectServiceUsage() {
 	fmt.Fprintln(os.Stderr, "Additional help:")
 	fmt.Fprintf(os.Stderr, "    %s project-service COMMAND --help\n", os.Args[0])
 }
+func projectServiceAddProjectMarketingOpsMemberUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service add-project-marketing-ops-member", os.Args[0])
+	fmt.Fprint(os.Stderr, " -body JSON")
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Grant a user Marketing Ops access (Campaign Impact and Campaigns) scoped to a single project.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -body JSON: `)
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service add-project-marketing-ops-member --body '{\n      \"username\": \"johndoe123\"\n   }' --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true")
+}
+
+func projectServiceRemoveProjectMarketingOpsMemberUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] project-service remove-project-marketing-ops-member", os.Args[0])
+	fmt.Fprint(os.Stderr, " -uid STRING")
+	fmt.Fprint(os.Stderr, " -username STRING")
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprint(os.Stderr, " -x-sync BOOL")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Revoke a user's Marketing Ops access for a single project.`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -uid STRING: Project UID -- v2 uid, not related to v1 id directly`)
+	fmt.Fprintln(os.Stderr, `    -username STRING: The username/LFID of the user to grant or revoke marketing ops access`)
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+	fmt.Fprintln(os.Stderr, `    -x-sync BOOL: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "project-service remove-project-marketing-ops-member --uid \"7cad5a8d-19d0-41a4-81a6-043453daf9ee\" --username \"johndoe123\" --version \"1\" --bearer-token \"eyJhbGci...\" --x-sync true")
+}
+
 func projectServiceGetProjectsUsage() {
 	// Header with flags
 	fmt.Fprintf(os.Stderr, "%s [flags] project-service get-projects", os.Args[0])

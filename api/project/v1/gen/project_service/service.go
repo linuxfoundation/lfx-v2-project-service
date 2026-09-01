@@ -18,6 +18,11 @@ import (
 
 // The project service provides LFX Project resources.
 type Service interface {
+	// Grant a user Marketing Ops access (Campaign Impact and Campaigns) scoped to
+	// a single project.
+	AddProjectMarketingOpsMember(context.Context, *AddProjectMarketingOpsMemberPayload) (err error)
+	// Revoke a user's Marketing Ops access for a single project.
+	RemoveProjectMarketingOpsMember(context.Context, *RemoveProjectMarketingOpsMemberPayload) (err error)
 	// Get all projects.
 	GetProjects(context.Context, *GetProjectsPayload) (res *GetProjectsResult, err error)
 	// Create a new project.
@@ -84,7 +89,22 @@ const ServiceName = "project-service"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [20]string{"get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
+var MethodNames = [22]string{"add-project-marketing-ops-member", "remove-project-marketing-ops-member", "get-projects", "create-project", "get-one-project-base", "get-one-project-settings", "update-project-base", "update-project-settings", "delete-project", "resolve-project-slug", "readyz", "livez", "create-project-link", "get-project-link", "delete-project-link", "create-project-folder", "get-project-folder", "delete-project-folder", "upload-project-document", "get-project-document", "download-project-document", "delete-project-document"}
+
+// AddProjectMarketingOpsMemberPayload is the payload type of the
+// project-service service add-project-marketing-ops-member method.
+type AddProjectMarketingOpsMemberPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// The username/LFID of the user to grant or revoke marketing ops access
+	Username string
+}
 
 type BadRequestError struct {
 	// HTTP status code
@@ -653,6 +673,21 @@ type ProjectSettings struct {
 	CreatedAt *string
 	// The date and time the project was last updated
 	UpdatedAt *string
+}
+
+// RemoveProjectMarketingOpsMemberPayload is the payload type of the
+// project-service service remove-project-marketing-ops-member method.
+type RemoveProjectMarketingOpsMemberPayload struct {
+	// JWT token issued by Heimdall
+	BearerToken *string
+	// X-Sync header value for performing operations synchronously
+	XSync *bool
+	// Version of the API
+	Version *string
+	// Project UID -- v2 uid, not related to v1 id directly
+	UID string
+	// The username/LFID of the user to grant or revoke marketing ops access
+	Username string
 }
 
 // ResolveProjectSlugPayload is the payload type of the project-service service

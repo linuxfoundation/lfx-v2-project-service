@@ -19,6 +19,120 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
+// BuildAddProjectMarketingOpsMemberPayload builds the payload for the
+// project-service add-project-marketing-ops-member endpoint from CLI flags.
+func BuildAddProjectMarketingOpsMemberPayload(projectServiceAddProjectMarketingOpsMemberBody string, projectServiceAddProjectMarketingOpsMemberUID string, projectServiceAddProjectMarketingOpsMemberVersion string, projectServiceAddProjectMarketingOpsMemberBearerToken string, projectServiceAddProjectMarketingOpsMemberXSync string) (*projectservice.AddProjectMarketingOpsMemberPayload, error) {
+	var err error
+	var body AddProjectMarketingOpsMemberRequestBody
+	{
+		err = json.Unmarshal([]byte(projectServiceAddProjectMarketingOpsMemberBody), &body)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"username\": \"johndoe123\"\n   }'")
+		}
+	}
+	var uid string
+	{
+		uid = projectServiceAddProjectMarketingOpsMemberUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var version *string
+	{
+		if projectServiceAddProjectMarketingOpsMemberVersion != "" {
+			version = &projectServiceAddProjectMarketingOpsMemberVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceAddProjectMarketingOpsMemberBearerToken != "" {
+			bearerToken = &projectServiceAddProjectMarketingOpsMemberBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceAddProjectMarketingOpsMemberXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceAddProjectMarketingOpsMemberXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	v := &projectservice.AddProjectMarketingOpsMemberPayload{
+		Username: body.Username,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v, nil
+}
+
+// BuildRemoveProjectMarketingOpsMemberPayload builds the payload for the
+// project-service remove-project-marketing-ops-member endpoint from CLI flags.
+func BuildRemoveProjectMarketingOpsMemberPayload(projectServiceRemoveProjectMarketingOpsMemberUID string, projectServiceRemoveProjectMarketingOpsMemberUsername string, projectServiceRemoveProjectMarketingOpsMemberVersion string, projectServiceRemoveProjectMarketingOpsMemberBearerToken string, projectServiceRemoveProjectMarketingOpsMemberXSync string) (*projectservice.RemoveProjectMarketingOpsMemberPayload, error) {
+	var err error
+	var uid string
+	{
+		uid = projectServiceRemoveProjectMarketingOpsMemberUID
+		err = goa.MergeErrors(err, goa.ValidateFormat("uid", uid, goa.FormatUUID))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var username string
+	{
+		username = projectServiceRemoveProjectMarketingOpsMemberUsername
+	}
+	var version *string
+	{
+		if projectServiceRemoveProjectMarketingOpsMemberVersion != "" {
+			version = &projectServiceRemoveProjectMarketingOpsMemberVersion
+			if !(*version == "1") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", *version, []any{"1"}))
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	var bearerToken *string
+	{
+		if projectServiceRemoveProjectMarketingOpsMemberBearerToken != "" {
+			bearerToken = &projectServiceRemoveProjectMarketingOpsMemberBearerToken
+		}
+	}
+	var xSync *bool
+	{
+		if projectServiceRemoveProjectMarketingOpsMemberXSync != "" {
+			var val bool
+			val, err = strconv.ParseBool(projectServiceRemoveProjectMarketingOpsMemberXSync)
+			xSync = &val
+			if err != nil {
+				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
+			}
+		}
+	}
+	v := &projectservice.RemoveProjectMarketingOpsMemberPayload{}
+	v.UID = uid
+	v.Username = username
+	v.Version = version
+	v.BearerToken = bearerToken
+	v.XSync = xSync
+
+	return v, nil
+}
+
 // BuildGetProjectsPayload builds the payload for the project-service
 // get-projects endpoint from CLI flags.
 func BuildGetProjectsPayload(projectServiceGetProjectsVersion string, projectServiceGetProjectsBearerToken string) (*projectservice.GetProjectsPayload, error) {
