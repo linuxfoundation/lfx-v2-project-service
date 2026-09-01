@@ -19,26 +19,28 @@ import (
 
 // Endpoints wraps the "project-service" service endpoints.
 type Endpoints struct {
-	GetProjects             goa.Endpoint
-	CreateProject           goa.Endpoint
-	GetOneProjectBase       goa.Endpoint
-	GetOneProjectSettings   goa.Endpoint
-	UpdateProjectBase       goa.Endpoint
-	UpdateProjectSettings   goa.Endpoint
-	DeleteProject           goa.Endpoint
-	ResolveProjectSlug      goa.Endpoint
-	Readyz                  goa.Endpoint
-	Livez                   goa.Endpoint
-	CreateProjectLink       goa.Endpoint
-	GetProjectLink          goa.Endpoint
-	DeleteProjectLink       goa.Endpoint
-	CreateProjectFolder     goa.Endpoint
-	GetProjectFolder        goa.Endpoint
-	DeleteProjectFolder     goa.Endpoint
-	UploadProjectDocument   goa.Endpoint
-	GetProjectDocument      goa.Endpoint
-	DownloadProjectDocument goa.Endpoint
-	DeleteProjectDocument   goa.Endpoint
+	AddProjectMarketingOpsMember    goa.Endpoint
+	RemoveProjectMarketingOpsMember goa.Endpoint
+	GetProjects                     goa.Endpoint
+	CreateProject                   goa.Endpoint
+	GetOneProjectBase               goa.Endpoint
+	GetOneProjectSettings           goa.Endpoint
+	UpdateProjectBase               goa.Endpoint
+	UpdateProjectSettings           goa.Endpoint
+	DeleteProject                   goa.Endpoint
+	ResolveProjectSlug              goa.Endpoint
+	Readyz                          goa.Endpoint
+	Livez                           goa.Endpoint
+	CreateProjectLink               goa.Endpoint
+	GetProjectLink                  goa.Endpoint
+	DeleteProjectLink               goa.Endpoint
+	CreateProjectFolder             goa.Endpoint
+	GetProjectFolder                goa.Endpoint
+	DeleteProjectFolder             goa.Endpoint
+	UploadProjectDocument           goa.Endpoint
+	GetProjectDocument              goa.Endpoint
+	DownloadProjectDocument         goa.Endpoint
+	DeleteProjectDocument           goa.Endpoint
 }
 
 // DownloadProjectDocumentResponseData holds both the result and the HTTP
@@ -54,32 +56,36 @@ func NewEndpoints(s Service) *Endpoints {
 	// Casting service to Auther interface
 	a := s.(Auther)
 	return &Endpoints{
-		GetProjects:             NewGetProjectsEndpoint(s, a.JWTAuth),
-		CreateProject:           NewCreateProjectEndpoint(s, a.JWTAuth),
-		GetOneProjectBase:       NewGetOneProjectBaseEndpoint(s, a.JWTAuth),
-		GetOneProjectSettings:   NewGetOneProjectSettingsEndpoint(s, a.JWTAuth),
-		UpdateProjectBase:       NewUpdateProjectBaseEndpoint(s, a.JWTAuth),
-		UpdateProjectSettings:   NewUpdateProjectSettingsEndpoint(s, a.JWTAuth),
-		DeleteProject:           NewDeleteProjectEndpoint(s, a.JWTAuth),
-		ResolveProjectSlug:      NewResolveProjectSlugEndpoint(s, a.JWTAuth),
-		Readyz:                  NewReadyzEndpoint(s),
-		Livez:                   NewLivezEndpoint(s),
-		CreateProjectLink:       NewCreateProjectLinkEndpoint(s, a.JWTAuth),
-		GetProjectLink:          NewGetProjectLinkEndpoint(s, a.JWTAuth),
-		DeleteProjectLink:       NewDeleteProjectLinkEndpoint(s, a.JWTAuth),
-		CreateProjectFolder:     NewCreateProjectFolderEndpoint(s, a.JWTAuth),
-		GetProjectFolder:        NewGetProjectFolderEndpoint(s, a.JWTAuth),
-		DeleteProjectFolder:     NewDeleteProjectFolderEndpoint(s, a.JWTAuth),
-		UploadProjectDocument:   NewUploadProjectDocumentEndpoint(s, a.JWTAuth),
-		GetProjectDocument:      NewGetProjectDocumentEndpoint(s, a.JWTAuth),
-		DownloadProjectDocument: NewDownloadProjectDocumentEndpoint(s, a.JWTAuth),
-		DeleteProjectDocument:   NewDeleteProjectDocumentEndpoint(s, a.JWTAuth),
+		AddProjectMarketingOpsMember:    NewAddProjectMarketingOpsMemberEndpoint(s, a.JWTAuth),
+		RemoveProjectMarketingOpsMember: NewRemoveProjectMarketingOpsMemberEndpoint(s, a.JWTAuth),
+		GetProjects:                     NewGetProjectsEndpoint(s, a.JWTAuth),
+		CreateProject:                   NewCreateProjectEndpoint(s, a.JWTAuth),
+		GetOneProjectBase:               NewGetOneProjectBaseEndpoint(s, a.JWTAuth),
+		GetOneProjectSettings:           NewGetOneProjectSettingsEndpoint(s, a.JWTAuth),
+		UpdateProjectBase:               NewUpdateProjectBaseEndpoint(s, a.JWTAuth),
+		UpdateProjectSettings:           NewUpdateProjectSettingsEndpoint(s, a.JWTAuth),
+		DeleteProject:                   NewDeleteProjectEndpoint(s, a.JWTAuth),
+		ResolveProjectSlug:              NewResolveProjectSlugEndpoint(s, a.JWTAuth),
+		Readyz:                          NewReadyzEndpoint(s),
+		Livez:                           NewLivezEndpoint(s),
+		CreateProjectLink:               NewCreateProjectLinkEndpoint(s, a.JWTAuth),
+		GetProjectLink:                  NewGetProjectLinkEndpoint(s, a.JWTAuth),
+		DeleteProjectLink:               NewDeleteProjectLinkEndpoint(s, a.JWTAuth),
+		CreateProjectFolder:             NewCreateProjectFolderEndpoint(s, a.JWTAuth),
+		GetProjectFolder:                NewGetProjectFolderEndpoint(s, a.JWTAuth),
+		DeleteProjectFolder:             NewDeleteProjectFolderEndpoint(s, a.JWTAuth),
+		UploadProjectDocument:           NewUploadProjectDocumentEndpoint(s, a.JWTAuth),
+		GetProjectDocument:              NewGetProjectDocumentEndpoint(s, a.JWTAuth),
+		DownloadProjectDocument:         NewDownloadProjectDocumentEndpoint(s, a.JWTAuth),
+		DeleteProjectDocument:           NewDeleteProjectDocumentEndpoint(s, a.JWTAuth),
 	}
 }
 
 // Use applies the given middleware to all the "project-service" service
 // endpoints.
 func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
+	e.AddProjectMarketingOpsMember = m(e.AddProjectMarketingOpsMember)
+	e.RemoveProjectMarketingOpsMember = m(e.RemoveProjectMarketingOpsMember)
 	e.GetProjects = m(e.GetProjects)
 	e.CreateProject = m(e.CreateProject)
 	e.GetOneProjectBase = m(e.GetOneProjectBase)
@@ -100,6 +106,54 @@ func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.GetProjectDocument = m(e.GetProjectDocument)
 	e.DownloadProjectDocument = m(e.DownloadProjectDocument)
 	e.DeleteProjectDocument = m(e.DeleteProjectDocument)
+}
+
+// NewAddProjectMarketingOpsMemberEndpoint returns an endpoint function that
+// calls the method "add-project-marketing-ops-member" of service
+// "project-service".
+func NewAddProjectMarketingOpsMemberEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*AddProjectMarketingOpsMemberPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.AddProjectMarketingOpsMember(ctx, p)
+	}
+}
+
+// NewRemoveProjectMarketingOpsMemberEndpoint returns an endpoint function that
+// calls the method "remove-project-marketing-ops-member" of service
+// "project-service".
+func NewRemoveProjectMarketingOpsMemberEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*RemoveProjectMarketingOpsMemberPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		var token string
+		if p.BearerToken != nil {
+			token = *p.BearerToken
+		}
+		ctx, err = authJWTFn(ctx, token, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return nil, s.RemoveProjectMarketingOpsMember(ctx, p)
+	}
 }
 
 // NewGetProjectsEndpoint returns an endpoint function that calls the method

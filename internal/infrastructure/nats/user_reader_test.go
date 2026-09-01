@@ -199,6 +199,7 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 		replyErr   error
 		wantMeta   *domain.UserMetadata
 		wantErrStr string
+		wantErrIs  error
 	}{
 		{
 			name: "all fields populated",
@@ -241,9 +242,9 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 			wantMeta: &domain.UserMetadata{Name: "Bob"},
 		},
 		{
-			name:       "success=false returns error",
-			reply:      replyMsg([]byte(`{"success":false,"error":"not found"}`)),
-			wantErrStr: "user metadata not found",
+			name:      "success=false returns ErrUserNotFound",
+			reply:     replyMsg([]byte(`{"success":false,"error":"not found"}`)),
+			wantErrIs: domain.ErrUserNotFound,
 		},
 		{
 			name:       "malformed JSON returns parse error",
@@ -268,11 +269,16 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 			reader := &UserReaderNATS{NatsConn: mockConn}
 			got, err := reader.UserMetadataByPrincipal(context.Background(), "alice")
 
-			if tt.wantErrStr != "" {
+			switch {
+			case tt.wantErrIs != nil:
+				require.Error(t, err)
+				assert.ErrorIs(t, err, tt.wantErrIs)
+				assert.Nil(t, got)
+			case tt.wantErrStr != "":
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErrStr)
 				assert.Nil(t, got)
-			} else {
+			default:
 				require.NoError(t, err)
 				assert.Equal(t, tt.wantMeta, got)
 			}

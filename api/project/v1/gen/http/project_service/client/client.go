@@ -21,6 +21,14 @@ import (
 
 // Client lists the project-service service endpoint HTTP clients.
 type Client struct {
+	// AddProjectMarketingOpsMember Doer is the HTTP client used to make requests
+	// to the add-project-marketing-ops-member endpoint.
+	AddProjectMarketingOpsMemberDoer goahttp.Doer
+
+	// RemoveProjectMarketingOpsMember Doer is the HTTP client used to make
+	// requests to the remove-project-marketing-ops-member endpoint.
+	RemoveProjectMarketingOpsMemberDoer goahttp.Doer
+
 	// GetProjects Doer is the HTTP client used to make requests to the
 	// get-projects endpoint.
 	GetProjectsDoer goahttp.Doer
@@ -125,31 +133,81 @@ func NewClient(
 	restoreBody bool,
 ) *Client {
 	return &Client{
-		GetProjectsDoer:             doer,
-		CreateProjectDoer:           doer,
-		GetOneProjectBaseDoer:       doer,
-		GetOneProjectSettingsDoer:   doer,
-		UpdateProjectBaseDoer:       doer,
-		UpdateProjectSettingsDoer:   doer,
-		DeleteProjectDoer:           doer,
-		ResolveProjectSlugDoer:      doer,
-		ReadyzDoer:                  doer,
-		LivezDoer:                   doer,
-		CreateProjectLinkDoer:       doer,
-		GetProjectLinkDoer:          doer,
-		DeleteProjectLinkDoer:       doer,
-		CreateProjectFolderDoer:     doer,
-		GetProjectFolderDoer:        doer,
-		DeleteProjectFolderDoer:     doer,
-		UploadProjectDocumentDoer:   doer,
-		GetProjectDocumentDoer:      doer,
-		DownloadProjectDocumentDoer: doer,
-		DeleteProjectDocumentDoer:   doer,
-		RestoreResponseBody:         restoreBody,
-		scheme:                      scheme,
-		host:                        host,
-		decoder:                     dec,
-		encoder:                     enc,
+		AddProjectMarketingOpsMemberDoer:    doer,
+		RemoveProjectMarketingOpsMemberDoer: doer,
+		GetProjectsDoer:                     doer,
+		CreateProjectDoer:                   doer,
+		GetOneProjectBaseDoer:               doer,
+		GetOneProjectSettingsDoer:           doer,
+		UpdateProjectBaseDoer:               doer,
+		UpdateProjectSettingsDoer:           doer,
+		DeleteProjectDoer:                   doer,
+		ResolveProjectSlugDoer:              doer,
+		ReadyzDoer:                          doer,
+		LivezDoer:                           doer,
+		CreateProjectLinkDoer:               doer,
+		GetProjectLinkDoer:                  doer,
+		DeleteProjectLinkDoer:               doer,
+		CreateProjectFolderDoer:             doer,
+		GetProjectFolderDoer:                doer,
+		DeleteProjectFolderDoer:             doer,
+		UploadProjectDocumentDoer:           doer,
+		GetProjectDocumentDoer:              doer,
+		DownloadProjectDocumentDoer:         doer,
+		DeleteProjectDocumentDoer:           doer,
+		RestoreResponseBody:                 restoreBody,
+		scheme:                              scheme,
+		host:                                host,
+		decoder:                             dec,
+		encoder:                             enc,
+	}
+}
+
+// AddProjectMarketingOpsMember returns an endpoint that makes HTTP requests to
+// the project-service service add-project-marketing-ops-member server.
+func (c *Client) AddProjectMarketingOpsMember() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeAddProjectMarketingOpsMemberRequest(c.encoder)
+		decodeResponse = DecodeAddProjectMarketingOpsMemberResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildAddProjectMarketingOpsMemberRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.AddProjectMarketingOpsMemberDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "add-project-marketing-ops-member", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// RemoveProjectMarketingOpsMember returns an endpoint that makes HTTP requests
+// to the project-service service remove-project-marketing-ops-member server.
+func (c *Client) RemoveProjectMarketingOpsMember() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeRemoveProjectMarketingOpsMemberRequest(c.encoder)
+		decodeResponse = DecodeRemoveProjectMarketingOpsMemberResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildRemoveProjectMarketingOpsMemberRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.RemoveProjectMarketingOpsMemberDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("project-service", "remove-project-marketing-ops-member", err)
+		}
+		return decodeResponse(resp)
 	}
 }
 

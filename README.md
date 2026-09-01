@@ -29,6 +29,8 @@ The LFX v2 Project Service is a RESTful API service that manages projects within
 | `GET` | `/projects/:id/documents/:document_uid` | Get document metadata | Returns `ETag` header |
 | `DELETE` | `/projects/:id/documents/:document_uid` | Delete a document | Requires `If-Match: <etag>` |
 | `GET` | `/projects/:id/documents/:document_uid/download` | Download document binary | Returns `Content-Disposition: attachment` with original filename |
+| `POST` | `/projects/:id/marketing-ops-members` | Grant a user project-scoped Marketing Ops access | Body: `{ "username": "..." }`; adds the user to `team:marketing-ops-:id` (see `docs/fga-contract.md`) |
+| `DELETE` | `/projects/:id/marketing-ops-members/:username` | Revoke a user's project-scoped Marketing Ops access | Removes the user from `team:marketing-ops-:id` |
 | `GET` | `/projects/slug-to-uid/:slug` | Resolve a project slug to its UID | Requires authentication; returns `{ "uid": "..." }`. Internal-only HTTP transport adapter: exists because Heimdall's `project_slug_resolver_contextualizer` (defined in `lfx-v2-helm`, used by services like `lfx-v2-campaign-service` to authorize project-nested routes on UID-keyed OpenFGA tuples when the URL only carries a slug) can call HTTP but not this service's NATS RPC (`lfx.projects-api.slug_to_uid`) that already backs the same lookup. Not intended for direct end-user or browser use; its Heimdall rule intentionally omits `anonymous_authenticator` so anonymous callers cannot reach it. |
 
 ### NATS Message Handlers

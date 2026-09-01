@@ -16,6 +16,13 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
+// AddProjectMarketingOpsMemberRequestBody is the type of the "project-service"
+// service "add-project-marketing-ops-member" endpoint HTTP request body.
+type AddProjectMarketingOpsMemberRequestBody struct {
+	// The username/LFID of the user to grant or revoke marketing ops access
+	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
+}
+
 // CreateProjectRequestBody is the type of the "project-service" service
 // "create-project" endpoint HTTP request body.
 type CreateProjectRequestBody struct {
@@ -447,6 +454,86 @@ type UploadProjectDocumentResponseBody struct {
 // GetProjectDocumentResponseBody is the type of the "project-service" service
 // "get-project-document" endpoint HTTP response body.
 type GetProjectDocumentResponseBody ProjectDocumentResponseBody
+
+// AddProjectMarketingOpsMemberBadRequestResponseBody is the type of the
+// "project-service" service "add-project-marketing-ops-member" endpoint HTTP
+// response body for the "BadRequest" error.
+type AddProjectMarketingOpsMemberBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// AddProjectMarketingOpsMemberInternalServerErrorResponseBody is the type of
+// the "project-service" service "add-project-marketing-ops-member" endpoint
+// HTTP response body for the "InternalServerError" error.
+type AddProjectMarketingOpsMemberInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// AddProjectMarketingOpsMemberNotFoundResponseBody is the type of the
+// "project-service" service "add-project-marketing-ops-member" endpoint HTTP
+// response body for the "NotFound" error.
+type AddProjectMarketingOpsMemberNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// AddProjectMarketingOpsMemberServiceUnavailableResponseBody is the type of
+// the "project-service" service "add-project-marketing-ops-member" endpoint
+// HTTP response body for the "ServiceUnavailable" error.
+type AddProjectMarketingOpsMemberServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// RemoveProjectMarketingOpsMemberBadRequestResponseBody is the type of the
+// "project-service" service "remove-project-marketing-ops-member" endpoint
+// HTTP response body for the "BadRequest" error.
+type RemoveProjectMarketingOpsMemberBadRequestResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody is the type
+// of the "project-service" service "remove-project-marketing-ops-member"
+// endpoint HTTP response body for the "InternalServerError" error.
+type RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// RemoveProjectMarketingOpsMemberNotFoundResponseBody is the type of the
+// "project-service" service "remove-project-marketing-ops-member" endpoint
+// HTTP response body for the "NotFound" error.
+type RemoveProjectMarketingOpsMemberNotFoundResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
+// RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody is the type of
+// the "project-service" service "remove-project-marketing-ops-member" endpoint
+// HTTP response body for the "ServiceUnavailable" error.
+type RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
 // service "get-projects" endpoint HTTP response body for the "BadRequest"
@@ -1841,6 +1928,96 @@ func NewGetProjectDocumentResponseBody(res *projectservice.GetProjectDocumentRes
 	return body
 }
 
+// NewAddProjectMarketingOpsMemberBadRequestResponseBody builds the HTTP
+// response body from the result of the "add-project-marketing-ops-member"
+// endpoint of the "project-service" service.
+func NewAddProjectMarketingOpsMemberBadRequestResponseBody(res *projectservice.BadRequestError) *AddProjectMarketingOpsMemberBadRequestResponseBody {
+	body := &AddProjectMarketingOpsMemberBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewAddProjectMarketingOpsMemberInternalServerErrorResponseBody builds the
+// HTTP response body from the result of the "add-project-marketing-ops-member"
+// endpoint of the "project-service" service.
+func NewAddProjectMarketingOpsMemberInternalServerErrorResponseBody(res *projectservice.InternalServerError) *AddProjectMarketingOpsMemberInternalServerErrorResponseBody {
+	body := &AddProjectMarketingOpsMemberInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewAddProjectMarketingOpsMemberNotFoundResponseBody builds the HTTP response
+// body from the result of the "add-project-marketing-ops-member" endpoint of
+// the "project-service" service.
+func NewAddProjectMarketingOpsMemberNotFoundResponseBody(res *projectservice.NotFoundError) *AddProjectMarketingOpsMemberNotFoundResponseBody {
+	body := &AddProjectMarketingOpsMemberNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewAddProjectMarketingOpsMemberServiceUnavailableResponseBody builds the
+// HTTP response body from the result of the "add-project-marketing-ops-member"
+// endpoint of the "project-service" service.
+func NewAddProjectMarketingOpsMemberServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *AddProjectMarketingOpsMemberServiceUnavailableResponseBody {
+	body := &AddProjectMarketingOpsMemberServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewRemoveProjectMarketingOpsMemberBadRequestResponseBody builds the HTTP
+// response body from the result of the "remove-project-marketing-ops-member"
+// endpoint of the "project-service" service.
+func NewRemoveProjectMarketingOpsMemberBadRequestResponseBody(res *projectservice.BadRequestError) *RemoveProjectMarketingOpsMemberBadRequestResponseBody {
+	body := &RemoveProjectMarketingOpsMemberBadRequestResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewRemoveProjectMarketingOpsMemberInternalServerErrorResponseBody builds the
+// HTTP response body from the result of the
+// "remove-project-marketing-ops-member" endpoint of the "project-service"
+// service.
+func NewRemoveProjectMarketingOpsMemberInternalServerErrorResponseBody(res *projectservice.InternalServerError) *RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody {
+	body := &RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewRemoveProjectMarketingOpsMemberNotFoundResponseBody builds the HTTP
+// response body from the result of the "remove-project-marketing-ops-member"
+// endpoint of the "project-service" service.
+func NewRemoveProjectMarketingOpsMemberNotFoundResponseBody(res *projectservice.NotFoundError) *RemoveProjectMarketingOpsMemberNotFoundResponseBody {
+	body := &RemoveProjectMarketingOpsMemberNotFoundResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewRemoveProjectMarketingOpsMemberServiceUnavailableResponseBody builds the
+// HTTP response body from the result of the
+// "remove-project-marketing-ops-member" endpoint of the "project-service"
+// service.
+func NewRemoveProjectMarketingOpsMemberServiceUnavailableResponseBody(res *projectservice.ServiceUnavailableError) *RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody {
+	body := &RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
 // NewGetProjectsBadRequestResponseBody builds the HTTP response body from the
 // result of the "get-projects" endpoint of the "project-service" service.
 func NewGetProjectsBadRequestResponseBody(res *projectservice.BadRequestError) *GetProjectsBadRequestResponseBody {
@@ -2647,6 +2824,31 @@ func NewDeleteProjectDocumentServiceUnavailableResponseBody(res *projectservice.
 	return body
 }
 
+// NewAddProjectMarketingOpsMemberPayload builds a project-service service
+// add-project-marketing-ops-member endpoint payload.
+func NewAddProjectMarketingOpsMemberPayload(body *AddProjectMarketingOpsMemberRequestBody, uid string, version *string, bearerToken *string) *projectservice.AddProjectMarketingOpsMemberPayload {
+	v := &projectservice.AddProjectMarketingOpsMemberPayload{
+		Username: *body.Username,
+	}
+	v.UID = uid
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
+// NewRemoveProjectMarketingOpsMemberPayload builds a project-service service
+// remove-project-marketing-ops-member endpoint payload.
+func NewRemoveProjectMarketingOpsMemberPayload(uid string, username string, version *string, bearerToken *string) *projectservice.RemoveProjectMarketingOpsMemberPayload {
+	v := &projectservice.RemoveProjectMarketingOpsMemberPayload{}
+	v.UID = uid
+	v.Username = username
+	v.Version = version
+	v.BearerToken = bearerToken
+
+	return v
+}
+
 // NewGetProjectsPayload builds a project-service service get-projects endpoint
 // payload.
 func NewGetProjectsPayload(version *string, bearerToken *string) *projectservice.GetProjectsPayload {
@@ -2991,6 +3193,15 @@ func NewDeleteProjectDocumentPayload(uid string, documentUID string, version *st
 	v.IfMatch = ifMatch
 
 	return v
+}
+
+// ValidateAddProjectMarketingOpsMemberRequestBody runs the validations defined
+// on Add-Project-Marketing-Ops-MemberRequestBody
+func ValidateAddProjectMarketingOpsMemberRequestBody(body *AddProjectMarketingOpsMemberRequestBody) (err error) {
+	if body.Username == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("username", "body"))
+	}
+	return
 }
 
 // ValidateCreateProjectRequestBody runs the validations defined on

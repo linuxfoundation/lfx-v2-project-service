@@ -475,6 +475,8 @@ When deployed, the service uses OpenFGA for authorization:
 - **PUT /projects/:id** - Requires `writer` on project
 - **PUT /projects/:id/settings** - Requires `writer` on project
 - **DELETE /projects/:id** - Requires `owner` on project
+- **POST /projects/:id/marketing-ops-members** - Requires `owner` on project
+- **DELETE /projects/:id/marketing-ops-members/:username** - Requires `owner` on project
 
 ## Local Development Setup
 

@@ -23,6 +23,295 @@ import (
 	goahttp "goa.design/goa/v3/http"
 )
 
+// BuildAddProjectMarketingOpsMemberRequest instantiates a HTTP request object
+// with method and path set to call the "project-service" service
+// "add-project-marketing-ops-member" endpoint
+func (c *Client) BuildAddProjectMarketingOpsMemberRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid string
+	)
+	{
+		p, ok := v.(*projectservice.AddProjectMarketingOpsMemberPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "add-project-marketing-ops-member", "*projectservice.AddProjectMarketingOpsMemberPayload", v)
+		}
+		uid = p.UID
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: AddProjectMarketingOpsMemberProjectServicePath(uid)}
+	req, err := http.NewRequest("POST", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "add-project-marketing-ops-member", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeAddProjectMarketingOpsMemberRequest returns an encoder for requests
+// sent to the project-service add-project-marketing-ops-member server.
+func EncodeAddProjectMarketingOpsMemberRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.AddProjectMarketingOpsMemberPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "add-project-marketing-ops-member", "*projectservice.AddProjectMarketingOpsMemberPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		body := NewAddProjectMarketingOpsMemberRequestBody(p)
+		if err := encoder(req).Encode(&body); err != nil {
+			return goahttp.ErrEncodingError("project-service", "add-project-marketing-ops-member", err)
+		}
+		return nil
+	}
+}
+
+// DecodeAddProjectMarketingOpsMemberResponse returns a decoder for responses
+// returned by the project-service add-project-marketing-ops-member endpoint.
+// restoreBody controls whether the response body should be restored after
+// having been read.
+// DecodeAddProjectMarketingOpsMemberResponse may return the following errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeAddProjectMarketingOpsMemberResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusCreated:
+			return nil, nil
+		case http.StatusBadRequest:
+			var (
+				body AddProjectMarketingOpsMemberBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "add-project-marketing-ops-member", err)
+			}
+			err = ValidateAddProjectMarketingOpsMemberBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "add-project-marketing-ops-member", err)
+			}
+			return nil, NewAddProjectMarketingOpsMemberBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body AddProjectMarketingOpsMemberInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "add-project-marketing-ops-member", err)
+			}
+			err = ValidateAddProjectMarketingOpsMemberInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "add-project-marketing-ops-member", err)
+			}
+			return nil, NewAddProjectMarketingOpsMemberInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body AddProjectMarketingOpsMemberNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "add-project-marketing-ops-member", err)
+			}
+			err = ValidateAddProjectMarketingOpsMemberNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "add-project-marketing-ops-member", err)
+			}
+			return nil, NewAddProjectMarketingOpsMemberNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body AddProjectMarketingOpsMemberServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "add-project-marketing-ops-member", err)
+			}
+			err = ValidateAddProjectMarketingOpsMemberServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "add-project-marketing-ops-member", err)
+			}
+			return nil, NewAddProjectMarketingOpsMemberServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "add-project-marketing-ops-member", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildRemoveProjectMarketingOpsMemberRequest instantiates a HTTP request
+// object with method and path set to call the "project-service" service
+// "remove-project-marketing-ops-member" endpoint
+func (c *Client) BuildRemoveProjectMarketingOpsMemberRequest(ctx context.Context, v any) (*http.Request, error) {
+	var (
+		uid      string
+		username string
+	)
+	{
+		p, ok := v.(*projectservice.RemoveProjectMarketingOpsMemberPayload)
+		if !ok {
+			return nil, goahttp.ErrInvalidType("project-service", "remove-project-marketing-ops-member", "*projectservice.RemoveProjectMarketingOpsMemberPayload", v)
+		}
+		uid = p.UID
+		username = p.Username
+	}
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: RemoveProjectMarketingOpsMemberProjectServicePath(uid, username)}
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("project-service", "remove-project-marketing-ops-member", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeRemoveProjectMarketingOpsMemberRequest returns an encoder for requests
+// sent to the project-service remove-project-marketing-ops-member server.
+func EncodeRemoveProjectMarketingOpsMemberRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*projectservice.RemoveProjectMarketingOpsMemberPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("project-service", "remove-project-marketing-ops-member", "*projectservice.RemoveProjectMarketingOpsMemberPayload", v)
+		}
+		if p.BearerToken != nil {
+			head := *p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		if p.Version != nil {
+			values.Add("v", *p.Version)
+		}
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeRemoveProjectMarketingOpsMemberResponse returns a decoder for
+// responses returned by the project-service
+// remove-project-marketing-ops-member endpoint. restoreBody controls whether
+// the response body should be restored after having been read.
+// DecodeRemoveProjectMarketingOpsMemberResponse may return the following
+// errors:
+//   - "BadRequest" (type *projectservice.BadRequestError): http.StatusBadRequest
+//   - "InternalServerError" (type *projectservice.InternalServerError): http.StatusInternalServerError
+//   - "NotFound" (type *projectservice.NotFoundError): http.StatusNotFound
+//   - "ServiceUnavailable" (type *projectservice.ServiceUnavailableError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeRemoveProjectMarketingOpsMemberResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusNoContent:
+			return nil, nil
+		case http.StatusBadRequest:
+			var (
+				body RemoveProjectMarketingOpsMemberBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			err = ValidateRemoveProjectMarketingOpsMemberBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			return nil, NewRemoveProjectMarketingOpsMemberBadRequest(&body)
+		case http.StatusInternalServerError:
+			var (
+				body RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			err = ValidateRemoveProjectMarketingOpsMemberInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			return nil, NewRemoveProjectMarketingOpsMemberInternalServerError(&body)
+		case http.StatusNotFound:
+			var (
+				body RemoveProjectMarketingOpsMemberNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			err = ValidateRemoveProjectMarketingOpsMemberNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			return nil, NewRemoveProjectMarketingOpsMemberNotFound(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			err = ValidateRemoveProjectMarketingOpsMemberServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("project-service", "remove-project-marketing-ops-member", err)
+			}
+			return nil, NewRemoveProjectMarketingOpsMemberServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("project-service", "remove-project-marketing-ops-member", resp.StatusCode, string(body))
+		}
+	}
+}
+
 // BuildGetProjectsRequest instantiates a HTTP request object with method and
 // path set to call the "project-service" service "get-projects" endpoint
 func (c *Client) BuildGetProjectsRequest(ctx context.Context, v any) (*http.Request, error) {

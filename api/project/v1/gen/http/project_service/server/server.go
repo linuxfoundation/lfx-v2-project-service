@@ -24,31 +24,33 @@ import (
 
 // Server lists the project-service service endpoint HTTP handlers.
 type Server struct {
-	Mounts                  []*MountPoint
-	GetProjects             http.Handler
-	CreateProject           http.Handler
-	GetOneProjectBase       http.Handler
-	GetOneProjectSettings   http.Handler
-	UpdateProjectBase       http.Handler
-	UpdateProjectSettings   http.Handler
-	DeleteProject           http.Handler
-	ResolveProjectSlug      http.Handler
-	Readyz                  http.Handler
-	Livez                   http.Handler
-	CreateProjectLink       http.Handler
-	GetProjectLink          http.Handler
-	DeleteProjectLink       http.Handler
-	CreateProjectFolder     http.Handler
-	GetProjectFolder        http.Handler
-	DeleteProjectFolder     http.Handler
-	UploadProjectDocument   http.Handler
-	GetProjectDocument      http.Handler
-	DownloadProjectDocument http.Handler
-	DeleteProjectDocument   http.Handler
-	GenHTTPOpenapiJSON      http.Handler
-	GenHTTPOpenapiYaml      http.Handler
-	GenHTTPOpenapi3JSON     http.Handler
-	GenHTTPOpenapi3Yaml     http.Handler
+	Mounts                          []*MountPoint
+	AddProjectMarketingOpsMember    http.Handler
+	RemoveProjectMarketingOpsMember http.Handler
+	GetProjects                     http.Handler
+	CreateProject                   http.Handler
+	GetOneProjectBase               http.Handler
+	GetOneProjectSettings           http.Handler
+	UpdateProjectBase               http.Handler
+	UpdateProjectSettings           http.Handler
+	DeleteProject                   http.Handler
+	ResolveProjectSlug              http.Handler
+	Readyz                          http.Handler
+	Livez                           http.Handler
+	CreateProjectLink               http.Handler
+	GetProjectLink                  http.Handler
+	DeleteProjectLink               http.Handler
+	CreateProjectFolder             http.Handler
+	GetProjectFolder                http.Handler
+	DeleteProjectFolder             http.Handler
+	UploadProjectDocument           http.Handler
+	GetProjectDocument              http.Handler
+	DownloadProjectDocument         http.Handler
+	DeleteProjectDocument           http.Handler
+	GenHTTPOpenapiJSON              http.Handler
+	GenHTTPOpenapiYaml              http.Handler
+	GenHTTPOpenapi3JSON             http.Handler
+	GenHTTPOpenapi3Yaml             http.Handler
 }
 
 // MountPoint holds information about the mounted endpoints.
@@ -104,6 +106,8 @@ func New(
 	fileSystemGenHTTPOpenapi3Yaml = appendPrefix(fileSystemGenHTTPOpenapi3Yaml, "/gen/http")
 	return &Server{
 		Mounts: []*MountPoint{
+			{"AddProjectMarketingOpsMember", "POST", "/projects/{uid}/marketing-ops-members"},
+			{"RemoveProjectMarketingOpsMember", "DELETE", "/projects/{uid}/marketing-ops-members/{username}"},
 			{"GetProjects", "GET", "/projects"},
 			{"CreateProject", "POST", "/projects"},
 			{"GetOneProjectBase", "GET", "/projects/{uid}"},
@@ -129,30 +133,32 @@ func New(
 			{"Serve gen/http/openapi3.json", "GET", "/_projects/openapi3.json"},
 			{"Serve gen/http/openapi3.yaml", "GET", "/_projects/openapi3.yaml"},
 		},
-		GetProjects:             NewGetProjectsHandler(e.GetProjects, mux, decoder, encoder, errhandler, formatter),
-		CreateProject:           NewCreateProjectHandler(e.CreateProject, mux, decoder, encoder, errhandler, formatter),
-		GetOneProjectBase:       NewGetOneProjectBaseHandler(e.GetOneProjectBase, mux, decoder, encoder, errhandler, formatter),
-		GetOneProjectSettings:   NewGetOneProjectSettingsHandler(e.GetOneProjectSettings, mux, decoder, encoder, errhandler, formatter),
-		UpdateProjectBase:       NewUpdateProjectBaseHandler(e.UpdateProjectBase, mux, decoder, encoder, errhandler, formatter),
-		UpdateProjectSettings:   NewUpdateProjectSettingsHandler(e.UpdateProjectSettings, mux, decoder, encoder, errhandler, formatter),
-		DeleteProject:           NewDeleteProjectHandler(e.DeleteProject, mux, decoder, encoder, errhandler, formatter),
-		ResolveProjectSlug:      NewResolveProjectSlugHandler(e.ResolveProjectSlug, mux, decoder, encoder, errhandler, formatter),
-		Readyz:                  NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
-		Livez:                   NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
-		CreateProjectLink:       NewCreateProjectLinkHandler(e.CreateProjectLink, mux, decoder, encoder, errhandler, formatter),
-		GetProjectLink:          NewGetProjectLinkHandler(e.GetProjectLink, mux, decoder, encoder, errhandler, formatter),
-		DeleteProjectLink:       NewDeleteProjectLinkHandler(e.DeleteProjectLink, mux, decoder, encoder, errhandler, formatter),
-		CreateProjectFolder:     NewCreateProjectFolderHandler(e.CreateProjectFolder, mux, decoder, encoder, errhandler, formatter),
-		GetProjectFolder:        NewGetProjectFolderHandler(e.GetProjectFolder, mux, decoder, encoder, errhandler, formatter),
-		DeleteProjectFolder:     NewDeleteProjectFolderHandler(e.DeleteProjectFolder, mux, decoder, encoder, errhandler, formatter),
-		UploadProjectDocument:   NewUploadProjectDocumentHandler(e.UploadProjectDocument, mux, NewProjectServiceUploadProjectDocumentDecoder(mux, projectServiceUploadProjectDocumentDecoderFn), encoder, errhandler, formatter),
-		GetProjectDocument:      NewGetProjectDocumentHandler(e.GetProjectDocument, mux, decoder, encoder, errhandler, formatter),
-		DownloadProjectDocument: NewDownloadProjectDocumentHandler(e.DownloadProjectDocument, mux, decoder, encoder, errhandler, formatter),
-		DeleteProjectDocument:   NewDeleteProjectDocumentHandler(e.DeleteProjectDocument, mux, decoder, encoder, errhandler, formatter),
-		GenHTTPOpenapiJSON:      http.FileServer(fileSystemGenHTTPOpenapiJSON),
-		GenHTTPOpenapiYaml:      http.FileServer(fileSystemGenHTTPOpenapiYaml),
-		GenHTTPOpenapi3JSON:     http.FileServer(fileSystemGenHTTPOpenapi3JSON),
-		GenHTTPOpenapi3Yaml:     http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
+		AddProjectMarketingOpsMember:    NewAddProjectMarketingOpsMemberHandler(e.AddProjectMarketingOpsMember, mux, decoder, encoder, errhandler, formatter),
+		RemoveProjectMarketingOpsMember: NewRemoveProjectMarketingOpsMemberHandler(e.RemoveProjectMarketingOpsMember, mux, decoder, encoder, errhandler, formatter),
+		GetProjects:                     NewGetProjectsHandler(e.GetProjects, mux, decoder, encoder, errhandler, formatter),
+		CreateProject:                   NewCreateProjectHandler(e.CreateProject, mux, decoder, encoder, errhandler, formatter),
+		GetOneProjectBase:               NewGetOneProjectBaseHandler(e.GetOneProjectBase, mux, decoder, encoder, errhandler, formatter),
+		GetOneProjectSettings:           NewGetOneProjectSettingsHandler(e.GetOneProjectSettings, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectBase:               NewUpdateProjectBaseHandler(e.UpdateProjectBase, mux, decoder, encoder, errhandler, formatter),
+		UpdateProjectSettings:           NewUpdateProjectSettingsHandler(e.UpdateProjectSettings, mux, decoder, encoder, errhandler, formatter),
+		DeleteProject:                   NewDeleteProjectHandler(e.DeleteProject, mux, decoder, encoder, errhandler, formatter),
+		ResolveProjectSlug:              NewResolveProjectSlugHandler(e.ResolveProjectSlug, mux, decoder, encoder, errhandler, formatter),
+		Readyz:                          NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
+		Livez:                           NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
+		CreateProjectLink:               NewCreateProjectLinkHandler(e.CreateProjectLink, mux, decoder, encoder, errhandler, formatter),
+		GetProjectLink:                  NewGetProjectLinkHandler(e.GetProjectLink, mux, decoder, encoder, errhandler, formatter),
+		DeleteProjectLink:               NewDeleteProjectLinkHandler(e.DeleteProjectLink, mux, decoder, encoder, errhandler, formatter),
+		CreateProjectFolder:             NewCreateProjectFolderHandler(e.CreateProjectFolder, mux, decoder, encoder, errhandler, formatter),
+		GetProjectFolder:                NewGetProjectFolderHandler(e.GetProjectFolder, mux, decoder, encoder, errhandler, formatter),
+		DeleteProjectFolder:             NewDeleteProjectFolderHandler(e.DeleteProjectFolder, mux, decoder, encoder, errhandler, formatter),
+		UploadProjectDocument:           NewUploadProjectDocumentHandler(e.UploadProjectDocument, mux, NewProjectServiceUploadProjectDocumentDecoder(mux, projectServiceUploadProjectDocumentDecoderFn), encoder, errhandler, formatter),
+		GetProjectDocument:              NewGetProjectDocumentHandler(e.GetProjectDocument, mux, decoder, encoder, errhandler, formatter),
+		DownloadProjectDocument:         NewDownloadProjectDocumentHandler(e.DownloadProjectDocument, mux, decoder, encoder, errhandler, formatter),
+		DeleteProjectDocument:           NewDeleteProjectDocumentHandler(e.DeleteProjectDocument, mux, decoder, encoder, errhandler, formatter),
+		GenHTTPOpenapiJSON:              http.FileServer(fileSystemGenHTTPOpenapiJSON),
+		GenHTTPOpenapiYaml:              http.FileServer(fileSystemGenHTTPOpenapiYaml),
+		GenHTTPOpenapi3JSON:             http.FileServer(fileSystemGenHTTPOpenapi3JSON),
+		GenHTTPOpenapi3Yaml:             http.FileServer(fileSystemGenHTTPOpenapi3Yaml),
 	}
 }
 
@@ -161,6 +167,8 @@ func (s *Server) Service() string { return "project-service" }
 
 // Use wraps the server handlers with the given middleware.
 func (s *Server) Use(m func(http.Handler) http.Handler) {
+	s.AddProjectMarketingOpsMember = m(s.AddProjectMarketingOpsMember)
+	s.RemoveProjectMarketingOpsMember = m(s.RemoveProjectMarketingOpsMember)
 	s.GetProjects = m(s.GetProjects)
 	s.CreateProject = m(s.CreateProject)
 	s.GetOneProjectBase = m(s.GetOneProjectBase)
@@ -188,6 +196,8 @@ func (s *Server) MethodNames() []string { return projectservice.MethodNames[:] }
 
 // Mount configures the mux to serve the project-service endpoints.
 func Mount(mux goahttp.Muxer, h *Server) {
+	MountAddProjectMarketingOpsMemberHandler(mux, h.AddProjectMarketingOpsMember)
+	MountRemoveProjectMarketingOpsMemberHandler(mux, h.RemoveProjectMarketingOpsMember)
 	MountGetProjectsHandler(mux, h.GetProjects)
 	MountCreateProjectHandler(mux, h.CreateProject)
 	MountGetOneProjectBaseHandler(mux, h.GetOneProjectBase)
@@ -217,6 +227,114 @@ func Mount(mux goahttp.Muxer, h *Server) {
 // Mount configures the mux to serve the project-service endpoints.
 func (s *Server) Mount(mux goahttp.Muxer) {
 	Mount(mux, s)
+}
+
+// MountAddProjectMarketingOpsMemberHandler configures the mux to serve the
+// "project-service" service "add-project-marketing-ops-member" endpoint.
+func MountAddProjectMarketingOpsMemberHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("POST", "/projects/{uid}/marketing-ops-members", f)
+}
+
+// NewAddProjectMarketingOpsMemberHandler creates a HTTP handler which loads
+// the HTTP request and calls the "project-service" service
+// "add-project-marketing-ops-member" endpoint.
+func NewAddProjectMarketingOpsMemberHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeAddProjectMarketingOpsMemberRequest(mux, decoder)
+		encodeResponse = EncodeAddProjectMarketingOpsMemberResponse(encoder)
+		encodeError    = EncodeAddProjectMarketingOpsMemberError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "add-project-marketing-ops-member")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountRemoveProjectMarketingOpsMemberHandler configures the mux to serve the
+// "project-service" service "remove-project-marketing-ops-member" endpoint.
+func MountRemoveProjectMarketingOpsMemberHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("DELETE", "/projects/{uid}/marketing-ops-members/{username}", f)
+}
+
+// NewRemoveProjectMarketingOpsMemberHandler creates a HTTP handler which loads
+// the HTTP request and calls the "project-service" service
+// "remove-project-marketing-ops-member" endpoint.
+func NewRemoveProjectMarketingOpsMemberHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeRemoveProjectMarketingOpsMemberRequest(mux, decoder)
+		encodeResponse = EncodeRemoveProjectMarketingOpsMemberResponse(encoder)
+		encodeError    = EncodeRemoveProjectMarketingOpsMemberError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "remove-project-marketing-ops-member")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "project-service")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
 }
 
 // MountGetProjectsHandler configures the mux to serve the "project-service"

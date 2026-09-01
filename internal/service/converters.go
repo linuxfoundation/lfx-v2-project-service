@@ -11,6 +11,7 @@ import (
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 )
@@ -561,6 +562,15 @@ func extractUsernames(users []models.UserInfo) []string {
 	return usernames
 }
 
+// marketingOpsTeamID derives the per-project marketing ops team object ID for a
+// project UID. Centralised here so the naming convention lives in exactly one
+// place — both buildFGAUpdateAccessMessage (the project:<uid> -> marketing_ops
+// grant) and the marketing ops membership operations (member_put/member_remove
+// on the team object) must agree on this derivation.
+func marketingOpsTeamID(projectUID string) string {
+	return constants.MarketingOpsTeamPrefix + projectUID
+}
+
 // buildFGAUpdateAccessMessage builds a GenericFGAMessage for update_access operations.
 // It constructs the relations map from project settings and references map from project base.
 func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsDB *models.ProjectSettings) fgatypes.GenericFGAMessage {
@@ -584,6 +594,14 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 	if projectDB.ParentUID != "" {
 		references[fgaconstants.RelationParent] = []string{fgaconstants.ObjectTypeProject + projectDB.ParentUID}
 	}
+
+	// Always grant the project's per-project marketing ops team object. This is a
+	// deterministic, per-project tuple emitted unconditionally so every project
+	// carries it — an empty team grants nobody, and self-serve membership is
+	// managed separately via member_put/member_remove (see marketing_ops_operations.go).
+	// The "team:" subject prefix is preserved by fga-sync across update_access
+	// full-syncs, so republishing this on every write is safe.
+	references[constants.RelationMarketingOps] = []string{fgaconstants.ObjectTypeTeam + marketingOpsTeamID(projectDB.UID) + "#" + fgaconstants.RelationMember}
 
 	return fgatypes.GenericFGAMessage{
 		ObjectType: "project",

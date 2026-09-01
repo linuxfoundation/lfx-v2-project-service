@@ -11,6 +11,7 @@ The full OpenFGA type definitions (relations, schema) for all object types are d
 ## Object Types
 
 - [Project](#project)
+- [Team](#team)
 
 ---
 
@@ -22,6 +23,8 @@ All messages use the generic FGA message format on the following NATS subjects:
 |---|---|
 | `lfx.fga-sync.update_access` | Create and update operations |
 | `lfx.fga-sync.delete_access` | Delete operations |
+| `lfx.fga-sync.member_put` | Add a user to a team |
+| `lfx.fga-sync.member_remove` | Remove a user from a team |
 
 Each message carries `object_type`, `operation`, and a `data` map. The sections below describe the `data` contents for each object type.
 
@@ -62,10 +65,41 @@ Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-
 | Reference | Value | Condition |
 |---|---|---|
 | `parent` | `"project:{ParentUID}"` | Only when `ProjectBase.ParentUID` is non-empty |
+| `marketing_ops` | `"team:marketing-ops-{uid}#member"` | Always sent |
+
+> The `marketing_ops` reference grants `team:marketing-ops-{uid}#member` the project's `marketing_ops` relation (see the [FGA model](https://github.com/linuxfoundation/lfx-v2-helm/blob/main/charts/lfx-platform/files/model.fga)), which in turn implies `marketing_auditor` and `campaign_manager`. The team object is per-project (`marketing-ops-<projectUID>`), so membership in one project's team does not grant access to any other project. This reference is emitted unconditionally on every `update_access` publish — an empty team grants nobody, so it is inert until a member is added via [Team](#team) `member_put`.
 
 ### Delete
 
 On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed by the fga-sync service.
+
+---
+
+## Team
+
+**Source structs:** `internal/service/marketing_ops_operations.go` — `AddMarketingOpsMember` / `RemoveMarketingOpsMember`
+
+**Synced on:** granting or revoking a user's project-scoped Marketing Ops access via `POST /projects/{uid}/marketing-ops-members` and `DELETE /projects/{uid}/marketing-ops-members/{username}`.
+
+Unlike `project`, `team` membership changes are **not** full syncs — `member_put`/`member_remove` add or remove a single tuple and leave the rest of the team's membership untouched.
+
+### Data (`fgatypes.GenericMemberData`)
+
+| Field | Value |
+|---|---|
+| `uid` | `"marketing-ops-{projectUID}"` |
+| `username` | The username/LFID being granted or revoked |
+| `relations` | `["member"]` |
+
+### Add
+
+`POST /projects/{uid}/marketing-ops-members` publishes two messages concurrently (no ordering guarantee between them):
+- `lfx.fga-sync.update_access` for `project:{uid}` — the full project access message (see [Project](#project)), rebuilt from the DB, which always includes the `marketing_ops` reference. This backfills the team→project tuple for projects created before this reference existed.
+- `lfx.fga-sync.member_put` for `team:marketing-ops-{uid}` — writes `team:marketing-ops-{uid}#member@user:{username}`.
+
+### Remove
+
+`DELETE /projects/{uid}/marketing-ops-members/{username}` publishes `lfx.fga-sync.member_remove` for `team:marketing-ops-{uid}`, removing `team:marketing-ops-{uid}#member@user:{username}`. The team→project `marketing_ops` reference itself is left in place (it is only ever removed by deleting the project).
 
 ---
 
@@ -77,3 +111,6 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Update project base | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Update project settings | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Delete project | `project` | `lfx.fga-sync.delete_access` | Always sent |
+| Add marketing ops member | `project` | `lfx.fga-sync.update_access` | Full project sync, backfills the `marketing_ops` reference |
+| Add marketing ops member | `team` | `lfx.fga-sync.member_put` | Adds the user to `team:marketing-ops-{uid}` |
+| Remove marketing ops member | `team` | `lfx.fga-sync.member_remove` | Removes the user from `team:marketing-ops-{uid}` |

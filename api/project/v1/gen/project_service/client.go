@@ -18,52 +18,83 @@ import (
 
 // Client is the "project-service" service client.
 type Client struct {
-	GetProjectsEndpoint             goa.Endpoint
-	CreateProjectEndpoint           goa.Endpoint
-	GetOneProjectBaseEndpoint       goa.Endpoint
-	GetOneProjectSettingsEndpoint   goa.Endpoint
-	UpdateProjectBaseEndpoint       goa.Endpoint
-	UpdateProjectSettingsEndpoint   goa.Endpoint
-	DeleteProjectEndpoint           goa.Endpoint
-	ResolveProjectSlugEndpoint      goa.Endpoint
-	ReadyzEndpoint                  goa.Endpoint
-	LivezEndpoint                   goa.Endpoint
-	CreateProjectLinkEndpoint       goa.Endpoint
-	GetProjectLinkEndpoint          goa.Endpoint
-	DeleteProjectLinkEndpoint       goa.Endpoint
-	CreateProjectFolderEndpoint     goa.Endpoint
-	GetProjectFolderEndpoint        goa.Endpoint
-	DeleteProjectFolderEndpoint     goa.Endpoint
-	UploadProjectDocumentEndpoint   goa.Endpoint
-	GetProjectDocumentEndpoint      goa.Endpoint
-	DownloadProjectDocumentEndpoint goa.Endpoint
-	DeleteProjectDocumentEndpoint   goa.Endpoint
+	AddProjectMarketingOpsMemberEndpoint    goa.Endpoint
+	RemoveProjectMarketingOpsMemberEndpoint goa.Endpoint
+	GetProjectsEndpoint                     goa.Endpoint
+	CreateProjectEndpoint                   goa.Endpoint
+	GetOneProjectBaseEndpoint               goa.Endpoint
+	GetOneProjectSettingsEndpoint           goa.Endpoint
+	UpdateProjectBaseEndpoint               goa.Endpoint
+	UpdateProjectSettingsEndpoint           goa.Endpoint
+	DeleteProjectEndpoint                   goa.Endpoint
+	ResolveProjectSlugEndpoint              goa.Endpoint
+	ReadyzEndpoint                          goa.Endpoint
+	LivezEndpoint                           goa.Endpoint
+	CreateProjectLinkEndpoint               goa.Endpoint
+	GetProjectLinkEndpoint                  goa.Endpoint
+	DeleteProjectLinkEndpoint               goa.Endpoint
+	CreateProjectFolderEndpoint             goa.Endpoint
+	GetProjectFolderEndpoint                goa.Endpoint
+	DeleteProjectFolderEndpoint             goa.Endpoint
+	UploadProjectDocumentEndpoint           goa.Endpoint
+	GetProjectDocumentEndpoint              goa.Endpoint
+	DownloadProjectDocumentEndpoint         goa.Endpoint
+	DeleteProjectDocumentEndpoint           goa.Endpoint
 }
 
 // NewClient initializes a "project-service" service client given the endpoints.
-func NewClient(getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
+func NewClient(addProjectMarketingOpsMember, removeProjectMarketingOpsMember, getProjects, createProject, getOneProjectBase, getOneProjectSettings, updateProjectBase, updateProjectSettings, deleteProject, resolveProjectSlug, readyz, livez, createProjectLink, getProjectLink, deleteProjectLink, createProjectFolder, getProjectFolder, deleteProjectFolder, uploadProjectDocument, getProjectDocument, downloadProjectDocument, deleteProjectDocument goa.Endpoint) *Client {
 	return &Client{
-		GetProjectsEndpoint:             getProjects,
-		CreateProjectEndpoint:           createProject,
-		GetOneProjectBaseEndpoint:       getOneProjectBase,
-		GetOneProjectSettingsEndpoint:   getOneProjectSettings,
-		UpdateProjectBaseEndpoint:       updateProjectBase,
-		UpdateProjectSettingsEndpoint:   updateProjectSettings,
-		DeleteProjectEndpoint:           deleteProject,
-		ResolveProjectSlugEndpoint:      resolveProjectSlug,
-		ReadyzEndpoint:                  readyz,
-		LivezEndpoint:                   livez,
-		CreateProjectLinkEndpoint:       createProjectLink,
-		GetProjectLinkEndpoint:          getProjectLink,
-		DeleteProjectLinkEndpoint:       deleteProjectLink,
-		CreateProjectFolderEndpoint:     createProjectFolder,
-		GetProjectFolderEndpoint:        getProjectFolder,
-		DeleteProjectFolderEndpoint:     deleteProjectFolder,
-		UploadProjectDocumentEndpoint:   uploadProjectDocument,
-		GetProjectDocumentEndpoint:      getProjectDocument,
-		DownloadProjectDocumentEndpoint: downloadProjectDocument,
-		DeleteProjectDocumentEndpoint:   deleteProjectDocument,
+		AddProjectMarketingOpsMemberEndpoint:    addProjectMarketingOpsMember,
+		RemoveProjectMarketingOpsMemberEndpoint: removeProjectMarketingOpsMember,
+		GetProjectsEndpoint:                     getProjects,
+		CreateProjectEndpoint:                   createProject,
+		GetOneProjectBaseEndpoint:               getOneProjectBase,
+		GetOneProjectSettingsEndpoint:           getOneProjectSettings,
+		UpdateProjectBaseEndpoint:               updateProjectBase,
+		UpdateProjectSettingsEndpoint:           updateProjectSettings,
+		DeleteProjectEndpoint:                   deleteProject,
+		ResolveProjectSlugEndpoint:              resolveProjectSlug,
+		ReadyzEndpoint:                          readyz,
+		LivezEndpoint:                           livez,
+		CreateProjectLinkEndpoint:               createProjectLink,
+		GetProjectLinkEndpoint:                  getProjectLink,
+		DeleteProjectLinkEndpoint:               deleteProjectLink,
+		CreateProjectFolderEndpoint:             createProjectFolder,
+		GetProjectFolderEndpoint:                getProjectFolder,
+		DeleteProjectFolderEndpoint:             deleteProjectFolder,
+		UploadProjectDocumentEndpoint:           uploadProjectDocument,
+		GetProjectDocumentEndpoint:              getProjectDocument,
+		DownloadProjectDocumentEndpoint:         downloadProjectDocument,
+		DeleteProjectDocumentEndpoint:           deleteProjectDocument,
 	}
+}
+
+// AddProjectMarketingOpsMember calls the "add-project-marketing-ops-member"
+// endpoint of the "project-service" service.
+// AddProjectMarketingOpsMember may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Project not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) AddProjectMarketingOpsMember(ctx context.Context, p *AddProjectMarketingOpsMemberPayload) (err error) {
+	_, err = c.AddProjectMarketingOpsMemberEndpoint(ctx, p)
+	return
+}
+
+// RemoveProjectMarketingOpsMember calls the
+// "remove-project-marketing-ops-member" endpoint of the "project-service"
+// service.
+// RemoveProjectMarketingOpsMember may return the following errors:
+//   - "BadRequest" (type *BadRequestError): Bad request
+//   - "NotFound" (type *NotFoundError): Project not found
+//   - "InternalServerError" (type *InternalServerError): Internal server error
+//   - "ServiceUnavailable" (type *ServiceUnavailableError): Service unavailable
+//   - error: internal error
+func (c *Client) RemoveProjectMarketingOpsMember(ctx context.Context, p *RemoveProjectMarketingOpsMemberPayload) (err error) {
+	_, err = c.RemoveProjectMarketingOpsMemberEndpoint(ctx, p)
+	return
 }
 
 // GetProjects calls the "get-projects" endpoint of the "project-service"

@@ -16,6 +16,13 @@ import (
 	goa "goa.design/goa/v3/pkg"
 )
 
+// AddProjectMarketingOpsMemberRequestBody is the type of the "project-service"
+// service "add-project-marketing-ops-member" endpoint HTTP request body.
+type AddProjectMarketingOpsMemberRequestBody struct {
+	// The username/LFID of the user to grant or revoke marketing ops access
+	Username string `form:"username" json:"username" xml:"username"`
+}
+
 // CreateProjectRequestBody is the type of the "project-service" service
 // "create-project" endpoint HTTP request body.
 type CreateProjectRequestBody struct {
@@ -447,6 +454,86 @@ type UploadProjectDocumentResponseBody struct {
 // GetProjectDocumentResponseBody is the type of the "project-service" service
 // "get-project-document" endpoint HTTP response body.
 type GetProjectDocumentResponseBody ProjectDocumentResponseBody
+
+// AddProjectMarketingOpsMemberBadRequestResponseBody is the type of the
+// "project-service" service "add-project-marketing-ops-member" endpoint HTTP
+// response body for the "BadRequest" error.
+type AddProjectMarketingOpsMemberBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// AddProjectMarketingOpsMemberInternalServerErrorResponseBody is the type of
+// the "project-service" service "add-project-marketing-ops-member" endpoint
+// HTTP response body for the "InternalServerError" error.
+type AddProjectMarketingOpsMemberInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// AddProjectMarketingOpsMemberNotFoundResponseBody is the type of the
+// "project-service" service "add-project-marketing-ops-member" endpoint HTTP
+// response body for the "NotFound" error.
+type AddProjectMarketingOpsMemberNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// AddProjectMarketingOpsMemberServiceUnavailableResponseBody is the type of
+// the "project-service" service "add-project-marketing-ops-member" endpoint
+// HTTP response body for the "ServiceUnavailable" error.
+type AddProjectMarketingOpsMemberServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// RemoveProjectMarketingOpsMemberBadRequestResponseBody is the type of the
+// "project-service" service "remove-project-marketing-ops-member" endpoint
+// HTTP response body for the "BadRequest" error.
+type RemoveProjectMarketingOpsMemberBadRequestResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody is the type
+// of the "project-service" service "remove-project-marketing-ops-member"
+// endpoint HTTP response body for the "InternalServerError" error.
+type RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// RemoveProjectMarketingOpsMemberNotFoundResponseBody is the type of the
+// "project-service" service "remove-project-marketing-ops-member" endpoint
+// HTTP response body for the "NotFound" error.
+type RemoveProjectMarketingOpsMemberNotFoundResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
+// RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody is the type of
+// the "project-service" service "remove-project-marketing-ops-member" endpoint
+// HTTP response body for the "ServiceUnavailable" error.
+type RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
 
 // GetProjectsBadRequestResponseBody is the type of the "project-service"
 // service "get-projects" endpoint HTTP response body for the "BadRequest"
@@ -1458,6 +1545,16 @@ type ProjectDocumentResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// NewAddProjectMarketingOpsMemberRequestBody builds the HTTP request body from
+// the payload of the "add-project-marketing-ops-member" endpoint of the
+// "project-service" service.
+func NewAddProjectMarketingOpsMemberRequestBody(p *projectservice.AddProjectMarketingOpsMemberPayload) *AddProjectMarketingOpsMemberRequestBody {
+	body := &AddProjectMarketingOpsMemberRequestBody{
+		Username: p.Username,
+	}
+	return body
+}
+
 // NewCreateProjectRequestBody builds the HTTP request body from the payload of
 // the "create-project" endpoint of the "project-service" service.
 func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *CreateProjectRequestBody {
@@ -1630,6 +1727,96 @@ func NewUploadProjectDocumentRequestBody(p *projectservice.UploadProjectDocument
 		ContentType: p.ContentType,
 	}
 	return body
+}
+
+// NewAddProjectMarketingOpsMemberBadRequest builds a project-service service
+// add-project-marketing-ops-member endpoint BadRequest error.
+func NewAddProjectMarketingOpsMemberBadRequest(body *AddProjectMarketingOpsMemberBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewAddProjectMarketingOpsMemberInternalServerError builds a project-service
+// service add-project-marketing-ops-member endpoint InternalServerError error.
+func NewAddProjectMarketingOpsMemberInternalServerError(body *AddProjectMarketingOpsMemberInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewAddProjectMarketingOpsMemberNotFound builds a project-service service
+// add-project-marketing-ops-member endpoint NotFound error.
+func NewAddProjectMarketingOpsMemberNotFound(body *AddProjectMarketingOpsMemberNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewAddProjectMarketingOpsMemberServiceUnavailable builds a project-service
+// service add-project-marketing-ops-member endpoint ServiceUnavailable error.
+func NewAddProjectMarketingOpsMemberServiceUnavailable(body *AddProjectMarketingOpsMemberServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewRemoveProjectMarketingOpsMemberBadRequest builds a project-service
+// service remove-project-marketing-ops-member endpoint BadRequest error.
+func NewRemoveProjectMarketingOpsMemberBadRequest(body *RemoveProjectMarketingOpsMemberBadRequestResponseBody) *projectservice.BadRequestError {
+	v := &projectservice.BadRequestError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewRemoveProjectMarketingOpsMemberInternalServerError builds a
+// project-service service remove-project-marketing-ops-member endpoint
+// InternalServerError error.
+func NewRemoveProjectMarketingOpsMemberInternalServerError(body *RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody) *projectservice.InternalServerError {
+	v := &projectservice.InternalServerError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewRemoveProjectMarketingOpsMemberNotFound builds a project-service service
+// remove-project-marketing-ops-member endpoint NotFound error.
+func NewRemoveProjectMarketingOpsMemberNotFound(body *RemoveProjectMarketingOpsMemberNotFoundResponseBody) *projectservice.NotFoundError {
+	v := &projectservice.NotFoundError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewRemoveProjectMarketingOpsMemberServiceUnavailable builds a
+// project-service service remove-project-marketing-ops-member endpoint
+// ServiceUnavailable error.
+func NewRemoveProjectMarketingOpsMemberServiceUnavailable(body *RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody) *projectservice.ServiceUnavailableError {
+	v := &projectservice.ServiceUnavailableError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
 }
 
 // NewGetProjectsResultOK builds a "project-service" service "get-projects"
@@ -3449,6 +3636,110 @@ func ValidateGetProjectDocumentResponseBody(body *GetProjectDocumentResponseBody
 	}
 	if body.UpdatedAt != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.updated_at", *body.UpdatedAt, goa.FormatDateTime))
+	}
+	return
+}
+
+// ValidateAddProjectMarketingOpsMemberBadRequestResponseBody runs the
+// validations defined on
+// add-project-marketing-ops-member_BadRequest_response_body
+func ValidateAddProjectMarketingOpsMemberBadRequestResponseBody(body *AddProjectMarketingOpsMemberBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateAddProjectMarketingOpsMemberInternalServerErrorResponseBody runs the
+// validations defined on
+// add-project-marketing-ops-member_InternalServerError_response_body
+func ValidateAddProjectMarketingOpsMemberInternalServerErrorResponseBody(body *AddProjectMarketingOpsMemberInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateAddProjectMarketingOpsMemberNotFoundResponseBody runs the
+// validations defined on
+// add-project-marketing-ops-member_NotFound_response_body
+func ValidateAddProjectMarketingOpsMemberNotFoundResponseBody(body *AddProjectMarketingOpsMemberNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateAddProjectMarketingOpsMemberServiceUnavailableResponseBody runs the
+// validations defined on
+// add-project-marketing-ops-member_ServiceUnavailable_response_body
+func ValidateAddProjectMarketingOpsMemberServiceUnavailableResponseBody(body *AddProjectMarketingOpsMemberServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateRemoveProjectMarketingOpsMemberBadRequestResponseBody runs the
+// validations defined on
+// remove-project-marketing-ops-member_BadRequest_response_body
+func ValidateRemoveProjectMarketingOpsMemberBadRequestResponseBody(body *RemoveProjectMarketingOpsMemberBadRequestResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateRemoveProjectMarketingOpsMemberInternalServerErrorResponseBody runs
+// the validations defined on
+// remove-project-marketing-ops-member_InternalServerError_response_body
+func ValidateRemoveProjectMarketingOpsMemberInternalServerErrorResponseBody(body *RemoveProjectMarketingOpsMemberInternalServerErrorResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateRemoveProjectMarketingOpsMemberNotFoundResponseBody runs the
+// validations defined on
+// remove-project-marketing-ops-member_NotFound_response_body
+func ValidateRemoveProjectMarketingOpsMemberNotFoundResponseBody(body *RemoveProjectMarketingOpsMemberNotFoundResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateRemoveProjectMarketingOpsMemberServiceUnavailableResponseBody runs
+// the validations defined on
+// remove-project-marketing-ops-member_ServiceUnavailable_response_body
+func ValidateRemoveProjectMarketingOpsMemberServiceUnavailableResponseBody(body *RemoveProjectMarketingOpsMemberServiceUnavailableResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
 	}
 	return
 }
