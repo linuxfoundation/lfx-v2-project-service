@@ -96,8 +96,6 @@ var MethodNames = [22]string{"add-project-marketing-ops-member", "remove-project
 type AddProjectMarketingOpsMemberPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
-	XSync *bool
 	// Version of the API
 	Version *string
 	// Project UID -- v2 uid, not related to v1 id directly
@@ -680,8 +678,6 @@ type ProjectSettings struct {
 type RemoveProjectMarketingOpsMemberPayload struct {
 	// JWT token issued by Heimdall
 	BearerToken *string
-	// X-Sync header value for performing operations synchronously
-	XSync *bool
 	// Version of the API
 	Version *string
 	// Project UID -- v2 uid, not related to v1 id directly

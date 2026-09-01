@@ -2826,27 +2826,25 @@ func NewDeleteProjectDocumentServiceUnavailableResponseBody(res *projectservice.
 
 // NewAddProjectMarketingOpsMemberPayload builds a project-service service
 // add-project-marketing-ops-member endpoint payload.
-func NewAddProjectMarketingOpsMemberPayload(body *AddProjectMarketingOpsMemberRequestBody, uid string, version *string, bearerToken *string, xSync *bool) *projectservice.AddProjectMarketingOpsMemberPayload {
+func NewAddProjectMarketingOpsMemberPayload(body *AddProjectMarketingOpsMemberRequestBody, uid string, version *string, bearerToken *string) *projectservice.AddProjectMarketingOpsMemberPayload {
 	v := &projectservice.AddProjectMarketingOpsMemberPayload{
 		Username: *body.Username,
 	}
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.XSync = xSync
 
 	return v
 }
 
 // NewRemoveProjectMarketingOpsMemberPayload builds a project-service service
 // remove-project-marketing-ops-member endpoint payload.
-func NewRemoveProjectMarketingOpsMemberPayload(uid string, username string, version *string, bearerToken *string, xSync *bool) *projectservice.RemoveProjectMarketingOpsMemberPayload {
+func NewRemoveProjectMarketingOpsMemberPayload(uid string, username string, version *string, bearerToken *string) *projectservice.RemoveProjectMarketingOpsMemberPayload {
 	v := &projectservice.RemoveProjectMarketingOpsMemberPayload{}
 	v.UID = uid
 	v.Username = username
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.XSync = xSync
 
 	return v
 }

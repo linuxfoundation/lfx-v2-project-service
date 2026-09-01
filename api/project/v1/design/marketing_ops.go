@@ -23,7 +23,6 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
-			XSyncAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
 			MarketingOpsUsernameAttribute()
@@ -42,7 +41,6 @@ var _ = Service("project-service", func() {
 				Param("uid")
 			})
 			Header("bearer_token:Authorization")
-			Header("x_sync:X-Sync")
 			Response(StatusCreated)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)
@@ -58,7 +56,6 @@ var _ = Service("project-service", func() {
 
 		Payload(func() {
 			BearerTokenAttribute()
-			XSyncAttribute()
 			VersionAttribute()
 			ProjectUIDAttribute()
 			MarketingOpsUsernameAttribute()
@@ -78,7 +75,6 @@ var _ = Service("project-service", func() {
 				Param("username")
 			})
 			Header("bearer_token:Authorization")
-			Header("x_sync:X-Sync")
 			Response(StatusNoContent)
 			Response("BadRequest", StatusBadRequest)
 			Response("NotFound", StatusNotFound)

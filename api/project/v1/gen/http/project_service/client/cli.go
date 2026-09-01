@@ -21,7 +21,7 @@ import (
 
 // BuildAddProjectMarketingOpsMemberPayload builds the payload for the
 // project-service add-project-marketing-ops-member endpoint from CLI flags.
-func BuildAddProjectMarketingOpsMemberPayload(projectServiceAddProjectMarketingOpsMemberBody string, projectServiceAddProjectMarketingOpsMemberUID string, projectServiceAddProjectMarketingOpsMemberVersion string, projectServiceAddProjectMarketingOpsMemberBearerToken string, projectServiceAddProjectMarketingOpsMemberXSync string) (*projectservice.AddProjectMarketingOpsMemberPayload, error) {
+func BuildAddProjectMarketingOpsMemberPayload(projectServiceAddProjectMarketingOpsMemberBody string, projectServiceAddProjectMarketingOpsMemberUID string, projectServiceAddProjectMarketingOpsMemberVersion string, projectServiceAddProjectMarketingOpsMemberBearerToken string) (*projectservice.AddProjectMarketingOpsMemberPayload, error) {
 	var err error
 	var body AddProjectMarketingOpsMemberRequestBody
 	{
@@ -56,31 +56,19 @@ func BuildAddProjectMarketingOpsMemberPayload(projectServiceAddProjectMarketingO
 			bearerToken = &projectServiceAddProjectMarketingOpsMemberBearerToken
 		}
 	}
-	var xSync *bool
-	{
-		if projectServiceAddProjectMarketingOpsMemberXSync != "" {
-			var val bool
-			val, err = strconv.ParseBool(projectServiceAddProjectMarketingOpsMemberXSync)
-			xSync = &val
-			if err != nil {
-				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
-			}
-		}
-	}
 	v := &projectservice.AddProjectMarketingOpsMemberPayload{
 		Username: body.Username,
 	}
 	v.UID = uid
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.XSync = xSync
 
 	return v, nil
 }
 
 // BuildRemoveProjectMarketingOpsMemberPayload builds the payload for the
 // project-service remove-project-marketing-ops-member endpoint from CLI flags.
-func BuildRemoveProjectMarketingOpsMemberPayload(projectServiceRemoveProjectMarketingOpsMemberUID string, projectServiceRemoveProjectMarketingOpsMemberUsername string, projectServiceRemoveProjectMarketingOpsMemberVersion string, projectServiceRemoveProjectMarketingOpsMemberBearerToken string, projectServiceRemoveProjectMarketingOpsMemberXSync string) (*projectservice.RemoveProjectMarketingOpsMemberPayload, error) {
+func BuildRemoveProjectMarketingOpsMemberPayload(projectServiceRemoveProjectMarketingOpsMemberUID string, projectServiceRemoveProjectMarketingOpsMemberUsername string, projectServiceRemoveProjectMarketingOpsMemberVersion string, projectServiceRemoveProjectMarketingOpsMemberBearerToken string) (*projectservice.RemoveProjectMarketingOpsMemberPayload, error) {
 	var err error
 	var uid string
 	{
@@ -112,23 +100,11 @@ func BuildRemoveProjectMarketingOpsMemberPayload(projectServiceRemoveProjectMark
 			bearerToken = &projectServiceRemoveProjectMarketingOpsMemberBearerToken
 		}
 	}
-	var xSync *bool
-	{
-		if projectServiceRemoveProjectMarketingOpsMemberXSync != "" {
-			var val bool
-			val, err = strconv.ParseBool(projectServiceRemoveProjectMarketingOpsMemberXSync)
-			xSync = &val
-			if err != nil {
-				return nil, fmt.Errorf("invalid value for xSync, must be BOOL")
-			}
-		}
-	}
 	v := &projectservice.RemoveProjectMarketingOpsMemberPayload{}
 	v.UID = uid
 	v.Username = username
 	v.Version = version
 	v.BearerToken = bearerToken
-	v.XSync = xSync
 
 	return v, nil
 }

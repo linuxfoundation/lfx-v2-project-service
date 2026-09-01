@@ -59,7 +59,6 @@ func DecodeAddProjectMarketingOpsMemberRequest(mux goahttp.Muxer, decoder func(*
 			uid         string
 			version     *string
 			bearerToken *string
-			xSync       *bool
 
 			params = mux.Vars(r)
 		)
@@ -78,20 +77,10 @@ func DecodeAddProjectMarketingOpsMemberRequest(mux goahttp.Muxer, decoder func(*
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
-		{
-			xSyncRaw := r.Header.Get("X-Sync")
-			if xSyncRaw != "" {
-				v, err2 := strconv.ParseBool(xSyncRaw)
-				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("x_sync", xSyncRaw, "boolean"))
-				}
-				xSync = &v
-			}
-		}
 		if err != nil {
 			return nil, err
 		}
-		payload := NewAddProjectMarketingOpsMemberPayload(&body, uid, version, bearerToken, xSync)
+		payload := NewAddProjectMarketingOpsMemberPayload(&body, uid, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")
@@ -191,7 +180,6 @@ func DecodeRemoveProjectMarketingOpsMemberRequest(mux goahttp.Muxer, decoder fun
 			username    string
 			version     *string
 			bearerToken *string
-			xSync       *bool
 			err         error
 
 			params = mux.Vars(r)
@@ -212,20 +200,10 @@ func DecodeRemoveProjectMarketingOpsMemberRequest(mux goahttp.Muxer, decoder fun
 		if bearerTokenRaw != "" {
 			bearerToken = &bearerTokenRaw
 		}
-		{
-			xSyncRaw := r.Header.Get("X-Sync")
-			if xSyncRaw != "" {
-				v, err2 := strconv.ParseBool(xSyncRaw)
-				if err2 != nil {
-					err = goa.MergeErrors(err, goa.InvalidFieldTypeError("x_sync", xSyncRaw, "boolean"))
-				}
-				xSync = &v
-			}
-		}
 		if err != nil {
 			return nil, err
 		}
-		payload := NewRemoveProjectMarketingOpsMemberPayload(uid, username, version, bearerToken, xSync)
+		payload := NewRemoveProjectMarketingOpsMemberPayload(uid, username, version, bearerToken)
 		if payload.BearerToken != nil {
 			if strings.Contains(*payload.BearerToken, " ") {
 				// Remove authorization scheme prefix (e.g. "Bearer")

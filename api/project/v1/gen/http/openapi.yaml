@@ -1144,11 +1144,6 @@ paths:
                   description: JWT token issued by Heimdall
                   required: false
                   type: string
-                - name: X-Sync
-                  in: header
-                  description: X-Sync header value for performing operations synchronously
-                  required: false
-                  type: boolean
                 - name: Add-Project-Marketing-Ops-MemberRequestBody
                   in: body
                   required: true
@@ -1222,11 +1217,6 @@ paths:
                   description: JWT token issued by Heimdall
                   required: false
                   type: string
-                - name: X-Sync
-                  in: header
-                  description: X-Sync header value for performing operations synchronously
-                  required: false
-                  type: boolean
             responses:
                 "204":
                     description: No Content response.

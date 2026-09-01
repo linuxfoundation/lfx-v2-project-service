@@ -1930,15 +1930,6 @@ paths:
                     example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
                     format: uuid
                   example: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                - name: X-Sync
-                  in: header
-                  description: X-Sync header value for performing operations synchronously
-                  allowEmptyValue: true
-                  schema:
-                    type: boolean
-                    description: X-Sync header value for performing operations synchronously
-                    example: true
-                  example: true
             requestBody:
                 required: true
                 content:
@@ -2026,15 +2017,6 @@ paths:
                     description: The username/LFID of the user to grant or revoke marketing ops access
                     example: johndoe123
                   example: johndoe123
-                - name: X-Sync
-                  in: header
-                  description: X-Sync header value for performing operations synchronously
-                  allowEmptyValue: true
-                  schema:
-                    type: boolean
-                    description: X-Sync header value for performing operations synchronously
-                    example: true
-                  example: true
             responses:
                 "204":
                     description: No Content response.

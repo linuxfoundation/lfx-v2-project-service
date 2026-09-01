@@ -65,11 +65,6 @@ func EncodeAddProjectMarketingOpsMemberRequest(encoder func(*http.Request) goaht
 				req.Header.Set("Authorization", head)
 			}
 		}
-		if p.XSync != nil {
-			head := *p.XSync
-			headStr := strconv.FormatBool(head)
-			req.Header.Set("X-Sync", headStr)
-		}
 		values := req.URL.Query()
 		if p.Version != nil {
 			values.Add("v", *p.Version)
@@ -216,11 +211,6 @@ func EncodeRemoveProjectMarketingOpsMemberRequest(encoder func(*http.Request) go
 			} else {
 				req.Header.Set("Authorization", head)
 			}
-		}
-		if p.XSync != nil {
-			head := *p.XSync
-			headStr := strconv.FormatBool(head)
-			req.Header.Set("X-Sync", headStr)
 		}
 		values := req.URL.Query()
 		if p.Version != nil {
