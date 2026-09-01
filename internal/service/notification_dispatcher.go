@@ -145,6 +145,9 @@ func (d *NotificationDispatcher) handleNonLFIDChange(ctx context.Context, projec
 		}
 		rolesToInvite = setDiffRoles(change.NewRoles, change.OldRoles)
 	}
+	if len(rolesToInvite) == 0 {
+		return nil
+	}
 
 	// Check whether the recipient already has an LFX account so the invite service
 	// can choose the correct email template. Best-effort: any lookup error leaves
