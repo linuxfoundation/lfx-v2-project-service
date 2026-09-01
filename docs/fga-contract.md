@@ -93,9 +93,9 @@ Unlike `project`, `team` membership changes are **not** full syncs — `member_p
 
 ### Add
 
-`POST /projects/{uid}/marketing-ops-members` publishes, in order:
-1. `lfx.fga-sync.update_access` for `project:{uid}` — the full project access message (see [Project](#project)), rebuilt from the DB, which always includes the `marketing_ops` reference. This backfills the team→project tuple for projects created before this reference existed.
-2. `lfx.fga-sync.member_put` for `team:marketing-ops-{uid}` — writes `team:marketing-ops-{uid}#member@user:{username}`.
+`POST /projects/{uid}/marketing-ops-members` publishes two messages concurrently (no ordering guarantee between them):
+- `lfx.fga-sync.update_access` for `project:{uid}` — the full project access message (see [Project](#project)), rebuilt from the DB, which always includes the `marketing_ops` reference. This backfills the team→project tuple for projects created before this reference existed.
+- `lfx.fga-sync.member_put` for `team:marketing-ops-{uid}` — writes `team:marketing-ops-{uid}#member@user:{username}`.
 
 ### Remove
 
