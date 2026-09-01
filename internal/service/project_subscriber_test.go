@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -613,6 +614,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			}
 
 			var capturedInviteReqs []inviteapi.SendInviteRequest
+			var captureMu sync.Mutex
 			if tt.wantInviteCount > 0 {
 				wantRole := tt.wantInviteRole
 				wantProjectUID := tt.event.ProjectUID
@@ -631,7 +633,9 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					ExpiresAt:      time.Now().Add(30 * 24 * time.Hour),
 				}, inviteReturnErr).Run(func(args mock.Arguments) {
 					req := args.Get(1).(inviteapi.SendInviteRequest)
+					captureMu.Lock()
 					capturedInviteReqs = append(capturedInviteReqs, req)
+					captureMu.Unlock()
 				}).Times(tt.wantInviteCount)
 			}
 
