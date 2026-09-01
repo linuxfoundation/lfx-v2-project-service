@@ -198,6 +198,35 @@ func TestUserResolver_ResolveDisplayName(t *testing.T) {
 	})
 }
 
+func TestUserResolver_UsernameByEmail(t *testing.T) {
+	t.Run("returns empty string and nil when reader is nil", func(t *testing.T) {
+		resolver := NewUserResolver(nil)
+		username, err := resolver.UsernameByEmail(context.Background(), "alice@example.com")
+		assert.NoError(t, err)
+		assert.Empty(t, username)
+	})
+
+	t.Run("delegates to reader and returns username on success", func(t *testing.T) {
+		mockUser := &domain.MockUserReader{}
+		mockUser.On("UsernameByEmail", mock.Anything, "alice@example.com").Return("alice-lfid", nil)
+		resolver := NewUserResolver(mockUser)
+		username, err := resolver.UsernameByEmail(context.Background(), "alice@example.com")
+		assert.NoError(t, err)
+		assert.Equal(t, "alice-lfid", username)
+		mockUser.AssertExpectations(t)
+	})
+
+	t.Run("delegates error from reader", func(t *testing.T) {
+		mockUser := &domain.MockUserReader{}
+		mockUser.On("UsernameByEmail", mock.Anything, "alice@example.com").Return("", errors.New("auth unavailable"))
+		resolver := NewUserResolver(mockUser)
+		username, err := resolver.UsernameByEmail(context.Background(), "alice@example.com")
+		assert.Error(t, err)
+		assert.Empty(t, username)
+		mockUser.AssertExpectations(t)
+	})
+}
+
 func TestProjectsService_stampAuditUsers(t *testing.T) {
 	svc, _, _, _ := setupServiceForTesting()
 	mockUser := svc.Resolver.reader.(*domain.MockUserReader)

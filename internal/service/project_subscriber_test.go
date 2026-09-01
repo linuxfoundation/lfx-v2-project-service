@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -47,18 +48,20 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 	noLFIDMC := events.UserInfo{Email: "mc@example.com", Name: "No LFID MC"}
 
 	tests := []struct {
-		name              string
-		event             events.ProjectSettingsUpdatedMessage
-		projectBase       *models.ProjectBase
-		projectBaseErr    error
-		wantEmailCount    int
-		wantInviteCount   int
-		wantInviteRole    string // expected Role field in the SendInviteRequest payload
-		inviteUID         string // invite UID returned by the mock (empty → no write-back)
-		msgBuilderErr     error
-		wantURLContains   string
-		wantURLNotContain string
-		setupRepoExtra    func(*domain.MockProjectRepository) // optional extra repo mock setup
+		name                    string
+		event                   events.ProjectSettingsUpdatedMessage
+		projectBase             *models.ProjectBase
+		projectBaseErr          error
+		wantEmailCount          int
+		wantInviteCount         int
+		wantInviteRole          string // expected Role field in the SendInviteRequest payload
+		inviteUID               string // invite UID returned by the mock (empty → no write-back)
+		msgBuilderErr           error
+		wantURLContains         string
+		wantURLNotContain       string
+		wantRecipientHasAccount bool                                // expected RecipientHasAccount on the first invite call
+		setupUserReader         func(*domain.MockUserReader)        // optional UsernameByEmail setup for the dispatcher
+		setupRepoExtra          func(*domain.MockProjectRepository) // optional extra repo mock setup
 	}{
 		// ── No-op cases ──────────────────────────────────────────────────────────────
 		{
@@ -495,6 +498,90 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantEmailCount:  1,
 			wantInviteCount: 0,
 		},
+		// ── RecipientHasAccount cases ─────────────────────────────────────────────────
+		{
+			name: "non-LFID writer added — LFID lookup succeeds — RecipientHasAccount true",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{noLFIDWriter},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-uid-existing",
+			setupUserReader: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, noLFIDWriter.Email).Return("writer-lfid", nil)
+			},
+			wantRecipientHasAccount: true,
+		},
+		{
+			name: "non-LFID writer added — LFID lookup fails — RecipientHasAccount false, invite still sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{noLFIDWriter},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-uid-new",
+			setupUserReader: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, noLFIDWriter.Email).Return("", errors.New("auth unavailable"))
+			},
+			wantRecipientHasAccount: false,
+		},
+		{
+			name: "non-LFID writer added — ErrUserNotFound — RecipientHasAccount false, invite still sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{
+					Writers: []events.UserInfo{noLFIDWriter},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-uid-new",
+			setupUserReader: func(u *domain.MockUserReader) {
+				u.On("UsernameByEmail", mock.Anything, noLFIDWriter.Email).Return("", domain.ErrUserNotFound)
+			},
+			wantRecipientHasAccount: false,
+		},
+		{
+			// The len(rolesToInvite)==0 early-return must skip the LFID lookup entirely.
+			// An empty setupUserReader mock panics on any unexpected UsernameByEmail call,
+			// which is the assertion.
+			name: "non-LFID writer loses writer (keeps auditor) — no lookup, no invite sent",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID: "proj-1",
+				OldSettings: events.ProjectSettings{
+					Writers:  []events.UserInfo{noLFIDWriter},
+					Auditors: []events.UserInfo{noLFIDWriter},
+				},
+				NewSettings: events.ProjectSettings{
+					Auditors: []events.UserInfo{noLFIDWriter},
+				},
+				Actor: events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 0,
+			setupUserReader: func(u *domain.MockUserReader) {
+				// intentionally empty: any call to UsernameByEmail fails the test
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -526,6 +613,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				}
 			}
 
+			var capturedInviteReqs []inviteapi.SendInviteRequest
+			var captureMu sync.Mutex
 			if tt.wantInviteCount > 0 {
 				wantRole := tt.wantInviteRole
 				wantProjectUID := tt.event.ProjectUID
@@ -542,18 +631,31 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 					InviteUID:      inviteReturnUID,
 					RecipientEmail: "nonlfid@example.com",
 					ExpiresAt:      time.Now().Add(30 * 24 * time.Hour),
-				}, inviteReturnErr).Times(tt.wantInviteCount)
+				}, inviteReturnErr).Run(func(args mock.Arguments) {
+					req := args.Get(1).(inviteapi.SendInviteRequest)
+					captureMu.Lock()
+					capturedInviteReqs = append(capturedInviteReqs, req)
+					captureMu.Unlock()
+				}).Times(tt.wantInviteCount)
 			}
 
 			if tt.setupRepoExtra != nil {
 				tt.setupRepoExtra(mockRepo)
 			}
 
+			var mockUserReader *domain.MockUserReader
+			var userReaderForDispatcher domain.UserReader // nil interface — safe to pass to NewUserResolver
+			if tt.setupUserReader != nil {
+				mockUserReader = &domain.MockUserReader{}
+				tt.setupUserReader(mockUserReader)
+				userReaderForDispatcher = mockUserReader
+			}
+
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
 				MessageBuilder:    mockMsg,
 				Resolver:          NewUserResolver(nil),
-				Dispatcher:        NewNotificationDispatcher(mockMsg, NewUserResolver(nil), true, true),
+				Dispatcher:        NewNotificationDispatcher(mockMsg, NewUserResolver(userReaderForDispatcher), true, true),
 				Config: ServiceConfig{
 					LFXSelfServeBaseURL: "https://app.dev.lfx.dev",
 					EmailsEnabled:       true,
@@ -567,8 +669,15 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 			mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", tt.wantEmailCount)
 			mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", tt.wantInviteCount)
+			require.Len(t, capturedInviteReqs, tt.wantInviteCount)
+			if tt.wantInviteCount > 0 {
+				assert.Equal(t, tt.wantRecipientHasAccount, capturedInviteReqs[0].RecipientHasAccount, "RecipientHasAccount")
+			}
 			mockRepo.AssertExpectations(t)
 			mockMsg.AssertExpectations(t)
+			if mockUserReader != nil {
+				mockUserReader.AssertExpectations(t)
+			}
 		})
 	}
 

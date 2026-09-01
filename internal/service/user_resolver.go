@@ -115,6 +115,15 @@ func (r *UserResolver) EnrichAuditUser(ctx context.Context, user *models.UserInf
 	return enriched
 }
 
+// UsernameByEmail looks up the LFID username for the given email address.
+// Returns ("", nil) when the reader is nil (test/noop path).
+func (r *UserResolver) UsernameByEmail(ctx context.Context, email string) (string, error) {
+	if r.reader == nil {
+		return "", nil
+	}
+	return r.reader.UsernameByEmail(ctx, email)
+}
+
 // ResolveDisplayName returns the display name for the given actor, suitable for use in
 // notification emails. It falls back to "A project member" when the actor carries no name
 // and the auth-service lookup fails or returns empty.
