@@ -1,3 +1,6 @@
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Marketing Ops Grant
 
 An ops-only utility for granting/revoking Marketing Ops (Campaign Impact and Campaigns tab)
@@ -22,6 +25,8 @@ Use this script only for:
 - `kubectl` pointed at the target cluster context, with permission to `run`/`get`/`logs`/`delete`
   pods in namespace `lfx`.
 - The environment's OpenFGA store ID (see below) — the script does not discover it for you.
+- For `--global`, the environment's root project UID (see below) — the script does not discover it
+  for you.
 
 ## How it works
 
@@ -31,10 +36,22 @@ which is granted the project's `marketing_ops` relation. `marketing_ops` implies
 so one team grant covers all three. Membership in that team, not the team->project reference
 itself, is what's granted or revoked per user.
 
-`--global` targets the special `ROOT` project (see `scripts/root-project-setup`) instead of a
-specific project UID. Because `marketing_ops` also resolves `from parent`, a grant on `ROOT`
+`--global` targets the root project (see `scripts/root-project-setup`) instead of a specific
+project UID. Because `marketing_ops` also resolves `from parent`, a grant on the root project
 cascades down to every project in the hierarchy — the same mechanism a project-scoped grant uses,
 just applied one level higher.
+
+**`ROOT` is only the root project's slug, not its OpenFGA object ID** — the object ID is a
+generated UUID (`scripts/root-project-setup/main.go` assigns `Slug: "ROOT"` separately from a
+`uuid.New()`-generated `UID`), and every other service references the root project as
+`project:<UID>`, never the literal `project:ROOT`. So `--global` requires you to pass that real
+UID explicitly via `--root-uid <uid>`; the script will not guess it. Resolve it once per
+environment via a nats-box pod:
+
+```bash
+kubectl --context <ctx> exec -n lfx <nats-box-pod> -- \
+  nats request lfx.projects-api.slug_to_uid "ROOT" --server=nats://lfx-platform-nats:4222
+```
 
 Every `grant`/`revoke` run automatically re-checks `marketing_ops`, `marketing_auditor`,
 `campaign_manager`, and the underlying team membership tuple with `--consistency HIGHER_CONSISTENCY`
@@ -44,9 +61,9 @@ post-action state.
 ## Usage
 
 ```bash
-./marketing-ops-grant.sh grant  --env dev|prod --user <username> (--project <uid>|--global)
-./marketing-ops-grant.sh revoke --env dev|prod --user <username> (--project <uid>|--global)
-./marketing-ops-grant.sh check  --env dev|prod --user <username> (--project <uid>|--global)
+./marketing-ops-grant.sh grant  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
+./marketing-ops-grant.sh revoke --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
+./marketing-ops-grant.sh check  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
 ```
 
 ### Examples
@@ -56,7 +73,7 @@ post-action state.
 ./marketing-ops-grant.sh grant --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
 
 # Grant a user Marketing Ops access on every project
-./marketing-ops-grant.sh grant --env prod --user alice.example --global
+./marketing-ops-grant.sh grant --env prod --user alice.example --global --root-uid 00000000-0000-0000-0000-000000000002
 
 # Just verify what's currently granted, without changing anything
 ./marketing-ops-grant.sh check --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001

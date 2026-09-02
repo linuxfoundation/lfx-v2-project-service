@@ -14,16 +14,23 @@
 #   - ad-hoc verification of what's actually in a given FGA store
 #
 # Requires: kubectl pointed at the target cluster context, permission to
-# `kubectl run`/`exec` in namespace `lfx`.
+# `kubectl run`/`get`/`logs`/`delete` pods in namespace `lfx`.
+#
+# --global writes/reads against the root project, not a synthetic "ROOT"
+# object — the root project's real OpenFGA object ID is a generated UUID
+# (see scripts/root-project-setup/main.go), not the literal string "ROOT"
+# (that's only its slug). You must resolve it once per environment and pass
+# it explicitly with --root-uid, e.g. via a nats-box pod:
+#   nats request lfx.projects-api.slug_to_uid "ROOT" --server=nats://lfx-platform-nats:4222
 #
 # Usage:
-#   marketing-ops-grant.sh grant  --env dev|prod --user <username> (--project <uid>|--global)
-#   marketing-ops-grant.sh revoke --env dev|prod --user <username> (--project <uid>|--global)
-#   marketing-ops-grant.sh check  --env dev|prod --user <username> (--project <uid>|--global)
+#   marketing-ops-grant.sh grant  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
+#   marketing-ops-grant.sh revoke --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
+#   marketing-ops-grant.sh check  --env dev|prod --user <username> (--project <uid>|--global --root-uid <uid>)
 #
 # Examples:
 #   marketing-ops-grant.sh grant  --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
-#   marketing-ops-grant.sh grant  --env prod --user alice.example --global
+#   marketing-ops-grant.sh grant  --env prod --user alice.example --global --root-uid 00000000-0000-0000-0000-000000000002
 #   marketing-ops-grant.sh check  --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
 
 set -euo pipefail
@@ -40,6 +47,7 @@ shift
 ENV_NAME=""
 USERNAME=""
 PROJECT_UID=""
+ROOT_UID=""
 GLOBAL=false
 
 while [[ $# -gt 0 ]]; do
@@ -48,6 +56,7 @@ while [[ $# -gt 0 ]]; do
     --user) USERNAME="$2"; shift 2 ;;
     --project) PROJECT_UID="$2"; shift 2 ;;
     --global) GLOBAL=true; shift ;;
+    --root-uid) ROOT_UID="$2"; shift 2 ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
 done
@@ -58,6 +67,12 @@ if [[ "$GLOBAL" == true && -n "$PROJECT_UID" ]]; then
 fi
 if [[ "$GLOBAL" == false && -z "$PROJECT_UID" ]]; then
   echo "Must specify --project <uid> or --global." >&2; exit 1
+fi
+if [[ "$GLOBAL" == true && -z "$ROOT_UID" ]]; then
+  echo "--global requires --root-uid <uid> — the root project's real OpenFGA object ID." >&2
+  echo "\"ROOT\" is only the root project's slug, not its object ID; resolve it once per" >&2
+  echo "environment, e.g.: nats request lfx.projects-api.slug_to_uid \"ROOT\" --server=nats://lfx-platform-nats:4222" >&2
+  exit 1
 fi
 
 case "$ENV_NAME" in
@@ -74,7 +89,7 @@ case "$ENV_NAME" in
 esac
 
 if [[ "$GLOBAL" == true ]]; then
-  TARGET_UID="ROOT"
+  TARGET_UID="$ROOT_UID"
 else
   TARGET_UID="$PROJECT_UID"
 fi
@@ -85,7 +100,11 @@ PROJECT_OBJECT="project:${TARGET_UID}"
 NS="lfx"
 FGA_API_URL="http://lfx-platform-openfga:8080"
 
-# run_fga_pod POD_NAME ARG...   -- runs one ephemeral fga-cli pod with the given args, prints its logs, deletes it.
+# run_fga_pod POD_NAME ARG...   -- runs one ephemeral fga-cli pod with the given
+# args, prints its logs, deletes it. Returns non-zero (in addition to printing
+# whatever was captured) if the pod failed, its logs couldn't be fetched, or it
+# never reached a terminal phase — callers must not treat that the same as a
+# successful command whose output happens not to match what they're looking for.
 run_fga_pod() {
   local pod="$1"; shift
   local args_json
@@ -107,24 +126,35 @@ run_fga_pod() {
 
   # fga-cli pods run-to-completion and never report Ready; poll phase instead
   # of waiting on a condition that will never be met.
+  local phase=""
   for _ in $(seq 1 10); do
     phase=$(kubectl --context "$CTX" get pod "$pod" -n "$NS" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
     [[ "$phase" == "Succeeded" || "$phase" == "Failed" ]] && break
     sleep 1
   done
 
-  local out
-  out=$(kubectl --context "$CTX" logs "$pod" -n "$NS" 2>&1) || true
+  local out rc=0
+  out=$(kubectl --context "$CTX" logs "$pod" -n "$NS" 2>&1) || rc=1
   kubectl --context "$CTX" delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1
   echo "$out"
+
+  if [[ "$phase" != "Succeeded" ]]; then
+    echo "run_fga_pod: pod ${pod} did not succeed (phase=${phase:-timed out})" >&2
+    return 1
+  fi
+  return "$rc"
 }
 
-# fga_check RELATION OBJECT   -- returns "true" or "false"
+# fga_check RELATION OBJECT   -- prints "true" or "false" and returns 0, or
+# prints nothing and returns non-zero if the underlying pod command failed —
+# a broken check must never be reported as a denied ("false") check.
 fga_check() {
   local relation="$1" object="$2"
   local pod="fga-check-$$-${RANDOM}"
   local out
-  out=$(run_fga_pod "$pod" query check --consistency HIGHER_CONSISTENCY "user:${USERNAME}" "$relation" "$object")
+  if ! out=$(run_fga_pod "$pod" query check --consistency HIGHER_CONSISTENCY "user:${USERNAME}" "$relation" "$object"); then
+    return 1
+  fi
   if echo "$out" | grep -qi '"allowed": *true'; then
     echo "true"
   else
@@ -139,7 +169,11 @@ verify() {
   local ok=true
   for relation in marketing_ops marketing_auditor campaign_manager; do
     local result
-    result=$(fga_check "$relation" "$PROJECT_OBJECT")
+    if ! result=$(fga_check "$relation" "$PROJECT_OBJECT"); then
+      echo "  ERROR checking ${relation} — fga-cli command failed, not a real allow/deny result" >&2
+      ok=false
+      continue
+    fi
     if [[ "$result" == "$expect" ]]; then
       echo "  PASS  ${relation} = ${result}"
     else
@@ -148,8 +182,10 @@ verify() {
     fi
   done
   local member_result
-  member_result=$(fga_check member "$TEAM_OBJECT")
-  if [[ "$member_result" == "$expect" ]]; then
+  if ! member_result=$(fga_check member "$TEAM_OBJECT"); then
+    echo "  ERROR checking member of ${TEAM_OBJECT} — fga-cli command failed, not a real allow/deny result" >&2
+    ok=false
+  elif [[ "$member_result" == "$expect" ]]; then
     echo "  PASS  member of ${TEAM_OBJECT} = ${member_result}"
   else
     echo "  FAIL  member of ${TEAM_OBJECT} = ${member_result} (expected ${expect})"
