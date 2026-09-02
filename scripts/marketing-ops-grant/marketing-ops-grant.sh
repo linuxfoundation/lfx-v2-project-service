@@ -144,15 +144,20 @@ run_fga_pod() {
     }]}
   }' >/dev/null
 
-  # fga-cli pods run-to-completion and never report Ready; wait on the
-  # terminal phase instead of a condition that will never be met. 120s
-  # tolerates a cold-node image pull that the old 10s poll ceiling did not.
-  local phase
-  if kubectl --context "$CTX" wait --for=jsonpath='{.status.phase}'=Succeeded pod/"$pod" -n "$NS" --timeout=120s >/dev/null 2>&1; then
-    phase="Succeeded"
-  else
+  # fga-cli pods run-to-completion and never report Ready; poll the terminal
+  # phase instead of a condition that will never be met. 120s tolerates a
+  # cold-node image pull that the old 10s poll ceiling did not, while polling
+  # every 2s (rather than a single 120s `kubectl wait`) lets a pod that fails
+  # fast (e.g. ImagePullBackOff) get caught well before the deadline instead
+  # of blocking the full timeout on every one of verify()'s four checks.
+  local phase="" deadline
+  deadline=$(( $(date +%s) + 120 ))
+  while :; do
     phase=$(kubectl --context "$CTX" get pod "$pod" -n "$NS" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
-  fi
+    [[ "$phase" == "Succeeded" || "$phase" == "Failed" ]] && break
+    (( $(date +%s) >= deadline )) && break
+    sleep 2
+  done
 
   local out rc=0
   out=$(kubectl --context "$CTX" logs "$pod" -n "$NS" 2>&1) || rc=1
@@ -174,6 +179,7 @@ fga_check() {
   local pod="fga-check-$$-${RANDOM}"
   local out
   if ! out=$(run_fga_pod "$pod" query check --consistency HIGHER_CONSISTENCY "user:${USERNAME}" "$relation" "$object"); then
+    echo "$out" >&2
     return 1
   fi
   if echo "$out" | grep -qi '"allowed": *true'; then
