@@ -160,7 +160,7 @@ below).
 | `--project-uid` | `""` | Limit to a single project UID (default all) |
 | `--concurrency` | `50` | Max concurrent project republishes |
 | `--all` | `false` | Republish every project regardless of OpenSearch state, skipping the diff and the OpenSearch connection entirely |
-| `--include-access` | `false` | Also republish the FGA access message |
+| `--include-access` | `false` | Also republish the FGA access message. Fires only for projects with at least one missing OpenSearch document, or when combined with `--all` |
 
 **Exit code:** `0` on success, `1` on failure.
 
@@ -182,6 +182,12 @@ Force a full republish of every project, bypassing the OpenSearch diff:
 
 ```sh
 go run ./cmd/project-cli sync reindex-projects --all --update
+```
+
+Republish FGA access for every project (full FGA repair):
+
+```sh
+go run ./cmd/project-cli sync reindex-projects --all --include-access --update
 ```
 
 ## Building
