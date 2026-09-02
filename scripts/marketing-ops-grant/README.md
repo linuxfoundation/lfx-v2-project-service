@@ -55,14 +55,24 @@ kubectl --context <ctx> exec -n lfx <nats-box-pod> -- \
   nats request lfx.projects-api.slug_to_uid "ROOT" --server=nats://lfx-platform-nats:4222
 ```
 
-Every `grant`/`revoke` run automatically re-checks `marketing_ops`, `marketing_auditor`,
-`campaign_manager`, and the underlying team membership tuple with `--consistency HIGHER_CONSISTENCY`
-(bypassing OpenFGA's check-query cache) and fails loudly if any of them don't match the expected
-post-action state. `check` reports the same four values without asserting anything, so it can also
-confirm the *absence* of access (e.g. after a revoke done some other way).
+`grant` re-checks `marketing_ops`, `marketing_auditor`, `campaign_manager`, and the underlying team
+membership tuple with `--consistency HIGHER_CONSISTENCY` (bypassing OpenFGA's check-query cache) and
+fails loudly if any of them aren't `true` afterward. `revoke` only asserts team membership is
+`false` — the tuple it actually deletes — and *reports* (without asserting) the three derived
+relations, since `marketing_auditor`/`campaign_manager` have independent grant paths
+(`executive_director`, or an ancestor `--global` grant) that a project-level revoke can't touch;
+asserting them `false` would fail a revoke that worked correctly for anyone holding access another
+way. `check` reports the same four values without asserting anything, so it can also confirm the
+*absence* of access (e.g. after a revoke done some other way).
+
+`grant --global` additionally accepts `--verify-project <uid>`, which samples one real descendant
+project after the root write to confirm the cascade actually reached it — the root-object check
+alone only proves the tuple exists on the root, not that anything inherited it.
 
 `grant`/`revoke` are safe to re-run: writing a tuple that already exists, or deleting one that's
-already gone, is treated as success rather than an error.
+already gone, is treated as success rather than an error (`--on-duplicate`/`--on-missing ignore`).
+This requires OpenFGA server **v1.10.0+**; confirm the running version in the target environment
+(`kubectl --context <ctx> -n lfx exec <openfga-pod> -- /openfga version`) before relying on it.
 
 ## Usage
 
@@ -92,18 +102,31 @@ already gone, is treated as success rather than an error.
 left in place by design, matching the API's behavior. Access is controlled purely by team
 membership, which stays trivially re-grantable without re-establishing the reference tuple.
 
-`grant --env prod --global` — the highest-blast-radius invocation, since `--user` is not validated
-against the auth service — prompts you to re-type the username before writing anything.
+`grant --env prod --global` and `revoke --env prod --global` — the highest-blast-radius invocations,
+since `--user` is not validated against the auth service — both prompt you to re-type the username
+before writing anything.
 
 ## Configuring environments
 
-The `dev`/`prod` OpenFGA store IDs and kubectl contexts are set near the top of
-`marketing-ops-grant.sh`. Update them if either environment's store is recreated, and add the prod
-kubectl context first if it isn't already configured:
+The `dev`/`prod` kubectl context aliases are set near the top of `marketing-ops-grant.sh`
+(`lfx-v2-dev` / `lfx-v2-prod`). Add the prod kubectl context first if it isn't already configured —
+see your AWS/EKS access docs for the profile, region, and cluster name to use; it maps to whatever
+alias `marketing-ops-grant.sh` expects for `--env prod`:
 
 ```bash
-aws eks update-kubeconfig --region us-west-2 --name lfx-v2 --profile lfx-prod-readonly --alias lfx-v2-prod
+aws eks update-kubeconfig --region <region> --name <cluster-name> --profile <your-prod-profile> --alias lfx-v2-prod
 ```
+
+The dev OpenFGA store ID has a hardcoded default in the script. **The prod store ID is not
+committed** (per this repo's no-production-data-in-source rule) — export it before running against
+prod:
+
+```bash
+export FGA_STORE_ID=<prod-store-id>   # ask a teammate with existing access, or check the FGA admin console
+```
+
+`FGA_STORE_ID` also overrides the dev default if you ever need to point `--env dev` at a different
+store.
 
 Dev and prod are separate AWS accounts and EKS clusters (both happen to be named `lfx-v2`) with
 independently seeded FGA stores — a `kubectl` context pointed at the wrong one will silently read
