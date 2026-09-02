@@ -147,17 +147,6 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 }
 
 func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models.ProjectBase, m osMissing) error {
-	var settings *models.ProjectSettings
-	if m.projectSettings || r.includeAccess {
-		var err error
-		settings, err = r.repo.GetProjectSettings(ctx, base.UID)
-		if err != nil {
-			slog.WarnContext(ctx, "failed to read project settings before reindex",
-				"project_uid", base.UID, constants.ErrKey, err)
-			return fmt.Errorf("get project settings %q: %w", base.UID, err)
-		}
-	}
-
 	if r.dryRun {
 		slog.InfoContext(ctx, "dry-run: would reindex project",
 			"project_uid", base.UID,
@@ -192,21 +181,40 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 		})
 	}
 
-	if m.projectSettings {
+	// Settings are read and published independently of the project base publish
+	// above. CreateProject writes the base before settings and can return before
+	// settings ever land (internal/infrastructure/nats/repository.go), so a settings
+	// read failure here must not block an otherwise-repairable base publish.
+	if m.projectSettings || r.includeAccess {
 		g.Go(func() error {
-			msg := indexerTypes.IndexerMessageEnvelope{
-				Action:         action,
-				Data:           *settings,
-				IndexingConfig: settings.IndexingConfig(base.UID),
+			settings, err := r.repo.GetProjectSettings(ctx, base.UID)
+			if err != nil {
+				slog.WarnContext(ctx, "failed to read project settings before reindex",
+					"project_uid", base.UID, constants.ErrKey, err)
+				return fmt.Errorf("get project settings %q: %w", base.UID, err)
 			}
-			return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, true)
-		})
-	}
 
-	if r.includeAccess {
-		g.Go(func() error {
-			proj := service.NewProjectProjection(base, settings)
-			return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+			sg := new(errgroup.Group)
+
+			if m.projectSettings {
+				sg.Go(func() error {
+					msg := indexerTypes.IndexerMessageEnvelope{
+						Action:         action,
+						Data:           *settings,
+						IndexingConfig: settings.IndexingConfig(base.UID),
+					}
+					return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, true)
+				})
+			}
+
+			if r.includeAccess {
+				sg.Go(func() error {
+					proj := service.NewProjectProjection(base, settings)
+					return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+				})
+			}
+
+			return sg.Wait()
 		})
 	}
 

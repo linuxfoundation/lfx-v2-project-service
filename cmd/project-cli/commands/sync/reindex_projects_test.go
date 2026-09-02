@@ -312,6 +312,8 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		includeAccess bool
 		setupMock     func(*domain.MockMessageBuilder)
 		getSettings   bool
+		settingsErr   error
+		wantErr       bool
 	}{
 		{
 			name:    "missing project only",
@@ -362,6 +364,18 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 					Return(nil).Once()
 			},
 		},
+		{
+			name:        "settings read failure still publishes an independently missing project doc",
+			missing:     osMissing{project: true, projectSettings: true},
+			getSettings: true,
+			settingsErr: fmt.Errorf("settings kv record not found"),
+			setupMock: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), true).
+					Return(nil).Once()
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -370,13 +384,20 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			tt.setupMock(publisher)
 
 			r := &reindexProjectsRunner{
-				repo:          &fakeProjectRecordRepo{settingsByUID: map[string]*models.ProjectSettings{base.UID: settings}},
+				repo: &fakeProjectRecordRepo{
+					settingsByUID: map[string]*models.ProjectSettings{base.UID: settings},
+					settingsErr:   tt.settingsErr,
+				},
 				publisher:     publisher,
 				all:           tt.all,
 				includeAccess: tt.includeAccess,
 			}
 			err := r.reindexProject(context.Background(), base, tt.missing)
-			require.NoError(t, err)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 			publisher.AssertExpectations(t)
 		})
 	}
@@ -387,6 +408,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 // NATS KV connection.
 type fakeProjectRecordRepo struct {
 	settingsByUID map[string]*models.ProjectSettings
+	settingsErr   error
 }
 
 func (f *fakeProjectRecordRepo) GetProjectBase(context.Context, string) (*models.ProjectBase, error) {
@@ -398,6 +420,9 @@ func (f *fakeProjectRecordRepo) ListAllProjectsBase(context.Context) ([]*models.
 }
 
 func (f *fakeProjectRecordRepo) GetProjectSettings(_ context.Context, projectUID string) (*models.ProjectSettings, error) {
+	if f.settingsErr != nil {
+		return nil, f.settingsErr
+	}
 	return f.settingsByUID[projectUID], nil
 }
 
