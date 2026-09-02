@@ -140,6 +140,50 @@ go run ./cmd/project-cli sync document-audit-users \
   --update --resource-type=document --sleep=200ms
 ```
 
+#### `sync reindex-projects`
+
+Diffs project and project_settings documents in the OpenSearch `resources` index against
+the NATS KV project records, then republishes indexer messages for any documents found
+missing. Use this to repair projects that exist in KV but never made it into the search
+index (and are therefore invisible to the query service and self-serve), without touching
+KV data. FGA data is untouched by default; pass `--include-access` to also republish the
+FGA access message.
+
+Connects to both NATS and OpenSearch at the start of `Run()`, unless `--all` is set (see
+below).
+
+**Subcommand flags**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--update` | `false` | Publish indexer messages (default is preview-only) |
+| `--project-uid` | `""` | Limit to a single project UID (default all) |
+| `--concurrency` | `50` | Max concurrent project republishes |
+| `--all` | `false` | Republish every project regardless of OpenSearch state, skipping the diff and the OpenSearch connection entirely |
+| `--include-access` | `false` | Also republish the FGA access message |
+
+**Exit code:** `0` on success, `1` on failure.
+
+**Examples**
+
+Preview which documents are missing across all projects:
+
+```sh
+go run ./cmd/project-cli sync reindex-projects
+```
+
+Repair a single project:
+
+```sh
+go run ./cmd/project-cli sync reindex-projects --project-uid=<uid> --update
+```
+
+Force a full republish of every project, bypassing the OpenSearch diff:
+
+```sh
+go run ./cmd/project-cli sync reindex-projects --all --update
+```
+
 ## Building
 
 ### Local binary

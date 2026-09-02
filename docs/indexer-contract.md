@@ -29,7 +29,9 @@ delete record.
 
 **Source struct:** `internal/domain/models/project.go` — `ProjectBase`
 
-**Indexed on:** create, update, delete of a project.
+**Indexed on:** create, update, delete of a project. Also republished (as `ActionCreated`
+or `ActionUpdated`) by `project-cli sync reindex-projects` to repair a project missing from
+the search index — see `cmd/project-cli/README.md`.
 
 ### Data Schema
 
@@ -104,7 +106,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 
 **Source struct:** `internal/domain/models/project.go` — `ProjectSettings`
 
-**Indexed on:** create, update, delete of project settings. Settings share the same UID as their parent project.
+**Indexed on:** create, update, delete of project settings. Settings share the same UID as their parent project. Also republished (as `ActionCreated` or `ActionUpdated`) by `project-cli sync reindex-projects` to repair settings missing from the search index — see `cmd/project-cli/README.md`.
 
 ### Data Schema
 
