@@ -52,6 +52,11 @@ GLOBAL=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --env|--user|--project|--root-uid)
+      [[ $# -ge 2 ]] || { echo "$1 requires a value" >&2; usage; }
+      ;;
+  esac
+  case "$1" in
     --env) ENV_NAME="$2"; shift 2 ;;
     --user) USERNAME="$2"; shift 2 ;;
     --project) PROJECT_UID="$2"; shift 2 ;;
@@ -111,10 +116,10 @@ run_fga_pod() {
   args_json=$(printf '"%s",' "$@")
   args_json="[${args_json%,}]"
 
-  kubectl --context "$CTX" run "$pod" -n "$NS" --image=openfga/cli:latest --restart=Never --overrides='{
+  kubectl --context "$CTX" run "$pod" -n "$NS" --image=openfga/cli:0.7.20 --restart=Never --overrides='{
     "spec": {"containers": [{
       "name": "'"$pod"'",
-      "image": "openfga/cli:latest",
+      "image": "openfga/cli:0.7.20",
       "args": '"$args_json"',
       "env": [
         {"name": "FGA_API_URL", "value": "'"$FGA_API_URL"'"},
@@ -124,14 +129,15 @@ run_fga_pod() {
     }]}
   }' >/dev/null
 
-  # fga-cli pods run-to-completion and never report Ready; poll phase instead
-  # of waiting on a condition that will never be met.
-  local phase=""
-  for _ in $(seq 1 10); do
+  # fga-cli pods run-to-completion and never report Ready; wait on the
+  # terminal phase instead of a condition that will never be met. 120s
+  # tolerates a cold-node image pull that the old 10s poll ceiling did not.
+  local phase
+  if kubectl --context "$CTX" wait --for=jsonpath='{.status.phase}'=Succeeded pod/"$pod" -n "$NS" --timeout=120s >/dev/null 2>&1; then
+    phase="Succeeded"
+  else
     phase=$(kubectl --context "$CTX" get pod "$pod" -n "$NS" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
-    [[ "$phase" == "Succeeded" || "$phase" == "Failed" ]] && break
-    sleep 1
-  done
+  fi
 
   local out rc=0
   out=$(kubectl --context "$CTX" logs "$pod" -n "$NS" 2>&1) || rc=1
@@ -157,8 +163,12 @@ fga_check() {
   fi
   if echo "$out" | grep -qi '"allowed": *true'; then
     echo "true"
-  else
+  elif echo "$out" | grep -qi '"allowed": *false'; then
     echo "false"
+  else
+    echo "fga_check: could not determine result for ${relation} on ${object}:" >&2
+    echo "$out" >&2
+    return 1
   fi
 }
 
@@ -200,20 +210,35 @@ verify() {
   fi
 }
 
+if [[ "$ACTION" == "grant" && "$ENV_NAME" == "prod" && "$GLOBAL" == true ]]; then
+  echo "You are about to grant user:${USERNAME} marketing_ops access to EVERY project in prod"
+  echo "(via ${TEAM_OBJECT} -> ${PROJECT_OBJECT}). This username is NOT validated against the"
+  echo "auth service — a typo grants org-wide access to the wrong person."
+  read -r -p "Type the username again to confirm (${USERNAME}): " CONFIRM_USERNAME
+  if [[ "$CONFIRM_USERNAME" != "$USERNAME" ]]; then
+    echo "Confirmation did not match. Aborting." >&2
+    exit 1
+  fi
+fi
+
 case "$ACTION" in
   grant)
     echo "Granting user:${USERNAME} marketing_ops via ${TEAM_OBJECT} -> ${PROJECT_OBJECT} (env=${ENV_NAME})"
-    run_fga_pod "fga-write-team-$$" tuple write "${TEAM_OBJECT}#member" marketing_ops "$PROJECT_OBJECT"
-    run_fga_pod "fga-write-member-$$" tuple write "user:${USERNAME}" member "$TEAM_OBJECT"
+    run_fga_pod "fga-write-team-$$" tuple write "${TEAM_OBJECT}#member" marketing_ops "$PROJECT_OBJECT" --on-duplicate ignore
+    run_fga_pod "fga-write-member-$$" tuple write "user:${USERNAME}" member "$TEAM_OBJECT" --on-duplicate ignore
     verify "true"
     ;;
   revoke)
     echo "Revoking user:${USERNAME} from ${TEAM_OBJECT} (env=${ENV_NAME})"
     echo "Note: the team->project marketing_ops reference is left in place by design — access is controlled purely by team membership."
-    run_fga_pod "fga-delete-member-$$" tuple delete "user:${USERNAME}" member "$TEAM_OBJECT"
+    run_fga_pod "fga-delete-member-$$" tuple delete "user:${USERNAME}" member "$TEAM_OBJECT" --on-missing ignore
     verify "false"
     ;;
   check)
-    verify "true"
+    echo "Current access for user:${USERNAME} on ${PROJECT_OBJECT} (store ${STORE_ID}, env ${ENV_NAME}):"
+    for relation in marketing_ops marketing_auditor campaign_manager; do
+      echo "  ${relation} = $(fga_check "$relation" "$PROJECT_OBJECT")"
+    done
+    echo "  member of ${TEAM_OBJECT} = $(fga_check member "$TEAM_OBJECT")"
     ;;
 esac

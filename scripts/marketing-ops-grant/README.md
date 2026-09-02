@@ -9,9 +9,11 @@ access via direct OpenFGA tuple writes, with built-in post-action verification.
 ## When to use this vs. the self-serve API
 
 `POST /projects/:uid/marketing-ops-members` and `DELETE /projects/:uid/marketing-ops-members/:username`
-(see the main [README](../../README.md)) are the self-serve way to grant/revoke Marketing Ops access
-scoped to a single project — no cluster access required, the username is validated against the auth
-service, and the call is audited like any other API request. **Use the API for normal requests.**
+are the self-serve way to grant/revoke Marketing Ops access scoped to a single project — no cluster
+access required, the username is validated against the auth service, and the call is audited like any
+other API request. **Use the API for normal requests.** (These endpoints are landing separately in
+[#107](https://github.com/linuxfoundation/lfx-v2-project-service/pull/107); see the main
+[README](../../README.md) once that merges.)
 
 Use this script only for:
 
@@ -56,7 +58,11 @@ kubectl --context <ctx> exec -n lfx <nats-box-pod> -- \
 Every `grant`/`revoke` run automatically re-checks `marketing_ops`, `marketing_auditor`,
 `campaign_manager`, and the underlying team membership tuple with `--consistency HIGHER_CONSISTENCY`
 (bypassing OpenFGA's check-query cache) and fails loudly if any of them don't match the expected
-post-action state.
+post-action state. `check` reports the same four values without asserting anything, so it can also
+confirm the *absence* of access (e.g. after a revoke done some other way).
+
+`grant`/`revoke` are safe to re-run: writing a tuple that already exists, or deleting one that's
+already gone, is treated as success rather than an error.
 
 ## Usage
 
@@ -75,7 +81,7 @@ post-action state.
 # Grant a user Marketing Ops access on every project
 ./marketing-ops-grant.sh grant --env prod --user alice.example --global --root-uid 00000000-0000-0000-0000-000000000002
 
-# Just verify what's currently granted, without changing anything
+# Just report what's currently granted, without changing anything or asserting a result
 ./marketing-ops-grant.sh check --env prod --user alice.example --project 00000000-0000-0000-0000-000000000001
 
 # Revoke
@@ -85,6 +91,9 @@ post-action state.
 `revoke` only removes the user's team membership — the team->project `marketing_ops` reference is
 left in place by design, matching the API's behavior. Access is controlled purely by team
 membership, which stays trivially re-grantable without re-establishing the reference tuple.
+
+`grant --env prod --global` — the highest-blast-radius invocation, since `--user` is not validated
+against the auth service — prompts you to re-type the username before writing anything.
 
 ## Configuring environments
 
@@ -98,5 +107,7 @@ aws eks update-kubeconfig --region us-west-2 --name lfx-v2 --profile lfx-prod-re
 
 Dev and prod are separate AWS accounts and EKS clusters (both happen to be named `lfx-v2`) with
 independently seeded FGA stores — a `kubectl` context pointed at the wrong one will silently read
-or write the wrong environment's data. Confirm the intended context (`kubectl config current-context`)
-before running `grant` or `revoke`.
+or write the wrong environment's data. The script always pins `--context "$CTX"` explicitly per
+`--env`, so your shell's *current* context doesn't affect what it does — instead, confirm the named
+context actually points where you expect, e.g. `kubectl --context lfx-v2-prod cluster-info`, before
+running `grant` or `revoke`.
