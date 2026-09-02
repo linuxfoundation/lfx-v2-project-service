@@ -177,6 +177,8 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 		action = indexerConstants.ActionUpdated
 	}
 
+	// sync=true (request/reply) so a NATS timeout or unreachable indexer surfaces as a
+	// per-project failure instead of a silently-dropped fire-and-forget publish.
 	g := new(errgroup.Group)
 
 	if m.project {
@@ -186,7 +188,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 				Data:           *base,
 				IndexingConfig: base.IndexingConfig(),
 			}
-			return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, false)
+			return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, true)
 		})
 	}
 
@@ -197,7 +199,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 				Data:           *settings,
 				IndexingConfig: settings.IndexingConfig(base.UID),
 			}
-			return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, false)
+			return r.publisher.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, true)
 		})
 	}
 

@@ -77,3 +77,4 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Update project base | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Update project settings | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Delete project | `project` | `lfx.fga-sync.delete_access` | Always sent |
+| `project-cli sync reindex-projects --include-access` | `project` | `lfx.fga-sync.update_access` | Manual repair path, opt-in only — see `cmd/project-cli/README.md` |

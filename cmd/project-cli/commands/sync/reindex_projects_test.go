@@ -251,6 +251,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 	tests := []struct {
 		name          string
 		missing       osMissing
+		all           bool
 		includeAccess bool
 		setupMock     func(*domain.MockMessageBuilder)
 		getSettings   bool
@@ -260,7 +261,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			missing: osMissing{project: true},
 			setupMock: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), true).
 					Return(nil).Once()
 			},
 		},
@@ -270,7 +271,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			getSettings: true,
 			setupMock: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
-					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), false).
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), true).
 					Return(nil).Once()
 			},
 		},
@@ -281,12 +282,26 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			getSettings:   true,
 			setupMock: func(m *domain.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
-					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), false).
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), true).
 					Return(nil).Once()
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
-					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), false).
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), true).
 					Return(nil).Once()
 				m.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).Once()
+			},
+		},
+		{
+			name:        "all mode uses ActionUpdated",
+			missing:     osMissing{project: true, projectSettings: true},
+			all:         true,
+			getSettings: true,
+			setupMock: func(m *domain.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base)), true).
+					Return(nil).Once()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings)), true).
 					Return(nil).Once()
 			},
 		},
@@ -300,6 +315,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			r := &reindexProjectsRunner{
 				repo:          &fakeProjectRecordRepo{settingsByUID: map[string]*models.ProjectSettings{base.UID: settings}},
 				publisher:     publisher,
+				all:           tt.all,
 				includeAccess: tt.includeAccess,
 			}
 			err := r.reindexProject(context.Background(), base, tt.missing)

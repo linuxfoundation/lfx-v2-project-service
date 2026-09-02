@@ -146,7 +146,8 @@ Diffs project and project_settings documents in the OpenSearch `resources` index
 the NATS KV project records, then republishes indexer messages for any documents found
 missing. Use this to repair projects that exist in KV but never made it into the search
 index (and are therefore invisible to the query service and self-serve), without touching
-KV or FGA data.
+KV data. FGA data is untouched by default; pass `--include-access` to also republish the
+FGA access message.
 
 Connects to both NATS and OpenSearch at the start of `Run()`, unless `--all` is set (see
 below).
