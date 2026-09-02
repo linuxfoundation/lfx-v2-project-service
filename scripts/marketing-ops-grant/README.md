@@ -24,9 +24,8 @@ Use this script only for:
 
 ## Requirements
 
-- `kubectl` pointed at the target cluster context, with permission to `run`/`get`/`logs`/`delete`/
-  `watch` pods in namespace `lfx` (`watch` is required by `kubectl wait`, which the script uses to
-  detect pod completion).
+- `kubectl` pointed at the target cluster context, with permission to `run`/`get`/`logs`/`delete`
+  pods in namespace `lfx`.
 - The environment's OpenFGA store ID (see below) — the script does not discover it for you.
 - For `--global`, the environment's root project UID (see below) — the script does not discover it
   for you.

@@ -14,8 +14,7 @@
 #   - ad-hoc verification of what's actually in a given FGA store
 #
 # Requires: kubectl pointed at the target cluster context, permission to
-# `kubectl run`/`get`/`logs`/`delete`/`watch` pods in namespace `lfx` (`watch`
-# is needed by `kubectl wait`, used to detect pod completion).
+# `kubectl run`/`get`/`logs`/`delete` pods in namespace `lfx`.
 #
 # --global writes/reads against the root project, not a synthetic "ROOT"
 # object — the root project's real OpenFGA object ID is a generated UUID
@@ -150,18 +149,21 @@ run_fga_pod() {
   # every 2s (rather than a single 120s `kubectl wait`) lets a pod that fails
   # fast (e.g. ImagePullBackOff) get caught well before the deadline instead
   # of blocking the full timeout on every one of verify()'s four checks.
+  # kubectl's --request-timeout defaults to 0 (no timeout), so an individual
+  # `get` call could itself hang past the 120s poll deadline below; bound
+  # every call explicitly.
   local phase="" deadline
   deadline=$(( $(date +%s) + 120 ))
   while :; do
-    phase=$(kubectl --context "$CTX" get pod "$pod" -n "$NS" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
+    phase=$(kubectl --context "$CTX" --request-timeout=10s get pod "$pod" -n "$NS" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
     [[ "$phase" == "Succeeded" || "$phase" == "Failed" ]] && break
     (( $(date +%s) >= deadline )) && break
     sleep 2
   done
 
   local out rc=0
-  out=$(kubectl --context "$CTX" logs "$pod" -n "$NS" 2>&1) || rc=1
-  kubectl --context "$CTX" delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1
+  out=$(kubectl --context "$CTX" --request-timeout=10s logs "$pod" -n "$NS" 2>&1) || rc=1
+  kubectl --context "$CTX" --request-timeout=10s delete pod "$pod" -n "$NS" --ignore-not-found >/dev/null 2>&1
   echo "$out"
 
   if [[ "$phase" != "Succeeded" ]]; then
