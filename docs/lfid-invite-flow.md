@@ -23,6 +23,8 @@ The invite service handles rendering and delivering the invite email to the reci
 
 **NATS subject used:** `lfx.invite-service.send_invite` (request/reply)
 
+**LFID pre-check:** Before building the invite request, the dispatcher calls `UsernameByEmail` on the auth service to determine whether the recipient already has an LFX account. If a username is found, `recipient_has_account` is set to `true` and the invite service renders a simpler "Accept invitation" email; otherwise it renders the full "Accept invitation & create account" email. The lookup is best-effort: unexpected errors (excluding `ErrUserNotFound`) are logged at WARN level and the field falls back to `false` so invites are never blocked.
+
 **Request payload** (`inviteapi.SendInviteRequest`, structured fields):
 
 | Field | Value |
@@ -36,6 +38,7 @@ The invite service handles rendering and delivering the invite email to the reci
 | `role` | `"Manage"` (Writers / Meeting Coordinators) or `"View"` (Auditors) |
 | `return_url` | Deep link to the project page |
 | `expiration_days` | `30` |
+| `recipient_has_account` | `true` if the recipient's email resolves to a known LFID; `false` otherwise (see LFID pre-check above) |
 
 **On success**, the invite service returns an invite UID, the delivery email, and an expiry timestamp. The project service only logs the invite UID — it does not write invite metadata into the settings record or any lookup key. (Legacy settings records may still carry a read-only `invite` object on user entries from the earlier design; it survives PUT round-trips and is cleared on promotion.)
 
