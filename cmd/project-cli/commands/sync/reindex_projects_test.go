@@ -174,6 +174,63 @@ func newFakeOpenSearchClient(t *testing.T, hitIDs []string) *opensearchgo.Client
 	return client
 }
 
+func newFakeOpenSearchClientWithBody(t *testing.T, body string) *opensearchgo.Client {
+	t.Helper()
+
+	transport := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString(body)),
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	client, err := opensearchgo.NewClient(opensearchgo.Config{
+		Addresses: []string{"http://opensearch.invalid"},
+		Transport: transport,
+	})
+	require.NoError(t, err)
+	return client
+}
+
+func TestReindexProjectsRunner_queryExistingIDs(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		wantIDs map[string]struct{}
+		wantErr bool
+	}{
+		{
+			name:    "clean result",
+			body:    `{"timed_out":false,"_shards":{"failed":0},"hits":{"hits":[{"_id":"project:1"}]}}`,
+			wantIDs: map[string]struct{}{"project:1": {}},
+		},
+		{
+			name:    "timed out",
+			body:    `{"timed_out":true,"_shards":{"failed":0},"hits":{"hits":[]}}`,
+			wantErr: true,
+		},
+		{
+			name:    "shard failure",
+			body:    `{"timed_out":false,"_shards":{"failed":1},"hits":{"hits":[]}}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &reindexProjectsRunner{openSearch: newFakeOpenSearchClientWithBody(t, tt.body)}
+			got, err := r.queryExistingIDs(context.Background(), []string{"project:1"})
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantIDs, got)
+		})
+	}
+}
+
 func TestReindexProjectsRunner_diffOpenSearch(t *testing.T) {
 	tests := []struct {
 		name   string

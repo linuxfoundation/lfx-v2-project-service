@@ -282,6 +282,10 @@ func (r *reindexProjectsRunner) queryExistingIDs(ctx context.Context, ids []stri
 	}
 
 	var result struct {
+		TimedOut bool `json:"timed_out"`
+		Shards   struct {
+			Failed int `json:"failed"`
+		} `json:"_shards"`
 		Hits struct {
 			Hits []struct {
 				ID string `json:"_id"`
@@ -290,6 +294,10 @@ func (r *reindexProjectsRunner) queryExistingIDs(ctx context.Context, ids []stri
 	}
 	if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode search response: %w", err)
+	}
+	if result.TimedOut || result.Shards.Failed > 0 {
+		return nil, fmt.Errorf("opensearch returned partial result (timed_out=%v, shards_failed=%d)",
+			result.TimedOut, result.Shards.Failed)
 	}
 
 	found := make(map[string]struct{}, len(result.Hits.Hits))
