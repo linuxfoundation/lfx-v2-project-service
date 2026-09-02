@@ -190,6 +190,7 @@ jobs:
           private-key: ${{ env.TRIGGER_PRIVATE_KEY }}
           owner: linuxfoundation
           repositories: lfx-v2-argocd
+          permission-actions: write
 
       - name: Dispatch create-version-bump-pr.yml
         env:
