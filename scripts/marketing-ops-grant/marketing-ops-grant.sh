@@ -14,7 +14,8 @@
 #   - ad-hoc verification of what's actually in a given FGA store
 #
 # Requires: kubectl pointed at the target cluster context, permission to
-# `kubectl run`/`get`/`logs`/`delete` pods in namespace `lfx`.
+# `kubectl run`/`get`/`logs`/`delete`/`watch` pods in namespace `lfx` (`watch`
+# is needed by `kubectl wait`, used to detect pod completion).
 #
 # --global writes/reads against the root project, not a synthetic "ROOT"
 # object — the root project's real OpenFGA object ID is a generated UUID
@@ -110,11 +111,25 @@ FGA_API_URL="http://lfx-platform-openfga:8080"
 # whatever was captured) if the pod failed, its logs couldn't be fetched, or it
 # never reached a terminal phase — callers must not treat that the same as a
 # successful command whose output happens not to match what they're looking for.
+json_escape() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '%s' "$s"
+}
+
 run_fga_pod() {
   local pod="$1"; shift
-  local args_json
-  args_json=$(printf '"%s",' "$@")
-  args_json="[${args_json%,}]"
+  local args_json="[" arg first=true
+  for arg in "$@"; do
+    if [[ "$first" == true ]]; then
+      args_json+="\"$(json_escape "$arg")\""
+      first=false
+    else
+      args_json+=",\"$(json_escape "$arg")\""
+    fi
+  done
+  args_json+="]"
 
   kubectl --context "$CTX" run "$pod" -n "$NS" --image=openfga/cli:0.7.20 --restart=Never --overrides='{
     "spec": {"containers": [{
@@ -237,8 +252,16 @@ case "$ACTION" in
   check)
     echo "Current access for user:${USERNAME} on ${PROJECT_OBJECT} (store ${STORE_ID}, env ${ENV_NAME}):"
     for relation in marketing_ops marketing_auditor campaign_manager; do
-      echo "  ${relation} = $(fga_check "$relation" "$PROJECT_OBJECT")"
+      if ! result=$(fga_check "$relation" "$PROJECT_OBJECT"); then
+        echo "  ERROR checking ${relation} — fga-cli command failed, not a real allow/deny result" >&2
+        exit 1
+      fi
+      echo "  ${relation} = ${result}"
     done
-    echo "  member of ${TEAM_OBJECT} = $(fga_check member "$TEAM_OBJECT")"
+    if ! member_result=$(fga_check member "$TEAM_OBJECT"); then
+      echo "  ERROR checking member of ${TEAM_OBJECT} — fga-cli command failed, not a real allow/deny result" >&2
+      exit 1
+    fi
+    echo "  member of ${TEAM_OBJECT} = ${member_result}"
     ;;
 esac
