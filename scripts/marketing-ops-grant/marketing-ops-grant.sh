@@ -130,7 +130,7 @@ run_fga_pod() {
   done
   args_json+="]"
 
-  kubectl --context "$CTX" run "$pod" -n "$NS" --image=openfga/cli:0.7.20 --restart=Never --overrides='{
+  kubectl --context "$CTX" --request-timeout=10s run "$pod" -n "$NS" --image=openfga/cli:0.7.20 --restart=Never --overrides='{
     "spec": {"containers": [{
       "name": "'"$pod"'",
       "image": "openfga/cli:0.7.20",
@@ -233,10 +233,16 @@ verify() {
   fi
 }
 
-if [[ "$ACTION" == "grant" && "$ENV_NAME" == "prod" && "$GLOBAL" == true ]]; then
-  echo "You are about to grant user:${USERNAME} marketing_ops access to EVERY project in prod"
-  echo "(via ${TEAM_OBJECT} -> ${PROJECT_OBJECT}). This username is NOT validated against the"
-  echo "auth service — a typo grants org-wide access to the wrong person."
+if [[ ( "$ACTION" == "grant" || "$ACTION" == "revoke" ) && "$ENV_NAME" == "prod" && "$GLOBAL" == true ]]; then
+  if [[ "$ACTION" == "grant" ]]; then
+    echo "You are about to grant user:${USERNAME} marketing_ops access to EVERY project in prod"
+    echo "(via ${TEAM_OBJECT} -> ${PROJECT_OBJECT}). This username is NOT validated against the"
+    echo "auth service — a typo grants org-wide access to the wrong person."
+  else
+    echo "You are about to revoke user:${USERNAME} from EVERY project in prod"
+    echo "(via ${TEAM_OBJECT}). This username is NOT validated against the auth service —"
+    echo "a typo revokes org-wide access from the wrong person."
+  fi
   read -r -p "Type the username again to confirm (${USERNAME}): " CONFIRM_USERNAME
   if [[ "$CONFIRM_USERNAME" != "$USERNAME" ]]; then
     echo "Confirmation did not match. Aborting." >&2
