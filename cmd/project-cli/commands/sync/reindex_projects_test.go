@@ -9,8 +9,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"testing"
 
+	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
+	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -21,6 +24,34 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
+
+// projectEnvelopeMatcher asserts that a SendIndexerMessage call for the
+// project subject carries the expected action and the project's own data.
+func projectEnvelopeMatcher(action indexerConstants.MessageAction, base *models.ProjectBase) func(any) bool {
+	return func(v any) bool {
+		msg, ok := v.(indexerTypes.IndexerMessageEnvelope)
+		if !ok {
+			return false
+		}
+		return msg.Action == action &&
+			reflect.DeepEqual(msg.Data, *base) &&
+			reflect.DeepEqual(msg.IndexingConfig, base.IndexingConfig())
+	}
+}
+
+// settingsEnvelopeMatcher asserts that a SendIndexerMessage call for the
+// project_settings subject carries the expected action and settings data.
+func settingsEnvelopeMatcher(action indexerConstants.MessageAction, base *models.ProjectBase, settings *models.ProjectSettings) func(any) bool {
+	return func(v any) bool {
+		msg, ok := v.(indexerTypes.IndexerMessageEnvelope)
+		if !ok {
+			return false
+		}
+		return msg.Action == action &&
+			reflect.DeepEqual(msg.Data, *settings) &&
+			reflect.DeepEqual(msg.IndexingConfig, settings.IndexingConfig(base.UID))
+	}
+}
 
 func TestChunkStrings(t *testing.T) {
 	tests := []struct {
@@ -228,7 +259,8 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			name:    "missing project only",
 			missing: osMissing{project: true},
 			setupMock: func(m *domain.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject, mock.Anything, false).
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), false).
 					Return(nil).Once()
 			},
 		},
@@ -237,7 +269,8 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			missing:     osMissing{projectSettings: true},
 			getSettings: true,
 			setupMock: func(m *domain.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), false).
 					Return(nil).Once()
 			},
 		},
@@ -247,9 +280,11 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			includeAccess: true,
 			getSettings:   true,
 			setupMock: func(m *domain.MockMessageBuilder) {
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject, mock.Anything, false).
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), false).
 					Return(nil).Once()
-				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), false).
 					Return(nil).Once()
 				m.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).
 					Return(nil).Once()

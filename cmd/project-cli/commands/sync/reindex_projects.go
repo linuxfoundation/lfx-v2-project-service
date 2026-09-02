@@ -109,11 +109,11 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	}
 
 	stats.Log(ctx, "sync reindex-projects")
-	if stats.Failed > 0 {
-		return fmt.Errorf("%d project(s) failed to reindex", stats.Failed)
-	}
 	if err := natsConn.FlushTimeout(5 * time.Second); err != nil {
 		return fmt.Errorf("flush NATS connection: %w", err)
+	}
+	if stats.Failed > 0 {
+		return fmt.Errorf("%d project(s) failed to reindex", stats.Failed)
 	}
 	return nil
 }

@@ -168,12 +168,21 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 		return nil
 	}
 
+	// --all skips the OpenSearch diff, so a project's absence from the index is
+	// never confirmed. ActionUpdated avoids falsely reporting a create for a
+	// document that may already exist. Outside --all, m.project/m.projectSettings
+	// come from a confirmed diff, so ActionCreated is accurate.
+	action := indexerConstants.ActionCreated
+	if r.all {
+		action = indexerConstants.ActionUpdated
+	}
+
 	g := new(errgroup.Group)
 
 	if m.project {
 		g.Go(func() error {
 			msg := indexerTypes.IndexerMessageEnvelope{
-				Action:         indexerConstants.ActionCreated,
+				Action:         action,
 				Data:           *base,
 				IndexingConfig: base.IndexingConfig(),
 			}
@@ -184,7 +193,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 	if m.projectSettings {
 		g.Go(func() error {
 			msg := indexerTypes.IndexerMessageEnvelope{
-				Action:         indexerConstants.ActionCreated,
+				Action:         action,
 				Data:           *settings,
 				IndexingConfig: settings.IndexingConfig(base.UID),
 			}
