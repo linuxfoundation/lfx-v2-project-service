@@ -309,6 +309,16 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 			args:    []string{"unexpected"},
 			wantErr: "unexpected arguments: unexpected",
 		},
+		{
+			name:    "zero concurrency is rejected",
+			args:    []string{"--concurrency", "0"},
+			wantErr: "concurrency must be at least 1",
+		},
+		{
+			name:    "negative concurrency is rejected",
+			args:    []string{"--concurrency", "-1"},
+			wantErr: "concurrency must be at least 1",
+		},
 	}
 
 	for _, tt := range tests {

@@ -154,7 +154,7 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 		if err != nil {
 			slog.WarnContext(ctx, "failed to read project settings before reindex",
 				"project_uid", base.UID, constants.ErrKey, err)
-			return err
+			return fmt.Errorf("get project settings %q: %w", base.UID, err)
 		}
 	}
 

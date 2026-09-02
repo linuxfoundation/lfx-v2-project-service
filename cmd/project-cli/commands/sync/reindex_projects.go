@@ -55,6 +55,9 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	if *all && uid != "" {
 		return fmt.Errorf("--all and --project-uid are mutually exclusive")
 	}
+	if *concurrency < 1 {
+		return fmt.Errorf("concurrency must be at least 1")
+	}
 
 	rc.DryRun = !*update
 	ctx = context.WithValue(ctx, constants.AuthorizationContextID, "Bearer lfx-v2-project-service")
