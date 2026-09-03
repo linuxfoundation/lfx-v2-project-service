@@ -156,6 +156,13 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 	}
 }
 
+func setupIndexerReply(reply *nats.Msg, err error) func(*MockNATSConn) {
+	return func(mockConn *MockNATSConn) {
+		mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
+			Return(reply, err)
+	}
+}
+
 func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -185,7 +192,7 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 						return false
 					}
 					return m.Action == indexerConstants.ActionCreated
-				})).Return(&nats.Msg{Data: []byte("ack")}, nil)
+				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: func() context.Context {
 				ctx := context.Background()
@@ -206,7 +213,7 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
 					return msg.Subject == constants.IndexProjectSettingsSubject
-				})).Return(&nats.Msg{Data: []byte("ack")}, nil)
+				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -218,7 +225,7 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
 					return msg.Subject == constants.IndexProjectSubject
-				})).Return(&nats.Msg{Data: []byte("ack")}, nil)
+				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
@@ -231,11 +238,9 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 				Data:   models.ProjectBase{UID: "test"},
 				Tags:   []string{"test"},
 			},
-			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).Return(nil, errors.New("nats request timeout"))
-			},
-			setupCtx: backgroundCtx,
-			wantErr:  true,
+			setupMocks: setupIndexerReply(nil, errors.New("nats request timeout")),
+			setupCtx:   backgroundCtx,
+			wantErr:    true,
 		},
 	}
 
@@ -260,6 +265,85 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			mockConn.AssertExpectations(t)
 		})
 	}
+}
+
+func TestMessageBuilder_SyncAcknowledgement(t *testing.T) {
+	tests := []struct {
+		name       string
+		reply      *nats.Msg
+		requestErr error
+		wantErr    bool
+	}{
+		{name: "exact OK", reply: &nats.Msg{Data: []byte("OK")}},
+		{name: "indexer error", reply: &nats.Msg{Data: []byte("ERROR: indexing failed")}, wantErr: true},
+		{name: "empty response", reply: &nats.Msg{}, wantErr: true},
+		{name: "unexpected response", reply: &nats.Msg{Data: []byte("ack")}, wantErr: true},
+		{name: "case variant", reply: &nats.Msg{Data: []byte("ok")}, wantErr: true},
+		{name: "whitespace padded", reply: &nats.Msg{Data: []byte(" OK ")}, wantErr: true},
+		{name: "nil response", wantErr: true},
+		{name: "transport error", requestErr: errors.New("nats request timeout"), wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockConn := &MockNATSConn{}
+			setupIndexerReply(tt.reply, tt.requestErr)(mockConn)
+			mb := &MessageBuilder{NatsConn: mockConn}
+
+			err := mb.sendMessage(context.Background(), constants.IndexProjectSubject, []byte("{}"), true)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			mockConn.AssertExpectations(t)
+		})
+	}
+}
+
+func TestMessageBuilder_IndexerLogsExcludeSensitiveContent(t *testing.T) {
+	const (
+		payloadSentinel       = "payload-secret-sentinel"
+		configSentinel        = "config-secret-sentinel"
+		authorizationSentinel = "authorization-secret-sentinel"
+		replySentinel         = "reply-secret-sentinel"
+	)
+
+	var logs bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() {
+		slog.SetDefault(previousLogger)
+	})
+
+	mockConn := &MockNATSConn{}
+	mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
+		Return(&nats.Msg{Data: []byte("ERROR: " + replySentinel)}, nil)
+
+	mb := &MessageBuilder{NatsConn: mockConn}
+	ctx := context.WithValue(context.Background(), constants.AuthorizationContextID, "Bearer "+authorizationSentinel)
+	message := indexerTypes.IndexerMessageEnvelope{
+		Action: indexerConstants.ActionUpdated,
+		Data: models.ProjectSettings{
+			UID:              "00000000-0000-0000-0000-000000000001",
+			MissionStatement: payloadSentinel,
+		},
+		IndexingConfig: &indexerTypes.IndexingConfig{ObjectID: configSentinel},
+	}
+
+	err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, message, true)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), replySentinel)
+
+	output := logs.String()
+	assert.Contains(t, output, "subject="+constants.IndexProjectSettingsSubject)
+	assert.Contains(t, output, "action=updated")
+	assert.Contains(t, output, "indexer did not acknowledge message")
+	assert.NotContains(t, output, payloadSentinel)
+	assert.NotContains(t, output, configSentinel)
+	assert.NotContains(t, output, authorizationSentinel)
+	assert.NotContains(t, output, replySentinel)
+	mockConn.AssertExpectations(t)
 }
 
 // matchFGAEnvelope builds a mock.MatchedBy predicate asserting that a published
