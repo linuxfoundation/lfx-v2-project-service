@@ -72,6 +72,7 @@ type osMissing struct {
 func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) error {
 	var bases []*models.ProjectBase
 	var excludedRoot int
+	var rootBases []*models.ProjectBase
 	if projectUID != "" {
 		base, err := r.repo.GetProjectBase(ctx, projectUID)
 		if err != nil {
@@ -92,10 +93,15 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		// The hidden ROOT project is never indexed. Full scans (including --all)
 		// drop it before the OpenSearch diff so it is not even queried; an
 		// explicit --project-uid above still reindexes whatever the operator named.
+		// It is kept aside (not discarded) since --include-access still needs to
+		// repair its FGA tuples below — ROOT exists specifically for team
+		// permission assignment, and reindex-projects --all --include-access is
+		// documented (docs/fga-contract.md) as the full-fleet FGA repair path.
 		kept := make([]*models.ProjectBase, 0, len(bases))
 		for _, base := range bases {
 			if base.Slug == rootProjectSlug {
 				excludedRoot++
+				rootBases = append(rootBases, base)
 				continue
 			}
 			kept = append(kept, base)
@@ -171,7 +177,44 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		})
 	}
 
+	// ROOT is excluded from bases above, so it never gets indexer/search-index
+	// publishes. --include-access still needs to repair its FGA tuples, so give it
+	// an access-only pass here rather than silently dropping that repair.
+	if r.includeAccess {
+		for _, base := range rootBases {
+			base := base
+			g.Go(func() error {
+				if err := r.reindexRootAccess(gCtx, base); err != nil {
+					slog.WarnContext(gCtx, "failed to republish root project access",
+						"project_slug", rootProjectSlug, constants.ErrKey, err)
+					return err
+				}
+				return nil
+			})
+		}
+	}
+
 	return g.Wait()
+}
+
+// reindexRootAccess republishes only the FGA access message for the hidden ROOT
+// project. ROOT never gets indexer/search-index publishes (see run()), but
+// --include-access still needs to repair its FGA tuples, since ROOT exists
+// specifically for team permission assignment.
+func (r *reindexProjectsRunner) reindexRootAccess(ctx context.Context, base *models.ProjectBase) error {
+	if r.dryRun {
+		slog.InfoContext(ctx, "dry-run: would republish root project access",
+			"project_slug", rootProjectSlug)
+		return nil
+	}
+
+	settings, err := r.repo.GetProjectSettings(ctx, base.UID)
+	if err != nil {
+		return fmt.Errorf("get project settings for root project: %w", err)
+	}
+
+	proj := service.NewProjectProjection(base, settings)
+	return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 }
 
 func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models.ProjectBase, m osMissing) error {
