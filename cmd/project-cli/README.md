@@ -149,6 +149,10 @@ index (and are therefore invisible to the query service and self-serve), without
 KV data. FGA data is untouched by default; pass `--include-access` to also republish the
 FGA access message.
 
+The hidden `ROOT` project (used for team permission assignment) is excluded from full
+scans, including `--all`, since it must not appear in the search index. Passing
+`--project-uid` with its UID explicitly still reindexes it.
+
 Connects to both NATS and OpenSearch at the start of `Run()`, unless `--all` is set (see
 below).
 
@@ -159,7 +163,7 @@ below).
 | `--update` | `false` | Publish indexer messages (default is preview-only) |
 | `--project-uid` | `""` | Limit to a single project UID (default all) |
 | `--concurrency` | `50` | Max concurrent project republishes |
-| `--all` | `false` | Republish every project regardless of OpenSearch state, skipping the diff and the OpenSearch connection entirely |
+| `--all` | `false` | Republish every project regardless of OpenSearch state, skipping the diff and the OpenSearch connection entirely; the `ROOT` project is still excluded |
 | `--include-access` | `false` | Also republish the FGA access message. Fires only for projects with at least one missing OpenSearch document, or when combined with `--all` |
 
 **Exit code:** `0` on success, `1` on failure.

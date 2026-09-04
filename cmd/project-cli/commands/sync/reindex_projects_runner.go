@@ -33,6 +33,15 @@ const resourcesIndex = "resources"
 
 const osIDChunkSize = 1000
 
+// rootProjectSlug identifies the hidden ROOT project used for team permission
+// assignment. It is created by scripts/root-project-setup (package main, so that
+// script's own const is not importable) and must not appear in the search index.
+// Compared case-sensitively on purpose: API slugs are validated against
+// ^[a-z][a-z0-9_\-]*[a-z0-9]$ (api/project/v1/design/types.go), so "ROOT" cannot
+// collide with a user slug, while a case-insensitive match would wrongly exclude a
+// legitimate project slugged "root".
+const rootProjectSlug = "ROOT"
+
 // projectRecordRepo is the narrow slice of natsinfra.NatsRepository this
 // runner needs, so tests can fake it without a live NATS connection.
 type projectRecordRepo interface {
@@ -62,10 +71,16 @@ type osMissing struct {
 
 func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) error {
 	var bases []*models.ProjectBase
+	var excludedRoot int
+	var rootBases []*models.ProjectBase
 	if projectUID != "" {
 		base, err := r.repo.GetProjectBase(ctx, projectUID)
 		if err != nil {
 			return fmt.Errorf("get project base %q: %w", projectUID, err)
+		}
+		if base.Slug == rootProjectSlug {
+			slog.WarnContext(ctx, "explicit --project-uid targets the hidden root project; proceeding",
+				"project_slug", rootProjectSlug, "project_uid", base.UID)
 		}
 		bases = []*models.ProjectBase{base}
 	} else {
@@ -74,6 +89,24 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		if err != nil {
 			return fmt.Errorf("list project bases: %w", err)
 		}
+
+		// The hidden ROOT project is never indexed. Full scans (including --all)
+		// drop it before the OpenSearch diff so it is not even queried; an
+		// explicit --project-uid above still reindexes whatever the operator named.
+		// It is kept aside (not discarded) since --include-access still needs to
+		// repair its FGA tuples below — ROOT exists specifically for team
+		// permission assignment, and reindex-projects --all --include-access is
+		// documented (docs/fga-contract.md) as the full-fleet FGA repair path.
+		kept := make([]*models.ProjectBase, 0, len(bases))
+		for _, base := range bases {
+			if base.Slug == rootProjectSlug {
+				excludedRoot++
+				rootBases = append(rootBases, base)
+				continue
+			}
+			kept = append(kept, base)
+		}
+		bases = kept
 	}
 
 	missing := map[string]osMissing{}
@@ -100,6 +133,7 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	}
 	slog.InfoContext(ctx, "reindex-projects scan complete",
 		"total_projects", len(bases),
+		"excluded_root_projects", excludedRoot,
 		"missing_project_docs", missingProject,
 		"missing_settings_docs", missingSettings,
 	)
@@ -143,7 +177,44 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		})
 	}
 
+	// ROOT is excluded from bases above, so it never gets indexer/search-index
+	// publishes. --include-access still needs to repair its FGA tuples, so give it
+	// an access-only pass here rather than silently dropping that repair.
+	if r.includeAccess {
+		for _, base := range rootBases {
+			base := base
+			g.Go(func() error {
+				if err := r.reindexRootAccess(gCtx, base); err != nil {
+					slog.WarnContext(gCtx, "failed to republish root project access",
+						"project_slug", rootProjectSlug, constants.ErrKey, err)
+					return err
+				}
+				return nil
+			})
+		}
+	}
+
 	return g.Wait()
+}
+
+// reindexRootAccess republishes only the FGA access message for the hidden ROOT
+// project. ROOT never gets indexer/search-index publishes (see run()), but
+// --include-access still needs to repair its FGA tuples, since ROOT exists
+// specifically for team permission assignment.
+func (r *reindexProjectsRunner) reindexRootAccess(ctx context.Context, base *models.ProjectBase) error {
+	if r.dryRun {
+		slog.InfoContext(ctx, "dry-run: would republish root project access",
+			"project_slug", rootProjectSlug)
+		return nil
+	}
+
+	settings, err := r.repo.GetProjectSettings(ctx, base.UID)
+	if err != nil {
+		return fmt.Errorf("get project settings for root project: %w", err)
+	}
+
+	proj := service.NewProjectProjection(base, settings)
+	return r.publisher.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 }
 
 func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models.ProjectBase, m osMissing) error {

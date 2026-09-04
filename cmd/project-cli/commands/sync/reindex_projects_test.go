@@ -10,8 +10,10 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	opensearchgo "github.com/opensearch-project/opensearch-go/v2"
@@ -159,6 +161,40 @@ func newFakeOpenSearchClient(t *testing.T, hitIDs []string) *opensearchgo.Client
 	body += `]}}`
 
 	transport := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString(body)),
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	client, err := opensearchgo.NewClient(opensearchgo.Config{
+		Addresses: []string{"http://opensearch.invalid"},
+		Transport: transport,
+	})
+	require.NoError(t, err)
+	return client
+}
+
+// newRecordingOpenSearchClient behaves like newFakeOpenSearchClient but also
+// appends each request body to requests, so a test can assert exactly which
+// project UIDs were (or were not) queried against the resources index.
+func newRecordingOpenSearchClient(t *testing.T, hitIDs []string, requests *[]string) *opensearchgo.Client {
+	t.Helper()
+
+	body := `{"hits":{"hits":[`
+	for i, id := range hitIDs {
+		if i > 0 {
+			body += ","
+		}
+		body += fmt.Sprintf(`{"_id":%q}`, id)
+	}
+	body += `]}}`
+
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		raw, err := io.ReadAll(req.Body)
+		require.NoError(t, err)
+		*requests = append(*requests, string(raw))
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(bytes.NewBufferString(body)),
@@ -407,16 +443,30 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 // so reindexProject's envelope construction can be tested without a live
 // NATS KV connection.
 type fakeProjectRecordRepo struct {
+	bases         []*models.ProjectBase
+	baseByUID     map[string]*models.ProjectBase
 	settingsByUID map[string]*models.ProjectSettings
+	listErr       error
+	baseErr       error
 	settingsErr   error
 }
 
-func (f *fakeProjectRecordRepo) GetProjectBase(context.Context, string) (*models.ProjectBase, error) {
-	return nil, fmt.Errorf("not implemented")
+func (f *fakeProjectRecordRepo) GetProjectBase(_ context.Context, projectUID string) (*models.ProjectBase, error) {
+	if f.baseErr != nil {
+		return nil, f.baseErr
+	}
+	base, ok := f.baseByUID[projectUID]
+	if !ok {
+		return nil, fmt.Errorf("project base %q not found", projectUID)
+	}
+	return base, nil
 }
 
 func (f *fakeProjectRecordRepo) ListAllProjectsBase(context.Context) ([]*models.ProjectBase, error) {
-	return nil, fmt.Errorf("not implemented")
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
+	return f.bases, nil
 }
 
 func (f *fakeProjectRecordRepo) GetProjectSettings(_ context.Context, projectUID string) (*models.ProjectSettings, error) {
@@ -424,6 +474,221 @@ func (f *fakeProjectRecordRepo) GetProjectSettings(_ context.Context, projectUID
 		return nil, f.settingsErr
 	}
 	return f.settingsByUID[projectUID], nil
+}
+
+// publishedProjectUIDs extracts the project UIDs the publisher was called
+// with for constants.IndexProjectSubject, so tests can assert exactly which
+// projects were reindexed rather than just how many.
+func publishedProjectUIDs(t *testing.T, publisher *domain.MockMessageBuilder) map[string]bool {
+	t.Helper()
+	uids := map[string]bool{}
+	for _, call := range publisher.Calls {
+		if call.Method != "SendIndexerMessage" || call.Arguments.String(1) != constants.IndexProjectSubject {
+			continue
+		}
+		msg, ok := call.Arguments.Get(2).(indexerTypes.IndexerMessageEnvelope)
+		require.True(t, ok)
+		base, ok := msg.Data.(models.ProjectBase)
+		require.True(t, ok)
+		uids[base.UID] = true
+	}
+	return uids
+}
+
+// publishedFGAUIDs extracts the project UIDs the publisher's
+// PublishAccessMessage was called with, so tests can assert exactly which
+// projects had their FGA access republished.
+func publishedFGAUIDs(t *testing.T, publisher *domain.MockMessageBuilder) map[string]bool {
+	t.Helper()
+	uids := map[string]bool{}
+	for _, call := range publisher.Calls {
+		if call.Method != "PublishAccessMessage" {
+			continue
+		}
+		msg, ok := call.Arguments.Get(2).(fgatypes.GenericFGAMessage)
+		require.True(t, ok)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		uids[data.UID] = true
+	}
+	return uids
+}
+
+func TestReindexProjectsRunner_run(t *testing.T) {
+	newBase := func(uid, slug string) *models.ProjectBase {
+		return &models.ProjectBase{UID: uid, Slug: slug, Name: slug}
+	}
+	newSettings := func(uid string) *models.ProjectSettings {
+		return &models.ProjectSettings{UID: uid}
+	}
+
+	const (
+		alphaUID = "00000000-0000-0000-0000-000000000001"
+		betaUID  = "00000000-0000-0000-0000-000000000002"
+		rootUID  = "00000000-0000-0000-0000-000000000003"
+	)
+
+	tests := []struct {
+		name             string
+		projectUID       string
+		bases            []*models.ProjectBase
+		baseByUID        map[string]*models.ProjectBase
+		listErr          error
+		baseErr          error
+		all              bool
+		includeAccess    bool
+		openSearchHitIDs []string
+		wantErr          string
+		wantUIDs         map[string]bool
+		wantTotal        int
+		wantUpdated      int
+		wantFGAUIDs      map[string]bool
+		wantQueriedHas   []string
+		wantQueriedNot   []string
+	}{
+		{
+			name: "full scan excludes ROOT",
+			all:  true,
+			bases: []*models.ProjectBase{
+				newBase(alphaUID, "alpha-project"),
+				newBase(betaUID, "beta-project"),
+				newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:    map[string]bool{alphaUID: true, betaUID: true},
+			wantTotal:   2,
+			wantUpdated: 2,
+		},
+		{
+			name:       "explicit project-uid on the ROOT record still reindexes",
+			projectUID: rootUID,
+			all:        true,
+			baseByUID: map[string]*models.ProjectBase{
+				rootUID: newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:    map[string]bool{rootUID: true},
+			wantTotal:   1,
+			wantUpdated: 1,
+		},
+		{
+			name: "lowercase root is not excluded",
+			all:  true,
+			bases: []*models.ProjectBase{
+				newBase(alphaUID, "root"),
+			},
+			wantUIDs:    map[string]bool{alphaUID: true},
+			wantTotal:   1,
+			wantUpdated: 1,
+		},
+		{
+			name: "no ROOT record present",
+			all:  true,
+			bases: []*models.ProjectBase{
+				newBase(alphaUID, "alpha-project"),
+				newBase(betaUID, "beta-project"),
+			},
+			wantUIDs:    map[string]bool{alphaUID: true, betaUID: true},
+			wantTotal:   2,
+			wantUpdated: 2,
+		},
+		{
+			name: "default diff scan never queries ROOT against OpenSearch",
+			all:  false,
+			bases: []*models.ProjectBase{
+				newBase(alphaUID, "alpha-project"),
+				newBase(betaUID, "beta-project"),
+				newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:       map[string]bool{alphaUID: true, betaUID: true},
+			wantTotal:      2,
+			wantUpdated:    2,
+			wantQueriedHas: []string{"project:" + alphaUID, "project:" + betaUID},
+			wantQueriedNot: []string{rootUID},
+		},
+		{
+			name:          "all scan with include-access repairs ROOT FGA without indexing it",
+			all:           true,
+			includeAccess: true,
+			bases: []*models.ProjectBase{
+				newBase(alphaUID, "alpha-project"),
+				newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:    map[string]bool{alphaUID: true},
+			wantTotal:   1,
+			wantUpdated: 1,
+			wantFGAUIDs: map[string]bool{alphaUID: true, rootUID: true},
+		},
+		{
+			name:    "ListAllProjectsBase error propagates",
+			all:     true,
+			listErr: fmt.Errorf("kv unavailable"),
+			wantErr: "list project bases",
+		},
+		{
+			name:       "GetProjectBase error propagates",
+			projectUID: alphaUID,
+			all:        true,
+			baseErr:    fmt.Errorf("kv unavailable"),
+			wantErr:    "get project base",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settingsByUID := map[string]*models.ProjectSettings{
+				alphaUID: newSettings(alphaUID),
+				betaUID:  newSettings(betaUID),
+				rootUID:  newSettings(rootUID),
+			}
+			repo := &fakeProjectRecordRepo{
+				bases:         tt.bases,
+				baseByUID:     tt.baseByUID,
+				settingsByUID: settingsByUID,
+				listErr:       tt.listErr,
+				baseErr:       tt.baseErr,
+			}
+			publisher := &domain.MockMessageBuilder{}
+			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, true).Return(nil)
+			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+			var requests []string
+			var osClient *opensearchgo.Client
+			if !tt.all {
+				osClient = newRecordingOpenSearchClient(t, tt.openSearchHitIDs, &requests)
+			}
+
+			r := &reindexProjectsRunner{
+				repo:          repo,
+				openSearch:    osClient,
+				publisher:     publisher,
+				all:           tt.all,
+				includeAccess: tt.includeAccess,
+				concurrency:   1,
+				stats:         commands.NewStats(),
+			}
+
+			err := r.run(context.Background(), tt.projectUID)
+
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantUIDs, publishedProjectUIDs(t, publisher))
+			assert.Equal(t, tt.wantTotal, r.stats.Total)
+			assert.Equal(t, tt.wantUpdated, r.stats.Updated)
+			assert.Equal(t, 0, r.stats.Failed)
+			if tt.wantFGAUIDs != nil {
+				assert.Equal(t, tt.wantFGAUIDs, publishedFGAUIDs(t, publisher))
+			}
+			combined := strings.Join(requests, "\n")
+			for _, id := range tt.wantQueriedHas {
+				assert.Contains(t, combined, id)
+			}
+			for _, id := range tt.wantQueriedNot {
+				assert.NotContains(t, combined, id)
+			}
+		})
+	}
 }
 
 func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
