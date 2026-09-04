@@ -33,6 +33,15 @@ const resourcesIndex = "resources"
 
 const osIDChunkSize = 1000
 
+// rootProjectSlug identifies the hidden ROOT project used for team permission
+// assignment. It is created by scripts/root-project-setup (package main, so that
+// script's own const is not importable) and must not appear in the search index.
+// Compared case-sensitively on purpose: API slugs are validated against
+// ^[a-z][a-z0-9_\-]*[a-z0-9]$ (api/project/v1/design/types.go), so "ROOT" cannot
+// collide with a user slug, while a case-insensitive match would wrongly exclude a
+// legitimate project slugged "root".
+const rootProjectSlug = "ROOT"
+
 // projectRecordRepo is the narrow slice of natsinfra.NatsRepository this
 // runner needs, so tests can fake it without a live NATS connection.
 type projectRecordRepo interface {
@@ -62,10 +71,15 @@ type osMissing struct {
 
 func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) error {
 	var bases []*models.ProjectBase
+	var excludedRoot int
 	if projectUID != "" {
 		base, err := r.repo.GetProjectBase(ctx, projectUID)
 		if err != nil {
 			return fmt.Errorf("get project base %q: %w", projectUID, err)
+		}
+		if base.Slug == rootProjectSlug {
+			slog.WarnContext(ctx, "explicit --project-uid targets the hidden root project; proceeding",
+				"project_slug", rootProjectSlug)
 		}
 		bases = []*models.ProjectBase{base}
 	} else {
@@ -74,6 +88,19 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		if err != nil {
 			return fmt.Errorf("list project bases: %w", err)
 		}
+
+		// The hidden ROOT project is never indexed. Full scans (including --all)
+		// drop it before the OpenSearch diff so it is not even queried; an
+		// explicit --project-uid above still reindexes whatever the operator named.
+		kept := make([]*models.ProjectBase, 0, len(bases))
+		for _, base := range bases {
+			if base.Slug == rootProjectSlug {
+				excludedRoot++
+				continue
+			}
+			kept = append(kept, base)
+		}
+		bases = kept
 	}
 
 	missing := map[string]osMissing{}
@@ -100,6 +127,7 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	}
 	slog.InfoContext(ctx, "reindex-projects scan complete",
 		"total_projects", len(bases),
+		"excluded_root_projects", excludedRoot,
 		"missing_project_docs", missingProject,
 		"missing_settings_docs", missingSettings,
 	)
