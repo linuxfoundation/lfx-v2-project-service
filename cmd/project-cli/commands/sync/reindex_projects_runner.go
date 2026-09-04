@@ -79,7 +79,7 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		}
 		if base.Slug == rootProjectSlug {
 			slog.WarnContext(ctx, "explicit --project-uid targets the hidden root project; proceeding",
-				"project_slug", rootProjectSlug)
+				"project_slug", rootProjectSlug, "project_uid", base.UID)
 		}
 		bases = []*models.ProjectBase{base}
 	} else {
