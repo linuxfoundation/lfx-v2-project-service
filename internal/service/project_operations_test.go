@@ -753,16 +753,19 @@ func TestProjectsService_DeleteProject(t *testing.T) {
 				mockRepo = &domain.MockProjectRepository{}
 				mockBuilder = &domain.MockMessageBuilder{}
 				mockAuth = &auth.MockJWTAuth{}
+				mockUserReader := &domain.MockUserReader{}
+				resolver := NewUserResolver(mockUserReader)
 
-				service = NewProjectsService(mockAuth, ServiceConfig{SkipEtagValidation: true})
-				service.ProjectRepository = mockRepo
-				service.DocumentRepository = &domain.MockDocumentRepository{}
-				service.LinkRepository = &domain.MockLinkRepository{}
-				service.FolderRepository = &domain.MockFolderRepository{}
-				service.MessageBuilder = mockBuilder
-				service.UserReader = &domain.MockUserReader{}
-				service.Resolver = NewUserResolver(service.UserReader)
-				service.Dispatcher = NewNotificationDispatcher(service.MessageBuilder, service.Resolver, false, false)
+				service = NewProjectsService(mockAuth, ServiceConfig{SkipEtagValidation: true}, ServiceDeps{
+					ProjectRepository:  mockRepo,
+					DocumentRepository: &domain.MockDocumentRepository{},
+					LinkRepository:     &domain.MockLinkRepository{},
+					FolderRepository:   &domain.MockFolderRepository{},
+					MessageBuilder:     mockBuilder,
+					UserReader:         mockUserReader,
+					Resolver:           resolver,
+					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
+				})
 			} else {
 				// Use default setup
 				service, mockRepo, mockBuilder, mockAuth = setupServiceForTesting()

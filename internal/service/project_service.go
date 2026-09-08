@@ -21,11 +21,34 @@ type ProjectsService struct {
 	Config             ServiceConfig
 }
 
-// NewProjectsService creates a new ProjectsService.
-func NewProjectsService(auth domain.Authenticator, config ServiceConfig) *ProjectsService {
+// ServiceDeps holds the infrastructure dependencies required by ProjectsService.
+// All fields must be non-nil for the service to be ready (see ServiceReady).
+type ServiceDeps struct {
+	ProjectRepository  domain.ProjectRepository
+	DocumentRepository domain.DocumentRepository
+	LinkRepository     domain.LinkRepository
+	FolderRepository   domain.FolderRepository
+	MessageBuilder     domain.MessageBuilder
+	UserReader         domain.UserReader
+	Resolver           *UserResolver
+	Dispatcher         *NotificationDispatcher
+}
+
+// NewProjectsService creates a fully valid ProjectsService with all dependencies
+// wired at construction time. Passing a zero ServiceDeps is allowed in tests that
+// intentionally probe the not-ready state, but production callers must supply all fields.
+func NewProjectsService(auth domain.Authenticator, config ServiceConfig, deps ServiceDeps) *ProjectsService {
 	return &ProjectsService{
-		Auth:   auth,
-		Config: config,
+		Auth:               auth,
+		Config:             config,
+		ProjectRepository:  deps.ProjectRepository,
+		DocumentRepository: deps.DocumentRepository,
+		LinkRepository:     deps.LinkRepository,
+		FolderRepository:   deps.FolderRepository,
+		MessageBuilder:     deps.MessageBuilder,
+		UserReader:         deps.UserReader,
+		Resolver:           deps.Resolver,
+		Dispatcher:         deps.Dispatcher,
 	}
 }
 

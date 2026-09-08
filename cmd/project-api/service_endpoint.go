@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -14,6 +15,58 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"goa.design/goa/v3/security"
 )
+
+// handleError converts domain errors to HTTP errors and logs client-facing failures.
+func handleError(ctx context.Context, err error) error {
+	switch {
+	case errors.Is(err, domain.ErrServiceUnavailable):
+		return createResponse(http.StatusServiceUnavailable, domain.ErrServiceUnavailable)
+	case errors.Is(err, domain.ErrValidationFailed):
+		slog.WarnContext(ctx, "request validation failed", constants.ErrKey, err)
+		return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
+	case errors.Is(err, domain.ErrRevisionMismatch):
+		return createResponse(http.StatusConflict, domain.ErrRevisionMismatch)
+	case errors.Is(err, domain.ErrInvalidParentProject):
+		slog.WarnContext(ctx, "bad request", constants.ErrKey, err)
+		return createResponse(http.StatusBadRequest, domain.ErrInvalidParentProject)
+	case errors.Is(err, domain.ErrCannotDeleteNonCrowdfundingProject):
+		slog.WarnContext(ctx, "bad request", constants.ErrKey, err)
+		return createResponse(http.StatusBadRequest, domain.ErrCannotDeleteNonCrowdfundingProject)
+	case errors.Is(err, domain.ErrArchivedRequiresDissolutionDate):
+		slog.WarnContext(ctx, "bad request", constants.ErrKey, err)
+		return createResponse(http.StatusBadRequest, domain.ErrArchivedRequiresDissolutionDate)
+	case errors.Is(err, domain.ErrInvalidContentType), errors.Is(err, domain.ErrFileTooLarge):
+		slog.WarnContext(ctx, "bad request", constants.ErrKey, err)
+		return createResponse(http.StatusBadRequest, err)
+	case errors.Is(err, domain.ErrProjectNotFound):
+		return createResponse(http.StatusNotFound, domain.ErrProjectNotFound)
+	case errors.Is(err, domain.ErrDocumentNotFound):
+		return createResponse(http.StatusNotFound, domain.ErrDocumentNotFound)
+	case errors.Is(err, domain.ErrLinkNotFound):
+		return createResponse(http.StatusNotFound, domain.ErrLinkNotFound)
+	case errors.Is(err, domain.ErrFolderNotFound):
+		return createResponse(http.StatusNotFound, domain.ErrFolderNotFound)
+	case errors.Is(err, domain.ErrProjectSlugExists):
+		return createResponse(http.StatusConflict, domain.ErrProjectSlugExists)
+	case errors.Is(err, domain.ErrDocumentNameExists):
+		return createResponse(http.StatusConflict, domain.ErrDocumentNameExists)
+	case errors.Is(err, domain.ErrFolderNameExists):
+		return createResponse(http.StatusConflict, domain.ErrFolderNameExists)
+	case errors.Is(err, domain.ErrFolderNotEmpty):
+		return createResponse(http.StatusConflict, domain.ErrFolderNotEmpty)
+	case errors.Is(err, domain.ErrInternal), errors.Is(err, domain.ErrUnmarshal):
+		return createResponse(http.StatusInternalServerError, domain.ErrInternal)
+	}
+	return err
+}
+
+// nilStr returns empty string if pointer is nil, otherwise the value.
+func nilStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
 
 // createResponse creates a response error based on the HTTP status code.
 func createResponse(code int, err error) error {
