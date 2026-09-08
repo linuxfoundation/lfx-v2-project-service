@@ -206,7 +206,7 @@ func (s *ProjectsService) HandleProjectGetSettings(ctx context.Context, msg doma
 
 	projectUID := string(msg.Data())
 
-	ctx = log.AppendCtx(ctx, slog.String("project_id", projectUID))
+	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectGetSettingsSubject))
 
 	_, err := uuid.Parse(projectUID)
@@ -318,7 +318,7 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 			if err != nil {
 				if errors.Is(err, domain.ErrProjectNotFound) {
 					slog.DebugContext(ctx, "skipping requested project that no longer exists",
-						"project_id", projectUID)
+						"project_uid", projectUID)
 					continue
 				}
 				return nil, err

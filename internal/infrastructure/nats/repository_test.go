@@ -152,6 +152,79 @@ func TestNatsRepository_GetProjectBase(t *testing.T) {
 	}
 }
 
+func TestNatsRepository_GetProjectSettings(t *testing.T) {
+	settings := &models.ProjectSettings{UID: "test-project-uid"}
+
+	tests := []struct {
+		name        string
+		projectUID  string
+		setupMocks  func(*MockKeyValue)
+		wantErr     bool
+		expectedErr error
+	}{
+		{
+			name:       "successful get project settings",
+			projectUID: "test-project-uid",
+			setupMocks: func(mockKV *MockKeyValue) {
+				settingsData, _ := json.Marshal(settings)
+				mockKV.On("Get", mock.Anything, "test-project-uid").Return(&MockKeyValueEntry{value: settingsData}, nil)
+			},
+			wantErr: false,
+		},
+		{
+			// The store's own not-found is translated to the domain sentinel, so a
+			// caller can tell an absent settings record from a broken store without
+			// importing the store's error type.
+			name:       "missing settings reports the domain not-found sentinel",
+			projectUID: "non-existent-uid",
+			setupMocks: func(mockKV *MockKeyValue) {
+				mockKV.On("Get", mock.Anything, "non-existent-uid").Return(nil, jetstream.ErrKeyNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			// Only the not-found case is translated: anything else reaches the caller
+			// as it was, so a store outage is not reported as an absent project.
+			name:       "key-value store error is not reported as not-found",
+			projectUID: "test-project-uid",
+			setupMocks: func(mockKV *MockKeyValue) {
+				mockKV.On("Get", mock.Anything, "test-project-uid").Return(nil, errors.New("nats connection error"))
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockProjectsKV := &MockKeyValue{}
+			mockSettingsKV := &MockKeyValue{}
+
+			tt.setupMocks(mockSettingsKV)
+
+			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+
+			result, err := repo.GetProjectSettings(context.Background(), tt.projectUID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, result)
+				if tt.expectedErr != nil {
+					assert.ErrorIs(t, err, tt.expectedErr)
+				} else {
+					assert.NotErrorIs(t, err, domain.ErrProjectNotFound)
+				}
+			} else {
+				assert.NoError(t, err)
+				require.NotNil(t, result)
+				assert.Equal(t, settings.UID, result.UID)
+			}
+
+			mockSettingsKV.AssertExpectations(t)
+		})
+	}
+}
+
 func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 	now := time.Now()
 	projectBase := &models.ProjectBase{
