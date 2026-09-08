@@ -178,9 +178,11 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	}
 
 	// ROOT is excluded from bases above, so it never gets indexer/search-index
-	// publishes. --include-access still needs to repair its FGA tuples, so give it
-	// an access-only pass here rather than silently dropping that repair.
-	if r.includeAccess {
+	// publishes and is never diffed against OpenSearch, so it can never be found
+	// "missing". Access-only repair only applies to the --all path, mirroring the
+	// documented flag contract for every other project: --include-access fires only
+	// for projects with a missing OpenSearch document, or when combined with --all.
+	if r.all && r.includeAccess {
 		for _, base := range rootBases {
 			base := base
 			g.Go(func() error {

@@ -591,6 +591,20 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			wantUpdated: 2,
 		},
 		{
+			name:          "default diff scan with include-access never repairs ROOT FGA",
+			all:           false,
+			includeAccess: true,
+			bases: []*models.ProjectBase{
+				newBase(alphaUID, "alpha-project"),
+				newBase(betaUID, "beta-project"),
+				newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:    map[string]bool{alphaUID: true, betaUID: true},
+			wantTotal:   2,
+			wantUpdated: 2,
+			wantFGAUIDs: map[string]bool{alphaUID: true, betaUID: true},
+		},
+		{
 			name: "default diff scan never queries ROOT against OpenSearch",
 			all:  false,
 			bases: []*models.ProjectBase{
