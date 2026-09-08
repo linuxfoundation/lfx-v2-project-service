@@ -37,13 +37,22 @@ const (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+// run is the entry point for the service logic. It returns a non-zero exit
+// code on startup failure so that orchestrators and CI can trigger
+// crash-loop backoff or mark the pipeline step as failed.
+// Deferred functions (OTel shutdown, context cancel) are called when run()
+// returns, before os.Exit fires in main.
+func run() int {
 	env := parseEnv()
 	flags := parseFlags(env.Port)
 
 	log.InitStructureLogConfig()
 
 	// Set up JWT validator needed by the [ProjectsService.JWTAuth] security handler.
-	// This is initialized before OpenTelemetry so that os.Exit(1) does not
+	// This is initialized before OpenTelemetry so that a failure here does not
 	// skip the deferred OTel shutdown. NewJWTAuth only stores config; actual
 	// JWKS fetching happens at request time when OTel is active.
 	jwtAuthConfig := auth.JWTAuthConfig{
@@ -54,7 +63,7 @@ func main() {
 	jwtAuth, err := auth.NewJWTAuth(jwtAuthConfig)
 	if err != nil {
 		slog.With(constants.ErrKey, err).Error("error setting up JWT authentication")
-		os.Exit(1)
+		return 1
 	}
 
 	// Set up OpenTelemetry SDK.
@@ -67,7 +76,7 @@ func main() {
 	otelShutdown, err := utils.SetupOTelSDKWithConfig(context.Background(), otelConfig)
 	if err != nil {
 		slog.With(constants.ErrKey, err).Error("error setting up OpenTelemetry SDK")
-		os.Exit(1)
+		return 1
 	}
 	// Handle shutdown properly so nothing leaks.
 	defer func() {
@@ -90,7 +99,13 @@ func main() {
 	natsConn, deps, err := setupNATS(ctx, env, &gracefulCloseWG, done)
 	if err != nil {
 		slog.With(constants.ErrKey, err).Error("error setting up NATS")
-		return
+		// setupNATS may return a live connection alongside the error (e.g. when
+		// KV store creation fails after connect succeeds). Drain it so the
+		// server-side subscriptions are cleanly closed before we exit.
+		if natsConn != nil {
+			_ = natsConn.Drain()
+		}
+		return 1
 	}
 
 	// Construct a fully valid service with all dependencies wired at once.
@@ -105,7 +120,7 @@ func main() {
 	// Wire NATS event and RPC subscriptions now that the service is ready.
 	if err := createNatsSubcriptions(ctx, svc, natsConn); err != nil {
 		slog.With(constants.ErrKey, err).Error("error creating NATS subscriptions")
-		return
+		return 1
 	}
 
 	// Start the HTTP server now that the service is fully initialised.
@@ -115,4 +130,5 @@ func main() {
 	<-done
 
 	gracefulShutdown(httpServer, natsConn, &gracefulCloseWG, cancel)
+	return 0
 }
