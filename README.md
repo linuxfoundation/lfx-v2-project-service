@@ -51,7 +51,9 @@ settings record; `get_writers` remains the cheaper call when the writers alone w
 
 `list_projects` takes a JSON body with `stages` and/or `uids`, at least one of which must
 be set, and returns their union. The stage filter scans the project store, so a request
-carrying only `uids` is the cheaper shape.
+carrying only `uids` is the cheaper shape. The reply is not filtered on project
+visibility, so confidential projects are included: treat this subject as trusted
+service-to-service only, and do not relay its reply to an unauthorized user.
 
 ### NATS Inbound Event Subscriptions
 
