@@ -51,9 +51,9 @@ settings record; `get_writers` remains the cheaper call when the writers alone w
 
 `list_projects` takes a JSON body with `stages` and/or `uids`, at least one of which must
 be set, and returns their union. The stage filter scans the project store, so a request
-carrying only `uids` is the cheaper shape, and may name at most 500 projects — a larger
-list is refused rather than truncated, so a caller never mistakes a capped reply for a
-complete one. The reply is not filtered on project visibility, so confidential projects
+carrying only `uids` is the cheaper shape, and may name at most 500 distinct projects —
+a larger list is refused rather than truncated, so a caller never mistakes a capped reply
+for a complete one. Repeats are ignored rather than counted against the limit. The reply is not filtered on project visibility, so confidential projects
 are included: treat this subject as trusted service-to-service only, and do not relay
 its reply to an unauthorized user.
 

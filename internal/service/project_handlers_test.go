@@ -911,6 +911,15 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 	overCapRequest, err := json.Marshal(events.ProjectListRequest{UIDs: overCapUIDs})
 	require.NoError(t, err)
 
+	// Over the cap by count but naming a single project, so the limit must be read
+	// against the distinct UIDs rather than against what the caller happened to send.
+	repeatedUIDs := make([]string, maxListProjectsUIDs+1)
+	for i := range repeatedUIDs {
+		repeatedUIDs[i] = activeUID
+	}
+	repeatedUIDRequest, err := json.Marshal(events.ProjectListRequest{UIDs: repeatedUIDs})
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		messageData []byte
@@ -1024,6 +1033,29 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 			expectedErr: true,
 			validateErr: func(t *testing.T, mockRepo *domain.MockProjectRepository) {
 				mockRepo.AssertNotCalled(t, "ListAllProjectsBase", mock.Anything)
+			},
+		},
+		{
+			name:        "a uid repeated past the cap is still answered, and read once",
+			messageData: repeatedUIDRequest,
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectBase", mock.Anything, activeUID).Return(allProjects[0], nil).Once()
+			},
+			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+				assert.Len(t, refs, 1)
+				assert.Equal(t, activeUID, refs[0].UID)
+			},
+		},
+		{
+			// A UID naming no project records nothing to skip the next lookup by, so
+			// without the up-front dedupe each repeat would be read again.
+			name:        "a missing uid repeated is read once, not once per repeat",
+			messageData: []byte(`{"uids":["` + deletedUID + `","` + deletedUID + `","` + deletedUID + `"]}`),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("GetProjectBase", mock.Anything, deletedUID).Return(nil, domain.ErrProjectNotFound).Once()
+			},
+			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+				assert.Empty(t, refs)
 			},
 		},
 		{

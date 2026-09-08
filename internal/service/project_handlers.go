@@ -21,7 +21,7 @@ import (
 	structs "github.com/linuxfoundation/lfx-v2-project-service/pkg/struct"
 )
 
-// maxListProjectsUIDs caps how many projects one list_projects request may name.
+// maxListProjectsUIDs caps how many distinct projects one list_projects request may name.
 // Sized as headroom rather than as a fit: the whole project store is smaller than
 // this, so a request at the limit is already asking for more than exists.
 const maxListProjectsUIDs = 500
@@ -265,21 +265,31 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 		return nil, fmt.Errorf("at least one of stages or uids is required")
 	}
 
-	// Each named UID costs a read and nothing downstream bounds the count: the handler
-	// runs to completion whether or not the requester is still waiting, so a caller
-	// giving up does not stop the work already asked for.
-	if len(request.UIDs) > maxListProjectsUIDs {
-		return nil, fmt.Errorf("uids may name at most %d projects, got %d", maxListProjectsUIDs, len(request.UIDs))
-	}
-
-	// Every UID is validated before any read, so a request that is going to be refused
-	// for a malformed UID is refused before it pays for the store scan below.
+	// Validated and deduplicated before the cap and before any read, so a request that
+	// is going to be refused is refused before it pays for the store scan below, and a
+	// repeat costs nothing. Deduplicating here rather than in the read loop also covers
+	// the UID that names no project: it records no result to skip the next lookup by,
+	// so a repeat of it would otherwise be looked up once per occurrence.
+	uniqueUIDs := make([]string, 0, len(request.UIDs))
+	requested := make(map[string]bool, len(request.UIDs))
 	for _, projectUID := range request.UIDs {
 		// Named in the error: the request carries a list, so a bare parse failure
 		// leaves the caller unable to tell which entry was rejected.
 		if _, err := uuid.Parse(projectUID); err != nil {
 			return nil, fmt.Errorf("invalid project uid %q: %w", projectUID, err)
 		}
+		if requested[projectUID] {
+			continue
+		}
+		requested[projectUID] = true
+		uniqueUIDs = append(uniqueUIDs, projectUID)
+	}
+
+	// Each distinct UID costs a read and nothing downstream bounds the count: the
+	// handler runs to completion whether or not the requester is still waiting, so a
+	// caller giving up does not stop the work already asked for.
+	if len(uniqueUIDs) > maxListProjectsUIDs {
+		return nil, fmt.Errorf("uids may name at most %d distinct projects, got %d", maxListProjectsUIDs, len(uniqueUIDs))
 	}
 
 	refs := []events.ProjectRef{}
@@ -319,7 +329,7 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 		}
 	}
 
-	for _, projectUID := range request.UIDs {
+	for _, projectUID := range uniqueUIDs {
 		if included[projectUID] {
 			continue
 		}
