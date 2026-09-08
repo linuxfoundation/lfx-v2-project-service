@@ -477,20 +477,29 @@ func (f *fakeProjectRecordRepo) GetProjectSettings(_ context.Context, projectUID
 }
 
 // publishedProjectUIDs extracts the project UIDs the publisher was called
-// with for constants.IndexProjectSubject, so tests can assert exactly which
-// projects were reindexed rather than just how many.
+// with for constants.IndexProjectSubject or constants.IndexProjectSettingsSubject,
+// so tests can assert exactly which projects were reindexed rather than just
+// how many, and a settings-only publish for an excluded project isn't missed.
 func publishedProjectUIDs(t *testing.T, publisher *domain.MockMessageBuilder) map[string]bool {
 	t.Helper()
 	uids := map[string]bool{}
 	for _, call := range publisher.Calls {
-		if call.Method != "SendIndexerMessage" || call.Arguments.String(1) != constants.IndexProjectSubject {
+		if call.Method != "SendIndexerMessage" {
 			continue
 		}
+		subject := call.Arguments.String(1)
 		msg, ok := call.Arguments.Get(2).(indexerTypes.IndexerMessageEnvelope)
 		require.True(t, ok)
-		base, ok := msg.Data.(models.ProjectBase)
-		require.True(t, ok)
-		uids[base.UID] = true
+		switch subject {
+		case constants.IndexProjectSubject:
+			base, ok := msg.Data.(models.ProjectBase)
+			require.True(t, ok)
+			uids[base.UID] = true
+		case constants.IndexProjectSettingsSubject:
+			settings, ok := msg.Data.(models.ProjectSettings)
+			require.True(t, ok)
+			uids[settings.UID] = true
+		}
 	}
 	return uids
 }
