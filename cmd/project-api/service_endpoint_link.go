@@ -74,11 +74,3 @@ func (s *ProjectsAPI) DeleteProjectLink(ctx context.Context, payload *projsvc.De
 
 	return nil
 }
-
-// nilStr returns empty string if pointer is nil, otherwise the value.
-func nilStr(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
