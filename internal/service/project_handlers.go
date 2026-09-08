@@ -9,12 +9,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/log"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	structs "github.com/linuxfoundation/lfx-v2-project-service/pkg/struct"
 )
 
@@ -34,6 +37,8 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 		constants.ProjectSlugToUIDSubject:    s.HandleProjectSlugToUID,
 		constants.ProjectGetParentUIDSubject: s.HandleProjectGetParentUID,
 		constants.ProjectGetWritersSubject:   s.HandleProjectGetWriters,
+		constants.ProjectGetSettingsSubject:  s.HandleProjectGetSettings,
+		constants.ProjectListProjectsSubject: s.HandleProjectListProjects,
 	}
 
 	handler, ok := handlers[subject]
@@ -181,6 +186,142 @@ func (s *ProjectsService) HandleProjectGetWriters(ctx context.Context, msg domai
 	out, err := json.Marshal(writers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal writers: %w", err)
+	}
+
+	return out, nil
+}
+
+// HandleProjectGetSettings is the message handler for the project-get-settings subject.
+// Request: plain-text project UID. Reply: JSON-encoded events.ProjectSettingsSummary.
+//
+// It returns the writers, the auditors and the announcement date together, from the one
+// settings record that holds all three. Callers that need the full grant roster cannot
+// assemble it from get_writers, which returns half of it — and a caller that treats half
+// a roster as the whole one refuses everyone in the missing half.
+func (s *ProjectsService) HandleProjectGetSettings(ctx context.Context, msg domain.Message) ([]byte, error) {
+	if !s.ServiceReady() {
+		slog.ErrorContext(ctx, "NATS KV store not initialized")
+		return nil, fmt.Errorf("NATS KV store not initialized")
+	}
+
+	projectUID := string(msg.Data())
+
+	ctx = log.AppendCtx(ctx, slog.String("project_id", projectUID))
+	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectGetSettingsSubject))
+
+	_, err := uuid.Parse(projectUID)
+	if err != nil {
+		return nil, err
+	}
+
+	settings, err := s.ProjectRepository.GetProjectSettings(ctx, projectUID)
+	if err != nil {
+		return nil, err
+	}
+
+	out, err := json.Marshal(DomainSettingsToSummary(settings))
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal project settings summary: %w", err)
+	}
+
+	return out, nil
+}
+
+// HandleProjectListProjects is the message handler for the project-list-projects subject.
+// Request: JSON-encoded events.ProjectListRequest. Reply: JSON-encoded []events.ProjectRef.
+//
+// The stage filter and the UID filter are a union, so one request can ask both "which
+// projects are at these stages" and "what stage are these particular projects at now" —
+// the second being the question a caller has to ask about projects it holds state for
+// that may since have left the stages it was watching.
+//
+// The two filters are also served differently, because their costs differ: the stage
+// filter has to scan the store, while a named UID is a direct read. A request carrying
+// only UIDs therefore does no scan at all.
+//
+// A UID naming no project is skipped rather than failing the request. Projects are
+// deleted, and a caller holding a stale UID should get an answer about the rest instead
+// of an error about the one. A malformed UID is a different matter and does fail: that
+// is the caller sending something it never could have read from here.
+func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg domain.Message) ([]byte, error) {
+	if !s.ServiceReady() {
+		slog.ErrorContext(ctx, "NATS KV store not initialized")
+		return nil, fmt.Errorf("NATS KV store not initialized")
+	}
+
+	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectListProjectsSubject))
+
+	var request events.ProjectListRequest
+	if err := json.Unmarshal(msg.Data(), &request); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal project list request: %w", err)
+	}
+
+	if len(request.Stages) == 0 && len(request.UIDs) == 0 {
+		return nil, fmt.Errorf("at least one of stages or uids is required")
+	}
+
+	// Every UID is validated before any read, so a request that is going to be refused
+	// for a malformed UID is refused before it pays for the store scan below.
+	for _, projectUID := range request.UIDs {
+		if _, err := uuid.Parse(projectUID); err != nil {
+			return nil, err
+		}
+	}
+
+	refs := []events.ProjectRef{}
+	// Tracks what the reply already holds, so a project matched by stage and also named
+	// in the UID filter is returned once. The overlap is expected rather than a caller
+	// error: a caller listing the stages it watches has no way to know which of the UIDs
+	// it holds are still at one of them, which is the question it is asking.
+	included := make(map[string]bool)
+
+	if len(request.Stages) > 0 {
+		wanted := make(map[string]bool, len(request.Stages))
+		for _, stage := range request.Stages {
+			wanted[stage] = true
+		}
+
+		projects, err := s.ProjectRepository.ListAllProjectsBase(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, project := range projects {
+			if project == nil || !wanted[project.Stage] {
+				continue
+			}
+			refs = append(refs, DomainProjectToRef(project))
+			included[project.UID] = true
+		}
+	}
+
+	for _, projectUID := range request.UIDs {
+		if included[projectUID] {
+			continue
+		}
+
+		project, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
+		if err != nil {
+			if errors.Is(err, domain.ErrProjectNotFound) {
+				slog.DebugContext(ctx, "skipping requested project that no longer exists",
+					"project_id", projectUID)
+				continue
+			}
+			return nil, err
+		}
+
+		refs = append(refs, DomainProjectToRef(project))
+		included[projectUID] = true
+	}
+
+	// The store iterates keys in no defined order, so without this the same request
+	// answers in a different order each time. Sorting costs nothing at this size and
+	// spares every caller from having to not depend on it.
+	slices.SortFunc(refs, func(a, b events.ProjectRef) int { return strings.Compare(a.UID, b.UID) })
+
+	out, err := json.Marshal(refs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal project list: %w", err)
 	}
 
 	return out, nil

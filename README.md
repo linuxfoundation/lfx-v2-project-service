@@ -42,7 +42,16 @@ Request/reply RPC subjects — callers block waiting for a response:
 | `lfx.projects-api.get_logo` | Get a project logo URL from a given project UID |
 | `lfx.projects-api.get_parent_uid` | Get a project's parent UID from a given project UID |
 | `lfx.projects-api.get_writers` | Get a project's configured writers from a given project UID |
+| `lfx.projects-api.get_settings` | Get a project's writers, auditors and announcement date from a given project UID |
+| `lfx.projects-api.list_projects` | List projects at given stages, by given UIDs, or the union of both |
 | `lfx.projects-api.slug_to_uid` | Get a project UID from a given project slug |
+
+`get_settings` returns the grant roster and the announcement date only, not the whole
+settings record; `get_writers` remains the cheaper call when the writers alone will do.
+
+`list_projects` takes a JSON body with `stages` and/or `uids`, at least one of which must
+be set, and returns their union. The stage filter scans the project store, so a request
+carrying only `uids` is the cheaper shape.
 
 ### NATS Inbound Event Subscriptions
 

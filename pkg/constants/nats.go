@@ -97,6 +97,18 @@ const (
 	// Request: plain-text project UID. Reply: JSON-encoded []models.UserInfo (empty array when no writers).
 	// The subject is of the form: lfx.projects-api.get_writers
 	ProjectGetWritersSubject = "lfx.projects-api.get_writers"
+	// ProjectGetSettingsSubject is the subject for getting a project's grant roster and
+	// announcement date from project settings. It answers what get_writers cannot: the
+	// auditors half of the roster, and the announcement date, both of which callers need
+	// together and neither of which any other subject returns.
+	// Request: plain-text project UID. Reply: JSON-encoded events.ProjectSettingsSummary.
+	// The subject is of the form: lfx.projects-api.get_settings
+	ProjectGetSettingsSubject = "lfx.projects-api.get_settings"
+	// ProjectListProjectsSubject is the subject for listing projects by stage, by UID, or
+	// by both at once.
+	// Request: JSON-encoded events.ProjectListRequest. Reply: JSON-encoded []events.ProjectRef.
+	// The subject is of the form: lfx.projects-api.list_projects
+	ProjectListProjectsSubject = "lfx.projects-api.list_projects"
 )
 
 // NATS subjects for external service lookups.
