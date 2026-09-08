@@ -535,6 +535,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 		baseByUID        map[string]*models.ProjectBase
 		listErr          error
 		baseErr          error
+		settingsErr      error
 		all              bool
 		includeAccess    bool
 		openSearchHitIDs []string
@@ -542,6 +543,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 		wantUIDs         map[string]bool
 		wantTotal        int
 		wantUpdated      int
+		wantFailed       int
 		wantFGAUIDs      map[string]bool
 		wantQueriedHas   []string
 		wantQueriedNot   []string
@@ -627,9 +629,21 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 				newBase(rootUID, rootProjectSlug),
 			},
 			wantUIDs:    map[string]bool{alphaUID: true},
-			wantTotal:   1,
-			wantUpdated: 1,
+			wantTotal:   2,
+			wantUpdated: 2,
 			wantFGAUIDs: map[string]bool{alphaUID: true, rootUID: true},
+		},
+		{
+			name:          "failed ROOT access repair is recorded, not returned",
+			all:           true,
+			includeAccess: true,
+			settingsErr:   fmt.Errorf("settings kv record not found"),
+			bases: []*models.ProjectBase{
+				newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:   map[string]bool{},
+			wantTotal:  1,
+			wantFailed: 1,
 		},
 		{
 			name:    "ListAllProjectsBase error propagates",
@@ -659,6 +673,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 				settingsByUID: settingsByUID,
 				listErr:       tt.listErr,
 				baseErr:       tt.baseErr,
+				settingsErr:   tt.settingsErr,
 			}
 			publisher := &domain.MockMessageBuilder{}
 			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, true).Return(nil)
@@ -690,7 +705,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			assert.Equal(t, tt.wantUIDs, publishedProjectUIDs(t, publisher))
 			assert.Equal(t, tt.wantTotal, r.stats.Total)
 			assert.Equal(t, tt.wantUpdated, r.stats.Updated)
-			assert.Equal(t, 0, r.stats.Failed)
+			assert.Equal(t, tt.wantFailed, r.stats.Failed)
 			if tt.wantFGAUIDs != nil {
 				assert.Equal(t, tt.wantFGAUIDs, publishedFGAUIDs(t, publisher))
 			}

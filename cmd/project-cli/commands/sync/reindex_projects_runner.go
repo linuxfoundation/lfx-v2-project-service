@@ -139,6 +139,13 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	)
 
 	r.stats.Total = len(bases)
+	// The ROOT access-only repair pass below is a unit of work in its own right
+	// (each entry resolves to exactly one Updated or Failed), so it's counted in
+	// Total too, keeping Total == Updated+Skipped+Failed and the log's rate_per_sec
+	// accurate.
+	if r.all && r.includeAccess {
+		r.stats.Total += len(rootBases)
+	}
 
 	var statsMu sync.Mutex
 	var processed atomic.Int64
@@ -186,10 +193,19 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 		for _, base := range rootBases {
 			base := base
 			g.Go(func() error {
-				if err := r.reindexRootAccess(gCtx, base); err != nil {
+				err := r.reindexRootAccess(gCtx, base)
+
+				statsMu.Lock()
+				if err != nil {
+					r.stats.Failed++
+				} else {
+					r.stats.Updated++
+				}
+				statsMu.Unlock()
+
+				if err != nil {
 					slog.WarnContext(gCtx, "failed to republish root project access",
 						"project_slug", rootProjectSlug, constants.ErrKey, err)
-					return err
 				}
 				return nil
 			})
