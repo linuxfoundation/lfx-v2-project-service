@@ -97,31 +97,40 @@ func main() {
 		}
 	}()
 
-	// Generated service initialization.
-	service := service.NewProjectsService(jwtAuth, service.ServiceConfig{
-		SkipEtagValidation:  env.SkipEtagValidation,
-		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
-		EmailsEnabled:       env.EmailsEnabled,
-		InvitesEnabled:      env.InvitesEnabled,
-	})
-	svc := NewProjectsAPI(service)
-
 	gracefulCloseWG := sync.WaitGroup{}
-
-	httpServer := setupHTTPServer(flags, svc, &gracefulCloseWG)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
-	natsConn, err := setupNATS(ctx, env, svc, &gracefulCloseWG, done)
+	// Connect to NATS and build all infrastructure dependencies before constructing
+	// the service, so the service is fully valid from the moment it is created.
+	natsConn, deps, err := setupNATS(ctx, env, &gracefulCloseWG, done)
 	if err != nil {
 		slog.With(errKey, err).Error("error setting up NATS")
 		return
 	}
 
-	// This next line blocks until SIGINT or SIGTERM is received.
+	// Construct a fully valid service with all dependencies wired at once.
+	projectService := service.NewProjectsService(jwtAuth, service.ServiceConfig{
+		SkipEtagValidation:  env.SkipEtagValidation,
+		LFXSelfServeBaseURL: env.LFXSelfServeBaseURL,
+		EmailsEnabled:       env.EmailsEnabled,
+		InvitesEnabled:      env.InvitesEnabled,
+	}, deps)
+	svc := NewProjectsAPI(projectService)
+
+	// Wire NATS event and RPC subscriptions now that the service is ready.
+	if err := createNatsSubcriptions(ctx, svc, natsConn); err != nil {
+		slog.With(errKey, err).Error("error creating NATS subscriptions")
+		return
+	}
+
+	// Start the HTTP server now that the service is fully initialised.
+	httpServer := setupHTTPServer(flags, svc, &gracefulCloseWG)
+
+	// Block until SIGINT or SIGTERM is received.
 	<-done
 
 	gracefulShutdown(httpServer, natsConn, &gracefulCloseWG, cancel)
@@ -335,10 +344,11 @@ func setupHTTPServer(flags flags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGr
 	return httpServer
 }
 
-func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup, done chan os.Signal) (*nats.Conn, error) {
-	// Create NATS connection.
+// setupNATS connects to NATS, opens the KV repository, and builds all
+// infrastructure dependencies required by ProjectsService. The returned
+// ServiceDeps is fully populated and ready to pass to NewProjectsService.
+func setupNATS(ctx context.Context, env environment, gracefulCloseWG *sync.WaitGroup, done chan os.Signal) (*nats.Conn, service.ServiceDeps, error) {
 	gracefulCloseWG.Add(1)
-	var err error
 	slog.With("nats_url", env.NatsURL).Info("attempting to connect to NATS")
 	natsConn, err := nats.Connect(
 		env.NatsURL,
@@ -375,40 +385,30 @@ func setupNATS(ctx context.Context, env environment, svc *ProjectsAPI, gracefulC
 	)
 	if err != nil {
 		slog.With("nats_url", env.NatsURL, errKey, err).Error("error creating NATS client")
-		return nil, err
+		return nil, service.ServiceDeps{}, err
 	}
 
-	// Get the key-value stores for the service.
+	// Open the key-value stores that back all four repository interfaces.
 	repo, err := getKeyValueStores(ctx, natsConn)
 	if err != nil {
-		return natsConn, err
-	}
-	svc.service.ProjectRepository = repo
-	svc.service.DocumentRepository = repo
-	svc.service.LinkRepository = repo
-	svc.service.FolderRepository = repo
-
-	svc.service.MessageBuilder = &internalnats.MessageBuilder{
-		NatsConn: natsConn,
-	}
-	svc.service.UserReader = &internalnats.UserReaderNATS{
-		NatsConn: natsConn,
-	}
-	svc.service.Resolver = service.NewUserResolver(svc.service.UserReader)
-	svc.service.Dispatcher = service.NewNotificationDispatcher(
-		svc.service.MessageBuilder,
-		svc.service.Resolver,
-		svc.service.Config.EmailsEnabled,
-		svc.service.Config.InvitesEnabled,
-	)
-
-	// Create NATS subscriptions for the service.
-	err = createNatsSubcriptions(ctx, svc, natsConn)
-	if err != nil {
-		return natsConn, err
+		return natsConn, service.ServiceDeps{}, err
 	}
 
-	return natsConn, nil
+	msgBuilder := &internalnats.MessageBuilder{NatsConn: natsConn}
+	userReader := &internalnats.UserReaderNATS{NatsConn: natsConn}
+	resolver := service.NewUserResolver(userReader)
+	dispatcher := service.NewNotificationDispatcher(msgBuilder, resolver, env.EmailsEnabled, env.InvitesEnabled)
+
+	return natsConn, service.ServiceDeps{
+		ProjectRepository:  repo,
+		DocumentRepository: repo,
+		LinkRepository:     repo,
+		FolderRepository:   repo,
+		MessageBuilder:     msgBuilder,
+		UserReader:         userReader,
+		Resolver:           resolver,
+		Dispatcher:         dispatcher,
+	}, nil
 }
 
 // getKeyValueStores creates a JetStream client and opens the project repository stores.

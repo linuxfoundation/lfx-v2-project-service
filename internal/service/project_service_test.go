@@ -29,11 +29,11 @@ func TestNewProjectsService(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service := NewProjectsService(tt.auth, ServiceConfig{})
+			service := NewProjectsService(tt.auth, ServiceConfig{}, ServiceDeps{})
 
 			assert.NotNil(t, service)
 			assert.Equal(t, tt.auth, service.Auth)
-			assert.Nil(t, service.MessageBuilder) // Should be set separately
+			assert.Nil(t, service.MessageBuilder) // nil because no deps provided
 		})
 	}
 }
@@ -167,9 +167,10 @@ func TestProjectsService_Dependencies(t *testing.T) {
 		mockAuth := &auth.MockJWTAuth{}
 		mockBuilder := &domain.MockMessageBuilder{}
 
-		service := NewProjectsService(mockAuth, ServiceConfig{})
-		service.ProjectRepository = mockRepo
-		service.MessageBuilder = mockBuilder
+		service := NewProjectsService(mockAuth, ServiceConfig{}, ServiceDeps{
+			ProjectRepository: mockRepo,
+			MessageBuilder:    mockBuilder,
+		})
 
 		// Verify dependencies are correctly set
 		assert.Same(t, mockRepo, service.ProjectRepository)
@@ -191,18 +192,20 @@ func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, 
 	mockBuilder := &domain.MockMessageBuilder{}
 	mockAuth := &auth.MockJWTAuth{}
 	mockUserReader := &domain.MockUserReader{}
+	resolver := NewUserResolver(mockUserReader)
 
-	service := NewProjectsService(mockAuth, ServiceConfig{})
-	service.ProjectRepository = mockRepo
-	service.DocumentRepository = &domain.MockDocumentRepository{}
-	service.LinkRepository = &domain.MockLinkRepository{}
-	service.FolderRepository = &domain.MockFolderRepository{}
-	service.MessageBuilder = mockBuilder
-	service.UserReader = mockUserReader
-	service.Resolver = NewUserResolver(mockUserReader)
-	service.Dispatcher = NewNotificationDispatcher(mockBuilder, service.Resolver, false, false)
+	svc := NewProjectsService(mockAuth, ServiceConfig{}, ServiceDeps{
+		ProjectRepository:  mockRepo,
+		DocumentRepository: &domain.MockDocumentRepository{},
+		LinkRepository:     &domain.MockLinkRepository{},
+		FolderRepository:   &domain.MockFolderRepository{},
+		MessageBuilder:     mockBuilder,
+		UserReader:         mockUserReader,
+		Resolver:           resolver,
+		Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
+	})
 
-	return service, mockRepo, mockBuilder, mockAuth
+	return svc, mockRepo, mockBuilder, mockAuth
 }
 
 // Mock message for testing
