@@ -21,6 +21,11 @@ import (
 	structs "github.com/linuxfoundation/lfx-v2-project-service/pkg/struct"
 )
 
+// maxListProjectsUIDs caps how many projects one list_projects request may name.
+// Sized as headroom rather than as a fit: the whole project store is smaller than
+// this, so a request at the limit is already asking for more than exists.
+const maxListProjectsUIDs = 500
+
 // HandleMessage implements domain.MessageHandler interface
 func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message) {
 	subject := msg.Subject()
@@ -258,6 +263,13 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 
 	if len(request.Stages) == 0 && len(request.UIDs) == 0 {
 		return nil, fmt.Errorf("at least one of stages or uids is required")
+	}
+
+	// Each named UID costs a read and nothing downstream bounds the count: the handler
+	// runs to completion whether or not the requester is still waiting, so a caller
+	// giving up does not stop the work already asked for.
+	if len(request.UIDs) > maxListProjectsUIDs {
+		return nil, fmt.Errorf("uids may name at most %d projects, got %d", maxListProjectsUIDs, len(request.UIDs))
 	}
 
 	// Every UID is validated before any read, so a request that is going to be refused

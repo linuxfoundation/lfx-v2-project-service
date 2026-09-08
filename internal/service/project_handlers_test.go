@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
@@ -16,6 +17,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProjectsService_HandleMessage(t *testing.T) {
@@ -900,6 +902,15 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 		{UID: prospectUID, Slug: "prospect-project", Stage: "Prospect", ParentUID: parentUID},
 	}
 
+	// One past the cap, each a valid UUID so the request is refused for its size rather
+	// than for a malformed entry.
+	overCapUIDs := make([]string, maxListProjectsUIDs+1)
+	for i := range overCapUIDs {
+		overCapUIDs[i] = uuid.NewString()
+	}
+	overCapRequest, err := json.Marshal(events.ProjectListRequest{UIDs: overCapUIDs})
+	require.NoError(t, err)
+
 	tests := []struct {
 		name        string
 		messageData []byte
@@ -1012,6 +1023,16 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
 			expectedErr: true,
 			validateErr: func(t *testing.T, mockRepo *domain.MockProjectRepository) {
+				mockRepo.AssertNotCalled(t, "ListAllProjectsBase", mock.Anything)
+			},
+		},
+		{
+			name:        "a uid list over the cap is refused before any read",
+			messageData: overCapRequest,
+			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
+			expectedErr: true,
+			validateErr: func(t *testing.T, mockRepo *domain.MockProjectRepository) {
+				mockRepo.AssertNotCalled(t, "GetProjectBase", mock.Anything, mock.Anything)
 				mockRepo.AssertNotCalled(t, "ListAllProjectsBase", mock.Anything)
 			},
 		},
