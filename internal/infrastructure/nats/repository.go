@@ -342,12 +342,17 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 func (s *NatsRepository) getProjectSettings(ctx context.Context, projectUID string) (jetstream.KeyValueEntry, error) {
 	entry, err := s.ProjectSettings.Get(ctx, projectUID)
 	if err != nil {
-		// A missing record is left for the caller to classify, so it is not logged
-		// as a failure here: callers treat an absent settings record as a normal
-		// answer.
-		if !errors.Is(err, jetstream.ErrKeyNotFound) {
-			slog.ErrorContext(ctx, "error getting project settings from NATS KV store", constants.ErrKey, err)
+		// A missing record is translated to the domain sentinel here rather than in
+		// each entry point, as GetProjectBase does for projects, so a caller can
+		// tell it from a broken store without importing the store's error type.
+		// Doing it here keeps the two entry points from drifting apart.
+		//
+		// It is also not logged as a store failure: an absent record is an answer,
+		// and the callers that treat it as an error report it themselves.
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil, domain.ErrProjectNotFound
 		}
+		slog.ErrorContext(ctx, "error getting project settings from NATS KV store", constants.ErrKey, err)
 		return nil, err
 	}
 
@@ -369,12 +374,6 @@ func (s *NatsRepository) getProjectSettingsUnmarshal(ctx context.Context, entry 
 func (s *NatsRepository) GetProjectSettings(ctx context.Context, projectUID string) (*models.ProjectSettings, error) {
 	entry, err := s.getProjectSettings(ctx, projectUID)
 	if err != nil {
-		// Translated to the domain sentinel, as GetProjectBase already does, so a
-		// caller can tell an absent record from a broken store without importing
-		// the store's error type.
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, domain.ErrProjectNotFound
-		}
 		return nil, err
 	}
 

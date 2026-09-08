@@ -225,6 +225,24 @@ func TestNatsRepository_GetProjectSettings(t *testing.T) {
 	}
 }
 
+// The revision-carrying read shares the not-found translation with
+// GetProjectSettings. Covered separately because the two are distinct entry
+// points, and callers of this one test for the domain sentinel too.
+func TestNatsRepository_GetProjectSettingsWithRevision_NotFound(t *testing.T) {
+	mockProjectsKV := &MockKeyValue{}
+	mockSettingsKV := &MockKeyValue{}
+	mockSettingsKV.On("Get", mock.Anything, "non-existent-uid").Return(nil, jetstream.ErrKeyNotFound)
+
+	repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+
+	settings, revision, err := repo.GetProjectSettingsWithRevision(context.Background(), "non-existent-uid")
+
+	assert.ErrorIs(t, err, domain.ErrProjectNotFound)
+	assert.Nil(t, settings)
+	assert.Zero(t, revision)
+	mockSettingsKV.AssertExpectations(t)
+}
+
 func TestNatsRepository_GetProjectBaseWithRevision(t *testing.T) {
 	now := time.Now()
 	projectBase := &models.ProjectBase{
