@@ -209,9 +209,8 @@ func (s *ProjectsService) HandleProjectGetSettings(ctx context.Context, msg doma
 	ctx = log.AppendCtx(ctx, slog.String("project_uid", projectUID))
 	ctx = log.AppendCtx(ctx, slog.String("subject", constants.ProjectGetSettingsSubject))
 
-	_, err := uuid.Parse(projectUID)
-	if err != nil {
-		return nil, err
+	if _, err := uuid.Parse(projectUID); err != nil {
+		return nil, fmt.Errorf("invalid project uid %q: %w", projectUID, err)
 	}
 
 	settings, err := s.ProjectRepository.GetProjectSettings(ctx, projectUID)
@@ -264,8 +263,10 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 	// Every UID is validated before any read, so a request that is going to be refused
 	// for a malformed UID is refused before it pays for the store scan below.
 	for _, projectUID := range request.UIDs {
+		// Named in the error: the request carries a list, so a bare parse failure
+		// leaves the caller unable to tell which entry was rejected.
 		if _, err := uuid.Parse(projectUID); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid project uid %q: %w", projectUID, err)
 		}
 	}
 
