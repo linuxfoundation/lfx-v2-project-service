@@ -237,7 +237,8 @@ func (s *ProjectsService) HandleProjectGetSettings(ctx context.Context, msg doma
 //
 // The two filters are also served differently, because their costs differ: the stage
 // filter has to scan the store, while a named UID is a direct read. A request carrying
-// only UIDs therefore does no scan at all.
+// only UIDs therefore does no scan at all, and a request carrying both reads nothing
+// twice — the scan already decoded every project, so a named UID is served from it.
 //
 // A UID naming no project is skipped rather than failing the request. Projects are
 // deleted, and a caller holding a stale UID should get an answer about the rest instead
@@ -274,6 +275,11 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 	// error: a caller listing the stages it watches has no way to know which of the UIDs
 	// it holds are still at one of them, which is the question it is asking.
 	included := make(map[string]bool)
+	// Every project the scan decoded, whatever its stage, so the UID filter below can be
+	// answered from it. The scan reads the whole store either way, and the projects it
+	// discards for being at an unwanted stage are exactly the ones a caller asks about by
+	// UID — re-reading those would pay twice for a record already in hand.
+	scanned := make(map[string]*models.ProjectBase)
 
 	if len(request.Stages) > 0 {
 		wanted := make(map[string]bool, len(request.Stages))
@@ -287,7 +293,12 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 		}
 
 		for _, project := range projects {
-			if project == nil || !wanted[project.Stage] {
+			if project == nil {
+				continue
+			}
+			scanned[project.UID] = project
+
+			if !wanted[project.Stage] {
 				continue
 			}
 			refs = append(refs, DomainProjectToRef(project))
@@ -300,14 +311,18 @@ func (s *ProjectsService) HandleProjectListProjects(ctx context.Context, msg dom
 			continue
 		}
 
-		project, err := s.ProjectRepository.GetProjectBase(ctx, projectUID)
-		if err != nil {
-			if errors.Is(err, domain.ErrProjectNotFound) {
-				slog.DebugContext(ctx, "skipping requested project that no longer exists",
-					"project_id", projectUID)
-				continue
+		project, ok := scanned[projectUID]
+		if !ok {
+			var err error
+			project, err = s.ProjectRepository.GetProjectBase(ctx, projectUID)
+			if err != nil {
+				if errors.Is(err, domain.ErrProjectNotFound) {
+					slog.DebugContext(ctx, "skipping requested project that no longer exists",
+						"project_id", projectUID)
+					continue
+				}
+				return nil, err
 			}
-			return nil, err
 		}
 
 		refs = append(refs, DomainProjectToRef(project))

@@ -941,13 +941,29 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 			messageData: []byte(`{"stages":["Formation - Engaged"],"uids":["` + formingUID + `","` + activeUID + `"]}`),
 			setupMocks: func(mockRepo *domain.MockProjectRepository) {
 				mockRepo.On("ListAllProjectsBase", mock.Anything).Return(allProjects, nil)
-				mockRepo.On("GetProjectBase", mock.Anything, activeUID).Return(allProjects[0], nil)
 			},
 			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+				// Neither UID is read again: the stage-matched one is already in the
+				// reply, and the other was decoded by the same scan.
 				mockRepo.AssertNotCalled(t, "GetProjectBase", mock.Anything, formingUID)
+				mockRepo.AssertNotCalled(t, "GetProjectBase", mock.Anything, activeUID)
 				assert.Len(t, refs, 2)
 				assert.Equal(t, formingUID, refs[0].UID)
 				assert.Equal(t, activeUID, refs[1].UID)
+			},
+		},
+		{
+			name:        "a uid at an unwanted stage is served from the scan, not read again",
+			messageData: []byte(`{"stages":["Formation - Engaged"],"uids":["` + prospectUID + `"]}`),
+			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+				mockRepo.On("ListAllProjectsBase", mock.Anything).Return(allProjects, nil)
+			},
+			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+				mockRepo.AssertNotCalled(t, "GetProjectBase", mock.Anything, prospectUID)
+				assert.Len(t, refs, 2)
+				assert.Equal(t, formingUID, refs[0].UID)
+				assert.Equal(t, prospectUID, refs[1].UID)
+				assert.Equal(t, "Prospect", refs[1].Stage)
 			},
 		},
 		{
