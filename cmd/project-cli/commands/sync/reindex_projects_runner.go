@@ -202,6 +202,7 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 					r.stats.Updated++
 				}
 				statsMu.Unlock()
+				processed.Add(1)
 
 				if err != nil {
 					slog.WarnContext(gCtx, "failed to republish root project access",

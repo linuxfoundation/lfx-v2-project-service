@@ -546,6 +546,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 		baseErr          error
 		settingsErr      error
 		all              bool
+		dryRun           bool
 		includeAccess    bool
 		openSearchHitIDs []string
 		wantErr          string
@@ -570,15 +571,18 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			wantUpdated: 2,
 		},
 		{
+			// Mirrors the only reachable explicit-UID state: reindex_projects.go
+			// rejects --all combined with --project-uid, so the supported path
+			// always goes through the OpenSearch diff below (all: false).
 			name:       "explicit project-uid on the ROOT record still reindexes",
 			projectUID: rootUID,
-			all:        true,
 			baseByUID: map[string]*models.ProjectBase{
 				rootUID: newBase(rootUID, rootProjectSlug),
 			},
-			wantUIDs:    map[string]bool{rootUID: true},
-			wantTotal:   1,
-			wantUpdated: 1,
+			wantUIDs:       map[string]bool{rootUID: true},
+			wantTotal:      1,
+			wantUpdated:    1,
+			wantQueriedHas: []string{"project:" + rootUID},
 		},
 		{
 			name: "lowercase root is not excluded",
@@ -655,6 +659,24 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			wantFailed: 1,
 		},
 		{
+			// reindexRootAccess's dry-run branch returns before calling
+			// GetProjectSettings, so a settingsErr here would surface as
+			// stats.Failed if the dry-run guard regressed and let a real
+			// settings lookup or FGA publish slip through during a preview.
+			name:          "all --include-access dry-run skips ROOT settings lookup and FGA publish",
+			all:           true,
+			includeAccess: true,
+			dryRun:        true,
+			settingsErr:   fmt.Errorf("settings kv record not found"),
+			bases: []*models.ProjectBase{
+				newBase(rootUID, rootProjectSlug),
+			},
+			wantUIDs:    map[string]bool{},
+			wantTotal:   1,
+			wantUpdated: 1,
+			wantFGAUIDs: map[string]bool{},
+		},
+		{
 			name:    "ListAllProjectsBase error propagates",
 			all:     true,
 			listErr: fmt.Errorf("kv unavailable"),
@@ -699,6 +721,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 				openSearch:    osClient,
 				publisher:     publisher,
 				all:           tt.all,
+				dryRun:        tt.dryRun,
 				includeAccess: tt.includeAccess,
 				concurrency:   1,
 				stats:         commands.NewStats(),
