@@ -150,6 +150,19 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	var statsMu sync.Mutex
 	var processed atomic.Int64
 
+	// logProgress is shared by both worker groups below so a project counted in
+	// stats.Total advances the same reporting boundary regardless of which group
+	// processed it, keeping "processed" and "total" comparable in the log line.
+	logProgress := func(gCtx context.Context) {
+		if n := processed.Add(1); n%1000 == 0 {
+			statsMu.Lock()
+			total, u, f := r.stats.Total, r.stats.Updated, r.stats.Failed
+			statsMu.Unlock()
+			slog.InfoContext(gCtx, "reindex-projects progress",
+				"processed", n, "total", total, "updated", u, "failed", f)
+		}
+	}
+
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(r.concurrency)
 
@@ -172,14 +185,8 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 				r.stats.Updated++
 			}
 			statsMu.Unlock()
+			logProgress(gCtx)
 
-			if n := processed.Add(1); n%1000 == 0 {
-				statsMu.Lock()
-				total, u, f := r.stats.Total, r.stats.Updated, r.stats.Failed
-				statsMu.Unlock()
-				slog.InfoContext(gCtx, "reindex-projects progress",
-					"processed", n, "total", total, "updated", u, "failed", f)
-			}
 			return nil
 		})
 	}
@@ -202,7 +209,7 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 					r.stats.Updated++
 				}
 				statsMu.Unlock()
-				processed.Add(1)
+				logProgress(gCtx)
 
 				if err != nil {
 					slog.WarnContext(gCtx, "failed to republish root project access",
