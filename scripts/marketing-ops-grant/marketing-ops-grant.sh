@@ -162,10 +162,10 @@ run_fga_pod() {
   # everything evaluated as part of an `if` condition — a failed `kubectl run`
   # (bad RBAC, API error) would otherwise fall through into the 120s poll below
   # instead of failing immediately.
-  if ! kubectl --context "$CTX" --request-timeout=10s run "$pod" -n "$NS" --image=openfga/cli:0.7.20 --restart=Never --overrides='{
+  if ! kubectl --context "$CTX" --request-timeout=10s run "$pod" -n "$NS" --image=openfga/cli:v0.7.20 --restart=Never --overrides='{
     "spec": {"containers": [{
       "name": "'"$pod"'",
-      "image": "openfga/cli:0.7.20",
+      "image": "openfga/cli:v0.7.20",
       "args": '"$args_json"',
       "env": [
         {"name": "FGA_API_URL", "value": "'"$FGA_API_URL"'"},

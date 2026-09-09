@@ -4,6 +4,7 @@
 package nats
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -35,9 +36,14 @@ type MessageBuilder struct {
 // sendMessage sends the message to the NATS server.
 func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data []byte, sync bool) error {
 	if sync {
-		_, err := m.requestMessage(ctx, subject, data, defaultRequestTimeout)
+		reply, err := m.requestMessage(ctx, subject, data, defaultRequestTimeout)
 		if err != nil {
 			slog.ErrorContext(ctx, "error requesting message from NATS", constants.ErrKey, err, "subject", subject)
+			return err
+		}
+		if reply == nil || !bytes.Equal(reply.Data, []byte("OK")) {
+			err = fmt.Errorf("indexer did not acknowledge message")
+			slog.ErrorContext(ctx, "indexer did not acknowledge message", constants.ErrKey, err, "subject", subject)
 			return err
 		}
 		slog.DebugContext(ctx, "sent and received response from NATS synchronously", "subject", subject)
@@ -175,7 +181,7 @@ func (m *MessageBuilder) sendIndexerMessage(
 		return err
 	}
 
-	slog.DebugContext(ctx, "constructed indexer message", "subject", subject, "message", string(messageBytes), "message_json", message)
+	slog.DebugContext(ctx, "constructed indexer message", "subject", subject, "action", action)
 
 	return m.sendMessage(ctx, subject, messageBytes, sync)
 }

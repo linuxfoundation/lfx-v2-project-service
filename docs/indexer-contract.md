@@ -6,6 +6,17 @@ This document is the authoritative reference for all data the project service se
 
 ---
 
+## Delivery and Acknowledgement
+
+Indexer messages may be published asynchronously or with synchronous
+request/reply. In synchronous mode, the publisher accepts only the exact `OK`
+response body as successful acknowledgement. A nil, empty, or otherwise
+different response is treated as a generic negative acknowledgement.
+
+Errors and logs do not include the raw response body.
+
+---
+
 ## Resource Types
 
 - [Project](#project)
