@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"reflect"
 	"strings"
@@ -179,6 +180,17 @@ func newFakeOpenSearchClient(t *testing.T, hitIDs []string) *opensearchgo.Client
 // newRecordingOpenSearchClient behaves like newFakeOpenSearchClient but also
 // appends each request body to requests, so a test can assert exactly which
 // project UIDs were (or were not) queried against the resources index.
+// captureSlog redirects the package-level slog default to a buffer for the
+// duration of the test, restoring the prior default on cleanup.
+func captureSlog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+	return &buf
+}
+
 func newRecordingOpenSearchClient(t *testing.T, hitIDs []string, requests *[]string) *opensearchgo.Client {
 	t.Helper()
 
@@ -750,6 +762,86 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			}
 		})
 	}
+
+	// The 1000-unit progress boundary can't be crossed by the ROOT-repair and
+	// skip paths in the same run: ROOT-repair only fires under --all, but
+	// --all marks every base missing (bypassing the OpenSearch diff), so the
+	// skip branch can never trigger at the same time. These two cases instead
+	// cross the boundary once via each path independently.
+	t.Run("progress boundary logs processed and total at 1000", func(t *testing.T) {
+		t.Run("via ROOT access repair under --all --include-access", func(t *testing.T) {
+			settingsByUID := map[string]*models.ProjectSettings{rootUID: newSettings(rootUID)}
+			bases := make([]*models.ProjectBase, 0, 999)
+			for i := 0; i < 999; i++ {
+				uid := fmt.Sprintf("00000000-0000-0000-0001-%012d", i+1)
+				bases = append(bases, newBase(uid, fmt.Sprintf("project-%d", i)))
+				settingsByUID[uid] = newSettings(uid)
+			}
+			bases = append(bases, newBase(rootUID, rootProjectSlug))
+
+			repo := &fakeProjectRecordRepo{bases: bases, settingsByUID: settingsByUID}
+			publisher := &domain.MockMessageBuilder{}
+			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, true).Return(nil)
+			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+			r := &reindexProjectsRunner{
+				repo:          repo,
+				publisher:     publisher,
+				all:           true,
+				includeAccess: true,
+				concurrency:   1,
+				stats:         commands.NewStats(),
+			}
+
+			logs := captureSlog(t)
+			require.NoError(t, r.run(context.Background(), ""))
+			assert.Equal(t, 1000, r.stats.Total)
+
+			out := logs.String()
+			assert.Contains(t, out, `"msg":"reindex-projects progress"`)
+			assert.Contains(t, out, `"processed":1000`)
+			assert.Contains(t, out, `"total":1000`)
+		})
+
+		t.Run("via a skipped already-indexed project on a default diff scan", func(t *testing.T) {
+			settingsByUID := make(map[string]*models.ProjectSettings, 1000)
+			bases := make([]*models.ProjectBase, 0, 1000)
+			for i := 0; i < 1000; i++ {
+				uid := fmt.Sprintf("00000000-0000-0000-0002-%012d", i+1)
+				bases = append(bases, newBase(uid, fmt.Sprintf("project-%d", i)))
+				settingsByUID[uid] = newSettings(uid)
+			}
+			skippedUID := bases[0].UID
+
+			repo := &fakeProjectRecordRepo{bases: bases, settingsByUID: settingsByUID}
+			publisher := &domain.MockMessageBuilder{}
+			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, true).Return(nil)
+			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+			var requests []string
+			osClient := newRecordingOpenSearchClient(t, []string{
+				"project:" + skippedUID, "project_settings:" + skippedUID,
+			}, &requests)
+
+			r := &reindexProjectsRunner{
+				repo:        repo,
+				openSearch:  osClient,
+				publisher:   publisher,
+				concurrency: 1,
+				stats:       commands.NewStats(),
+			}
+
+			logs := captureSlog(t)
+			require.NoError(t, r.run(context.Background(), ""))
+			assert.Equal(t, 1000, r.stats.Total)
+			assert.Equal(t, 1, r.stats.Skipped)
+
+			out := logs.String()
+			assert.Contains(t, out, `"msg":"reindex-projects progress"`)
+			assert.Contains(t, out, `"processed":1000`)
+			assert.Contains(t, out, `"total":1000`)
+		})
+	})
 }
 
 func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
