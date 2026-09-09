@@ -618,6 +618,52 @@ func DomainSettingsToEvent(s *models.ProjectSettings) events.ProjectSettings {
 	}
 }
 
+// DomainSettingsToSummary converts an internal ProjectSettings domain model to
+// the reply of the get_settings lookup, which carries the grant roster and the
+// announcement date only.
+//
+// The two rosters are emptied rather than left nil, so that a project with none
+// configured replies with [] instead of null. That is the same guarantee
+// HandleProjectGetWriters already makes, and callers of both should not have to
+// decode them differently.
+func DomainSettingsToSummary(s *models.ProjectSettings) events.ProjectSettingsSummary {
+	if s == nil {
+		return events.ProjectSettingsSummary{
+			Writers:  []events.UserInfo{},
+			Auditors: []events.UserInfo{},
+		}
+	}
+
+	summary := events.ProjectSettingsSummary{
+		UID:              s.UID,
+		AnnouncementDate: s.AnnouncementDate,
+		Writers:          domainUsersToEvent(s.Writers),
+		Auditors:         domainUsersToEvent(s.Auditors),
+	}
+	if summary.Writers == nil {
+		summary.Writers = []events.UserInfo{}
+	}
+	if summary.Auditors == nil {
+		summary.Auditors = []events.UserInfo{}
+	}
+	return summary
+}
+
+// DomainProjectToRef converts an internal ProjectBase domain model to one entry
+// of the list_projects reply.
+func DomainProjectToRef(p *models.ProjectBase) events.ProjectRef {
+	if p == nil {
+		return events.ProjectRef{}
+	}
+	return events.ProjectRef{
+		UID:          p.UID,
+		Slug:         p.Slug,
+		IsFoundation: p.IsFoundation,
+		ParentUID:    p.ParentUID,
+		Stage:        p.Stage,
+	}
+}
+
 func domainUsersToEvent(users []models.UserInfo) []events.UserInfo {
 	if users == nil {
 		return nil

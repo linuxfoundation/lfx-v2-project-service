@@ -122,6 +122,10 @@ func createNatsSubcriptions(ctx context.Context, svc *ProjectsAPI, natsConn *nat
 		constants.ProjectGetParentUIDSubject,
 		// Get project writers subscription
 		constants.ProjectGetWritersSubject,
+		// Get project grant roster and announcement date subscription
+		constants.ProjectGetSettingsSubject,
+		// List projects by stage and/or by UID subscription
+		constants.ProjectListProjectsSubject,
 	} {
 		slog.With("subject", subject, "queue", queueName).Debug("subscribing to NATS subject")
 		_, err := natsConn.QueueSubscribe(subject, queueName, func(msg *nats.Msg) {

@@ -42,7 +42,20 @@ Request/reply RPC subjects — callers block waiting for a response:
 | `lfx.projects-api.get_logo` | Get a project logo URL from a given project UID |
 | `lfx.projects-api.get_parent_uid` | Get a project's parent UID from a given project UID |
 | `lfx.projects-api.get_writers` | Get a project's configured writers from a given project UID |
+| `lfx.projects-api.get_settings` | Get a project's writers, auditors and announcement date from a given project UID |
+| `lfx.projects-api.list_projects` | List projects at given stages, by given UIDs, or the union of both |
 | `lfx.projects-api.slug_to_uid` | Get a project UID from a given project slug |
+
+`get_settings` returns the grant roster and the announcement date only, not the whole
+settings record; `get_writers` remains the cheaper call when the writers alone will do.
+
+`list_projects` takes a JSON body with `stages` and/or `uids`, at least one of which must
+be set, and returns their union. The stage filter scans the project store, so a request
+carrying only `uids` is the cheaper shape, and may name at most 500 distinct projects —
+a larger list is refused rather than truncated, so a caller never mistakes a capped reply
+for a complete one. Repeats are ignored rather than counted against the limit. The reply is not filtered on project visibility, so confidential projects
+are included: treat this subject as trusted service-to-service only, and do not relay
+its reply to an unauthorized user.
 
 ### NATS Inbound Event Subscriptions
 
