@@ -175,10 +175,10 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 
 			if n := processed.Add(1); n%1000 == 0 {
 				statsMu.Lock()
-				u, f := r.stats.Updated, r.stats.Failed
+				total, u, f := r.stats.Total, r.stats.Updated, r.stats.Failed
 				statsMu.Unlock()
 				slog.InfoContext(gCtx, "reindex-projects progress",
-					"processed", n, "total", len(bases), "updated", u, "failed", f)
+					"processed", n, "total", total, "updated", u, "failed", f)
 			}
 			return nil
 		})
