@@ -173,6 +173,7 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 			statsMu.Lock()
 			r.stats.Skipped++
 			statsMu.Unlock()
+			logProgress(gCtx)
 			continue
 		}
 		g.Go(func() error {
