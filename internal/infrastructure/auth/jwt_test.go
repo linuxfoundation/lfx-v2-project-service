@@ -114,6 +114,8 @@ func TestNewJWTAuth(t *testing.T) {
 				if auth != nil {
 					assert.NotNil(t, auth.validator)
 					assert.Equal(t, tt.config, auth.config)
+					assert.NotNil(t, auth.logger,
+						"NewJWTAuth must initialize logger; nil *slog.Logger panics on first log call")
 				}
 			}
 		})

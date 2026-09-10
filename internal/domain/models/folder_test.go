@@ -11,31 +11,48 @@ import (
 )
 
 func TestProjectFolder_BuildIndexKey(t *testing.T) {
+	// Note: BuildIndexKey dereferences the receiver without a nil check; calling it
+	// on a nil *ProjectFolder panics by design (same as the standard library's
+	// behaviour for value-receiver methods on zero-value structs).
 	ctx := context.Background()
 
-	t.Run("deterministic — same input produces same key", func(t *testing.T) {
-		f := &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"}
-		assert.Equal(t, f.BuildIndexKey(ctx), f.BuildIndexKey(ctx))
-	})
+	tests := []struct {
+		name     string
+		folder   *ProjectFolder
+		wantKey  string // non-empty pins the exact expected digest
+		notEqual *ProjectFolder
+	}{
+		{
+			name:   "pinned SHA-256 of projectUID|name",
+			folder: &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"},
+			// SHA-256("proj-001|Meeting Notes") pre-computed and pinned.
+			wantKey: "9ea1819bc013cd079e9f90e269a26126f39dca10f36477bddca7e728982756d2",
+		},
+		{
+			name:     "different project UIDs produce different keys",
+			folder:   &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"},
+			notEqual: &ProjectFolder{ProjectUID: "proj-002", Name: "Meeting Notes"},
+		},
+		{
+			name:     "different names produce different keys",
+			folder:   &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"},
+			notEqual: &ProjectFolder{ProjectUID: "proj-001", Name: "Design Docs"},
+		},
+	}
 
-	t.Run("different project UIDs produce different keys", func(t *testing.T) {
-		f1 := &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"}
-		f2 := &ProjectFolder{ProjectUID: "proj-002", Name: "Meeting Notes"}
-		assert.NotEqual(t, f1.BuildIndexKey(ctx), f2.BuildIndexKey(ctx))
-	})
-
-	t.Run("different names produce different keys", func(t *testing.T) {
-		f1 := &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"}
-		f2 := &ProjectFolder{ProjectUID: "proj-001", Name: "Design Docs"}
-		assert.NotEqual(t, f1.BuildIndexKey(ctx), f2.BuildIndexKey(ctx))
-	})
-
-	t.Run("key matches expected SHA-256 of projectUID|name", func(t *testing.T) {
-		f := &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"}
-		// SHA-256("proj-001|Meeting Notes") pre-computed and pinned.
-		const want = "9ea1819bc013cd079e9f90e269a26126f39dca10f36477bddca7e728982756d2"
-		assert.Equal(t, want, f.BuildIndexKey(ctx))
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := tt.folder.BuildIndexKey(ctx)
+			// Determinism — same input always produces the same key.
+			assert.Equal(t, key, tt.folder.BuildIndexKey(ctx), "BuildIndexKey must be deterministic")
+			if tt.wantKey != "" {
+				assert.Equal(t, tt.wantKey, key)
+			}
+			if tt.notEqual != nil {
+				assert.NotEqual(t, key, tt.notEqual.BuildIndexKey(ctx))
+			}
+		})
+	}
 }
 
 func TestProjectFolder_Tags(t *testing.T) {

@@ -117,7 +117,10 @@ func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
 	return &JWTAuth{
 		validator: jwtValidator,
 		config:    config,
-		logger:    slog.Default(),
+		// The Authenticator interface no longer receives a logger per call, so the
+		// default logger is captured at construction. Callers needing a custom
+		// logger must call slog.SetDefault before NewJWTAuth.
+		logger: slog.Default(),
 	}, nil
 }
 

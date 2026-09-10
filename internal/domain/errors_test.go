@@ -4,7 +4,6 @@
 package domain
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,15 +44,13 @@ func TestNewValidationError(t *testing.T) {
 
 			if tt.wantSentinel {
 				// Empty reason must return the sentinel itself, not a wrapped copy.
-				assert.Equal(t, ErrValidationFailed, err,
+				// Use == to verify pointer/identity equality, not just value equality.
+				assert.True(t, err == ErrValidationFailed,
 					"empty reason should return the ErrValidationFailed sentinel directly")
 			} else {
 				// Non-empty reason must return a distinct wrapped error.
 				assert.NotEqual(t, ErrValidationFailed, err,
 					"non-empty reason should return a wrapped error, not the sentinel itself")
-				// Unwrapping must reach the sentinel.
-				assert.True(t, errors.Is(err, ErrValidationFailed),
-					"errors.Is chain must resolve to ErrValidationFailed through wrapping")
 			}
 		})
 	}

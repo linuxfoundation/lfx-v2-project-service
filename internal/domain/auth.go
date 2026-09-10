@@ -8,7 +8,7 @@ import "context"
 // Authenticator defines the authentication interface for the domain layer.
 // This interface allows the service layer to authenticate users without depending
 // on specific authentication implementations (JWT, OAuth, etc.).
-// Implementations hold their own logger as a constructor dependency.
+// Implementations that need to log capture a logger at construction (e.g. slog.Default()).
 type Authenticator interface {
 	// ParsePrincipal extracts the principal (user identifier) from an authentication token.
 	// Returns the principal string and any error that occurred during parsing.

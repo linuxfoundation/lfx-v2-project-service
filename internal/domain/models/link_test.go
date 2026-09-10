@@ -11,36 +11,57 @@ import (
 )
 
 func TestProjectLink_BuildIndexKey(t *testing.T) {
+	// Note: ProjectLink.BuildIndexKey nil-guards the receiver and returns "" for nil,
+	// unlike ProjectDocument and ProjectFolder which dereference without a nil check.
 	ctx := context.Background()
 
-	t.Run("nil returns empty string", func(t *testing.T) {
-		var l *ProjectLink
-		assert.Empty(t, l.BuildIndexKey(ctx))
-	})
+	tests := []struct {
+		name     string
+		link     *ProjectLink
+		wantKey  string // non-empty pins the exact expected digest; "" used for nil case
+		nilInput bool   // true → expect an empty string (nil-guard branch)
+		notEqual *ProjectLink
+	}{
+		{
+			name:     "nil returns empty string",
+			link:     nil,
+			nilInput: true,
+		},
+		{
+			name: "pinned SHA-256 of projectUID|uid",
+			link: &ProjectLink{ProjectUID: "proj-001", UID: "link-001"},
+			// SHA-256("proj-001|link-001") pre-computed and pinned.
+			wantKey: "13a23c5093d49babb8402cf4c82ff8213b1922f26f6e55ba15451c95cb0ae383",
+		},
+		{
+			name:     "different project UIDs produce different keys",
+			link:     &ProjectLink{ProjectUID: "proj-001", UID: "link-001"},
+			notEqual: &ProjectLink{ProjectUID: "proj-002", UID: "link-001"},
+		},
+		{
+			name:     "different link UIDs produce different keys",
+			link:     &ProjectLink{ProjectUID: "proj-001", UID: "link-001"},
+			notEqual: &ProjectLink{ProjectUID: "proj-001", UID: "link-002"},
+		},
+	}
 
-	t.Run("deterministic — same input produces same key", func(t *testing.T) {
-		l := &ProjectLink{ProjectUID: "proj-001", UID: "link-001"}
-		assert.Equal(t, l.BuildIndexKey(ctx), l.BuildIndexKey(ctx))
-	})
-
-	t.Run("different project UIDs produce different keys", func(t *testing.T) {
-		l1 := &ProjectLink{ProjectUID: "proj-001", UID: "link-001"}
-		l2 := &ProjectLink{ProjectUID: "proj-002", UID: "link-001"}
-		assert.NotEqual(t, l1.BuildIndexKey(ctx), l2.BuildIndexKey(ctx))
-	})
-
-	t.Run("different link UIDs produce different keys", func(t *testing.T) {
-		l1 := &ProjectLink{ProjectUID: "proj-001", UID: "link-001"}
-		l2 := &ProjectLink{ProjectUID: "proj-001", UID: "link-002"}
-		assert.NotEqual(t, l1.BuildIndexKey(ctx), l2.BuildIndexKey(ctx))
-	})
-
-	t.Run("key matches expected SHA-256 of projectUID|uid", func(t *testing.T) {
-		l := &ProjectLink{ProjectUID: "proj-001", UID: "link-001"}
-		// SHA-256("proj-001|link-001") pre-computed and pinned.
-		const want = "13a23c5093d49babb8402cf4c82ff8213b1922f26f6e55ba15451c95cb0ae383"
-		assert.Equal(t, want, l.BuildIndexKey(ctx))
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := tt.link.BuildIndexKey(ctx)
+			if tt.nilInput {
+				assert.Empty(t, key)
+				return
+			}
+			// Determinism — same input always produces the same key.
+			assert.Equal(t, key, tt.link.BuildIndexKey(ctx), "BuildIndexKey must be deterministic")
+			if tt.wantKey != "" {
+				assert.Equal(t, tt.wantKey, key)
+			}
+			if tt.notEqual != nil {
+				assert.NotEqual(t, key, tt.notEqual.BuildIndexKey(ctx))
+			}
+		})
+	}
 }
 
 func TestProjectLink_Tags(t *testing.T) {
@@ -73,6 +94,14 @@ func TestProjectLink_Tags(t *testing.T) {
 			wantTags: []string{
 				"project_uid:proj-001",
 			},
+		},
+		{
+			name: "empty folderUID pointer produces no folder_uid tag",
+			link: func() *ProjectLink {
+				f := ""
+				return &ProjectLink{FolderUID: &f}
+			}(),
+			wantTags: nil,
 		},
 		{
 			name: "folderUID produces folder_uid tag",

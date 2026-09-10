@@ -34,6 +34,10 @@ func TestCloneUserInfo(t *testing.T) {
 				Invite:   &InviteInfo{UID: "invite-001", Email: "bob@example.com", ExpiresAt: &expires},
 			},
 		},
+		{
+			name: "user with invite, no expiry",
+			in:   &UserInfo{Username: "carol", Invite: &InviteInfo{UID: "invite-002", Email: "carol@example.com"}},
+		},
 	}
 
 	for _, tt := range tests {
@@ -57,8 +61,9 @@ func TestCloneUserInfo(t *testing.T) {
 				assert.NotSame(t, tt.in.Invite, got.Invite)
 
 				// Mutating clone's UID must not affect original.
+				origUID := tt.in.Invite.UID
 				got.Invite.UID = "mutated"
-				assert.Equal(t, "invite-001", tt.in.Invite.UID,
+				assert.Equal(t, origUID, tt.in.Invite.UID,
 					"mutating clone's Invite.UID must not affect original")
 
 				// ExpiresAt must be a deep copy — mutating the clone's pointed-to
@@ -71,6 +76,9 @@ func TestCloneUserInfo(t *testing.T) {
 					*got.Invite.ExpiresAt = time.Time{}
 					assert.Equal(t, original, *tt.in.Invite.ExpiresAt,
 						"mutating clone's ExpiresAt must not affect original")
+				} else {
+					assert.Nil(t, got.Invite.ExpiresAt,
+						"clone's ExpiresAt must be nil when original has no expiry")
 				}
 			} else {
 				assert.Nil(t, got.Invite)

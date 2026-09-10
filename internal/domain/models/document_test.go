@@ -11,31 +11,48 @@ import (
 )
 
 func TestProjectDocument_BuildIndexKey(t *testing.T) {
+	// Note: BuildIndexKey dereferences the receiver without a nil check; calling it
+	// on a nil *ProjectDocument panics by design (same as the standard library's
+	// behaviour for value-receiver methods on zero-value structs).
 	ctx := context.Background()
 
-	t.Run("deterministic — same input produces same key", func(t *testing.T) {
-		d := &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"}
-		assert.Equal(t, d.BuildIndexKey(ctx), d.BuildIndexKey(ctx))
-	})
+	tests := []struct {
+		name     string
+		doc      *ProjectDocument
+		wantKey  string // non-empty pins the exact expected digest
+		notEqual *ProjectDocument
+	}{
+		{
+			name: "pinned SHA-256 of projectUID|name",
+			doc:  &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"},
+			// SHA-256("proj-001|report.pdf") pre-computed and pinned.
+			wantKey: "022479a1edb6f4684b70355c7df592da5977fd9d3837331960978d2a5b970d86",
+		},
+		{
+			name:     "different project UIDs produce different keys",
+			doc:      &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"},
+			notEqual: &ProjectDocument{ProjectUID: "proj-002", Name: "report.pdf"},
+		},
+		{
+			name:     "different names produce different keys",
+			doc:      &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"},
+			notEqual: &ProjectDocument{ProjectUID: "proj-001", Name: "slides.pdf"},
+		},
+	}
 
-	t.Run("different project UIDs produce different keys", func(t *testing.T) {
-		d1 := &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"}
-		d2 := &ProjectDocument{ProjectUID: "proj-002", Name: "report.pdf"}
-		assert.NotEqual(t, d1.BuildIndexKey(ctx), d2.BuildIndexKey(ctx))
-	})
-
-	t.Run("different names produce different keys", func(t *testing.T) {
-		d1 := &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"}
-		d2 := &ProjectDocument{ProjectUID: "proj-001", Name: "slides.pdf"}
-		assert.NotEqual(t, d1.BuildIndexKey(ctx), d2.BuildIndexKey(ctx))
-	})
-
-	t.Run("key matches expected SHA-256 of projectUID|name", func(t *testing.T) {
-		d := &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"}
-		// SHA-256("proj-001|report.pdf") pre-computed and pinned.
-		const want = "022479a1edb6f4684b70355c7df592da5977fd9d3837331960978d2a5b970d86"
-		assert.Equal(t, want, d.BuildIndexKey(ctx))
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := tt.doc.BuildIndexKey(ctx)
+			// Determinism — same input always produces the same key.
+			assert.Equal(t, key, tt.doc.BuildIndexKey(ctx), "BuildIndexKey must be deterministic")
+			if tt.wantKey != "" {
+				assert.Equal(t, tt.wantKey, key)
+			}
+			if tt.notEqual != nil {
+				assert.NotEqual(t, key, tt.notEqual.BuildIndexKey(ctx))
+			}
+		})
+	}
 }
 
 func TestProjectDocument_Tags(t *testing.T) {
@@ -68,6 +85,14 @@ func TestProjectDocument_Tags(t *testing.T) {
 			wantTags: []string{
 				"project_uid:proj-001",
 			},
+		},
+		{
+			name: "empty folderUID pointer produces no folder_uid tag",
+			doc: func() *ProjectDocument {
+				f := ""
+				return &ProjectDocument{FolderUID: &f}
+			}(),
+			wantTags: nil,
 		},
 		{
 			name: "folderUID produces folder_uid tag",
