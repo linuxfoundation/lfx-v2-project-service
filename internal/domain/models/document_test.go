@@ -17,16 +17,16 @@ func TestProjectDocument_BuildIndexKey(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name     string
-		doc      *ProjectDocument
-		wantKey  string // non-empty pins the exact expected digest
-		notEqual *ProjectDocument
+		name       string
+		doc        *ProjectDocument
+		wantDigest string // non-empty pins the exact expected digest
+		notEqual   *ProjectDocument
 	}{
 		{
 			name: "pinned SHA-256 of projectUID|name",
 			doc:  &ProjectDocument{ProjectUID: "proj-001", Name: "report.pdf"},
 			// SHA-256("proj-001|report.pdf") pre-computed and pinned.
-			wantKey: "022479a1edb6f4684b70355c7df592da5977fd9d3837331960978d2a5b970d86",
+			wantDigest: "022479a1edb6f4684b70355c7df592da5977fd9d3837331960978d2a5b970d86",
 		},
 		{
 			name:     "different project UIDs produce different keys",
@@ -45,8 +45,8 @@ func TestProjectDocument_BuildIndexKey(t *testing.T) {
 			key := tt.doc.BuildIndexKey(ctx)
 			// Determinism — same input always produces the same key.
 			assert.Equal(t, key, tt.doc.BuildIndexKey(ctx), "BuildIndexKey must be deterministic")
-			if tt.wantKey != "" {
-				assert.Equal(t, tt.wantKey, key)
+			if tt.wantDigest != "" {
+				assert.Equal(t, tt.wantDigest, key)
 			}
 			if tt.notEqual != nil {
 				assert.NotEqual(t, key, tt.notEqual.BuildIndexKey(ctx))

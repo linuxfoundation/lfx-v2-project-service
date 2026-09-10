@@ -17,16 +17,16 @@ func TestProjectFolder_BuildIndexKey(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name     string
-		folder   *ProjectFolder
-		wantKey  string // non-empty pins the exact expected digest
-		notEqual *ProjectFolder
+		name       string
+		folder     *ProjectFolder
+		wantDigest string // non-empty pins the exact expected digest
+		notEqual   *ProjectFolder
 	}{
 		{
 			name:   "pinned SHA-256 of projectUID|name",
 			folder: &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"},
 			// SHA-256("proj-001|Meeting Notes") pre-computed and pinned.
-			wantKey: "9ea1819bc013cd079e9f90e269a26126f39dca10f36477bddca7e728982756d2",
+			wantDigest: "9ea1819bc013cd079e9f90e269a26126f39dca10f36477bddca7e728982756d2",
 		},
 		{
 			name:     "different project UIDs produce different keys",
@@ -45,8 +45,8 @@ func TestProjectFolder_BuildIndexKey(t *testing.T) {
 			key := tt.folder.BuildIndexKey(ctx)
 			// Determinism — same input always produces the same key.
 			assert.Equal(t, key, tt.folder.BuildIndexKey(ctx), "BuildIndexKey must be deterministic")
-			if tt.wantKey != "" {
-				assert.Equal(t, tt.wantKey, key)
+			if tt.wantDigest != "" {
+				assert.Equal(t, tt.wantDigest, key)
 			}
 			if tt.notEqual != nil {
 				assert.NotEqual(t, key, tt.notEqual.BuildIndexKey(ctx))

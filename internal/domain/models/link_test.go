@@ -16,11 +16,11 @@ func TestProjectLink_BuildIndexKey(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name     string
-		link     *ProjectLink
-		wantKey  string // non-empty pins the exact expected digest; "" used for nil case
-		nilInput bool   // true → expect an empty string (nil-guard branch)
-		notEqual *ProjectLink
+		name       string
+		link       *ProjectLink
+		wantDigest string // non-empty pins the exact expected digest; "" used for nil case
+		nilInput   bool   // true → expect an empty string (nil-guard branch)
+		notEqual   *ProjectLink
 	}{
 		{
 			name:     "nil returns empty string",
@@ -31,7 +31,7 @@ func TestProjectLink_BuildIndexKey(t *testing.T) {
 			name: "pinned SHA-256 of projectUID|uid",
 			link: &ProjectLink{ProjectUID: "proj-001", UID: "link-001"},
 			// SHA-256("proj-001|link-001") pre-computed and pinned.
-			wantKey: "13a23c5093d49babb8402cf4c82ff8213b1922f26f6e55ba15451c95cb0ae383",
+			wantDigest: "13a23c5093d49babb8402cf4c82ff8213b1922f26f6e55ba15451c95cb0ae383",
 		},
 		{
 			name:     "different project UIDs produce different keys",
@@ -54,8 +54,8 @@ func TestProjectLink_BuildIndexKey(t *testing.T) {
 			}
 			// Determinism — same input always produces the same key.
 			assert.Equal(t, key, tt.link.BuildIndexKey(ctx), "BuildIndexKey must be deterministic")
-			if tt.wantKey != "" {
-				assert.Equal(t, tt.wantKey, key)
+			if tt.wantDigest != "" {
+				assert.Equal(t, tt.wantDigest, key)
 			}
 			if tt.notEqual != nil {
 				assert.NotEqual(t, key, tt.notEqual.BuildIndexKey(ctx))
