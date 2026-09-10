@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestProjectFolder_BuildIndexKey(t *testing.T) {
@@ -31,11 +30,11 @@ func TestProjectFolder_BuildIndexKey(t *testing.T) {
 		assert.NotEqual(t, f1.BuildIndexKey(ctx), f2.BuildIndexKey(ctx))
 	})
 
-	t.Run("key is a 64-character hex string", func(t *testing.T) {
+	t.Run("key matches expected SHA-256 of projectUID|name", func(t *testing.T) {
 		f := &ProjectFolder{ProjectUID: "proj-001", Name: "Meeting Notes"}
-		key := f.BuildIndexKey(ctx)
-		require.NotEmpty(t, key)
-		assert.Len(t, key, 64)
+		// SHA-256("proj-001|Meeting Notes") pre-computed and pinned.
+		const want = "9ea1819bc013cd079e9f90e269a26126f39dca10f36477bddca7e728982756d2"
+		assert.Equal(t, want, f.BuildIndexKey(ctx))
 	})
 }
 

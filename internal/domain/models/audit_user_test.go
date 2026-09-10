@@ -53,11 +53,25 @@ func TestCloneUserInfo(t *testing.T) {
 
 			if tt.in.Invite != nil {
 				require.NotNil(t, got.Invite)
-				// Invite must be a deep copy — mutating the clone must not affect the original.
+				// Invite struct itself must be a different pointer.
 				assert.NotSame(t, tt.in.Invite, got.Invite)
+
+				// Mutating clone's UID must not affect original.
 				got.Invite.UID = "mutated"
 				assert.Equal(t, "invite-001", tt.in.Invite.UID,
-					"mutating clone's Invite must not affect original")
+					"mutating clone's Invite.UID must not affect original")
+
+				// ExpiresAt must be a deep copy — mutating the clone's pointed-to
+				// time must not affect the original's expiration.
+				if tt.in.Invite.ExpiresAt != nil {
+					require.NotNil(t, got.Invite.ExpiresAt)
+					assert.NotSame(t, tt.in.Invite.ExpiresAt, got.Invite.ExpiresAt,
+						"ExpiresAt pointer must be independent")
+					original := *tt.in.Invite.ExpiresAt
+					*got.Invite.ExpiresAt = time.Time{}
+					assert.Equal(t, original, *tt.in.Invite.ExpiresAt,
+						"mutating clone's ExpiresAt must not affect original")
+				}
 			} else {
 				assert.Nil(t, got.Invite)
 			}
