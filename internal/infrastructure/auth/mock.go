@@ -5,7 +5,6 @@ package auth
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/stretchr/testify/mock"
@@ -16,13 +15,13 @@ type MockJWTAuth struct {
 	mock.Mock
 }
 
-func (m *MockJWTAuth) ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
-	args := m.Called(ctx, token, logger)
+func (m *MockJWTAuth) ParsePrincipal(ctx context.Context, token string) (string, error) {
+	args := m.Called(ctx, token)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockJWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string, logger *slog.Logger) (string, string, error) {
-	args := m.Called(ctx, token, logger)
+func (m *MockJWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string) (string, string, error) {
+	args := m.Called(ctx, token)
 	return args.String(0), args.String(1), args.Error(2)
 }
 

@@ -97,7 +97,7 @@ func TestJWTAuth(t *testing.T) {
 			expectedUser:  "user1",
 			expectedEmail: "user1@example.com",
 			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
-				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything, mock.Anything).Return("user1", "user1@example.com", nil)
+				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("user1", "user1@example.com", nil)
 			},
 		},
 		{
@@ -107,7 +107,7 @@ func TestJWTAuth(t *testing.T) {
 			expectedError: false,
 			expectedUser:  "user1",
 			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
-				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything, mock.Anything).Return("user1", "", nil)
+				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("user1", "", nil)
 			},
 		},
 		{
@@ -116,7 +116,7 @@ func TestJWTAuth(t *testing.T) {
 			schema:        &security.JWTScheme{},
 			expectedError: true,
 			setupMocks: func(mockJwtAuth *auth.MockJWTAuth) {
-				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything, mock.Anything).Return("", "", assert.AnError)
+				mockJwtAuth.On("ParsePrincipalAndEmail", mock.Anything, mock.Anything).Return("", "", assert.AnError)
 			},
 		},
 	}
