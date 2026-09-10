@@ -21,6 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -59,9 +60,9 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 		msgBuilderErr           error
 		wantURLContains         string
 		wantURLNotContain       string
-		wantRecipientHasAccount bool                                // expected RecipientHasAccount on the first invite call
-		setupUserReader         func(*domain.MockUserReader)        // optional UsernameByEmail setup for the dispatcher
-		setupRepoExtra          func(*domain.MockProjectRepository) // optional extra repo mock setup
+		wantRecipientHasAccount bool                                     // expected RecipientHasAccount on the first invite call
+		setupUserReader         func(*domainmocks.MockUserReader)        // optional UsernameByEmail setup for the dispatcher
+		setupRepoExtra          func(*domainmocks.MockProjectRepository) // optional extra repo mock setup
 	}{
 		// ── No-op cases ──────────────────────────────────────────────────────────────
 		{
@@ -514,7 +515,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 1,
 			wantInviteRole:  string(inviteapi.InviteRoleManage),
 			inviteUID:       "invite-uid-existing",
-			setupUserReader: func(u *domain.MockUserReader) {
+			setupUserReader: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, noLFIDWriter.Email).Return("writer-lfid", nil)
 			},
 			wantRecipientHasAccount: true,
@@ -534,7 +535,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 1,
 			wantInviteRole:  string(inviteapi.InviteRoleManage),
 			inviteUID:       "invite-uid-new",
-			setupUserReader: func(u *domain.MockUserReader) {
+			setupUserReader: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, noLFIDWriter.Email).Return("", errors.New("auth unavailable"))
 			},
 			wantRecipientHasAccount: false,
@@ -554,7 +555,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 1,
 			wantInviteRole:  string(inviteapi.InviteRoleManage),
 			inviteUID:       "invite-uid-new",
-			setupUserReader: func(u *domain.MockUserReader) {
+			setupUserReader: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, noLFIDWriter.Email).Return("", domain.ErrUserNotFound)
 			},
 			wantRecipientHasAccount: false,
@@ -578,7 +579,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
 			wantEmailCount:  0,
 			wantInviteCount: 0,
-			setupUserReader: func(u *domain.MockUserReader) {
+			setupUserReader: func(u *domainmocks.MockUserReader) {
 				// intentionally empty: any call to UsernameByEmail fails the test
 			},
 		},
@@ -586,8 +587,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &domain.MockProjectRepository{}
-			mockMsg := &domain.MockMessageBuilder{}
+			mockRepo := &domainmocks.MockProjectRepository{}
+			mockMsg := &domainmocks.MockMessageBuilder{}
 
 			if tt.projectBase != nil || tt.projectBaseErr != nil {
 				mockRepo.On("GetProjectBase", mock.Anything, tt.event.ProjectUID).
@@ -643,10 +644,10 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				tt.setupRepoExtra(mockRepo)
 			}
 
-			var mockUserReader *domain.MockUserReader
+			var mockUserReader *domainmocks.MockUserReader
 			var userReaderForDispatcher domain.UserReader // nil interface — safe to pass to NewUserResolver
 			if tt.setupUserReader != nil {
-				mockUserReader = &domain.MockUserReader{}
+				mockUserReader = &domainmocks.MockUserReader{}
 				tt.setupUserReader(mockUserReader)
 				userReaderForDispatcher = mockUserReader
 			}
@@ -663,7 +664,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 				},
 			}
 
-			msg := domain.NewMockMessage(marshalEvent(t, tt.event), "")
+			msg := domainmocks.NewMockMessage(marshalEvent(t, tt.event), "")
 			err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 			assert.NoError(t, err)
 
@@ -683,7 +684,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 
 	t.Run("invalid JSON — returns nil", func(t *testing.T) {
 		svc := &ProjectsService{}
-		msg := domain.NewMockMessage([]byte("not json"), "")
+		msg := domainmocks.NewMockMessage([]byte("not json"), "")
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
 	})
@@ -691,8 +692,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 	// Feature-flag disabled tests: verify no sends occur when the flags are off.
 
 	t.Run("EmailsEnabled=false — no email sent for LFID user added", func(t *testing.T) {
-		mockMsg := &domain.MockMessageBuilder{}
-		mockRepo := &domain.MockProjectRepository{}
+		mockMsg := &domainmocks.MockMessageBuilder{}
+		mockRepo := &domainmocks.MockProjectRepository{}
 
 		event := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  "proj-flag",
@@ -716,7 +717,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			},
 		}
 
-		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		msg := domainmocks.NewMockMessage(marshalEvent(t, event), "")
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
 		mockMsg.AssertNumberOfCalls(t, "SendEmailRequest", 0)
@@ -725,8 +726,8 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 	})
 
 	t.Run("InvitesEnabled=false — no invite sent for non-LFID user added", func(t *testing.T) {
-		mockMsg := &domain.MockMessageBuilder{}
-		mockRepo := &domain.MockProjectRepository{}
+		mockMsg := &domainmocks.MockMessageBuilder{}
+		mockRepo := &domainmocks.MockProjectRepository{}
 
 		event := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  "proj-flag",
@@ -750,7 +751,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			},
 		}
 
-		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		msg := domainmocks.NewMockMessage(marshalEvent(t, event), "")
 		err := svc.HandleProjectSettingsUpdated(context.Background(), msg)
 		assert.NoError(t, err)
 		mockMsg.AssertNumberOfCalls(t, "SendInviteRequest", 0)
@@ -1072,8 +1073,8 @@ func TestHandleInviteAccepted(t *testing.T) {
 	tests := []struct {
 		name      string
 		payload   any
-		setupRepo func(*domain.MockProjectRepository)
-		setupMsg  func(*domain.MockMessageBuilder)
+		setupRepo func(*domainmocks.MockProjectRepository)
+		setupMsg  func(*domainmocks.MockMessageBuilder)
 		wantErr   bool
 	}{
 		{
@@ -1091,7 +1092,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 		{
 			name:    "happy path — user promoted across all matching projects, indexer called per project",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				// Two projects both have the invited email; both should be promoted.
 				settings1 := makeSettings()
 				settings2 := &models.ProjectSettings{UID: project2UID, Writers: []models.UserInfo{{Email: writerEmail}}}
@@ -1105,14 +1106,14 @@ func TestHandleInviteAccepted(t *testing.T) {
 					return len(s.Writers) > 0 && s.Writers[0].Username == username
 				}), uint64(1)).Return(nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil).Times(2)
 			},
 		},
 		{
 			name:    "ErrRevisionMismatch on UPDATE — succeeds on attempt 2",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
 				// First GET + UPDATE fails with revision mismatch; second GET + UPDATE succeeds.
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
@@ -1125,14 +1126,14 @@ func TestHandleInviteAccepted(t *testing.T) {
 					return len(s.Writers) > 0 && s.Writers[0].Username == username
 				}), uint64(2)).Return(nil).Once()
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
 			},
 		},
 		{
 			name:    "user in Writer + MC slices — both entries promoted on acceptance",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:                 projectUID,
 					Writers:             []models.UserInfo{{Email: writerEmail}},
@@ -1146,14 +1147,14 @@ func TestHandleInviteAccepted(t *testing.T) {
 					return writerOK && mcOK
 				}), uint64(1)).Return(nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
 			},
 		},
 		{
 			name:    "no matching email in any project — no update called",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				// Scan returns settings with a different email — no promotion.
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{
 					{UID: projectUID, Writers: []models.UserInfo{{Email: "other@example.com"}}},
@@ -1163,7 +1164,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 		{
 			name:    "View role — only Auditors promoted, Writers untouched",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleView)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				// Project has both a pending Writer and a pending Auditor entry for the same email.
 				// Accepting a View invite must promote only the Auditor entry.
 				settings := &models.ProjectSettings{
@@ -1179,14 +1180,14 @@ func TestHandleInviteAccepted(t *testing.T) {
 					return auditorPromoted && writerUnchanged
 				}), uint64(1)).Return(nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
 			},
 		},
 		{
 			name:    "ListAllProjectsSettings error — early return, no promotion",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return(nil, errors.New("kv unavailable"))
 				// GetProjectSettingsWithRevision and UpdateProjectSettings must NOT be called.
 			},
@@ -1194,7 +1195,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 		{
 			name:    "GetProjectSettingsWithRevision error — promotion skipped for that project",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(nil, uint64(0), errors.New("read failure"))
 				// UpdateProjectSettings must NOT be called.
@@ -1209,7 +1210,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 		{
 			name:    "multi-project cross-role isolation — View acceptance promotes Auditors in A, leaves Writers in B untouched",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleView)),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				// Project A: email is in Auditors (matches View role).
 				settingsA := &models.ProjectSettings{
 					UID:      projectUID,
@@ -1227,7 +1228,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 					return len(s.Auditors) > 0 && s.Auditors[0].Username == username
 				}), uint64(1)).Return(nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Once()
 			},
 		},
@@ -1235,8 +1236,8 @@ func TestHandleInviteAccepted(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &domain.MockProjectRepository{}
-			mockMsg := &domain.MockMessageBuilder{}
+			mockRepo := &domainmocks.MockProjectRepository{}
+			mockMsg := &domainmocks.MockMessageBuilder{}
 			if tt.setupRepo != nil {
 				tt.setupRepo(mockRepo)
 			}
@@ -1255,7 +1256,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 			} else {
 				data = marshalEvent(t, tt.payload)
 			}
-			msg := domain.NewMockMessage(data, "")
+			msg := domainmocks.NewMockMessage(data, "")
 			err := svc.HandleInviteAccepted(context.Background(), msg)
 			assert.NoError(t, err)
 
@@ -1295,9 +1296,9 @@ func TestHandleUserDeleted(t *testing.T) {
 	tests := []struct {
 		name            string
 		payload         any
-		setupRepo       func(*domain.MockProjectRepository)
-		setupMsg        func(*domain.MockMessageBuilder)
-		setupUserReader func(*domain.MockUserReader)
+		setupRepo       func(*domainmocks.MockProjectRepository)
+		setupMsg        func(*domainmocks.MockMessageBuilder)
+		setupUserReader func(*domainmocks.MockUserReader)
 	}{
 		{
 			name:    "malformed payload — returns nil without crashing",
@@ -1310,7 +1311,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "case-insensitive prefilter — stored Alice scrubbed for event alice",
 			payload: makeEvent("alice"),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:     projectUID,
 					Writers: []models.UserInfo{{Username: "Alice", Email: "deleted@example.com"}},
@@ -1322,7 +1323,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
@@ -1330,7 +1331,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "settings match — writer username cleared and reindexed",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:     projectUID,
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
@@ -1342,7 +1343,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
@@ -1350,7 +1351,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "settings no match — no update",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:     projectUID,
 					Writers: []models.UserInfo{{Username: "other", Email: "other@example.com"}},
@@ -1361,7 +1362,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "conflict retry — succeeds on second attempt",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				firstRead := &models.ProjectSettings{
 					UID:      projectUID,
 					Auditors: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
@@ -1381,7 +1382,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(secondRead, uint64(2), nil).Once()
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
@@ -1389,7 +1390,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "reuse guard — skips scrub when email still maps to username",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:     projectUID,
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "reassigned@example.com"}},
@@ -1397,21 +1398,21 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Once()
 			},
-			setupUserReader: func(u *domain.MockUserReader) {
+			setupUserReader: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, "reassigned@example.com").Return(deletedUsername, nil)
 			},
 		},
 		{
 			name:    "ListAllProjectsSettings error — early return",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return(nil, errors.New("kv unavailable"))
 			},
 		},
 		{
 			name:    "meeting coordinator and named roles cleared",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:                 projectUID,
 					MeetingCoordinators: []models.UserInfo{{Username: deletedUsername, Email: "mc@example.com"}},
@@ -1429,7 +1430,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				}), uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
@@ -1437,7 +1438,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "GetProjectBase retry — succeeds on second attempt",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:     projectUID,
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
@@ -1450,7 +1451,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("GetProjectBase", mock.Anything, projectUID).
 					Return(&models.ProjectBase{UID: projectUID}, nil).Once()
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil).Maybe()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Once()
 			},
@@ -1458,7 +1459,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "FGA publish retry — succeeds on second attempt",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				settings := &models.ProjectSettings{
 					UID:     projectUID,
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
@@ -1468,7 +1469,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil).Times(2)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil).Maybe()
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).
 					Return(errors.New("transient nats failure")).Once()
@@ -1479,7 +1480,7 @@ func TestHandleUserDeleted(t *testing.T) {
 		{
 			name:    "multiple projects — only matching project updated",
 			payload: makeEvent(deletedUsername),
-			setupRepo: func(r *domain.MockProjectRepository) {
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				match := &models.ProjectSettings{
 					UID:     projectUID,
 					Writers: []models.UserInfo{{Username: deletedUsername, Email: "deleted@example.com"}},
@@ -1493,7 +1494,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},
-			setupMsg: func(m *domain.MockMessageBuilder) {
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
 				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
@@ -1502,9 +1503,9 @@ func TestHandleUserDeleted(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &domain.MockProjectRepository{}
-			mockMsg := &domain.MockMessageBuilder{}
-			var mockUserReader *domain.MockUserReader
+			mockRepo := &domainmocks.MockProjectRepository{}
+			mockMsg := &domainmocks.MockMessageBuilder{}
+			var mockUserReader *domainmocks.MockUserReader
 			if tt.setupRepo != nil {
 				tt.setupRepo(mockRepo)
 			}
@@ -1517,7 +1518,7 @@ func TestHandleUserDeleted(t *testing.T) {
 				MessageBuilder:    mockMsg,
 			}
 			if tt.setupUserReader != nil {
-				mockUserReader = &domain.MockUserReader{}
+				mockUserReader = &domainmocks.MockUserReader{}
 				svc.UserReader = mockUserReader
 				tt.setupUserReader(mockUserReader)
 			}
@@ -1528,7 +1529,7 @@ func TestHandleUserDeleted(t *testing.T) {
 			} else {
 				data = marshalEvent(t, tt.payload)
 			}
-			msg := domain.NewMockMessage(data, constants.V1SyncHelperUserDeletedSubject)
+			msg := domainmocks.NewMockMessage(data, constants.V1SyncHelperUserDeletedSubject)
 			err := svc.HandleUserDeleted(context.Background(), msg)
 			assert.NoError(t, err)
 
@@ -1549,7 +1550,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 		name           string
 		entry          models.UserInfo
 		deletedEmail   string
-		setupUser      func(*domain.MockUserReader)
+		setupUser      func(*domainmocks.MockUserReader)
 		userReader     bool
 		skipAuthLookup bool
 		want           bool
@@ -1567,7 +1568,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 		{
 			name:  "email maps to same username — do not scrub",
 			entry: models.UserInfo{Username: deletedUsername, Email: "active@example.com"},
-			setupUser: func(u *domain.MockUserReader) {
+			setupUser: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, "active@example.com").Return(deletedUsername, nil)
 			},
 			userReader: true,
@@ -1576,7 +1577,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 		{
 			name:  "email maps to different username — scrub",
 			entry: models.UserInfo{Username: deletedUsername, Email: "reassigned@example.com"},
-			setupUser: func(u *domain.MockUserReader) {
+			setupUser: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, "reassigned@example.com").Return("new.user", nil)
 			},
 			userReader: true,
@@ -1585,7 +1586,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 		{
 			name:  "email not found in auth — scrub",
 			entry: models.UserInfo{Username: deletedUsername, Email: "gone@example.com"},
-			setupUser: func(u *domain.MockUserReader) {
+			setupUser: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, "gone@example.com").Return("", domain.ErrUserNotFound)
 			},
 			userReader: true,
@@ -1594,7 +1595,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 		{
 			name:  "auth lookup error — skip entry",
 			entry: models.UserInfo{Username: deletedUsername, Email: "err@example.com"},
-			setupUser: func(u *domain.MockUserReader) {
+			setupUser: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, "err@example.com").Return("", errors.New("auth unavailable"))
 			},
 			userReader: true,
@@ -1616,7 +1617,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 			name:         "event email matches entry email — scrub without auth lookup",
 			entry:        models.UserInfo{Username: deletedUsername, Email: "deleted@example.com"},
 			deletedEmail: "deleted@example.com",
-			setupUser: func(u *domain.MockUserReader) {
+			setupUser: func(u *domainmocks.MockUserReader) {
 				u.On("UsernameByEmail", mock.Anything, "deleted@example.com").Return(deletedUsername, nil)
 			},
 			userReader:     true,
@@ -1629,7 +1630,7 @@ func TestShouldScrubSettingsUsername(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			svc := &ProjectsService{}
 			if tt.userReader {
-				mockUser := &domain.MockUserReader{}
+				mockUser := &domainmocks.MockUserReader{}
 				if tt.setupUser != nil {
 					tt.setupUser(mockUser)
 				}
@@ -1654,7 +1655,7 @@ func TestScrubProjectSettingsUsernameRetryExhaustion(t *testing.T) {
 		deletedUsername = "deleted.user"
 		projectUID      = "proj-1"
 	)
-	mockRepo := &domain.MockProjectRepository{}
+	mockRepo := &domainmocks.MockProjectRepository{}
 	for range scrubMaxRetries {
 		mockRepo.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
 			Return(&models.ProjectSettings{

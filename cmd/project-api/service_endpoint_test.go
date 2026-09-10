@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"goa.design/goa/v3/security"
 
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -29,8 +29,8 @@ func TestReadyz(t *testing.T) {
 			name: "service ready",
 			setupMocks: func(projectService *service.ProjectsService) {
 				// Mock repository and message builder as ready
-				projectService.ProjectRepository = &domain.MockProjectRepository{}
-				projectService.MessageBuilder = &domain.MockMessageBuilder{}
+				projectService.ProjectRepository = &domainmocks.MockProjectRepository{}
+				projectService.MessageBuilder = &domainmocks.MockMessageBuilder{}
 			},
 			expectedError: false,
 			expectedBody:  "OK\n",
@@ -39,14 +39,14 @@ func TestReadyz(t *testing.T) {
 			name: "repository not initialized",
 			setupMocks: func(projectService *service.ProjectsService) {
 				projectService.ProjectRepository = nil
-				projectService.MessageBuilder = &domain.MockMessageBuilder{}
+				projectService.MessageBuilder = &domainmocks.MockMessageBuilder{}
 			},
 			expectedError: true,
 		},
 		{
 			name: "message builder not initialized",
 			setupMocks: func(projectService *service.ProjectsService) {
-				projectService.ProjectRepository = &domain.MockProjectRepository{}
+				projectService.ProjectRepository = &domainmocks.MockProjectRepository{}
 				projectService.MessageBuilder = nil
 			},
 			expectedError: true,
