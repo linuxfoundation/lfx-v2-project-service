@@ -5,22 +5,15 @@ package domain
 
 import "context"
 
-// UserMetadata holds profile information for a user returned by the auth service.
+// UserMetadata holds the profile fields the project service actually reads.
+// Only Name, GivenName, FamilyName, and Picture are used for display-name
+// resolution and audit stamping. The auth service returns many more fields
+// that this service has no need for; they are intentionally omitted here.
 type UserMetadata struct {
-	Picture       string
-	Zoneinfo      string
-	Name          string
-	GivenName     string
-	FamilyName    string
-	JobTitle      string
-	Organization  string
-	Country       string
-	StateProvince string
-	City          string
-	Address       string
-	PostalCode    string
-	PhoneNumber   string
-	TShirtSize    string
+	Name       string
+	GivenName  string
+	FamilyName string
+	Picture    string
 }
 
 // UserReader retrieves user profile information from the auth service.
