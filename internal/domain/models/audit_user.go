@@ -5,7 +5,9 @@ package models
 
 import "strings"
 
-// CloneUserInfo returns a shallow copy of u, or nil when u is nil.
+// CloneUserInfo returns a deep copy of u, or nil when u is nil.
+// All pointer fields inside InviteInfo are copied by value so the caller
+// and the original share no mutable state.
 func CloneUserInfo(u *UserInfo) *UserInfo {
 	if u == nil {
 		return nil
@@ -13,6 +15,10 @@ func CloneUserInfo(u *UserInfo) *UserInfo {
 	cp := *u
 	if u.Invite != nil {
 		inv := *u.Invite
+		if u.Invite.ExpiresAt != nil {
+			t := *u.Invite.ExpiresAt
+			inv.ExpiresAt = &t
+		}
 		cp.Invite = &inv
 	}
 	return &cp

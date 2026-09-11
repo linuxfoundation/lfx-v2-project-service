@@ -201,7 +201,9 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 		wantErrStr string
 	}{
 		{
-			name: "all fields populated",
+			// Auth service returns many profile fields; only Name, GivenName,
+			// FamilyName, and Picture are decoded — the rest are silently ignored.
+			name: "auth response with extra fields — only used fields are mapped",
 			reply: replyMsg(marshalSuccess(map[string]interface{}{
 				"name":           "Alice Example",
 				"given_name":     "Alice",
@@ -219,20 +221,10 @@ func TestUserReaderNATS_UserMetadataByPrincipal(t *testing.T) {
 				"t_shirt_size":   "M",
 			})),
 			wantMeta: &domain.UserMetadata{
-				Name:          "Alice Example",
-				GivenName:     "Alice",
-				FamilyName:    "Example",
-				Picture:       "https://example.com/alice.png",
-				Zoneinfo:      "America/New_York",
-				JobTitle:      "Engineer",
-				Organization:  "LF",
-				Country:       "US",
-				StateProvince: "CA",
-				City:          "San Francisco",
-				Address:       "1 Main St",
-				PostalCode:    "94105",
-				PhoneNumber:   "+14155550100",
-				TShirtSize:    "M",
+				Name:       "Alice Example",
+				GivenName:  "Alice",
+				FamilyName: "Example",
+				Picture:    "https://example.com/alice.png",
 			},
 		},
 		{

@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
-	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
@@ -358,7 +358,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		missing       osMissing
 		all           bool
 		includeAccess bool
-		setupMock     func(*domain.MockMessageBuilder)
+		setupMock     func(*domainmocks.MockMessageBuilder)
 		getSettings   bool
 		settingsErr   error
 		wantErr       bool
@@ -366,7 +366,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		{
 			name:    "missing project only",
 			missing: osMissing{project: true},
-			setupMock: func(m *domain.MockMessageBuilder) {
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
 					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), true).
 					Return(nil).Once()
@@ -376,7 +376,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			name:        "missing settings only",
 			missing:     osMissing{projectSettings: true},
 			getSettings: true,
-			setupMock: func(m *domain.MockMessageBuilder) {
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
 					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionCreated, base, settings)), true).
 					Return(nil).Once()
@@ -387,7 +387,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			missing:       osMissing{project: true, projectSettings: true},
 			includeAccess: true,
 			getSettings:   true,
-			setupMock: func(m *domain.MockMessageBuilder) {
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
 					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), true).
 					Return(nil).Once()
@@ -403,7 +403,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			missing:     osMissing{project: true, projectSettings: true},
 			all:         true,
 			getSettings: true,
-			setupMock: func(m *domain.MockMessageBuilder) {
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
 					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base)), true).
 					Return(nil).Once()
@@ -417,7 +417,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			missing:     osMissing{project: true, projectSettings: true},
 			getSettings: true,
 			settingsErr: fmt.Errorf("settings kv record not found"),
-			setupMock: func(m *domain.MockMessageBuilder) {
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
 					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionCreated, base)), true).
 					Return(nil).Once()
@@ -428,7 +428,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			publisher := &domain.MockMessageBuilder{}
+			publisher := &domainmocks.MockMessageBuilder{}
 			tt.setupMock(publisher)
 
 			r := &reindexProjectsRunner{
@@ -492,7 +492,7 @@ func (f *fakeProjectRecordRepo) GetProjectSettings(_ context.Context, projectUID
 // with for constants.IndexProjectSubject or constants.IndexProjectSettingsSubject,
 // so tests can assert exactly which projects were reindexed rather than just
 // how many, and a settings-only publish for an excluded project isn't missed.
-func publishedProjectUIDs(t *testing.T, publisher *domain.MockMessageBuilder) map[string]bool {
+func publishedProjectUIDs(t *testing.T, publisher *domainmocks.MockMessageBuilder) map[string]bool {
 	t.Helper()
 	uids := map[string]bool{}
 	for _, call := range publisher.Calls {
@@ -519,7 +519,7 @@ func publishedProjectUIDs(t *testing.T, publisher *domain.MockMessageBuilder) ma
 // publishedFGAUIDs extracts the project UIDs the publisher's
 // PublishAccessMessage was called with, so tests can assert exactly which
 // projects had their FGA access republished.
-func publishedFGAUIDs(t *testing.T, publisher *domain.MockMessageBuilder) map[string]bool {
+func publishedFGAUIDs(t *testing.T, publisher *domainmocks.MockMessageBuilder) map[string]bool {
 	t.Helper()
 	uids := map[string]bool{}
 	for _, call := range publisher.Calls {
@@ -718,7 +718,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 				baseErr:       tt.baseErr,
 				settingsErr:   tt.settingsErr,
 			}
-			publisher := &domain.MockMessageBuilder{}
+			publisher := &domainmocks.MockMessageBuilder{}
 			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, true).Return(nil)
 			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 

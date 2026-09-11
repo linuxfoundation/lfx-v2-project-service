@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -29,7 +30,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 		contentType string
 		fileData    []byte
 		folderUID   *string
-		setupMocks  func(*domain.MockProjectRepository, *domain.MockDocumentRepository, *domain.MockFolderRepository, *domain.MockMessageBuilder)
+		setupMocks  func(*domainmocks.MockProjectRepository, *domainmocks.MockDocumentRepository, *domainmocks.MockFolderRepository, *domainmocks.MockMessageBuilder)
 		wantErr     error
 	}{
 		{
@@ -38,7 +39,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "Spec",
 			contentType: "application/pdf",
 			fileData:    validFile,
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockDoc.On("UniqueDocumentName", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return("lookup/project-documents/abc", nil)
 				mockDoc.On("PutDocumentFile", mock.Anything, mock.AnythingOfType("string"), validFile).Return(nil)
@@ -58,7 +59,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			contentType: "application/pdf",
 			fileData:    validFile,
 			folderUID:   misc.StringPtr("folder-1"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				now := time.Now()
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockFolder.On("GetFolder", mock.Anything, "proj-1", "folder-1").Return(&models.ProjectFolder{UID: "folder-1", ProjectUID: "proj-1", Name: "F", CreatedAt: now, UpdatedAt: now}, uint64(1), nil)
@@ -79,7 +80,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "Spec",
 			contentType: "application/x-executable",
 			fileData:    validFile,
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 			},
 			wantErr: domain.ErrInvalidContentType,
 		},
@@ -89,7 +90,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "Spec",
 			contentType: "application/pdf",
 			fileData:    []byte(strings.Repeat("x", int(models.MaxDocumentFileSize)+1)),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 			},
 			wantErr: domain.ErrFileTooLarge,
 		},
@@ -99,7 +100,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "Spec",
 			contentType: "application/pdf",
 			fileData:    validFile,
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "missing").Return(false, nil)
 			},
 			wantErr: domain.ErrProjectNotFound,
@@ -110,7 +111,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "Spec",
 			contentType: "application/pdf",
 			fileData:    validFile,
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ProjectExists", mock.Anything, "proj-1").Return(true, nil)
 				mockDoc.On("UniqueDocumentName", mock.Anything, mock.AnythingOfType("*models.ProjectDocument")).Return("", domain.ErrDocumentNameExists)
 			},
@@ -122,7 +123,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "Spec",
 			contentType: "application/pdf",
 			fileData:    []byte{},
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 			},
 			wantErr: domain.ErrValidationFailed,
 		},
@@ -132,7 +133,7 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 			docName:     "",
 			contentType: "application/pdf",
 			fileData:    validFile,
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockDoc *domain.MockDocumentRepository, mockFolder *domain.MockFolderRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockDoc *domainmocks.MockDocumentRepository, mockFolder *domainmocks.MockFolderRepository, mockMsg *domainmocks.MockMessageBuilder) {
 			},
 			wantErr: domain.ErrValidationFailed,
 		},
@@ -141,8 +142,8 @@ func TestProjectsService_UploadDocument(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, mockRepo, mockMsg, _ := setupServiceForTesting()
-			mockDoc := svc.DocumentRepository.(*domain.MockDocumentRepository)
-			mockFolder := svc.FolderRepository.(*domain.MockFolderRepository)
+			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
+			mockFolder := svc.FolderRepository.(*domainmocks.MockFolderRepository)
 			tt.setupMocks(mockRepo, mockDoc, mockFolder, mockMsg)
 
 			result, err := svc.UploadDocument(context.Background(), tt.projectUID, tt.docName, "", "spec.pdf", tt.contentType, tt.folderUID, tt.fileData, false)
@@ -171,14 +172,14 @@ func TestProjectsService_GetDocumentMetadata(t *testing.T) {
 		name        string
 		projectUID  string
 		documentUID string
-		setupMocks  func(*domain.MockDocumentRepository)
+		setupMocks  func(*domainmocks.MockDocumentRepository)
 		wantErr     error
 	}{
 		{
 			name:        "success",
 			projectUID:  "proj-1",
 			documentUID: "doc-1",
-			setupMocks: func(mockDoc *domain.MockDocumentRepository) {
+			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository) {
 				mockDoc.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(
 					&models.ProjectDocument{UID: "doc-1", ProjectUID: "proj-1", Name: "Spec", CreatedAt: now, UpdatedAt: now},
 					uint64(7), nil,
@@ -189,7 +190,7 @@ func TestProjectsService_GetDocumentMetadata(t *testing.T) {
 			name:        "not found",
 			projectUID:  "proj-1",
 			documentUID: "missing",
-			setupMocks: func(mockDoc *domain.MockDocumentRepository) {
+			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository) {
 				mockDoc.On("GetDocumentMetadata", mock.Anything, "proj-1", "missing").Return(nil, uint64(0), domain.ErrDocumentNotFound)
 			},
 			wantErr: domain.ErrDocumentNotFound,
@@ -199,7 +200,7 @@ func TestProjectsService_GetDocumentMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, _, _, _ := setupServiceForTesting()
-			mockDoc := svc.DocumentRepository.(*domain.MockDocumentRepository)
+			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			tt.setupMocks(mockDoc)
 
 			doc, etag, err := svc.GetDocumentMetadata(context.Background(), tt.projectUID, tt.documentUID)
@@ -227,14 +228,14 @@ func TestProjectsService_GetDocumentFile(t *testing.T) {
 		name        string
 		projectUID  string
 		documentUID string
-		setupMocks  func(*domain.MockDocumentRepository)
+		setupMocks  func(*domainmocks.MockDocumentRepository)
 		wantErr     error
 	}{
 		{
 			name:        "success",
 			projectUID:  "proj-1",
 			documentUID: "doc-1",
-			setupMocks: func(mockDoc *domain.MockDocumentRepository) {
+			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository) {
 				mockDoc.On("GetDocumentMetadata", mock.Anything, "proj-1", "doc-1").Return(
 					&models.ProjectDocument{UID: "doc-1", ProjectUID: "proj-1", Name: "Spec", FileName: "spec.pdf", ContentType: "application/pdf", CreatedAt: now, UpdatedAt: now},
 					uint64(1), nil,
@@ -246,7 +247,7 @@ func TestProjectsService_GetDocumentFile(t *testing.T) {
 			name:        "metadata not found",
 			projectUID:  "proj-1",
 			documentUID: "missing",
-			setupMocks: func(mockDoc *domain.MockDocumentRepository) {
+			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository) {
 				mockDoc.On("GetDocumentMetadata", mock.Anything, "proj-1", "missing").Return(nil, uint64(0), domain.ErrDocumentNotFound)
 			},
 			wantErr: domain.ErrDocumentNotFound,
@@ -256,7 +257,7 @@ func TestProjectsService_GetDocumentFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, _, _, _ := setupServiceForTesting()
-			mockDoc := svc.DocumentRepository.(*domain.MockDocumentRepository)
+			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			tt.setupMocks(mockDoc)
 
 			data, doc, err := svc.GetDocumentFile(context.Background(), tt.projectUID, tt.documentUID)
@@ -284,7 +285,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 		projectUID  string
 		documentUID string
 		ifMatch     *string
-		setupMocks  func(*domain.MockDocumentRepository, *domain.MockMessageBuilder)
+		setupMocks  func(*domainmocks.MockDocumentRepository, *domainmocks.MockMessageBuilder)
 		wantErr     error
 	}{
 		{
@@ -292,7 +293,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			projectUID:  "proj-1",
 			documentUID: "doc-1",
 			ifMatch:     misc.StringPtr("4"),
-			setupMocks: func(mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockDoc.On("DeleteDocumentMetadata", mock.Anything, "proj-1", "doc-1", uint64(4)).Return(nil)
 				mockDoc.On("DeleteDocumentFile", mock.Anything, "doc-1").Return(nil).Maybe()
 				mockMsg.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.Anything, mock.AnythingOfType("bool")).Return(nil).Maybe()
@@ -303,7 +304,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			projectUID:  "proj-1",
 			documentUID: "doc-1",
 			ifMatch:     nil,
-			setupMocks:  func(mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {},
+			setupMocks:  func(mockDoc *domainmocks.MockDocumentRepository, mockMsg *domainmocks.MockMessageBuilder) {},
 			wantErr:     domain.ErrValidationFailed,
 		},
 		{
@@ -311,7 +312,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			projectUID:  "proj-1",
 			documentUID: "doc-1",
 			ifMatch:     misc.StringPtr("not-a-number"),
-			setupMocks:  func(mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {},
+			setupMocks:  func(mockDoc *domainmocks.MockDocumentRepository, mockMsg *domainmocks.MockMessageBuilder) {},
 			wantErr:     domain.ErrValidationFailed,
 		},
 		{
@@ -319,7 +320,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			projectUID:  "proj-1",
 			documentUID: "missing",
 			ifMatch:     misc.StringPtr("1"),
-			setupMocks: func(mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockDoc.On("DeleteDocumentMetadata", mock.Anything, "proj-1", "missing", uint64(1)).Return(domain.ErrDocumentNotFound)
 			},
 			wantErr: domain.ErrDocumentNotFound,
@@ -329,7 +330,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 			projectUID:  "proj-1",
 			documentUID: "doc-1",
 			ifMatch:     misc.StringPtr("1"),
-			setupMocks: func(mockDoc *domain.MockDocumentRepository, mockMsg *domain.MockMessageBuilder) {
+			setupMocks: func(mockDoc *domainmocks.MockDocumentRepository, mockMsg *domainmocks.MockMessageBuilder) {
 				mockDoc.On("DeleteDocumentMetadata", mock.Anything, "proj-1", "doc-1", uint64(1)).Return(domain.ErrRevisionMismatch)
 			},
 			wantErr: domain.ErrRevisionMismatch,
@@ -339,7 +340,7 @@ func TestProjectsService_DeleteDocument(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, _, mockMsg, _ := setupServiceForTesting()
-			mockDoc := svc.DocumentRepository.(*domain.MockDocumentRepository)
+			mockDoc := svc.DocumentRepository.(*domainmocks.MockDocumentRepository)
 			// suppress unused variable warning
 			_ = now
 			tt.setupMocks(mockDoc, mockMsg)

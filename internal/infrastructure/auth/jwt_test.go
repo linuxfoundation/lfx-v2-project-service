@@ -114,6 +114,8 @@ func TestNewJWTAuth(t *testing.T) {
 				if auth != nil {
 					assert.NotNil(t, auth.validator)
 					assert.Equal(t, tt.config, auth.config)
+					assert.NotNil(t, auth.logger,
+						"NewJWTAuth must initialize logger; nil *slog.Logger panics on first log call")
 				}
 			}
 		})
@@ -158,10 +160,10 @@ func TestJWTAuth_ParsePrincipal_MockMode(t *testing.T) {
 				config: JWTAuthConfig{
 					MockLocalPrincipal: tt.mockLocalPrincipal,
 				},
+				logger: slog.Default(),
 			}
 
-			logger := slog.Default()
-			principal, err := auth.ParsePrincipal(context.Background(), tt.token, logger)
+			principal, err := auth.ParsePrincipal(context.Background(), tt.token)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -179,9 +181,10 @@ func TestJWTAuth_ParsePrincipalAndEmail_MockMode(t *testing.T) {
 		config: JWTAuthConfig{
 			MockLocalPrincipal: "test-user-123",
 		},
+		logger: slog.Default(),
 	}
 
-	principal, email, err := auth.ParsePrincipalAndEmail(context.Background(), "any-token", slog.Default())
+	principal, email, err := auth.ParsePrincipalAndEmail(context.Background(), "any-token")
 
 	require.NoError(t, err)
 	assert.Equal(t, "test-user-123", principal)
@@ -211,9 +214,8 @@ func TestJWTAuth_ParsePrincipal_ValidationErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// No mock principal set in config
-
-			logger := slog.Default()
-			principal, err := tt.auth.ParsePrincipal(context.Background(), tt.token, logger)
+			tt.auth.logger = slog.Default()
+			principal, err := tt.auth.ParsePrincipal(context.Background(), tt.token)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -265,12 +267,12 @@ func TestJWTAuth_Integration(t *testing.T) {
 			config: JWTAuthConfig{
 				MockLocalPrincipal: "integration-test-user",
 			},
+			logger: slog.Default(),
 		}
 
 		// Test parsing
 		ctx := context.Background()
-		logger := slog.Default()
-		principal, err := auth.ParsePrincipal(ctx, "fake-token", logger)
+		principal, err := auth.ParsePrincipal(ctx, "fake-token")
 
 		assert.NoError(t, err)
 		assert.Equal(t, "integration-test-user", principal)

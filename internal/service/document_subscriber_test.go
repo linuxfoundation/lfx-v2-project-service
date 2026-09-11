@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 )
@@ -89,10 +90,10 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &domain.MockProjectRepository{}
-			mockMsg := &domain.MockMessageBuilder{}
-			mockUserReader := &domain.MockUserReader{}
-			mockFolder := &domain.MockFolderRepository{}
+			mockRepo := &domainmocks.MockProjectRepository{}
+			mockMsg := &domainmocks.MockMessageBuilder{}
+			mockUserReader := &domainmocks.MockUserReader{}
+			mockFolder := &domainmocks.MockFolderRepository{}
 
 			if tt.emailsEnabled && tt.settings != nil {
 				mockRepo.On("GetProjectBase", mock.Anything, tt.event.ProjectUID).
@@ -130,7 +131,7 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 				},
 			}
 
-			msg := domain.NewMockMessage(marshalEvent(t, tt.event), "")
+			msg := domainmocks.NewMockMessage(marshalEvent(t, tt.event), "")
 			err := svc.HandleProjectDocumentCreated(context.Background(), msg)
 			assert.NoError(t, err)
 
@@ -142,15 +143,15 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 
 	t.Run("invalid JSON — returns nil", func(t *testing.T) {
 		svc := &ProjectsService{Config: ServiceConfig{EmailsEnabled: true}}
-		msg := domain.NewMockMessage([]byte("not json"), "")
+		msg := domainmocks.NewMockMessage([]byte("not json"), "")
 		err := svc.HandleProjectDocumentCreated(context.Background(), msg)
 		assert.NoError(t, err)
 	})
 
 	t.Run("send failure swallowed — returns nil", func(t *testing.T) {
-		mockRepo := &domain.MockProjectRepository{}
-		mockMsg := &domain.MockMessageBuilder{}
-		mockUserReader := &domain.MockUserReader{}
+		mockRepo := &domainmocks.MockProjectRepository{}
+		mockMsg := &domainmocks.MockMessageBuilder{}
+		mockUserReader := &domainmocks.MockUserReader{}
 
 		event := events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Doc", FileName: "doc.pdf", CreatedBy: "uploader"}
 		settings := &models.ProjectSettings{UID: "proj-1", Writers: []models.UserInfo{{Username: "alice", Email: "alice@example.com", Name: "Alice"}}}
@@ -166,22 +167,22 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
-			FolderRepository:  &domain.MockFolderRepository{},
+			FolderRepository:  &domainmocks.MockFolderRepository{},
 			MessageBuilder:    mockMsg,
 			UserReader:        mockUserReader,
 			Resolver:          NewUserResolver(mockUserReader),
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
 		}
 
-		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		msg := domainmocks.NewMockMessage(marshalEvent(t, event), "")
 		err := svc.HandleProjectDocumentCreated(context.Background(), msg)
 		assert.NoError(t, err)
 	})
 
 	t.Run("SendEmailRequest called with correct To field", func(t *testing.T) {
-		mockRepo := &domain.MockProjectRepository{}
-		mockMsg := &domain.MockMessageBuilder{}
-		mockUserReader := &domain.MockUserReader{}
+		mockRepo := &domainmocks.MockProjectRepository{}
+		mockMsg := &domainmocks.MockMessageBuilder{}
+		mockUserReader := &domainmocks.MockUserReader{}
 
 		writer := models.UserInfo{Username: "alice", Email: "alice@example.com", Name: "Alice"}
 		event := events.ProjectDocumentCreatedMessage{ProjectUID: "proj-1", Name: "Spec", FileName: "spec.pdf", CreatedBy: "uploader"}
@@ -199,14 +200,14 @@ func TestHandleProjectDocumentCreated(t *testing.T) {
 
 		svc := &ProjectsService{
 			ProjectRepository: mockRepo,
-			FolderRepository:  &domain.MockFolderRepository{},
+			FolderRepository:  &domainmocks.MockFolderRepository{},
 			MessageBuilder:    mockMsg,
 			UserReader:        mockUserReader,
 			Resolver:          NewUserResolver(mockUserReader),
 			Config:            ServiceConfig{EmailsEnabled: true, LFXSelfServeBaseURL: "https://app.dev.lfx.dev"},
 		}
 
-		msg := domain.NewMockMessage(marshalEvent(t, event), "")
+		msg := domainmocks.NewMockMessage(marshalEvent(t, event), "")
 		err := svc.HandleProjectDocumentCreated(context.Background(), msg)
 		assert.NoError(t, err)
 		mockMsg.AssertExpectations(t)
@@ -253,9 +254,9 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockRepo := &domain.MockProjectRepository{}
-			mockMsg := &domain.MockMessageBuilder{}
-			mockUserReader := &domain.MockUserReader{}
+			mockRepo := &domainmocks.MockProjectRepository{}
+			mockMsg := &domainmocks.MockMessageBuilder{}
+			mockUserReader := &domainmocks.MockUserReader{}
 
 			if tt.emailsEnabled && tt.settings != nil {
 				mockRepo.On("GetProjectBase", mock.Anything, tt.event.ProjectUID).
@@ -273,7 +274,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 
 			svc := &ProjectsService{
 				ProjectRepository: mockRepo,
-				FolderRepository:  &domain.MockFolderRepository{},
+				FolderRepository:  &domainmocks.MockFolderRepository{},
 				MessageBuilder:    mockMsg,
 				UserReader:        mockUserReader,
 				Resolver:          NewUserResolver(mockUserReader),
@@ -283,7 +284,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 				},
 			}
 
-			msg := domain.NewMockMessage(marshalEvent(t, tt.event), "")
+			msg := domainmocks.NewMockMessage(marshalEvent(t, tt.event), "")
 			err := svc.HandleProjectLinkCreated(context.Background(), msg)
 			assert.NoError(t, err)
 
@@ -295,7 +296,7 @@ func TestHandleProjectLinkCreated(t *testing.T) {
 
 	t.Run("invalid JSON — returns nil", func(t *testing.T) {
 		svc := &ProjectsService{Config: ServiceConfig{EmailsEnabled: true}}
-		msg := domain.NewMockMessage([]byte("not json"), "")
+		msg := domainmocks.NewMockMessage([]byte("not json"), "")
 		err := svc.HandleProjectLinkCreated(context.Background(), msg)
 		assert.NoError(t, err)
 	})

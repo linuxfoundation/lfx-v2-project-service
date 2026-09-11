@@ -1,2 +1,7 @@
 46d11606320853a027a623c203238656cda3d36e:service_test.go:jwt:571
 874abaf0c197e135ec27253c169f6b2deead5806:service_test.go:jwt:571
+# Pre-computed SHA-256 test fixtures in BuildIndexKey table tests — not secrets.
+# The struct field was named wantKey in commit 30bce59 before being renamed to wantDigest.
+30bce59ca5466727e488fe4467fe287adf9747a2:internal/domain/models/document_test.go:generic-api-key:29
+30bce59ca5466727e488fe4467fe287adf9747a2:internal/domain/models/folder_test.go:generic-api-key:29
+30bce59ca5466727e488fe4467fe287adf9747a2:internal/domain/models/link_test.go:generic-api-key:34

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -19,7 +20,7 @@ import (
 
 func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 	t.Run("nil principal returns nil", func(t *testing.T) {
-		resolver := NewUserResolver(&domain.MockUserReader{})
+		resolver := NewUserResolver(&domainmocks.MockUserReader{})
 		got := resolver.ResolveRequestingUser(context.Background())
 		assert.Nil(t, got)
 	})
@@ -37,7 +38,7 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 	})
 
 	t.Run("happy path resolves full profile", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 			Name:    "Alice Example",
 			Picture: "https://cdn.example/avatar.png",
@@ -59,7 +60,7 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 	})
 
 	t.Run("metadata failure falls back to username and JWT email", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("nats unavailable"))
 		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 
@@ -77,7 +78,7 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 	})
 
 	t.Run("given and family name used when name empty", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "bob").Return(&domain.UserMetadata{
 			GivenName:  "Bob",
 			FamilyName: "Fixture",
@@ -96,7 +97,7 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 
 func TestUserResolver_EnrichAuditUser(t *testing.T) {
 	t.Run("skips when profile is complete", func(t *testing.T) {
-		resolver := NewUserResolver(&domain.MockUserReader{})
+		resolver := NewUserResolver(&domainmocks.MockUserReader{})
 		user := &models.UserInfo{Username: "alice", Name: "Alice Example", Avatar: "a.png", Email: "a@example.com"}
 
 		got := resolver.EnrichAuditUser(context.Background(), user)
@@ -105,7 +106,7 @@ func TestUserResolver_EnrichAuditUser(t *testing.T) {
 	})
 
 	t.Run("enriches legacy username-only record", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 			Name:    "Alice Example",
 			Picture: "https://cdn.example/avatar.png",
@@ -125,7 +126,7 @@ func TestUserResolver_EnrichAuditUser(t *testing.T) {
 	})
 
 	t.Run("enriches email when metadata lookup fails", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
 		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("alice@example.com", nil)
 
@@ -139,7 +140,7 @@ func TestUserResolver_EnrichAuditUser(t *testing.T) {
 	})
 
 	t.Run("returns unchanged user on lookup failure", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
 		mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 
@@ -154,13 +155,13 @@ func TestUserResolver_EnrichAuditUser(t *testing.T) {
 
 func TestUserResolver_ResolveDisplayName(t *testing.T) {
 	t.Run("returns actor name when present", func(t *testing.T) {
-		resolver := NewUserResolver(&domain.MockUserReader{})
+		resolver := NewUserResolver(&domainmocks.MockUserReader{})
 		got := resolver.ResolveDisplayName(context.Background(), events.Actor{Name: "Alice Example", Username: "alice"})
 		assert.Equal(t, "Alice Example", got)
 	})
 
 	t.Run("resolves name via metadata name when actor name is empty", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 			Name: "Alice Example",
 		}, nil)
@@ -171,7 +172,7 @@ func TestUserResolver_ResolveDisplayName(t *testing.T) {
 	})
 
 	t.Run("falls back to given+family name when metadata name is empty", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "bob").Return(&domain.UserMetadata{
 			GivenName:  "Bob",
 			FamilyName: "Fixture",
@@ -183,7 +184,7 @@ func TestUserResolver_ResolveDisplayName(t *testing.T) {
 	})
 
 	t.Run("falls back to default when metadata lookup fails", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(nil, errors.New("timeout"))
 		resolver := NewUserResolver(mockUser)
 		got := resolver.ResolveDisplayName(context.Background(), events.Actor{Username: "alice"})
@@ -192,7 +193,7 @@ func TestUserResolver_ResolveDisplayName(t *testing.T) {
 	})
 
 	t.Run("falls back to default when actor has no name and no username", func(t *testing.T) {
-		resolver := NewUserResolver(&domain.MockUserReader{})
+		resolver := NewUserResolver(&domainmocks.MockUserReader{})
 		got := resolver.ResolveDisplayName(context.Background(), events.Actor{})
 		assert.Equal(t, "A project member", got)
 	})
@@ -207,7 +208,7 @@ func TestUserResolver_UsernameByEmail(t *testing.T) {
 	})
 
 	t.Run("delegates to reader and returns username on success", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UsernameByEmail", mock.Anything, "alice@example.com").Return("alice-lfid", nil)
 		resolver := NewUserResolver(mockUser)
 		username, err := resolver.UsernameByEmail(context.Background(), "alice@example.com")
@@ -217,7 +218,7 @@ func TestUserResolver_UsernameByEmail(t *testing.T) {
 	})
 
 	t.Run("delegates error from reader", func(t *testing.T) {
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UsernameByEmail", mock.Anything, "alice@example.com").Return("", errors.New("auth unavailable"))
 		resolver := NewUserResolver(mockUser)
 		username, err := resolver.UsernameByEmail(context.Background(), "alice@example.com")
@@ -229,7 +230,7 @@ func TestUserResolver_UsernameByEmail(t *testing.T) {
 
 func TestProjectsService_stampAuditUsers(t *testing.T) {
 	svc, _, _, _ := setupServiceForTesting()
-	mockUser := svc.Resolver.reader.(*domain.MockUserReader)
+	mockUser := svc.Resolver.reader.(*domainmocks.MockUserReader)
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 		Name: "Alice Example",
 	}, nil)
@@ -248,7 +249,7 @@ func TestProjectsService_stampAuditUsers(t *testing.T) {
 
 func TestProjectsService_normalizeAuditUsers(t *testing.T) {
 	svc, _, _, _ := setupServiceForTesting()
-	mockUser := svc.Resolver.reader.(*domain.MockUserReader)
+	mockUser := svc.Resolver.reader.(*domainmocks.MockUserReader)
 	mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 		Name: "Alice Example",
 	}, nil)

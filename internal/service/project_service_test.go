@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -47,14 +48,14 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 		{
 			name: "service ready with all dependencies",
 			setupService: func() *ProjectsService {
-				mockUserReader := &domain.MockUserReader{}
-				mockBuilder := &domain.MockMessageBuilder{}
+				mockUserReader := &domainmocks.MockUserReader{}
+				mockBuilder := &domainmocks.MockMessageBuilder{}
 				resolver := NewUserResolver(mockUserReader)
 				return &ProjectsService{
-					ProjectRepository:  &domain.MockProjectRepository{},
-					DocumentRepository: &domain.MockDocumentRepository{},
-					LinkRepository:     &domain.MockLinkRepository{},
-					FolderRepository:   &domain.MockFolderRepository{},
+					ProjectRepository:  &domainmocks.MockProjectRepository{},
+					DocumentRepository: &domainmocks.MockDocumentRepository{},
+					LinkRepository:     &domainmocks.MockLinkRepository{},
+					FolderRepository:   &domainmocks.MockFolderRepository{},
 					MessageBuilder:     mockBuilder,
 					Auth:               &auth.MockJWTAuth{},
 					UserReader:         mockUserReader,
@@ -69,7 +70,7 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
 					ProjectRepository: nil,
-					MessageBuilder:    &domain.MockMessageBuilder{},
+					MessageBuilder:    &domainmocks.MockMessageBuilder{},
 					Auth:              &auth.MockJWTAuth{},
 				}
 			},
@@ -79,7 +80,7 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 			name: "service not ready - missing message builder",
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
-					ProjectRepository: &domain.MockProjectRepository{},
+					ProjectRepository: &domainmocks.MockProjectRepository{},
 					MessageBuilder:    nil,
 					Auth:              &auth.MockJWTAuth{},
 				}
@@ -100,14 +101,14 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 		{
 			name: "service ready without auth (auth is not checked in ServiceReady)",
 			setupService: func() *ProjectsService {
-				mockUserReader := &domain.MockUserReader{}
-				mockBuilder := &domain.MockMessageBuilder{}
+				mockUserReader := &domainmocks.MockUserReader{}
+				mockBuilder := &domainmocks.MockMessageBuilder{}
 				resolver := NewUserResolver(mockUserReader)
 				return &ProjectsService{
-					ProjectRepository:  &domain.MockProjectRepository{},
-					DocumentRepository: &domain.MockDocumentRepository{},
-					LinkRepository:     &domain.MockLinkRepository{},
-					FolderRepository:   &domain.MockFolderRepository{},
+					ProjectRepository:  &domainmocks.MockProjectRepository{},
+					DocumentRepository: &domainmocks.MockDocumentRepository{},
+					LinkRepository:     &domainmocks.MockLinkRepository{},
+					FolderRepository:   &domainmocks.MockFolderRepository{},
 					MessageBuilder:     mockBuilder,
 					UserReader:         mockUserReader,
 					Resolver:           resolver,
@@ -120,13 +121,13 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 		{
 			name: "service not ready - missing dispatcher",
 			setupService: func() *ProjectsService {
-				mockUserReader := &domain.MockUserReader{}
+				mockUserReader := &domainmocks.MockUserReader{}
 				return &ProjectsService{
-					ProjectRepository:  &domain.MockProjectRepository{},
-					DocumentRepository: &domain.MockDocumentRepository{},
-					LinkRepository:     &domain.MockLinkRepository{},
-					FolderRepository:   &domain.MockFolderRepository{},
-					MessageBuilder:     &domain.MockMessageBuilder{},
+					ProjectRepository:  &domainmocks.MockProjectRepository{},
+					DocumentRepository: &domainmocks.MockDocumentRepository{},
+					LinkRepository:     &domainmocks.MockLinkRepository{},
+					FolderRepository:   &domainmocks.MockFolderRepository{},
+					MessageBuilder:     &domainmocks.MockMessageBuilder{},
 					UserReader:         mockUserReader,
 					Resolver:           NewUserResolver(mockUserReader),
 					Dispatcher:         nil,
@@ -139,11 +140,11 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 			name: "service not ready - missing user reader",
 			setupService: func() *ProjectsService {
 				return &ProjectsService{
-					ProjectRepository:  &domain.MockProjectRepository{},
-					DocumentRepository: &domain.MockDocumentRepository{},
-					LinkRepository:     &domain.MockLinkRepository{},
-					FolderRepository:   &domain.MockFolderRepository{},
-					MessageBuilder:     &domain.MockMessageBuilder{},
+					ProjectRepository:  &domainmocks.MockProjectRepository{},
+					DocumentRepository: &domainmocks.MockDocumentRepository{},
+					LinkRepository:     &domainmocks.MockLinkRepository{},
+					FolderRepository:   &domainmocks.MockFolderRepository{},
+					MessageBuilder:     &domainmocks.MockMessageBuilder{},
 					UserReader:         nil,
 					Auth:               &auth.MockJWTAuth{},
 				}
@@ -163,9 +164,9 @@ func TestProjectsService_ServiceReady(t *testing.T) {
 
 func TestProjectsService_Dependencies(t *testing.T) {
 	t.Run("service maintains dependency references", func(t *testing.T) {
-		mockRepo := &domain.MockProjectRepository{}
+		mockRepo := &domainmocks.MockProjectRepository{}
 		mockAuth := &auth.MockJWTAuth{}
-		mockBuilder := &domain.MockMessageBuilder{}
+		mockBuilder := &domainmocks.MockMessageBuilder{}
 
 		service := NewProjectsService(mockAuth, ServiceConfig{}, ServiceDeps{
 			ProjectRepository: mockRepo,
@@ -187,18 +188,18 @@ func TestProjectsService_Interfaces(t *testing.T) {
 }
 
 // Setup helper for common test scenarios
-func setupServiceForTesting() (*ProjectsService, *domain.MockProjectRepository, *domain.MockMessageBuilder, *auth.MockJWTAuth) {
-	mockRepo := &domain.MockProjectRepository{}
-	mockBuilder := &domain.MockMessageBuilder{}
+func setupServiceForTesting() (*ProjectsService, *domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder, *auth.MockJWTAuth) {
+	mockRepo := &domainmocks.MockProjectRepository{}
+	mockBuilder := &domainmocks.MockMessageBuilder{}
 	mockAuth := &auth.MockJWTAuth{}
-	mockUserReader := &domain.MockUserReader{}
+	mockUserReader := &domainmocks.MockUserReader{}
 	resolver := NewUserResolver(mockUserReader)
 
 	svc := NewProjectsService(mockAuth, ServiceConfig{}, ServiceDeps{
 		ProjectRepository:  mockRepo,
-		DocumentRepository: &domain.MockDocumentRepository{},
-		LinkRepository:     &domain.MockLinkRepository{},
-		FolderRepository:   &domain.MockFolderRepository{},
+		DocumentRepository: &domainmocks.MockDocumentRepository{},
+		LinkRepository:     &domainmocks.MockLinkRepository{},
+		FolderRepository:   &domainmocks.MockFolderRepository{},
 		MessageBuilder:     mockBuilder,
 		UserReader:         mockUserReader,
 		Resolver:           resolver,

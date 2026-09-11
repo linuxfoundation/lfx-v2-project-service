@@ -1,7 +1,10 @@
 // Copyright The Linux Foundation and each contributor to LFX.
 // SPDX-License-Identifier: MIT
 
-package domain
+// Package mocks provides testify-backed mock implementations of the domain interfaces
+// for use in unit tests. All types in this package are test-only and must never be
+// imported by production code.
+package mocks
 
 import (
 	"context"
@@ -11,10 +14,11 @@ import (
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
-// MockProjectRepository implements ProjectRepository for testing
+// MockProjectRepository implements domain.ProjectRepository for testing.
 type MockProjectRepository struct {
 	mock.Mock
 }
@@ -110,7 +114,7 @@ func (m *MockProjectRepository) DeleteProject(ctx context.Context, projectUID st
 	return args.Error(0)
 }
 
-// MockDocumentRepository implements DocumentRepository for testing.
+// MockDocumentRepository implements domain.DocumentRepository for testing.
 type MockDocumentRepository struct {
 	mock.Mock
 }
@@ -169,7 +173,7 @@ func (m *MockDocumentRepository) DeleteUniqueDocumentName(ctx context.Context, u
 	return args.Error(0)
 }
 
-// MockLinkRepository implements LinkRepository for testing.
+// MockLinkRepository implements domain.LinkRepository for testing.
 type MockLinkRepository struct {
 	mock.Mock
 }
@@ -200,7 +204,7 @@ func (m *MockLinkRepository) DeleteLink(ctx context.Context, projectUID, linkUID
 	return args.Error(0)
 }
 
-// MockFolderRepository implements FolderRepository for testing.
+// MockFolderRepository implements domain.FolderRepository for testing.
 type MockFolderRepository struct {
 	mock.Mock
 }
@@ -233,7 +237,7 @@ func (m *MockFolderRepository) DeleteUniqueFolderName(ctx context.Context, uniqu
 	return args.Error(0)
 }
 
-// MockMessageBuilder implements MessageBuilder for testing
+// MockMessageBuilder implements domain.MessageBuilder for testing.
 type MockMessageBuilder struct {
 	mock.Mock
 }
@@ -258,25 +262,25 @@ func (m *MockMessageBuilder) SendEmailRequest(ctx context.Context, req emailapi.
 	return args.Error(0)
 }
 
-func (m *MockMessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (InviteResult, error) {
+func (m *MockMessageBuilder) SendInviteRequest(ctx context.Context, req inviteapi.SendInviteRequest) (domain.InviteResult, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
-		return InviteResult{}, args.Error(1)
+		return domain.InviteResult{}, args.Error(1)
 	}
-	return args.Get(0).(InviteResult), args.Error(1)
+	return args.Get(0).(domain.InviteResult), args.Error(1)
 }
 
-// MockUserReader implements UserReader for testing.
+// MockUserReader implements domain.UserReader for testing.
 type MockUserReader struct {
 	mock.Mock
 }
 
-func (m *MockUserReader) UserMetadataByPrincipal(ctx context.Context, principal string) (*UserMetadata, error) {
+func (m *MockUserReader) UserMetadataByPrincipal(ctx context.Context, principal string) (*domain.UserMetadata, error) {
 	args := m.Called(ctx, principal)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*UserMetadata), args.Error(1)
+	return args.Get(0).(*domain.UserMetadata), args.Error(1)
 }
 
 func (m *MockUserReader) UsernameByEmail(ctx context.Context, email string) (string, error) {
@@ -289,7 +293,7 @@ func (m *MockUserReader) PrimaryEmailByUsername(ctx context.Context, username st
 	return args.String(0), args.Error(1)
 }
 
-// MockMessage implements Message for testing
+// MockMessage implements domain.Message for testing.
 type MockMessage struct {
 	mock.Mock
 	data    []byte
@@ -309,7 +313,7 @@ func (m *MockMessage) Respond(data []byte) error {
 	return args.Error(0)
 }
 
-// NewMockMessage creates a mock message for testing
+// NewMockMessage creates a mock message for testing.
 func NewMockMessage(data []byte, subject string) *MockMessage {
 	return &MockMessage{
 		data:    data,
