@@ -64,6 +64,7 @@ func (c *HeimdallClaims) Validate(_ context.Context) error {
 type JWTAuth struct {
 	validator *validator.Validator
 	config    JWTAuthConfig
+	logger    *slog.Logger
 }
 
 // Ensure JWTAuth implements domain.Authenticator interface
@@ -116,21 +117,25 @@ func NewJWTAuth(config JWTAuthConfig) (*JWTAuth, error) {
 	return &JWTAuth{
 		validator: jwtValidator,
 		config:    config,
+		// The Authenticator interface no longer receives a logger per call, so the
+		// default logger is captured at construction. Callers needing a custom
+		// logger must call slog.SetDefault before NewJWTAuth.
+		logger: slog.Default(),
 	}, nil
 }
 
 // ParsePrincipal extracts the principal from the JWT claims.
-func (j *JWTAuth) ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error) {
-	principal, _, err := j.ParsePrincipalAndEmail(ctx, token, logger)
+func (j *JWTAuth) ParsePrincipal(ctx context.Context, token string) (string, error) {
+	principal, _, err := j.ParsePrincipalAndEmail(ctx, token)
 	return principal, err
 }
 
 // ParsePrincipalAndEmail extracts the principal and, when present, the email claim from the JWT.
-func (j *JWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string, logger *slog.Logger) (string, string, error) {
+func (j *JWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string) (string, string, error) {
 	// To avoid having to use a valid JWT token for local development, we can use the
 	// MockLocalPrincipal configuration parameter.
 	if j.config.MockLocalPrincipal != "" {
-		logger.InfoContext(ctx, "JWT authentication is disabled, returning mock principal",
+		j.logger.InfoContext(ctx, "JWT authentication is disabled, returning mock principal",
 			"principal", j.config.MockLocalPrincipal,
 		)
 		return j.config.MockLocalPrincipal, "", nil
@@ -142,7 +147,7 @@ func (j *JWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string, logg
 
 	parsedJWT, err := j.validator.ValidateToken(ctx, token)
 	if err != nil {
-		logger.WarnContext(ctx, "authorization failed",
+		j.logger.WarnContext(ctx, "authorization failed",
 			"default_audience", defaultAudience,
 			"default_issuer", defaultIssuer,
 			constants.ErrKey, err,
@@ -169,7 +174,7 @@ func (j *JWTAuth) ParsePrincipalAndEmail(ctx context.Context, token string, logg
 		return "", "", errors.New("failed to get custom authorization claims")
 	}
 
-	logger.DebugContext(ctx, "JWT principal parsed",
+	j.logger.DebugContext(ctx, "JWT principal parsed",
 		"principal", customClaims.Principal,
 	)
 

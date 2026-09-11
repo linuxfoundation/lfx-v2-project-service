@@ -125,7 +125,7 @@ func (s *ProjectsAPI) JWTAuth(ctx context.Context, bearerToken string, _ *securi
 	}
 
 	// Parse the Heimdall-authorized principal from the token.
-	principal, email, err := s.service.Auth.ParsePrincipalAndEmail(ctx, bearerToken, slog.Default())
+	principal, email, err := s.service.Auth.ParsePrincipalAndEmail(ctx, bearerToken)
 	if err != nil {
 		return ctx, err
 	}

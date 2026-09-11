@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -28,14 +29,14 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 		name        string
 		subject     string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository, *domain.MockMessageBuilder)
+		setupMocks  func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
 		expectCalls bool
 	}{
 		{
 			name:        "handle project get name message",
 			subject:     constants.ProjectGetNameSubject,
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -53,7 +54,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "handle project get slug message",
 			subject:     constants.ProjectGetSlugSubject,
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -72,7 +73,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "handle project get logo message",
 			subject:     constants.ProjectGetLogoSubject,
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -91,7 +92,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "handle project slug to UID message",
 			subject:     constants.ProjectSlugToUIDSubject,
 			messageData: []byte("test-project"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").Return("test-project-uid", nil)
 			},
 			expectCalls: true,
@@ -100,7 +101,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "handle project get parent UID message",
 			subject:     constants.ProjectGetParentUIDSubject,
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -119,7 +120,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "handle project get writers message",
 			subject:     constants.ProjectGetWritersSubject,
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectSettings{
 						UID: "01234567-89ab-cdef-0123-456789abcdef",
@@ -136,7 +137,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "handle project get settings message",
 			subject:     constants.ProjectGetSettingsSubject,
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectSettings{
 						UID: "01234567-89ab-cdef-0123-456789abcdef",
@@ -153,7 +154,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "handle project list projects message",
 			subject:     constants.ProjectListProjectsSubject,
 			messageData: []byte(`{"stages":["Formation - Engaged"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				mockRepo.On("ListAllProjectsBase", mock.Anything).Return(
 					[]*models.ProjectBase{
 						{
@@ -171,7 +172,7 @@ func TestProjectsService_HandleMessage(t *testing.T) {
 			name:        "unknown subject",
 			subject:     "unknown.subject",
 			messageData: []byte(`{}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository, mockBuilder *domain.MockMessageBuilder) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
 				// No mock calls expected
 			},
 			expectCalls: true,
@@ -211,14 +212,14 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
 		validate    func(*testing.T, []byte)
 	}{
 		{
 			name:        "successful get project name",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -239,7 +240,7 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 		{
 			name:        "project not found",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
 					nil, domain.ErrProjectNotFound,
 				)
@@ -249,7 +250,7 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 		{
 			name:        "invalid JSON",
 			messageData: []byte(`invalid-json`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected
 			},
 			expectedErr: true,
@@ -257,7 +258,7 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 		{
 			name:        "missing UID",
 			messageData: []byte(`{}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected
 			},
 			expectedErr: true,
@@ -265,7 +266,7 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 		{
 			name:        "empty UID",
 			messageData: []byte(`{"uid": ""}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected
 			},
 			expectedErr: true,
@@ -304,14 +305,14 @@ func TestProjectsService_HandleProjectGetSlug(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
 		validate    func(*testing.T, []byte)
 	}{
 		{
 			name:        "successful get project slug",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -332,7 +333,7 @@ func TestProjectsService_HandleProjectGetSlug(t *testing.T) {
 		{
 			name:        "project not found",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
 					nil, domain.ErrProjectNotFound,
 				)
@@ -342,7 +343,7 @@ func TestProjectsService_HandleProjectGetSlug(t *testing.T) {
 		{
 			name:        "invalid UUID format",
 			messageData: []byte("invalid-uuid-format"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected for invalid UUID
 			},
 			expectedErr: true,
@@ -350,7 +351,7 @@ func TestProjectsService_HandleProjectGetSlug(t *testing.T) {
 		{
 			name:        "empty project UID",
 			messageData: []byte(""),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected for empty UID
 			},
 			expectedErr: true,
@@ -389,14 +390,14 @@ func TestProjectsService_HandleProjectGetLogo(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
 		validate    func(*testing.T, []byte)
 	}{
 		{
 			name:        "successful get project logo",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -417,7 +418,7 @@ func TestProjectsService_HandleProjectGetLogo(t *testing.T) {
 		{
 			name:        "project not found",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
 					nil, domain.ErrProjectNotFound,
 				)
@@ -427,7 +428,7 @@ func TestProjectsService_HandleProjectGetLogo(t *testing.T) {
 		{
 			name:        "invalid UUID format",
 			messageData: []byte("invalid-uuid-format"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected for invalid UUID
 			},
 			expectedErr: true,
@@ -435,7 +436,7 @@ func TestProjectsService_HandleProjectGetLogo(t *testing.T) {
 		{
 			name:        "empty project UID",
 			messageData: []byte(""),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected for empty UID
 			},
 			expectedErr: true,
@@ -474,14 +475,14 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
 		validate    func(*testing.T, []byte)
 	}{
 		{
 			name:        "successful slug to UID conversion",
 			messageData: []byte("test-project"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "test-project").Return(
 					"test-project-uid", nil,
 				)
@@ -494,7 +495,7 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 		{
 			name:        "project not found by slug",
 			messageData: []byte("non-existent-slug"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "non-existent-slug").Return(
 					"", domain.ErrProjectNotFound,
 				)
@@ -504,7 +505,7 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 		{
 			name:        "project not found with strange slug",
 			messageData: []byte("invalid-json"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "invalid-json").Return(
 					"", domain.ErrProjectNotFound,
 				)
@@ -514,7 +515,7 @@ func TestProjectsService_HandleProjectSlugToUID(t *testing.T) {
 		{
 			name:        "empty slug",
 			messageData: []byte(""),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectUIDFromSlug", mock.Anything, "").Return(
 					"", domain.ErrProjectNotFound,
 				)
@@ -555,14 +556,14 @@ func TestProjectsService_HandleProjectGetParentUID(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
 		validate    func(*testing.T, []byte)
 	}{
 		{
 			name:        "successful get parent UID",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -583,7 +584,7 @@ func TestProjectsService_HandleProjectGetParentUID(t *testing.T) {
 		{
 			name:        "project with empty parent UID",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				now := time.Now()
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectBase{
@@ -604,7 +605,7 @@ func TestProjectsService_HandleProjectGetParentUID(t *testing.T) {
 		{
 			name:        "project not found",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
 					nil, domain.ErrProjectNotFound,
 				)
@@ -614,7 +615,7 @@ func TestProjectsService_HandleProjectGetParentUID(t *testing.T) {
 		{
 			name:        "invalid UUID format",
 			messageData: []byte("invalid-uuid-format"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected for invalid UUID
 			},
 			expectedErr: true,
@@ -622,7 +623,7 @@ func TestProjectsService_HandleProjectGetParentUID(t *testing.T) {
 		{
 			name:        "empty project UID",
 			messageData: []byte(""),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected for empty UID
 			},
 			expectedErr: true,
@@ -661,14 +662,14 @@ func TestProjectsService_HandleProjectGetWriters(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
 		validate    func(*testing.T, []byte)
 	}{
 		{
 			name:        "successful get project writers",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectSettings{
 						UID: "01234567-89ab-cdef-0123-456789abcdef",
@@ -693,7 +694,7 @@ func TestProjectsService_HandleProjectGetWriters(t *testing.T) {
 		{
 			name:        "returns empty array when no writers configured",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectSettings{
 						UID:     "01234567-89ab-cdef-0123-456789abcdef",
@@ -712,7 +713,7 @@ func TestProjectsService_HandleProjectGetWriters(t *testing.T) {
 		{
 			name:        "project settings not found",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
 					nil, domain.ErrProjectNotFound,
 				)
@@ -722,7 +723,7 @@ func TestProjectsService_HandleProjectGetWriters(t *testing.T) {
 		{
 			name:        "invalid UUID format",
 			messageData: []byte("not-a-uuid"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected
 			},
 			expectedErr: true,
@@ -730,7 +731,7 @@ func TestProjectsService_HandleProjectGetWriters(t *testing.T) {
 		{
 			name:        "empty project UID",
 			messageData: []byte(""),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				// No repo calls expected
 			},
 			expectedErr: true,
@@ -771,14 +772,14 @@ func TestProjectsService_HandleProjectGetSettings(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
 		validate    func(*testing.T, []byte)
 	}{
 		{
 			name:        "returns writers, auditors and announcement date together",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectSettings{
 						UID:              "01234567-89ab-cdef-0123-456789abcdef",
@@ -809,7 +810,7 @@ func TestProjectsService_HandleProjectGetSettings(t *testing.T) {
 		{
 			name:        "omits the settings fields that are not part of the roster",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectSettings{
 						UID:                 "01234567-89ab-cdef-0123-456789abcdef",
@@ -829,7 +830,7 @@ func TestProjectsService_HandleProjectGetSettings(t *testing.T) {
 		{
 			name:        "replies with empty rosters rather than null when none are configured",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					&models.ProjectSettings{UID: "01234567-89ab-cdef-0123-456789abcdef"},
 					nil,
@@ -843,7 +844,7 @@ func TestProjectsService_HandleProjectGetSettings(t *testing.T) {
 		{
 			name:        "project settings not found",
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcd00"),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectSettings", mock.Anything, "01234567-89ab-cdef-0123-456789abcd00").Return(
 					nil, domain.ErrProjectNotFound,
 				)
@@ -853,7 +854,7 @@ func TestProjectsService_HandleProjectGetSettings(t *testing.T) {
 		{
 			name:        "invalid UUID format",
 			messageData: []byte("not-a-uuid"),
-			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
+			setupMocks:  func(mockRepo *domainmocks.MockProjectRepository) {},
 			expectedErr: true,
 		},
 	}
@@ -923,18 +924,18 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 	tests := []struct {
 		name        string
 		messageData []byte
-		setupMocks  func(*domain.MockProjectRepository)
+		setupMocks  func(*domainmocks.MockProjectRepository)
 		expectedErr bool
-		validate    func(*testing.T, *domain.MockProjectRepository, []events.ProjectRef)
-		validateErr func(*testing.T, *domain.MockProjectRepository)
+		validate    func(*testing.T, *domainmocks.MockProjectRepository, []events.ProjectRef)
+		validateErr func(*testing.T, *domainmocks.MockProjectRepository)
 	}{
 		{
 			name:        "stage filter returns only the projects at those stages",
 			messageData: []byte(`{"stages":["Formation - Engaged"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("ListAllProjectsBase", mock.Anything).Return(allProjects, nil)
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				assert.Len(t, refs, 1)
 				assert.Equal(t, formingUID, refs[0].UID)
 				assert.Equal(t, "forming-project", refs[0].Slug)
@@ -946,10 +947,10 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 		{
 			name:        "uid filter answers without scanning the store",
 			messageData: []byte(`{"uids":["` + activeUID + `"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, activeUID).Return(allProjects[0], nil)
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				mockRepo.AssertNotCalled(t, "ListAllProjectsBase", mock.Anything)
 				assert.Len(t, refs, 1)
 				assert.Equal(t, activeUID, refs[0].UID)
@@ -959,10 +960,10 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 		{
 			name:        "both filters union, and a project matching both appears once",
 			messageData: []byte(`{"stages":["Formation - Engaged"],"uids":["` + formingUID + `","` + activeUID + `"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("ListAllProjectsBase", mock.Anything).Return(allProjects, nil)
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				// Neither UID is read again: the stage-matched one is already in the
 				// reply, and the other was decoded by the same scan.
 				mockRepo.AssertNotCalled(t, "GetProjectBase", mock.Anything, formingUID)
@@ -975,10 +976,10 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 		{
 			name:        "a uid at an unwanted stage is served from the scan, not read again",
 			messageData: []byte(`{"stages":["Formation - Engaged"],"uids":["` + prospectUID + `"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("ListAllProjectsBase", mock.Anything).Return(allProjects, nil)
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				mockRepo.AssertNotCalled(t, "GetProjectBase", mock.Anything, prospectUID)
 				assert.Len(t, refs, 2)
 				assert.Equal(t, formingUID, refs[0].UID)
@@ -989,11 +990,11 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 		{
 			name:        "a uid naming no project is skipped rather than failing the request",
 			messageData: []byte(`{"uids":["` + deletedUID + `","` + activeUID + `"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, deletedUID).Return(nil, domain.ErrProjectNotFound)
 				mockRepo.On("GetProjectBase", mock.Anything, activeUID).Return(allProjects[0], nil)
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				assert.Len(t, refs, 1)
 				assert.Equal(t, activeUID, refs[0].UID)
 			},
@@ -1001,47 +1002,47 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 		{
 			name:        "a stage nothing is at replies with an empty list, not null",
 			messageData: []byte(`{"stages":["Archived"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("ListAllProjectsBase", mock.Anything).Return(allProjects, nil)
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				assert.Empty(t, refs)
 			},
 		},
 		{
 			name:        "a request with no filter is refused rather than answered with everything",
 			messageData: []byte(`{}`),
-			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
+			setupMocks:  func(mockRepo *domainmocks.MockProjectRepository) {},
 			expectedErr: true,
 		},
 		{
 			name:        "malformed request body",
 			messageData: []byte(`not json`),
-			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
+			setupMocks:  func(mockRepo *domainmocks.MockProjectRepository) {},
 			expectedErr: true,
 		},
 		{
 			name:        "malformed uid fails the request",
 			messageData: []byte(`{"uids":["not-a-uuid"]}`),
-			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
+			setupMocks:  func(mockRepo *domainmocks.MockProjectRepository) {},
 			expectedErr: true,
 		},
 		{
 			name:        "malformed uid fails before the stage filter scans the store",
 			messageData: []byte(`{"stages":["Formation - Engaged"],"uids":["not-a-uuid"]}`),
-			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
+			setupMocks:  func(mockRepo *domainmocks.MockProjectRepository) {},
 			expectedErr: true,
-			validateErr: func(t *testing.T, mockRepo *domain.MockProjectRepository) {
+			validateErr: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.AssertNotCalled(t, "ListAllProjectsBase", mock.Anything)
 			},
 		},
 		{
 			name:        "a uid repeated past the cap is still answered, and read once",
 			messageData: repeatedUIDRequest,
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, activeUID).Return(allProjects[0], nil).Once()
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				assert.Len(t, refs, 1)
 				assert.Equal(t, activeUID, refs[0].UID)
 			},
@@ -1051,19 +1052,19 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 			// without the up-front dedupe each repeat would be read again.
 			name:        "a missing uid repeated is read once, not once per repeat",
 			messageData: []byte(`{"uids":["` + deletedUID + `","` + deletedUID + `","` + deletedUID + `"]}`),
-			setupMocks: func(mockRepo *domain.MockProjectRepository) {
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.On("GetProjectBase", mock.Anything, deletedUID).Return(nil, domain.ErrProjectNotFound).Once()
 			},
-			validate: func(t *testing.T, mockRepo *domain.MockProjectRepository, refs []events.ProjectRef) {
+			validate: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository, refs []events.ProjectRef) {
 				assert.Empty(t, refs)
 			},
 		},
 		{
 			name:        "a uid list over the cap is refused before any read",
 			messageData: overCapRequest,
-			setupMocks:  func(mockRepo *domain.MockProjectRepository) {},
+			setupMocks:  func(mockRepo *domainmocks.MockProjectRepository) {},
 			expectedErr: true,
-			validateErr: func(t *testing.T, mockRepo *domain.MockProjectRepository) {
+			validateErr: func(t *testing.T, mockRepo *domainmocks.MockProjectRepository) {
 				mockRepo.AssertNotCalled(t, "GetProjectBase", mock.Anything, mock.Anything)
 				mockRepo.AssertNotCalled(t, "ListAllProjectsBase", mock.Anything)
 			},
@@ -1130,19 +1131,19 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 		{
 			name: "repository error",
 			setupService: func() *ProjectsService {
-				mockRepo := &domain.MockProjectRepository{}
+				mockRepo := &domainmocks.MockProjectRepository{}
 				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
 					nil, domain.ErrInternal,
 				)
-				mockBuilder := &domain.MockMessageBuilder{}
-				resolver := NewUserResolver(&domain.MockUserReader{})
+				mockBuilder := &domainmocks.MockMessageBuilder{}
+				resolver := NewUserResolver(&domainmocks.MockUserReader{})
 				return &ProjectsService{
 					ProjectRepository:  mockRepo,
-					DocumentRepository: &domain.MockDocumentRepository{},
-					LinkRepository:     &domain.MockLinkRepository{},
-					FolderRepository:   &domain.MockFolderRepository{},
+					DocumentRepository: &domainmocks.MockDocumentRepository{},
+					LinkRepository:     &domainmocks.MockLinkRepository{},
+					FolderRepository:   &domainmocks.MockFolderRepository{},
 					MessageBuilder:     mockBuilder,
-					UserReader:         &domain.MockUserReader{},
+					UserReader:         &domainmocks.MockUserReader{},
 					Resolver:           resolver,
 					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
 					Auth:               &auth.MockJWTAuth{},
@@ -1166,7 +1167,7 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 				service.HandleMessage(ctx, mockMsg)
 			})
 
-			if mockRepo, ok := service.ProjectRepository.(*domain.MockProjectRepository); ok {
+			if mockRepo, ok := service.ProjectRepository.(*domainmocks.MockProjectRepository); ok {
 				mockRepo.AssertExpectations(t)
 			}
 		})

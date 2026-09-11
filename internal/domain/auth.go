@@ -3,19 +3,17 @@
 
 package domain
 
-import (
-	"context"
-	"log/slog"
-)
+import "context"
 
 // Authenticator defines the authentication interface for the domain layer.
 // This interface allows the service layer to authenticate users without depending
 // on specific authentication implementations (JWT, OAuth, etc.).
+// Implementations that need to log capture a logger at construction (e.g. slog.Default()).
 type Authenticator interface {
 	// ParsePrincipal extracts the principal (user identifier) from an authentication token.
 	// Returns the principal string and any error that occurred during parsing.
-	ParsePrincipal(ctx context.Context, token string, logger *slog.Logger) (string, error)
+	ParsePrincipal(ctx context.Context, token string) (string, error)
 	// ParsePrincipalAndEmail extracts the principal and, when present, the email claim.
 	// Email may be empty even on success.
-	ParsePrincipalAndEmail(ctx context.Context, token string, logger *slog.Logger) (principal, email string, err error)
+	ParsePrincipalAndEmail(ctx context.Context, token string) (principal, email string, err error)
 }

@@ -26,22 +26,14 @@ type userMetadataNATSResponse struct {
 	Data    *userMetadataNATSDataBody `json:"data,omitempty"`
 }
 
-// userMetadataNATSDataBody holds the profile fields from the auth-service response.
+// userMetadataNATSDataBody holds the profile fields the project service reads from the
+// auth-service response. The auth service returns many more fields; only the four used
+// for display-name resolution and audit stamping are decoded here.
 type userMetadataNATSDataBody struct {
-	Picture       *string `json:"picture,omitempty"`
-	Zoneinfo      *string `json:"zoneinfo,omitempty"`
-	Name          *string `json:"name,omitempty"`
-	GivenName     *string `json:"given_name,omitempty"`
-	FamilyName    *string `json:"family_name,omitempty"`
-	JobTitle      *string `json:"job_title,omitempty"`
-	Organization  *string `json:"organization,omitempty"`
-	Country       *string `json:"country,omitempty"`
-	StateProvince *string `json:"state_province,omitempty"`
-	City          *string `json:"city,omitempty"`
-	Address       *string `json:"address,omitempty"`
-	PostalCode    *string `json:"postal_code,omitempty"`
-	PhoneNumber   *string `json:"phone_number,omitempty"`
-	TShirtSize    *string `json:"t_shirt_size,omitempty"`
+	Name       *string `json:"name,omitempty"`
+	GivenName  *string `json:"given_name,omitempty"`
+	FamilyName *string `json:"family_name,omitempty"`
+	Picture    *string `json:"picture,omitempty"`
 }
 
 // UserReaderNATS implements domain.UserReader via NATS requests to the auth service.
@@ -96,12 +88,6 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 
 	d := response.Data
 	result := &domain.UserMetadata{}
-	if d.Picture != nil {
-		result.Picture = *d.Picture
-	}
-	if d.Zoneinfo != nil {
-		result.Zoneinfo = *d.Zoneinfo
-	}
 	if d.Name != nil {
 		result.Name = *d.Name
 	}
@@ -111,32 +97,8 @@ func (u *UserReaderNATS) UserMetadataByPrincipal(ctx context.Context, principal 
 	if d.FamilyName != nil {
 		result.FamilyName = *d.FamilyName
 	}
-	if d.JobTitle != nil {
-		result.JobTitle = *d.JobTitle
-	}
-	if d.Organization != nil {
-		result.Organization = *d.Organization
-	}
-	if d.Country != nil {
-		result.Country = *d.Country
-	}
-	if d.StateProvince != nil {
-		result.StateProvince = *d.StateProvince
-	}
-	if d.City != nil {
-		result.City = *d.City
-	}
-	if d.Address != nil {
-		result.Address = *d.Address
-	}
-	if d.PostalCode != nil {
-		result.PostalCode = *d.PostalCode
-	}
-	if d.PhoneNumber != nil {
-		result.PhoneNumber = *d.PhoneNumber
-	}
-	if d.TShirtSize != nil {
-		result.TShirtSize = *d.TShirtSize
+	if d.Picture != nil {
+		result.Picture = *d.Picture
 	}
 	return result, nil
 }

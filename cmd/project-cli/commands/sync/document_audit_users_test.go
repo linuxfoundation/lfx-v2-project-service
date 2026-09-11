@@ -13,6 +13,7 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-project-service/cmd/project-cli/commands"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 )
 
@@ -46,9 +47,9 @@ func TestParseDocumentResourceType(t *testing.T) {
 }
 
 func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
-	aliceReader := func(t *testing.T) *domain.MockUserReader {
+	aliceReader := func(t *testing.T) *domainmocks.MockUserReader {
 		t.Helper()
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 			Name: "Alice Example",
 		}, nil)
@@ -56,9 +57,9 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 		return mockUser
 	}
 
-	aliceAndBobReader := func(t *testing.T) *domain.MockUserReader {
+	aliceAndBobReader := func(t *testing.T) *domainmocks.MockUserReader {
 		t.Helper()
-		mockUser := &domain.MockUserReader{}
+		mockUser := &domainmocks.MockUserReader{}
 		mockUser.On("UserMetadataByPrincipal", mock.Anything, "bob").Return(&domain.UserMetadata{
 			Name: "Bob Example",
 		}, nil)
@@ -158,7 +159,7 @@ func TestDocumentAuditUsersRunner_applyAuditUsers(t *testing.T) {
 			if tt.wantUpdated {
 				assert.Equal(t, 1, tt.runner.stats.Updated)
 			}
-			if mockUser, ok := tt.runner.userReader.(*domain.MockUserReader); ok {
+			if mockUser, ok := tt.runner.userReader.(*domainmocks.MockUserReader); ok {
 				mockUser.AssertExpectations(t)
 			}
 		})
