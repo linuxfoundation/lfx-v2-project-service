@@ -167,7 +167,6 @@ func ProjectStageAttribute() {
 			"Archived",
 			"Formation - On Hold",
 			"Formation - Disengaged",
-			"Formation - Confidential",
 			"Prospect",
 		)
 	})

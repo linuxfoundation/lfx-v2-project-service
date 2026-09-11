@@ -1573,7 +1573,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             uid:
                 type: string
@@ -1931,7 +1930,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             uid:
                 type: string
@@ -2327,7 +2325,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             website_url:
                 type: string
@@ -3004,7 +3001,6 @@ definitions:
                     - Archived
                     - Formation - On Hold
                     - Formation - Disengaged
-                    - Formation - Confidential
                     - Prospect
             website_url:
                 type: string
