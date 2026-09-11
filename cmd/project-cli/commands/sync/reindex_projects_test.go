@@ -780,7 +780,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			bases = append(bases, newBase(rootUID, rootProjectSlug))
 
 			repo := &fakeProjectRecordRepo{bases: bases, settingsByUID: settingsByUID}
-			publisher := &domain.MockMessageBuilder{}
+			publisher := &domainmocks.MockMessageBuilder{}
 			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, true).Return(nil)
 			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
@@ -815,7 +815,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			}
 
 			repo := &fakeProjectRecordRepo{bases: bases, settingsByUID: settingsByUID}
-			publisher := &domain.MockMessageBuilder{}
+			publisher := &domainmocks.MockMessageBuilder{}
 			publisher.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, true).Return(nil)
 			publisher.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
