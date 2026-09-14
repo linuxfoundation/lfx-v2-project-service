@@ -40,3 +40,8 @@ API_SPECTRAL_FILTER_REGEX_EXCLUDE: "gen/"
 FILTER_REGEX_EXCLUDE: '(templates/.*\.yml|templates/.*\.yaml)'
 KUBERNETES_DIRECTORY: charts/lfx-v2-project-service
 KUBERNETES_HELM_ARGUMENTS: charts/lfx-v2-project-service
+# scripts/project-logo-file-conversion imports heavy AWS SDK dependencies
+# (s3, checksum) that are not cached in the MegaLinter Docker image; the Go
+# module proxy returns INTERNAL_ERROR for those packages causing a false-positive
+# typecheck failure. The script is validated by the repo's own go build step.
+GO_GOLANGCI_LINT_FILTER_REGEX_EXCLUDE: "scripts/project-logo-file-conversion"

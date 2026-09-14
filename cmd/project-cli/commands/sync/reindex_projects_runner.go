@@ -264,8 +264,11 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 		action = indexerConstants.ActionUpdated
 	}
 
-	// sync=true (request/reply) so a NATS timeout or unreachable indexer surfaces as a
-	// per-project failure instead of a silently-dropped fire-and-forget publish.
+	// sync=true is passed for consistency with callers that branch on the flag for
+	// inline-vs-goroutine execution; the NATS delivery is always fire-and-forget
+	// (conn.Publish) since lfx-v2-indexer-service#68 migrated the indexer to a
+	// JetStream durable consumer. Errors from SendIndexerMessage reflect publish
+	// failures (e.g. NATS not ready), not indexer processing outcomes.
 	g := new(errgroup.Group)
 
 	if m.project {

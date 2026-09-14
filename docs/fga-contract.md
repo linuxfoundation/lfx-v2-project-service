@@ -27,9 +27,9 @@ Each message carries `object_type`, `operation`, and a `data` map. The sections 
 
 ### Delivery Semantics
 
-Project create, base update, and settings update publish `lfx.fga-sync.update_access` asynchronously. For those operations, `X-Sync` controls indexer synchronization only; it does not wait for FGA processing or OpenFGA convergence.
+Project create, base update, and settings update publish `lfx.fga-sync.update_access` asynchronously. For those operations, `X-Sync` influences whether the indexer publish is inline or in a background goroutine; it does not imply request/reply delivery (see `docs/indexer-contract.md`) and it does not wait for FGA processing or OpenFGA convergence.
 
-Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-Sync` continues to control both project indexer deletion messages, but it does not wait for FGA deletion processing or OpenFGA convergence.
+Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-Sync` continues to influence both project indexer deletion publishes (inline vs. goroutine), but it does not imply request/reply delivery and it does not wait for FGA deletion processing or OpenFGA convergence.
 
 ---
 
