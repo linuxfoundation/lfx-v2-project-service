@@ -193,7 +193,7 @@ func run() int {
 		slog.With(constants.ErrKey, err).Error("failed to connect to NATS")
 		return 1
 	}
-	defer nc.Close()
+	defer func() { _ = nc.Drain() }()
 
 	js, err := jetstream.New(nc)
 	if err != nil {
