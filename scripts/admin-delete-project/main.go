@@ -274,16 +274,18 @@ func run() int {
 	}
 	if exitCode != 0 {
 		slog.Error("one or more UIDs failed to delete completely; see audit file for state")
-	} else {
-		slog.Info("admin-delete-project completed successfully")
 	}
 
 	// Flush all buffered fire-and-forget indexer publishes before the process exits.
 	// FlushTimeout sends a PING and blocks until the server replies (PONG), which
 	// confirms all queued outbound messages have been sent. Without this, in-flight
 	// publishes in the reconnect buffer could be discarded when the process exits.
+	// Log success only after confirming the flush; if flush fails, the warning is
+	// the last log line so operators know to verify OpenSearch directly.
 	if err := nc.FlushTimeout(gracefulShutdownSec * time.Second); err != nil {
-		slog.With(constants.ErrKey, err).Warn("NATS flush timed out; some indexer deletes may not have been delivered")
+		slog.With(constants.ErrKey, err).Warn("NATS flush timed out; some indexer deletes may not have been delivered — verify OpenSearch")
+	} else if exitCode == 0 {
+		slog.Info("admin-delete-project completed successfully")
 	}
 	return exitCode
 }
