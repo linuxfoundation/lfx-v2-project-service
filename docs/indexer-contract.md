@@ -8,10 +8,14 @@ This document is the authoritative reference for all data the project service se
 
 ## Delivery and Acknowledgement
 
-Indexer messages are always published **fire-and-forget** (`conn.Publish`).
-The `X-Sync` header and the `sync bool` parameter in `SendIndexerMessage` are
-accepted at the API and service layers for backwards compatibility but are
-intentionally ignored — the sync parameter is always treated as `false`.
+Indexer messages are always published **fire-and-forget** via `conn.Publish`.
+The `sync bool` parameter in `SendIndexerMessage` no longer controls the NATS
+delivery mode — it is always treated as `false` at the NATS layer, so no
+request/reply handshake is attempted. The service layer may still use the flag
+to decide whether to call `SendIndexerMessage` inline or from a background
+goroutine (for example, link/folder/document operations branch on it for their
+own error-reporting strategy), but either path results in a fire-and-forget
+`conn.Publish` at the transport layer.
 
 **Why:** `lfx-v2-indexer-service#68` migrated the indexer from core NATS
 `QueueSubscribeWithReply` to a JetStream durable consumer. Under JetStream with

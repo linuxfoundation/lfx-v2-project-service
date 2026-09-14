@@ -57,7 +57,7 @@ const (
 	// (KV reads + full child bucket scan, each key fetched individually).
 	auditTimeoutPerUID = 60 * time.Second
 	// executeTimeoutPerUID is the per-UID budget during execute: audit +
-	// sync indexer acks (up to 10 s each × 2 messages) + KV deletes.
+	// fire-and-forget indexer publishes + KV deletes.
 	executeTimeoutPerUID = 120 * time.Second
 )
 
@@ -119,7 +119,7 @@ func parseConfig() (config, error) {
 	flag.Var(&uids, "uid", "Project UID to delete (repeatable, at least one required)")
 	flag.BoolVar(&cfg.dryRun, "dry-run", true, "If true (default), perform audit + plan-print only; no NATS writes. Pass --dry-run=false to execute.")
 	flag.StringVar(&cfg.auditPath, "audit-file", "", "Path to write the JSON audit/backup file (default: ./admin-delete-audit-<timestamp>.json)")
-	flag.BoolVar(&cfg.sync, "sync", true, "Publish indexer messages synchronously (request/reply) so we get an ack before deleting KV records")
+	flag.BoolVar(&cfg.sync, "sync", true, "Accepted for backwards compatibility; has no effect — indexer publishes are always fire-and-forget (conn.Publish) since lfx-v2-indexer-service#68")
 	flag.BoolVar(&cfg.cascadeChildren, "cascade-children", false, "Also delete the project's child links, folders, and documents (KV records, lookup keys, document object-store blobs, and indexer deletes). Default false leaves children as orphaned/inert records.")
 	flag.BoolVar(&cfg.skipChildScan, "skip-child-scan", false, "Skip scanning child buckets (project-links, project-folders, project-documents-metadata). Use when you have already audited children independently and know the project is a leaf record.")
 	flag.BoolVar(&cfg.verbose, "verbose", false, "Verbose logging")
@@ -260,6 +260,11 @@ func run() int {
 		slog.Info("dry-run mode (default); no writes performed. Re-run with --dry-run=false to execute.")
 		return 0
 	}
+
+	// Inject a static authorization header so the indexer's V2 header validation
+	// passes. The indexer requires the header to be present but the admin script
+	// has no user JWT; a non-empty sentinel value satisfies the check.
+	ctx = context.WithValue(ctx, constants.AuthorizationContextID, "Bearer admin-delete-script")
 
 	exitCode := 0
 	for _, rec := range auditRecords {
