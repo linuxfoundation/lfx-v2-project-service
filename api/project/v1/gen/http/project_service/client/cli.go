@@ -61,8 +61,8 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 		if body.Stage != nil {
-			if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
+			if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Prospect") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Prospect"}))
 			}
 		}
 		if body.Category != nil {
@@ -334,8 +334,8 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 		if body.Stage != nil {
-			if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
-				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
+			if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Prospect") {
+				err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Prospect"}))
 			}
 		}
 		if body.Category != nil {
