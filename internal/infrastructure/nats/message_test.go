@@ -38,11 +38,16 @@ import (
 // to satisfy the gocritic unlambda linter rule
 var backgroundCtx = context.Background
 
+// TestMessageBuilder_PublishIndexerMessage verifies that SendIndexerMessage always
+// publishes fire-and-forget via conn.Publish regardless of the sync argument.
+// Since lfx-v2-indexer-service#68 migrated the indexer to JetStream, conn.Request()
+// would receive a PubAck (not "OK") and fail; the sync parameter is now ignored.
 func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 	tests := []struct {
 		name        string
 		subject     string
 		message     interface{}
+		sync        bool
 		setupMocks  func(*MockNATSConn)
 		setupCtx    func() context.Context
 		wantErr     bool
@@ -51,6 +56,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send project indexer message",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test-project", Name: "test", Slug: "test"},
@@ -80,6 +86,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send project settings indexer message",
 			subject: constants.IndexProjectSettingsSubject,
+			sync:    false,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionUpdated,
 				Data:   models.ProjectSettings{UID: "test-settings", MissionStatement: "test mission"},
@@ -96,6 +103,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send delete message",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: "test-uid-to-delete",
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
@@ -108,6 +116,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "unsupported message type",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: 123, // Invalid type
 			setupMocks: func(mockConn *MockNATSConn) {
 				// No publish expected
@@ -118,6 +127,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "nats publish error",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test"},
@@ -131,47 +141,11 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 			setupCtx: backgroundCtx,
 			wantErr:  true,
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			tt.setupMocks(mockConn)
-
-			mb := &MessageBuilder{
-				NatsConn: mockConn,
-			}
-
-			ctx := tt.setupCtx()
-			err := mb.SendIndexerMessage(ctx, tt.subject, tt.message, false)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			mockConn.AssertExpectations(t)
-		})
-	}
-}
-
-// TestMessageBuilder_PublishIndexerMessage_Sync verifies that SendIndexerMessage
-// always publishes fire-and-forget regardless of the sync flag. Since
-// lfx-v2-indexer-service#68 migrated the indexer to JetStream, conn.Request()
-// would receive a PubAck (not "OK") and fail; the sync parameter is now ignored.
-func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
-	tests := []struct {
-		name       string
-		subject    string
-		message    interface{}
-		setupMocks func(*MockNATSConn)
-		setupCtx   func() context.Context
-		wantErr    bool
-	}{
+		// sync=true cases: verify the flag is ignored and PublishMsg is still used.
 		{
-			name:    "sync=true publishes fire-and-forget (project indexer message)",
+			name:    "sync=true: project indexer message publishes fire-and-forget",
 			subject: constants.IndexProjectSubject,
+			sync:    true,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test-project", Name: "test", Slug: "test"},
@@ -199,8 +173,9 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "sync=true publishes fire-and-forget (project settings indexer message)",
+			name:    "sync=true: project settings indexer message publishes fire-and-forget",
 			subject: constants.IndexProjectSettingsSubject,
+			sync:    true,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionUpdated,
 				Data:   models.ProjectSettings{UID: "test-settings", MissionStatement: "test mission"},
@@ -215,8 +190,9 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:    "sync=true publishes fire-and-forget (delete message)",
+			name:    "sync=true: delete message publishes fire-and-forget",
 			subject: constants.IndexProjectSubject,
+			sync:    true,
 			message: "test-uid-to-delete",
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
@@ -227,8 +203,9 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name:    "nats publish error propagates",
+			name:    "sync=true: nats publish error propagates",
 			subject: constants.IndexProjectSubject,
+			sync:    true,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test"},
@@ -248,10 +225,12 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			mockConn := &MockNATSConn{}
 			tt.setupMocks(mockConn)
 
-			mb := &MessageBuilder{NatsConn: mockConn}
+			mb := &MessageBuilder{
+				NatsConn: mockConn,
+			}
 
 			ctx := tt.setupCtx()
-			err := mb.SendIndexerMessage(ctx, tt.subject, tt.message, true)
+			err := mb.SendIndexerMessage(ctx, tt.subject, tt.message, tt.sync)
 
 			if tt.wantErr {
 				assert.Error(t, err)
