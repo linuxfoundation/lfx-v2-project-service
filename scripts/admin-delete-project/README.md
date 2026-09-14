@@ -22,7 +22,7 @@ they are orphaned / no longer visible in the UI / created in error).
 3. **Deletes `projects/<uid>`** with `LastRevision` CAS — this is the authoritative
    ownership check. If the revision has changed since the audit (concurrent update),
    the run aborts here before any external side-effects.
-4. **Publishes indexer deletes** to NATS (synchronous request/reply by default),
+4. **Publishes indexer deletes** to NATS (fire-and-forget),
    *after* the CAS succeeds:
    - `lfx.index.project` with `{"action":"deleted","data":"<uid>"}`
    - `lfx.index.project_settings` with the same shape
@@ -45,8 +45,8 @@ they are orphaned / no longer visible in the UI / created in error).
 - **KV-CAS-first ordering.** The base KV record is deleted with CAS before any
   indexer publish. If the indexer is unhealthy, the base record will already
   be gone — re-run the script to retry the indexer publish (the missing KV
-  entry is skipped cleanly). Use `--sync=false` for fire-and-forget indexer
-  publishes (not recommended for production cleanups).
+  entry is skipped cleanly). Indexer publishes are always fire-and-forget;
+  the `--sync` flag is accepted but has no effect (see Delivery note below).
 
 ## Safety properties
 
@@ -62,9 +62,15 @@ they are orphaned / no longer visible in the UI / created in error).
 - **Idempotent.** Re-running after partial completion is safe — entries that
   are already gone are logged and skipped.
 - **CAS on base delete.** Won't clobber a concurrent update to `projects/<uid>`.
-- **Sync indexer publish (default).** We use NATS request/reply so we get an
-  ack from the indexer after the KV record is deleted. Disable with `--sync=false`
-  for fire-and-forget (not recommended for prod cleanups).
+- **Fire-and-forget indexer publish.** Indexer messages are always published
+  fire-and-forget via `conn.Publish` since `lfx-v2-indexer-service#68` migrated
+  the indexer to a JetStream durable consumer. The `--sync` flag is accepted
+  for backwards compatibility but has no effect. `conn.Publish` returns after
+  local buffering only — it does **not** confirm that the JetStream stream has
+  accepted the message. If confirmed indexer propagation is critical after a
+  destructive run, query OpenSearch directly to verify the project is absent.
+  The JetStream stream provides at-least-once delivery for messages it does
+  accept (durable consumer, exponential-backoff NAK on handler failure).
 - **Children are non-blocking.** Any `project_link`, `project_folder`, or
   `project_document` referencing the UID is reported but left in place; the
   delete still proceeds.
@@ -269,7 +275,7 @@ curl -s 'http://localhost:9200/resources/_search' \
 | `--uid` | _required, repeatable_ | Project UID to delete |
 | `--dry-run` | `true` | Audit + plan only; no writes. Pass `--dry-run=false` to execute. |
 | `--audit-file` | `./admin-delete-audit-<ts>.json` | Path for the rollback JSON file |
-| `--sync` | `true` | Synchronous indexer publish (request/reply) |
+| `--sync` | `true` | ~~Synchronous indexer publish~~ Accepted for backwards compatibility; has no effect — indexer publishes are always fire-and-forget |
 | `--skip-child-scan` | `false` | Skip scanning child KV buckets (use when children already verified absent) |
 | `--cascade-children` | `false` | Also delete child links/folders/documents (default: leave orphaned) |
 | `--verbose` | `false` | Verbose logging |

@@ -212,7 +212,7 @@ scripts/                # Scripts for services and miscellaneous tasks
 go install goa.design/goa/v3/cmd/goa@v3.22.6
 
 # Install linting tools
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 ```
 
 ### Common Development Tasks

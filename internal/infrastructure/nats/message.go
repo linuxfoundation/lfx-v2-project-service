@@ -4,12 +4,10 @@
 package nats
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
@@ -26,31 +24,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const defaultRequestTimeout = time.Second * 10
-
 // MessageBuilder is the builder for the message and sends it to the NATS server.
 type MessageBuilder struct {
 	NatsConn INatsConn
 }
 
-// sendMessage sends the message to the NATS server.
-func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data []byte, sync bool) error {
-	if sync {
-		reply, err := m.requestMessage(ctx, subject, data, defaultRequestTimeout)
-		if err != nil {
-			slog.ErrorContext(ctx, "error requesting message from NATS", constants.ErrKey, err, "subject", subject)
-			return err
-		}
-		if reply == nil || !bytes.Equal(reply.Data, []byte("OK")) {
-			err = fmt.Errorf("indexer did not acknowledge message")
-			slog.ErrorContext(ctx, "indexer did not acknowledge message", constants.ErrKey, err, "subject", subject)
-			return err
-		}
-		slog.DebugContext(ctx, "sent and received response from NATS synchronously", "subject", subject)
-		return nil
-	}
-
-	// Send message asynchronously.
+// sendMessage sends the message to the NATS server asynchronously (fire-and-forget).
+func (m *MessageBuilder) sendMessage(ctx context.Context, subject string, data []byte) error {
 	err := m.publishMessage(ctx, subject, data)
 	if err != nil {
 		slog.ErrorContext(ctx, "error sending message to NATS", constants.ErrKey, err, "subject", subject)
@@ -86,39 +66,6 @@ func (m *MessageBuilder) publishMessage(ctx context.Context, subject string, dat
 	return nil
 }
 
-// requestMessage requests a message from NATS synchronously with an OTel client span.
-func (m *MessageBuilder) requestMessage(ctx context.Context, subject string, data []byte, timeout time.Duration) (*nats.Msg, error) {
-	if timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-		defer cancel()
-	}
-
-	ctx, span := tracer.Start(ctx, "nats.request",
-		trace.WithSpanKind(trace.SpanKindClient),
-		trace.WithAttributes(
-			attribute.String("messaging.system", "nats"),
-			attribute.String("messaging.destination.name", subject),
-			attribute.Int("messaging.message.body.size", len(data)),
-		),
-	)
-	defer span.End()
-
-	msg := nats.NewMsg(subject)
-	msg.Header = make(nats.Header)
-	msg.Data = data
-	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(msg.Header))
-
-	reply, err := m.NatsConn.RequestMsgWithContext(ctx, msg)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		return nil, err
-	}
-	span.SetStatus(codes.Ok, "")
-	return reply, nil
-}
-
 // sendIndexerMessage sends the message to the NATS server for the indexer.
 func (m *MessageBuilder) sendIndexerMessage(
 	ctx context.Context,
@@ -127,7 +74,6 @@ func (m *MessageBuilder) sendIndexerMessage(
 	data []byte,
 	tags []string,
 	indexingConfig *indexerTypes.IndexingConfig,
-	sync bool,
 ) error {
 	headers := make(map[string]string)
 	if authorization, ok := ctx.Value(constants.AuthorizationContextID).(string); ok {
@@ -183,11 +129,19 @@ func (m *MessageBuilder) sendIndexerMessage(
 
 	slog.DebugContext(ctx, "constructed indexer message", "subject", subject, "action", action)
 
-	return m.sendMessage(ctx, subject, messageBytes, sync)
+	return m.sendMessage(ctx, subject, messageBytes)
 }
 
 // SendIndexerMessage sends indexer messages to NATS for search indexing.
-func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message interface{}, sync bool) error {
+// The sync flag is intentionally ignored: the indexer now consumes messages
+// from a JetStream durable stream (lfx-v2-indexer-service#68). Under JetStream
+// with AckExplicitPolicy, msg.Ack() sends to the internal $JS.ACK... address —
+// not the original publisher reply inbox — so conn.RequestMsgWithContext callers
+// would receive a PubAck JSON (not "OK") and then fail with "indexer did not
+// acknowledge message". Messages are always published fire-and-forget; delivery
+// guarantees are provided by the JetStream stream (durable, at-least-once,
+// exponential-backoff NAK on handler failure).
+func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string, message interface{}, _ bool) error {
 	switch msg := message.(type) {
 	case indexerTypes.IndexerMessageEnvelope:
 		var dataBytes []byte
@@ -212,11 +166,11 @@ func (m *MessageBuilder) SendIndexerMessage(ctx context.Context, subject string,
 				return err
 			}
 		}
-		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, msg.IndexingConfig, sync)
+		return m.sendIndexerMessage(ctx, subject, msg.Action, dataBytes, msg.Tags, msg.IndexingConfig)
 
 	case string:
 		// For delete operations, the message is just the UID string
-		return m.sendIndexerMessage(ctx, subject, indexerConstants.ActionDeleted, []byte(msg), nil, nil, sync)
+		return m.sendIndexerMessage(ctx, subject, indexerConstants.ActionDeleted, []byte(msg), nil, nil)
 
 	default:
 		slog.ErrorContext(ctx, "unsupported indexer message type", "type", fmt.Sprintf("%T", message))
@@ -231,7 +185,7 @@ func (m *MessageBuilder) PublishAccessMessage(ctx context.Context, subject strin
 		slog.ErrorContext(ctx, "error marshalling FGA message into JSON", constants.ErrKey, err)
 		return err
 	}
-	return m.sendMessage(ctx, subject, messageBytes, false)
+	return m.sendMessage(ctx, subject, messageBytes)
 }
 
 // SendProjectEventMessage sends project event messages to NATS asynchronously.

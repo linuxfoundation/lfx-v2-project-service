@@ -8,12 +8,29 @@ This document is the authoritative reference for all data the project service se
 
 ## Delivery and Acknowledgement
 
-Indexer messages may be published asynchronously or with synchronous
-request/reply. In synchronous mode, the publisher accepts only the exact `OK`
-response body as successful acknowledgement. A nil, empty, or otherwise
-different response is treated as a generic negative acknowledgement.
+Indexer messages are always published **fire-and-forget** via `conn.Publish`.
+The `sync bool` parameter in `SendIndexerMessage` no longer controls the NATS
+delivery mode — it is always treated as `false` at the NATS layer, so no
+request/reply handshake is attempted. The service layer may still use the flag
+to decide whether to call `SendIndexerMessage` inline or from a background
+goroutine (for example, link/folder/document operations branch on it for their
+own error-reporting strategy), but either path results in a fire-and-forget
+`conn.Publish` at the transport layer.
 
-Errors and logs do not include the raw response body.
+**Why:** `lfx-v2-indexer-service#68` migrated the indexer from core NATS
+`QueueSubscribeWithReply` to a JetStream durable consumer. Under JetStream with
+`AckExplicitPolicy`, `msg.Ack()` sends to the internal `$JS.ACK...` address —
+not the original publisher reply inbox — so `conn.RequestMsgWithContext` callers
+would receive a JetStream `PubAck` JSON response (not `"OK"`) and fail.
+
+Delivery guarantees are provided by the JetStream stream on the indexer side.
+The stream uses a `limits` retention policy (time- and size-based), so messages
+are retained up to 24 h or 10 GiB — whichever is reached first — regardless of
+ACK state. The consumer is configured with `MaxDeliver: 5` and `AckWait: 30s`,
+so a persistently failing message is given up after approximately 5 redelivery
+attempts (~2.5 min of NAK backoff), not after the full stream age limit.
+
+Errors and logs do not include the raw message payload.
 
 ---
 

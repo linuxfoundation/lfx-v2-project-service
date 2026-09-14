@@ -1,0 +1,16 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+
+# golangci-lint v2 configuration.
+version: "2"
+
+linters:
+  exclusions:
+    rules:
+      # scripts/project-logo-file-conversion imports AWS SDK packages (s3,
+      # checksum) that require network access to resolve in some environments
+      # (e.g. the MegaLinter Docker image returns INTERNAL_ERROR from the Go
+      # module proxy). Suppress typecheck failures there so they do not break
+      # CI; compile coverage is provided by `go test ./...` in the build workflow.
+      - path: ^scripts/project-logo-file-conversion/
+        linters: [typecheck]

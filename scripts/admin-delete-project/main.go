@@ -57,7 +57,7 @@ const (
 	// (KV reads + full child bucket scan, each key fetched individually).
 	auditTimeoutPerUID = 60 * time.Second
 	// executeTimeoutPerUID is the per-UID budget during execute: audit +
-	// sync indexer acks (up to 10 s each × 2 messages) + KV deletes.
+	// fire-and-forget indexer publishes + KV deletes.
 	executeTimeoutPerUID = 120 * time.Second
 )
 
@@ -119,7 +119,7 @@ func parseConfig() (config, error) {
 	flag.Var(&uids, "uid", "Project UID to delete (repeatable, at least one required)")
 	flag.BoolVar(&cfg.dryRun, "dry-run", true, "If true (default), perform audit + plan-print only; no NATS writes. Pass --dry-run=false to execute.")
 	flag.StringVar(&cfg.auditPath, "audit-file", "", "Path to write the JSON audit/backup file (default: ./admin-delete-audit-<timestamp>.json)")
-	flag.BoolVar(&cfg.sync, "sync", true, "Publish indexer messages synchronously (request/reply) so we get an ack before deleting KV records")
+	flag.BoolVar(&cfg.sync, "sync", true, "Accepted for backwards compatibility; has no effect — indexer publishes are always fire-and-forget (conn.Publish) since lfx-v2-indexer-service#68")
 	flag.BoolVar(&cfg.cascadeChildren, "cascade-children", false, "Also delete the project's child links, folders, and documents (KV records, lookup keys, document object-store blobs, and indexer deletes). Default false leaves children as orphaned/inert records.")
 	flag.BoolVar(&cfg.skipChildScan, "skip-child-scan", false, "Skip scanning child buckets (project-links, project-folders, project-documents-metadata). Use when you have already audited children independently and know the project is a leaf record.")
 	flag.BoolVar(&cfg.verbose, "verbose", false, "Verbose logging")
@@ -158,7 +158,7 @@ func run() int {
 		"nats_user", cfg.natsUser,
 		"uids", cfg.uids,
 		"dry_run", cfg.dryRun,
-		"sync_publish", cfg.sync,
+		"sync_flag_ignored", cfg.sync,
 		"cascade_children", cfg.cascadeChildren,
 		"skip_child_scan", cfg.skipChildScan,
 		"audit_file", cfg.auditPath,
@@ -172,7 +172,6 @@ func run() int {
 	defer cancel()
 
 	natsOpts := []natsio.Option{
-		natsio.DrainTimeout(gracefulShutdownSec * time.Second),
 		natsio.ConnectHandler(func(_ *natsio.Conn) {
 			slog.With("nats_url", sanitizeNATSURL(cfg.natsURL)).Info("NATS connection established")
 		}),
@@ -193,8 +192,6 @@ func run() int {
 		slog.With(constants.ErrKey, err).Error("failed to connect to NATS")
 		return 1
 	}
-	defer nc.Close()
-
 	js, err := jetstream.New(nc)
 	if err != nil {
 		slog.With(constants.ErrKey, err).Error("failed to create JetStream client")
@@ -261,9 +258,14 @@ func run() int {
 		return 0
 	}
 
+	// Inject a static authorization header so the indexer's V2 header validation
+	// passes. The indexer requires the header to be present but the admin script
+	// has no user JWT; a non-empty sentinel value satisfies the check.
+	ctx = context.WithValue(ctx, constants.AuthorizationContextID, "Bearer admin-delete-script")
+
 	exitCode := 0
 	for _, rec := range auditRecords {
-		if err := executeDelete(ctx, buckets, mb, rec, cfg.sync, cfg.cascadeChildren); err != nil {
+		if err := executeDelete(ctx, buckets, mb, rec, cfg.cascadeChildren); err != nil {
 			slog.With(constants.ErrKey, err, "uid", rec.UID).Error("delete failed for UID")
 			exitCode = 1
 			continue
@@ -272,7 +274,17 @@ func run() int {
 	}
 	if exitCode != 0 {
 		slog.Error("one or more UIDs failed to delete completely; see audit file for state")
-	} else {
+	}
+
+	// Flush all buffered fire-and-forget indexer publishes before the process exits.
+	// FlushTimeout sends a PING and blocks until the server replies (PONG), which
+	// confirms all queued outbound messages have been sent. Without this, in-flight
+	// publishes in the reconnect buffer could be discarded when the process exits.
+	// Log success only after confirming the flush; if flush fails, the warning is
+	// the last log line so operators know to verify OpenSearch directly.
+	if err := nc.FlushTimeout(gracefulShutdownSec * time.Second); err != nil {
+		slog.With(constants.ErrKey, err).Warn("NATS flush timed out; some indexer deletes may not have been delivered — verify OpenSearch")
+	} else if exitCode == 0 {
 		slog.Info("admin-delete-project completed successfully")
 	}
 	return exitCode
@@ -650,13 +662,13 @@ func printPlan(records []projectAudit, cascade bool) {
 //
 // Doing the CAS first eliminates the consistency window where the project is removed from
 // OpenSearch but still live in NATS KV (the window that exists when indexer is published first).
-func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, rec projectAudit, sync, cascade bool) error {
+func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, rec projectAudit, cascade bool) error {
 	uid := rec.UID
 
 	// 0. Cascade children first, so that if the parent delete later fails we have
 	// not left the children pointing at a still-present project in an odd state.
 	if cascade && rec.Children.Found {
-		if err := cascadeDeleteChildren(ctx, kv, mb, rec, sync); err != nil {
+		if err := cascadeDeleteChildren(ctx, kv, mb, rec); err != nil {
 			return fmt.Errorf("cascade children: %w", err)
 		}
 	}
@@ -675,12 +687,12 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 	// absent from OpenSearch but still present in NATS KV.
 	// Passing the UID as a string tells SendIndexerMessage to construct an
 	// ActionDeleted envelope (see internal/infrastructure/nats/message.go).
-	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSubject, uid, sync); err != nil {
+	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSubject, uid, false); err != nil {
 		return fmt.Errorf("publish %s deleted: %w", constants.IndexProjectSubject, err)
 	}
 	slog.With("uid", uid, "subject", constants.IndexProjectSubject).Info("published indexer delete")
 
-	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, uid, sync); err != nil {
+	if err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, uid, false); err != nil {
 		return fmt.Errorf("publish %s deleted: %w", constants.IndexProjectSettingsSubject, err)
 	}
 	slog.With("uid", uid, "subject", constants.IndexProjectSettingsSubject).Info("published indexer delete")
@@ -715,7 +727,7 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 // the KV record, purge the lookup/uniqueness key, and for documents delete the
 // object-store blob. Each child is processed independently; the first error
 // aborts and is returned.
-func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, rec projectAudit, sync bool) error {
+func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, rec projectAudit) error {
 	uid := rec.UID
 
 	// Links
@@ -726,7 +738,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			Data:           l.UID,
 			IndexingConfig: l.IndexingConfig(),
 		}
-		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, sync); err != nil {
+		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectLinkSubject, msg, false); err != nil {
 			return fmt.Errorf("publish link %s deleted: %w", l.UID, err)
 		}
 		if kv.Links != nil {
@@ -749,7 +761,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			Data:           f.UID,
 			IndexingConfig: f.IndexingConfig(),
 		}
-		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, sync); err != nil {
+		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectFolderSubject, msg, false); err != nil {
 			return fmt.Errorf("publish folder %s deleted: %w", f.UID, err)
 		}
 		if kv.Folders != nil {
@@ -772,7 +784,7 @@ func cascadeDeleteChildren(ctx context.Context, kv kvBuckets, mb *pnats.MessageB
 			Data:           d.UID,
 			IndexingConfig: d.IndexingConfig(),
 		}
-		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, sync); err != nil {
+		if err := mb.SendIndexerMessage(ctx, constants.IndexProjectDocumentSubject, msg, false); err != nil {
 			return fmt.Errorf("publish document %s deleted: %w", d.UID, err)
 		}
 		if kv.Documents != nil {

@@ -38,11 +38,16 @@ import (
 // to satisfy the gocritic unlambda linter rule
 var backgroundCtx = context.Background
 
-func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
+// TestMessageBuilder_SendIndexerMessage verifies that SendIndexerMessage always
+// publishes fire-and-forget via conn.Publish regardless of the sync argument.
+// Since lfx-v2-indexer-service#68 migrated the indexer to JetStream, conn.Request()
+// would receive a PubAck (not "OK") and fail; the sync parameter is now ignored.
+func TestMessageBuilder_SendIndexerMessage(t *testing.T) {
 	tests := []struct {
 		name        string
 		subject     string
 		message     interface{}
+		sync        bool
 		setupMocks  func(*MockNATSConn)
 		setupCtx    func() context.Context
 		wantErr     bool
@@ -51,6 +56,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send project indexer message",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test-project", Name: "test", Slug: "test"},
@@ -80,6 +86,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send project settings indexer message",
 			subject: constants.IndexProjectSettingsSubject,
+			sync:    false,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionUpdated,
 				Data:   models.ProjectSettings{UID: "test-settings", MissionStatement: "test mission"},
@@ -96,6 +103,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "successful send delete message",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: "test-uid-to-delete",
 			setupMocks: func(mockConn *MockNATSConn) {
 				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
@@ -108,6 +116,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "unsupported message type",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: 123, // Invalid type
 			setupMocks: func(mockConn *MockNATSConn) {
 				// No publish expected
@@ -118,6 +127,7 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 		{
 			name:    "nats publish error",
 			subject: constants.IndexProjectSubject,
+			sync:    false,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test"},
@@ -131,58 +141,18 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 			setupCtx: backgroundCtx,
 			wantErr:  true,
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			tt.setupMocks(mockConn)
-
-			mb := &MessageBuilder{
-				NatsConn: mockConn,
-			}
-
-			ctx := tt.setupCtx()
-			err := mb.SendIndexerMessage(ctx, tt.subject, tt.message, false)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			mockConn.AssertExpectations(t)
-		})
-	}
-}
-
-func setupIndexerReply(reply *nats.Msg, err error) func(*MockNATSConn) {
-	return func(mockConn *MockNATSConn) {
-		mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
-			Return(reply, err)
-	}
-}
-
-func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
-	tests := []struct {
-		name        string
-		subject     string
-		message     interface{}
-		setupMocks  func(*MockNATSConn)
-		setupCtx    func() context.Context
-		wantErr     bool
-		expectedErr error
-	}{
+		// sync=true cases: verify the flag is ignored and PublishMsg is still used.
 		{
-			name:    "successful sync send project indexer message",
+			name:    "sync=true: project indexer message publishes fire-and-forget",
 			subject: constants.IndexProjectSubject,
+			sync:    true,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test-project", Name: "test", Slug: "test"},
 				Tags:   []string{"test-project", "test"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
 					if msg.Subject != constants.IndexProjectSubject {
 						return false
 					}
@@ -192,7 +162,7 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 						return false
 					}
 					return m.Action == indexerConstants.ActionCreated
-				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
+				})).Return(nil)
 			},
 			setupCtx: func() context.Context {
 				ctx := context.Background()
@@ -203,44 +173,50 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "successful sync send project settings indexer message",
+			name:    "sync=true: project settings indexer message publishes fire-and-forget",
 			subject: constants.IndexProjectSettingsSubject,
+			sync:    true,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionUpdated,
 				Data:   models.ProjectSettings{UID: "test-settings", MissionStatement: "test mission"},
 				Tags:   []string{"test-settings", "test mission"},
 			},
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
 					return msg.Subject == constants.IndexProjectSettingsSubject
-				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
+				})).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
-			name:    "successful sync send delete message",
+			name:    "sync=true: delete message publishes fire-and-forget",
 			subject: constants.IndexProjectSubject,
+			sync:    true,
 			message: "test-uid-to-delete",
 			setupMocks: func(mockConn *MockNATSConn) {
-				mockConn.On("RequestMsgWithContext", mock.Anything, mock.MatchedBy(func(msg *nats.Msg) bool {
+				mockConn.On("PublishMsg", mock.MatchedBy(func(msg *nats.Msg) bool {
 					return msg.Subject == constants.IndexProjectSubject
-				})).Return(&nats.Msg{Data: []byte("OK")}, nil)
+				})).Return(nil)
 			},
 			setupCtx: backgroundCtx,
 			wantErr:  false,
 		},
 		{
-			name:    "nats request error - sync mode",
+			name:    "sync=true: nats publish error propagates",
 			subject: constants.IndexProjectSubject,
+			sync:    true,
 			message: indexerTypes.IndexerMessageEnvelope{
 				Action: indexerConstants.ActionCreated,
 				Data:   models.ProjectBase{UID: "test"},
 				Tags:   []string{"test"},
 			},
-			setupMocks: setupIndexerReply(nil, errors.New("nats request timeout")),
-			setupCtx:   backgroundCtx,
-			wantErr:    true,
+			setupMocks: func(mockConn *MockNATSConn) {
+				mockConn.On("PublishMsg", mock.AnythingOfType("*nats.Msg")).
+					Return(errors.New("nats publish error"))
+			},
+			setupCtx: backgroundCtx,
+			wantErr:  true,
 		},
 	}
 
@@ -254,7 +230,7 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 			}
 
 			ctx := tt.setupCtx()
-			err := mb.SendIndexerMessage(ctx, tt.subject, tt.message, true)
+			err := mb.SendIndexerMessage(ctx, tt.subject, tt.message, tt.sync)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -266,76 +242,37 @@ func TestMessageBuilder_PublishIndexerMessage_Sync(t *testing.T) {
 		})
 	}
 
-	acknowledgementTests := []struct {
-		name  string
-		reply *nats.Msg
-	}{
-		{name: "indexer error", reply: &nats.Msg{Data: []byte("ERROR: indexing failed")}},
-		{name: "empty response", reply: &nats.Msg{}},
-		{name: "unexpected response", reply: &nats.Msg{Data: []byte("ack")}},
-		{name: "case variant", reply: &nats.Msg{Data: []byte("ok")}},
-		{name: "whitespace padded", reply: &nats.Msg{Data: []byte(" OK ")}},
-		{name: "nil response"},
-	}
-
-	for _, tt := range acknowledgementTests {
-		t.Run("rejects "+tt.name, func(t *testing.T) {
-			mockConn := &MockNATSConn{}
-			setupIndexerReply(tt.reply, nil)(mockConn)
-			mb := &MessageBuilder{NatsConn: mockConn}
-			message := indexerTypes.IndexerMessageEnvelope{
-				Action: indexerConstants.ActionCreated,
-				Data:   models.ProjectBase{UID: "test-project"},
-			}
-
-			err := mb.SendIndexerMessage(context.Background(), constants.IndexProjectSubject, message, true)
-			require.Error(t, err)
-			mockConn.AssertExpectations(t)
-		})
-	}
-
+	// Verify that Authorization tokens and raw message payloads never appear in
+	// log output or error messages. docs/indexer-contract.md states: "Errors and
+	// logs do not include the raw message payload."
 	t.Run("logs exclude sensitive indexer content", func(t *testing.T) {
-		const (
-			payloadSentinel       = "payload-secret-sentinel"
-			configSentinel        = "config-secret-sentinel"
-			authorizationSentinel = "authorization-secret-sentinel"
-			replySentinel         = "reply-secret-sentinel"
-		)
-
-		var logs bytes.Buffer
-		previousLogger := slog.Default()
-		slog.SetDefault(slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug})))
-		t.Cleanup(func() {
-			slog.SetDefault(previousLogger)
-		})
+		var buf bytes.Buffer
+		oldDefault := slog.Default()
+		t.Cleanup(func() { slog.SetDefault(oldDefault) })
+		slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
 
 		mockConn := &MockNATSConn{}
-		mockConn.On("RequestMsgWithContext", mock.Anything, mock.AnythingOfType("*nats.Msg")).
-			Return(&nats.Msg{Data: []byte("ERROR: " + replySentinel)}, nil)
+		mockConn.On("PublishMsg", mock.AnythingOfType("*nats.Msg")).Return(errors.New("nats error"))
 
 		mb := &MessageBuilder{NatsConn: mockConn}
-		ctx := context.WithValue(context.Background(), constants.AuthorizationContextID, "Bearer "+authorizationSentinel)
-		message := indexerTypes.IndexerMessageEnvelope{
-			Action: indexerConstants.ActionUpdated,
-			Data: models.ProjectSettings{
-				UID:              "00000000-0000-0000-0000-000000000001",
-				MissionStatement: payloadSentinel,
-			},
-			IndexingConfig: &indexerTypes.IndexingConfig{ObjectID: configSentinel},
+
+		sensitiveToken := "Bearer super-secret-token-do-not-log"
+		sensitivePayload := "ultra-sensitive-mission-statement-do-not-log"
+
+		ctx := context.WithValue(context.Background(), constants.AuthorizationContextID, sensitiveToken)
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action: indexerConstants.ActionCreated,
+			Data:   models.ProjectSettings{UID: "00000000-0000-0000-0000-000000000001", MissionStatement: sensitivePayload},
+			Tags:   []string{"00000000-0000-0000-0000-000000000001"},
 		}
-
-		err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, message, true)
+		err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, false)
 		require.Error(t, err)
-		assert.NotContains(t, err.Error(), replySentinel)
 
-		output := logs.String()
-		assert.Contains(t, output, "subject="+constants.IndexProjectSettingsSubject)
-		assert.Contains(t, output, "action=updated")
-		assert.Contains(t, output, "indexer did not acknowledge message")
-		assert.NotContains(t, output, payloadSentinel)
-		assert.NotContains(t, output, configSentinel)
-		assert.NotContains(t, output, authorizationSentinel)
-		assert.NotContains(t, output, replySentinel)
+		logOutput := buf.String()
+		assert.NotContains(t, logOutput, sensitiveToken, "Authorization token must not appear in logs")
+		assert.NotContains(t, logOutput, sensitivePayload, "message payload must not appear in logs")
+		assert.NotContains(t, err.Error(), sensitiveToken, "Authorization token must not appear in error message")
+		assert.NotContains(t, err.Error(), sensitivePayload, "message payload must not appear in error message")
 		mockConn.AssertExpectations(t)
 	})
 }
