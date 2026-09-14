@@ -193,8 +193,6 @@ func run() int {
 		slog.With(constants.ErrKey, err).Error("failed to connect to NATS")
 		return 1
 	}
-	defer func() { _ = nc.Drain() }()
-
 	js, err := jetstream.New(nc)
 	if err != nil {
 		slog.With(constants.ErrKey, err).Error("failed to create JetStream client")
@@ -279,6 +277,14 @@ func run() int {
 		slog.Error("one or more UIDs failed to delete completely; see audit file for state")
 	} else {
 		slog.Info("admin-delete-project completed successfully")
+	}
+
+	// Flush all buffered fire-and-forget indexer publishes before the process exits.
+	// nc.Drain() is non-blocking (starts a goroutine and returns immediately), so we
+	// use FlushTimeout to synchronously drain the outbound buffer within the same
+	// graceful-shutdown budget used for the drain timeout.
+	if err := nc.FlushTimeout(gracefulShutdownSec * time.Second); err != nil {
+		slog.With(constants.ErrKey, err).Warn("NATS flush timed out; some indexer deletes may not have been delivered")
 	}
 	return exitCode
 }

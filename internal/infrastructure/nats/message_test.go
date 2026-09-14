@@ -38,11 +38,11 @@ import (
 // to satisfy the gocritic unlambda linter rule
 var backgroundCtx = context.Background
 
-// TestMessageBuilder_PublishIndexerMessage verifies that SendIndexerMessage always
+// TestMessageBuilder_SendIndexerMessage verifies that SendIndexerMessage always
 // publishes fire-and-forget via conn.Publish regardless of the sync argument.
 // Since lfx-v2-indexer-service#68 migrated the indexer to JetStream, conn.Request()
 // would receive a PubAck (not "OK") and fail; the sync parameter is now ignored.
-func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
+func TestMessageBuilder_SendIndexerMessage(t *testing.T) {
 	tests := []struct {
 		name        string
 		subject     string
@@ -241,6 +241,40 @@ func TestMessageBuilder_PublishIndexerMessage(t *testing.T) {
 			mockConn.AssertExpectations(t)
 		})
 	}
+
+	// Verify that Authorization tokens and raw message payloads never appear in
+	// log output or error messages. docs/indexer-contract.md states: "Errors and
+	// logs do not include the raw message payload."
+	t.Run("logs exclude sensitive indexer content", func(t *testing.T) {
+		var buf bytes.Buffer
+		oldDefault := slog.Default()
+		t.Cleanup(func() { slog.SetDefault(oldDefault) })
+		slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+
+		mockConn := &MockNATSConn{}
+		mockConn.On("PublishMsg", mock.AnythingOfType("*nats.Msg")).Return(errors.New("nats error"))
+
+		mb := &MessageBuilder{NatsConn: mockConn}
+
+		sensitiveToken := "Bearer super-secret-token-do-not-log"
+		sensitivePayload := "ultra-sensitive-mission-statement-do-not-log"
+
+		ctx := context.WithValue(context.Background(), constants.AuthorizationContextID, sensitiveToken)
+		msg := indexerTypes.IndexerMessageEnvelope{
+			Action: indexerConstants.ActionCreated,
+			Data:   models.ProjectSettings{UID: "00000000-0000-0000-0000-000000000001", MissionStatement: sensitivePayload},
+			Tags:   []string{"00000000-0000-0000-0000-000000000001"},
+		}
+		err := mb.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, msg, false)
+		require.Error(t, err)
+
+		logOutput := buf.String()
+		assert.NotContains(t, logOutput, sensitiveToken, "Authorization token must not appear in logs")
+		assert.NotContains(t, logOutput, sensitivePayload, "message payload must not appear in logs")
+		assert.NotContains(t, err.Error(), sensitiveToken, "Authorization token must not appear in error message")
+		assert.NotContains(t, err.Error(), sensitivePayload, "message payload must not appear in error message")
+		mockConn.AssertExpectations(t)
+	})
 }
 
 // matchFGAEnvelope builds a mock.MatchedBy predicate asserting that a published
