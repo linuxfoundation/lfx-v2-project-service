@@ -75,7 +75,7 @@ deps:
 	go install goa.design/goa/v3/cmd/goa@$(GOA_VERSION)
 	@command -v golangci-lint >/dev/null 2>&1 || { \
 		echo "==> Installing golangci-lint..."; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest; \
 	}
 	@if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then \
 		git config --local core.hooksPath .githooks || { echo "ERROR: git config failed"; exit 1; }; \

@@ -23,10 +23,12 @@ own error-reporting strategy), but either path results in a fire-and-forget
 not the original publisher reply inbox — so `conn.RequestMsgWithContext` callers
 would receive a JetStream `PubAck` JSON response (not `"OK"`) and fail.
 
-Delivery guarantees are provided by the JetStream stream on the indexer side:
-messages are retained until ACKed, with exponential-backoff NAK on handler
-failure. The effective give-up deadline is the stream's age limit (24 h) or
-size limit (10 GiB), whichever is reached first.
+Delivery guarantees are provided by the JetStream stream on the indexer side.
+The stream uses a `limits` retention policy (time- and size-based), so messages
+are retained up to 24 h or 10 GiB — whichever is reached first — regardless of
+ACK state. The consumer is configured with `MaxDeliver: 5` and `AckWait: 30s`,
+so a persistently failing message is given up after approximately 5 redelivery
+attempts (~2.5 min of NAK backoff), not after the full stream age limit.
 
 Errors and logs do not include the raw message payload.
 
