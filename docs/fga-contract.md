@@ -27,9 +27,9 @@ Each message carries `object_type`, `operation`, and a `data` map. The sections 
 
 ### Delivery Semantics
 
-Project create, base update, and settings update publish `lfx.fga-sync.update_access` asynchronously. For those operations, `X-Sync` influences whether the indexer publish is inline or in a background goroutine; it does not imply request/reply delivery (see `docs/indexer-contract.md`) and it does not wait for FGA processing or OpenFGA convergence.
+Project create, base update, and settings update publish `lfx.fga-sync.update_access` asynchronously. For those operations, `X-Sync` no longer changes indexer behavior: `CreateProject`, both update methods, and `DeleteProject` always call `SendIndexerMessage` inside an `errgroup` and `g.Wait()` regardless of `X-Sync`, and `SendIndexerMessage` now ignores the sync flag (always `conn.Publish`). `X-Sync` does not wait for FGA processing or OpenFGA convergence.
 
-Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-Sync` continues to influence both project indexer deletion publishes (inline vs. goroutine), but it does not imply request/reply delivery and it does not wait for FGA deletion processing or OpenFGA convergence.
+Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-Sync` has no effect on project indexer deletion behavior and does not wait for FGA deletion processing or OpenFGA convergence. (For link, folder, and document sub-resources, `X-Sync` still controls whether the publish error is surfaced inline or swallowed in a background goroutine — but the NATS delivery is always fire-and-forget either way.)
 
 ---
 

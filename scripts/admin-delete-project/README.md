@@ -63,10 +63,14 @@ they are orphaned / no longer visible in the UI / created in error).
   are already gone are logged and skipped.
 - **CAS on base delete.** Won't clobber a concurrent update to `projects/<uid>`.
 - **Fire-and-forget indexer publish.** Indexer messages are always published
-  fire-and-forget since `lfx-v2-indexer-service#68` migrated the indexer to a
-  JetStream durable consumer. The `--sync` flag is accepted for backwards
-  compatibility but has no effect. Delivery is guaranteed by the JetStream
-  stream (durable, at-least-once, exponential-backoff NAK on failure).
+  fire-and-forget via `conn.Publish` since `lfx-v2-indexer-service#68` migrated
+  the indexer to a JetStream durable consumer. The `--sync` flag is accepted
+  for backwards compatibility but has no effect. `conn.Publish` returns after
+  local buffering only — it does **not** confirm that the JetStream stream has
+  accepted the message. If confirmed indexer propagation is critical after a
+  destructive run, query OpenSearch directly to verify the project is absent.
+  The JetStream stream provides at-least-once delivery for messages it does
+  accept (durable consumer, exponential-backoff NAK on handler failure).
 - **Children are non-blocking.** Any `project_link`, `project_folder`, or
   `project_document` referencing the UID is reported but left in place; the
   delete still proceeds.
