@@ -40,6 +40,7 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	update := fs.Bool("update", false, "publish indexer messages (default is preview-only)")
 	concurrency := fs.Int("concurrency", env.GetInt("CONCURRENCY", 50), "max concurrent project republishes")
 	all := fs.Bool("all", false, "republish every project regardless of OpenSearch state, skipping the diff")
+	force := fs.Bool("force", false, "with --project-uid, skip the OpenSearch diff and unconditionally republish that project")
 	includeAccess := fs.Bool("include-access", false, "also republish the FGA access message")
 	if err := fs.Parse(rc.Args); err != nil {
 		if err == flag.ErrHelp {
@@ -54,6 +55,9 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 	uid := strings.TrimSpace(*projectUID)
 	if *all && uid != "" {
 		return fmt.Errorf("--all and --project-uid are mutually exclusive")
+	}
+	if *force && uid == "" {
+		return fmt.Errorf("--force requires --project-uid")
 	}
 	if *concurrency < 1 {
 		return fmt.Errorf("concurrency must be at least 1")
@@ -73,8 +77,9 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 		return fmt.Errorf("open repository: %w", err)
 	}
 
+	skipDiff := *all || *force
 	var osClient *opensearchgo.Client
-	if !*all {
+	if !skipDiff {
 		osClient, err = osinfra.NewClient(ctx, rc.OpenSearchConfig)
 		if err != nil {
 			return err
@@ -85,6 +90,7 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 		"concurrency", *concurrency,
 		"update", *update,
 		"all", *all,
+		"force", *force,
 		"include_access", *includeAccess,
 		"opensearch_url", redactURL(rc.OpenSearchConfig.URL),
 		"nats_url", redactURL(rc.NATSConfig.URL),
@@ -99,6 +105,7 @@ func (s *reindexProjectsSubcommand) Run(ctx context.Context, rc commands.RunCont
 		publisher:     &natsinfra.MessageBuilder{NatsConn: natsConn},
 		dryRun:        rc.DryRun,
 		all:           *all,
+		force:         *force,
 		includeAccess: *includeAccess,
 		concurrency:   *concurrency,
 		stats:         stats,

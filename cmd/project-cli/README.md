@@ -153,8 +153,8 @@ The hidden `ROOT` project (used for team permission assignment) is excluded from
 scans, including `--all`, since it must not appear in the search index. Passing
 `--project-uid` with its UID explicitly still reindexes it.
 
-Connects to both NATS and OpenSearch at the start of `Run()`, unless `--all` is set (see
-below).
+Connects to NATS at the start of `Run()`. Connects to OpenSearch unless `--all` or
+`--force` is set (see below).
 
 **Subcommand flags**
 
@@ -164,7 +164,8 @@ below).
 | `--project-uid` | `""` | Limit to a single project UID (default all) |
 | `--concurrency` | `50` | Max concurrent project republishes |
 | `--all` | `false` | Republish every project regardless of OpenSearch state, skipping the diff and the OpenSearch connection entirely; the `ROOT` project is still excluded |
-| `--include-access` | `false` | Also republish the FGA access message. Fires only for projects with at least one missing OpenSearch document, or when combined with `--all` |
+| `--force` | `false` | Requires `--project-uid`. Skips the OpenSearch diff for that one project and unconditionally republishes it, even if its documents already exist (e.g. to repair stale field data such as a mismatched `slug`) |
+| `--include-access` | `false` | Also republish the FGA access message. Fires only for projects with at least one missing OpenSearch document, or when combined with `--all` or `--force` |
 
 **Exit code:** `0` on success, `1` on failure.
 
@@ -176,10 +177,17 @@ Preview which documents are missing across all projects:
 go run ./cmd/project-cli sync reindex-projects
 ```
 
-Repair a single project:
+Repair a single project (only republishes documents confirmed missing from OpenSearch):
 
 ```sh
 go run ./cmd/project-cli sync reindex-projects --project-uid=<uid> --update
+```
+
+Force-repair a single project even though its OpenSearch document already exists, e.g. to
+fix a stale/incorrect field such as `slug`:
+
+```sh
+go run ./cmd/project-cli sync reindex-projects --project-uid=<uid> --force --update
 ```
 
 Force a full republish of every project, bypassing the OpenSearch diff:
