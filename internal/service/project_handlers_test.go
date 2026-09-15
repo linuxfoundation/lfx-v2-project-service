@@ -1105,6 +1105,10 @@ func TestProjectsService_HandleProjectListProjects(t *testing.T) {
 }
 
 func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
+	// HandleMessage must not panic on any error path and, when the error is a
+	// known domain sentinel, must reply with a structured JSON RPCError body
+	// encoding the correct error code so callers can discriminate not-found
+	// from transient/internal failures.
 
 	ctx := context.Background()
 
@@ -1114,6 +1118,9 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 		subject      string
 		messageData  []byte
 		description  string
+		// wantErrCode, when non-empty, asserts that the reply payload is a
+		// valid JSON RPCError encoding this specific error code.
+		wantErrCode events.RPCErrorCode
 	}{
 		{
 			name: "service not ready",
@@ -1153,74 +1160,89 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
 			description: "should handle repository errors gracefully",
 		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			service := tt.setupService()
-
-			mockMsg := newMockMessage(tt.subject, tt.messageData)
-			mockMsg.On("Respond", mock.Anything).Return(nil)
-
-			// Should not panic
-			assert.NotPanics(t, func() {
-				service.HandleMessage(ctx, mockMsg)
-			})
-
-			if mockRepo, ok := service.ProjectRepository.(*domainmocks.MockProjectRepository); ok {
-				mockRepo.AssertExpectations(t)
-			}
-		})
-	}
-}
-
-func TestProjectsService_HandleMessage_ErrorDiscrimination(t *testing.T) {
-	// HandleMessage must reply with a JSON RPCError body that carries
-	// "not_found" for ErrProjectNotFound and "internal" for every other error.
-	// Callers depend on this distinction to tell a genuinely missing resource
-	// apart from a transient infrastructure failure.
-
-	ctx := context.Background()
-
-	tests := []struct {
-		name        string
-		repoErr     error
-		wantErrCode events.RPCErrorCode
-	}{
 		{
-			name:        "not-found error encodes as not_found",
-			repoErr:     domain.ErrProjectNotFound,
+			name: "not-found error encodes as not_found",
+			setupService: func() *ProjectsService {
+				mockRepo := &domainmocks.MockProjectRepository{}
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").
+					Return(nil, domain.ErrProjectNotFound)
+				mockBuilder := &domainmocks.MockMessageBuilder{}
+				resolver := NewUserResolver(&domainmocks.MockUserReader{})
+				return &ProjectsService{
+					ProjectRepository:  mockRepo,
+					DocumentRepository: &domainmocks.MockDocumentRepository{},
+					LinkRepository:     &domainmocks.MockLinkRepository{},
+					FolderRepository:   &domainmocks.MockFolderRepository{},
+					MessageBuilder:     mockBuilder,
+					UserReader:         &domainmocks.MockUserReader{},
+					Resolver:           resolver,
+					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
+					Auth:               &auth.MockJWTAuth{},
+				}
+			},
+			subject:     constants.ProjectGetNameSubject,
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			description: "ErrProjectNotFound must encode as RPCErrorNotFound so callers can distinguish it from transient failures",
 			wantErrCode: events.RPCErrorNotFound,
 		},
 		{
-			name:        "internal error encodes as internal",
-			repoErr:     domain.ErrInternal,
+			name: "internal error encodes as internal",
+			setupService: func() *ProjectsService {
+				mockRepo := &domainmocks.MockProjectRepository{}
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").
+					Return(nil, domain.ErrInternal)
+				mockBuilder := &domainmocks.MockMessageBuilder{}
+				resolver := NewUserResolver(&domainmocks.MockUserReader{})
+				return &ProjectsService{
+					ProjectRepository:  mockRepo,
+					DocumentRepository: &domainmocks.MockDocumentRepository{},
+					LinkRepository:     &domainmocks.MockLinkRepository{},
+					FolderRepository:   &domainmocks.MockFolderRepository{},
+					MessageBuilder:     mockBuilder,
+					UserReader:         &domainmocks.MockUserReader{},
+					Resolver:           resolver,
+					Dispatcher:         NewNotificationDispatcher(mockBuilder, resolver, false, false),
+					Auth:               &auth.MockJWTAuth{},
+				}
+			},
+			subject:     constants.ProjectGetNameSubject,
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			description: "ErrInternal must encode as RPCErrorInternal so callers can distinguish it from not-found",
 			wantErrCode: events.RPCErrorInternal,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			service, mockRepo, _, _ := setupServiceForTesting()
-			mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").
-				Return(nil, tt.repoErr)
+			service := tt.setupService()
 
 			var capturedPayload []byte
-			mockMsg := newMockMessage(constants.ProjectGetNameSubject, []byte("01234567-89ab-cdef-0123-456789abcdef"))
-			mockMsg.On("Respond", mock.MatchedBy(func(data []byte) bool {
-				capturedPayload = data
-				return true
-			})).Return(nil)
+			mockMsg := newMockMessage(tt.subject, tt.messageData)
+			if tt.wantErrCode != "" {
+				mockMsg.On("Respond", mock.MatchedBy(func(data []byte) bool {
+					capturedPayload = data
+					return true
+				})).Return(nil)
+			} else {
+				mockMsg.On("Respond", mock.Anything).Return(nil)
+			}
 
-			service.HandleMessage(ctx, mockMsg)
+			// Should not panic
+			assert.NotPanics(t, func() {
+				service.HandleMessage(ctx, mockMsg)
+			})
 
-			require.NotEmpty(t, capturedPayload, "HandleMessage must not send a nil/empty reply on error")
-			var rpcErr events.RPCError
-			require.NoError(t, json.Unmarshal(capturedPayload, &rpcErr), "error reply must be valid JSON RPCError")
-			assert.Equal(t, tt.wantErrCode, rpcErr.Code)
-			assert.NotEmpty(t, rpcErr.Message, "error reply should carry a non-empty message")
+			if tt.wantErrCode != "" {
+				require.NotEmpty(t, capturedPayload, "HandleMessage must not send a nil/empty reply on error")
+				var rpcErr events.RPCError
+				require.NoError(t, json.Unmarshal(capturedPayload, &rpcErr), "error reply must be valid JSON RPCError")
+				assert.Equal(t, tt.wantErrCode, rpcErr.Code)
+				assert.NotEmpty(t, rpcErr.Message, "error reply should carry a non-empty message")
+			}
 
-			mockRepo.AssertExpectations(t)
+			if mockRepo, ok := service.ProjectRepository.(*domainmocks.MockProjectRepository); ok {
+				mockRepo.AssertExpectations(t)
+			}
 			mockMsg.AssertExpectations(t)
 		})
 	}
