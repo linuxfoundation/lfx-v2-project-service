@@ -1174,6 +1174,58 @@ func TestProjectsService_MessageHandling_ErrorCases(t *testing.T) {
 	}
 }
 
+func TestProjectsService_HandleMessage_ErrorDiscrimination(t *testing.T) {
+	// HandleMessage must reply with a JSON RPCError body that carries
+	// "not_found" for ErrProjectNotFound and "internal" for every other error.
+	// Callers depend on this distinction to tell a genuinely missing resource
+	// apart from a transient infrastructure failure.
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		repoErr     error
+		wantErrCode events.RPCErrorCode
+	}{
+		{
+			name:        "not-found error encodes as not_found",
+			repoErr:     domain.ErrProjectNotFound,
+			wantErrCode: events.RPCErrorNotFound,
+		},
+		{
+			name:        "internal error encodes as internal",
+			repoErr:     domain.ErrInternal,
+			wantErrCode: events.RPCErrorInternal,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			service, mockRepo, _, _ := setupServiceForTesting()
+			mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").
+				Return(nil, tt.repoErr)
+
+			var capturedPayload []byte
+			mockMsg := newMockMessage(constants.ProjectGetNameSubject, []byte("01234567-89ab-cdef-0123-456789abcdef"))
+			mockMsg.On("Respond", mock.MatchedBy(func(data []byte) bool {
+				capturedPayload = data
+				return true
+			})).Return(nil)
+
+			service.HandleMessage(ctx, mockMsg)
+
+			require.NotEmpty(t, capturedPayload, "HandleMessage must not send a nil/empty reply on error")
+			var rpcErr events.RPCError
+			require.NoError(t, json.Unmarshal(capturedPayload, &rpcErr), "error reply must be valid JSON RPCError")
+			assert.Equal(t, tt.wantErrCode, rpcErr.Code)
+			assert.NotEmpty(t, rpcErr.Message, "error reply should carry a non-empty message")
+
+			mockRepo.AssertExpectations(t)
+			mockMsg.AssertExpectations(t)
+		})
+	}
+}
+
 func TestProjectsService_MessageHandling_Integration(t *testing.T) {
 
 	ctx := context.Background()

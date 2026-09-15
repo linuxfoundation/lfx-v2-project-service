@@ -59,18 +59,27 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 
 	response, err = handler(ctx, msg)
 	if err != nil {
+		var rpcErr events.RPCError
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project not found while handling message",
 				constants.ErrKey, err,
 			)
+			rpcErr = events.RPCError{Code: events.RPCErrorNotFound, Message: err.Error()}
 		} else {
 			slog.ErrorContext(ctx, "error handling message",
 				constants.ErrKey, err,
 			)
+			rpcErr = events.RPCError{Code: events.RPCErrorInternal, Message: err.Error()}
 		}
-		err = msg.Respond(nil)
-		if err != nil {
-			slog.ErrorContext(ctx, "error responding to NATS message", constants.ErrKey, err)
+		errPayload, marshalErr := json.Marshal(rpcErr)
+		if marshalErr != nil {
+			// Marshal of a static struct should never fail; fall back to nil so
+			// the caller at least gets a reply rather than a timeout.
+			slog.ErrorContext(ctx, "failed to marshal RPC error payload", constants.ErrKey, marshalErr)
+			errPayload = nil
+		}
+		if respondErr := msg.Respond(errPayload); respondErr != nil {
+			slog.ErrorContext(ctx, "error responding to NATS message", constants.ErrKey, respondErr)
 		}
 		return
 	}

@@ -3,11 +3,77 @@
 
 package events
 
-import "time"
+import (
+	"encoding/json"
+	"errors"
+	"time"
+)
+
+// ErrRPCNotFound is returned by ParseRPCError when the remote handler replied
+// with code RPCErrorNotFound.  Callers can use errors.Is to distinguish a
+// genuine absence from a transient failure without re-parsing the JSON.
+var ErrRPCNotFound = errors.New("project-service rpc: not found")
+
+// ErrRPCInternal is returned by ParseRPCError when the remote handler replied
+// with code RPCErrorInternal (or any unrecognised code).
+var ErrRPCInternal = errors.New("project-service rpc: internal error")
 
 // The request and reply payloads for the project lookups served over NATS
 // request/reply. They live here for the same reason the published event types
 // do: a consuming service should import the definition rather than restate it.
+
+// RPCErrorCode identifies the class of error in a NATS RPC error reply.
+// Callers must treat any code they do not recognise as equivalent to Internal.
+type RPCErrorCode string
+
+const (
+	// RPCErrorNotFound signals that the requested resource does not exist.
+	RPCErrorNotFound RPCErrorCode = "not_found"
+	// RPCErrorInternal signals a transient or infrastructure failure on the
+	// service side; the caller should not interpret absence of the resource.
+	RPCErrorInternal RPCErrorCode = "internal"
+)
+
+// RPCError is the JSON payload returned in a NATS RPC reply when the handler
+// encounters an error.  A non-empty reply body that begins with `{"error":`
+// is always an RPCError; a non-empty reply body without that key is a success
+// payload.  An empty (nil) reply body is treated as an unrecoverable transport
+// or dispatch error — it is never produced intentionally by a handler.
+//
+// Consuming services should import this type rather than redefine it so the
+// contract stays in one place.
+type RPCError struct {
+	Code    RPCErrorCode `json:"error"`
+	Message string       `json:"message,omitempty"`
+}
+
+// ParseRPCError inspects a NATS reply body and reports whether it is an error
+// envelope returned by this service's handlers.
+//
+// It returns (ErrRPCNotFound, true) when Code is RPCErrorNotFound,
+// (ErrRPCInternal, true) when Code is RPCErrorInternal or any unrecognised
+// non-empty code, and (nil, false) when the body is empty, is not JSON, or
+// does not carry an "error" key — i.e. when it is a normal success payload.
+//
+// Services that do not import this package can replicate the check with:
+//
+//	if len(data) > 0 && data[0] == '{' { /* check "error" key */ }
+//
+// For subjects whose success reply is also a JSON object (get_settings), use
+// the full unmarshal form so the "error" key is not silently ignored.
+func ParseRPCError(data []byte) (error, bool) {
+	if len(data) == 0 {
+		return nil, false
+	}
+	var envelope RPCError
+	if err := json.Unmarshal(data, &envelope); err != nil || envelope.Code == "" {
+		return nil, false
+	}
+	if envelope.Code == RPCErrorNotFound {
+		return ErrRPCNotFound, true
+	}
+	return ErrRPCInternal, true
+}
 
 // ProjectSettingsSummary is the reply to lfx.projects-api.get_settings.
 //
