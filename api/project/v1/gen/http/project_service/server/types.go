@@ -3014,6 +3014,14 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 	}
+	if body.Name != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", *body.Name, "^[^{]"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
+	}
 	if body.Stage != nil {
 		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {
 			err = goa.MergeErrors(err, goa.InvalidEnumValueError("body.stage", *body.Stage, []any{"Formation - Exploratory", "Formation - Engaged", "Active", "Archived", "Formation - On Hold", "Formation - Disengaged", "Formation - Confidential", "Prospect"}))
@@ -3125,6 +3133,14 @@ func ValidateUpdateProjectBaseRequestBody(body *UpdateProjectBaseRequestBody) (e
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
+	}
+	if body.Name != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", *body.Name, "^[^{]"))
+	}
+	if body.Name != nil {
+		if utf8.RuneCountInString(*body.Name) < 1 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
+		}
 	}
 	if body.Stage != nil {
 		if !(*body.Stage == "Formation - Exploratory" || *body.Stage == "Formation - Engaged" || *body.Stage == "Active" || *body.Stage == "Archived" || *body.Stage == "Formation - On Hold" || *body.Stage == "Formation - Disengaged" || *body.Stage == "Formation - Confidential" || *body.Stage == "Prospect") {

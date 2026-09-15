@@ -29,8 +29,11 @@ type RPCErrorCode string
 const (
 	// RPCErrorNotFound signals that the requested resource does not exist.
 	RPCErrorNotFound RPCErrorCode = "not_found"
-	// RPCErrorInternal signals a transient or infrastructure failure on the
-	// service side; the caller should not interpret absence of the resource.
+	// RPCErrorInternal signals any non-not-found service error: infrastructure
+	// failures, bad-request conditions, or other unrecoverable errors.  Callers
+	// must not infer that retrying will succeed; the only distinction this
+	// contract makes is between a confirmed absent resource (RPCErrorNotFound)
+	// and everything else.
 	RPCErrorInternal RPCErrorCode = "internal"
 )
 

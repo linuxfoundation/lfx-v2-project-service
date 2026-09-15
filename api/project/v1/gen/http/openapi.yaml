@@ -1543,6 +1543,8 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+                pattern: ^[^{]
+                minLength: 1
             parent_uid:
                 type: string
                 description: The UID of the parent project, required and must be a valid UUID
@@ -1897,6 +1899,8 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+                pattern: ^[^{]
+                minLength: 1
             opportunity_owner:
                 $ref: '#/definitions/UserInfo'
             parent_uid:
@@ -2293,6 +2297,8 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+                pattern: ^[^{]
+                minLength: 1
             opportunity_owner:
                 $ref: '#/definitions/UserInfo'
             parent_uid:
@@ -2974,6 +2980,8 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
+                pattern: ^[^{]
+                minLength: 1
             parent_uid:
                 type: string
                 description: The UID of the parent project, required and must be a valid UUID

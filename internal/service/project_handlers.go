@@ -69,7 +69,10 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 			slog.ErrorContext(ctx, "error handling message",
 				constants.ErrKey, err,
 			)
-			rpcErr = events.RPCError{Code: events.RPCErrorInternal, Message: err.Error()}
+			// Use a static message for internal errors so raw infrastructure
+			// details (KV store names, transport errors, etc.) are not sent
+			// to callers. The full error is already captured in the log above.
+			rpcErr = events.RPCError{Code: events.RPCErrorInternal, Message: "internal server error"}
 		}
 		errPayload, marshalErr := json.Marshal(rpcErr)
 		if marshalErr != nil {
@@ -123,6 +126,15 @@ func (s *ProjectsService) handleProjectGetAttribute(ctx context.Context, msg dom
 	strValue, ok := value.(string)
 	if !ok {
 		return nil, fmt.Errorf("attribute %s is not a string", getAttribute)
+	}
+
+	// Guard: reject any stored value that starts with '{'. The caller side
+	// uses a '{'-prefix check to discriminate success payloads from JSON error
+	// envelopes; a value that starts with '{' would be misclassified as an
+	// error. Domain validation already forbids names starting with '{', so
+	// reaching this branch indicates a data-integrity issue.
+	if len(strValue) > 0 && strValue[0] == '{' {
+		return nil, fmt.Errorf("attribute %s has invalid value: starts with '{'", getAttribute)
 	}
 
 	return []byte(strValue), nil
