@@ -941,7 +941,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 		},
 		{
 			name:        "missing If-Match header",
-			payload:     &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1")},
+			payload:     &projsvc.UpdateProjectBasePayload{UID: misc.StringPtr("project-uid-1"), Name: "Test Project"},
 			setupMocks:  func(_ *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {},
 			wantErr:     true,
 			expectedErr: domain.ErrValidationFailed,
@@ -950,6 +950,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			name: "malformed If-Match header",
 			payload: &projsvc.UpdateProjectBasePayload{
 				UID:     misc.StringPtr("project-uid-1"),
+				Name:    "Test Project",
 				IfMatch: misc.StringPtr("not-a-number"),
 			},
 			setupMocks:  func(_ *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {},
@@ -1506,3 +1507,73 @@ func TestProjectsService_ResolveProjectSlug(t *testing.T) {
 // project testing guidelines. The resolveRevision helper is covered through the exported
 // UpdateProjectBase, UpdateProjectSettings, and DeleteProject tests (nil IfMatch, malformed
 // IfMatch, valid IfMatch, and SkipEtagValidation branches are all exercised there).
+
+func TestValidateProjectName(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "valid name is accepted",
+			input:   "Kubernetes",
+			wantErr: false,
+		},
+		{
+			name:    "valid name with special chars is accepted",
+			input:   "The Linux Foundation",
+			wantErr: false,
+		},
+		{
+			name:    "empty string is rejected",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "whitespace-only name is rejected",
+			input:   "   ",
+			wantErr: true,
+		},
+		{
+			name:    "tab-only name is rejected",
+			input:   "\t",
+			wantErr: true,
+		},
+		{
+			name:    "name starting with brace is rejected",
+			input:   `{"error":"not_found"}`,
+			wantErr: true,
+		},
+		{
+			name:    "name with leading whitespace then brace is rejected",
+			input:   ` {"error":"not_found"}`,
+			wantErr: true,
+		},
+		{
+			name:    "name with leading tab then brace is rejected",
+			input:   "\t{not an error envelope but still rejected}",
+			wantErr: true,
+		},
+		{
+			name:    "U+00A0 NBSP then brace is rejected",
+			input:   "\u00a0{test}",
+			wantErr: true,
+		},
+		{
+			name:    "name starting with brace but otherwise valid chars is still rejected",
+			input:   "{project}",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateProjectName(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
