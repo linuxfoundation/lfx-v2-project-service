@@ -1543,7 +1543,7 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
-                pattern: ^[^{]
+                pattern: ^[^\s{]
                 minLength: 1
             parent_uid:
                 type: string
@@ -1899,7 +1899,7 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
-                pattern: ^[^{]
+                pattern: ^[^\s{]
                 minLength: 1
             opportunity_owner:
                 $ref: '#/definitions/UserInfo'
@@ -2297,7 +2297,7 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
-                pattern: ^[^{]
+                pattern: ^[^\s{]
                 minLength: 1
             opportunity_owner:
                 $ref: '#/definitions/UserInfo'
@@ -2980,7 +2980,7 @@ definitions:
                 type: string
                 description: The pretty name of the project
                 example: Foo Foundation
-                pattern: ^[^{]
+                pattern: ^[^\s{]
                 minLength: 1
             parent_uid:
                 type: string

@@ -75,11 +75,18 @@ normal success payload:
 The `message` field is present on `not_found` replies and omitted or set to a
 generic string on `internal` replies; callers must not parse it programmatically.
 
-A nil (empty) reply body is never produced intentionally.  If a caller receives
-one it indicates a dispatch or transport failure and should be treated as an
-unrecoverable error.  The `pkg/events` package exports `ParseRPCError` and the
-`ErrRPCNotFound` / `ErrRPCInternal` sentinels so consuming services can handle
-these cases without restating the JSON logic.
+For most subjects, a nil or empty reply body is never produced intentionally.
+If a caller receives one it indicates a dispatch or transport failure and
+should be treated as an unrecoverable error.
+
+**Exception:** `lfx.projects-api.get_parent_uid` intentionally replies with an
+empty body when the project is a root project (i.e. `parent_uid == ""`).
+Callers must treat an empty reply from this subject as a confirmed absence of a
+parent, not as a transport failure.
+
+The `pkg/events` package exports `ParseRPCError` and the `ErrRPCNotFound` /
+`ErrRPCInternal` sentinels so consuming services can handle error envelopes
+without restating the JSON logic.
 
 ### NATS Inbound Event Subscriptions
 

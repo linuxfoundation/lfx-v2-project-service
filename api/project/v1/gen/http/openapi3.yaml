@@ -2525,7 +2525,7 @@ components:
                     type: string
                     description: The pretty name of the project
                     example: Foo Foundation
-                    pattern: ^[^{]
+                    pattern: ^[^\s{]
                     minLength: 1
                 opportunity_owner:
                     $ref: '#/components/schemas/UserInfo'
@@ -3320,7 +3320,7 @@ components:
                     type: string
                     description: The pretty name of the project
                     example: Foo Foundation
-                    pattern: ^[^{]
+                    pattern: ^[^\s{]
                     minLength: 1
                 parent_uid:
                     type: string
@@ -3675,7 +3675,7 @@ components:
                     type: string
                     description: The pretty name of the project
                     example: Foo Foundation
-                    pattern: ^[^{]
+                    pattern: ^[^\s{]
                     minLength: 1
                 opportunity_owner:
                     $ref: '#/components/schemas/UserInfo'
@@ -4143,7 +4143,7 @@ components:
                     type: string
                     description: The pretty name of the project
                     example: Foo Foundation
-                    pattern: ^[^{]
+                    pattern: ^[^\s{]
                     minLength: 1
                 parent_uid:
                     type: string

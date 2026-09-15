@@ -145,11 +145,13 @@ func ProjectSlugAttribute() {
 // ProjectNameAttribute is the DSL attribute for a project name.
 func ProjectNameAttribute() {
 	Attribute("name", String, "The pretty name of the project", func() {
-		// Pattern excludes names that start with '{'. The NATS get_name handler
-		// emits project names as raw bytes; a name starting with '{' would be
-		// structurally indistinguishable from a JSON error envelope on the wire.
-		// This constraint keeps success and failure reply shapes disjoint.
-		Pattern("^[^{]")
+		// Pattern excludes names that start with whitespace or '{'. The NATS
+		// get_name handler emits project names as raw bytes; a name whose
+		// trimmed form starts with '{' would be structurally indistinguishable
+		// from a JSON error envelope on the wire. Excluding leading whitespace
+		// prevents a name like " {\"error\":\"not_found\"}" from bypassing the
+		// '{'-prefix guard in the NATS handler after trimming.
+		Pattern(`^[^\s{]`)
 		MinLength(1)
 		Example("Foo Foundation")
 	})

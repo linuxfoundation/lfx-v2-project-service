@@ -60,7 +60,7 @@ func BuildCreateProjectPayload(projectServiceCreateProjectBody string, projectSe
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", body.Name, "^[^{]"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", body.Name, "^[^\\s{]"))
 		if utf8.RuneCountInString(body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
 		}
@@ -337,7 +337,7 @@ func BuildUpdateProjectBasePayload(projectServiceUpdateProjectBaseBody string, p
 		}
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.slug", body.Slug, goa.FormatRegexp))
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", body.Name, "^[^{]"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", body.Name, "^[^\\s{]"))
 		if utf8.RuneCountInString(body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", body.Name, utf8.RuneCountInString(body.Name), 1, true))
 		}

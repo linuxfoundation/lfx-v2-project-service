@@ -128,12 +128,14 @@ func (s *ProjectsService) handleProjectGetAttribute(ctx context.Context, msg dom
 		return nil, fmt.Errorf("attribute %s is not a string", getAttribute)
 	}
 
-	// Guard: reject any stored value that starts with '{'. The caller side
-	// uses a '{'-prefix check to discriminate success payloads from JSON error
-	// envelopes; a value that starts with '{' would be misclassified as an
-	// error. Domain validation already forbids names starting with '{', so
-	// reaching this branch indicates a data-integrity issue.
-	if len(strValue) > 0 && strValue[0] == '{' {
+	// Guard: reject any stored value whose trimmed form starts with '{'.
+	// The caller side uses a '{'-prefix check to discriminate success payloads
+	// from JSON error envelopes; a value that starts with '{' (even after
+	// leading whitespace) would be misclassified as an error. Domain validation
+	// already forbids names starting with '{', so reaching this branch
+	// indicates a data-integrity issue with pre-existing data.
+	trimmed := strings.TrimSpace(strValue)
+	if len(trimmed) > 0 && trimmed[0] == '{' {
 		return nil, fmt.Errorf("attribute %s has invalid value: starts with '{'", getAttribute)
 	}
 
