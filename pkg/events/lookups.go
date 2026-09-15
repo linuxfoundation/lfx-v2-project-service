@@ -40,8 +40,16 @@ const (
 // RPCError is the JSON payload returned in a NATS RPC reply when the handler
 // encounters an error.  A non-empty reply body that begins with `{"error":`
 // is always an RPCError; a non-empty reply body without that key is a success
-// payload.  An empty (nil) reply body is treated as an unrecoverable transport
-// or dispatch error — it is never produced intentionally by a handler.
+// payload.
+//
+// Empty-body semantics are subject-specific:
+//   - Most subjects never produce an empty body intentionally; an empty reply
+//     signals a transport or dispatch failure and should be treated as an
+//     unrecoverable error.
+//   - lfx.projects-api.get_parent_uid intentionally returns an empty body
+//     when the project is a root project (parent_uid == "").
+//   - lfx.projects-api.get_logo intentionally returns an empty body when the
+//     project has no logo set (logo_url == "").
 //
 // Consuming services should import this type rather than redefine it so the
 // contract stays in one place.

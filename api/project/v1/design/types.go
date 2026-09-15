@@ -143,15 +143,32 @@ func ProjectSlugAttribute() {
 }
 
 // ProjectNameAttribute is the DSL attribute for a project name.
+// This attribute is used on response (read) types; it carries no Pattern
+// constraint so that legacy records whose names pre-date the write-side
+// validation are not rejected by generated response validators.
 func ProjectNameAttribute() {
 	Attribute("name", String, "The pretty name of the project", func() {
-		// Pattern excludes names that start with whitespace or '{'. The NATS
-		// get_name handler emits project names as raw bytes; a name whose
-		// trimmed form starts with '{' would be structurally indistinguishable
-		// from a JSON error envelope on the wire. Excluding leading whitespace
-		// prevents a name like " {\"error\":\"not_found\"}" from bypassing the
-		// '{'-prefix guard in the NATS handler after trimming.
-		Pattern(`^[^\s{]`)
+		MinLength(1)
+		Example("Foo Foundation")
+	})
+}
+
+// ProjectNameWriteAttribute is the DSL attribute for a project name on write
+// (create / update) payloads.  It adds a Pattern constraint to ensure new and
+// updated names can never be misread as a JSON error envelope by the NATS
+// get_name callers:
+//
+//   - Names must not start with ASCII whitespace (`\s`) or `{`.
+//   - U+00A0 NO-BREAK SPACE is also excluded because Go/Goa's `\s` is ASCII-only
+//     while the server-side guard uses strings.TrimSpace (Unicode-aware); the
+//     explicit exclusion keeps the two checks aligned for the most common
+//     Unicode whitespace character.
+//   - The server-side handler provides defence-in-depth for remaining Unicode
+//     whitespace via strings.TrimSpace before the '{'-prefix check.
+func ProjectNameWriteAttribute() {
+	Attribute("name", String, "The pretty name of the project", func() {
+		// ^[^\s\x{00A0}{]: exclude ASCII whitespace, U+00A0 NBSP, and '{'.
+		Pattern(`^[^\s\x{00A0}{]`)
 		MinLength(1)
 		Example("Foo Foundation")
 	})

@@ -271,6 +271,49 @@ func TestProjectsService_HandleProjectGetName(t *testing.T) {
 			},
 			expectedErr: true,
 		},
+		{
+			// Stored value starting with '{' is structurally indistinguishable
+			// from a JSON error envelope on the NATS wire; the handler must
+			// reject it as an internal error rather than forwarding it to the
+			// caller where it would be misclassified as ErrRPCNotFound.
+			name:        "stored name starts with '{' is rejected as internal error",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
+				now := time.Now()
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectBase{
+						UID:       "01234567-89ab-cdef-0123-456789abcdef",
+						Name:      `{"error":"not_found"}`,
+						Slug:      "test-project",
+						CreatedAt: &now,
+						UpdatedAt: &now,
+					},
+					nil,
+				)
+			},
+			expectedErr: true,
+		},
+		{
+			// A name with leading whitespace before '{' must also be rejected:
+			// the handler trims whitespace before the '{'-prefix check, so
+			// " {\"error\":\"not_found\"}" is equivalent to the bare '{' case.
+			name:        "stored name with whitespace then '{' is rejected as internal error",
+			messageData: []byte("01234567-89ab-cdef-0123-456789abcdef"),
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository) {
+				now := time.Now()
+				mockRepo.On("GetProjectBase", mock.Anything, "01234567-89ab-cdef-0123-456789abcdef").Return(
+					&models.ProjectBase{
+						UID:       "01234567-89ab-cdef-0123-456789abcdef",
+						Name:      ` {"error":"not_found"}`,
+						Slug:      "test-project",
+						CreatedAt: &now,
+						UpdatedAt: &now,
+					},
+					nil,
+				)
+			},
+			expectedErr: true,
+		},
 	}
 
 	for _, tt := range tests {

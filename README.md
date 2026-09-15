@@ -79,10 +79,12 @@ For most subjects, a nil or empty reply body is never produced intentionally.
 If a caller receives one it indicates a dispatch or transport failure and
 should be treated as an unrecoverable error.
 
-**Exception:** `lfx.projects-api.get_parent_uid` intentionally replies with an
-empty body when the project is a root project (i.e. `parent_uid == ""`).
-Callers must treat an empty reply from this subject as a confirmed absence of a
-parent, not as a transport failure.
+**Subject-specific empty-reply exceptions** (treat as a valid success, not a transport failure):
+
+| Subject | Empty-body meaning |
+|---|---|
+| `lfx.projects-api.get_parent_uid` | Project is a root project (`parent_uid == ""`). |
+| `lfx.projects-api.get_logo` | Project has no logo set (`logo_url == ""`). |
 
 The `pkg/events` package exports `ParseRPCError` and the `ErrRPCNotFound` /
 `ErrRPCInternal` sentinels so consuming services can handle error envelopes

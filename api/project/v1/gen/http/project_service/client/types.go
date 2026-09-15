@@ -2881,9 +2881,6 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	if body.Name != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", *body.Name, "^[^\\s{]"))
-	}
-	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
 		}
@@ -2996,9 +2993,6 @@ func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) 
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
-	}
-	if body.Name != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", *body.Name, "^[^\\s{]"))
 	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
@@ -3128,9 +3122,6 @@ func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) 
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
-	}
-	if body.Name != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", *body.Name, "^[^\\s{]"))
 	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
@@ -4390,9 +4381,6 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
 	}
 	if body.Name != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", *body.Name, "^[^\\s{]"))
-	}
-	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.name", *body.Name, utf8.RuneCountInString(*body.Name), 1, true))
 		}
@@ -4557,9 +4545,6 @@ func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) 
 	}
 	if body.Slug != nil {
 		err = goa.MergeErrors(err, goa.ValidatePattern("body.slug", *body.Slug, "^[a-z][a-z0-9_\\-]*[a-z0-9]$"))
-	}
-	if body.Name != nil {
-		err = goa.MergeErrors(err, goa.ValidatePattern("body.name", *body.Name, "^[^\\s{]"))
 	}
 	if body.Name != nil {
 		if utf8.RuneCountInString(*body.Name) < 1 {
