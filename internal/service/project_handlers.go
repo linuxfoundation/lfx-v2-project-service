@@ -131,9 +131,10 @@ func (s *ProjectsService) handleProjectGetAttribute(ctx context.Context, msg dom
 	// Guard: reject any stored value whose trimmed form starts with '{'.
 	// The caller side uses a '{'-prefix check to discriminate success payloads
 	// from JSON error envelopes; a value that starts with '{' (even after
-	// leading whitespace) would be misclassified as an error. Domain validation
-	// already forbids names starting with '{', so reaching this branch
-	// indicates a data-integrity issue with pre-existing data.
+	// leading whitespace) would be misclassified as an error.
+	// Write operations (CreateProject / UpdateProjectBase) enforce this via
+	// validateProjectName, so this guard is defence-in-depth for records that
+	// pre-date that validation or were written by direct KV manipulation.
 	trimmed := strings.TrimSpace(strValue)
 	if len(trimmed) > 0 && trimmed[0] == '{' {
 		return nil, fmt.Errorf("attribute %s has invalid value: starts with '{'", getAttribute)

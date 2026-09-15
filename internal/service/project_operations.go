@@ -106,6 +106,15 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return nil, err
 	}
 
+	// Reject names that are blank after trimming or whose trimmed form starts
+	// with '{'. A '{'-prefixed name is structurally indistinguishable from a
+	// JSON error envelope on the NATS wire and would make every get_name read
+	// permanently fail for all consumers using ParseRPCError / brace discrimination.
+	if err := validateProjectName(payload.Name); err != nil {
+		slog.WarnContext(ctx, "invalid project name", constants.ErrKey, err)
+		return nil, err
+	}
+
 	// Check if slug exists
 	exists, err := s.ProjectRepository.ProjectSlugExists(ctx, payload.Slug)
 	if err != nil {
@@ -351,6 +360,15 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// including when SkipEtagValidation is true (which would otherwise trigger a DB read first).
 	if err := validateArchivedRequiresDissolutionDate(payload.Stage, payload.EntityDissolutionDate); err != nil {
 		slog.WarnContext(ctx, "archived project missing dissolution date", constants.ErrKey, err)
+		return nil, err
+	}
+
+	// Reject names that are blank after trimming or whose trimmed form starts
+	// with '{'. A '{'-prefixed name is structurally indistinguishable from a
+	// JSON error envelope on the NATS wire and would make every get_name read
+	// permanently fail for all consumers using ParseRPCError / brace discrimination.
+	if err := validateProjectName(payload.Name); err != nil {
+		slog.WarnContext(ctx, "invalid project name", constants.ErrKey, err)
 		return nil, err
 	}
 
@@ -815,6 +833,31 @@ func validateArchivedRequiresDissolutionDate(stage, dissolutionDate *string) err
 	}
 	if dissolutionDate == nil || strings.TrimSpace(*dissolutionDate) == "" {
 		return domain.ErrArchivedRequiresDissolutionDate
+	}
+	return nil
+}
+
+// validateProjectName rejects project names that would be structurally
+// indistinguishable from a JSON error envelope on the NATS wire.
+//
+// Two conditions are checked:
+//  1. The trimmed name is empty (whitespace-only names are meaningless display
+//     values and are rejected as blank).
+//  2. The trimmed name starts with '{'.  A '{'-prefixed value causes
+//     handleProjectGetAttribute to return RPCErrorInternal on every subsequent
+//     get_name / get_slug read, making the project permanently unreadable over
+//     NATS for all consumers using ParseRPCError / brace discrimination.
+//
+// The write-side Goa validator already enforces MinLength(1) on the raw string;
+// this function adds the trim-aware and brace-prefix checks that the
+// generated validator cannot express portably.
+func validateProjectName(name string) error {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return domain.NewValidationError("project name must not be blank")
+	}
+	if trimmed[0] == '{' {
+		return domain.NewValidationError("project name must not start with '{'")
 	}
 	return nil
 }

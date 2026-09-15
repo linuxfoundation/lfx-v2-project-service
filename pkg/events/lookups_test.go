@@ -69,6 +69,32 @@ func TestParseRPCError(t *testing.T) {
 			wantErr:   ErrRPCNotFound,
 			wantIsErr: true,
 		},
+		// Real reply shapes that this service actually emits — must not be
+		// misclassified as error envelopes.
+		{
+			// get_settings reply: JSON object with uid, writers, auditors fields.
+			name:    "ProjectSettingsSummary JSON object is not an error envelope",
+			data:    []byte(`{"uid":"00000000-0000-0000-0000-000000000001","writers":[],"auditors":[]}`),
+			wantErr: nil,
+		},
+		{
+			// get_writers reply: JSON array of UserInfo objects.
+			name:    "UserInfo JSON array is not an error envelope",
+			data:    []byte(`[{"name":"Test User","email":"test@example.com","username":"testuser","avatar":""}]`),
+			wantErr: nil,
+		},
+		{
+			// list_projects reply: JSON array of ProjectRef objects.
+			name:    "ProjectRef JSON array is not an error envelope",
+			data:    []byte(`[{"uid":"00000000-0000-0000-0000-000000000001","slug":"test-project","is_foundation":false,"parent_uid":"","stage":"Active"}]`),
+			wantErr: nil,
+		},
+		{
+			// empty writers/list reply: empty JSON array.
+			name:    "empty JSON array is not an error envelope",
+			data:    []byte(`[]`),
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
