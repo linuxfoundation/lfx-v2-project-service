@@ -321,10 +321,14 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings, existing *mod
 	currentTime := time.Now().UTC()
 
 	var existingWriters, existingAuditors, existingMCs []models.UserInfo
+	var existingED, existingPM, existingOO *models.UserInfo
 	if existing != nil {
 		existingWriters = existing.Writers
 		existingAuditors = existing.Auditors
 		existingMCs = existing.MeetingCoordinators
+		existingED = existing.ExecutiveDirector
+		existingPM = existing.ProgramManager
+		existingOO = existing.OpportunityOwner
 	}
 
 	s := new(models.ProjectSettings)
@@ -351,13 +355,13 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings, existing *mod
 		s.MeetingCoordinators = convertUsersFromAPI(settings.MeetingCoordinators, existingMCs)
 	}
 	if settings.ExecutiveDirector != nil {
-		s.ExecutiveDirector = convertUserFromAPI(settings.ExecutiveDirector)
+		s.ExecutiveDirector = convertUserFromAPI(settings.ExecutiveDirector, existingED)
 	}
 	if settings.ProgramManager != nil {
-		s.ProgramManager = convertUserFromAPI(settings.ProgramManager)
+		s.ProgramManager = convertUserFromAPI(settings.ProgramManager, existingPM)
 	}
 	if settings.OpportunityOwner != nil {
-		s.OpportunityOwner = convertUserFromAPI(settings.OpportunityOwner)
+		s.OpportunityOwner = convertUserFromAPI(settings.OpportunityOwner, existingOO)
 	}
 	if settings.CreatedAt != nil {
 		createdAt, err := time.Parse(time.RFC3339, *settings.CreatedAt)
@@ -517,25 +521,33 @@ func convertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
 }
 
 // convertUserFromAPI converts a single API UserInfo pointer to a domain UserInfo pointer.
-func convertUserFromAPI(apiUser *projsvc.UserInfo) *models.UserInfo {
+// existing, when provided and matched by normalized email, seeds the stored record so a
+// lookup miss (empty API username) keeps the stored LFID instead of clearing it.
+func convertUserFromAPI(apiUser *projsvc.UserInfo, existing *models.UserInfo) *models.UserInfo {
 	if apiUser == nil {
 		return nil
 	}
-	user := &models.UserInfo{}
+	user := models.UserInfo{}
+	if existing != nil && apiUser.Email != nil {
+		apiEmail := strings.ToLower(strings.TrimSpace(*apiUser.Email))
+		if apiEmail != "" && strings.ToLower(strings.TrimSpace(existing.Email)) == apiEmail {
+			user = *existing
+		}
+	}
 	if apiUser.Name != nil {
 		user.Name = *apiUser.Name
 	}
 	if apiUser.Email != nil {
 		user.Email = *apiUser.Email
 	}
-	if apiUser.Username != nil {
+	if apiUser.Username != nil && strings.TrimSpace(*apiUser.Username) != "" {
 		user.Username = *apiUser.Username
 	}
 	if apiUser.Avatar != nil {
 		user.Avatar = *apiUser.Avatar
 	}
 	// invite is server-managed — never accepted from API requests.
-	return user
+	return &user
 }
 
 // extractUsername extracts the username from a single UserInfo pointer. Returns empty string if nil.

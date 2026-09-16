@@ -83,7 +83,8 @@ Accepting a single invite intentionally reconciles **every** project where the s
 
 ## Timeout and Retry Behavior
 
-- Blocking outbound calls run under `notificationTimeout` (5 seconds), scoped **per operation**: the invite-service request/reply, the auth-service actor lookup, the settings list in `HandleInviteAccepted`, and each per-project promotion get their own 5-second window.
+- Invite-service request/reply and auth-service actor lookups run under `notificationTimeout` (5 seconds), scoped per operation.
+- `HandleInviteAccepted` uses `settingsScanTimeout` (2 minutes) for both `ListAllProjectsSettings` and each per-project promotion, because a full settings-bucket scan is not a single RPC.
 - `promoteInvitedUserInProjectSettings` retries up to 3 times on `ErrRevisionMismatch` within its project's window. This handles concurrent writers racing on the same KV revision.
 - `publishInvitePromotionSideEffects` retries indexer and FGA publishes up to `scrubMaxRetries` times, reloading settings on each attempt, so a transient NATS or project-base read failure does not permanently omit the new grant.
 - If a promotion fails (timeout or exhausted retries), the email-only entry remains pending until another acceptance event for the same email/role arrives or the settings are corrected manually.

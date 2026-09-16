@@ -214,6 +214,33 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			},
 		},
 		{
+			name: "empty API executive director username preserves stored LFID",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				ExecutiveDirector: &models.UserInfo{
+					Email:    "ed@example.com",
+					Username: "stored-ed",
+					Name:     "Old ED",
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				ExecutiveDirector: &projsvc.UserInfo{
+					Name:     misc.StringPtr("Old ED"),
+					Email:    misc.StringPtr("ed@example.com"),
+					Username: misc.StringPtr(""),
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID: "test-uid",
+				ExecutiveDirector: &models.UserInfo{
+					Name:     "Old ED",
+					Email:    "ed@example.com",
+					Username: "stored-ed",
+				},
+			},
+		},
+		{
 			name: "invite gone when user removed from list",
 			existing: &models.ProjectSettings{
 				UID: "test-uid",
@@ -246,6 +273,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 				assert.Equal(t, tt.expected.Writers, result.Writers)
 				assert.Equal(t, tt.expected.Auditors, result.Auditors)
 				assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
+				assert.Equal(t, tt.expected.ExecutiveDirector, result.ExecutiveDirector)
 				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 			}

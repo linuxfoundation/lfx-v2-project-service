@@ -1248,6 +1248,47 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "unknown email on executive director — stored LFID preserved",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				ExecutiveDirector: &projsvc.UserInfo{
+					Username: misc.StringPtr("caller-supplied-ed"),
+					Name:     misc.StringPtr("Old ED"),
+					Email:    misc.StringPtr("ed-gone@example.com"),
+				},
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "ed-gone@example.com").Return("", domain.ErrUserNotFound)
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID: "project-uid-1",
+					ExecutiveDirector: &models.UserInfo{
+						Email:    "ed-gone@example.com",
+						Username: "stored-ed",
+					},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "stored-ed"
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.Equal(t, []string{"stored-ed"}, data.Relations["executive_director"])
+				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
 			// Companion to GH-2301: a lookup miss on a new email must not publish a
 			// caller-supplied username as an FGA principal.
 			name: "unknown email with caller-supplied username and no stored record — username stays empty",
