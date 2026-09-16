@@ -822,11 +822,12 @@ func validateArchivedRequiresDissolutionDate(stage, dissolutionDate *string) err
 // enrichAllRoleFields overwrites Username, Name, and Avatar on every UserInfo across all supplied
 // slices and singles with authoritative values from the auth service.
 // Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
-// Unknown email (ErrUserNotFound) writes an explicit empty-string username so stale LFIDs cannot
-// survive. Missing/empty email skips the auth lookup entirely; the username is cleared to "" only
-// when no username is already present — entries that carry a username but no email (e.g. M2M
-// client principals) are left untouched.
-// Username transport errors fail the request — stale LFIDs must never be silently kept.
+// Unknown email (ErrUserNotFound) leaves a pending-invite username empty, but preserves any
+// already-stored LFID so a lookup miss cannot drop the writer key from the FGA message and
+// cause fga-sync to delete existing tuples. Account deletion still scrubs usernames via
+// HandleUserDeleted. Missing/empty email skips the auth lookup; the username is cleared to ""
+// only when none is already present — M2M client principals are left untouched.
+// Username transport errors fail the request.
 // Metadata (name/avatar) errors only log a warning; display fields do not block the write.
 func (s *ProjectsService) enrichAllRoleFields(
 	ctx context.Context,
@@ -940,7 +941,15 @@ func (s *ProjectsService) enrichAllRoleFields(
 	for email, eg := range byEmail {
 		r := results[email]
 		for _, u := range eg.users {
-			u.Username = misc.StringPtr(r.username)
+			if r.username != "" {
+				u.Username = misc.StringPtr(r.username)
+			} else if u.Username == nil || strings.TrimSpace(*u.Username) == "" {
+				u.Username = misc.StringPtr("")
+			} else {
+				// Lookup miss on an entry that already has an LFID. Clearing it would omit
+				// the relation from update_access and let fga-sync delete existing tuples.
+				slog.WarnContext(ctx, "auth lookup returned no username; preserving stored LFID rather than dropping it from FGA")
+			}
 			if r.metadata != nil {
 				// Only overwrite when the auth service returned a non-empty value so a partial
 				// metadata response doesn't silently erase a previously stored display name/avatar.

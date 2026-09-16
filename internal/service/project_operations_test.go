@@ -1136,12 +1136,12 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "unknown email — username cleared, request succeeds",
+			name: "unknown email with no stored username — pending invite, username stays empty",
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
 				Writers: []*projsvc.UserInfo{
-					{Username: misc.StringPtr("some-user"), Name: misc.StringPtr("Unknown"), Email: misc.StringPtr("nobody@example.com")},
+					{Name: misc.StringPtr("Unknown"), Email: misc.StringPtr("nobody@example.com")},
 				},
 			},
 			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
@@ -1207,9 +1207,10 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			expectedErr: domain.ErrInternal,
 		},
 		{
-			// Regression: if a writer had a previously-stored username and the auth service can no longer
-			// resolve their email, the stale username must be overwritten (not silently preserved).
-			name: "unknown email with previously-stored username — stale username cleared",
+			// GH-2301: a lookup miss must not clear a stored LFID. Clearing it omits the writer
+			// key from update_access and lets fga-sync delete existing tuples. HandleUserDeleted
+			// is the path that scrubs usernames after account deletion.
+			name: "unknown email with previously-stored username — stored LFID preserved",
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
@@ -1221,7 +1222,6 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockUserReader.On("UsernameByEmail", mock.Anything, "gone@example.com").Return("", domain.ErrUserNotFound)
 			},
 			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
-				// Existing settings already have a writer with the same email and a stored LFID.
 				existingSettings := &models.ProjectSettings{
 					UID: "project-uid-1",
 					Writers: []models.UserInfo{
@@ -1231,13 +1231,18 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
-				// Username must be "" — the stale "stale-lfid" must not be preserved.
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Writers) == 1 && s.Writers[0].Username == ""
+					return len(s.Writers) == 1 && s.Writers[0].Username == "stale-lfid"
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.Equal(t, []string{"stale-lfid"}, data.Relations["writer"])
+				})
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,

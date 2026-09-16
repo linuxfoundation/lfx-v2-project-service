@@ -543,7 +543,9 @@ func extractUsername(user *models.UserInfo) string {
 }
 
 // extractUsernames extracts non-empty usernames from UserInfo slice for access control.
-// Empty usernames (lookup miss / unregistered email) are excluded to prevent invalid FGA tuples.
+// Empty usernames (pending invite / unregistered email) are excluded to prevent invalid FGA tuples.
+// When every username in a non-empty slice is empty, the caller omits the relation key — that
+// is safe only because stored LFIDs are no longer cleared on a lookup miss (see enrichAllRoleFields).
 func extractUsernames(users []models.UserInfo) []string {
 	if len(users) == 0 {
 		return nil

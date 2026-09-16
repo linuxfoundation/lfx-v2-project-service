@@ -74,6 +74,7 @@ The send is best-effort: a failure is logged with `slog.WarnContext` and does no
    - Set `username = accepted_by` and clear any legacy `invite` field on every matching email-only entry.
    - Write back with the loaded revision; retry up to 3 times on `ErrRevisionMismatch`.
    - Re-index the project settings so the promoted user appears as an LFID user.
+   - Publish `lfx.fga-sync.update_access` so OpenFGA receives the new grant. This is done by `publishInvitePromotionSideEffects`; the repository write alone does not emit FGA or `project_settings.updated`.
 
 Accepting a single invite intentionally reconciles **every** project where the same email has a pending email-only entry for the same role, not only the project that issued the invite. The operation is idempotent: entries already promoted are skipped.
 
@@ -92,4 +93,4 @@ Accepting a single invite intentionally reconciles **every** project where the s
 
 ## Notification Suppression on Promotion
 
-When a user is promoted from non-LFID (email-only) to LFID via invite acceptance, `HandleProjectSettingsUpdated` fires again because `UpdateProjectSettings` publishes a new `project_settings.updated` event. The diff logic in `diffUserChanges` resolves user identity across shapes by keying on **both** username and normalized email (`memberKeys`), so the promoted entry (email-only → username + same email) maps to the same user. Since the role set is unchanged, the diff reports no change and no duplicate "you were added" email is sent.
+Invite promotion writes settings through the repository, not the HTTP `UpdateProjectSettings` operation, so it does **not** publish `lfx.projects-api.project_settings.updated`. Role-change emails and further invites are therefore not retriggered. FGA and indexer side effects are published directly by `publishInvitePromotionSideEffects`.
