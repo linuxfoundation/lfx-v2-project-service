@@ -143,8 +143,29 @@ func ProjectSlugAttribute() {
 }
 
 // ProjectNameAttribute is the DSL attribute for a project name.
+// This attribute is used on response (read) types; it carries no Pattern or
+// MinLength constraint so that legacy records whose names pre-date the
+// write-side validation are not rejected by generated response validators.
 func ProjectNameAttribute() {
 	Attribute("name", String, "The pretty name of the project", func() {
+		Example("Foo Foundation")
+	})
+}
+
+// ProjectNameWriteAttribute is the DSL attribute for a project name on write
+// (create / update) payloads.  It enforces MinLength(1) so that names cannot
+// be empty on writes.
+//
+// No Pattern is used here: Go/Goa RE2 `\s` is ASCII-only while the server-side
+// guard uses strings.TrimSpace (Unicode-aware), so any API-level pattern would
+// either be inconsistent with the handler or require an OpenAPI-incompatible
+// RE2 character class.  The server-side handleProjectGetAttribute function
+// already rejects stored values whose TrimSpace'd form begins with '{'
+// (returning an error instead of sending an ambiguous success payload), which
+// is the real defence-in-depth.
+func ProjectNameWriteAttribute() {
+	Attribute("name", String, "The pretty name of the project", func() {
+		MinLength(1)
 		Example("Foo Foundation")
 	})
 }

@@ -59,18 +59,30 @@ func (s *ProjectsService) HandleMessage(ctx context.Context, msg domain.Message)
 
 	response, err = handler(ctx, msg)
 	if err != nil {
+		var rpcErr events.RPCError
 		if errors.Is(err, domain.ErrProjectNotFound) {
 			slog.WarnContext(ctx, "project not found while handling message",
 				constants.ErrKey, err,
 			)
+			rpcErr = events.RPCError{Code: events.RPCErrorNotFound, Message: err.Error()}
 		} else {
 			slog.ErrorContext(ctx, "error handling message",
 				constants.ErrKey, err,
 			)
+			// Use a static message for internal errors so raw infrastructure
+			// details (KV store names, transport errors, etc.) are not sent
+			// to callers. The full error is already captured in the log above.
+			rpcErr = events.RPCError{Code: events.RPCErrorInternal, Message: "internal server error"}
 		}
-		err = msg.Respond(nil)
-		if err != nil {
-			slog.ErrorContext(ctx, "error responding to NATS message", constants.ErrKey, err)
+		errPayload, marshalErr := json.Marshal(rpcErr)
+		if marshalErr != nil {
+			// Marshal of a static struct should never fail; fall back to nil so
+			// the caller at least gets a reply rather than a timeout.
+			slog.ErrorContext(ctx, "failed to marshal RPC error payload", constants.ErrKey, marshalErr)
+			errPayload = nil
+		}
+		if respondErr := msg.Respond(errPayload); respondErr != nil {
+			slog.ErrorContext(ctx, "error responding to NATS message", constants.ErrKey, respondErr)
 		}
 		return
 	}
@@ -114,6 +126,18 @@ func (s *ProjectsService) handleProjectGetAttribute(ctx context.Context, msg dom
 	strValue, ok := value.(string)
 	if !ok {
 		return nil, fmt.Errorf("attribute %s is not a string", getAttribute)
+	}
+
+	// Guard: reject any stored value whose trimmed form starts with '{'.
+	// The caller side uses a '{'-prefix check to discriminate success payloads
+	// from JSON error envelopes; a value that starts with '{' (even after
+	// leading whitespace) would be misclassified as an error.
+	// Write operations (CreateProject / UpdateProjectBase) enforce this via
+	// validateProjectName, so this guard is defence-in-depth for records that
+	// pre-date that validation or were written by direct KV manipulation.
+	trimmed := strings.TrimSpace(strValue)
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		return nil, fmt.Errorf("attribute %s has invalid value: starts with '{'", getAttribute)
 	}
 
 	return []byte(strValue), nil

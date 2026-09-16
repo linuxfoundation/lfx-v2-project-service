@@ -57,6 +57,39 @@ for a complete one. Repeats are ignored rather than counted against the limit. T
 are included: treat this subject as trusted service-to-service only, and do not relay
 its reply to an unauthorized user.
 
+#### Error responses
+
+All request/reply subjects above share the same error-reply contract.  When a
+handler encounters an error it responds with a JSON object instead of the
+normal success payload:
+
+```json
+{"error": "<code>", "message": "<human-readable detail>"}
+```
+
+| Code | Meaning |
+|---|---|
+| `not_found` | The requested resource does not exist — treat as a confirmed absence. |
+| `internal` | Any other service error (infrastructure failure, bad-request condition, etc.) — treat as unrecoverable; the only distinction this contract makes is between a confirmed absent resource and everything else. |
+
+The `message` field is present on `not_found` replies and omitted or set to a
+generic string on `internal` replies; callers must not parse it programmatically.
+
+For most subjects, a nil or empty reply body is never produced intentionally.
+If a caller receives one it indicates a dispatch or transport failure and
+should be treated as an unrecoverable error.
+
+**Subject-specific empty-reply exceptions** (treat as a valid success, not a transport failure):
+
+| Subject | Empty-body meaning |
+|---|---|
+| `lfx.projects-api.get_parent_uid` | Project is a root project (`parent_uid == ""`). |
+| `lfx.projects-api.get_logo` | Project has no logo set (`logo_url == ""`). |
+
+The `pkg/events` package exports `ParseRPCError` and the `ErrRPCNotFound` /
+`ErrRPCInternal` sentinels so consuming services can handle error envelopes
+without restating the JSON logic.
+
 ### NATS Inbound Event Subscriptions
 
 Fire-and-forget event subscribers — no reply is sent to the publisher:
