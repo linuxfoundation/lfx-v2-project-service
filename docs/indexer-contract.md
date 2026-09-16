@@ -59,7 +59,8 @@ delete record.
 
 **Indexed on:** create, update, delete of a project. Also republished (as `ActionCreated`
 or `ActionUpdated`) by `project-cli sync reindex-projects` to repair a project missing from
-the search index — see `cmd/project-cli/README.md`.
+the search index, or — with `--force` — to repair a project whose document already exists
+but has stale or incorrect fields — see `cmd/project-cli/README.md`.
 
 ### Data Schema
 
@@ -134,7 +135,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 
 **Source struct:** `internal/domain/models/project.go` — `ProjectSettings`
 
-**Indexed on:** create, update, delete of project settings. Settings share the same UID as their parent project. Also republished (as `ActionCreated` or `ActionUpdated`) by `project-cli sync reindex-projects` to repair settings missing from the search index — see `cmd/project-cli/README.md`.
+**Indexed on:** create, update, delete of project settings. Settings share the same UID as their parent project. Also republished (as `ActionCreated` or `ActionUpdated`) by `project-cli sync reindex-projects` to repair settings missing from the search index, or — with `--force` — to repair settings whose document already exists but has stale or incorrect fields — see `cmd/project-cli/README.md`.
 
 ### Data Schema
 

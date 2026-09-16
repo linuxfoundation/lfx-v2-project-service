@@ -1070,6 +1070,12 @@ func TestHandleInviteAccepted(t *testing.T) {
 		return false
 	})
 
+	expectPromotionProjectBase := func(r *domainmocks.MockProjectRepository, uids ...string) {
+		for _, uid := range uids {
+			r.On("GetProjectBase", mock.Anything, uid).Return(&models.ProjectBase{UID: uid}, nil)
+		}
+	}
+
 	tests := []struct {
 		name      string
 		payload   any
@@ -1090,7 +1096,7 @@ func TestHandleInviteAccepted(t *testing.T) {
 			payload: makeEvent(inviteUID, "", string(inviteapi.InviteRoleManage)),
 		},
 		{
-			name:    "happy path — user promoted across all matching projects, indexer called per project",
+			name:    "happy path — user promoted across all matching projects, indexer and FGA called per project",
 			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
 			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				// Two projects both have the invited email; both should be promoted.
@@ -1105,9 +1111,11 @@ func TestHandleInviteAccepted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) > 0 && s.Writers[0].Username == username
 				}), uint64(1)).Return(nil)
+				expectPromotionProjectBase(r, projectUID, project2UID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil).Times(2)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Times(2)
 			},
 		},
 		{
@@ -1116,18 +1124,22 @@ func TestHandleInviteAccepted(t *testing.T) {
 			setupRepo: func(r *domainmocks.MockProjectRepository) {
 				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
 				// First GET + UPDATE fails with revision mismatch; second GET + UPDATE succeeds.
+				// The success GET pointer is reused for side-effect reload after the KV write.
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
 					Return(makeSettings(), uint64(1), nil).Once()
 				r.On("UpdateProjectSettings", mock.Anything, mock.Anything, uint64(1)).
 					Return(domain.ErrRevisionMismatch).Once()
+				successSettings := makeSettings()
 				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).
-					Return(makeSettings(), uint64(2), nil).Once()
+					Return(successSettings, uint64(2), nil)
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Writers) > 0 && s.Writers[0].Username == username
 				}), uint64(2)).Return(nil).Once()
+				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", indexMatcher, false).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
 		{
@@ -1146,9 +1158,11 @@ func TestHandleInviteAccepted(t *testing.T) {
 					mcOK := len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Username == username
 					return writerOK && mcOK
 				}), uint64(1)).Return(nil)
+				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
 		{
@@ -1179,9 +1193,11 @@ func TestHandleInviteAccepted(t *testing.T) {
 					writerUnchanged := len(s.Writers) > 0 && s.Writers[0].Username == ""
 					return auditorPromoted && writerUnchanged
 				}), uint64(1)).Return(nil)
+				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
 			},
 		},
 		{
@@ -1227,9 +1243,50 @@ func TestHandleInviteAccepted(t *testing.T) {
 				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
 					return len(s.Auditors) > 0 && s.Auditors[0].Username == username
 				}), uint64(1)).Return(nil)
+				expectPromotionProjectBase(r, projectUID)
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Once()
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Once()
+			},
+		},
+		{
+			name:    "GetProjectBase retry after promotion — succeeds on second attempt",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := makeSettings()
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == username
+				}), uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).
+					Return((*models.ProjectBase)(nil), errors.New("transient read failure")).Once()
+				r.On("GetProjectBase", mock.Anything, projectUID).
+					Return(&models.ProjectBase{UID: projectUID}, nil).Once()
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Maybe()
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil).Once()
+			},
+		},
+		{
+			name:    "FGA publish retry after promotion — succeeds on second attempt",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{makeSettings()}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(makeSettings(), uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) > 0 && s.Writers[0].Username == username
+				}), uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil).Times(2)
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil).Maybe()
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).
+					Return(errors.New("transient nats failure")).Once()
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).
+					Return(nil).Once()
 			},
 		},
 	}

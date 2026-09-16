@@ -50,12 +50,12 @@ Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-
 
 | Relation | Value | Condition |
 |---|---|---|
-| `writer` | Usernames from `ProjectSettings.Writers` | Only when `Writers` is non-empty |
-| `auditor` | Usernames from `ProjectSettings.Auditors` | Only when `Auditors` is non-empty |
-| `meeting_coordinator` | Usernames from `ProjectSettings.MeetingCoordinators` | Only when `MeetingCoordinators` is non-empty |
+| `writer` | Usernames from `ProjectSettings.Writers` | Only when at least one writer has a non-empty username |
+| `auditor` | Usernames from `ProjectSettings.Auditors` | Only when at least one auditor has a non-empty username |
+| `meeting_coordinator` | Usernames from `ProjectSettings.MeetingCoordinators` | Only when at least one meeting coordinator has a non-empty username |
 | `executive_director` | Username from `ProjectSettings.ExecutiveDirector` | Only when `ExecutiveDirector.Username` is non-empty |
 
-> Usernames are the `Username` field of each `UserInfo` entry (LFX usernames). Before publishing, `enrichAllRoleFields` overwrites `Username` on every entry that includes an email address with the value returned by `lfx.auth-service.email_to_username`; unknown emails clear `Username` to an empty string. Entries with a username but no email are left untouched.
+> Usernames are the `Username` field of each `UserInfo` entry (LFX usernames). Before persisting a create or settings update, `enrichAllRoleFields` overwrites `Username` on every entry that includes an email address with the value returned by `lfx.auth-service.email_to_username`. Unknown emails (`ErrUserNotFound`) clear the request username so a caller-supplied value cannot become an FGA principal. `convertUsersFromAPI` / `convertUserFromAPI` then **preserve any already-stored LFID** matched by email (slice roles and singleton roles such as `executive_director`), so a lookup miss cannot omit the relation key and cause fga-sync to delete existing tuples. Account deletion still scrubs usernames via `HandleUserDeleted`. Entries with a username but no email are left untouched. Empty usernames are omitted from the published relation lists (pending invites are not FGA principals). When a role slice is empty, the relation key is omitted so fga-sync deletes that relation — that is intentional empty-list semantics, not a lookup failure.
 
 ### References
 
@@ -76,5 +76,7 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Create project | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Update project base | `project` | `lfx.fga-sync.update_access` | Always sent |
 | Update project settings | `project` | `lfx.fga-sync.update_access` | Always sent |
+| Invite acceptance (`HandleInviteAccepted`) | `project` | `lfx.fga-sync.update_access` | After KV promotion of email-only entries to LFID; indexer is also refreshed. `project_settings.updated` is not emitted. |
+| Username scrub (`HandleUserDeleted`) | `project` | `lfx.fga-sync.update_access` | After KV username clear; indexer is also refreshed. `project_settings.updated` is not emitted. |
 | Delete project | `project` | `lfx.fga-sync.delete_access` | Always sent |
 | `project-cli sync reindex-projects --include-access` | `project` | `lfx.fga-sync.update_access` | Manual repair path, opt-in only — see `cmd/project-cli/README.md` |
