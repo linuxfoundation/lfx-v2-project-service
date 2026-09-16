@@ -56,6 +56,7 @@ type reindexProjectsRunner struct {
 	publisher     domain.MessageBuilder
 	dryRun        bool
 	all           bool
+	force         bool
 	includeAccess bool
 	concurrency   int
 	stats         *commands.Stats
@@ -110,7 +111,10 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	}
 
 	missing := map[string]osMissing{}
-	if r.all {
+	// --force is only accepted alongside an explicit --project-uid (enforced at
+	// flag parse time in reindex_projects.go), so it never widens the diff skip
+	// beyond the single named project.
+	if r.all || r.force {
 		for _, base := range bases {
 			missing[base.UID] = osMissing{project: true, projectSettings: true}
 		}
@@ -196,7 +200,9 @@ func (r *reindexProjectsRunner) run(ctx context.Context, projectUID string) erro
 	// publishes and is never diffed against OpenSearch, so it can never be found
 	// "missing". Access-only repair only applies to the --all path, mirroring the
 	// documented flag contract for every other project: --include-access fires only
-	// for projects with a missing OpenSearch document, or when combined with --all.
+	// for projects with a missing OpenSearch document, or when combined with --all
+	// or --force. --force alone can never reach ROOT here since it requires an
+	// explicit --project-uid, which already reindexes ROOT via the normal path.
 	if r.all && r.includeAccess {
 		for _, base := range rootBases {
 			base := base
@@ -255,12 +261,13 @@ func (r *reindexProjectsRunner) reindexProject(ctx context.Context, base *models
 		return nil
 	}
 
-	// --all skips the OpenSearch diff, so a project's absence from the index is
-	// never confirmed. ActionUpdated avoids falsely reporting a create for a
-	// document that may already exist. Outside --all, m.project/m.projectSettings
-	// come from a confirmed diff, so ActionCreated is accurate.
+	// --all and --force both skip the OpenSearch diff, so a project's absence
+	// from the index is never confirmed. ActionUpdated avoids falsely reporting
+	// a create for a document that may already exist. Otherwise,
+	// m.project/m.projectSettings come from a confirmed diff, so ActionCreated
+	// is accurate.
 	action := indexerConstants.ActionCreated
-	if r.all {
+	if r.all || r.force {
 		action = indexerConstants.ActionUpdated
 	}
 

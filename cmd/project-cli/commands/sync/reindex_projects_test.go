@@ -357,6 +357,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 		name          string
 		missing       osMissing
 		all           bool
+		force         bool
 		includeAccess bool
 		setupMock     func(*domainmocks.MockMessageBuilder)
 		getSettings   bool
@@ -413,6 +414,37 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 			},
 		},
 		{
+			name:        "force mode uses ActionUpdated",
+			missing:     osMissing{project: true, projectSettings: true},
+			force:       true,
+			getSettings: true,
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base)), false).
+					Return(nil).Once()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings)), false).
+					Return(nil).Once()
+			},
+		},
+		{
+			name:          "force mode with include-access publishes FGA message",
+			missing:       osMissing{project: true, projectSettings: true},
+			force:         true,
+			includeAccess: true,
+			getSettings:   true,
+			setupMock: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSubject,
+					mock.MatchedBy(projectEnvelopeMatcher(indexerConstants.ActionUpdated, base)), false).
+					Return(nil).Once()
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject,
+					mock.MatchedBy(settingsEnvelopeMatcher(indexerConstants.ActionUpdated, base, settings)), false).
+					Return(nil).Once()
+				m.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).
+					Return(nil).Once()
+			},
+		},
+		{
 			name:        "settings read failure still publishes an independently missing project doc",
 			missing:     osMissing{project: true, projectSettings: true},
 			getSettings: true,
@@ -438,6 +470,7 @@ func TestReindexProjectsRunner_reindexProject(t *testing.T) {
 				},
 				publisher:     publisher,
 				all:           tt.all,
+				force:         tt.force,
 				includeAccess: tt.includeAccess,
 			}
 			err := r.reindexProject(context.Background(), base, tt.missing)
@@ -558,6 +591,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 		baseErr          error
 		settingsErr      error
 		all              bool
+		force            bool
 		dryRun           bool
 		includeAccess    bool
 		openSearchHitIDs []string
@@ -689,6 +723,20 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 			wantFGAUIDs: map[string]bool{},
 		},
 		{
+			name:       "force skips diff for the named project and uses ActionUpdated",
+			projectUID: alphaUID,
+			force:      true,
+			baseByUID: map[string]*models.ProjectBase{
+				alphaUID: newBase(alphaUID, "alpha-project"),
+			},
+			// No OpenSearch client is constructed for this case (see run()'s
+			// skipDiff handling), so a diff attempt would nil-dereference; force
+			// must bypass diffOpenSearch entirely rather than merely tolerate it.
+			wantUIDs:    map[string]bool{alphaUID: true},
+			wantTotal:   1,
+			wantUpdated: 1,
+		},
+		{
 			name:    "ListAllProjectsBase error propagates",
 			all:     true,
 			listErr: fmt.Errorf("kv unavailable"),
@@ -724,7 +772,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 
 			var requests []string
 			var osClient *opensearchgo.Client
-			if !tt.all {
+			if !tt.all && !tt.force {
 				osClient = newRecordingOpenSearchClient(t, tt.openSearchHitIDs, &requests)
 			}
 
@@ -733,6 +781,7 @@ func TestReindexProjectsRunner_run(t *testing.T) {
 				openSearch:    osClient,
 				publisher:     publisher,
 				all:           tt.all,
+				force:         tt.force,
 				dryRun:        tt.dryRun,
 				includeAccess: tt.includeAccess,
 				concurrency:   1,
@@ -853,6 +902,16 @@ func TestReindexProjectsSubcommand_flagValidation(t *testing.T) {
 			name:    "all with project-uid is rejected",
 			args:    []string{"--all", "--project-uid", "00000000-0000-0000-0000-000000000001"},
 			wantErr: "--all and --project-uid are mutually exclusive",
+		},
+		{
+			name:    "force without project-uid is rejected",
+			args:    []string{"--force"},
+			wantErr: "--force requires --project-uid",
+		},
+		{
+			name:    "force with all and no project-uid is rejected",
+			args:    []string{"--force", "--all"},
+			wantErr: "--force requires --project-uid",
 		},
 		{
 			name:    "unexpected positional argument is rejected",
