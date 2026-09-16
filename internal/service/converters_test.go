@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
@@ -191,6 +193,54 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			},
 		},
 		{
+			name: "empty API username preserves stored LFID",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Email: "gone@example.com", Username: "stored-lfid", Name: "Old Name"},
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Old Name"), Email: misc.StringPtr("gone@example.com"), Username: misc.StringPtr("")},
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Name: "Old Name", Email: "gone@example.com", Username: "stored-lfid"},
+				},
+			},
+		},
+		{
+			name: "empty API executive director username preserves stored LFID",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				ExecutiveDirector: &models.UserInfo{
+					Email:    "ed@example.com",
+					Username: "stored-ed",
+					Name:     "Old ED",
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				ExecutiveDirector: &projsvc.UserInfo{
+					Name:     misc.StringPtr("Old ED"),
+					Email:    misc.StringPtr("ed@example.com"),
+					Username: misc.StringPtr(""),
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID: "test-uid",
+				ExecutiveDirector: &models.UserInfo{
+					Name:     "Old ED",
+					Email:    "ed@example.com",
+					Username: "stored-ed",
+				},
+			},
+		},
+		{
 			name: "invite gone when user removed from list",
 			existing: &models.ProjectSettings{
 				UID: "test-uid",
@@ -223,6 +273,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 				assert.Equal(t, tt.expected.Writers, result.Writers)
 				assert.Equal(t, tt.expected.Auditors, result.Auditors)
 				assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
+				assert.Equal(t, tt.expected.ExecutiveDirector, result.ExecutiveDirector)
 				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 			}
@@ -838,4 +889,45 @@ func TestProjectProjection(t *testing.T) {
 			tt.run(t)
 		})
 	}
+}
+
+func TestBuildFGAUpdateAccessMessage(t *testing.T) {
+	base := &models.ProjectBase{UID: "project-1", Public: true}
+
+	t.Run("includes resolvable writers and omits empty-username pending invitees", func(t *testing.T) {
+		settings := &models.ProjectSettings{
+			UID: "project-1",
+			Writers: []models.UserInfo{
+				{Username: "alice", Email: "alice@example.com"},
+				{Email: "pending@example.com"},
+			},
+		}
+		msg := buildFGAUpdateAccessMessage(base, settings)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, []string{"alice"}, data.Relations[fgaconstants.RelationWriter])
+		_, hasAuditor := data.Relations[fgaconstants.RelationAuditor]
+		assert.False(t, hasAuditor)
+	})
+
+	t.Run("omits writer key when the writers slice is empty", func(t *testing.T) {
+		settings := &models.ProjectSettings{UID: "project-1"}
+		msg := buildFGAUpdateAccessMessage(base, settings)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		_, hasWriter := data.Relations[fgaconstants.RelationWriter]
+		assert.False(t, hasWriter)
+	})
+
+	t.Run("omits writer key when every writer is a pending invite", func(t *testing.T) {
+		settings := &models.ProjectSettings{
+			UID:     "project-1",
+			Writers: []models.UserInfo{{Email: "pending@example.com"}},
+		}
+		msg := buildFGAUpdateAccessMessage(base, settings)
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		_, hasWriter := data.Relations[fgaconstants.RelationWriter]
+		assert.False(t, hasWriter)
+	})
 }

@@ -40,7 +40,7 @@ All six live as `Project*Subject` constants in `pkg/constants/nats.go`.
 
 ```go
 "lfx.projects-api.project_settings.updated" // handled by HandleProjectSettingsUpdated (role-change notifications)
-"lfx.invite-service.invite_accepted"          // handled by HandleInviteAccepted (promote email-only settings entries to LFID)
+"lfx.invite-service.invite_accepted"          // handled by HandleInviteAccepted (promote email-only settings entries to LFID, then indexer + FGA)
 "lfx.v1-sync-helper.user.deleted"             // handled by HandleUserDeleted (scrub deleted user's username from project settings)
 "lfx.projects-api.project_document.created"   // handled by HandleProjectDocumentCreated (upload notification emails)
 "lfx.projects-api.project_link.created"       // handled by HandleProjectLinkCreated
