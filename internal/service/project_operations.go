@@ -822,11 +822,11 @@ func validateArchivedRequiresDissolutionDate(stage, dissolutionDate *string) err
 // enrichAllRoleFields overwrites Username, Name, and Avatar on every UserInfo across all supplied
 // slices and singles with authoritative values from the auth service.
 // Each unique email is looked up exactly once; lookups run concurrently with a bounded semaphore.
-// Unknown email (ErrUserNotFound) leaves a pending-invite username empty, but preserves any
-// already-stored LFID so a lookup miss cannot drop the writer key from the FGA message and
-// cause fga-sync to delete existing tuples. Account deletion still scrubs usernames via
-// HandleUserDeleted. Missing/empty email skips the auth lookup; the username is cleared to ""
-// only when none is already present — M2M client principals are left untouched.
+// Unknown email (ErrUserNotFound) clears the request username so a caller-supplied value cannot
+// become an FGA principal. convertUsersFromAPI then keeps any already-stored LFID matched by
+// email, so a lookup miss cannot drop the writer key from the FGA message. Account deletion still
+// scrubs usernames via HandleUserDeleted. Missing/empty email skips the auth lookup; the username
+// is cleared to "" only when none is already present — M2M client principals are left untouched.
 // Username transport errors fail the request.
 // Metadata (name/avatar) errors only log a warning; display fields do not block the write.
 func (s *ProjectsService) enrichAllRoleFields(
@@ -938,18 +938,12 @@ func (s *ProjectsService) enrichAllRoleFields(
 	// Apply resolved username, name, and avatar to each UserInfo entry.
 	// Only Name and Avatar are written back; other metadata fields (JobTitle, Organization, etc.)
 	// are not surfaced in UserInfo and are discarded after this call.
+	// On a lookup miss r.username is empty: that clears any caller-supplied username so
+	// convertUsersFromAPI can fall back to the stored LFID instead of trusting the request.
 	for email, eg := range byEmail {
 		r := results[email]
 		for _, u := range eg.users {
-			if r.username != "" {
-				u.Username = misc.StringPtr(r.username)
-			} else if u.Username == nil || strings.TrimSpace(*u.Username) == "" {
-				u.Username = misc.StringPtr("")
-			} else {
-				// Lookup miss on an entry that already has an LFID. Clearing it would omit
-				// the relation from update_access and let fga-sync delete existing tuples.
-				slog.WarnContext(ctx, "auth lookup returned no username; preserving stored LFID rather than dropping it from FGA")
-			}
+			u.Username = misc.StringPtr(r.username)
 			if r.metadata != nil {
 				// Only overwrite when the auth service returned a non-empty value so a partial
 				// metadata response doesn't silently erase a previously stored display name/avatar.

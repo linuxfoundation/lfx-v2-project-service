@@ -1207,15 +1207,15 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			expectedErr: domain.ErrInternal,
 		},
 		{
-			// GH-2301: a lookup miss must not clear a stored LFID. Clearing it omits the writer
-			// key from update_access and lets fga-sync delete existing tuples. HandleUserDeleted
-			// is the path that scrubs usernames after account deletion.
+			// GH-2301: a lookup miss must not clear a stored LFID, and must not keep a
+			// caller-supplied username. Clearing the stored LFID omits the writer key from
+			// update_access; trusting the request would grant an unverified principal.
 			name: "unknown email with previously-stored username — stored LFID preserved",
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
 				IfMatch: misc.StringPtr("1"),
 				Writers: []*projsvc.UserInfo{
-					{Username: misc.StringPtr("stale-lfid"), Name: misc.StringPtr("Old User"), Email: misc.StringPtr("gone@example.com")},
+					{Username: misc.StringPtr("caller-supplied-lfid"), Name: misc.StringPtr("Old User"), Email: misc.StringPtr("gone@example.com")},
 				},
 			},
 			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
@@ -1225,14 +1225,14 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				existingSettings := &models.ProjectSettings{
 					UID: "project-uid-1",
 					Writers: []models.UserInfo{
-						{Email: "gone@example.com", Username: "stale-lfid"},
+						{Email: "gone@example.com", Username: "stored-lfid"},
 					},
 				}
 				projectDB := &models.ProjectBase{UID: "project-uid-1"}
 				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
 				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
 				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
-					return len(s.Writers) == 1 && s.Writers[0].Username == "stale-lfid"
+					return len(s.Writers) == 1 && s.Writers[0].Username == "stored-lfid"
 				}), uint64(1)).Return(nil)
 				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -1241,8 +1241,37 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 					require.True(t, ok)
 					data, ok := msg.Data.(fgatypes.GenericAccessData)
 					require.True(t, ok)
-					assert.Equal(t, []string{"stale-lfid"}, data.Relations["writer"])
+					assert.Equal(t, []string{"stored-lfid"}, data.Relations["writer"])
 				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			// Companion to GH-2301: a lookup miss on a new email must not publish a
+			// caller-supplied username as an FGA principal.
+			name: "unknown email with caller-supplied username and no stored record — username stays empty",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{
+					{Username: misc.StringPtr("victim"), Name: misc.StringPtr("Unknown"), Email: misc.StringPtr("nobody@example.com")},
+				},
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "nobody@example.com").Return("", domain.ErrUserNotFound)
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{UID: "project-uid-1"}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.Writers) == 1 && s.Writers[0].Username == ""
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,

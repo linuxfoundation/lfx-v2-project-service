@@ -442,7 +442,9 @@ func convertUsersToAPI(users []models.UserInfo) []*projsvc.UserInfo {
 // convertUsersFromAPI converts API UserInfo slice to domain UserInfo slice.
 // existing, when provided, seeds each user with the stored record matched by email so
 // that read-only fields (e.g. Invite) survive a PUT request without special-casing.
-// Incoming API fields are overlaid on top of the existing values.
+// Incoming API fields are overlaid on top of the existing values, except an empty
+// username: enrichAllRoleFields clears that on a lookup miss, and overlaying it would
+// wipe a stored LFID and omit the writer key from update_access (GH-2301).
 func convertUsersFromAPI(apiUsers []*projsvc.UserInfo, existing []models.UserInfo) []models.UserInfo {
 	if len(apiUsers) == 0 {
 		return nil
@@ -470,7 +472,9 @@ func convertUsersFromAPI(apiUsers []*projsvc.UserInfo, existing []models.UserInf
 			if apiUser.Email != nil {
 				user.Email = *apiUser.Email
 			}
-			if apiUser.Username != nil {
+			// Non-empty username is the auth-verified value from enrichAllRoleFields.
+			// Empty means a lookup miss (or a pending invitee): keep the stored LFID.
+			if apiUser.Username != nil && strings.TrimSpace(*apiUser.Username) != "" {
 				user.Username = *apiUser.Username
 			}
 			if apiUser.Avatar != nil {
@@ -545,7 +549,7 @@ func extractUsername(user *models.UserInfo) string {
 // extractUsernames extracts non-empty usernames from UserInfo slice for access control.
 // Empty usernames (pending invite / unregistered email) are excluded to prevent invalid FGA tuples.
 // When every username in a non-empty slice is empty, the caller omits the relation key — that
-// is safe only because stored LFIDs are no longer cleared on a lookup miss (see enrichAllRoleFields).
+// is safe only because convertUsersFromAPI keeps a stored LFID after a lookup miss.
 func extractUsernames(users []models.UserInfo) []string {
 	if len(users) == 0 {
 		return nil

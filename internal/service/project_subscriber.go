@@ -229,7 +229,7 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 		if updateErr == nil {
 			slog.InfoContext(ctx, "project_subscriber: invite accepted — promoted user from non-LFID to LFID",
 				"project_uid", projectUID, "invite_uid", inviteUID, "username", username)
-			s.publishInvitePromotionSideEffects(ctx, projectUID, settings)
+			s.publishInvitePromotionSideEffects(ctx, projectUID)
 			return
 		}
 		if !errors.Is(updateErr, domain.ErrRevisionMismatch) || attempt == maxRetries-1 {
@@ -243,32 +243,67 @@ func (s *ProjectsService) promoteInvitedUserInProjectSettings(ctx context.Contex
 }
 
 // publishInvitePromotionSideEffects reindexes promoted settings and refreshes OpenFGA access
-// tuples. ProjectSettingsUpdatedSubject is omitted so the identity-shape change (email-only →
-// LFID) does not fan out as a role-change notification; diffUserChanges would treat it as a
-// no-op anyway, but skipping the event keeps the path aligned with username scrub.
-func (s *ProjectsService) publishInvitePromotionSideEffects(ctx context.Context, projectUID string, settings *models.ProjectSettings) {
+// tuples. Each attempt reloads the current KV record before publishing; indexer and FGA
+// projections are full-state and idempotent. ProjectSettingsUpdatedSubject is omitted so the
+// identity-shape change (email-only → LFID) does not fan out as a role-change notification.
+func (s *ProjectsService) publishInvitePromotionSideEffects(ctx context.Context, projectUID string) {
 	ctx = ctxWithServiceAuth(ctx)
+	for attempt := 0; attempt < scrubMaxRetries; attempt++ {
+		settings, _, err := s.ProjectRepository.GetProjectSettingsWithRevision(ctx, projectUID)
+		if err != nil {
+			if attempt == scrubMaxRetries-1 {
+				slog.WarnContext(ctx, "project_subscriber: failed to reload settings for invite-promotion side effects",
+					constants.ErrKey, err, "project_uid", projectUID, "attempts", scrubMaxRetries)
+				return
+			}
+			slog.DebugContext(ctx, "project_subscriber: retrying invite-promotion side effects after settings reload failure",
+				"attempt", attempt+1, "project_uid", projectUID)
+			continue
+		}
+		if settings == nil {
+			return
+		}
 
-	indexMsg := indexerTypes.IndexerMessageEnvelope{
-		Action:         indexerConstants.ActionUpdated,
-		Data:           *settings,
-		IndexingConfig: settings.IndexingConfig(projectUID),
-	}
-	if indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false); indexErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
-			constants.ErrKey, indexErr, "project_uid", projectUID)
-	}
+		projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
+		if baseErr != nil {
+			slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after invite acceptance",
+				constants.ErrKey, baseErr, "project_uid", projectUID)
+			if attempt == scrubMaxRetries-1 {
+				return
+			}
+			slog.DebugContext(ctx, "project_subscriber: retrying invite-promotion side effects after project load failure",
+				"attempt", attempt+1, "project_uid", projectUID)
+			continue
+		}
 
-	projectBase, baseErr := s.ProjectRepository.GetProjectBase(ctx, projectUID)
-	if baseErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to load project for FGA refresh after invite acceptance",
-			constants.ErrKey, baseErr, "project_uid", projectUID)
-		return
-	}
-	fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
-	if accessErr := s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg); accessErr != nil {
-		slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after invite acceptance",
-			constants.ErrKey, accessErr, "project_uid", projectUID)
+		indexMsg := indexerTypes.IndexerMessageEnvelope{
+			Action:         indexerConstants.ActionUpdated,
+			Data:           *settings,
+			IndexingConfig: settings.IndexingConfig(projectUID),
+		}
+		indexErr := s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSettingsSubject, indexMsg, false)
+
+		fgaMsg := buildFGAUpdateAccessMessage(projectBase, settings)
+		accessErr := s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaMsg)
+
+		if indexErr == nil && accessErr == nil {
+			return
+		}
+
+		if attempt == scrubMaxRetries-1 {
+			if indexErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to reindex project settings after invite acceptance",
+					constants.ErrKey, indexErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
+			}
+			if accessErr != nil {
+				slog.WarnContext(ctx, "project_subscriber: failed to publish FGA update after invite acceptance",
+					constants.ErrKey, accessErr, "project_uid", projectUID, "attempts", scrubMaxRetries)
+			}
+			return
+		}
+
+		slog.DebugContext(ctx, "project_subscriber: retrying invite-promotion side effects after reload",
+			"attempt", attempt+1, "project_uid", projectUID)
 	}
 }
 

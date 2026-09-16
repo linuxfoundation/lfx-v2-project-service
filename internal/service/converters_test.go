@@ -193,6 +193,27 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			},
 		},
 		{
+			name: "empty API username preserves stored LFID",
+			existing: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Email: "gone@example.com", Username: "stored-lfid", Name: "Old Name"},
+				},
+			},
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				Writers: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Old Name"), Email: misc.StringPtr("gone@example.com"), Username: misc.StringPtr("")},
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID: "test-uid",
+				Writers: []models.UserInfo{
+					{Name: "Old Name", Email: "gone@example.com", Username: "stored-lfid"},
+				},
+			},
+		},
+		{
 			name: "invite gone when user removed from list",
 			existing: &models.ProjectSettings{
 				UID: "test-uid",
