@@ -930,4 +930,11 @@ func TestBuildFGAUpdateAccessMessage(t *testing.T) {
 		_, hasWriter := data.Relations[fgaconstants.RelationWriter]
 		assert.False(t, hasWriter)
 	})
+
+	t.Run("preserves Mentorship project-admin tuples during full sync", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(base, &models.ProjectSettings{UID: "project-1"})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, []string{"mentorship_program_admin"}, data.ExcludeRelations)
+	})
 }

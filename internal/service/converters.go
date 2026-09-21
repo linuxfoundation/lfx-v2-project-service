@@ -607,10 +607,11 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 		ObjectType: "project",
 		Operation:  "update_access",
 		Data: fgatypes.GenericAccessData{
-			UID:        projectDB.UID,
-			Public:     projectDB.Public,
-			Relations:  relations,
-			References: references,
+			UID:              projectDB.UID,
+			Public:           projectDB.Public,
+			Relations:        relations,
+			References:       references,
+			ExcludeRelations: []string{"mentorship_program_admin"},
 		},
 	}
 }
