@@ -1,3 +1,6 @@
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -43,15 +46,17 @@ curl -s "https://raw.githubusercontent.com/oxsecurity/megalinter/<tag>/flavors/<
   | grep -i 'GO_ALPINE_VERSION'
 ```
 
-`go.mod`'s `go` directive must never exceed that bundled version. Note this
-is a proxy for what `golangci-lint`'s own binary was built with, not a
-guarantee -- if a MegaLinter run still fails after following this
-procedure, check `golangci-lint --version` inside the pinned MegaLinter
-image directly to see the Go version it actually reports. Staying
-one minor version behind it (rather than matching its minor *and* patch
-exactly) leaves room to always take the latest patch release for security
-fixes without ever being blocked by MegaLinter's own bundled patch version
-lagging a newly disclosed vulnerability.
+`go.mod`'s `go` directive must never exceed that bundled version at the
+*minor* version level (e.g. `1.X`). Note this is a proxy for what
+`golangci-lint`'s own binary was built with, not a guarantee -- if a
+MegaLinter run still fails after following this procedure, check
+`golangci-lint --version` inside the pinned MegaLinter image directly to
+see the Go version it actually reports. `golangci-lint`'s own version
+check normalizes `go.mod`'s `go` directive down to its major/minor
+components before comparing, so a newer *patch* release within the same
+minor version as MegaLinter's bundled Go does not get blocked -- the real
+ceiling is matching MegaLinter's bundled `golangci-lint` minor version,
+not staying behind its exact patch release.
 
 There's no built-in `go` subcommand to look up the latest patch release for
 a given minor version -- query the official `go.dev/dl` JSON feed instead:

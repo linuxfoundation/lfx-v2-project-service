@@ -57,11 +57,6 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: Authorization
-                  in: header
-                  description: JWT token issued by Heimdall
-                  required: false
-                  type: string
             responses:
                 "200":
                     description: OK response.
@@ -112,11 +107,6 @@ paths:
                   type: string
                   enum:
                     - "1"
-                - name: Authorization
-                  in: header
-                  description: JWT token issued by Heimdall
-                  required: false
-                  type: string
                 - name: Create-ProjectRequestBody
                   in: body
                   required: true
@@ -185,11 +175,6 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: Authorization
-                  in: header
-                  description: JWT token issued by Heimdall
-                  required: false
-                  type: string
             responses:
                 "200":
                     description: OK response.
@@ -244,11 +229,6 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: Authorization
-                  in: header
-                  description: JWT token issued by Heimdall
-                  required: false
-                  type: string
                 - name: ETag
                   in: header
                   description: ETag header value
@@ -321,11 +301,6 @@ paths:
                   required: true
                   type: string
                   format: uuid
-                - name: Authorization
-                  in: header
-                  description: JWT token issued by Heimdall
-                  required: false
-                  type: string
                 - name: ETag
                   in: header
                   description: ETag header value
@@ -475,7 +450,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Ex architecto repellat non earum cumque illo.
+                    example: Sunt eveniet id ex qui aspernatur.
                 description: A list of project auditors by their user IDs
                 example:
                     - user123
@@ -511,7 +486,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Est et.
+                    example: Corrupti ipsum magni facilis.
                 description: A list of project writers by their user IDs
                 example:
                     - user123
@@ -538,7 +513,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Quia aut vero consequatur qui.
+                    example: Atque at dolores sed cumque.
                 description: A list of project auditors by their user IDs
                 example:
                     - user123
@@ -569,7 +544,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Temporibus in cupiditate quod consequatur quo.
+                    example: Officia dolor consequuntur sit est.
                 description: A list of project writers by their user IDs
                 example:
                     - user123
@@ -604,30 +579,6 @@ definitions:
                     $ref: '#/definitions/Project'
                 description: Resources found
                 example:
-                    - auditors:
-                        - user123
-                        - user456
-                      description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      slug: project-slug
-                      writers:
-                        - user123
-                        - user456
-                    - auditors:
-                        - user123
-                        - user456
-                      description: project foo is a project about bar
-                      id: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      name: Foo Foundation
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      public: true
-                      slug: project-slug
-                      writers:
-                        - user123
-                        - user456
                     - auditors:
                         - user123
                         - user456
@@ -688,7 +639,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Voluptatibus dolores et.
+                    example: Ratione vero.
                 description: A list of project auditors by their user IDs
                 example:
                     - user123
@@ -719,7 +670,7 @@ definitions:
                 type: array
                 items:
                     type: string
-                    example: Eum ipsam.
+                    example: Nulla sed consequatur est.
                 description: A list of project writers by their user IDs
                 example:
                     - user123
