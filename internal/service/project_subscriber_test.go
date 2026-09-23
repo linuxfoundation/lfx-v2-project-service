@@ -1037,6 +1037,8 @@ func TestRolesForDisplay(t *testing.T) {
 		{name: "MC+Auditor → both shown (neither supersedes)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Meeting Coordinator", "View"}},
 		{name: "Writer+MC → Manage only (MC dropped)", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage"}},
 		{name: "Writer+MC+Auditor → Manage only (all subordinates dropped)", roles: []string{roleWriter, roleMeetingCoordinator, roleAuditor}, want: []string{"Manage"}},
+		{name: "Writer+Mentorship Admin → Manage plus Mentorship Program Admin", roles: []string{roleWriter, roleMentorshipAdmin}, want: []string{"Manage", "Mentorship Program Admin"}},
+		{name: "Writer+Auditor+Mentorship Admin → Manage plus Mentorship Program Admin", roles: []string{roleWriter, roleAuditor, roleMentorshipAdmin}, want: []string{"Manage", "Mentorship Program Admin"}},
 		{name: "empty → empty", roles: nil, want: []string{}},
 	}
 
@@ -1530,6 +1532,28 @@ func TestHandleUserDeleted(t *testing.T) {
 						s.ExecutiveDirector != nil && s.ExecutiveDirector.Username == "" &&
 						s.ProgramManager != nil && s.ProgramManager.Username == "" &&
 						s.OpportunityOwner != nil && s.OpportunityOwner.Username == ""
+				}), uint64(1)).Return(nil)
+				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, constants.IndexProjectSettingsSubject, mock.Anything, false).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
+			},
+		},
+		{
+			name:    "mentorship admin username cleared and reindexed",
+			payload: makeEvent(deletedUsername),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:                     projectUID,
+					MentorshipProgramAdmins: []models.UserInfo{{Username: deletedUsername, Email: "mentor-admin@example.com"}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil).Times(2)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.MentorshipProgramAdmins) == 1 &&
+						s.MentorshipProgramAdmins[0].Username == "" &&
+						s.MentorshipProgramAdmins[0].Email == "mentor-admin@example.com"
 				}), uint64(1)).Return(nil)
 				r.On("GetProjectBase", mock.Anything, projectUID).Return(&models.ProjectBase{UID: projectUID}, nil)
 			},

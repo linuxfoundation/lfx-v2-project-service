@@ -404,7 +404,7 @@ func setDiffRoles(a, b []string) []string {
 }
 
 // roleDisplayName maps an internal role name to its user-facing display name.
-// Writer → "Manage", Auditor → "View", Meeting Coordinator stays as-is.
+// Writer → "Manage", Auditor → "View"; all other role labels stay as-is.
 func roleDisplayName(role string) string {
 	switch role {
 	case roleWriter:
@@ -416,10 +416,10 @@ func roleDisplayName(role string) string {
 	}
 }
 
-// rolesForDisplay converts a slice of internal role names to deduplicated display names
-// ("Manage", "Meeting Coordinator", "View"), then returns just ["Manage"] when Writer is
-// present, since Writer supersedes both Meeting Coordinator and View.
-// When no Writer, Meeting Coordinator and View are shown independently. Order follows input.
+// rolesForDisplay converts a slice of internal role names to deduplicated display names.
+// Writer collapses subordinate capability labels (View and Meeting Coordinator), but
+// independent capabilities (for example Mentorship Program Admin) are preserved.
+// Order otherwise follows input.
 func rolesForDisplay(roles []string) []string {
 	seen := make(map[string]bool, len(roles))
 	result := make([]string, 0, len(roles))
@@ -430,8 +430,16 @@ func rolesForDisplay(roles []string) []string {
 			result = append(result, d)
 		}
 	}
-	if seen["Manage"] {
-		return []string{"Manage"}
+	if !seen["Manage"] {
+		return result
 	}
-	return result
+
+	collapsed := []string{"Manage"}
+	for _, d := range result {
+		if d == "Manage" || d == "View" || d == roleMeetingCoordinator {
+			continue
+		}
+		collapsed = append(collapsed, d)
+	}
+	return collapsed
 }

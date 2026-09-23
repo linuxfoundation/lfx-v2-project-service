@@ -245,6 +245,17 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
+	g.Go(func() error {
+		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		msg := events.ProjectSettingsUpdatedMessage{
+			ProjectUID:  projectDB.UID,
+			OldSettings: events.ProjectSettings{},
+			NewSettings: proj.ToEventSettings(),
+			Actor:       events.Actor{Username: principal},
+		}
+		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
+	})
+
 	if err := g.Wait(); err != nil {
 		return nil, domain.ErrInternal
 	}
