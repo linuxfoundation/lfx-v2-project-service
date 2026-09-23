@@ -202,7 +202,8 @@ type CreateProjectPayload struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
@@ -601,7 +602,8 @@ type ProjectFull struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
@@ -652,7 +654,8 @@ type ProjectSettings struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
@@ -774,7 +777,8 @@ type UpdateProjectSettingsPayload struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo

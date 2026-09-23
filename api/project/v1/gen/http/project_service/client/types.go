@@ -76,7 +76,8 @@ type CreateProjectRequestBody struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfoRequestBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
@@ -149,7 +150,8 @@ type UpdateProjectSettingsRequestBody struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfoRequestBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
@@ -267,7 +269,8 @@ type CreateProjectResponseBody struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
@@ -356,7 +359,8 @@ type UpdateProjectSettingsResponseBody struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
@@ -1265,7 +1269,8 @@ type ProjectFullResponseBody struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
@@ -1394,7 +1399,8 @@ type ProjectSettingsResponseBody struct {
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
 	// A list of project mentorship program administrators with their profile
-	// information
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
 	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`

@@ -1893,7 +1893,7 @@ definitions:
                 type: array
                 items:
                     $ref: '#/definitions/UserInfo'
-                description: A list of project mentorship program administrators with their profile information
+                description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
                 example:
                     - avatar: https://example.com/avatar.jpg
                       email: jane.smith@example.com
@@ -2304,7 +2304,7 @@ definitions:
                 type: array
                 items:
                     $ref: '#/definitions/UserInfo'
-                description: A list of project mentorship program administrators with their profile information
+                description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
                 example:
                     - avatar: https://example.com/avatar.jpg
                       email: jane.smith@example.com
@@ -3144,7 +3144,7 @@ definitions:
                 type: array
                 items:
                     $ref: '#/definitions/UserInfo'
-                description: A list of project mentorship program administrators with their profile information
+                description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
                 example:
                     - avatar: https://example.com/avatar.jpg
                       email: jane.smith@example.com
@@ -3319,7 +3319,7 @@ definitions:
                 type: array
                 items:
                     $ref: '#/definitions/UserInfo'
-                description: A list of project mentorship program administrators with their profile information
+                description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
                 example:
                     - avatar: https://example.com/avatar.jpg
                       email: jane.smith@example.com
