@@ -41,6 +41,7 @@ const (
 	roleWriter             = "Writer"
 	roleAuditor            = "Auditor"
 	roleMeetingCoordinator = "Meeting Coordinator"
+	roleMentorshipAdmin    = "Mentorship Program Admin"
 )
 
 // changeKind classifies a per-user role delta between two settings snapshots.
@@ -55,7 +56,7 @@ const (
 // userChange describes the role delta for a single user across a settings update.
 type userChange struct {
 	User     events.UserInfo // freshest snapshot (new settings if present, else old)
-	OldRoles []string        // ordered: Writer, Auditor, Meeting Coordinator
+	OldRoles []string        // ordered: Writer, Auditor, Meeting Coordinator, Mentorship Program Admin
 	NewRoles []string
 	Kind     changeKind
 }
@@ -169,11 +170,12 @@ func projectSettingsHasEmailOnlyEntry(s *models.ProjectSettings, normalizedEmail
 }
 
 // projectRoleSlicePtrs returns pointer-to-slice refs for mutation for a given invite role.
-// "Manage" → Writers + MeetingCoordinators; "View" → Auditors only; unknown → nil (fail closed).
+// "Manage" → Writers + MeetingCoordinators + MentorshipProgramAdmins;
+// "View" → Auditors only; unknown → nil (fail closed).
 func projectRoleSlicePtrs(s *models.ProjectSettings, role string) []*[]models.UserInfo {
 	switch role {
 	case string(inviteapi.InviteRoleManage):
-		return []*[]models.UserInfo{&s.Writers, &s.MeetingCoordinators}
+		return []*[]models.UserInfo{&s.Writers, &s.MeetingCoordinators, &s.MentorshipProgramAdmins}
 	case string(inviteapi.InviteRoleView):
 		return []*[]models.UserInfo{&s.Auditors}
 	default:
@@ -592,8 +594,8 @@ func buildProjectURL(baseURL, slug string) string {
 // diffUserChanges returns the per-user role delta between two settings snapshots.
 // Each entry describes a single user and whether they were added, had their role
 // set changed, or were fully removed.  Users whose role set is identical across
-// both snapshots are omitted.  Role order in OldRoles / NewRoles is stable:
-// Writer, Auditor, Meeting Coordinator.
+// both snapshots are omitted. Role order in OldRoles / NewRoles is stable:
+// Writer, Auditor, Meeting Coordinator, Mentorship Program Admin.
 func diffUserChanges(old, new events.ProjectSettings) []userChange {
 	type entry struct {
 		user  events.UserInfo
@@ -656,6 +658,9 @@ func diffUserChanges(old, new events.ProjectSettings) []userChange {
 		}
 		for _, u := range settings.MeetingCoordinators {
 			add(u, roleMeetingCoordinator)
+		}
+		for _, u := range settings.MentorshipProgramAdmins {
+			add(u, roleMentorshipAdmin)
 		}
 		return
 	}

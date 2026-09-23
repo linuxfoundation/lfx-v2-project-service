@@ -338,9 +338,10 @@ func (d *NotificationDispatcher) sendRoleRemovedEmail(ctx context.Context, proje
 //   - Writer              → Manage
 //   - Auditor             → View
 //   - Meeting Coordinator → Manage (coordinators have write-level project access)
+//   - Mentorship Program Admin → Manage (project-scoped admin capability)
 func mapRoleToInviteRole(role string) string {
 	switch role {
-	case roleWriter, roleMeetingCoordinator:
+	case roleWriter, roleMeetingCoordinator, roleMentorshipAdmin:
 		return string(inviteapi.InviteRoleManage)
 	case roleAuditor:
 		return string(inviteapi.InviteRoleView)

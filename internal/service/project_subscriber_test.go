@@ -47,6 +47,7 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 	noLFIDWriter := events.UserInfo{Email: "writer@example.com", Name: "No LFID Writer"}
 	noLFIDAuditor := events.UserInfo{Email: "auditor@example.com", Name: "No LFID Auditor"}
 	noLFIDMC := events.UserInfo{Email: "mc@example.com", Name: "No LFID MC"}
+	noLFIDMentorshipAdmin := events.UserInfo{Email: "mentor-admin@example.com", Name: "No LFID Mentorship Admin"}
 
 	tests := []struct {
 		name                    string
@@ -159,6 +160,20 @@ func TestHandleProjectSettingsUpdated(t *testing.T) {
 			wantInviteCount: 1,
 			wantInviteRole:  string(inviteapi.InviteRoleManage),
 			inviteUID:       "invite-mc-uid",
+		},
+		{
+			name: "non-LFID mentorship admin added — invite request published with Manage role and UID stored",
+			event: events.ProjectSettingsUpdatedMessage{
+				ProjectUID:  "proj-1",
+				OldSettings: events.ProjectSettings{},
+				NewSettings: events.ProjectSettings{MentorshipProgramAdmins: []events.UserInfo{noLFIDMentorshipAdmin}},
+				Actor:       events.Actor{Name: "Admin"},
+			},
+			projectBase:     makeProjectBase("proj-1", "Demo", "demo"),
+			wantEmailCount:  0,
+			wantInviteCount: 1,
+			wantInviteRole:  string(inviteapi.InviteRoleManage),
+			inviteUID:       "invite-mentorship-admin-uid",
 		},
 		{
 			name: "mixed LFID and non-LFID added — email for LFID, invite for non-LFID",
@@ -769,6 +784,7 @@ func TestMapRoleToInviteRole(t *testing.T) {
 		{"writer", roleWriter, string(inviteapi.InviteRoleManage)},
 		{"auditor", roleAuditor, string(inviteapi.InviteRoleView)},
 		{"meeting coordinator", roleMeetingCoordinator, string(inviteapi.InviteRoleManage)},
+		{"mentorship program admin", roleMentorshipAdmin, string(inviteapi.InviteRoleManage)},
 		{"unknown role", "Unknown", ""},
 		{"empty role", "", ""},
 	}
@@ -835,6 +851,15 @@ func TestDiffUserChanges(t *testing.T) {
 			wantLen: 1,
 			wantContains: []userChange{
 				{User: alice, OldRoles: []string{roleAuditor}, NewRoles: []string{roleWriter, roleAuditor}, Kind: changeChanged},
+			},
+		},
+		{
+			name:    "mentorship admin added",
+			old:     events.ProjectSettings{},
+			new:     events.ProjectSettings{MentorshipProgramAdmins: []events.UserInfo{alice}},
+			wantLen: 1,
+			wantContains: []userChange{
+				{User: alice, NewRoles: []string{roleMentorshipAdmin}, Kind: changeAdded},
 			},
 		},
 		{
@@ -1007,6 +1032,7 @@ func TestRolesForDisplay(t *testing.T) {
 		{name: "Writer → Manage", roles: []string{roleWriter}, want: []string{"Manage"}},
 		{name: "Auditor → View", roles: []string{roleAuditor}, want: []string{"View"}},
 		{name: "Meeting Coordinator → Meeting Coordinator", roles: []string{roleMeetingCoordinator}, want: []string{"Meeting Coordinator"}},
+		{name: "Mentorship Program Admin → Mentorship Program Admin", roles: []string{roleMentorshipAdmin}, want: []string{"Mentorship Program Admin"}},
 		{name: "Writer+Auditor → Manage only (Auditor dropped)", roles: []string{roleWriter, roleAuditor}, want: []string{"Manage"}},
 		{name: "MC+Auditor → both shown (neither supersedes)", roles: []string{roleMeetingCoordinator, roleAuditor}, want: []string{"Meeting Coordinator", "View"}},
 		{name: "Writer+MC → Manage only (MC dropped)", roles: []string{roleWriter, roleMeetingCoordinator}, want: []string{"Manage"}},
@@ -1157,6 +1183,26 @@ func TestHandleInviteAccepted(t *testing.T) {
 					writerOK := len(s.Writers) > 0 && s.Writers[0].Username == username
 					mcOK := len(s.MeetingCoordinators) > 0 && s.MeetingCoordinators[0].Username == username
 					return writerOK && mcOK
+				}), uint64(1)).Return(nil)
+				expectPromotionProjectBase(r, projectUID)
+			},
+			setupMsg: func(m *domainmocks.MockMessageBuilder) {
+				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
+			},
+		},
+		{
+			name:    "user in mentorship admin slice — promoted on Manage invite acceptance",
+			payload: makeEvent(inviteUID, username, string(inviteapi.InviteRoleManage)),
+			setupRepo: func(r *domainmocks.MockProjectRepository) {
+				settings := &models.ProjectSettings{
+					UID:                     projectUID,
+					MentorshipProgramAdmins: []models.UserInfo{{Email: writerEmail}},
+				}
+				r.On("ListAllProjectsSettings", mock.Anything).Return([]*models.ProjectSettings{settings}, nil)
+				r.On("GetProjectSettingsWithRevision", mock.Anything, projectUID).Return(settings, uint64(1), nil)
+				r.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.MentorshipProgramAdmins) > 0 && s.MentorshipProgramAdmins[0].Username == username
 				}), uint64(1)).Return(nil)
 				expectPromotionProjectBase(r, projectUID)
 			},
@@ -1742,6 +1788,7 @@ func TestProjectSettingsHasUsername(t *testing.T) {
 		{name: "writer case-insensitive match", settings: &models.ProjectSettings{Writers: []models.UserInfo{{Username: "Alice"}}}, want: true},
 		{name: "auditor match", settings: &models.ProjectSettings{Auditors: []models.UserInfo{{Username: username}}}, want: true},
 		{name: "meeting coordinator match", settings: &models.ProjectSettings{MeetingCoordinators: []models.UserInfo{{Username: username}}}, want: true},
+		{name: "mentorship program admin match", settings: &models.ProjectSettings{MentorshipProgramAdmins: []models.UserInfo{{Username: username}}}, want: true},
 		{name: "executive director match", settings: &models.ProjectSettings{ExecutiveDirector: &models.UserInfo{Username: username}}, want: true},
 		{name: "program manager match", settings: &models.ProjectSettings{ProgramManager: &models.UserInfo{Username: username}}, want: true},
 		{name: "opportunity owner match", settings: &models.ProjectSettings{OpportunityOwner: &models.UserInfo{Username: username}}, want: true},

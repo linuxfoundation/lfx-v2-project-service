@@ -591,6 +591,12 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
+	// Preserve mentorship admins when omitted from PUT payloads.
+	mentorshipProgramAdmins := payload.MentorshipProgramAdmins
+	if mentorshipProgramAdmins == nil {
+		mentorshipProgramAdmins = convertUsersToAPI(existingProjectSettingsDB.MentorshipProgramAdmins)
+	}
+
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
@@ -601,7 +607,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		Auditors:                payload.Auditors,
 		MeetingCoordinators:     payload.MeetingCoordinators,
 		ExecutiveDirector:       payload.ExecutiveDirector,
-		MentorshipProgramAdmins: payload.MentorshipProgramAdmins,
+		MentorshipProgramAdmins: mentorshipProgramAdmins,
 		ProgramManager:          payload.ProgramManager,
 		OpportunityOwner:        payload.OpportunityOwner,
 		UpdatedAt:               misc.StringPtr(currentTime.Format(time.RFC3339)),

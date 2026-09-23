@@ -1319,6 +1319,46 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "omitted mentorship admins field preserves stored admins",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:     misc.StringPtr("project-uid-1"),
+				IfMatch: misc.StringPtr("1"),
+				Writers: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Writer"), Email: misc.StringPtr("writer@example.com")},
+				},
+				MentorshipProgramAdmins: nil,
+			},
+			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
+				mockUserReader.On("UsernameByEmail", mock.Anything, "writer@example.com").Return("writer-lfid", nil)
+				mockUserReader.On("UserMetadataByPrincipal", mock.Anything, "writer-lfid").Return((*domain.UserMetadata)(nil), nil)
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID: "project-uid-1",
+					MentorshipProgramAdmins: []models.UserInfo{
+						{Username: "mentor-admin", Name: "Mentor Admin", Email: "mentor-admin@example.com"},
+					},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.MentorshipProgramAdmins) == 1 && s.MentorshipProgramAdmins[0].Username == "mentor-admin"
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.Equal(t, []string{"mentor-admin"}, data.Relations["mentorship_program_admin"])
+				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
 			// Regression: M2M clients have no email but carry a valid username (Auth0 client principal).
 			// The enrichment step must not clear or override the username when no email is present.
 			name: "no email with existing username — M2M client username preserved",
