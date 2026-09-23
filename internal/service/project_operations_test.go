@@ -1098,6 +1098,7 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 		setupUserReader func(*domainmocks.MockUserReader)
 		wantErr         bool
 		expectedErr     error
+		validate        func(*testing.T, *projsvc.ProjectSettings)
 	}{
 		{
 			name: "successful update — publishes FGA update_access message with writers",
@@ -1286,6 +1287,10 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
+			validate: func(t *testing.T, result *projsvc.ProjectSettings) {
+				require.Len(t, result.Writers, 1)
+				assert.Equal(t, "stored-lfid", *result.Writers[0].Username)
+			},
 		},
 		{
 			name: "unknown email on executive director — stored LFID preserved",
@@ -1358,6 +1363,40 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "explicit empty mentorship admins field clears stored admins",
+			payload: &projsvc.UpdateProjectSettingsPayload{
+				UID:                     misc.StringPtr("project-uid-1"),
+				IfMatch:                 misc.StringPtr("1"),
+				MentorshipProgramAdmins: []*projsvc.UserInfo{},
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				existingSettings := &models.ProjectSettings{
+					UID:                     "project-uid-1",
+					MentorshipProgramAdmins: []models.UserInfo{{Username: "mentor-admin", Email: "mentor-admin@example.com"}},
+				}
+				projectDB := &models.ProjectBase{UID: "project-uid-1"}
+				mockRepo.On("ProjectExists", mock.Anything, "project-uid-1").Return(true, nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "project-uid-1").Return(existingSettings, nil)
+				mockRepo.On("UpdateProjectSettings", mock.Anything, mock.MatchedBy(func(s *models.ProjectSettings) bool {
+					return len(s.MentorshipProgramAdmins) == 0
+				}), uint64(1)).Return(nil)
+				mockRepo.On("GetProjectBase", mock.Anything, "project-uid-1").Return(projectDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil).Run(func(args mock.Arguments) {
+					msg, ok := args.Get(2).(fgatypes.GenericFGAMessage)
+					require.True(t, ok)
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					require.True(t, ok)
+					assert.NotContains(t, data.Relations, "mentorship_program_admin")
+				})
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+			validate: func(t *testing.T, result *projsvc.ProjectSettings) {
+				assert.Empty(t, result.MentorshipProgramAdmins)
+			},
+		},
+		{
 			name: "omitted mentorship admins field preserves stored admins",
 			payload: &projsvc.UpdateProjectSettingsPayload{
 				UID:     misc.StringPtr("project-uid-1"),
@@ -1396,6 +1435,10 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
 			wantErr: false,
+			validate: func(t *testing.T, result *projsvc.ProjectSettings) {
+				require.Len(t, result.MentorshipProgramAdmins, 1)
+				assert.Equal(t, "mentor-admin", *result.MentorshipProgramAdmins[0].Username)
+			},
 		},
 		{
 			// Regression: M2M clients have no email but carry a valid username (Auth0 client principal).
@@ -1551,6 +1594,9 @@ func TestProjectsService_UpdateProjectSettings(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
+				if tt.validate != nil {
+					tt.validate(t, result)
+				}
 			}
 
 			mockRepo.AssertExpectations(t)

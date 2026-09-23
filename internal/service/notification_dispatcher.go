@@ -404,7 +404,8 @@ func setDiffRoles(a, b []string) []string {
 }
 
 // roleDisplayName maps an internal role name to its user-facing display name.
-// Writer → "Manage", Auditor → "View"; all other role labels stay as-is.
+// Writer → "Manage", Auditor → "View"; Mentorship Program Admin and other role
+// labels stay as-is.
 func roleDisplayName(role string) string {
 	switch role {
 	case roleWriter:
@@ -418,7 +419,7 @@ func roleDisplayName(role string) string {
 
 // rolesForDisplay converts a slice of internal role names to deduplicated display names.
 // Writer collapses subordinate capability labels (View and Meeting Coordinator), but
-// independent capabilities (for example Mentorship Program Admin) are preserved.
+// the independent Mentorship Program Admin capability is preserved.
 // Order otherwise follows input.
 func rolesForDisplay(roles []string) []string {
 	seen := make(map[string]bool, len(roles))

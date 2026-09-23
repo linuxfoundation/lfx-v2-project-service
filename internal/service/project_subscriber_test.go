@@ -14,6 +14,7 @@ import (
 
 	emailapi "github.com/linuxfoundation/lfx-v2-email-service/pkg/api"
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/stretchr/testify/assert"
@@ -1210,7 +1211,14 @@ func TestHandleInviteAccepted(t *testing.T) {
 			},
 			setupMsg: func(m *domainmocks.MockMessageBuilder) {
 				m.On("SendIndexerMessage", mock.Anything, "lfx.index.project_settings", mock.Anything, false).Return(nil)
-				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
+				m.On("PublishAccessMessage", mock.Anything, fgaconstants.GenericUpdateAccessSubject, mock.MatchedBy(func(msg fgatypes.GenericFGAMessage) bool {
+					data, ok := msg.Data.(fgatypes.GenericAccessData)
+					if !ok {
+						return false
+					}
+					relations := data.Relations["mentorship_program_admin"]
+					return len(relations) == 1 && relations[0] == username
+				})).Return(nil)
 			},
 		},
 		{

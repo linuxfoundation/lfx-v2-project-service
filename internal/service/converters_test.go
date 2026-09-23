@@ -188,7 +188,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "mentorship admin stored LFID preserved when lookup is omitted",
+			name: "mentorship admin stored LFID preserved on email lookup miss (empty username)",
 			existing: &models.ProjectSettings{
 				UID:                     "test-uid",
 				MentorshipProgramAdmins: []models.UserInfo{{Username: "stored-mentor", Email: "mentor@example.com"}},

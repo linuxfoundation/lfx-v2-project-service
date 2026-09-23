@@ -684,9 +684,9 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
-	slog.DebugContext(ctx, "returning updated project settings", "project_settings", projectSettings)
+	slog.DebugContext(ctx, "returning updated project settings", "project_settings", projectSettingsDB)
 
-	return projectSettings, nil
+	return ConvertToServiceProjectSettings(projectSettingsDB), nil
 }
 
 // Delete a project.
