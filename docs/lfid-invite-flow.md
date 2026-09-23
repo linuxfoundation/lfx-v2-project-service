@@ -6,7 +6,7 @@ This document describes how the project service handles users who are added to a
 
 ## Overview
 
-When a user is added to a project's role list via `PUT /projects/{uid}/settings`, the service branches on whether the user has an LFID:
+When a user is added to a project's role list via `POST /projects` or `PUT /projects/{uid}/settings`, the service branches on whether the user has an LFID:
 
 | User state | `username` field | Action |
 |---|---|---|
@@ -19,7 +19,7 @@ The invite service handles rendering and delivering the invite email to the reci
 
 ## Sending an Invite
 
-**Triggered by:** `HandleProjectSettingsUpdated` — called when a `lfx.projects-api.project_settings.updated` event arrives and the diff contains non-LFID users who gained roles (newly added users, or new roles on a role change; removals are silently skipped). Invites are deduplicated by mapped invite role, so a user gaining both Writer and Meeting Coordinator receives a single `Manage` invite. Mentorship Program Admins also map to `Manage`.
+**Triggered by:** `HandleProjectSettingsUpdated` — called when a `lfx.projects-api.project_settings.updated` event arrives and the diff contains non-LFID users who gained roles (newly added users, or new roles on a role change; removals are silently skipped). Project creation emits this event for initial Mentorship Program Admins; settings updates emit it for role changes. Invites are deduplicated by mapped invite role, so a user gaining both Writer and Meeting Coordinator receives a single `Manage` invite. Mentorship Program Admins also map to `Manage`.
 
 **NATS subject used:** `lfx.invite-service.send_invite` (request/reply)
 

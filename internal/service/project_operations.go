@@ -247,11 +247,14 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	g.Go(func() error {
 		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		settingsEvent := proj.ToEventSettings()
 		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  projectDB.UID,
 			OldSettings: events.ProjectSettings{},
-			NewSettings: proj.ToEventSettings(),
-			Actor:       events.Actor{Username: principal},
+			NewSettings: events.ProjectSettings{
+				MentorshipProgramAdmins: settingsEvent.MentorshipProgramAdmins,
+			},
+			Actor: events.Actor{Username: principal},
 		}
 		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
 	})

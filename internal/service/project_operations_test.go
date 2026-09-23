@@ -173,7 +173,12 @@ func TestProjectsService_CreateProject(t *testing.T) {
 							data.Public
 					}),
 				).Return(nil)
-				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("events.ProjectSettingsUpdatedMessage")).Return(nil).Once()
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(msg events.ProjectSettingsUpdatedMessage) bool {
+					return len(msg.NewSettings.Writers) == 0 &&
+						len(msg.NewSettings.Auditors) == 0 &&
+						len(msg.NewSettings.MeetingCoordinators) == 0 &&
+						len(msg.NewSettings.MentorshipProgramAdmins) == 0
+				})).Return(nil).Once()
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -354,7 +359,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 					if len(msg.OldSettings.MentorshipProgramAdmins) != 0 {
 						return false
 					}
-					if len(msg.NewSettings.MentorshipProgramAdmins) != 1 {
+					if len(msg.NewSettings.MentorshipProgramAdmins) != 1 || len(msg.NewSettings.Writers) != 0 || len(msg.NewSettings.Auditors) != 0 || len(msg.NewSettings.MeetingCoordinators) != 0 {
 						return false
 					}
 					admin := msg.NewSettings.MentorshipProgramAdmins[0]

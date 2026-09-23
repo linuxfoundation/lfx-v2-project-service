@@ -362,7 +362,7 @@ func ProjectExecutiveDirectorAttribute() {
 
 // ProjectMentorshipProgramAdminsAttribute is the DSL attribute for project mentorship program administrators.
 func ProjectMentorshipProgramAdminsAttribute() {
-	Attribute("mentorship_program_admins", ArrayOf(UserInfo), "A list of project mentorship program administrators with their profile information", func() {
+	Attribute("mentorship_program_admins", ArrayOf(UserInfo), "A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.", func() {
 		Example([]map[string]interface{}{
 			{
 				"name":     "Jane Smith",
