@@ -54,8 +54,17 @@ Project deletion also publishes `lfx.fga-sync.delete_access` asynchronously. `X-
 | `auditor` | Usernames from `ProjectSettings.Auditors` | Only when at least one auditor has a non-empty username |
 | `meeting_coordinator` | Usernames from `ProjectSettings.MeetingCoordinators` | Only when at least one meeting coordinator has a non-empty username |
 | `executive_director` | Username from `ProjectSettings.ExecutiveDirector` | Only when `ExecutiveDirector.Username` is non-empty |
+| `mentorship_program_admin` | Project-wide mentorship admin memberships managed by the project service | Authoritative project-service roster and FGA publish path; Mentorship consumes the inherited relation rather than writing its own competing project role tuple |
 
 > Usernames are the `Username` field of each `UserInfo` entry (LFX usernames). Before persisting a create or settings update, `enrichAllRoleFields` overwrites `Username` on every entry that includes an email address with the value returned by `lfx.auth-service.email_to_username`. Unknown emails (`ErrUserNotFound`) clear the request username so a caller-supplied value cannot become an FGA principal. `convertUsersFromAPI` / `convertUserFromAPI` then **preserve any already-stored LFID** matched by email (slice roles and singleton roles such as `executive_director`), so a lookup miss cannot omit the relation key and cause fga-sync to delete existing tuples. Account deletion still scrubs usernames via `HandleUserDeleted`. Entries with a username but no email are left untouched. Empty usernames are omitted from the published relation lists (pending invites are not FGA principals). When a role slice is empty, the relation key is omitted so fga-sync deletes that relation — that is intentional empty-list semantics, not a lookup failure.
+
+### Project role ownership
+
+Project service is the authoritative owner of project-scoped role storage, assignment, and FGA emission. That includes all project-level roles emitted to `project` tuples, including the project-wide mentorship admin role (`project#mentorship_program_admin`).
+
+The intended model is single-authority ownership: project service owns the source-of-truth roster and publishes the corresponding `member_put` / `member_remove` updates through the normal `update_access` / `delete_access` flow. Mentorship should consume the inherited project relation for cross-program admin checks, not maintain a separate project-role roster and rely on a bridge such as `exclude_relations` to avoid deleting the other service's tuples.
+
+This keeps project-role lifecycle management in one place and avoids the failure mode where two services race on full-state access sync and each service silently strips the other's direct tuple.
 
 ### References
 

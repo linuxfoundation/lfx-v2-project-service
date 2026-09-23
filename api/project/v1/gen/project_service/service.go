@@ -201,6 +201,9 @@ type CreateProjectPayload struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
@@ -597,6 +600,9 @@ type ProjectFull struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
@@ -645,6 +651,9 @@ type ProjectSettings struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
@@ -764,6 +773,9 @@ type UpdateProjectSettingsPayload struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information

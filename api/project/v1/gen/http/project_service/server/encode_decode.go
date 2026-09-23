@@ -2642,6 +2642,12 @@ func marshalProjectserviceProjectFullToProjectFullResponseBody(v *projectservice
 	if v.ExecutiveDirector != nil {
 		res.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoResponseBody(v.ExecutiveDirector)
 	}
+	if v.MentorshipProgramAdmins != nil {
+		res.MentorshipProgramAdmins = make([]*UserInfoResponseBody, len(v.MentorshipProgramAdmins))
+		for i, val := range v.MentorshipProgramAdmins {
+			res.MentorshipProgramAdmins[i] = marshalProjectserviceUserInfoToUserInfoResponseBody(val)
+		}
+	}
 	if v.ProgramManager != nil {
 		res.ProgramManager = marshalProjectserviceUserInfoToUserInfoResponseBody(v.ProgramManager)
 	}

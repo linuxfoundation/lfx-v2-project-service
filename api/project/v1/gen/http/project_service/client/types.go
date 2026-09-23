@@ -75,6 +75,9 @@ type CreateProjectRequestBody struct {
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfoRequestBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
@@ -145,6 +148,9 @@ type UpdateProjectSettingsRequestBody struct {
 	Auditors []*UserInfoRequestBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoRequestBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfoRequestBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoRequestBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
@@ -260,6 +266,9 @@ type CreateProjectResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
@@ -346,6 +355,9 @@ type UpdateProjectSettingsResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
@@ -1252,6 +1264,9 @@ type ProjectFullResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
@@ -1378,6 +1393,9 @@ type ProjectSettingsResponseBody struct {
 	Auditors []*UserInfoResponseBody `form:"auditors,omitempty" json:"auditors,omitempty" xml:"auditors,omitempty"`
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfoResponseBody `form:"executive_director,omitempty" json:"executive_director,omitempty" xml:"executive_director,omitempty"`
+	// A list of project mentorship program administrators with their profile
+	// information
+	MentorshipProgramAdmins []*UserInfoResponseBody `form:"mentorship_program_admins,omitempty" json:"mentorship_program_admins,omitempty" xml:"mentorship_program_admins,omitempty"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfoResponseBody `form:"program_manager,omitempty" json:"program_manager,omitempty" xml:"program_manager,omitempty"`
 	// The opportunity owner of the project with their profile information
@@ -1512,6 +1530,12 @@ func NewCreateProjectRequestBody(p *projectservice.CreateProjectPayload) *Create
 	if p.ExecutiveDirector != nil {
 		body.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ExecutiveDirector)
 	}
+	if p.MentorshipProgramAdmins != nil {
+		body.MentorshipProgramAdmins = make([]*UserInfoRequestBody, len(p.MentorshipProgramAdmins))
+		for i, val := range p.MentorshipProgramAdmins {
+			body.MentorshipProgramAdmins[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
+		}
+	}
 	if p.ProgramManager != nil {
 		body.ProgramManager = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ProgramManager)
 	}
@@ -1584,6 +1608,12 @@ func NewUpdateProjectSettingsRequestBody(p *projectservice.UpdateProjectSettings
 	}
 	if p.ExecutiveDirector != nil {
 		body.ExecutiveDirector = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ExecutiveDirector)
+	}
+	if p.MentorshipProgramAdmins != nil {
+		body.MentorshipProgramAdmins = make([]*UserInfoRequestBody, len(p.MentorshipProgramAdmins))
+		for i, val := range p.MentorshipProgramAdmins {
+			body.MentorshipProgramAdmins[i] = marshalProjectserviceUserInfoToUserInfoRequestBody(val)
+		}
 	}
 	if p.ProgramManager != nil {
 		body.ProgramManager = marshalProjectserviceUserInfoToUserInfoRequestBody(p.ProgramManager)
@@ -1734,6 +1764,12 @@ func NewCreateProjectProjectFullCreated(body *CreateProjectResponseBody) *projec
 	}
 	if body.ExecutiveDirector != nil {
 		v.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ExecutiveDirector)
+	}
+	if body.MentorshipProgramAdmins != nil {
+		v.MentorshipProgramAdmins = make([]*projectservice.UserInfo, len(body.MentorshipProgramAdmins))
+		for i, val := range body.MentorshipProgramAdmins {
+			v.MentorshipProgramAdmins[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
+		}
 	}
 	if body.ProgramManager != nil {
 		v.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ProgramManager)
@@ -1894,6 +1930,12 @@ func NewGetOneProjectSettingsResultOK(body *GetOneProjectSettingsResponseBody, e
 	}
 	if body.ExecutiveDirector != nil {
 		v.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ExecutiveDirector)
+	}
+	if body.MentorshipProgramAdmins != nil {
+		v.MentorshipProgramAdmins = make([]*projectservice.UserInfo, len(body.MentorshipProgramAdmins))
+		for i, val := range body.MentorshipProgramAdmins {
+			v.MentorshipProgramAdmins[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
+		}
 	}
 	if body.ProgramManager != nil {
 		v.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ProgramManager)
@@ -2065,6 +2107,12 @@ func NewUpdateProjectSettingsProjectSettingsOK(body *UpdateProjectSettingsRespon
 	}
 	if body.ExecutiveDirector != nil {
 		v.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ExecutiveDirector)
+	}
+	if body.MentorshipProgramAdmins != nil {
+		v.MentorshipProgramAdmins = make([]*projectservice.UserInfo, len(body.MentorshipProgramAdmins))
+		for i, val := range body.MentorshipProgramAdmins {
+			v.MentorshipProgramAdmins[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
+		}
 	}
 	if body.ProgramManager != nil {
 		v.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(body.ProgramManager)
@@ -2964,6 +3012,13 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 			err = goa.MergeErrors(err, err2)
 		}
 	}
+	for _, e := range body.MentorshipProgramAdmins {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
 	if body.ProgramManager != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ProgramManager); err2 != nil {
 			err = goa.MergeErrors(err, err2)
@@ -3080,6 +3135,13 @@ func ValidateGetOneProjectSettingsResponseBody(body *GetOneProjectSettingsRespon
 	if body.ExecutiveDirector != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ExecutiveDirector); err2 != nil {
 			err = goa.MergeErrors(err, err2)
+		}
+	}
+	for _, e := range body.MentorshipProgramAdmins {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
 		}
 	}
 	if body.ProgramManager != nil {
@@ -3204,6 +3266,13 @@ func ValidateUpdateProjectSettingsResponseBody(body *UpdateProjectSettingsRespon
 	if body.ExecutiveDirector != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ExecutiveDirector); err2 != nil {
 			err = goa.MergeErrors(err, err2)
+		}
+	}
+	for _, e := range body.MentorshipProgramAdmins {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
 		}
 	}
 	if body.ProgramManager != nil {
@@ -4449,6 +4518,13 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 			err = goa.MergeErrors(err, err2)
 		}
 	}
+	for _, e := range body.MentorshipProgramAdmins {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
+		}
+	}
 	if body.ProgramManager != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ProgramManager); err2 != nil {
 			err = goa.MergeErrors(err, err2)
@@ -4617,6 +4693,13 @@ func ValidateProjectSettingsResponseBody(body *ProjectSettingsResponseBody) (err
 	if body.ExecutiveDirector != nil {
 		if err2 := ValidateUserInfoResponseBody(body.ExecutiveDirector); err2 != nil {
 			err = goa.MergeErrors(err, err2)
+		}
+	}
+	for _, e := range body.MentorshipProgramAdmins {
+		if e != nil {
+			if err2 := ValidateUserInfoResponseBody(e); err2 != nil {
+				err = goa.MergeErrors(err, err2)
+			}
 		}
 	}
 	if body.ProgramManager != nil {

@@ -375,6 +375,11 @@ func projectSettingsHasUsername(s *models.ProjectSettings, username string) bool
 			return true
 		}
 	}
+	for _, u := range s.MentorshipProgramAdmins {
+		if usernameMatches(username, u.Username) {
+			return true
+		}
+	}
 	if s.ExecutiveDirector != nil && usernameMatches(username, s.ExecutiveDirector.Username) {
 		return true
 	}
@@ -412,6 +417,9 @@ func (s *ProjectsService) clearUsernameInSettings(ctx context.Context, settings 
 	}
 	for i := range settings.MeetingCoordinators {
 		clearIfMatch(&settings.MeetingCoordinators[i])
+	}
+	for i := range settings.MentorshipProgramAdmins {
+		clearIfMatch(&settings.MentorshipProgramAdmins[i])
 	}
 	clearIfMatch(settings.ExecutiveDirector)
 	clearIfMatch(settings.ProgramManager)

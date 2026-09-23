@@ -153,7 +153,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
 	if err := s.enrichAllRoleFields(ctx,
-		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators, payload.MentorshipProgramAdmins},
 		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
 	); err != nil {
 		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
@@ -187,15 +187,16 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		RepositoryURL:              payload.RepositoryURL,
 	}
 	projectSettings := &projsvc.ProjectSettings{
-		UID:                 &id,
-		MissionStatement:    payload.MissionStatement,
-		AnnouncementDate:    payload.AnnouncementDate,
-		Writers:             payload.Writers,
-		Auditors:            payload.Auditors,
-		MeetingCoordinators: payload.MeetingCoordinators,
-		ExecutiveDirector:   payload.ExecutiveDirector,
-		ProgramManager:      payload.ProgramManager,
-		OpportunityOwner:    payload.OpportunityOwner,
+		UID:                     &id,
+		MissionStatement:        payload.MissionStatement,
+		AnnouncementDate:        payload.AnnouncementDate,
+		Writers:                 payload.Writers,
+		Auditors:                payload.Auditors,
+		MeetingCoordinators:     payload.MeetingCoordinators,
+		ExecutiveDirector:       payload.ExecutiveDirector,
+		MentorshipProgramAdmins: payload.MentorshipProgramAdmins,
+		ProgramManager:          payload.ProgramManager,
+		OpportunityOwner:        payload.OpportunityOwner,
 	}
 
 	projectDB, err := ConvertToDBProjectBase(project)
@@ -583,7 +584,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 
 	// Enrich usernames from the auth service before persisting; caller-supplied LFIDs are untrusted.
 	if err := s.enrichAllRoleFields(ctx,
-		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators},
+		[][]*projsvc.UserInfo{payload.Writers, payload.Auditors, payload.MeetingCoordinators, payload.MentorshipProgramAdmins},
 		[]*projsvc.UserInfo{payload.ExecutiveDirector, payload.ProgramManager, payload.OpportunityOwner},
 	); err != nil {
 		slog.ErrorContext(ctx, "error enriching user role fields", constants.ErrKey, err)
@@ -593,16 +594,17 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 	// Prepare the updated project settings
 	currentTime := time.Now().UTC()
 	projectSettings := &projsvc.ProjectSettings{
-		UID:                 payload.UID,
-		MissionStatement:    payload.MissionStatement,
-		AnnouncementDate:    payload.AnnouncementDate,
-		Writers:             payload.Writers,
-		Auditors:            payload.Auditors,
-		MeetingCoordinators: payload.MeetingCoordinators,
-		ExecutiveDirector:   payload.ExecutiveDirector,
-		ProgramManager:      payload.ProgramManager,
-		OpportunityOwner:    payload.OpportunityOwner,
-		UpdatedAt:           misc.StringPtr(currentTime.Format(time.RFC3339)),
+		UID:                     payload.UID,
+		MissionStatement:        payload.MissionStatement,
+		AnnouncementDate:        payload.AnnouncementDate,
+		Writers:                 payload.Writers,
+		Auditors:                payload.Auditors,
+		MeetingCoordinators:     payload.MeetingCoordinators,
+		ExecutiveDirector:       payload.ExecutiveDirector,
+		MentorshipProgramAdmins: payload.MentorshipProgramAdmins,
+		ProgramManager:          payload.ProgramManager,
+		OpportunityOwner:        payload.OpportunityOwner,
+		UpdatedAt:               misc.StringPtr(currentTime.Format(time.RFC3339)),
 	}
 	if existingProjectSettingsDB.CreatedAt != nil {
 		projectSettings.CreatedAt = misc.StringPtr(existingProjectSettingsDB.CreatedAt.Format(time.RFC3339))

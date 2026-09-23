@@ -104,6 +104,7 @@ func ProjectSettingsAttributes() {
 	ProjectMeetingCoordinatorsAttribute()
 	ProjectAuditorsAttribute()
 	ProjectExecutiveDirectorAttribute()
+	ProjectMentorshipProgramAdminsAttribute()
 	ProjectProgramManagerAttribute()
 	ProjectOpportunityOwnerAttribute()
 	ProjectCreatedAtAttribute()
@@ -355,6 +356,20 @@ func ProjectExecutiveDirectorAttribute() {
 			"email":    "jane.smith@example.com",
 			"username": "janesmith456",
 			"avatar":   "https://example.com/avatar.jpg",
+		})
+	})
+}
+
+// ProjectMentorshipProgramAdminsAttribute is the DSL attribute for project mentorship program administrators.
+func ProjectMentorshipProgramAdminsAttribute() {
+	Attribute("mentorship_program_admins", ArrayOf(UserInfo), "A list of project mentorship program administrators with their profile information", func() {
+		Example([]map[string]interface{}{
+			{
+				"name":     "Jane Smith",
+				"email":    "jane.smith@example.com",
+				"username": "janesmith456",
+				"avatar":   "https://example.com/avatar.jpg",
+			},
 		})
 	})
 }

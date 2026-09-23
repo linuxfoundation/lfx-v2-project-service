@@ -609,10 +609,13 @@ func TestDomainSettingsToEvent(t *testing.T) {
 					{Name: "M", Email: "m@example.com", Username: "muser", Avatar: "m.png"},
 				},
 				ExecutiveDirector: &models.UserInfo{Name: "ED", Email: "ed@example.com", Username: "eduser", Avatar: "ed.png"},
-				ProgramManager:    &models.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
-				OpportunityOwner:  &models.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
-				CreatedAt:         &now,
-				UpdatedAt:         &now,
+				MentorshipProgramAdmins: []models.UserInfo{
+					{Name: "MA", Email: "ma@example.com", Username: "mauser", Avatar: "ma.png"},
+				},
+				ProgramManager:   &models.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
+				OpportunityOwner: &models.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
+				CreatedAt:        &now,
+				UpdatedAt:        &now,
 			},
 			expected: events.ProjectSettings{
 				UID:              "uid-1",
@@ -624,10 +627,13 @@ func TestDomainSettingsToEvent(t *testing.T) {
 					{Name: "M", Email: "m@example.com", Username: "muser", Avatar: "m.png"},
 				},
 				ExecutiveDirector: &events.UserInfo{Name: "ED", Email: "ed@example.com", Username: "eduser", Avatar: "ed.png"},
-				ProgramManager:    &events.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
-				OpportunityOwner:  &events.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
-				CreatedAt:         &now,
-				UpdatedAt:         &now,
+				MentorshipProgramAdmins: []events.UserInfo{
+					{Name: "MA", Email: "ma@example.com", Username: "mauser", Avatar: "ma.png"},
+				},
+				ProgramManager:   &events.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
+				OpportunityOwner: &events.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
+				CreatedAt:        &now,
+				UpdatedAt:        &now,
 			},
 		},
 		{
@@ -929,5 +935,16 @@ func TestBuildFGAUpdateAccessMessage(t *testing.T) {
 		require.True(t, ok)
 		_, hasWriter := data.Relations[fgaconstants.RelationWriter]
 		assert.False(t, hasWriter)
+	})
+
+	t.Run("publishes mentorship project-admin relation during full sync", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(base, &models.ProjectSettings{
+			UID:                     "project-1",
+			MentorshipProgramAdmins: []models.UserInfo{{Username: "admin1"}, {Username: "admin2"}},
+		})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, []string{"admin1", "admin2"}, data.Relations["mentorship_program_admin"])
+		assert.Empty(t, data.ExcludeRelations)
 	})
 }

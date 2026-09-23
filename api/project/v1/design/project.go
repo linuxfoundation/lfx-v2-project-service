@@ -94,6 +94,7 @@ var _ = Service("project-service", func() {
 			ProjectMeetingCoordinatorsAttribute()
 			ProjectAuditorsAttribute()
 			ProjectExecutiveDirectorAttribute()
+			ProjectMentorshipProgramAdminsAttribute()
 			ProjectProgramManagerAttribute()
 			ProjectOpportunityOwnerAttribute()
 
@@ -272,6 +273,7 @@ var _ = Service("project-service", func() {
 			ProjectMeetingCoordinatorsAttribute()
 			ProjectAuditorsAttribute()
 			ProjectExecutiveDirectorAttribute()
+			ProjectMentorshipProgramAdminsAttribute()
 			ProjectProgramManagerAttribute()
 			ProjectOpportunityOwnerAttribute()
 		})
