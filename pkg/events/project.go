@@ -55,10 +55,11 @@ type Actor struct {
 // lfx.projects-api.project_settings.updated whenever project settings change.
 // It carries both the before and after states so subscribers can diff them.
 type ProjectSettingsUpdatedMessage struct {
-	ProjectUID  string          `json:"project_uid"`
-	OldSettings ProjectSettings `json:"old_settings"`
-	NewSettings ProjectSettings `json:"new_settings"`
-	Actor       Actor           `json:"actor"`
+	ProjectUID        string          `json:"project_uid"`
+	OldSettings       ProjectSettings `json:"old_settings"`
+	NewSettings       ProjectSettings `json:"new_settings"`
+	Actor             Actor           `json:"actor"`
+	NotificationRoles []string        `json:"notification_roles,omitempty"`
 }
 
 // ProjectDocumentCreatedMessage is published on lfx.projects-api.project_document.created

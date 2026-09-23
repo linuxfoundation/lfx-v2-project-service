@@ -30,6 +30,9 @@ var roleCapabilities = map[string][]string{
 		"Create project meetings",
 		"Create project past meetings",
 	},
+	"Mentorship Program Admin": {
+		"Manage project mentorship programs",
+	},
 }
 
 // capabilityGroupsFor returns a RoleCapabilityGroup for each display role that has registered

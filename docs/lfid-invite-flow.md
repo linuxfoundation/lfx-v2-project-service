@@ -6,7 +6,7 @@ This document describes how the project service handles users who are added to a
 
 ## Overview
 
-When a user is added to a project's role list via `POST /projects` or `PUT /projects/{uid}/settings`, the service branches on whether the user has an LFID:
+When a user is added to a project's role list via `PUT /projects/{uid}/settings` (or, for Mentorship Program Admins only, via `POST /projects`), the service branches on whether the user has an LFID:
 
 | User state | `username` field | Action |
 |---|---|---|

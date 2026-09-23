@@ -174,10 +174,12 @@ func TestProjectsService_CreateProject(t *testing.T) {
 					}),
 				).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(msg events.ProjectSettingsUpdatedMessage) bool {
-					return len(msg.NewSettings.Writers) == 0 &&
+					return msg.NewSettings.UID != "" &&
+						len(msg.NewSettings.Writers) == 0 &&
 						len(msg.NewSettings.Auditors) == 0 &&
 						len(msg.NewSettings.MeetingCoordinators) == 0 &&
-						len(msg.NewSettings.MentorshipProgramAdmins) == 0
+						len(msg.NewSettings.MentorshipProgramAdmins) == 0 &&
+						len(msg.NotificationRoles) == 1 && msg.NotificationRoles[0] == roleMentorshipAdmin
 				})).Return(nil).Once()
 			},
 			wantErr: false,
@@ -328,7 +330,11 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				})).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil).Times(2)
 				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("events.ProjectSettingsUpdatedMessage")).Return(nil).Once()
+				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(msg events.ProjectSettingsUpdatedMessage) bool {
+					return msg.NewSettings.UID != "" && len(msg.NewSettings.Writers) == 1 &&
+						msg.NewSettings.Writers[0].Username == "carol-lfid" &&
+						len(msg.NotificationRoles) == 1 && msg.NotificationRoles[0] == roleMentorshipAdmin
+				})).Return(nil).Once()
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -359,7 +365,7 @@ func TestProjectsService_CreateProject(t *testing.T) {
 					if len(msg.OldSettings.MentorshipProgramAdmins) != 0 {
 						return false
 					}
-					if len(msg.NewSettings.MentorshipProgramAdmins) != 1 || len(msg.NewSettings.Writers) != 0 || len(msg.NewSettings.Auditors) != 0 || len(msg.NewSettings.MeetingCoordinators) != 0 {
+					if len(msg.NewSettings.MentorshipProgramAdmins) != 1 || len(msg.NewSettings.Writers) != 0 || len(msg.NewSettings.Auditors) != 0 || len(msg.NewSettings.MeetingCoordinators) != 0 || len(msg.NotificationRoles) != 1 || msg.NotificationRoles[0] != roleMentorshipAdmin {
 						return false
 					}
 					admin := msg.NewSettings.MentorshipProgramAdmins[0]

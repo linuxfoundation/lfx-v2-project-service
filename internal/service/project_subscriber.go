@@ -76,6 +76,9 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	}
 
 	changes := diffUserChanges(event.OldSettings, event.NewSettings)
+	if len(event.NotificationRoles) > 0 {
+		changes = filterUserChangesByRoles(changes, event.NotificationRoles)
+	}
 	slog.DebugContext(ctx, "project_subscriber: received project_settings.updated event",
 		"project_uid", event.ProjectUID, "change_count", len(changes))
 	if slog.Default().Enabled(ctx, slog.LevelDebug) {
@@ -103,6 +106,38 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 
 	projectURL := buildProjectURL(s.Config.LFXSelfServeBaseURL, projectBase.Slug)
 	return s.Dispatcher.Dispatch(ctx, event.ProjectUID, projectBase.Name, projectURL, event.Actor, changes)
+}
+
+// filterUserChangesByRoles limits notifications to changes involving one of the
+// explicitly requested roles while leaving the event's complete snapshots intact.
+func filterUserChangesByRoles(changes []userChange, roles []string) []userChange {
+	allowed := make(map[string]struct{}, len(roles))
+	for _, role := range roles {
+		allowed[role] = struct{}{}
+	}
+
+	filtered := make([]userChange, 0, len(changes))
+	for _, change := range changes {
+		matches := false
+		for _, role := range change.OldRoles {
+			if _, ok := allowed[role]; ok {
+				matches = true
+				break
+			}
+		}
+		if !matches {
+			for _, role := range change.NewRoles {
+				if _, ok := allowed[role]; ok {
+					matches = true
+					break
+				}
+			}
+		}
+		if matches {
+			filtered = append(filtered, change)
+		}
+	}
+	return filtered
 }
 
 // HandleInviteAccepted processes an invite acceptance event published by the invite service.
