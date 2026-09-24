@@ -6,13 +6,19 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	goahttp "goa.design/goa/v3/http"
 
+	projsvchttpclient "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/client"
+	projsvchttpserver "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
 	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
@@ -224,6 +230,55 @@ func TestCreateProject(t *testing.T) {
 			mockUserReader.AssertExpectations(t)
 		})
 	}
+}
+
+func TestUpdateProjectSettingsHTTPClearsMentorshipAdmins(t *testing.T) {
+	var received *projsvc.UpdateProjectSettingsPayload
+
+	mux := goahttp.NewMuxer()
+	handler := projsvchttpserver.NewUpdateProjectSettingsHandler(
+		func(ctx context.Context, req any) (any, error) {
+			payload, ok := req.(*projsvc.UpdateProjectSettingsPayload)
+			require.True(t, ok)
+			received = payload
+
+			require.NotNil(t, payload.MentorshipProgramAdmins)
+			assert.Empty(t, payload.MentorshipProgramAdmins)
+
+			return &projsvc.ProjectSettings{
+				UID:                     payload.UID,
+				MentorshipProgramAdmins: payload.MentorshipProgramAdmins,
+			}, nil
+		},
+		mux,
+		goahttp.RequestDecoder,
+		goahttp.ResponseEncoder,
+		nil,
+		nil,
+	)
+	projsvchttpserver.MountUpdateProjectSettingsHandler(mux, handler)
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	client := projsvchttpclient.NewClient(serverURL.Scheme, serverURL.Host, server.Client(), goahttp.RequestEncoder, goahttp.ResponseDecoder, false)
+	version := "1"
+	uid := "787620d0-d7de-449a-b0bf-9d28b13da818"
+	ifMatch := "1"
+
+	_, err = client.UpdateProjectSettings()(context.Background(), &projsvc.UpdateProjectSettingsPayload{
+		UID:                     &uid,
+		Version:                 &version,
+		IfMatch:                 &ifMatch,
+		MentorshipProgramAdmins: []*projsvc.UserInfo{},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, received)
+	require.NotNil(t, received.MentorshipProgramAdmins)
+	assert.Empty(t, received.MentorshipProgramAdmins)
 }
 
 func TestResolveProjectSlug(t *testing.T) {

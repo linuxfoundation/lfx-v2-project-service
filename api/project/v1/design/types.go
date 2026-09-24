@@ -374,6 +374,24 @@ func ProjectMentorshipProgramAdminsAttribute() {
 	})
 }
 
+// ProjectMentorshipProgramAdminsUpdateAttribute is the update-request DSL
+// attribute for project mentorship program administrators.
+func ProjectMentorshipProgramAdminsUpdateAttribute() {
+	Attribute("mentorship_program_admins", ArrayOf(UserInfo), "A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.", func() {
+		Meta("struct:tag:form", "mentorship_program_admins")
+		Meta("struct:tag:json", "mentorship_program_admins")
+		Meta("struct:tag:xml", "mentorship_program_admins")
+		Example([]map[string]interface{}{
+			{
+				"name":     "Jane Smith",
+				"email":    "jane.smith@example.com",
+				"username": "janesmith456",
+				"avatar":   "https://example.com/avatar.jpg",
+			},
+		})
+	})
+}
+
 // ProjectProgramManagerAttribute is the DSL attribute for a project program manager.
 func ProjectProgramManagerAttribute() {
 	Attribute("program_manager", UserInfo, "The program manager of the project with their profile information", func() {
