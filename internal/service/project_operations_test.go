@@ -14,8 +14,6 @@ import (
 	domainmocks "github.com/linuxfoundation/lfx-v2-project-service/internal/domain/mocks"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/auth"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
-	"github.com/linuxfoundation/lfx-v2-project-service/pkg/events"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/misc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -173,14 +171,6 @@ func TestProjectsService_CreateProject(t *testing.T) {
 							data.Public
 					}),
 				).Return(nil)
-				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(msg events.ProjectSettingsUpdatedMessage) bool {
-					return msg.NewSettings.UID != "" &&
-						len(msg.NewSettings.Writers) == 0 &&
-						len(msg.NewSettings.Auditors) == 0 &&
-						len(msg.NewSettings.MeetingCoordinators) == 0 &&
-						len(msg.NewSettings.MentorshipProgramAdmins) == 0 &&
-						len(msg.NotificationRoles) == 1 && msg.NotificationRoles[0] == roleMentorshipAdmin
-				})).Return(nil).Once()
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -203,7 +193,6 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil).Once()
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil).Times(2)
 				mockBuilder.On("PublishAccessMessage", mock.Anything, "lfx.fga-sync.update_access", mock.AnythingOfType("types.GenericFGAMessage")).Return(domain.ErrInternal).Once()
-				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("events.ProjectSettingsUpdatedMessage")).Return(nil).Once()
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrInternal,
@@ -288,7 +277,6 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil).Times(2)
 				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
-				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.AnythingOfType("events.ProjectSettingsUpdatedMessage")).Return(nil).Once()
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
@@ -330,49 +318,11 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				})).Return(nil)
 				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.Anything, mock.Anything, false).Return(nil).Times(2)
 				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(msg events.ProjectSettingsUpdatedMessage) bool {
-					return msg.NewSettings.UID != "" && len(msg.NewSettings.Writers) == 1 &&
-						msg.NewSettings.Writers[0].Username == "carol-lfid" &&
-						len(msg.NotificationRoles) == 1 && msg.NotificationRoles[0] == roleMentorshipAdmin
-				})).Return(nil).Once()
 			},
 			wantErr: false,
 			validate: func(t *testing.T, result *projsvc.ProjectFull) {
 				require.NotNil(t, result)
 			},
-		},
-		{
-			name: "create project publishes settings event with email-only mentorship admin",
-			payload: &projsvc.CreateProjectPayload{
-				Slug: "mentor-project",
-				Name: "Mentor Project",
-				MentorshipProgramAdmins: []*projsvc.UserInfo{
-					{Name: misc.StringPtr("Mentor Admin"), Email: misc.StringPtr("mentor-admin@example.com")},
-				},
-			},
-			setupUserReader: func(mockUserReader *domainmocks.MockUserReader) {
-				mockUserReader.On("UsernameByEmail", mock.Anything, "mentor-admin@example.com").Return("", domain.ErrUserNotFound)
-			},
-			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
-				mockRepo.On("ProjectSlugExists", mock.Anything, "mentor-project").Return(false, nil)
-				mockRepo.On("CreateProject", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), mock.AnythingOfType("*models.ProjectSettings")).Return(nil)
-				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil).Times(2)
-				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
-				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(msg events.ProjectSettingsUpdatedMessage) bool {
-					if msg.ProjectUID == "" {
-						return false
-					}
-					if len(msg.OldSettings.MentorshipProgramAdmins) != 0 {
-						return false
-					}
-					if len(msg.NewSettings.MentorshipProgramAdmins) != 1 || len(msg.NewSettings.Writers) != 0 || len(msg.NewSettings.Auditors) != 0 || len(msg.NewSettings.MeetingCoordinators) != 0 || len(msg.NotificationRoles) != 1 || msg.NotificationRoles[0] != roleMentorshipAdmin {
-						return false
-					}
-					admin := msg.NewSettings.MentorshipProgramAdmins[0]
-					return admin.Email == "mentor-admin@example.com" && admin.Username == ""
-				})).Return(nil).Once()
-			},
-			wantErr: false,
 		},
 	}
 

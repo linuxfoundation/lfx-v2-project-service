@@ -69,11 +69,11 @@ This keeps project-role lifecycle management in one place and avoids the failure
 ### Deployment prerequisite
 
 The deployed OpenFGA model must define `project#mentorship_program_admin` before
-this service publishes the relation. Existing mentorship-admin rosters must be
-backfilled into project settings before deploying this version; there is no
-separate enable flag. Any full-state `update_access` for a project with an empty
-roster omits the relation and therefore removes its existing mentorship-admin
-tuples.
+this service publishes the relation. There is no existing project-level
+mentorship-admin roster to backfill; the relation starts empty and is populated
+from project settings as administrators are assigned. Any full-state
+`update_access` for a project with an empty roster omits the relation and
+therefore removes its existing mentorship-admin tuples.
 
 On `PUT /settings`, omitting `mentorship_program_admins` preserves the stored
 roster. Send an explicit empty list to clear it.

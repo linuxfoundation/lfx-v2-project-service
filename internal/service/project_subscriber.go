@@ -102,7 +102,7 @@ func (s *ProjectsService) HandleProjectSettingsUpdated(ctx context.Context, msg 
 	}
 
 	projectURL := buildProjectURL(s.Config.LFXSelfServeBaseURL, projectBase.Slug)
-	return s.Dispatcher.Dispatch(ctx, event.ProjectUID, projectBase.Name, projectURL, event.Actor, changes, event.NotificationRoles)
+	return s.Dispatcher.Dispatch(ctx, event.ProjectUID, projectBase.Name, projectURL, event.Actor, changes)
 }
 
 // HandleInviteAccepted processes an invite acceptance event published by the invite service.

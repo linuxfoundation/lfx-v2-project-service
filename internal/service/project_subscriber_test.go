@@ -945,23 +945,6 @@ func TestDiffUserChanges(t *testing.T) {
 	}
 }
 
-func TestFilterUserChangesByRoles(t *testing.T) {
-	alice := events.UserInfo{Username: "alice", Email: "alice@example.com"}
-	bob := events.UserInfo{Username: "bob", Email: "bob@example.com"}
-	changes := diffUserChanges(
-		events.ProjectSettings{},
-		events.ProjectSettings{
-			Writers:                 []events.UserInfo{alice},
-			MentorshipProgramAdmins: []events.UserInfo{bob},
-		},
-	)
-
-	filtered := filterUserChangesByRoles(changes, []string{roleMentorshipAdmin})
-	require.Len(t, filtered, 1)
-	assert.Equal(t, bob, filtered[0].User)
-	assert.Equal(t, []string{roleMentorshipAdmin}, filtered[0].NewRoles)
-}
-
 func TestIsWriterSupersededNoOp(t *testing.T) {
 	tests := []struct {
 		name     string
