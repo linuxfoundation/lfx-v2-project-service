@@ -332,7 +332,9 @@ func TestProjectsService_CreateProject(t *testing.T) {
 				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				mockBuilder.On("SendProjectEventMessage", mock.Anything, constants.ProjectSettingsUpdatedSubject, mock.MatchedBy(func(msg events.ProjectSettingsUpdatedMessage) bool {
 					return msg.NewSettings.UID != "" &&
-						len(msg.NewSettings.Writers) == 0 &&
+						len(msg.NewSettings.Writers) == 1 &&
+						msg.NewSettings.Writers[0].Username == "carol-lfid" &&
+						msg.NewSettings.Writers[0].Email == "carol@example.com" &&
 						len(msg.NewSettings.Auditors) == 0 &&
 						len(msg.NewSettings.MeetingCoordinators) == 0 &&
 						len(msg.NewSettings.MentorshipProgramAdmins) == 0 &&

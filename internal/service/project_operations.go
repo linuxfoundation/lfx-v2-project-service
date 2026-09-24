@@ -250,10 +250,7 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		msg := events.ProjectSettingsUpdatedMessage{
 			ProjectUID:  projectDB.UID,
 			OldSettings: events.ProjectSettings{},
-			NewSettings: events.ProjectSettings{
-				UID:                     projectSettingsDB.UID,
-				MentorshipProgramAdmins: domainUsersToEvent(projectSettingsDB.MentorshipProgramAdmins),
-			},
+			NewSettings: proj.ToEventSettings(),
 			Actor:             events.Actor{Username: principal},
 			NotificationRoles: []string{roleMentorshipAdmin},
 		}
@@ -688,7 +685,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
-	slog.DebugContext(ctx, "returning updated project settings", "project_settings", projectSettingsDB)
+	slog.DebugContext(ctx, "returning updated project settings", "project_uid", projectSettingsDB.UID)
 
 	return ConvertToServiceProjectSettings(projectSettingsDB), nil
 }
