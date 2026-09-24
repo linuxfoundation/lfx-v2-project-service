@@ -248,9 +248,12 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 	g.Go(func() error {
 		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
 		msg := events.ProjectSettingsUpdatedMessage{
-			ProjectUID:        projectDB.UID,
-			OldSettings:       events.ProjectSettings{},
-			NewSettings:       proj.ToEventSettings(),
+			ProjectUID:  projectDB.UID,
+			OldSettings: events.ProjectSettings{},
+			NewSettings: events.ProjectSettings{
+				UID:                     projectSettingsDB.UID,
+				MentorshipProgramAdmins: domainUsersToEvent(projectSettingsDB.MentorshipProgramAdmins),
+			},
 			Actor:             events.Actor{Username: principal},
 			NotificationRoles: []string{roleMentorshipAdmin},
 		}
