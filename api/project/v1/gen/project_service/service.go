@@ -201,6 +201,10 @@ type CreateProjectPayload struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
+	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
@@ -597,6 +601,10 @@ type ProjectFull struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
+	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
@@ -645,6 +653,10 @@ type ProjectSettings struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
+	MentorshipProgramAdmins []*UserInfo
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information
@@ -764,6 +776,10 @@ type UpdateProjectSettingsPayload struct {
 	Auditors []*UserInfo
 	// The executive director of the project with their profile information
 	ExecutiveDirector *UserInfo
+	// A list of project mentorship program administrators with their profile
+	// information. On PUT /settings, omitting this field preserves the stored
+	// list; send an empty list to clear it.
+	MentorshipProgramAdmins []*UserInfo `form:"mentorship_program_admins" json:"mentorship_program_admins" xml:"mentorship_program_admins"`
 	// The program manager of the project with their profile information
 	ProgramManager *UserInfo
 	// The opportunity owner of the project with their profile information

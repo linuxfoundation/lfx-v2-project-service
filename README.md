@@ -107,13 +107,14 @@ This service publishes the following NATS events:
 
 #### Project Data Events
 
-- `lfx.projects-api.project_settings.updated`: Published when project settings are updated. Contains both the old and new settings to allow downstream services to react to changes. Message format:
+- `lfx.projects-api.project_settings.updated`: Published when project settings are updated and when a project is created with initial notification recipients. `old_settings` and `new_settings` always carry complete `ProjectSettings` snapshots for downstream consumers; `notification_roles` only scopes which roles this service should notify, and an omitted or empty `notification_roles` means "all roles". Message format:
 
   ```json
   {
     "project_uid": "string",
     "old_settings": { /* ProjectSettings object */ },
-    "new_settings": { /* ProjectSettings object */ }
+    "new_settings": { /* ProjectSettings object */ },
+    "notification_roles": ["mentorship_program_admin"]
   }
   ```
 

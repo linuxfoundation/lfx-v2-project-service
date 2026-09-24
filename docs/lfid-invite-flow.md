@@ -1,6 +1,6 @@
 # LFID Invite Flow — Project Service
 
-This document describes how the project service handles users who are added to a project's settings roles (Writers, Auditors, Meeting Coordinators) but do not yet have an LF ID (LFID) account.
+This document describes how the project service handles users who are added to a project's settings roles (Writers, Auditors, Meeting Coordinators, or Mentorship Program Admins) but do not yet have an LF ID (LFID) account.
 
 ---
 
@@ -19,7 +19,7 @@ The invite service handles rendering and delivering the invite email to the reci
 
 ## Sending an Invite
 
-**Triggered by:** `HandleProjectSettingsUpdated` — called when a `lfx.projects-api.project_settings.updated` event arrives and the diff contains non-LFID users who gained roles (newly added users, or new roles on a role change; removals are silently skipped). Invites are deduplicated by mapped invite role, so a user gaining both Writer and Meeting Coordinator receives a single `Manage` invite.
+**Triggered by:** `HandleProjectSettingsUpdated` — called when a `lfx.projects-api.project_settings.updated` event arrives and the diff contains non-LFID users who gained roles (newly added users, or new roles on a role change; removals are silently skipped). Invites are deduplicated by mapped invite role, so a user gaining both Writer and Meeting Coordinator receives a single `Manage` invite. Mentorship Program Admins also map to `Manage`.
 
 **NATS subject used:** `lfx.invite-service.send_invite` (request/reply)
 
@@ -35,7 +35,7 @@ The invite service handles rendering and delivering the invite email to the reci
 | `resource.uid` | Project UID |
 | `resource.name` | Project name |
 | `resource.type` | `"project"` |
-| `role` | `"Manage"` (Writers / Meeting Coordinators) or `"View"` (Auditors) |
+| `role` | `"Manage"` (Writers / Meeting Coordinators / Mentorship Program Admins) or `"View"` (Auditors) |
 | `return_url` | Deep link to the project page |
 | `expiration_days` | `30` |
 | `recipient_has_account` | `true` if the recipient's email resolves to a known LFID; `false` otherwise (see LFID pre-check above) |
@@ -69,7 +69,7 @@ The send is best-effort: a failure is logged with `slog.WarnContext` and does no
 
 1. Unmarshal and guard: discard (log + return `nil`) unless `uid`, `accepted_by`, a non-empty normalized `recipient.email`, and a recognized `role` (`Manage` or `View`) are all present.
 2. List **all** project settings (`ListAllProjectsSettings`; `lookup/` keys are skipped).
-3. For each project whose role-appropriate slices (`Manage` → Writers + Meeting Coordinators, `View` → Auditors) contain an email-only entry (`username == ""`) matching the normalized recipient email, promote that project via `promoteInvitedUserInProjectSettings`:
+3. For each project whose role-appropriate slices (`Manage` → Writers + Meeting Coordinators + Mentorship Program Admins, `View` → Auditors) contain an email-only entry (`username == ""`) matching the normalized recipient email, promote that project via `promoteInvitedUserInProjectSettings`:
    - Re-read settings with revision (optimistic concurrency).
    - Set `username = accepted_by` and clear any legacy `invite` field on every matching email-only entry.
    - Write back with the loaded revision; retry up to 3 times on `ErrRevisionMismatch`.

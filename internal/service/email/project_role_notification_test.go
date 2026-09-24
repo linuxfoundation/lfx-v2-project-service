@@ -84,6 +84,18 @@ func TestRenderProjectRoleNotification(t *testing.T) {
 			wantHTML:    []string{"With the", "View", "role, you can", "View project settings"},
 			wantText:    []string{"With the View role, you can", "- View project"},
 		},
+		{
+			name: "mentorship program admin role — capability list in body",
+			data: ProjectRoleNotificationData{
+				RecipientName: "Alice",
+				ProjectName:   "Demo Project",
+				Roles:         []string{"Mentorship Program Admin"},
+				ProjectURL:    "https://app.dev.lfx.dev/projects/demo-project",
+			},
+			wantSubject: []string{"Mentorship Program Admin", "Demo Project"},
+			wantHTML:    []string{"With the", "Mentorship Program Admin", "Manage project mentorship programs"},
+			wantText:    []string{"With the Mentorship Program Admin role, you can", "- Manage project mentorship programs"},
+		},
 	}
 
 	for _, tt := range tests {

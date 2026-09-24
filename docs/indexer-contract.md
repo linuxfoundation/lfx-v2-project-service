@@ -147,6 +147,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 | `auditors` | []object | Users with audit access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `writers` | []object | Users with write access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `meeting_coordinators` | []object | Users with meeting coordinator access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
+| `mentorship_program_admins` | []object | Users with mentorship program admin access. Each object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username), and optionally `invite` (object — see [Invite Object](#invite-object)) when the user has no LFID yet |
 | `executive_director` | object (optional) | Executive director user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `program_manager` | object (optional) | Program manager user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
 | `opportunity_owner` | object (optional) | Opportunity owner user. Object has `avatar` (string), `email` (string), `name` (string), `username` (string — LFX username) |
@@ -155,7 +156,7 @@ These fields are indexed and queryable via `filters` or `cel_filter` in the quer
 
 #### Invite Object
 
-A legacy nested `invite` object may appear on a user in `writers`, `auditors`, or `meeting_coordinators` who has no LFID yet (their `username` is empty). The service no longer writes this object when sending invites (acceptance events are now routed by recipient email, not stored invite UID — see `docs/lfid-invite-flow.md`), but existing records may still carry it: it survives PUT round-trips and is cleared, with `username` populated, when the user accepts their invite.
+A legacy nested `invite` object may appear on a user in `writers`, `auditors`, `meeting_coordinators`, or `mentorship_program_admins` who has no LFID yet (their `username` is empty). The service no longer writes this object when sending invites (acceptance events are now routed by recipient email, not stored invite UID — see `docs/lfid-invite-flow.md`), but existing records may still carry it: it survives PUT round-trips and is cleared, with `username` populated, when the user accepts their invite.
 
 | Field | Type | Description |
 |---|---|---|
