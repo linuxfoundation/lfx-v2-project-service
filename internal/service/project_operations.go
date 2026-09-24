@@ -245,6 +245,18 @@ func (s *ProjectsService) CreateProject(ctx context.Context, payload *projsvc.Cr
 		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
 	})
 
+	g.Go(func() error {
+		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		msg := events.ProjectSettingsUpdatedMessage{
+			ProjectUID:        projectDB.UID,
+			OldSettings:       events.ProjectSettings{},
+			NewSettings:       proj.ToEventSettings(),
+			Actor:             events.Actor{Username: principal},
+			NotificationRoles: []string{roleMentorshipAdmin},
+		}
+		return s.MessageBuilder.SendProjectEventMessage(ctx, constants.ProjectSettingsUpdatedSubject, msg)
+	})
+
 	if err := g.Wait(); err != nil {
 		return nil, domain.ErrInternal
 	}
@@ -673,7 +685,7 @@ func (s *ProjectsService) UpdateProjectSettings(ctx context.Context, payload *pr
 		return nil, domain.ErrInternal
 	}
 
-	slog.DebugContext(ctx, "returning updated project settings", "project_settings", projectSettingsDB)
+	slog.DebugContext(ctx, "returning updated project settings", "project_uid", projectSettingsDB.UID)
 
 	return ConvertToServiceProjectSettings(projectSettingsDB), nil
 }

@@ -273,7 +273,7 @@ var _ = Service("project-service", func() {
 			ProjectMeetingCoordinatorsAttribute()
 			ProjectAuditorsAttribute()
 			ProjectExecutiveDirectorAttribute()
-			ProjectMentorshipProgramAdminsAttribute()
+			ProjectMentorshipProgramAdminsUpdateAttribute()
 			ProjectProgramManagerAttribute()
 			ProjectOpportunityOwnerAttribute()
 		})
