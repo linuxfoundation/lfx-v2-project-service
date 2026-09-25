@@ -113,6 +113,9 @@ func ConvertToProjectFull(base *models.ProjectBase, settings *models.ProjectSett
 		if settings.ExecutiveDirector != nil {
 			full.ExecutiveDirector = convertUserToAPI(settings.ExecutiveDirector)
 		}
+		if len(settings.MentorshipProgramAdmins) > 0 {
+			full.MentorshipProgramAdmins = convertUsersToAPI(settings.MentorshipProgramAdmins)
+		}
 		if settings.ProgramManager != nil {
 			full.ProgramManager = convertUserToAPI(settings.ProgramManager)
 		}
@@ -321,12 +324,14 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings, existing *mod
 	currentTime := time.Now().UTC()
 
 	var existingWriters, existingAuditors, existingMCs []models.UserInfo
+	var existingMentorshipProgramAdmins []models.UserInfo
 	var existingED, existingPM, existingOO *models.UserInfo
 	if existing != nil {
 		existingWriters = existing.Writers
 		existingAuditors = existing.Auditors
 		existingMCs = existing.MeetingCoordinators
 		existingED = existing.ExecutiveDirector
+		existingMentorshipProgramAdmins = existing.MentorshipProgramAdmins
 		existingPM = existing.ProgramManager
 		existingOO = existing.OpportunityOwner
 	}
@@ -356,6 +361,9 @@ func ConvertToDBProjectSettings(settings *projsvc.ProjectSettings, existing *mod
 	}
 	if settings.ExecutiveDirector != nil {
 		s.ExecutiveDirector = convertUserFromAPI(settings.ExecutiveDirector, existingED)
+	}
+	if settings.MentorshipProgramAdmins != nil {
+		s.MentorshipProgramAdmins = convertUsersFromAPI(settings.MentorshipProgramAdmins, existingMentorshipProgramAdmins)
 	}
 	if settings.ProgramManager != nil {
 		s.ProgramManager = convertUserFromAPI(settings.ProgramManager, existingPM)
@@ -408,6 +416,9 @@ func ConvertToServiceProjectSettings(s *models.ProjectSettings) *projsvc.Project
 	}
 	if s.ExecutiveDirector != nil {
 		settings.ExecutiveDirector = convertUserToAPI(s.ExecutiveDirector)
+	}
+	if len(s.MentorshipProgramAdmins) > 0 {
+		settings.MentorshipProgramAdmins = convertUsersToAPI(s.MentorshipProgramAdmins)
 	}
 	if s.ProgramManager != nil {
 		settings.ProgramManager = convertUserToAPI(s.ProgramManager)
@@ -596,6 +607,9 @@ func buildFGAUpdateAccessMessage(projectDB *models.ProjectBase, projectSettingsD
 	if ed := extractUsername(projectSettingsDB.ExecutiveDirector); ed != "" {
 		relations["executive_director"] = []string{ed}
 	}
+	if admins := extractUsernames(projectSettingsDB.MentorshipProgramAdmins); len(admins) > 0 {
+		relations["mentorship_program_admin"] = admins
+	}
 
 	// Build references map for parent relationship
 	references := make(map[string][]string)
@@ -622,17 +636,18 @@ func DomainSettingsToEvent(s *models.ProjectSettings) events.ProjectSettings {
 		return events.ProjectSettings{}
 	}
 	return events.ProjectSettings{
-		UID:                 s.UID,
-		MissionStatement:    s.MissionStatement,
-		AnnouncementDate:    s.AnnouncementDate,
-		Auditors:            domainUsersToEvent(s.Auditors),
-		Writers:             domainUsersToEvent(s.Writers),
-		MeetingCoordinators: domainUsersToEvent(s.MeetingCoordinators),
-		ExecutiveDirector:   domainUserPtrToEvent(s.ExecutiveDirector),
-		ProgramManager:      domainUserPtrToEvent(s.ProgramManager),
-		OpportunityOwner:    domainUserPtrToEvent(s.OpportunityOwner),
-		CreatedAt:           s.CreatedAt,
-		UpdatedAt:           s.UpdatedAt,
+		UID:                     s.UID,
+		MissionStatement:        s.MissionStatement,
+		AnnouncementDate:        s.AnnouncementDate,
+		Auditors:                domainUsersToEvent(s.Auditors),
+		Writers:                 domainUsersToEvent(s.Writers),
+		MeetingCoordinators:     domainUsersToEvent(s.MeetingCoordinators),
+		ExecutiveDirector:       domainUserPtrToEvent(s.ExecutiveDirector),
+		MentorshipProgramAdmins: domainUsersToEvent(s.MentorshipProgramAdmins),
+		ProgramManager:          domainUserPtrToEvent(s.ProgramManager),
+		OpportunityOwner:        domainUserPtrToEvent(s.OpportunityOwner),
+		CreatedAt:               s.CreatedAt,
+		UpdatedAt:               s.UpdatedAt,
 	}
 }
 

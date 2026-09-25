@@ -4,10 +4,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
+	"mime"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,13 +30,75 @@ import (
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 )
 
+type projectJSONDecoder struct {
+	decoder       *json.Decoder
+	validationErr error
+}
+
+func (d *projectJSONDecoder) Decode(v any) error {
+	if d.validationErr != nil {
+		return d.validationErr
+	}
+	return d.decoder.Decode(v)
+}
+
+func projectRequestDecoder(r *http.Request) goahttp.Decoder {
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	isJSON := r.Header.Get("Content-Type") == "" || err == nil && mediaType == "application/json"
+	if isJSON && r.Method == http.MethodPost && r.URL.Path == "/projects" {
+		body, readErr := io.ReadAll(r.Body)
+		if readErr != nil {
+			return &projectJSONDecoder{validationErr: readErr}
+		}
+		validationErr := rejectDuplicateParentUIDKeys(json.NewDecoder(bytes.NewReader(body)))
+		return &projectJSONDecoder{decoder: json.NewDecoder(bytes.NewReader(body)), validationErr: validationErr}
+	}
+	return goahttp.RequestDecoder(r)
+}
+
+func rejectDuplicateParentUIDKeys(decoder *json.Decoder) error {
+	token, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	if token != json.Delim('{') {
+		return fmt.Errorf("create project payload must be a JSON object")
+	}
+
+	parentUIDCount := 0
+	for decoder.More() {
+		keyToken, err := decoder.Token()
+		if err != nil {
+			return err
+		}
+		key, ok := keyToken.(string)
+		if !ok {
+			return fmt.Errorf("create project payload contains a non-string key")
+		}
+		if strings.EqualFold(key, "parent_uid") {
+			parentUIDCount++
+			if parentUIDCount > 1 {
+				return fmt.Errorf("create project payload contains multiple parent_uid keys")
+			}
+		}
+		var value json.RawMessage
+		if err := decoder.Decode(&value); err != nil {
+			return err
+		}
+	}
+	if _, err := decoder.Token(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func setupHTTPServer(flags cmdFlags, svc *ProjectsAPI, gracefulCloseWG *sync.WaitGroup) *http.Server {
 	// Wrap it in the generated endpoints
 	endpoints := genquerysvc.NewEndpoints(svc)
 
 	// Build an HTTP handler
 	mux := goahttp.NewMuxer()
-	requestDecoder := goahttp.RequestDecoder
+	requestDecoder := projectRequestDecoder
 	responseEncoder := goahttp.ResponseEncoder
 
 	// Create a custom encoder that sets ETag header for get-one-project

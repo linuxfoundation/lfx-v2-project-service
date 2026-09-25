@@ -172,6 +172,40 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "with mentorship program admins",
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				MentorshipProgramAdmins: []*projsvc.UserInfo{
+					createTestAPIUserInfo("mentor1", "Mentor One", "mentor1@example.com", ""),
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID: "test-uid",
+				MentorshipProgramAdmins: []models.UserInfo{
+					createTestUserInfo("mentor1", "Mentor One", "mentor1@example.com", ""),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "mentorship admin stored LFID preserved on email lookup miss (empty username)",
+			existing: &models.ProjectSettings{
+				UID:                     "test-uid",
+				MentorshipProgramAdmins: []models.UserInfo{{Username: "stored-mentor", Email: "mentor@example.com"}},
+			},
+			input: &projsvc.ProjectSettings{
+				UID: misc.StringPtr("test-uid"),
+				MentorshipProgramAdmins: []*projsvc.UserInfo{
+					{Name: misc.StringPtr("Mentor"), Email: misc.StringPtr("mentor@example.com"), Username: misc.StringPtr("")},
+				},
+			},
+			expected: &models.ProjectSettings{
+				UID:                     "test-uid",
+				MentorshipProgramAdmins: []models.UserInfo{{Name: "Mentor", Email: "mentor@example.com", Username: "stored-mentor"}},
+			},
+			wantErr: false,
+		},
+		{
 			name: "invite preserved when user still in list (PUT does not wipe invite)",
 			existing: &models.ProjectSettings{
 				UID: "test-uid",
@@ -274,6 +308,7 @@ func TestConvertToDBProjectSettings(t *testing.T) {
 				assert.Equal(t, tt.expected.Auditors, result.Auditors)
 				assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
 				assert.Equal(t, tt.expected.ExecutiveDirector, result.ExecutiveDirector)
+				assert.Equal(t, tt.expected.MentorshipProgramAdmins, result.MentorshipProgramAdmins)
 				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 			}
@@ -315,6 +350,9 @@ func TestConvertToProjectFull(t *testing.T) {
 				Auditors: []models.UserInfo{
 					createTestUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
 				},
+				MentorshipProgramAdmins: []models.UserInfo{
+					createTestUserInfo("mentor1", "Mentor One", "mentor1@example.com", ""),
+				},
 			},
 			expected: &projsvc.ProjectFull{
 				UID:              misc.StringPtr("test-uid"),
@@ -329,6 +367,9 @@ func TestConvertToProjectFull(t *testing.T) {
 				},
 				Auditors: []*projsvc.UserInfo{
 					createTestAPIUserInfo("auditor1", "Auditor One", "auditor1@example.com", ""),
+				},
+				MentorshipProgramAdmins: []*projsvc.UserInfo{
+					createTestAPIUserInfo("mentor1", "Mentor One", "mentor1@example.com", ""),
 				},
 			},
 		},
@@ -390,6 +431,7 @@ func TestConvertToProjectFull(t *testing.T) {
 				if tt.expected.MissionStatement != nil {
 					assert.Equal(t, tt.expected.MissionStatement, result.MissionStatement)
 				}
+				assert.Equal(t, tt.expected.MentorshipProgramAdmins, result.MentorshipProgramAdmins)
 				assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 				assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 			}
@@ -492,6 +534,9 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				MeetingCoordinators: []models.UserInfo{
 					createTestUserInfo("coordinator1", "Coordinator One", "coordinator1@example.com", ""),
 				},
+				MentorshipProgramAdmins: []models.UserInfo{
+					createTestUserInfo("mentor1", "Mentor One", "mentor1@example.com", ""),
+				},
 				CreatedAt: &now,
 				UpdatedAt: &now,
 			},
@@ -507,6 +552,9 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 				},
 				MeetingCoordinators: []*projsvc.UserInfo{
 					createTestAPIUserInfo("coordinator1", "Coordinator One", "coordinator1@example.com", ""),
+				},
+				MentorshipProgramAdmins: []*projsvc.UserInfo{
+					createTestAPIUserInfo("mentor1", "Mentor One", "mentor1@example.com", ""),
 				},
 			},
 		},
@@ -575,6 +623,7 @@ func TestConvertToServiceProjectSettings(t *testing.T) {
 			assert.Equal(t, tt.expected.Writers, result.Writers)
 			assert.Equal(t, tt.expected.Auditors, result.Auditors)
 			assert.Equal(t, tt.expected.MeetingCoordinators, result.MeetingCoordinators)
+			assert.Equal(t, tt.expected.MentorshipProgramAdmins, result.MentorshipProgramAdmins)
 			assert.Equal(t, tt.expected.ProgramManager, result.ProgramManager)
 			assert.Equal(t, tt.expected.OpportunityOwner, result.OpportunityOwner)
 		})
@@ -609,10 +658,13 @@ func TestDomainSettingsToEvent(t *testing.T) {
 					{Name: "M", Email: "m@example.com", Username: "muser", Avatar: "m.png"},
 				},
 				ExecutiveDirector: &models.UserInfo{Name: "ED", Email: "ed@example.com", Username: "eduser", Avatar: "ed.png"},
-				ProgramManager:    &models.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
-				OpportunityOwner:  &models.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
-				CreatedAt:         &now,
-				UpdatedAt:         &now,
+				MentorshipProgramAdmins: []models.UserInfo{
+					{Name: "MA", Email: "ma@example.com", Username: "mauser", Avatar: "ma.png"},
+				},
+				ProgramManager:   &models.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
+				OpportunityOwner: &models.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
+				CreatedAt:        &now,
+				UpdatedAt:        &now,
 			},
 			expected: events.ProjectSettings{
 				UID:              "uid-1",
@@ -624,10 +676,13 @@ func TestDomainSettingsToEvent(t *testing.T) {
 					{Name: "M", Email: "m@example.com", Username: "muser", Avatar: "m.png"},
 				},
 				ExecutiveDirector: &events.UserInfo{Name: "ED", Email: "ed@example.com", Username: "eduser", Avatar: "ed.png"},
-				ProgramManager:    &events.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
-				OpportunityOwner:  &events.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
-				CreatedAt:         &now,
-				UpdatedAt:         &now,
+				MentorshipProgramAdmins: []events.UserInfo{
+					{Name: "MA", Email: "ma@example.com", Username: "mauser", Avatar: "ma.png"},
+				},
+				ProgramManager:   &events.UserInfo{Name: "PM", Email: "pm@example.com", Username: "pmuser", Avatar: "pm.png"},
+				OpportunityOwner: &events.UserInfo{Name: "OO", Email: "oo@example.com", Username: "oouser", Avatar: "oo.png"},
+				CreatedAt:        &now,
+				UpdatedAt:        &now,
 			},
 		},
 		{
@@ -929,5 +984,47 @@ func TestBuildFGAUpdateAccessMessage(t *testing.T) {
 		require.True(t, ok)
 		_, hasWriter := data.Relations[fgaconstants.RelationWriter]
 		assert.False(t, hasWriter)
+	})
+
+	t.Run("publishes mentorship project-admin relation during full sync", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(base, &models.ProjectSettings{
+			UID:                     "project-1",
+			MentorshipProgramAdmins: []models.UserInfo{{Username: "admin1"}, {Username: "admin2"}},
+		})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, []string{"admin1", "admin2"}, data.Relations["mentorship_program_admin"])
+	})
+
+	t.Run("omits mentorship admin key when the roster is empty", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(base, &models.ProjectSettings{UID: "project-1"})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		_, present := data.Relations["mentorship_program_admin"]
+		assert.False(t, present)
+	})
+
+	t.Run("omits mentorship admin key when every admin is a pending invite", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(base, &models.ProjectSettings{
+			UID:                     "project-1",
+			MentorshipProgramAdmins: []models.UserInfo{{Email: "pending@example.com"}},
+		})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		_, present := data.Relations["mentorship_program_admin"]
+		assert.False(t, present)
+	})
+
+	t.Run("publishes only resolved mentorship admins", func(t *testing.T) {
+		msg := buildFGAUpdateAccessMessage(base, &models.ProjectSettings{
+			UID: "project-1",
+			MentorshipProgramAdmins: []models.UserInfo{
+				{Username: "admin1"},
+				{Email: "pending@example.com"},
+			},
+		})
+		data, ok := msg.Data.(fgatypes.GenericAccessData)
+		require.True(t, ok)
+		assert.Equal(t, []string{"admin1"}, data.Relations["mentorship_program_admin"])
 	})
 }

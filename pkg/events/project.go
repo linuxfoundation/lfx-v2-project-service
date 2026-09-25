@@ -30,17 +30,18 @@ type UserInfo struct {
 
 // ProjectSettings is the project-settings representation used in event payloads.
 type ProjectSettings struct {
-	UID                 string     `json:"uid"`
-	MissionStatement    string     `json:"mission_statement"`
-	AnnouncementDate    *time.Time `json:"announcement_date"`
-	Auditors            []UserInfo `json:"auditors"`
-	Writers             []UserInfo `json:"writers"`
-	MeetingCoordinators []UserInfo `json:"meeting_coordinators"`
-	ExecutiveDirector   *UserInfo  `json:"executive_director,omitempty"`
-	ProgramManager      *UserInfo  `json:"program_manager,omitempty"`
-	OpportunityOwner    *UserInfo  `json:"opportunity_owner,omitempty"`
-	CreatedAt           *time.Time `json:"created_at"`
-	UpdatedAt           *time.Time `json:"updated_at"`
+	UID                     string     `json:"uid"`
+	MissionStatement        string     `json:"mission_statement"`
+	AnnouncementDate        *time.Time `json:"announcement_date"`
+	Auditors                []UserInfo `json:"auditors"`
+	Writers                 []UserInfo `json:"writers"`
+	MeetingCoordinators     []UserInfo `json:"meeting_coordinators"`
+	ExecutiveDirector       *UserInfo  `json:"executive_director,omitempty"`
+	MentorshipProgramAdmins []UserInfo `json:"mentorship_program_admins"`
+	ProgramManager          *UserInfo  `json:"program_manager,omitempty"`
+	OpportunityOwner        *UserInfo  `json:"opportunity_owner,omitempty"`
+	CreatedAt               *time.Time `json:"created_at"`
+	UpdatedAt               *time.Time `json:"updated_at"`
 }
 
 // Actor represents the user who triggered a settings change.
@@ -54,10 +55,11 @@ type Actor struct {
 // lfx.projects-api.project_settings.updated whenever project settings change.
 // It carries both the before and after states so subscribers can diff them.
 type ProjectSettingsUpdatedMessage struct {
-	ProjectUID  string          `json:"project_uid"`
-	OldSettings ProjectSettings `json:"old_settings"`
-	NewSettings ProjectSettings `json:"new_settings"`
-	Actor       Actor           `json:"actor"`
+	ProjectUID        string          `json:"project_uid"`
+	OldSettings       ProjectSettings `json:"old_settings"`
+	NewSettings       ProjectSettings `json:"new_settings"`
+	Actor             Actor           `json:"actor"`
+	NotificationRoles []string        `json:"notification_roles,omitempty"`
 }
 
 // ProjectDocumentCreatedMessage is published on lfx.projects-api.project_document.created

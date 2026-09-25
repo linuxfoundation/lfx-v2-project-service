@@ -3060,6 +3060,12 @@ func unmarshalProjectFullResponseBodyToProjectserviceProjectFull(v *ProjectFullR
 	if v.ExecutiveDirector != nil {
 		res.ExecutiveDirector = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.ExecutiveDirector)
 	}
+	if v.MentorshipProgramAdmins != nil {
+		res.MentorshipProgramAdmins = make([]*projectservice.UserInfo, len(v.MentorshipProgramAdmins))
+		for i, val := range v.MentorshipProgramAdmins {
+			res.MentorshipProgramAdmins[i] = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(val)
+		}
+	}
 	if v.ProgramManager != nil {
 		res.ProgramManager = unmarshalUserInfoResponseBodyToProjectserviceUserInfo(v.ProgramManager)
 	}

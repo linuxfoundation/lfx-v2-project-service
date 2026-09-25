@@ -52,7 +52,12 @@ func NewNotificationDispatcher(builder domain.MessageBuilder, resolver *UserReso
 // It fans out over changes concurrently (up to 5 goroutines), resolves the actor
 // display name internally, and routes each change to the LFID or non-LFID send path.
 // Errors from individual sends are logged and swallowed; Dispatch always returns nil.
-func (d *NotificationDispatcher) Dispatch(ctx context.Context, projectUID, projectName, projectURL string, actor events.Actor, changes []userChange) error {
+func (d *NotificationDispatcher) Dispatch(ctx context.Context, projectUID, projectName, projectURL string, actor events.Actor, changes []userChange, notificationRoles []string) error {
+	changes = filterUserChangesByRoles(changes, notificationRoles)
+	if len(changes) == 0 {
+		return nil
+	}
+
 	inviterName := d.resolver.ResolveDisplayName(ctx, actor)
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -83,6 +88,44 @@ func (d *NotificationDispatcher) Dispatch(ctx context.Context, projectUID, proje
 
 	_ = g.Wait()
 	return nil
+}
+
+// filterUserChangesByRoles limits notifications to changes involving one of the
+// explicitly requested roles while leaving the event's complete snapshots intact.
+// Each change is reduced to the requested role subset before dispatch so one user
+// cannot receive separate notifications for unrelated roles in the same event.
+func filterUserChangesByRoles(changes []userChange, roles []string) []userChange {
+	if len(roles) == 0 {
+		return changes
+	}
+
+	allowed := make(map[string]struct{}, len(roles))
+	for _, role := range roles {
+		allowed[role] = struct{}{}
+	}
+
+	filtered := make([]userChange, 0, len(changes))
+	for _, change := range changes {
+		oldRoles := filterRoles(change.OldRoles, allowed)
+		newRoles := filterRoles(change.NewRoles, allowed)
+		if len(oldRoles) == 0 && len(newRoles) == 0 {
+			continue
+		}
+		change.OldRoles = oldRoles
+		change.NewRoles = newRoles
+		filtered = append(filtered, change)
+	}
+	return filtered
+}
+
+func filterRoles(roles []string, allowed map[string]struct{}) []string {
+	filtered := make([]string, 0, len(roles))
+	for _, role := range roles {
+		if _, ok := allowed[role]; ok {
+			filtered = append(filtered, role)
+		}
+	}
+	return filtered
 }
 
 // handleLFIDChange sends the appropriate email for a user who has an LFID.
@@ -338,9 +381,10 @@ func (d *NotificationDispatcher) sendRoleRemovedEmail(ctx context.Context, proje
 //   - Writer              → Manage
 //   - Auditor             → View
 //   - Meeting Coordinator → Manage (coordinators have write-level project access)
+//   - Mentorship Program Admin → Manage (project-scoped admin capability)
 func mapRoleToInviteRole(role string) string {
 	switch role {
-	case roleWriter, roleMeetingCoordinator:
+	case roleWriter, roleMeetingCoordinator, roleMentorshipAdmin:
 		return string(inviteapi.InviteRoleManage)
 	case roleAuditor:
 		return string(inviteapi.InviteRoleView)
@@ -403,7 +447,8 @@ func setDiffRoles(a, b []string) []string {
 }
 
 // roleDisplayName maps an internal role name to its user-facing display name.
-// Writer → "Manage", Auditor → "View", Meeting Coordinator stays as-is.
+// Writer → "Manage", Auditor → "View"; Mentorship Program Admin and other role
+// labels stay as-is.
 func roleDisplayName(role string) string {
 	switch role {
 	case roleWriter:
@@ -415,10 +460,10 @@ func roleDisplayName(role string) string {
 	}
 }
 
-// rolesForDisplay converts a slice of internal role names to deduplicated display names
-// ("Manage", "Meeting Coordinator", "View"), then returns just ["Manage"] when Writer is
-// present, since Writer supersedes both Meeting Coordinator and View.
-// When no Writer, Meeting Coordinator and View are shown independently. Order follows input.
+// rolesForDisplay converts a slice of internal role names to deduplicated display names.
+// Writer collapses subordinate capability labels (View and Meeting Coordinator), but
+// the independent Mentorship Program Admin capability is preserved.
+// Order otherwise follows input.
 func rolesForDisplay(roles []string) []string {
 	seen := make(map[string]bool, len(roles))
 	result := make([]string, 0, len(roles))
@@ -429,8 +474,16 @@ func rolesForDisplay(roles []string) []string {
 			result = append(result, d)
 		}
 	}
-	if seen["Manage"] {
-		return []string{"Manage"}
+	if !seen["Manage"] {
+		return result
 	}
-	return result
+
+	collapsed := []string{"Manage"}
+	for _, d := range result {
+		if d == "Manage" || d == "View" || d == roleMeetingCoordinator {
+			continue
+		}
+		collapsed = append(collapsed, d)
+	}
+	return collapsed
 }

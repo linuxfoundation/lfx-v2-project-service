@@ -83,72 +83,8 @@ paths:
                                           email: jane.smith@example.com
                                           name: Jane Smith
                                           username: janesmith456
-                                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                                      name: Foo Foundation
-                                      opportunity_owner:
-                                        avatar: https://example.com/avatar.jpg
-                                        email: jane.smith@example.com
-                                        name: Jane Smith
-                                        username: janesmith456
-                                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      program_manager:
-                                        avatar: https://example.com/avatar.jpg
-                                        email: jane.smith@example.com
-                                        name: Jane Smith
-                                        username: janesmith456
-                                      public: true
-                                      repository_url: https://example.com/project
-                                      slug: project-slug
-                                      stage: Formation - Exploratory
-                                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      updated_at: "2021-01-01T00:00:00Z"
-                                      website_url: https://example.com
-                                      writers:
-                                        - avatar: https://example.com/avatar3.jpg
-                                          email: alice.johnson@example.com
-                                          name: Alice Johnson
-                                          username: alicejohnson789
-                                        - avatar: https://example.com/avatar4.jpg
-                                          email: bob.wilson@example.com
-                                          name: Bob Wilson
-                                          username: bobwilson101
-                                    - announcement_date: "2021-01-01"
-                                      auditors:
-                                        - avatar: https://example.com/avatar1.jpg
-                                          email: john.doe@example.com
-                                          name: John Doe
-                                          username: johndoe123
-                                        - avatar: https://example.com/avatar2.jpg
-                                          email: jane.smith@example.com
-                                          name: Jane Smith
-                                          username: janesmith456
-                                      autojoin_enabled: false
-                                      category: Active
-                                      charter_url: https://example.com/charter.pdf
-                                      created_at: "2021-01-01T00:00:00Z"
-                                      description: project foo is a project about bar
-                                      entity_dissolution_date: "2021-12-31"
-                                      entity_formation_document_url: https://example.com/formation.pdf
-                                      executive_director:
-                                        avatar: https://example.com/avatar.jpg
-                                        email: jane.smith@example.com
-                                        name: Jane Smith
-                                        username: janesmith456
-                                      formation_date: "2021-01-01"
-                                      funding: Funded
-                                      funding_model:
-                                        - Crowdfunding
-                                      is_foundation: false
-                                      legal_entity_name: Example Foundation LLC
-                                      legal_entity_type: Subproject
-                                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                                      logo_url: https://example.com/logo.png
-                                      meeting_coordinators:
-                                        - avatar: https://example.com/avatar1.jpg
-                                          email: john.doe@example.com
-                                          name: John Doe
-                                          username: johndoe123
-                                        - avatar: https://example.com/avatar2.jpg
+                                      mentorship_program_admins:
+                                        - avatar: https://example.com/avatar.jpg
                                           email: jane.smith@example.com
                                           name: Jane Smith
                                           username: janesmith456
@@ -218,6 +154,85 @@ paths:
                                           name: John Doe
                                           username: johndoe123
                                         - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
+                                      mentorship_program_admins:
+                                        - avatar: https://example.com/avatar.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
+                                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                                      name: Foo Foundation
+                                      opportunity_owner:
+                                        avatar: https://example.com/avatar.jpg
+                                        email: jane.smith@example.com
+                                        name: Jane Smith
+                                        username: janesmith456
+                                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                      program_manager:
+                                        avatar: https://example.com/avatar.jpg
+                                        email: jane.smith@example.com
+                                        name: Jane Smith
+                                        username: janesmith456
+                                      public: true
+                                      repository_url: https://example.com/project
+                                      slug: project-slug
+                                      stage: Formation - Exploratory
+                                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                      updated_at: "2021-01-01T00:00:00Z"
+                                      website_url: https://example.com
+                                      writers:
+                                        - avatar: https://example.com/avatar3.jpg
+                                          email: alice.johnson@example.com
+                                          name: Alice Johnson
+                                          username: alicejohnson789
+                                        - avatar: https://example.com/avatar4.jpg
+                                          email: bob.wilson@example.com
+                                          name: Bob Wilson
+                                          username: bobwilson101
+                                    - announcement_date: "2021-01-01"
+                                      auditors:
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
+                                      autojoin_enabled: false
+                                      category: Active
+                                      charter_url: https://example.com/charter.pdf
+                                      created_at: "2021-01-01T00:00:00Z"
+                                      description: project foo is a project about bar
+                                      entity_dissolution_date: "2021-12-31"
+                                      entity_formation_document_url: https://example.com/formation.pdf
+                                      executive_director:
+                                        avatar: https://example.com/avatar.jpg
+                                        email: jane.smith@example.com
+                                        name: Jane Smith
+                                        username: janesmith456
+                                      formation_date: "2021-01-01"
+                                      funding: Funded
+                                      funding_model:
+                                        - Crowdfunding
+                                      is_foundation: false
+                                      legal_entity_name: Example Foundation LLC
+                                      legal_entity_type: Subproject
+                                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                                      logo_url: https://example.com/logo.png
+                                      meeting_coordinators:
+                                        - avatar: https://example.com/avatar1.jpg
+                                          email: john.doe@example.com
+                                          name: John Doe
+                                          username: johndoe123
+                                        - avatar: https://example.com/avatar2.jpg
+                                          email: jane.smith@example.com
+                                          name: Jane Smith
+                                          username: janesmith456
+                                      mentorship_program_admins:
+                                        - avatar: https://example.com/avatar.jpg
                                           email: jane.smith@example.com
                                           name: Jane Smith
                                           username: janesmith456
@@ -352,6 +367,11 @@ paths:
                                   email: jane.smith@example.com
                                   name: Jane Smith
                                   username: janesmith456
+                            mentorship_program_admins:
+                                - avatar: https://example.com/avatar.jpg
+                                  email: jane.smith@example.com
+                                  name: Jane Smith
+                                  username: janesmith456
                             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                             name: Foo Foundation
                             opportunity_owner:
@@ -424,6 +444,11 @@ paths:
                                       name: John Doe
                                       username: johndoe123
                                     - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
+                                mentorship_program_admins:
+                                    - avatar: https://example.com/avatar.jpg
                                       email: jane.smith@example.com
                                       name: Jane Smith
                                       username: janesmith456
@@ -1971,6 +1996,11 @@ paths:
                                       email: jane.smith@example.com
                                       name: Jane Smith
                                       username: janesmith456
+                                mentorship_program_admins:
+                                    - avatar: https://example.com/avatar.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
                                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                                 opportunity_owner:
                                     avatar: https://example.com/avatar.jpg
@@ -2099,6 +2129,11 @@ paths:
                                   email: jane.smith@example.com
                                   name: Jane Smith
                                   username: janesmith456
+                            mentorship_program_admins:
+                                - avatar: https://example.com/avatar.jpg
+                                  email: jane.smith@example.com
+                                  name: Jane Smith
+                                  username: janesmith456
                             mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                             opportunity_owner:
                                 avatar: https://example.com/avatar.jpg
@@ -2149,6 +2184,11 @@ paths:
                                       name: John Doe
                                       username: johndoe123
                                     - avatar: https://example.com/avatar2.jpg
+                                      email: jane.smith@example.com
+                                      name: Jane Smith
+                                      username: janesmith456
+                                mentorship_program_admins:
+                                    - avatar: https://example.com/avatar.jpg
                                       email: jane.smith@example.com
                                       name: Jane Smith
                                       username: janesmith456
@@ -2517,6 +2557,16 @@ components:
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
+                mentorship_program_admins:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
+                    example:
+                        - avatar: https://example.com/avatar.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -2621,6 +2671,11 @@ components:
                       email: jane.smith@example.com
                       name: Jane Smith
                       username: janesmith456
+                mentorship_program_admins:
+                    - avatar: https://example.com/avatar.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
                 mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                 name: Foo Foundation
                 opportunity_owner:
@@ -2702,72 +2757,8 @@ components:
                               email: jane.smith@example.com
                               name: Jane Smith
                               username: janesmith456
-                          mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                          name: Foo Foundation
-                          opportunity_owner:
-                            avatar: https://example.com/avatar.jpg
-                            email: jane.smith@example.com
-                            name: Jane Smith
-                            username: janesmith456
-                          parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          program_manager:
-                            avatar: https://example.com/avatar.jpg
-                            email: jane.smith@example.com
-                            name: Jane Smith
-                            username: janesmith456
-                          public: true
-                          repository_url: https://example.com/project
-                          slug: project-slug
-                          stage: Formation - Exploratory
-                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          updated_at: "2021-01-01T00:00:00Z"
-                          website_url: https://example.com
-                          writers:
-                            - avatar: https://example.com/avatar3.jpg
-                              email: alice.johnson@example.com
-                              name: Alice Johnson
-                              username: alicejohnson789
-                            - avatar: https://example.com/avatar4.jpg
-                              email: bob.wilson@example.com
-                              name: Bob Wilson
-                              username: bobwilson101
-                        - announcement_date: "2021-01-01"
-                          auditors:
-                            - avatar: https://example.com/avatar1.jpg
-                              email: john.doe@example.com
-                              name: John Doe
-                              username: johndoe123
-                            - avatar: https://example.com/avatar2.jpg
-                              email: jane.smith@example.com
-                              name: Jane Smith
-                              username: janesmith456
-                          autojoin_enabled: false
-                          category: Active
-                          charter_url: https://example.com/charter.pdf
-                          created_at: "2021-01-01T00:00:00Z"
-                          description: project foo is a project about bar
-                          entity_dissolution_date: "2021-12-31"
-                          entity_formation_document_url: https://example.com/formation.pdf
-                          executive_director:
-                            avatar: https://example.com/avatar.jpg
-                            email: jane.smith@example.com
-                            name: Jane Smith
-                            username: janesmith456
-                          formation_date: "2021-01-01"
-                          funding: Funded
-                          funding_model:
-                            - Crowdfunding
-                          is_foundation: false
-                          legal_entity_name: Example Foundation LLC
-                          legal_entity_type: Subproject
-                          legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                          logo_url: https://example.com/logo.png
-                          meeting_coordinators:
-                            - avatar: https://example.com/avatar1.jpg
-                              email: john.doe@example.com
-                              name: John Doe
-                              username: johndoe123
-                            - avatar: https://example.com/avatar2.jpg
+                          mentorship_program_admins:
+                            - avatar: https://example.com/avatar.jpg
                               email: jane.smith@example.com
                               name: Jane Smith
                               username: janesmith456
@@ -2837,6 +2828,85 @@ components:
                               name: John Doe
                               username: johndoe123
                             - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
+                          mentorship_program_admins:
+                            - avatar: https://example.com/avatar.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
+                          mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                          name: Foo Foundation
+                          opportunity_owner:
+                            avatar: https://example.com/avatar.jpg
+                            email: jane.smith@example.com
+                            name: Jane Smith
+                            username: janesmith456
+                          parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          program_manager:
+                            avatar: https://example.com/avatar.jpg
+                            email: jane.smith@example.com
+                            name: Jane Smith
+                            username: janesmith456
+                          public: true
+                          repository_url: https://example.com/project
+                          slug: project-slug
+                          stage: Formation - Exploratory
+                          uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          updated_at: "2021-01-01T00:00:00Z"
+                          website_url: https://example.com
+                          writers:
+                            - avatar: https://example.com/avatar3.jpg
+                              email: alice.johnson@example.com
+                              name: Alice Johnson
+                              username: alicejohnson789
+                            - avatar: https://example.com/avatar4.jpg
+                              email: bob.wilson@example.com
+                              name: Bob Wilson
+                              username: bobwilson101
+                        - announcement_date: "2021-01-01"
+                          auditors:
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
+                          autojoin_enabled: false
+                          category: Active
+                          charter_url: https://example.com/charter.pdf
+                          created_at: "2021-01-01T00:00:00Z"
+                          description: project foo is a project about bar
+                          entity_dissolution_date: "2021-12-31"
+                          entity_formation_document_url: https://example.com/formation.pdf
+                          executive_director:
+                            avatar: https://example.com/avatar.jpg
+                            email: jane.smith@example.com
+                            name: Jane Smith
+                            username: janesmith456
+                          formation_date: "2021-01-01"
+                          funding: Funded
+                          funding_model:
+                            - Crowdfunding
+                          is_foundation: false
+                          legal_entity_name: Example Foundation LLC
+                          legal_entity_type: Subproject
+                          legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                          logo_url: https://example.com/logo.png
+                          meeting_coordinators:
+                            - avatar: https://example.com/avatar1.jpg
+                              email: john.doe@example.com
+                              name: John Doe
+                              username: johndoe123
+                            - avatar: https://example.com/avatar2.jpg
+                              email: jane.smith@example.com
+                              name: Jane Smith
+                              username: janesmith456
+                          mentorship_program_admins:
+                            - avatar: https://example.com/avatar.jpg
                               email: jane.smith@example.com
                               name: Jane Smith
                               username: janesmith456
@@ -2911,72 +2981,8 @@ components:
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
-                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
-                      name: Foo Foundation
-                      opportunity_owner:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      program_manager:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      public: true
-                      repository_url: https://example.com/project
-                      slug: project-slug
-                      stage: Formation - Exploratory
-                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      updated_at: "2021-01-01T00:00:00Z"
-                      website_url: https://example.com
-                      writers:
-                        - avatar: https://example.com/avatar3.jpg
-                          email: alice.johnson@example.com
-                          name: Alice Johnson
-                          username: alicejohnson789
-                        - avatar: https://example.com/avatar4.jpg
-                          email: bob.wilson@example.com
-                          name: Bob Wilson
-                          username: bobwilson101
-                    - announcement_date: "2021-01-01"
-                      auditors:
-                        - avatar: https://example.com/avatar1.jpg
-                          email: john.doe@example.com
-                          name: John Doe
-                          username: johndoe123
-                        - avatar: https://example.com/avatar2.jpg
-                          email: jane.smith@example.com
-                          name: Jane Smith
-                          username: janesmith456
-                      autojoin_enabled: false
-                      category: Active
-                      charter_url: https://example.com/charter.pdf
-                      created_at: "2021-01-01T00:00:00Z"
-                      description: project foo is a project about bar
-                      entity_dissolution_date: "2021-12-31"
-                      entity_formation_document_url: https://example.com/formation.pdf
-                      executive_director:
-                        avatar: https://example.com/avatar.jpg
-                        email: jane.smith@example.com
-                        name: Jane Smith
-                        username: janesmith456
-                      formation_date: "2021-01-01"
-                      funding: Funded
-                      funding_model:
-                        - Crowdfunding
-                      is_foundation: false
-                      legal_entity_name: Example Foundation LLC
-                      legal_entity_type: Subproject
-                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
-                      meeting_coordinators:
-                        - avatar: https://example.com/avatar1.jpg
-                          email: john.doe@example.com
-                          name: John Doe
-                          username: johndoe123
-                        - avatar: https://example.com/avatar2.jpg
+                      mentorship_program_admins:
+                        - avatar: https://example.com/avatar.jpg
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
@@ -3049,6 +3055,11 @@ components:
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
+                      mentorship_program_admins:
+                        - avatar: https://example.com/avatar.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                       mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
                       name: Foo Foundation
                       opportunity_owner:
@@ -3115,6 +3126,85 @@ components:
                           name: John Doe
                           username: johndoe123
                         - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
+                      mentorship_program_admins:
+                        - avatar: https://example.com/avatar.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
+                      mission_statement: The mission of the project is to build a sustainable ecosystem around open source projects to accelerate technology development and industry adoption.
+                      name: Foo Foundation
+                      opportunity_owner:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
+                      parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      program_manager:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
+                      public: true
+                      repository_url: https://example.com/project
+                      slug: project-slug
+                      stage: Formation - Exploratory
+                      uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      updated_at: "2021-01-01T00:00:00Z"
+                      website_url: https://example.com
+                      writers:
+                        - avatar: https://example.com/avatar3.jpg
+                          email: alice.johnson@example.com
+                          name: Alice Johnson
+                          username: alicejohnson789
+                        - avatar: https://example.com/avatar4.jpg
+                          email: bob.wilson@example.com
+                          name: Bob Wilson
+                          username: bobwilson101
+                    - announcement_date: "2021-01-01"
+                      auditors:
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
+                      autojoin_enabled: false
+                      category: Active
+                      charter_url: https://example.com/charter.pdf
+                      created_at: "2021-01-01T00:00:00Z"
+                      description: project foo is a project about bar
+                      entity_dissolution_date: "2021-12-31"
+                      entity_formation_document_url: https://example.com/formation.pdf
+                      executive_director:
+                        avatar: https://example.com/avatar.jpg
+                        email: jane.smith@example.com
+                        name: Jane Smith
+                        username: janesmith456
+                      formation_date: "2021-01-01"
+                      funding: Funded
+                      funding_model:
+                        - Crowdfunding
+                      is_foundation: false
+                      legal_entity_name: Example Foundation LLC
+                      legal_entity_type: Subproject
+                      legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
+                      logo_url: https://example.com/logo.png
+                      meeting_coordinators:
+                        - avatar: https://example.com/avatar1.jpg
+                          email: john.doe@example.com
+                          name: John Doe
+                          username: johndoe123
+                        - avatar: https://example.com/avatar2.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
+                      mentorship_program_admins:
+                        - avatar: https://example.com/avatar.jpg
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
@@ -3664,6 +3754,16 @@ components:
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
+                mentorship_program_admins:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
+                    example:
+                        - avatar: https://example.com/avatar.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -3776,6 +3876,11 @@ components:
                       name: John Doe
                       username: johndoe123
                     - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                mentorship_program_admins:
+                    - avatar: https://example.com/avatar.jpg
                       email: jane.smith@example.com
                       name: Jane Smith
                       username: janesmith456
@@ -3917,6 +4022,16 @@ components:
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
+                mentorship_program_admins:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
+                    example:
+                        - avatar: https://example.com/avatar.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -3973,6 +4088,11 @@ components:
                       name: John Doe
                       username: johndoe123
                     - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                mentorship_program_admins:
+                    - avatar: https://example.com/avatar.jpg
                       email: jane.smith@example.com
                       name: Jane Smith
                       username: janesmith456
@@ -4242,6 +4362,16 @@ components:
                           email: jane.smith@example.com
                           name: Jane Smith
                           username: janesmith456
+                mentorship_program_admins:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/UserInfo'
+                    description: A list of project mentorship program administrators with their profile information. On PUT /settings, omitting this field preserves the stored list; send an empty list to clear it.
+                    example:
+                        - avatar: https://example.com/avatar.jpg
+                          email: jane.smith@example.com
+                          name: Jane Smith
+                          username: janesmith456
                 mission_statement:
                     type: string
                     description: The mission statement of the project
@@ -4286,6 +4416,11 @@ components:
                       name: John Doe
                       username: johndoe123
                     - avatar: https://example.com/avatar2.jpg
+                      email: jane.smith@example.com
+                      name: Jane Smith
+                      username: janesmith456
+                mentorship_program_admins:
+                    - avatar: https://example.com/avatar.jpg
                       email: jane.smith@example.com
                       name: Jane Smith
                       username: janesmith456
