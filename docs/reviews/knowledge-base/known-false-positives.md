@@ -69,7 +69,7 @@ text and never matches the ticket, and readiness accepts any `LFXV2-[0-9]+` —
 so a reviewer finding about it is not a duplicate and stays.
 
 **Source:** `.githooks/commit-msg` (subject regex line 21, summary checks
-lines 40–60, DCO check line 63);
+lines 37–59, DCO check lines 61–71);
 `.claude/skills/project-service-pr-readiness/SKILL.md` (Phase 3 checks).
 Carried over 2026-09-25 from the retired `project-service-code-reviewer`
 skill's "Known False Positives" list, not from a PR thread.
