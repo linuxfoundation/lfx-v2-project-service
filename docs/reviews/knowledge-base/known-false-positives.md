@@ -8,8 +8,11 @@ source (KB pattern file, rule file, checklist) produced them. This list is the
 floor — even a quotable pattern does not survive if it matches a known false
 positive.
 
-Used by the `lfx-skills:lfx-project-service-learnings-reviewer` subagent (Step 4)
-and as filter discipline for `lfx-skills:lfx-project-service-code-reviewer`.
+Used by the `/project-service-learnings-reviewer` subagent (Step 4), the
+knowledge-base reviewer of the pre-PR review round. The round's general
+(`/lfx-skills:lfx-general-code-review`) and security
+(`/lfx-skills:lfx-security-engineer`) reviewers do not read this file; it
+filters knowledge-base findings only.
 
 ---
 
@@ -30,13 +33,46 @@ bot misread it.
 ### "Run gofmt / golangci-lint / go vet" with no concrete rule
 
 **Pattern matched:** any finding whose only substance is "run `make fmt`",
-"`make lint`", "`go vet`", or a formatting/import-ordering nit on hand-written Go.
+"`make lint`", "`go vet`", "`make build`", "`make test`" or "`make apigen`"
+without a concrete violation, or a formatting/import-ordering nit on
+hand-written Go.
 
-**Why false:** deterministic tooling owns this. `make check` (gofmt + lint +
-license) and MegaLinter run in CI; `/project-service-preflight` runs it locally.
-Re-surfacing it in a review is duplicate signal.
+**Why false:** deterministic tooling owns this. CI runs `make apigen`,
+`make build`, `make build-cli` and `go test ./...`
+(`.github/workflows/project-api-build.yml`), the license-header check
+(`.github/workflows/license-header-check.yml`) and MegaLinter
+(`.github/workflows/mega-linter.yml`); locally `/project-service-preflight`
+runs `make check` (gofmt + lint + license), build, tests and generated-code
+freshness. Re-surfacing it in a review is duplicate signal.
 
-**Source:** `Makefile`, `.mega-linter.yml`, `revive.toml`.
+**Source:** `Makefile` (`check`, `build`, `build-cli`, `test`, `verify`
+targets), `.github/workflows/project-api-build.yml`, `.mega-linter.yml`,
+`revive.toml`, `.claude/skills/project-service-preflight/SKILL.md`.
+
+### PR-shape findings: branch, Jira, DCO, GPG, rebase, diff size, protected files
+
+**Pattern matched:** a code-review finding about the branch name, a missing
+`LFXV2-NNNN` reference, a commit subject's conventional-commit shape, a missing
+`Signed-off-by:` trailer or GPG signature, an unrebased branch, total diff
+size, or a touched protected file lacking a PR-body note.
+
+**Why false:** that surface has its own owners in this repo — the
+`.githooks/commit-msg` hook (conventional subject shape, lowercase summary, no
+trailing period, 72-character subject cap, `Signed-off-by:` trailer) and
+`/project-service-pr-readiness` (branch name, presence of an `LFXV2-[0-9]+`
+reference, conventional commits, rebase, DCO + GPG, diff size, protected
+files). A code reviewer repeating them is duplicate signal.
+
+Not covered: a *placeholder or wrong* ticket number such as `LFXV2-0000`.
+Neither owner rejects it — the hook only prints `[LFXV2-NNNN]` in its example
+text and never matches the ticket, and readiness accepts any `LFXV2-[0-9]+` —
+so a reviewer finding about it is not a duplicate and stays.
+
+**Source:** `.githooks/commit-msg` (subject regex line 21, summary checks
+lines 37–59, DCO check lines 61–71);
+`.claude/skills/project-service-pr-readiness/SKILL.md` (Phase 3 checks).
+Carried over 2026-09-25 from the retired `project-service-code-reviewer`
+skill's "Known False Positives" list, not from a PR thread.
 
 ---
 
@@ -160,7 +196,7 @@ phrasing, or doc copy that are purely cosmetic and unrelated to a contract.
 **Why false:** out of scope; the bots flag copy on every touched doc and the team
 does not act on cosmetic rewordings. (A contract-doc *content* drift — e.g.
 `docs/indexer-contract.md` not matching a publisher change — is real and is owned
-by `lfx-project-service-code-reviewer`, not this list.)
+by `/lfx-skills:lfx-general-code-review`, not this list.)
 
 ---
 
@@ -171,6 +207,9 @@ explicitly decided is not relevant for this repo:
 
 1. Add an entry with **Pattern matched**, **Why false**, and (where applicable)
    **Source** (PR #N + quote, or the tool/config that already enforces it).
+   Exception: an entry carried over from the retired
+   `project-service-code-reviewer` skill has no PR thread behind it; its
+   **Source** line says so and carries the date it was carried over.
 2. If the pattern previously lived in a category file, remove it there — don't
    keep it in both places.
 3. Add only patterns the bots will surface repeatedly, or a one-time misread
