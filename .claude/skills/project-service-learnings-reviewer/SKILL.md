@@ -1,6 +1,6 @@
 ---
 name: project-service-learnings-reviewer
-description: "Post-commit empirical-pattern review for lfx-v2-project-service. Audits the latest commit in the lfx-v2-project-service repo against `docs/reviews/knowledge-base/` — patterns extracted from past PR review comments on this repo. May be launched from the LFX workspace root, but always operates in `lfx-v2-project-service`. Findings are gated by KB matches: every finding must quote a pattern entry; unsourced findings are dropped. Pass the keyword `branch` to switch to full-branch mode (audits the branch's diff against origin/main — used for the pre-PR full-branch sweep). Renders a markdown review. Invoke after every commit while pre-PR, in parallel with `lfx-skills:lfx-project-service-code-reviewer`."
+description: "Empirical-pattern review for lfx-v2-project-service. Audits the latest commit in the lfx-v2-project-service repo against `docs/reviews/knowledge-base/` — patterns extracted from past PR review comments on this repo. May be launched from the LFX workspace root, but always operates in `lfx-v2-project-service`. Findings are gated by KB matches: every finding must quote a pattern entry; unsourced findings are dropped. Pass the keyword `branch` to switch to full-branch mode (audits the branch's diff against origin/main — used for the pre-PR full-branch sweep). Renders a markdown review. Launched by the repo's pre-PR review block (see CLAUDE.md), in parallel with `/lfx-skills:lfx-general-code-review`."
 ---
 <!-- Copyright The Linux Foundation and each contributor to LFX. -->
 <!-- SPDX-License-Identifier: MIT -->
@@ -9,7 +9,7 @@ description: "Post-commit empirical-pattern review for lfx-v2-project-service. A
 
 You match the latest commit on the local branch against the empirical pattern knowledge base in `docs/reviews/knowledge-base/`. Each pattern entry was extracted from a real PR review comment on this repo. **Findings are gated by KB matches:** every emitted finding must quote a pattern entry's rule ID + a phrase from its `**Pattern:**` or `**Detect:**` clause. If you can't quote, you drop.
 
-Generic-rubric findings (security / performance / quality / architecture / testing intuitions not grounded in a KB entry) belong to `lfx-skills:lfx-project-service-code-reviewer`, which audits the documented rule surface. You cover the empirical surface — the patterns the bots and human reviewers have actually flagged.
+Generic-rubric findings (security / performance / quality / architecture / testing intuitions not grounded in a KB entry) belong to `/lfx-skills:lfx-general-code-review`, which audits general quality and the documented rule surface. You cover the empirical surface — the patterns the bots and human reviewers have actually flagged.
 
 ## Repository scope
 
@@ -90,7 +90,7 @@ For each pattern entry in every loaded pattern file (excluding `known-false-posi
    - **Citation:** quote the entry's `**Pattern:**` or `**Detect:**` phrase that triggered the match.
 3. **If you can't quote the entry, drop the finding.** The KB is the bar — no quote, no ship.
 
-**Findings without a matching pattern entry do not ship.** Generic code-review intuition belongs to `lfx-skills:lfx-project-service-code-reviewer`.
+**Findings without a matching pattern entry do not ship.** Generic code-review intuition belongs to `/lfx-skills:lfx-general-code-review`.
 
 ## Step 4 — Apply known false positives
 
@@ -122,7 +122,7 @@ If `extra` was applied, note it.
 
 - **PR-shape sanity** (branch / JIRA / commits / DCO+GPG / rebase / diff size) → `/project-service-pr-readiness`.
 - **Mechanical validation** (license, format, lint, build, tests, generated-code freshness) → `/project-service-preflight`.
-- **Documented rule-surface audits** (Goa design/gen boundary, contract docs, chart conventions, layering) → `lfx-skills:lfx-project-service-code-reviewer`.
+- **Documented rule-surface audits** (Goa design/gen boundary, contract docs, chart conventions, layering) → `/lfx-skills:lfx-general-code-review`.
 - **Generic code-review intuition** not grounded in a KB pattern entry → drop.
 
 ## Constraints
