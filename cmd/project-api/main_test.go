@@ -4,10 +4,41 @@
 package main
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	projsvchttpserver "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/http/project_service/server"
+	projsvc "github.com/linuxfoundation/lfx-v2-project-service/api/project/v1/gen/project_service"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	goahttp "goa.design/goa/v3/http"
 )
+
+func TestCreateProjectRejectsDuplicateCaseInsensitiveParentUID(t *testing.T) {
+	endpointCalled := false
+	handler := projsvchttpserver.NewCreateProjectHandler(
+		func(context.Context, any) (any, error) {
+			endpointCalled = true
+			return &projsvc.ProjectFull{}, nil
+		},
+		goahttp.NewMuxer(),
+		projectRequestDecoder,
+		goahttp.ResponseEncoder,
+		nil,
+		nil,
+	)
+
+	req := httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(`{"slug":"test-project","name":"Test Project","description":"Test description","parent_uid":"", "PARENT_UID":""}`))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	require.Equal(t, http.StatusBadRequest, res.Code)
+	assert.False(t, endpointCalled)
+}
 
 func TestLFXSelfServeBaseURL(t *testing.T) {
 	tests := []struct {
