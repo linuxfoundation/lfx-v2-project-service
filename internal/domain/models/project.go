@@ -116,7 +116,7 @@ func (p *ProjectBase) IndexingConfig() *indexerTypes.IndexingConfig {
 		AccessCheckObject:    fmt.Sprintf("project:%s", "{{ uid }}"),
 		AccessCheckRelation:  "viewer",
 		HistoryCheckObject:   fmt.Sprintf("project:%s", "{{ uid }}"),
-		HistoryCheckRelation: "writer",
+		HistoryCheckRelation: "writer_guard",
 		SortName:             "{{ name }}",
 		NameAndAliases:       p.NameAndAliasesTemplatized(),
 		ParentRefs:           p.ParentRefsTemplatized(),
@@ -276,9 +276,9 @@ func (p *ProjectSettings) IndexingConfig(projectUID string) *indexerTypes.Indexi
 	return &indexerTypes.IndexingConfig{
 		ObjectID:             "{{ uid }}",
 		AccessCheckObject:    fmt.Sprintf("project:%s", projectUID),
-		AccessCheckRelation:  "auditor",
+		AccessCheckRelation:  "auditor_guard",
 		HistoryCheckObject:   fmt.Sprintf("project:%s", projectUID),
-		HistoryCheckRelation: "writer",
+		HistoryCheckRelation: "writer_guard",
 		ParentRefs:           p.ParentRefsTemplatized(),
 		Tags:                 p.TagsTemplatized(),
 	}

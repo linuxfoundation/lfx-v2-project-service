@@ -84,7 +84,7 @@ func (f *ProjectFolder) IndexingConfig() *indexerTypes.IndexingConfig {
 		AccessCheckObject:    fmt.Sprintf("project:%s", f.ProjectUID),
 		AccessCheckRelation:  "viewer",
 		HistoryCheckObject:   fmt.Sprintf("project:%s", f.ProjectUID),
-		HistoryCheckRelation: "auditor",
+		HistoryCheckRelation: "auditor_guard",
 		SortName:             f.Name,
 		ParentRefs:           []string{fmt.Sprintf("project:%s", f.ProjectUID)},
 		Tags:                 f.Tags(),
