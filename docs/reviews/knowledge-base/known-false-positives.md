@@ -8,7 +8,7 @@ source (KB pattern file, rule file, checklist) produced them. This list is the
 floor — even a quotable pattern does not survive if it matches a known false
 positive.
 
-Used by the `lfx-skills:lfx-project-service-learnings-reviewer` subagent (Step 4)
+Used by the `/project-service-learnings-reviewer` subagent (Step 4)
 and as filter discipline for `/lfx-skills:lfx-general-code-review`.
 
 ---
@@ -30,13 +30,33 @@ bot misread it.
 ### "Run gofmt / golangci-lint / go vet" with no concrete rule
 
 **Pattern matched:** any finding whose only substance is "run `make fmt`",
-"`make lint`", "`go vet`", or a formatting/import-ordering nit on hand-written Go.
+"`make lint`", "`go vet`", "`make build`", "`make test`" or "`make apigen`"
+without a concrete violation, or a formatting/import-ordering nit on
+hand-written Go.
 
 **Why false:** deterministic tooling owns this. `make check` (gofmt + lint +
-license) and MegaLinter run in CI; `/project-service-preflight` runs it locally.
-Re-surfacing it in a review is duplicate signal.
+license) and MegaLinter run in CI; `/project-service-preflight` runs it locally,
+including build, tests and generated-code freshness. Re-surfacing it in a
+review is duplicate signal.
 
-**Source:** `Makefile`, `.mega-linter.yml`, `revive.toml`.
+**Source:** `Makefile`, `.mega-linter.yml`, `revive.toml`,
+`.claude/skills/project-service-preflight/SKILL.md`.
+
+### PR-shape findings: branch, Jira, DCO, GPG, rebase, diff size, protected files
+
+**Pattern matched:** a code-review finding about the branch name, a missing or
+placeholder `[LFXV2-NNNN]` reference, a missing `Signed-off-by:` trailer or GPG
+signature, an unrebased branch, total diff size, or a touched protected file
+lacking a PR-body note.
+
+**Why false:** that surface has its own owners in this repo — the
+`.githooks/commit-msg` hook (format, placeholder ticket, DCO) and
+`/project-service-pr-readiness` (branch, Jira, rebase, DCO + GPG, diff size,
+protected files). A code reviewer repeating them is duplicate signal.
+
+**Source:** `.githooks/commit-msg`,
+`.claude/skills/project-service-pr-readiness/SKILL.md`; carried over from the
+retired `project-service-code-reviewer` skill's "Known False Positives" list.
 
 ---
 

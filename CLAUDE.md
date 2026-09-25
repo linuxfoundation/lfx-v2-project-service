@@ -10,7 +10,7 @@ This guide provides essential information for Claude instances working with the 
 > - `/project-service-dev` at `.claude/skills/project-service-dev/` auto-attaches on Go and service paths and owns logging, errors, request context, pagination, generated-code boundary, NATS/KV publishing, tests, formatting, linting, and license headers for this repo.
 > - `/project-service-pr-readiness` checks pre-PR shape only: branch/JIRA/conventional commits/rebase/DCO+GPG/diff size/protected files.
 > - `/project-service-preflight` runs the mechanical Go pre-PR pipeline after readiness: working tree, license, formatting, lint, build, tests, protected files, commit verification, generated-code freshness, and change summary.
-> - `/project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` is the repo-owned review knowledge-base brain loaded by one of the two pre-PR review subagents (see [Pre-PR review](#pre-pr-review)) — not a skill a developer invokes by hand. Guidance names it by this `/...` form; the `SKILL.md` frontmatter and the directory path under `.claude/skills/` are written without the slash.
+> - `/project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` is the repo-owned review knowledge-base brain loaded by the knowledge-base reviewer of the pre-PR review round (see [Pre-PR review](#pre-pr-review)) — not a skill a developer invokes by hand. Guidance names it by this `/...` form; the `SKILL.md` frontmatter and the directory path under `.claude/skills/` are written without the slash.
 > - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates.
 > - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
 
@@ -261,41 +261,20 @@ make check  # Check format and lint without modifying
 
 ## Pre-PR review
 
-Run **one** local review of the whole branch before opening the PR — never
-after individual commits, and never again once the PR exists.
+> **IMPORTANT — follow this exactly.** When the implementation is complete
+> and committed and you are about to open a PR, load
+> `/lfx-skills:lfx-pre-pr-review` with the Skill tool and follow it. It runs
+> **one** review round of the whole branch — general, security and
+> knowledge-base reviewers in parallel — once, right before the PR. Two rules
+> bear repeating here: **all accepted findings from that round land in
+> exactly one fix commit** (none if there is nothing to fix); and **once the
+> PR is open there are no local reviews of any kind** — iterate only on the
+> PR's bot and human feedback, still running tests and checks. Do not work
+> from memory: **reload the skill before each step** of the round — before
+> launching the reviewers, before the fix commit, before opening the PR.
 
-1. When the implementation is complete and committed, run `git fetch origin`
-   and pin the range: `base_sha=$(git merge-base origin/main HEAD)`,
-   `target_sha=$(git rev-parse HEAD)`.
-2. Launch **two** independent background subagents **in parallel**, one per
-   skill, each with `subagent_type: general-purpose`, `model: opus` (Opus 5.5),
-   `run_in_background: true`. Tell each to load exactly one skill with the
-   Skill tool and follow it: one loads `/lfx-skills:lfx-general-code-review`
-   (general quality plus this repo's written conventions, style and rules);
-   the other loads `/project-service-learnings-reviewer` (this repo's review knowledge base). Give each
-   the full 40-character `base_sha` and `target_sha`, the instruction to review
-   exactly `git diff <base_sha> <target_sha>`, and the report-only rule: they
-   never edit, commit, push or write GitHub state.
-3. Wait for both reports. A failed, empty or `INCOMPLETE` report is **not** a
-   clean review: fix the cause and relaunch that reviewer once; if it fails
-   again, stop and tell the developer.
-4. Verify every finding against the code. Address every Critical and every
-   reasonable Important finding in **EXACTLY ONE fix commit** (signed and
-   DCO-signed-off). No fix commit if there is nothing to fix. Never one commit
-   per finding.
-5. Run `make check && make test`. If it fails, fold the remedy into the fix commit with
-   `git commit --amend` (re-sign and re-sign-off); if review found nothing and
-   there is no fix commit yet, this remedy becomes the one fix commit. Rerun
-   the checks — but **do not rerun the reviewers**. The branch gains **at most one**
-   commit after the implementation — the single fix commit, or none at all —
-   never more.
-6. Open the PR.
-
-**Hard rules.** No local review runs after any individual commit. The
-reviewers are **never** rerun on the fix commit. From the moment the PR is
-open, **no local reviews of any kind**: iterate only on the PR's bot and human
-review feedback, still running tests and checks, and batch each round of fixes
-into as few commits as possible.
+- KB review skill: `/project-service-learnings-reviewer`
+- Preflight: `make check && make test`
 
 ## Post-PR review
 

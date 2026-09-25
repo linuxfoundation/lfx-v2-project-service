@@ -10,7 +10,7 @@ promotion gate. This KB is the empirical surface; it does **not** duplicate the
 documented rule audit or the generic senior review, both owned by
 `/lfx-skills:lfx-general-code-review`.
 
-Consumed by the `lfx-skills:lfx-project-service-learnings-reviewer` subagent,
+Consumed by the `/project-service-learnings-reviewer` subagent,
 which routes category files by changed-file path, matches each pattern's
 `Detect:` rule against the diff, and applies `known-false-positives.md` last.
 
