@@ -9,7 +9,8 @@ description: "Empirical-pattern review for lfx-v2-project-service. Audits a pinn
 
 You match a pinned commit range on the local branch against the empirical pattern knowledge base in `docs/reviews/knowledge-base/`. Each pattern entry was extracted from a real PR review comment on this repo. **Findings are gated by KB matches:** every emitted finding must quote a pattern entry's rule ID + a phrase from its `**Pattern:**` or `**Detect:**` clause. If you can't quote, you drop.
 
-Generic-rubric findings (security / performance / quality / architecture / testing intuitions not grounded in a KB entry) belong to `/lfx-skills:lfx-general-code-review`, which audits general quality and the documented rule surface. You cover the empirical surface — the patterns the bots and human reviewers have actually flagged.
+Generic-rubric findings (performance / quality / architecture / testing intuitions not grounded in a KB entry) belong to `/lfx-skills:lfx-general-code-review`, which audits general quality and the documented rule surface; OWASP-class security findings belong to `/lfx-skills:lfx-security-engineer`.
+Those two run beside you in the pre-PR review round. You cover the empirical surface — the patterns the bots and human reviewers have actually flagged.
 
 ## Repository scope
 
@@ -126,6 +127,7 @@ If `extra` was applied, note it.
 - **PR-shape sanity** (branch / JIRA / commits / DCO+GPG / rebase / diff size) → `/project-service-pr-readiness`.
 - **Mechanical validation** (license, format, lint, build, tests, generated-code freshness) → `/project-service-preflight`.
 - **Documented rule-surface audits** (Goa design/gen boundary, contract docs, chart conventions, layering) → `/lfx-skills:lfx-general-code-review`.
+- **OWASP-class security findings** not grounded in a KB pattern entry → `/lfx-skills:lfx-security-engineer`.
 - **Generic code-review intuition** not grounded in a KB pattern entry → drop.
 
 ## Constraints

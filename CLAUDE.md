@@ -9,8 +9,9 @@ This guide provides essential information for Claude instances working with the 
 > **Repo-local project-service skills and docs:**
 > - `/project-service-dev` at `.claude/skills/project-service-dev/` auto-attaches on Go and service paths and owns logging, errors, request context, pagination, generated-code boundary, NATS/KV publishing, tests, formatting, linting, and license headers for this repo.
 > - `/project-service-pr-readiness` checks pre-PR shape only: branch/JIRA/conventional commits/rebase/DCO+GPG/diff size/protected files.
-> - `/project-service-preflight` runs the mechanical Go pre-PR pipeline after readiness: working tree, license, formatting, lint, build, tests, protected files, commit verification, generated-code freshness, and change summary.
-> - `/project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` is the repo-owned review knowledge-base brain loaded by the knowledge-base reviewer of the pre-PR review round (see [Pre-PR review](#pre-pr-review)) — not a skill a developer invokes by hand. Guidance names it by this `/...` form; the `SKILL.md` frontmatter and the directory path under `.claude/skills/` are written without the slash.
+> - `/project-service-preflight` runs the mechanical Go pre-PR pipeline after readiness: working tree, license, formatting, lint, build, tests, protected files, commit verification, generated-code freshness, and change summary. Readiness then preflight is the `Preflight` value of [Pre-PR review](#pre-pr-review).
+> - `/project-service-learnings-reviewer` at `.claude/skills/project-service-learnings-reviewer/` is the repo-owned review knowledge-base brain loaded by the knowledge-base reviewer of the pre-PR review round (see [Pre-PR review](#pre-pr-review)) — not a skill a developer invokes by hand.
+>   Guidance names it by this `/...` form; the `SKILL.md` frontmatter and the directory path under `.claude/skills/` are written without the slash.
 > - Repo-local docs under `docs/` own concrete subjects, payloads, emitted contracts, and domain behavior; this repo's chart owns project-service Helm values and templates.
 > - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
 
@@ -274,7 +275,7 @@ make check  # Check format and lint without modifying
 > launching the reviewers, before the fix commit, before opening the PR.
 
 - KB review skill: `/project-service-learnings-reviewer`
-- Preflight: `make check && make test`
+- Preflight: `/project-service-pr-readiness origin/main`, then `/project-service-preflight origin/main --report-only`
 
 ## Post-PR review
 

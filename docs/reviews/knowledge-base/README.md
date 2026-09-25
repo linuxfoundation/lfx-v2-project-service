@@ -8,11 +8,15 @@ merged-PR review history (CodeRabbit, Copilot, and human maintainers). Each
 entry encodes a pattern that was actually flagged on this repo and cleared the
 promotion gate. This KB is the empirical surface; it does **not** duplicate the
 documented rule audit or the generic senior review, both owned by
-`/lfx-skills:lfx-general-code-review`.
+`/lfx-skills:lfx-general-code-review`, nor the security review owned by
+`/lfx-skills:lfx-security-engineer`.
 
 Consumed by the `/project-service-learnings-reviewer` subagent,
 which routes category files by changed-file path, matches each pattern's
 `Detect:` rule against the diff, and applies `known-false-positives.md` last.
+It is the only reviewer of the pre-PR round that reads this directory; the
+general and security reviewers do not, so `known-false-positives.md` filters
+knowledge-base findings only.
 
 ## Methodology
 
@@ -25,7 +29,11 @@ signal. Candidates were clustered, then promoted only if they cleared all hard
 gates (repo-specific, mechanically detectable + fixable, currently relevant on
 `origin/main`, not already enforced by gofmt/golangci-lint/go vet/CI) and at
 least one value signal (recurrence ≥2 PRs, cost-of-miss for a
-security/data/contract issue, or acted-on by a maintainer).
+security/data/contract issue, or acted-on by a maintainer). One exception:
+the PR-shape entry in `known-false-positives.md` was carried over on
+2026-09-25 from the retired `project-service-code-reviewer` skill, not mined
+from a PR thread; such entries are dated and marked as carried over in their
+**Source** line.
 
 ## Corpus stats
 

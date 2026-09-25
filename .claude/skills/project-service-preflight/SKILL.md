@@ -140,10 +140,12 @@ Run:
 
 ```bash
 make build
+make build-cli
 ```
 
-If build fails, report the package/file/line from the failure and stop before
-tests unless the contributor asks to continue.
+CI (`.github/workflows/project-api-build.yml`) builds both binaries; so does
+preflight. If either build fails, report the package/file/line from the
+failure and stop before tests unless the contributor asks to continue.
 
 ## Check 6 - Tests
 
@@ -242,7 +244,7 @@ PASS License headers   - All hand-written Go files have headers
 PASS Goa generation    - Up to date
 PASS Formatting        - Clean
 PASS Linting           - make lint passed
-PASS Build             - make build passed
+PASS Build             - make build and make build-cli passed
 PASS Tests             - make test passed
 PASS Protected files   - 2 touched, documented for PR body
 PASS Commits           - Conventional, signed, signed off, JIRA-linked
@@ -263,7 +265,7 @@ FAIL License headers   - 1 file missing header
 PASS Goa generation    - Up to date
 FAIL Formatting        - 2 files need gofmt
 PASS Linting           - make lint passed
-PASS Build             - make build passed
+PASS Build             - make build and make build-cli passed
 FAIL Tests             - 1 package failed
 WARN Protected files   - go.mod and charts changed; explain in PR body
 FAIL Commits           - 1 commit missing Signed-off-by
