@@ -7,8 +7,8 @@ Empirical review patterns for `lfx-v2-project-service`, mined from this repo's
 merged-PR review history (CodeRabbit, Copilot, and human maintainers). Each
 entry encodes a pattern that was actually flagged on this repo and cleared the
 promotion gate. This KB is the empirical surface; it does **not** duplicate the
-documented rule audit owned by `lfx-skills:lfx-project-service-code-reviewer` or
-the generic senior review owned by `lfx-skills:lfx-general-code-reviewer`.
+documented rule audit or the generic senior review, both owned by
+`/lfx-skills:lfx-general-code-review`.
 
 Consumed by the `lfx-skills:lfx-project-service-learnings-reviewer` subagent,
 which routes category files by changed-file path, matches each pattern's

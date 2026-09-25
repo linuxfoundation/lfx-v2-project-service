@@ -9,7 +9,7 @@ floor — even a quotable pattern does not survive if it matches a known false
 positive.
 
 Used by the `lfx-skills:lfx-project-service-learnings-reviewer` subagent (Step 4)
-and as filter discipline for `lfx-skills:lfx-project-service-code-reviewer`.
+and as filter discipline for `/lfx-skills:lfx-general-code-review`.
 
 ---
 
@@ -160,7 +160,7 @@ phrasing, or doc copy that are purely cosmetic and unrelated to a contract.
 **Why false:** out of scope; the bots flag copy on every touched doc and the team
 does not act on cosmetic rewordings. (A contract-doc *content* drift — e.g.
 `docs/indexer-contract.md` not matching a publisher change — is real and is owned
-by `lfx-project-service-code-reviewer`, not this list.)
+by `/lfx-skills:lfx-general-code-review`, not this list.)
 
 ---
 
