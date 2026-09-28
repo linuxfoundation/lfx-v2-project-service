@@ -458,11 +458,19 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrValidationFailed
 	}
 
+	// Validate parent_uid format before it is used in any authorization query.
+	if payload.ParentUID != "" {
+		if _, err := uuid.Parse(payload.ParentUID); err != nil {
+			slog.ErrorContext(ctx, "invalid parent UID", constants.ErrKey, err)
+			return nil, domain.ErrValidationFailed
+		}
+	}
+
 	// When the parent is changing, require the caller to hold writer on both the
 	// old parent (detaching from its hierarchy) and the new parent (attaching to
 	// a new one). This mirrors the authorization that Heimdall enforces on create.
 	// The check is skipped when FGAChecker is nil (FGA_ENABLED=false, local dev).
-	// Authorization runs before the existence check to reject unauthorized requests
+	// Authorization runs before ProjectExists so unauthorized requests are rejected
 	// without incurring an extra KV read.
 	storedParentUID := existingProjectDB.ParentUID
 	if s.FGAChecker != nil && payload.ParentUID != storedParentUID {
@@ -481,12 +489,8 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 	}
 
-	// Validate that the parent UID is a valid UUID and is an existing project UID.
+	// Validate that the parent UID references an existing project.
 	if payload.ParentUID != "" {
-		if _, err := uuid.Parse(payload.ParentUID); err != nil {
-			slog.ErrorContext(ctx, "invalid parent UID", constants.ErrKey, err)
-			return nil, domain.ErrValidationFailed
-		}
 		exists, err := s.ProjectRepository.ProjectExists(ctx, payload.ParentUID)
 		if err != nil {
 			slog.ErrorContext(ctx, "error checking if parent project exists", constants.ErrKey, err)
