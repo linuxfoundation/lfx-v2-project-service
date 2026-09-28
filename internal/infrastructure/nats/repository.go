@@ -313,6 +313,12 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 	}
 
 	slugChanging := existingProject.Slug != projectBase.Slug
+	// weCreatedReservation tracks whether THIS call is the confirmed creator of the
+	// slug/<new> KV entry. It must be false when we enter via the idempotent-retry
+	// path (ErrKeyExists + matching UID) because a concurrent request may have
+	// created the entry and already won the CAS; rolling back a reservation we did
+	// not create would delete that winning request's valid index entry.
+	weCreatedReservation := false
 	if slugChanging {
 		// Reserve the new slug BEFORE the CAS update so a stale-If-Match failure can be
 		// rolled back cleanly. Use Create (conditional) to avoid overwriting another
@@ -321,16 +327,26 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 		_, createErr := s.Projects.Create(ctx, newSlugKey, []byte(projectBase.UID))
 		if createErr != nil {
 			if errors.Is(createErr, jetstream.ErrKeyExists) {
-				// Check if the existing reservation already belongs to us (idempotent retry).
-				if e, gerr := s.Projects.Get(ctx, newSlugKey); gerr == nil && string(e.Value()) == projectBase.UID {
-					// Our own reservation from a prior crashed attempt — safe to continue.
-				} else {
+				// Idempotent-retry path: an entry already exists. Read it to decide
+				// whether it belongs to us (prior crashed attempt) or another project.
+				// Treat a Get failure as an infra error rather than a slug conflict.
+				e, gerr := s.Projects.Get(ctx, newSlugKey)
+				if gerr != nil {
+					slog.ErrorContext(ctx, "error verifying slug reservation", constants.ErrKey, gerr)
+					return domain.ErrInternal
+				}
+				if string(e.Value()) != projectBase.UID {
 					return domain.ErrProjectSlugExists
 				}
+				// Pre-existing reservation for our UID — proceed but leave
+				// weCreatedReservation false; we must not roll it back on CAS failure
+				// because a concurrent request may be the actual owner.
 			} else {
 				slog.ErrorContext(ctx, "error creating new slug mapping", constants.ErrKey, createErr)
 				return domain.ErrInternal
 			}
+		} else {
+			weCreatedReservation = true
 		}
 	}
 
@@ -338,24 +354,29 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 	err = s.updateProjectBase(ctx, projectBase, revision)
 	if err != nil {
 		revMismatch := strings.Contains(err.Error(), "wrong last sequence")
-		if slugChanging {
-			// Use a detached context so cleanup succeeds even if the caller's context is
-			// already cancelled (e.g. timed out while waiting for the CAS response).
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Only roll back the new slug reservation when we are its confirmed creator.
+		// Rolling back an inherited reservation risks destroying a concurrent winner's mapping.
+		if slugChanging && weCreatedReservation {
+			// Preserve request-scoped log values; strip only the cancellation signal so
+			// cleanup can complete even after the caller's context is cancelled.
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 			defer cancel()
 
 			if revMismatch {
-				// Revision mismatch guarantees the write did not go through — roll back unconditionally.
+				// Revision mismatch guarantees the write did not go through — safe to roll back.
 				if delErr := s.deleteProjectSlugMapping(cleanupCtx, projectBase.Slug, projectBase.UID); delErr != nil {
 					slog.ErrorContext(cleanupCtx, "error rolling back new slug mapping after CAS failure", constants.ErrKey, delErr)
 				}
 			} else {
 				// For other errors (network timeout, etc.) the server may have already applied
-				// the write. Re-read to confirm before rolling back.
+				// the write. Re-read to confirm the slug was NOT committed before rolling back.
 				if current, gErr := s.GetProjectBase(cleanupCtx, projectBase.UID); gErr == nil && current.Slug != projectBase.Slug {
 					if delErr := s.deleteProjectSlugMapping(cleanupCtx, projectBase.Slug, projectBase.UID); delErr != nil {
 						slog.ErrorContext(cleanupCtx, "error rolling back new slug mapping after non-CAS failure", constants.ErrKey, delErr)
 					}
+				} else if gErr != nil {
+					slog.ErrorContext(cleanupCtx, "error re-reading project to determine slug rollback; reservation kept",
+						constants.ErrKey, gErr, "slug", projectBase.Slug, "project_uid", projectBase.UID)
 				}
 			}
 		}
@@ -366,10 +387,10 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 		return domain.ErrInternal
 	}
 
-	// CAS succeeded — now remove the old slug mapping with a detached context and ownership
-	// verification so a cancelled caller context does not leave the stale entry permanently.
+	// CAS succeeded — remove the old slug mapping. Use a context that preserves
+	// request-scoped log values but is not cancelled when the caller's context ends.
 	if slugChanging {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		if err = s.deleteProjectSlugMapping(cleanupCtx, existingProject.Slug, projectBase.UID); err != nil {
 			slog.ErrorContext(cleanupCtx, "error deleting old slug mapping after successful update",

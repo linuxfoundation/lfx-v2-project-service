@@ -691,7 +691,34 @@ func TestNatsRepository_UpdateProjectBase(t *testing.T) {
 			expectedErr: domain.ErrProjectSlugExists,
 		},
 		{
-			name:     "slug changed - ErrKeyExists but entry already owned by us (idempotent retry): continues",
+			name:     "slug changed - ErrKeyExists but Get fails: returns ErrInternal not ErrProjectSlugExists",
+			payload:  makeProjectBase(newSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(0), jetstream.ErrKeyExists)
+				kv.On("Get", mock.Anything, "slug/"+newSlug).Return(nil, errors.New("nats store error"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:     "slug changed - idempotent retry (our UID) then CAS fails: does NOT roll back new slug",
+			payload:  makeProjectBase(newSlug),
+			revision: 3,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(0), jetstream.ErrKeyExists)
+				// Our UID — idempotent retry path (weCreatedReservation stays false)
+				kv.On("Get", mock.Anything, "slug/"+newSlug).Return(NewMockKeyValueEntry([]byte(projectUID), 9), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(3)).Return(uint64(0), errors.New("wrong last sequence"))
+				// Delete must NOT be called: we did not create the reservation
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:     "slug changed - ErrKeyExists but entry already owned by us (idempotent retry): CAS succeeds",
 			payload:  makeProjectBase(newSlug),
 			revision: 5,
 			setupMocks: func(kv *MockKeyValue) {
@@ -704,6 +731,23 @@ func TestNatsRepository_UpdateProjectBase(t *testing.T) {
 				kv.On("Delete", mock.Anything, "slug/"+oldSlug, mock.Anything).Return(nil)
 			},
 			wantErr: false,
+		},
+		{
+			name:     "slug changed - non-CAS error and GetProjectBase re-read fails: reservation kept, returns ErrInternal",
+			payload:  makeProjectBase(newSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				// First call: initial GetProjectBase to detect slug change.
+				// .Once() ensures the second Get(projectUID) call picks up the next mock.
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil).Once()
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(2), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(5)).Return(uint64(0), errors.New("nats store error"))
+				// Second call: re-read before rollback fails — reservation must be kept.
+				kv.On("Get", mock.Anything, projectUID).Return(nil, errors.New("nats store error")).Once()
+				// Delete must NOT be called: re-read failed so reservation is kept
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
 		},
 		{
 			name:     "slug changed - old mapping belongs to different project: skips old delete, update still succeeds",
