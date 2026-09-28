@@ -26,6 +26,8 @@ var (
 	ErrServiceUnavailable = errors.New("service unavailable")
 	// ErrValidationFailed is returned when a validation failed.
 	ErrValidationFailed = errors.New("validation failed")
+	// ErrForbidden is returned when the caller lacks the required relation on a resource.
+	ErrForbidden = errors.New("forbidden")
 	// ErrCannotDeleteNonCrowdfundingProject is returned when attempting to delete a project whose funding model is not exactly ["Crowdfunding"].
 	ErrCannotDeleteNonCrowdfundingProject = errors.New("project can only be deleted if its funding model is Crowdfunding only")
 	// ErrArchivedRequiresDissolutionDate is returned when a project's stage is set to "Archived" without an entity dissolution date.

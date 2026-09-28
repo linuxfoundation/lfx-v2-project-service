@@ -472,6 +472,7 @@ There are two distinct NATS patterns in this service — both use `QueueSubscrib
 // Outbound request/reply (published by this service, awaits a response)
 "lfx.email-service.send_email"         // Request to email service for role notifications
 "lfx.invite-service.send_invite"       // Request to invite service for non-LFID users
+"lfx.access_check.request"             // FGA relation check to fga-sync; fired on parent change in UpdateProjectBase
 ```
 
 ### FGA Sync Message Format
@@ -566,6 +567,7 @@ func TestEndpoint(t *testing.T) {
 | `LFX_SELF_SERVE_BASE_URL` | Base URL for project links in notification emails; takes precedence over `LFX_ENVIRONMENT` | derived from `LFX_ENVIRONMENT` (prod when unset) | No |
 | `EMAILS_ENABLED` | Gate for outbound role-notification emails to LFID users (`true` to enable) | false | No |
 | `INVITES_ENABLED` | Gate for outbound invite requests to non-LFID users (`true` to enable) | false | No |
+| `FGA_ENABLED` | Enable inline FGA parent-change authorization checks via fga-sync (`true` to enable); mirrors `openfga.enabled` in the Helm chart. When false, `FGAChecker` is nil and parent changes are not checked by the service (Heimdall still enforces project-level writer) | false | No |
 
 ## Authorization (OpenFGA)
 
@@ -575,7 +577,7 @@ When deployed, the service uses OpenFGA for authorization:
 - **POST /projects** - Requires `writer` on parent (if specified)
 - **GET /projects/:id** - Requires `viewer` on project
 - **GET /projects/:id/settings** - Requires `auditor` on project
-- **PUT /projects/:id** - Requires `writer` on project
+- **PUT /projects/:id** - Requires `writer` on project; when `parent_uid` changes, also requires `writer` on both the old parent (detach) and new parent (attach)
 - **PUT /projects/:id/settings** - Requires `writer` on project
 - **DELETE /projects/:id** - Requires `owner` on project
 
@@ -742,6 +744,7 @@ Domain errors are named sentinels in `internal/domain/errors.go`, mapped to HTTP
 - `ErrProjectNotFound` / `ErrDocumentNotFound` / `ErrLinkNotFound` / `ErrFolderNotFound` → 404
 - `ErrProjectSlugExists` / `ErrRevisionMismatch` / `ErrDocumentNameExists` / `ErrFolderNameExists` / `ErrFolderNotEmpty` → 409
 - `ErrValidationFailed` / `ErrInvalidParentProject` / `ErrInvalidContentType` / `ErrFileTooLarge` / `ErrCannotDeleteNonCrowdfundingProject` → 400
+- `ErrForbidden` → 403
 - `ErrInternal` / `ErrUnmarshal` → 500
 - `ErrServiceUnavailable` → 503
 

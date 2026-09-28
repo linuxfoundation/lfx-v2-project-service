@@ -53,6 +53,8 @@ spec:
               value: {{ .Values.app.emailsEnabled | quote }}
             - name: INVITES_ENABLED
               value: {{ .Values.app.invitesEnabled | quote }}
+            - name: FGA_ENABLED
+              value: {{ .Values.openfga.enabled | quote }}
             - name: LFX_ENVIRONMENT
               value: {{ .Values.app.lfxEnvironment | quote }}
             - name: LFX_SELF_SERVE_BASE_URL
