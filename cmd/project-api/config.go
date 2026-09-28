@@ -53,6 +53,7 @@ type environment struct {
 	LFXSelfServeBaseURL string
 	EmailsEnabled       bool
 	InvitesEnabled      bool
+	FGAEnabled          bool
 }
 
 func parseEnv() environment {
@@ -77,6 +78,7 @@ func parseEnv() environment {
 		LFXSelfServeBaseURL: lfxSelfServeBaseURL,
 		EmailsEnabled:       os.Getenv("EMAILS_ENABLED") == "true",
 		InvitesEnabled:      os.Getenv("INVITES_ENABLED") == "true",
+		FGAEnabled:          os.Getenv("FGA_ENABLED") == "true",
 	}
 }
 

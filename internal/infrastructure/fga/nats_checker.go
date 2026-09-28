@@ -10,10 +10,15 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
 	nats "github.com/nats-io/nats.go"
 )
+
+// fgaRequestTimeout is the maximum time to wait for an fga-sync response.
+// A stalled fga-sync must not block a PUT /projects/:id indefinitely.
+const fgaRequestTimeout = 5 * time.Second
 
 // NATSChecker sends a NATS request/reply to fga-sync to verify an FGA relation.
 // It is safe for concurrent use.
@@ -35,7 +40,10 @@ func NewNATSChecker(conn *nats.Conn) *NATSChecker {
 func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) (bool, error) {
 	tuple := fmt.Sprintf("%s#%s@%s", object, relation, user)
 
-	msg, err := c.conn.RequestMsgWithContext(ctx, &nats.Msg{
+	reqCtx, cancel := context.WithTimeout(ctx, fgaRequestTimeout)
+	defer cancel()
+
+	msg, err := c.conn.RequestMsgWithContext(reqCtx, &nats.Msg{
 		Subject: fgaconstants.AccessCheckSubject,
 		Data:    []byte(tuple),
 	})

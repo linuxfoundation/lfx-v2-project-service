@@ -77,7 +77,10 @@ func setupNATS(ctx context.Context, env environment, gracefulCloseWG *sync.WaitG
 	resolver := service.NewUserResolver(userReader)
 	dispatcher := service.NewNotificationDispatcher(msgBuilder, resolver, env.EmailsEnabled, env.InvitesEnabled)
 
-	fgaChecker := domain.AccessChecker(fga.NewNATSChecker(natsConn))
+	var fgaChecker domain.AccessChecker
+	if env.FGAEnabled {
+		fgaChecker = fga.NewNATSChecker(natsConn)
+	}
 
 	return natsConn, service.ServiceDeps{
 		ProjectRepository:  repo,
