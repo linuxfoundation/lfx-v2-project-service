@@ -149,13 +149,13 @@ NATS_PASS='<password-from-nats-context>' \
 Watch the logs. Expected per UID:
 
 ```text
-published indexer delete   subject=lfx.index.project
-published indexer delete   subject=lfx.index.project_settings
+deleted projects/<uid>      revision=<n>
+published indexer delete    subject=lfx.index.project
+published indexer delete    subject=lfx.index.project_settings
 published fga delete_access subject=lfx.fga-sync.delete_access
-deleted projects/<uid>     revision=<n>
 deleted slug reverse-lookup slug_key=slug/<slug>
 deleted project-settings/<uid>
-project deleted            uid=<...> slug=<...>
+project deleted             uid=<...> slug=<...>
 ```
 
 ### 5. Verify
