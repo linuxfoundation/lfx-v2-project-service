@@ -458,6 +458,29 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrValidationFailed
 	}
 
+	// When the parent is changing, require the caller to hold writer on both the
+	// old parent (detaching from its hierarchy) and the new parent (attaching to
+	// a new one). This mirrors the authorization that Heimdall enforces on create.
+	// The check is skipped when FGAChecker is nil (FGA_ENABLED=false, local dev).
+	// Authorization runs before the existence check to reject unauthorized requests
+	// without incurring an extra KV read.
+	storedParentUID := existingProjectDB.ParentUID
+	if s.FGAChecker != nil && payload.ParentUID != storedParentUID {
+		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		user := fgaconstants.ObjectTypeUser + principal
+
+		if storedParentUID != "" {
+			if err := s.requireParentWriter(ctx, user, storedParentUID, "current"); err != nil {
+				return nil, err
+			}
+		}
+		if payload.ParentUID != "" {
+			if err := s.requireParentWriter(ctx, user, payload.ParentUID, "new"); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
 	if payload.ParentUID != "" {
 		if _, err := uuid.Parse(payload.ParentUID); err != nil {
@@ -474,27 +497,6 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 				slog.String("parent_uid", payload.ParentUID),
 			)
 			return nil, domain.ErrInvalidParentProject
-		}
-	}
-
-	// When the parent is changing, require the caller to hold writer on both the
-	// old parent (detaching from its hierarchy) and the new parent (attaching to
-	// a new one). This mirrors the authorization that Heimdall enforces on create.
-	// The check is skipped when FGAChecker is nil (FGA_ENABLED=false, local dev).
-	storedParentUID := existingProjectDB.ParentUID
-	if s.FGAChecker != nil && payload.ParentUID != storedParentUID {
-		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
-		user := fgaconstants.ObjectTypeUser + principal
-
-		if storedParentUID != "" {
-			if err := s.requireParentWriter(ctx, user, storedParentUID, "current"); err != nil {
-				return nil, err
-			}
-		}
-		if payload.ParentUID != "" {
-			if err := s.requireParentWriter(ctx, user, payload.ParentUID, "new"); err != nil {
-				return nil, err
-			}
 		}
 	}
 

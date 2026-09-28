@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	nats "github.com/nats-io/nats.go"
 )
 
@@ -52,7 +52,7 @@ func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) 
 	defer cancel()
 
 	msg, err := c.conn.RequestMsgWithContext(reqCtx, &nats.Msg{
-		Subject: fgaconstants.AccessCheckSubject,
+		Subject: constants.AccessCheckSubject,
 		Data:    []byte(tuple),
 	})
 	if err != nil {

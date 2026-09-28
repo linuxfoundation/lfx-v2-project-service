@@ -1143,7 +1143,6 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 					ParentUID: "11111111-2222-3333-4444-555555555555",
 				}
 				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
-				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
@@ -1170,7 +1169,6 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 					ParentUID: "11111111-2222-3333-4444-555555555555",
 				}
 				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
-				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
@@ -1224,7 +1222,6 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 					ParentUID: "11111111-2222-3333-4444-555555555555",
 				}
 				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
-				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}
@@ -1252,7 +1249,6 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 					ParentUID: "11111111-2222-3333-4444-555555555555",
 				}
 				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
-				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
 			},
 			fgaChecker: func() *domainmocks.MockAccessChecker {
 				m := &domainmocks.MockAccessChecker{}

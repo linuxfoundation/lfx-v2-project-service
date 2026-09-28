@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
 	nats "github.com/nats-io/nats.go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,7 +100,7 @@ func TestNATSChecker_Check(t *testing.T) {
 			assert.Equal(t, tt.wantAllow, got)
 
 			if tt.natsErr == nil {
-				assert.Equal(t, fgaconstants.AccessCheckSubject, stub.gotSubj)
+				assert.Equal(t, constants.AccessCheckSubject, stub.gotSubj)
 				assert.Equal(t, tuple, stub.gotData)
 			}
 		})

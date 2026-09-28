@@ -90,6 +90,7 @@ Deeper Goa details (project-type shape, ETag/If-Match wiring, design file layout
   | Validation | 400 | `ErrValidationFailed`, `ErrInvalidParentProject`, `ErrInvalidContentType`, `ErrFileTooLarge`, `ErrCannotDeleteNonCrowdfundingProject` |
   | Not found | 404 | `ErrProjectNotFound`, `ErrDocumentNotFound`, `ErrLinkNotFound`, `ErrFolderNotFound` |
   | Conflict | 409 | `ErrProjectSlugExists`, `ErrRevisionMismatch`, `ErrDocumentNameExists`, `ErrFolderNameExists`, `ErrFolderNotEmpty` |
+  | Forbidden | 403 | `ErrForbidden` |
   | Internal | 500 | `ErrInternal`, `ErrUnmarshal` |
   | Unavailable | 503 | `ErrServiceUnavailable` |
 
@@ -130,7 +131,7 @@ The full subject and bucket inventory plus per-resource publish order lives in `
 ## Tests
 
 - Co-locate `*_test.go` with the file under test (e.g., `project_operations_test.go` next to `project_operations.go`).
-- Depend on interfaces, not concrete types: `ProjectRepository`, `DocumentRepository`, `LinkRepository`, `FolderRepository`, `MessageBuilder`, `Auth`. All have mocks in `internal/domain/mock.go` and `internal/infrastructure/auth/`.
+- Depend on interfaces, not concrete types: `ProjectRepository`, `DocumentRepository`, `LinkRepository`, `FolderRepository`, `MessageBuilder`, `Auth`, `AccessChecker`. All have mocks in `internal/domain/mock.go` and `internal/infrastructure/auth/`; `AccessChecker` is `MockAccessChecker` in `internal/domain/mocks/mocks.go`.
 - Mock framework is `github.com/stretchr/testify/mock`. Use `assert` for assertions.
 - Use table-driven tests. One test function per exported method (e.g., `SendIndexProject` corresponds to `TestMessageBuilder_SendIndexProject`); add cases to the existing table rather than spawning new top-level functions.
 - Race detection is on by default (`TEST_FLAGS=-race` in the Makefile). Tests must be race-clean.
@@ -158,5 +159,7 @@ Read these for depth, in priority order, when the change touches the named area.
 - `references/go-conventions.md` (38 lines): dependency-injection style, mock layout in `internal/domain/mock.go`, naming conventions, and a "where to add new code" table.
 - `references/goa-and-codegen.md` (42 lines): design-first workflow, project-base vs project-settings type split, ETag/If-Match wiring, and the boundary between generated and hand-written code.
 - `references/nats-messaging.md` (76 lines): subject inventory, KV bucket inventory, optimistic-locking pattern, and publish ordering after storage writes.
+
+The FGA access-check client lives in `internal/infrastructure/fga/` (`NATSChecker`, `requester` interface). It is wired only when `FGA_ENABLED=true`; when nil the service skips parent-change authorization (local dev). `pkg/constants/access_control.go` owns `AccessCheckSubject` — use that constant; do not import it from `lfx-v2-fga-sync/pkg/constants`.
 
 For repo-owned contracts, read `docs/fga-contract.md` and `docs/indexer-contract.md` before changing publishers. For chart work, read this repo's chart under `charts/lfx-v2-project-service/` plus `lfx-v2-helm/docs/service-chart-patterns.md`. For platform shape and cross-repo handoff, use `/lfx-skills:lfx-platform-architecture`. For repo routing, use `/lfx-skills:lfx`.
