@@ -508,11 +508,11 @@ func TestEndpoint(t *testing.T) {
 When deployed, the service uses OpenFGA for authorization:
 
 - **GET /projects** - Denied in deployed environments (local development only)
-- **POST /projects** - Requires `writer` on parent (if specified)
+- **POST /projects** - Requires `writer_guard` on parent (if specified)
 - **GET /projects/:id** - Requires `viewer` on project
-- **GET /projects/:id/settings** - Requires `auditor` on project
-- **PUT /projects/:id** - Requires `writer` on project
-- **PUT /projects/:id/settings** - Requires `writer` on project
+- **GET /projects/:id/settings** - Requires `auditor_guard` on project
+- **PUT /projects/:id** - Requires `writer_guard` on project
+- **PUT /projects/:id/settings** - Requires `writer_guard` on project
 - **DELETE /projects/:id** - Requires `owner` on project
 
 ## Local Development Setup

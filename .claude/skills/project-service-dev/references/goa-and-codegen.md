@@ -23,7 +23,7 @@ Project data is modeled as four Goa types:
 - `project-settings`
 - `project-settings-with-readonly-attributes`
 
-The split exists because settings need stricter access than base data (settings require `auditor`/`writer`, base requires `viewer`). Other services should copy this only when their own access model needs the same separation.
+The split exists because settings need stricter access than base data (settings require `auditor_guard`/`writer_guard`, base requires `viewer`). Other services should copy this only when their own access model needs the same separation.
 
 ## ETag and If-Match wiring
 
