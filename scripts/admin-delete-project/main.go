@@ -720,7 +720,7 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 	var fgaErr error
 	if err := mb.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, fgaMsg); err != nil {
 		fgaErr = fmt.Errorf("publish fga delete_access for %s: %w", uid, err)
-		slog.With("uid", uid, constants.ErrKey, err).Error("failed to publish fga delete_access; continuing KV cleanup")
+		slog.With("uid", uid, constants.ErrKey, err).Error("failed to publish fga delete_access; continuing KV cleanup — to retry FGA revocation run: go run ./cmd/project-cli sync reindex-projects --project-uid <uid> --force --include-access --update")
 	} else {
 		slog.With("uid", uid, "subject", fgaconstants.GenericDeleteAccessSubject).Info("published fga delete_access")
 	}
