@@ -21,6 +21,9 @@ func handleError(ctx context.Context, err error) error {
 	switch {
 	case errors.Is(err, domain.ErrServiceUnavailable):
 		return createResponse(http.StatusServiceUnavailable, domain.ErrServiceUnavailable)
+	case errors.Is(err, domain.ErrForbidden):
+		slog.WarnContext(ctx, "forbidden", constants.ErrKey, err)
+		return createResponse(http.StatusForbidden, domain.ErrForbidden)
 	case errors.Is(err, domain.ErrValidationFailed):
 		slog.WarnContext(ctx, "request validation failed", constants.ErrKey, err)
 		return createResponse(http.StatusBadRequest, domain.ErrValidationFailed)
@@ -73,6 +76,11 @@ func createResponse(code int, err error) error {
 	switch code {
 	case http.StatusBadRequest:
 		return &projsvc.BadRequestError{
+			Code:    strconv.Itoa(code),
+			Message: err.Error(),
+		}
+	case http.StatusForbidden:
+		return &projsvc.ForbiddenError{
 			Code:    strconv.Itoa(code),
 			Message: err.Error(),
 		}

@@ -290,6 +290,13 @@ type DownloadProjectDocumentPayload struct {
 	DocumentUID string
 }
 
+type ForbiddenError struct {
+	// HTTP status code
+	Code string
+	// Error message
+	Message string
+}
+
 // GetOneProjectBasePayload is the payload type of the project-service service
 // get-one-project-base method.
 type GetOneProjectBasePayload struct {
@@ -858,6 +865,23 @@ func (e *ConflictError) ErrorName() string {
 // GoaErrorName returns "ConflictError".
 func (e *ConflictError) GoaErrorName() string {
 	return "Conflict"
+}
+
+// Error returns an error description.
+func (e *ForbiddenError) Error() string {
+	return ""
+}
+
+// ErrorName returns "ForbiddenError".
+//
+// Deprecated: Use GoaErrorName - https://github.com/goadesign/goa/issues/3105
+func (e *ForbiddenError) ErrorName() string {
+	return e.GoaErrorName()
+}
+
+// GoaErrorName returns "ForbiddenError".
+func (e *ForbiddenError) GoaErrorName() string {
+	return "Forbidden"
 }
 
 // Error returns an error description.

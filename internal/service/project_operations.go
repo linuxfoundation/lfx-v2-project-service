@@ -428,6 +428,12 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 	}
 
+	// Reject self-referential parent: a project cannot be its own ancestor.
+	if payload.ParentUID == *payload.UID {
+		slog.WarnContext(ctx, "parent_uid must not equal the project's own UID")
+		return nil, domain.ErrValidationFailed
+	}
+
 	// Validate that the parent UID is a valid UUID and is an existing project UID.
 	if payload.ParentUID != "" {
 		if _, err := uuid.Parse(payload.ParentUID); err != nil {
@@ -444,6 +450,46 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 				slog.String("parent_uid", payload.ParentUID),
 			)
 			return nil, domain.ErrInvalidParentProject
+		}
+	}
+
+	// When the parent is changing, require the caller to hold writer on both the
+	// old parent (detaching from its hierarchy) and the new parent (attaching to
+	// a new one). This mirrors the authorization that Heimdall enforces on create.
+	// The check is skipped when FGAChecker is nil (local dev with OpenFGA disabled).
+	storedParentUID := existingProjectDB.ParentUID
+	if s.FGAChecker != nil && payload.ParentUID != storedParentUID {
+		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
+		user := fgaconstants.ObjectTypeUser + principal
+
+		if storedParentUID != "" {
+			allowed, err := s.FGAChecker.Check(ctx, user, fgaconstants.RelationWriter, fgaconstants.ObjectTypeProject+storedParentUID)
+			if err != nil {
+				slog.ErrorContext(ctx, "fga check on current parent failed", constants.ErrKey, err)
+				return nil, domain.ErrInternal
+			}
+			if !allowed {
+				slog.WarnContext(ctx, "caller lacks writer on current parent",
+					slog.String("principal", principal),
+					slog.String("current_parent_uid", storedParentUID),
+				)
+				return nil, domain.ErrForbidden
+			}
+		}
+
+		if payload.ParentUID != "" {
+			allowed, err := s.FGAChecker.Check(ctx, user, fgaconstants.RelationWriter, fgaconstants.ObjectTypeProject+payload.ParentUID)
+			if err != nil {
+				slog.ErrorContext(ctx, "fga check on new parent failed", constants.ErrKey, err)
+				return nil, domain.ErrInternal
+			}
+			if !allowed {
+				slog.WarnContext(ctx, "caller lacks writer on new parent",
+					slog.String("principal", principal),
+					slog.String("new_parent_uid", payload.ParentUID),
+				)
+				return nil, domain.ErrForbidden
+			}
 		}
 	}
 

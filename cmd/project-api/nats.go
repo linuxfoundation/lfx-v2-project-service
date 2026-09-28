@@ -16,6 +16,7 @@ import (
 
 	inviteapi "github.com/linuxfoundation/lfx-v2-invite-service/pkg/api"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
+	"github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/fga"
 	internalnats "github.com/linuxfoundation/lfx-v2-project-service/internal/infrastructure/nats"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/service"
 	"github.com/linuxfoundation/lfx-v2-project-service/pkg/constants"
@@ -76,6 +77,8 @@ func setupNATS(ctx context.Context, env environment, gracefulCloseWG *sync.WaitG
 	resolver := service.NewUserResolver(userReader)
 	dispatcher := service.NewNotificationDispatcher(msgBuilder, resolver, env.EmailsEnabled, env.InvitesEnabled)
 
+	fgaChecker := domain.AccessChecker(fga.NewNATSChecker(natsConn))
+
 	return natsConn, service.ServiceDeps{
 		ProjectRepository:  repo,
 		DocumentRepository: repo,
@@ -85,6 +88,7 @@ func setupNATS(ctx context.Context, env environment, gracefulCloseWG *sync.WaitG
 		UserReader:         userReader,
 		Resolver:           resolver,
 		Dispatcher:         dispatcher,
+		FGAChecker:         fgaChecker,
 	}, nil
 }
 

@@ -891,6 +891,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 		name        string
 		payload     *projsvc.UpdateProjectBasePayload
 		setupMocks  func(*domainmocks.MockProjectRepository, *domainmocks.MockMessageBuilder)
+		fgaChecker  *domainmocks.MockAccessChecker
 		wantErr     bool
 		expectedErr error
 		validate    func(*testing.T, *projsvc.ProjectBase)
@@ -1072,11 +1073,148 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "self-referential parent_uid is rejected",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+				IfMatch:   misc.StringPtr("1"),
+				Slug:      "my-project",
+				Name:      "My Project",
+				ParentUID: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:  "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					Slug: "my-project",
+					Name: "My Project",
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrValidationFailed,
+		},
+		{
+			name: "parent change authorized — writer on both old and new parent",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+				IfMatch:   misc.StringPtr("3"),
+				Slug:      "child-project",
+				Name:      "Child Project",
+				ParentUID: "22222222-3333-4444-5555-666666666666",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, mockBuilder *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					Slug:      "child-project",
+					Name:      "Child Project",
+					ParentUID: "11111111-2222-3333-4444-555555555555",
+				}
+				settingsDB := &models.ProjectSettings{UID: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"}
+				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
+				mockRepo.On("UpdateProjectBase", mock.Anything, mock.AnythingOfType("*models.ProjectBase"), uint64(3)).Return(nil)
+				mockRepo.On("GetProjectSettings", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(settingsDB, nil)
+				mockBuilder.On("SendIndexerMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.IndexerMessageEnvelope"), false).Return(nil)
+				mockBuilder.On("PublishAccessMessage", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("types.GenericFGAMessage")).Return(nil)
+			},
+			fgaChecker: func() *domainmocks.MockAccessChecker {
+				m := &domainmocks.MockAccessChecker{}
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:22222222-3333-4444-5555-666666666666").Return(true, nil)
+				return m
+			}(),
+			wantErr: false,
+		},
+		{
+			name: "parent change blocked — caller lacks writer on current parent",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+				IfMatch:   misc.StringPtr("3"),
+				Slug:      "child-project",
+				Name:      "Child Project",
+				ParentUID: "22222222-3333-4444-5555-666666666666",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					Slug:      "child-project",
+					Name:      "Child Project",
+					ParentUID: "11111111-2222-3333-4444-555555555555",
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
+			},
+			fgaChecker: func() *domainmocks.MockAccessChecker {
+				m := &domainmocks.MockAccessChecker{}
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(false, nil)
+				return m
+			}(),
+			wantErr:     true,
+			expectedErr: domain.ErrForbidden,
+		},
+		{
+			name: "parent change blocked — caller lacks writer on new parent",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+				IfMatch:   misc.StringPtr("3"),
+				Slug:      "child-project",
+				Name:      "Child Project",
+				ParentUID: "22222222-3333-4444-5555-666666666666",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					Slug:      "child-project",
+					Name:      "Child Project",
+					ParentUID: "11111111-2222-3333-4444-555555555555",
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
+			},
+			fgaChecker: func() *domainmocks.MockAccessChecker {
+				m := &domainmocks.MockAccessChecker{}
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:22222222-3333-4444-5555-666666666666").Return(false, nil)
+				return m
+			}(),
+			wantErr:     true,
+			expectedErr: domain.ErrForbidden,
+		},
+		{
+			name: "detach to root blocked — caller lacks writer on current parent",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+				IfMatch:   misc.StringPtr("3"),
+				Slug:      "child-project",
+				Name:      "Child Project",
+				ParentUID: "",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					Slug:      "child-project",
+					Name:      "Child Project",
+					ParentUID: "11111111-2222-3333-4444-555555555555",
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
+			},
+			fgaChecker: func() *domainmocks.MockAccessChecker {
+				m := &domainmocks.MockAccessChecker{}
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(false, nil)
+				return m
+			}(),
+			wantErr:     true,
+			expectedErr: domain.ErrForbidden,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service, mockRepo, mockBuilder, mockAuth := setupServiceForTesting()
+
+			if tt.fgaChecker != nil {
+				service.FGAChecker = tt.fgaChecker
+			}
 
 			if tt.expectedErr == domain.ErrServiceUnavailable {
 				service.ProjectRepository = nil
@@ -1084,7 +1222,8 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 
 			tt.setupMocks(mockRepo, mockBuilder)
 
-			result, err := service.UpdateProjectBase(context.Background(), tt.payload)
+			ctx := context.WithValue(context.Background(), constants.PrincipalContextID, "alice")
+			result, err := service.UpdateProjectBase(ctx, tt.payload)
 
 			if tt.wantErr {
 				assert.Error(t, err)

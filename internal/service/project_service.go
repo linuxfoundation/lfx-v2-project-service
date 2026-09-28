@@ -18,11 +18,14 @@ type ProjectsService struct {
 	Resolver           *UserResolver
 	Dispatcher         *NotificationDispatcher
 	Auth               domain.Authenticator
+	FGAChecker         domain.AccessChecker // nil when OpenFGA is disabled (local dev)
 	Config             ServiceConfig
 }
 
 // ServiceDeps holds the infrastructure dependencies required by ProjectsService.
 // All fields must be non-nil for the service to be ready (see ServiceReady).
+// FGAChecker is optional: when nil, parent-change authorization checks are skipped
+// (mirrors the Heimdall allow_all behaviour when openfga.enabled is false).
 type ServiceDeps struct {
 	ProjectRepository  domain.ProjectRepository
 	DocumentRepository domain.DocumentRepository
@@ -32,6 +35,7 @@ type ServiceDeps struct {
 	UserReader         domain.UserReader
 	Resolver           *UserResolver
 	Dispatcher         *NotificationDispatcher
+	FGAChecker         domain.AccessChecker
 }
 
 // NewProjectsService creates a fully valid ProjectsService with all dependencies
@@ -49,6 +53,7 @@ func NewProjectsService(auth domain.Authenticator, config ServiceConfig, deps Se
 		UserReader:         deps.UserReader,
 		Resolver:           deps.Resolver,
 		Dispatcher:         deps.Dispatcher,
+		FGAChecker:         deps.FGAChecker,
 	}
 }
 

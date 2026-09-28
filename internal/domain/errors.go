@@ -50,6 +50,9 @@ var (
 	// ErrFolderNotEmpty is returned when attempting to delete a folder that still contains links or documents.
 	ErrFolderNotEmpty = errors.New("folder cannot be deleted because it contains links or documents; remove all items from the folder first")
 
+	// ErrForbidden is returned when the caller lacks the required relation on a resource.
+	ErrForbidden = errors.New("forbidden")
+
 	// ErrUserNotFound is returned by UserReader when no registered user matches the given lookup criteria.
 	// It is handled internally (treated as a lookup miss) and is never surfaced to the HTTP layer.
 	ErrUserNotFound = errors.New("user not found")

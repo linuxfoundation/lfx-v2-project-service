@@ -831,6 +831,15 @@ paths:
                             example:
                                 code: "400"
                                 message: The request was invalid.
+                "403":
+                    description: 'Forbidden: Forbidden'
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ForbiddenError'
+                            example:
+                                code: "403"
+                                message: The caller lacks the required permission.
                 "404":
                     description: 'NotFound: Resource not found'
                     content:
@@ -2708,6 +2717,23 @@ components:
                 - description
                 - name
                 - parent_uid
+        ForbiddenError:
+            type: object
+            properties:
+                code:
+                    type: string
+                    description: HTTP status code
+                    example: "403"
+                message:
+                    type: string
+                    description: Error message
+                    example: The caller lacks the required permission.
+            example:
+                code: "403"
+                message: The caller lacks the required permission.
+            required:
+                - code
+                - message
         GetProjectsResponseBody:
             type: object
             properties:
