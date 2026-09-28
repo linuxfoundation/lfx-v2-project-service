@@ -311,29 +311,43 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 		return err
 	}
 
-	// If the slug is changing, update the slug mapping
-	if existingProject.Slug != projectBase.Slug {
-		// Delete the old slug mapping
-		err = s.deleteProjectSlugMapping(ctx, existingProject.Slug)
+	slugChanging := existingProject.Slug != projectBase.Slug
+	if slugChanging {
+		// Reserve the new slug BEFORE the CAS update so a stale-If-Match failure can be
+		// rolled back cleanly. Use Create (conditional) to avoid overwriting another
+		// project's mapping if the index is already taken.
+		_, err = s.Projects.Create(ctx, fmt.Sprintf("slug/%s", projectBase.Slug), []byte(projectBase.UID))
 		if err != nil {
-			return domain.ErrInternal
-		}
-
-		// Create the new slug mapping
-		_, err = s.putProjectSlugMapping(ctx, projectBase)
-		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyExists) {
+				return domain.ErrProjectSlugExists
+			}
+			slog.ErrorContext(ctx, "error creating new slug mapping", constants.ErrKey, err)
 			return domain.ErrInternal
 		}
 	}
 
-	// Update the project base data
+	// Update the project base data with CAS revision check.
 	err = s.updateProjectBase(ctx, projectBase, revision)
 	if err != nil {
+		if slugChanging {
+			// CAS failed — roll back the new slug reservation so the index is not left dirty.
+			if delErr := s.deleteProjectSlugMapping(ctx, projectBase.Slug, projectBase.UID); delErr != nil {
+				slog.ErrorContext(ctx, "error rolling back new slug mapping after CAS failure", constants.ErrKey, delErr)
+			}
+		}
 		if strings.Contains(err.Error(), "wrong last sequence") {
 			slog.WarnContext(ctx, "revision mismatch", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
 		return domain.ErrInternal
+	}
+
+	// CAS succeeded — now remove the old slug mapping, verifying ownership first so we
+	// never delete another project's index entry.
+	if slugChanging {
+		if err = s.deleteProjectSlugMapping(ctx, existingProject.Slug, projectBase.UID); err != nil {
+			slog.ErrorContext(ctx, "error deleting old slug mapping after successful update", constants.ErrKey, err)
+		}
 	}
 
 	return nil
@@ -427,9 +441,31 @@ func (s *NatsRepository) UpdateProjectSettings(ctx context.Context, projectSetti
 	return nil
 }
 
-func (s *NatsRepository) deleteProjectSlugMapping(ctx context.Context, projectSlug string) error {
-	err := s.Projects.Delete(ctx, fmt.Sprintf("slug/%s", projectSlug))
+// deleteProjectSlugMapping removes the slug/<slug> index entry only when its stored value
+// equals projectUID, using a LastRevision CAS delete. If the entry is missing or belongs to
+// a different project the function logs and returns nil so the caller's work is not undone.
+func (s *NatsRepository) deleteProjectSlugMapping(ctx context.Context, projectSlug, projectUID string) error {
+	key := fmt.Sprintf("slug/%s", projectSlug)
+	entry, err := s.Projects.Get(ctx, key)
 	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
+		slog.ErrorContext(ctx, "error reading slug mapping before delete", constants.ErrKey, err)
+		return err
+	}
+
+	if string(entry.Value()) != projectUID {
+		slog.WarnContext(ctx, "slug mapping belongs to a different project; skipping delete",
+			"slug", projectSlug, "expected_uid", projectUID, "actual_uid", string(entry.Value()))
+		return nil
+	}
+
+	err = s.Projects.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) {
+			return nil
+		}
 		slog.ErrorContext(ctx, "error deleting slug mapping from NATS KV store", constants.ErrKey, err)
 		return err
 	}
@@ -475,8 +511,8 @@ func (s *NatsRepository) DeleteProject(ctx context.Context, projectUID string, r
 		return domain.ErrInternal
 	}
 
-	// Delete the slug mapping
-	err = s.deleteProjectSlugMapping(ctx, project.Slug)
+	// Delete the slug mapping, verifying ownership before removing the index entry.
+	err = s.deleteProjectSlugMapping(ctx, project.Slug, projectUID)
 	if err != nil {
 		return domain.ErrInternal
 	}

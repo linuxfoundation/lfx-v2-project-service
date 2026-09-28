@@ -609,3 +609,235 @@ func TestNatsRepository_ListAllProjects(t *testing.T) {
 		})
 	}
 }
+
+func TestNatsRepository_UpdateProjectBase(t *testing.T) {
+	now := time.Now()
+
+	projectUID := "00000000-0000-0000-0000-000000000001"
+	oldSlug := "old-slug"
+	newSlug := "new-slug"
+
+	makeProjectBase := func(slug string) *models.ProjectBase {
+		return &models.ProjectBase{
+			UID:       projectUID,
+			Slug:      slug,
+			Name:      "Test Project",
+			CreatedAt: &now,
+			UpdatedAt: &now,
+		}
+	}
+
+	makeProjectEntry := func(slug string) *MockKeyValueEntry {
+		data, _ := json.Marshal(makeProjectBase(slug))
+		return NewMockKeyValueEntry(data, 5)
+	}
+
+	tests := []struct {
+		name        string
+		payload     *models.ProjectBase
+		revision    uint64
+		setupMocks  func(*MockKeyValue)
+		wantErr     bool
+		expectedErr error
+	}{
+		{
+			name:     "slug unchanged - successful update",
+			payload:  makeProjectBase(oldSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(5)).Return(uint64(6), nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:     "slug changed - successful: reserves new, CAS succeeds, removes old with ownership check",
+			payload:  makeProjectBase(newSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(2), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(5)).Return(uint64(6), nil)
+				kv.On("Get", mock.Anything, "slug/"+oldSlug).Return(NewMockKeyValueEntry([]byte(projectUID), 1), nil)
+				kv.On("Delete", mock.Anything, "slug/"+oldSlug, mock.Anything).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:     "slug changed - stale If-Match: reserves new, CAS fails, rolls back new slug",
+			payload:  makeProjectBase(newSlug),
+			revision: 3,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(2), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(3)).Return(uint64(0), errors.New("wrong last sequence"))
+				kv.On("Get", mock.Anything, "slug/"+newSlug).Return(NewMockKeyValueEntry([]byte(projectUID), 2), nil)
+				kv.On("Delete", mock.Anything, "slug/"+newSlug, mock.Anything).Return(nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:     "slug changed - new slug already taken",
+			payload:  makeProjectBase(newSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(0), jetstream.ErrKeyExists)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectSlugExists,
+		},
+		{
+			name:     "slug changed - old mapping belongs to different project: skips old delete, update still succeeds",
+			payload:  makeProjectBase(newSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(2), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(5)).Return(uint64(6), nil)
+				kv.On("Get", mock.Anything, "slug/"+oldSlug).Return(NewMockKeyValueEntry([]byte("other-project-uid"), 1), nil)
+				// Delete must NOT be called for the old slug
+			},
+			wantErr: false,
+		},
+		{
+			name:     "slug unchanged - CAS fails with wrong last sequence",
+			payload:  makeProjectBase(oldSlug),
+			revision: 3,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(3)).Return(uint64(0), errors.New("wrong last sequence"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:     "project not found",
+			payload:  makeProjectBase(oldSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(nil, jetstream.ErrKeyNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockProjectsKV := &MockKeyValue{}
+			mockSettingsKV := &MockKeyValue{}
+
+			tt.setupMocks(mockProjectsKV)
+
+			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			err := repo.UpdateProjectBase(context.Background(), tt.payload, tt.revision)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.expectedErr != nil {
+					assert.Equal(t, tt.expectedErr, err)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockProjectsKV.AssertExpectations(t)
+		})
+	}
+}
+
+func TestNatsRepository_DeleteProject(t *testing.T) {
+	now := time.Now()
+
+	projectUID := "00000000-0000-0000-0000-000000000001"
+	slug := "test-slug"
+
+	makeProjectEntry := func() *MockKeyValueEntry {
+		data, _ := json.Marshal(&models.ProjectBase{
+			UID:       projectUID,
+			Slug:      slug,
+			Name:      "Test Project",
+			CreatedAt: &now,
+			UpdatedAt: &now,
+		})
+		return NewMockKeyValueEntry(data, 7)
+	}
+
+	tests := []struct {
+		name        string
+		revision    uint64
+		setupMocks  func(*MockKeyValue, *MockKeyValue)
+		wantErr     bool
+		expectedErr error
+	}{
+		{
+			name:     "successful delete: CAS base, verifies slug ownership, deletes settings",
+			revision: 7,
+			setupMocks: func(projectsKV, settingsKV *MockKeyValue) {
+				projectsKV.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(), nil)
+				projectsKV.On("Delete", mock.Anything, projectUID, mock.Anything).Return(nil)
+				projectsKV.On("Get", mock.Anything, "slug/"+slug).Return(NewMockKeyValueEntry([]byte(projectUID), 3), nil)
+				projectsKV.On("Delete", mock.Anything, "slug/"+slug, mock.Anything).Return(nil)
+				settingsKV.On("Delete", mock.Anything, projectUID).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:     "slug mapping belongs to different project: skips slug delete, still deletes settings",
+			revision: 7,
+			setupMocks: func(projectsKV, settingsKV *MockKeyValue) {
+				projectsKV.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(), nil)
+				projectsKV.On("Delete", mock.Anything, projectUID, mock.Anything).Return(nil)
+				projectsKV.On("Get", mock.Anything, "slug/"+slug).Return(NewMockKeyValueEntry([]byte("other-project-uid"), 3), nil)
+				// Delete must NOT be called for the slug mapping
+				settingsKV.On("Delete", mock.Anything, projectUID).Return(nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:     "revision mismatch on base delete",
+			revision: 3,
+			setupMocks: func(projectsKV, settingsKV *MockKeyValue) {
+				projectsKV.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(), nil)
+				projectsKV.On("Delete", mock.Anything, projectUID, mock.Anything).Return(errors.New("wrong last sequence"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrRevisionMismatch,
+		},
+		{
+			name:     "project not found",
+			revision: 7,
+			setupMocks: func(projectsKV, settingsKV *MockKeyValue) {
+				projectsKV.On("Get", mock.Anything, projectUID).Return(nil, jetstream.ErrKeyNotFound)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrProjectNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockProjectsKV := &MockKeyValue{}
+			mockSettingsKV := &MockKeyValue{}
+
+			tt.setupMocks(mockProjectsKV, mockSettingsKV)
+
+			repo := NewNatsRepository(mockProjectsKV, mockSettingsKV)
+			err := repo.DeleteProject(context.Background(), projectUID, tt.revision)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.expectedErr != nil {
+					assert.Equal(t, tt.expectedErr, err)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+
+			mockProjectsKV.AssertExpectations(t)
+			mockSettingsKV.AssertExpectations(t)
+		})
+	}
+}
