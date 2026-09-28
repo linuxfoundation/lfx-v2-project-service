@@ -100,6 +100,7 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Invite acceptance (`HandleInviteAccepted`) | `project` | `lfx.fga-sync.update_access` | After KV promotion of email-only entries to LFID; indexer is also refreshed. `project_settings.updated` is not emitted. |
 | Username scrub (`HandleUserDeleted`) | `project` | `lfx.fga-sync.update_access` | After KV username clear; indexer is also refreshed. `project_settings.updated` is not emitted. |
 | Delete project | `project` | `lfx.fga-sync.delete_access` | Always sent |
+| Admin force-delete (`scripts/admin-delete-project`) | `project` | `lfx.fga-sync.delete_access` | Sent after indexer deletes, before slug/settings KV cleanup; fires regardless of `--cascade-children` |
 | `project-cli sync reindex-projects --include-access` | `project` | `lfx.fga-sync.update_access` | Manual repair path, opt-in only — see `cmd/project-cli/README.md` |
 
 ---
