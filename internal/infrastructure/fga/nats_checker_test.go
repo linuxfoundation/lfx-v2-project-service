@@ -16,72 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// natsRequester is the subset of *nats.Conn used by NATSChecker, extracted so
-// tests can substitute a fake without a live NATS server.
-type natsRequester interface {
-	RequestMsgWithContext(ctx context.Context, msg *nats.Msg) (*nats.Msg, error)
-}
-
-// testableChecker is a variant of NATSChecker that accepts the interface so
-// unit tests can inject a stub.
-type testableChecker struct {
-	conn natsRequester
-}
-
-func (c *testableChecker) Check(ctx context.Context, user, relation, object string) (bool, error) {
-	tuple := fmt.Sprintf("%s#%s@%s", object, relation, user)
-
-	reqCtx, cancel := context.WithTimeout(ctx, fgaRequestTimeout)
-	defer cancel()
-
-	msg, err := c.conn.RequestMsgWithContext(reqCtx, &nats.Msg{
-		Subject: fgaconstants.AccessCheckSubject,
-		Data:    []byte(tuple),
-	})
-	if err != nil {
-		return false, fmt.Errorf("fga check nats request: %w", err)
-	}
-
-	for _, line := range splitLines(msg.Data) {
-		if len(line) == 0 {
-			continue
-		}
-		parts := splitTab(string(line))
-		if len(parts) != 2 {
-			continue
-		}
-		if parts[0] == tuple && parts[1] == "true" {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// helpers that mirror the production implementation so the test exercises the
-// same parsing logic without duplicating the import tree.
-func splitLines(b []byte) [][]byte {
-	var out [][]byte
-	start := 0
-	for i, c := range b {
-		if c == '\n' {
-			out = append(out, b[start:i])
-			start = i + 1
-		}
-	}
-	out = append(out, b[start:])
-	return out
-}
-
-func splitTab(s string) []string {
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\t' {
-			return []string{s[:i], s[i+1:]}
-		}
-	}
-	return []string{s}
-}
-
-// stubRequester is a fake natsRequester that returns a preset response.
+// stubRequester is a fake requester that returns a preset response without a
+// live NATS server.
 type stubRequester struct {
 	response []byte
 	err      error
@@ -124,19 +60,19 @@ func TestNATSChecker_Check(t *testing.T) {
 			wantAllow: false,
 		},
 		{
-			name:      "denied — no matching tuple in response",
-			response:  []byte("project:other#writer@user:alice\ttrue\n"),
-			wantAllow: false,
+			name:     "error — no matching tuple in response (fga-sync error string)",
+			response: []byte("internal error from fga-sync\n"),
+			wantErr:  true,
 		},
 		{
-			name:      "denied — empty response body",
-			response:  []byte(""),
-			wantAllow: false,
+			name:     "error — empty response body",
+			response: []byte(""),
+			wantErr:  true,
 		},
 		{
-			name:      "denied — malformed lines are skipped",
-			response:  []byte("not-a-valid-line\n" + tuple + "\tfalse\n"),
-			wantAllow: false,
+			name:     "error — malformed lines only, no authoritative result",
+			response: []byte("not-a-valid-line\nproject:other#writer@user:alice\ttrue\n"),
+			wantErr:  true,
 		},
 		{
 			name:      "allowed — unordered response with extra lines",
@@ -153,7 +89,7 @@ func TestNATSChecker_Check(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stub := &stubRequester{response: tt.response, err: tt.natsErr}
-			checker := &testableChecker{conn: stub}
+			checker := &NATSChecker{conn: stub}
 
 			got, err := checker.Check(context.Background(), user, relation, object)
 			if tt.wantErr {
@@ -172,17 +108,18 @@ func TestNATSChecker_Check(t *testing.T) {
 }
 
 func TestNATSChecker_Check_Timeout(t *testing.T) {
-	// Verify that the checker respects fgaRequestTimeout even when the caller
-	// provides a context with no deadline of its own.
+	// Verify that the checker applies fgaRequestTimeout even when the caller
+	// context has no deadline of its own.
 	slow := &slowRequester{delay: fgaRequestTimeout + 100*time.Millisecond}
-	checker := &testableChecker{conn: slow}
+	checker := &NATSChecker{conn: slow}
 
 	start := time.Now()
 	_, err := checker.Check(context.Background(), "user:alice", "writer", "project:abc")
 	elapsed := time.Since(start)
 
 	require.Error(t, err, "expected timeout error")
-	assert.Less(t, elapsed, fgaRequestTimeout+500*time.Millisecond, "should have timed out near fgaRequestTimeout")
+	assert.Less(t, elapsed, fgaRequestTimeout+500*time.Millisecond,
+		"should have timed out near fgaRequestTimeout")
 }
 
 type slowRequester struct{ delay time.Duration }

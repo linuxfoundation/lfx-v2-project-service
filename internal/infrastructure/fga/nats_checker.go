@@ -20,10 +20,16 @@ import (
 // A stalled fga-sync must not block a PUT /projects/:id indefinitely.
 const fgaRequestTimeout = 5 * time.Second
 
+// requester is the subset of *nats.Conn used by NATSChecker. It is extracted
+// as an interface so unit tests can inject a stub without a live NATS server.
+type requester interface {
+	RequestMsgWithContext(ctx context.Context, msg *nats.Msg) (*nats.Msg, error)
+}
+
 // NATSChecker sends a NATS request/reply to fga-sync to verify an FGA relation.
 // It is safe for concurrent use.
 type NATSChecker struct {
-	conn *nats.Conn
+	conn requester
 }
 
 // NewNATSChecker returns a NATSChecker backed by the given NATS connection.
@@ -36,7 +42,9 @@ func NewNATSChecker(conn *nats.Conn) *NATSChecker {
 //
 // The request payload uses fga-sync's wire format: "object#relation@user".
 // The response is newline-delimited "object#relation@user\ttrue|false" lines;
-// Check returns true when the matching line reports "true".
+// Check returns true when the matching line reports "true", false when it
+// reports "false", and an error when no matching tuple is found (which
+// distinguishes a fga-sync error reply from an authoritative denial).
 func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) (bool, error) {
 	tuple := fmt.Sprintf("%s#%s@%s", object, relation, user)
 
@@ -51,18 +59,25 @@ func (c *NATSChecker) Check(ctx context.Context, user, relation, object string) 
 		return false, fmt.Errorf("fga check nats request: %w", err)
 	}
 
-	// Response is newline-delimited "tuple\tallowed" lines.
+	// Response is newline-delimited "tuple\tallowed" lines. Only a line whose
+	// leading tuple matches the request and whose value is "true" or "false"
+	// is considered authoritative. Anything else (e.g. an fga-sync error
+	// string with no tab separator) is not a valid denial — return an error so
+	// the caller maps this to ErrInternal rather than silently denying access.
 	for _, line := range bytes.Split(msg.Data, []byte("\n")) {
 		if len(line) == 0 {
 			continue
 		}
 		parts := strings.SplitN(string(line), "\t", 2)
-		if len(parts) != 2 {
+		if len(parts) != 2 || parts[0] != tuple {
 			continue
 		}
-		if parts[0] == tuple && parts[1] == "true" {
+		switch parts[1] {
+		case "true":
 			return true, nil
+		case "false":
+			return false, nil
 		}
 	}
-	return false, nil
+	return false, fmt.Errorf("fga check: no authoritative result for %q in response %q", tuple, msg.Data)
 }

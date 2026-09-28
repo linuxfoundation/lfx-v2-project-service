@@ -26,6 +26,8 @@ var (
 	ErrServiceUnavailable = errors.New("service unavailable")
 	// ErrValidationFailed is returned when a validation failed.
 	ErrValidationFailed = errors.New("validation failed")
+	// ErrForbidden is returned when the caller lacks the required relation on a resource.
+	ErrForbidden = errors.New("forbidden")
 	// ErrCannotDeleteNonCrowdfundingProject is returned when attempting to delete a project whose funding model is not exactly ["Crowdfunding"].
 	ErrCannotDeleteNonCrowdfundingProject = errors.New("project can only be deleted if its funding model is Crowdfunding only")
 	// ErrArchivedRequiresDissolutionDate is returned when a project's stage is set to "Archived" without an entity dissolution date.
@@ -49,9 +51,6 @@ var (
 	ErrFolderNameExists = errors.New("folder with the same name already exists for this project")
 	// ErrFolderNotEmpty is returned when attempting to delete a folder that still contains links or documents.
 	ErrFolderNotEmpty = errors.New("folder cannot be deleted because it contains links or documents; remove all items from the folder first")
-
-	// ErrForbidden is returned when the caller lacks the required relation on a resource.
-	ErrForbidden = errors.New("forbidden")
 
 	// ErrUserNotFound is returned by UserReader when no registered user matches the given lookup criteria.
 	// It is handled internally (treated as a lookup miss) and is never surfaced to the HTTP layer.

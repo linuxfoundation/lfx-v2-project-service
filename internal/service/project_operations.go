@@ -53,6 +53,30 @@ func (s *ProjectsService) resolveRevision(ctx context.Context, ifMatch *string, 
 	return fetchFn()
 }
 
+// requireParentWriter checks that the calling user holds the writer relation on
+// the given parent project via fga-sync. role is a human-readable label for
+// log context ("current" or "new"). It returns ErrForbidden on denial and
+// ErrInternal on a fga-sync or NATS failure.
+func (s *ProjectsService) requireParentWriter(ctx context.Context, user, parentUID, role string) error {
+	allowed, err := s.FGAChecker.Check(ctx, user, fgaconstants.RelationWriter, fgaconstants.ObjectTypeProject+parentUID)
+	if err != nil {
+		slog.ErrorContext(ctx, "fga writer check on parent failed",
+			constants.ErrKey, err,
+			slog.String("parent_uid", parentUID),
+			slog.String("parent_role", role),
+		)
+		return domain.ErrInternal
+	}
+	if !allowed {
+		slog.WarnContext(ctx, "caller lacks writer on parent project",
+			slog.String("parent_uid", parentUID),
+			slog.String("parent_role", role),
+		)
+		return domain.ErrForbidden
+	}
+	return nil
+}
+
 // GetProjects fetches all projects
 func (s *ProjectsService) GetProjects(ctx context.Context) ([]*projsvc.ProjectFull, error) {
 	if !s.ServiceReady() {
@@ -428,7 +452,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 	}
 
-	// Reject self-referential parent: a project cannot be its own ancestor.
+	// Reject direct self-parenting. Longer ancestor cycles are not detected here.
 	if payload.ParentUID == *payload.UID {
 		slog.WarnContext(ctx, "parent_uid must not equal the project's own UID")
 		return nil, domain.ErrValidationFailed
@@ -456,39 +480,20 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 	// When the parent is changing, require the caller to hold writer on both the
 	// old parent (detaching from its hierarchy) and the new parent (attaching to
 	// a new one). This mirrors the authorization that Heimdall enforces on create.
-	// The check is skipped when FGAChecker is nil (local dev with OpenFGA disabled).
+	// The check is skipped when FGAChecker is nil (FGA_ENABLED=false, local dev).
 	storedParentUID := existingProjectDB.ParentUID
 	if s.FGAChecker != nil && payload.ParentUID != storedParentUID {
 		principal, _ := ctx.Value(constants.PrincipalContextID).(string)
 		user := fgaconstants.ObjectTypeUser + principal
 
 		if storedParentUID != "" {
-			allowed, err := s.FGAChecker.Check(ctx, user, fgaconstants.RelationWriter, fgaconstants.ObjectTypeProject+storedParentUID)
-			if err != nil {
-				slog.ErrorContext(ctx, "fga check on current parent failed", constants.ErrKey, err)
-				return nil, domain.ErrInternal
-			}
-			if !allowed {
-				slog.WarnContext(ctx, "caller lacks writer on current parent",
-					slog.String("principal", principal),
-					slog.String("current_parent_uid", storedParentUID),
-				)
-				return nil, domain.ErrForbidden
+			if err := s.requireParentWriter(ctx, user, storedParentUID, "current"); err != nil {
+				return nil, err
 			}
 		}
-
 		if payload.ParentUID != "" {
-			allowed, err := s.FGAChecker.Check(ctx, user, fgaconstants.RelationWriter, fgaconstants.ObjectTypeProject+payload.ParentUID)
-			if err != nil {
-				slog.ErrorContext(ctx, "fga check on new parent failed", constants.ErrKey, err)
-				return nil, domain.ErrInternal
-			}
-			if !allowed {
-				slog.WarnContext(ctx, "caller lacks writer on new parent",
-					slog.String("principal", principal),
-					slog.String("new_parent_uid", payload.ParentUID),
-				)
-				return nil, domain.ErrForbidden
+			if err := s.requireParentWriter(ctx, user, payload.ParentUID, "new"); err != nil {
+				return nil, err
 			}
 		}
 	}

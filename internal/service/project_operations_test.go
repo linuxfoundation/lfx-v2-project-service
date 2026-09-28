@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -1206,6 +1207,63 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 			wantErr:     true,
 			expectedErr: domain.ErrForbidden,
 		},
+		{
+			name: "fga check error on current parent returns internal error",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+				IfMatch:   misc.StringPtr("3"),
+				Slug:      "child-project",
+				Name:      "Child Project",
+				ParentUID: "22222222-3333-4444-5555-666666666666",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					Slug:      "child-project",
+					Name:      "Child Project",
+					ParentUID: "11111111-2222-3333-4444-555555555555",
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
+			},
+			fgaChecker: func() *domainmocks.MockAccessChecker {
+				m := &domainmocks.MockAccessChecker{}
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").
+					Return(false, errors.New("nats: no responders"))
+				return m
+			}(),
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "fga check error on new parent returns internal error",
+			payload: &projsvc.UpdateProjectBasePayload{
+				UID:       misc.StringPtr("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+				IfMatch:   misc.StringPtr("3"),
+				Slug:      "child-project",
+				Name:      "Child Project",
+				ParentUID: "22222222-3333-4444-5555-666666666666",
+			},
+			setupMocks: func(mockRepo *domainmocks.MockProjectRepository, _ *domainmocks.MockMessageBuilder) {
+				projectDB := &models.ProjectBase{
+					UID:       "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					Slug:      "child-project",
+					Name:      "Child Project",
+					ParentUID: "11111111-2222-3333-4444-555555555555",
+				}
+				mockRepo.On("GetProjectBase", mock.Anything, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").Return(projectDB, nil)
+				mockRepo.On("ProjectExists", mock.Anything, "22222222-3333-4444-5555-666666666666").Return(true, nil)
+			},
+			fgaChecker: func() *domainmocks.MockAccessChecker {
+				m := &domainmocks.MockAccessChecker{}
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:11111111-2222-3333-4444-555555555555").Return(true, nil)
+				m.On("Check", mock.Anything, "user:alice", "writer", "project:22222222-3333-4444-5555-666666666666").
+					Return(false, errors.New("nats: no responders"))
+				return m
+			}(),
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
 	}
 
 	for _, tt := range tests {
@@ -1214,6 +1272,7 @@ func TestProjectsService_UpdateProjectBase(t *testing.T) {
 
 			if tt.fgaChecker != nil {
 				service.FGAChecker = tt.fgaChecker
+				defer tt.fgaChecker.AssertExpectations(t)
 			}
 
 			if tt.expectedErr == domain.ErrServiceUnavailable {
