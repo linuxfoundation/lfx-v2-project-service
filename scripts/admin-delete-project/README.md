@@ -76,8 +76,8 @@ they are orphaned / no longer visible in the UI / created in error).
 - **Children are non-blocking.** Any `project_link`, `project_folder`, or
   `project_document` referencing the UID is reported but left in place (unless
   `--cascade-children` is passed); the delete still proceeds. The
-  `lfx.fga-sync.delete_access` publish revokes access to those orphaned
-  children so they are not reachable by former members after the run.
+  `lfx.fga-sync.delete_access` publish triggers revocation; once fga-sync
+  processes the message, those children are no longer reachable by former members.
 
 ## Usage
 
@@ -254,9 +254,10 @@ go run ./cmd/project-cli sync reindex-projects \
   --project-uid <uid> --force --include-access --update
 ```
 
-> This is also the recovery path if the `lfx.fga-sync.delete_access` publish
-> failed during the original delete run (the script logs a retry hint in that
-> case). After restoration the project's tuples are live again.
+> **Note:** this command publishes `update_access` (re-creates tuples) and is
+> correct for restoring a project after a rollback. It is **not** the retry path
+> for a failed `delete_access` during a deletion run — use the `nats pub` command
+> logged by the script in that case.
 
 ### OpenSearch rollback
 
