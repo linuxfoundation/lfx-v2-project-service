@@ -444,11 +444,11 @@ openfga:
 When OpenFGA is enabled, the following authorization checks are enforced:
 
 - **GET /projects** - Denied in deployed environments (local development only)
-- **POST /projects** - Requires `writer` relation on the parent project (if parent_uid is specified)
+- **POST /projects** - Requires `writer_guard` relation on the parent project (if parent_uid is specified)
 - **GET /projects/:id** - Requires `viewer` relation on the specific project
-- **GET /projects/:id/settings** - Requires `auditor` relation on the specific project
-- **PUT /projects/:id** - Requires `writer` relation on the specific project
-- **PUT /projects/:id/settings** - Requires `writer` relation on the specific project
+- **GET /projects/:id/settings** - Requires `auditor_guard` relation on the specific project
+- **PUT /projects/:id** - Requires `writer_guard` relation on the specific project
+- **PUT /projects/:id/settings** - Requires `writer_guard` relation on the specific project
 - **DELETE /projects/:id** - Requires `owner` relation on the specific project
 
 ### Local Development
