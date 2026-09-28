@@ -155,6 +155,12 @@ service:
   # port is the service port
   port: 8080
 
+# networkPolicy restricts ingress to the service pods. Disabled for local development.
+networkPolicy:
+  enabled: false
+  ingress:
+    from: []
+
 # rootProject is the configuration for the root project creation
 rootProject:
   # writers is a list of users that should have writer access to the root project
