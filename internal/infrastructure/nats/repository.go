@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -316,37 +317,66 @@ func (s *NatsRepository) UpdateProjectBase(ctx context.Context, projectBase *mod
 		// Reserve the new slug BEFORE the CAS update so a stale-If-Match failure can be
 		// rolled back cleanly. Use Create (conditional) to avoid overwriting another
 		// project's mapping if the index is already taken.
-		_, err = s.Projects.Create(ctx, fmt.Sprintf("slug/%s", projectBase.Slug), []byte(projectBase.UID))
-		if err != nil {
-			if errors.Is(err, jetstream.ErrKeyExists) {
-				return domain.ErrProjectSlugExists
+		newSlugKey := fmt.Sprintf("slug/%s", projectBase.Slug)
+		_, createErr := s.Projects.Create(ctx, newSlugKey, []byte(projectBase.UID))
+		if createErr != nil {
+			if errors.Is(createErr, jetstream.ErrKeyExists) {
+				// Check if the existing reservation already belongs to us (idempotent retry).
+				if e, gerr := s.Projects.Get(ctx, newSlugKey); gerr == nil && string(e.Value()) == projectBase.UID {
+					// Our own reservation from a prior crashed attempt — safe to continue.
+				} else {
+					return domain.ErrProjectSlugExists
+				}
+			} else {
+				slog.ErrorContext(ctx, "error creating new slug mapping", constants.ErrKey, createErr)
+				return domain.ErrInternal
 			}
-			slog.ErrorContext(ctx, "error creating new slug mapping", constants.ErrKey, err)
-			return domain.ErrInternal
 		}
 	}
 
 	// Update the project base data with CAS revision check.
 	err = s.updateProjectBase(ctx, projectBase, revision)
 	if err != nil {
+		revMismatch := strings.Contains(err.Error(), "wrong last sequence")
 		if slugChanging {
-			// CAS failed — roll back the new slug reservation so the index is not left dirty.
-			if delErr := s.deleteProjectSlugMapping(ctx, projectBase.Slug, projectBase.UID); delErr != nil {
-				slog.ErrorContext(ctx, "error rolling back new slug mapping after CAS failure", constants.ErrKey, delErr)
+			// Use a detached context so cleanup succeeds even if the caller's context is
+			// already cancelled (e.g. timed out while waiting for the CAS response).
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			if revMismatch {
+				// Revision mismatch guarantees the write did not go through — roll back unconditionally.
+				if delErr := s.deleteProjectSlugMapping(cleanupCtx, projectBase.Slug, projectBase.UID); delErr != nil {
+					slog.ErrorContext(cleanupCtx, "error rolling back new slug mapping after CAS failure", constants.ErrKey, delErr)
+				}
+			} else {
+				// For other errors (network timeout, etc.) the server may have already applied
+				// the write. Re-read to confirm before rolling back.
+				if current, gErr := s.GetProjectBase(cleanupCtx, projectBase.UID); gErr == nil && current.Slug != projectBase.Slug {
+					if delErr := s.deleteProjectSlugMapping(cleanupCtx, projectBase.Slug, projectBase.UID); delErr != nil {
+						slog.ErrorContext(cleanupCtx, "error rolling back new slug mapping after non-CAS failure", constants.ErrKey, delErr)
+					}
+				}
 			}
 		}
-		if strings.Contains(err.Error(), "wrong last sequence") {
+		if revMismatch {
 			slog.WarnContext(ctx, "revision mismatch", constants.ErrKey, err)
 			return domain.ErrRevisionMismatch
 		}
 		return domain.ErrInternal
 	}
 
-	// CAS succeeded — now remove the old slug mapping, verifying ownership first so we
-	// never delete another project's index entry.
+	// CAS succeeded — now remove the old slug mapping with a detached context and ownership
+	// verification so a cancelled caller context does not leave the stale entry permanently.
 	if slugChanging {
-		if err = s.deleteProjectSlugMapping(ctx, existingProject.Slug, projectBase.UID); err != nil {
-			slog.ErrorContext(ctx, "error deleting old slug mapping after successful update", constants.ErrKey, err)
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err = s.deleteProjectSlugMapping(cleanupCtx, existingProject.Slug, projectBase.UID); err != nil {
+			slog.ErrorContext(cleanupCtx, "error deleting old slug mapping after successful update",
+				constants.ErrKey, err,
+				"event", "orphaned_slug_index",
+				"old_slug", existingProject.Slug,
+				"project_uid", projectBase.UID)
 		}
 	}
 

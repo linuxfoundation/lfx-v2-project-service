@@ -678,15 +678,32 @@ func TestNatsRepository_UpdateProjectBase(t *testing.T) {
 			expectedErr: domain.ErrRevisionMismatch,
 		},
 		{
-			name:     "slug changed - new slug already taken",
+			name:     "slug changed - new slug already taken by another project",
 			payload:  makeProjectBase(newSlug),
 			revision: 5,
 			setupMocks: func(kv *MockKeyValue) {
 				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
 				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(0), jetstream.ErrKeyExists)
+				// Idempotency check: entry belongs to a different project
+				kv.On("Get", mock.Anything, "slug/"+newSlug).Return(NewMockKeyValueEntry([]byte("other-project-uid"), 9), nil)
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrProjectSlugExists,
+		},
+		{
+			name:     "slug changed - ErrKeyExists but entry already owned by us (idempotent retry): continues",
+			payload:  makeProjectBase(newSlug),
+			revision: 5,
+			setupMocks: func(kv *MockKeyValue) {
+				kv.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(oldSlug), nil)
+				kv.On("Create", mock.Anything, "slug/"+newSlug, []byte(projectUID)).Return(uint64(0), jetstream.ErrKeyExists)
+				// Idempotency check: entry already belongs to this project
+				kv.On("Get", mock.Anything, "slug/"+newSlug).Return(NewMockKeyValueEntry([]byte(projectUID), 9), nil)
+				kv.On("Update", mock.Anything, projectUID, mock.Anything, uint64(5)).Return(uint64(6), nil)
+				kv.On("Get", mock.Anything, "slug/"+oldSlug).Return(NewMockKeyValueEntry([]byte(projectUID), 1), nil)
+				kv.On("Delete", mock.Anything, "slug/"+oldSlug, mock.Anything).Return(nil)
+			},
+			wantErr: false,
 		},
 		{
 			name:     "slug changed - old mapping belongs to different project: skips old delete, update still succeeds",
@@ -814,6 +831,42 @@ func TestNatsRepository_DeleteProject(t *testing.T) {
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrProjectNotFound,
+		},
+		{
+			name:     "slug Get returns non-NotFound error: DeleteProject returns ErrInternal",
+			revision: 7,
+			setupMocks: func(projectsKV, settingsKV *MockKeyValue) {
+				projectsKV.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(), nil)
+				projectsKV.On("Delete", mock.Anything, projectUID, mock.Anything).Return(nil)
+				projectsKV.On("Get", mock.Anything, "slug/"+slug).Return(nil, errors.New("nats store error"))
+				// settings delete is not reached because slug mapping delete returns ErrInternal
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:     "slug LastRevision CAS delete fails: DeleteProject returns ErrInternal",
+			revision: 7,
+			setupMocks: func(projectsKV, settingsKV *MockKeyValue) {
+				projectsKV.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(), nil)
+				projectsKV.On("Delete", mock.Anything, projectUID, mock.Anything).Return(nil)
+				projectsKV.On("Get", mock.Anything, "slug/"+slug).Return(NewMockKeyValueEntry([]byte(projectUID), 3), nil)
+				projectsKV.On("Delete", mock.Anything, "slug/"+slug, mock.Anything).Return(errors.New("nats store error"))
+				// settings delete is not reached because slug mapping delete returns ErrInternal
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name:     "slug already absent (ErrKeyNotFound): deleteProjectSlugMapping returns nil",
+			revision: 7,
+			setupMocks: func(projectsKV, settingsKV *MockKeyValue) {
+				projectsKV.On("Get", mock.Anything, projectUID).Return(makeProjectEntry(), nil)
+				projectsKV.On("Delete", mock.Anything, projectUID, mock.Anything).Return(nil)
+				projectsKV.On("Get", mock.Anything, "slug/"+slug).Return(nil, jetstream.ErrKeyNotFound)
+				settingsKV.On("Delete", mock.Anything, projectUID).Return(nil)
+			},
+			wantErr: false,
 		},
 	}
 
