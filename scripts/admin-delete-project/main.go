@@ -20,8 +20,10 @@
 //     OpenSearch (published after the CAS to avoid a search/KV inconsistency window).
 //  5. Deletes projects/slug/<slug> and project-settings/<uid>.
 //
-// FGA cleanup (`lfx.fga-sync.delete_access`) is intentionally NOT performed by
-// this script — operator has opted to let another reconciliation job handle it.
+// After the KV deletes it publishes `lfx.fga-sync.delete_access` for
+// `project:<uid>`, mirroring the production DeleteProject path, so that
+// OpenFGA revokes all authorization tuples for the project before any
+// remaining child resources (links/folders/documents) become unreachable.
 //
 // Defaults to --dry-run=true. Must explicitly pass --dry-run=false to write.
 package main
@@ -43,6 +45,8 @@ import (
 	natsio "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -697,7 +701,22 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 	}
 	slog.With("uid", uid, "subject", constants.IndexProjectSettingsSubject).Info("published indexer delete")
 
-	// FGA cleanup intentionally skipped per operator policy.
+	// Revoke all OpenFGA authorization tuples for this project, mirroring the
+	// production DeleteProject path. This must run even when --cascade-children
+	// is false: child links/folders/documents are authorized exclusively via
+	// project:<uid> tuples, so leaving them in place without revoking access
+	// would keep those children readable by former members indefinitely.
+	fgaMsg := fgatypes.GenericFGAMessage{
+		ObjectType: "project",
+		Operation:  "delete_access",
+		Data: fgatypes.GenericDeleteData{
+			UID: uid,
+		},
+	}
+	if err := mb.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, fgaMsg); err != nil {
+		return fmt.Errorf("publish fga delete_access for %s: %w", uid, err)
+	}
+	slog.With("uid", uid, "subject", fgaconstants.GenericDeleteAccessSubject).Info("published fga delete_access")
 
 	if rec.SlugKV.Found {
 		// Slug mapping is single-writer; CAS not required.
