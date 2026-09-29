@@ -83,6 +83,12 @@ roster. Send an explicit empty list to clear it.
 | Reference | Value | Condition |
 |---|---|---|
 | `parent` | `"project:{ParentUID}"` | Only when `ProjectBase.ParentUID` is non-empty |
+| `global_owner` | `"team:formation#member"`, `"team:product-support#member"` | Always, whatever the stage |
+| `global_writer` | `"team:global-project-writers#member"` | Unless `ProjectBase.Stage` is exactly `Prospect` or `Formation - Confidential` |
+| `global_auditor` | `"team:lf-staff#member"`, `"team:global-project-auditors#member"` | Same condition as `global_writer` |
+| `global_marketing_ops` | `"team:marketing-ops#member"` | Same condition as `global_writer` |
+
+The four `global_*` relations are typed `[team#member]` in the model, so they are sent as references (full subjects), not as username relations. Omitting a withheld relation is what withdraws it: fga-sync deletes `team:` tuples on `global_*` relations that an `update_access` message no longer carries, so a project moving into `Prospect` or `Formation - Confidential` loses those grants and regains them when it moves out. `global_owner` is never withheld, because `owner` composes into `writer` and a direct `writer` grant cascades to child projects, so withholding it would not withhold anything. The deployed OpenFGA model must define all four relations on `project`.
 
 ### Delete
 

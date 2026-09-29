@@ -155,7 +155,8 @@ This service uses the generic FGA sync handlers for managing fine-grained access
         "executive_director": ["username5"]
       },
       "references": {
-        "parent": ["project:parent-uid"]
+        "parent": ["project:parent-uid"],
+        "global_owner": ["team:formation#member", "team:product-support#member"]
       }
     }
   }
