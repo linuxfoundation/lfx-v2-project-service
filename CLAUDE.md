@@ -19,6 +19,8 @@ This guide provides essential information for Claude instances working with the 
 
 These rules apply to all contributors and AI agents working in this repo. Read this section first — it governs commit signing, message format, PR shape, and data hygiene across all work.
 
+Not a review finding (2026-09-29): branch name, a missing `LFXV2-NNNN` reference, conventional-commit shape, DCO/GPG, rebase, diff size and protected-file notes are owned by the `commit-msg` hook and `/project-service-pr-readiness`, so a code reviewer does not report them; see `docs/reviews/knowledge-base/known-false-positives.md` § "PR-shape findings".
+
 ### Commit Signing
 
 Every commit must carry both a GPG signature and a DCO sign-off:
@@ -259,6 +261,8 @@ make fmt    # Format code
 make lint   # Run golangci-lint
 make check  # Check format and lint without modifying
 ```
+
+Not a review finding (2026-09-29): a bare "run `make fmt` / `make lint` / `make check` / `make build` / `make test` / `make apigen`" without a concrete violation is owned by CI and `/project-service-preflight`, so a code reviewer does not report it; see `docs/reviews/knowledge-base/known-false-positives.md` § "Run gofmt / golangci-lint / go vet".
 
 ## Pre-PR review
 
