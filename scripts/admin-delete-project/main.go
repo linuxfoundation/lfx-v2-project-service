@@ -9,19 +9,22 @@
 //  1. Reads projects/<uid>, project-settings/<uid>, and the slug-reverse-lookup
 //     key from NATS KV and captures them to a JSON audit file (rollback record).
 //  2. Reports any child links / folders / documents for visibility. By default
-//     they are NOT deleted (left orphaned/inert once the parent is gone). With
-//     --cascade-children they are deleted too (KV records, lookup keys, document
-//     object-store blobs, and indexer deletes), mirroring the production
+//     they are NOT deleted (left in place; access is revoked by step 5 below).
+//     With --cascade-children they are deleted too (KV records, lookup keys,
+//     document object-store blobs, and indexer deletes), mirroring the production
 //     per-resource delete paths.
 //  3. Deletes projects/<uid> with last-revision CAS (authoritative ownership check).
 //     If the CAS fails (concurrent update), the run aborts before any external side-effects.
 //  4. Publishes deleted-action indexer envelopes for `lfx.index.project` and
 //     `lfx.index.project_settings` so the indexer service removes the docs from
 //     OpenSearch (published after the CAS to avoid a search/KV inconsistency window).
-//  5. Deletes projects/slug/<slug> and project-settings/<uid>.
-//
-// FGA cleanup (`lfx.fga-sync.delete_access`) is intentionally NOT performed by
-// this script — operator has opted to let another reconciliation job handle it.
+//  5. Publishes `lfx.fga-sync.delete_access` for `project:<uid>`, mirroring the
+//     production DeleteProject path, so that OpenFGA revokes all authorization
+//     tuples for the project. This runs after the indexer publishes and before the
+//     slug/settings KV cleanup; it makes any remaining child resources
+//     (links/folders/documents) unreachable to former members even when
+//     --cascade-children is not passed.
+//  6. Deletes projects/slug/<slug> and project-settings/<uid>.
 //
 // Defaults to --dry-run=true. Must explicitly pass --dry-run=false to write.
 package main
@@ -43,6 +46,8 @@ import (
 	natsio "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
+	fgaconstants "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/constants"
+	fgatypes "github.com/linuxfoundation/lfx-v2-fga-sync/pkg/types"
 	indexerConstants "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/constants"
 	indexerTypes "github.com/linuxfoundation/lfx-v2-indexer-service/pkg/types"
 	"github.com/linuxfoundation/lfx-v2-project-service/internal/domain/models"
@@ -120,7 +125,7 @@ func parseConfig() (config, error) {
 	flag.BoolVar(&cfg.dryRun, "dry-run", true, "If true (default), perform audit + plan-print only; no NATS writes. Pass --dry-run=false to execute.")
 	flag.StringVar(&cfg.auditPath, "audit-file", "", "Path to write the JSON audit/backup file (default: ./admin-delete-audit-<timestamp>.json)")
 	flag.BoolVar(&cfg.sync, "sync", true, "Accepted for backwards compatibility; has no effect — indexer publishes are always fire-and-forget (conn.Publish) since lfx-v2-indexer-service#68")
-	flag.BoolVar(&cfg.cascadeChildren, "cascade-children", false, "Also delete the project's child links, folders, and documents (KV records, lookup keys, document object-store blobs, and indexer deletes). Default false leaves children as orphaned/inert records.")
+	flag.BoolVar(&cfg.cascadeChildren, "cascade-children", false, "Also delete the project's child links, folders, and documents (KV records, lookup keys, document object-store blobs, and indexer deletes). Default false leaves children in place; FGA access is revoked regardless.")
 	flag.BoolVar(&cfg.skipChildScan, "skip-child-scan", false, "Skip scanning child buckets (project-links, project-folders, project-documents-metadata). Use when you have already audited children independently and know the project is a leaf record.")
 	flag.BoolVar(&cfg.verbose, "verbose", false, "Verbose logging")
 	flag.Parse()
@@ -228,11 +233,10 @@ func run() int {
 
 	// Child links/folders/documents are reported for visibility. With
 	// --cascade-children they are deleted too; otherwise they are left in place
-	// as orphaned/inert records (their access checks resolve against a project
-	// object that no longer exists).
+	// with FGA access revoked by the delete_access publish in executeDelete.
 	for _, rec := range auditRecords {
 		if rec.Children.Found {
-			disposition := "they will be LEFT in place as orphaned/inert records (use --cascade-children to delete them)"
+			disposition := "they will be LEFT in place with FGA access revoked (use --cascade-children to delete them)"
 			if cfg.cascadeChildren {
 				disposition = "they WILL be cascade-deleted (--cascade-children enabled)"
 			}
@@ -276,14 +280,15 @@ func run() int {
 		slog.Error("one or more UIDs failed to delete completely; see audit file for state")
 	}
 
-	// Flush all buffered fire-and-forget indexer publishes before the process exits.
+	// Flush all buffered fire-and-forget publishes before the process exits.
 	// FlushTimeout sends a PING and blocks until the server replies (PONG), which
 	// confirms all queued outbound messages have been sent. Without this, in-flight
 	// publishes in the reconnect buffer could be discarded when the process exits.
 	// Log success only after confirming the flush; if flush fails, the warning is
-	// the last log line so operators know to verify OpenSearch directly.
+	// the last log line so operators know to verify directly.
 	if err := nc.FlushTimeout(gracefulShutdownSec * time.Second); err != nil {
-		slog.With(constants.ErrKey, err).Warn("NATS flush timed out; some indexer deletes may not have been delivered — verify OpenSearch")
+		slog.With(constants.ErrKey, err).Warn("NATS flush timed out; indexer deletes and FGA delete_access may not have been delivered — verify OpenSearch and check OpenFGA tuples for deleted project UIDs")
+		exitCode = 1
 	} else if exitCode == 0 {
 		slog.Info("admin-delete-project completed successfully")
 	}
@@ -697,7 +702,29 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 	}
 	slog.With("uid", uid, "subject", constants.IndexProjectSettingsSubject).Info("published indexer delete")
 
-	// FGA cleanup intentionally skipped per operator policy.
+	// Revoke all OpenFGA authorization tuples for this project, mirroring the
+	// production DeleteProject path. This must run even when --cascade-children
+	// is false: child links/folders/documents are authorized exclusively via
+	// project:<uid> tuples, so leaving them in place without revoking access
+	// would keep those children readable by former members indefinitely.
+	fgaMsg := fgatypes.GenericFGAMessage{
+		ObjectType: "project",
+		Operation:  "delete_access",
+		Data: fgatypes.GenericDeleteData{
+			UID: uid,
+		},
+	}
+	// Capture FGA publish error but do not return immediately: the slug and
+	// settings KV keys must still be cleaned up. The base record is already
+	// deleted at this point, so a retry cannot rediscover the slug from KV —
+	// returning early would permanently strand those keys.
+	var fgaErr error
+	if err := mb.PublishAccessMessage(ctx, fgaconstants.GenericDeleteAccessSubject, fgaMsg); err != nil {
+		fgaErr = fmt.Errorf("publish fga delete_access for %s: %w", uid, err)
+		slog.With("uid", uid, constants.ErrKey, err).Error("failed to publish fga delete_access; continuing KV cleanup — manual retry required: nats pub lfx.fga-sync.delete_access '{\"object_type\":\"project\",\"operation\":\"delete_access\",\"data\":{\"uid\":\"<uid>\"}}'  (replace <uid> with the project UID)")
+	} else {
+		slog.With("uid", uid, "subject", fgaconstants.GenericDeleteAccessSubject).Info("published fga delete_access")
+	}
 
 	if rec.SlugKV.Found {
 		// Slug mapping is single-writer; CAS not required.
@@ -718,7 +745,7 @@ func executeDelete(ctx context.Context, kv kvBuckets, mb *pnats.MessageBuilder, 
 		slog.With("uid", uid).Info("deleted project-settings/<uid>")
 	}
 
-	return nil
+	return fgaErr
 }
 
 // cascadeDeleteChildren deletes all child links, folders, and documents for the
