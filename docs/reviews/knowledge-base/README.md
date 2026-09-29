@@ -6,7 +6,9 @@
 Empirical review patterns for `lfx-v2-project-service`, mined from this repo's
 merged-PR review history (CodeRabbit, Copilot, and human maintainers). Each
 entry encodes a pattern that was actually flagged on this repo and cleared the
-promotion gate. This KB is the empirical surface; it does **not** duplicate the
+promotion gate, except the dated entries in `known-false-positives.md` marked
+as carried over from the retired repo conventions reviewer (see Methodology).
+This KB is the empirical surface; it does **not** duplicate the
 documented rule audit or the generic senior review, both owned by
 `/lfx-skills:lfx-general-code-review`, nor the security review owned by
 `/lfx-skills:lfx-security-engineer`.
