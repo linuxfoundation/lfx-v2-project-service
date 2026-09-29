@@ -216,15 +216,6 @@ func (s *NatsRepository) ListAllProjects(ctx context.Context) ([]*models.Project
 	return projectsBase, projectsSettings, nil
 }
 
-func (s *NatsRepository) putProjectSlugMapping(ctx context.Context, projectBase *models.ProjectBase) (uint64, error) {
-	revision, err := s.Projects.Put(ctx, fmt.Sprintf("slug/%s", projectBase.Slug), []byte(projectBase.UID))
-	if err != nil {
-		return 0, err
-	}
-
-	return revision, nil
-}
-
 func (s *NatsRepository) putProjectBase(ctx context.Context, projectBase *models.ProjectBase) (uint64, error) {
 	projectBaseBytes, err := json.Marshal(projectBase)
 	if err != nil {
@@ -259,21 +250,30 @@ func (s *NatsRepository) putProjectSettings(ctx context.Context, projectSettings
 
 // CreateProject creates a new project in the NATS KV stores.
 func (s *NatsRepository) CreateProject(ctx context.Context, projectBase *models.ProjectBase, projectSettings *models.ProjectSettings) error {
-
-	// Create slug mapping first
-	_, err := s.putProjectSlugMapping(ctx, projectBase)
+	// Reserve the slug atomically. Create fails with ErrKeyExists when the key is
+	// already present, so concurrent creates for the same slug yield exactly one
+	// winner rather than silently overwriting each other.
+	slugKey := fmt.Sprintf("slug/%s", projectBase.Slug)
+	_, err := s.Projects.Create(ctx, slugKey, []byte(projectBase.UID))
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyExists) {
 			slog.WarnContext(ctx, "project slug already exists", constants.ErrKey, err)
 			return domain.ErrProjectSlugExists
 		}
-		slog.ErrorContext(ctx, "error putting project UID mapping into NATS KV store", constants.ErrKey, err)
-		return err
+		slog.ErrorContext(ctx, "error creating project slug mapping in NATS KV store", constants.ErrKey, err)
+		return domain.ErrInternal
 	}
 
-	// Store the project base data
+	// Store the project base data. Roll back the slug reservation on failure so the
+	// key is not orphaned and the slug remains available for a retry.
 	_, err = s.putProjectBase(ctx, projectBase)
 	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if delErr := s.deleteProjectSlugMapping(cleanupCtx, projectBase.Slug, projectBase.UID); delErr != nil {
+			slog.ErrorContext(cleanupCtx, "error rolling back slug mapping after base write failure",
+				constants.ErrKey, delErr, "slug", projectBase.Slug, "project_uid", projectBase.UID)
+		}
 		return domain.ErrInternal
 	}
 
