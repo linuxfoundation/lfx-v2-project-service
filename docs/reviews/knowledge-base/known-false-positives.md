@@ -44,10 +44,12 @@ hand-written Go.
 (`.github/workflows/mega-linter.yml`); locally `/project-service-preflight`
 runs `make check` (gofmt + lint + license), build and tests, and in the
 configured `--report-only` mode only checks that generated files accompany
-design changes — it does not run `make apigen` (`SKILL.md:96-102`), so
-generated-code freshness is gated by CI alone. Re-surfacing what those gates
-already run is duplicate signal; a stale-generation finding is **not** covered
-by this entry.
+design changes — it does not run `make apigen` (`SKILL.md:96-102`) — and CI
+runs `make apigen` without checking whether it changed tracked files
+(`.github/workflows/project-api-build.yml:27-36`), so **nothing currently
+gates generated-code freshness** (the CI-parity follow-up in the adoption PR).
+Re-surfacing what those gates already run is duplicate signal; a
+stale-generation finding is a real gap and is **not** covered by this entry.
 
 **Source:** `Makefile` (`check`, `build`, `build-cli`, `test`, `verify`
 targets), `.github/workflows/project-api-build.yml`, `.mega-linter.yml`,
