@@ -560,6 +560,30 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrInternal
 	}
 
+	// Only publish FGA update_access when the base fields that affect FGA state
+	// (Public, ParentUID) actually changed. UpdateProjectSettings is the
+	// authoritative publisher for relation changes; publishing here
+	// unconditionally requires a cross-KV settings read whose snapshot may be
+	// stale relative to a concurrent revocation, allowing a re-grant in OpenFGA
+	// even after the settings write removed the user. See lfx-self-serve-ops#80.
+	//
+	// The settings read is done before starting any goroutines so that a read
+	// failure exits cleanly without orphaning the indexer goroutine.
+	//
+	// projectDB.Public is used (not re-derived from payload) because
+	// ConvertToDBProjectBase already applied the nil→false default; comparing
+	// projectDB values keeps the gate consistent with what was actually written.
+	var fgaProj *ProjectProjection
+	if projectDB.Public != existingProjectDB.Public || projectDB.ParentUID != existingProjectDB.ParentUID {
+		projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
+		proj := NewProjectProjection(projectDB, projectSettingsDB)
+		fgaProj = &proj
+	}
+
 	g := new(errgroup.Group)
 	g.Go(func() error {
 		msg := indexerTypes.IndexerMessageEnvelope{
@@ -569,23 +593,9 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		}
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
-
-	// Only publish FGA update_access when the base fields that affect FGA state
-	// (Public, ParentUID) actually changed. UpdateProjectSettings is the
-	// authoritative publisher for relation changes; publishing here
-	// unconditionally requires a cross-KV settings read whose snapshot may be
-	// stale relative to a concurrent revocation, allowing a re-grant in OpenFGA
-	// even after the settings write removed the user. See lfx-self-serve-ops#80.
-	newPublic := payload.Public != nil && *payload.Public
-	if newPublic != existingProjectDB.Public || payload.ParentUID != existingProjectDB.ParentUID {
-		projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
-		if err != nil {
-			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
-			return nil, domain.ErrInternal
-		}
-		proj := NewProjectProjection(projectDB, projectSettingsDB)
+	if fgaProj != nil {
 		g.Go(func() error {
-			return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+			return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, fgaProj.ToFGAMessage())
 		})
 	}
 
