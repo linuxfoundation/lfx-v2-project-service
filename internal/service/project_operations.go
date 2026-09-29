@@ -560,12 +560,6 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return nil, domain.ErrInternal
 	}
 
-	projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
-	if err != nil {
-		slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
-		return nil, domain.ErrInternal
-	}
-
 	g := new(errgroup.Group)
 	g.Go(func() error {
 		msg := indexerTypes.IndexerMessageEnvelope{
@@ -576,10 +570,24 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 		return s.MessageBuilder.SendIndexerMessage(ctx, constants.IndexProjectSubject, msg, runSync)
 	})
 
-	proj := NewProjectProjection(projectDB, projectSettingsDB)
-	g.Go(func() error {
-		return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
-	})
+	// Only publish FGA update_access when the base fields that affect FGA state
+	// (Public, ParentUID) actually changed. UpdateProjectSettings is the
+	// authoritative publisher for relation changes; publishing here
+	// unconditionally requires a cross-KV settings read whose snapshot may be
+	// stale relative to a concurrent revocation, allowing a re-grant in OpenFGA
+	// even after the settings write removed the user. See lfx-self-serve-ops#80.
+	newPublic := payload.Public != nil && *payload.Public
+	if newPublic != existingProjectDB.Public || payload.ParentUID != existingProjectDB.ParentUID {
+		projectSettingsDB, err := s.ProjectRepository.GetProjectSettings(ctx, *payload.UID)
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting project settings from store", constants.ErrKey, err)
+			return nil, domain.ErrInternal
+		}
+		proj := NewProjectProjection(projectDB, projectSettingsDB)
+		g.Go(func() error {
+			return s.MessageBuilder.PublishAccessMessage(ctx, fgaconstants.GenericUpdateAccessSubject, proj.ToFGAMessage())
+		})
+	}
 
 	if err := g.Wait(); err != nil {
 		// Return the first error from the goroutines.
@@ -588,9 +596,7 @@ func (s *ProjectsService) UpdateProjectBase(ctx context.Context, payload *projsv
 
 	slog.DebugContext(ctx, "returning updated project", "project", project)
 
-	projectResp := proj.ToServiceBase()
-
-	return projectResp, nil
+	return ConvertToServiceProjectBase(projectDB), nil
 }
 
 // Update a project's settings.
