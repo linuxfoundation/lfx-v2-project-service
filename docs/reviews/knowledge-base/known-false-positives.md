@@ -42,8 +42,12 @@ hand-written Go.
 (`.github/workflows/project-api-build.yml`), the license-header check
 (`.github/workflows/license-header-check.yml`) and MegaLinter
 (`.github/workflows/mega-linter.yml`); locally `/project-service-preflight`
-runs `make check` (gofmt + lint + license), build, tests and generated-code
-freshness. Re-surfacing it in a review is duplicate signal.
+runs `make check` (gofmt + lint + license), build and tests, and in the
+configured `--report-only` mode only checks that generated files accompany
+design changes — it does not run `make apigen` (`SKILL.md:96-102`), so
+generated-code freshness is gated by CI alone. Re-surfacing what those gates
+already run is duplicate signal; a stale-generation finding is **not** covered
+by this entry.
 
 **Source:** `Makefile` (`check`, `build`, `build-cli`, `test`, `verify`
 targets), `.github/workflows/project-api-build.yml`, `.mega-linter.yml`,
