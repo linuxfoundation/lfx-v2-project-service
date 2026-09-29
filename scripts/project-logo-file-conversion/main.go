@@ -118,11 +118,21 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 	}
 	limited := io.LimitReader(resp.Body, maxLogoBytes+1)
 
-	// Duplicate io.ReadCloser so it can be used for writing to the file and for parsing the svg file content
+	// Drain the full (decompressed) body into buf before any further processing.
+	// Doing this first means the size check and the panic-recovery path both see
+	// the complete body, so neither can be bypassed by an early parser exit or panic.
 	var buf bytes.Buffer
-	respBody := io.TeeReader(limited, &buf)
+	if _, err = io.Copy(&buf, limited); err != nil {
+		return nil, fmt.Errorf("error reading logo body from %s: %w", url, err)
+	}
 
-	// Recover from a panic that can be caused by svg.ParseSvgFromReader, which we don't have control over
+	// Reject if the body hit or exceeded the cap (LimitReader stops at maxLogoBytes+1).
+	if buf.Len() > maxLogoBytes {
+		return nil, fmt.Errorf("logo at %s exceeds %d-byte limit after decompression", url, maxLogoBytes)
+	}
+
+	// Recover from a panic that can be caused by svg.ParseSvgFromReader, which we don't have control over.
+	// buf is fully populated at this point so the recover path can safely write it and return defaults.
 	defer func() {
 		if r := recover(); r != nil {
 			// Write the body to file
@@ -143,19 +153,13 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 			imgDimensions = &ImageDimensions{Width: imgWidth, Height: imgHeight}
 			err = nil
 		}
-
 	}()
 
-	// Get the file (image) dimensions
-	svgImg, err := svg.ParseSvgFromReader(respBody, "project logo", 1)
+	// Get the file (image) dimensions by parsing from the already-buffered body.
+	svgImg, err := svg.ParseSvgFromReader(bytes.NewReader(buf.Bytes()), "project logo", 1)
 	if err != nil {
 		// Don't return on error but instead just continue and use the default image width and height
 		slog.Warn("unable to parse svg image", "url", url, "error", err)
-	}
-
-	// Reject the body if it hit the limit (LimitReader stops silently at the cap).
-	if buf.Len() > maxLogoBytes {
-		return nil, fmt.Errorf("logo at %s exceeds %d-byte limit after decompression", url, maxLogoBytes)
 	}
 
 	// Set defaults, then try to get the image's actual width and height
@@ -182,12 +186,10 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 
 		// Clamp dimensions to a safe range so attacker-controlled SVG attributes
 		// cannot produce arbitrarily large Inkscape export arguments.
-		if imgWidth < 0 || imgWidth > maxExportDimension {
-			slog.Warn("svg width out of safe range, using default", "url", url, "img_width", imgWidth)
+		// Both are reset together to preserve the aspect ratio used by the caller.
+		if imgWidth < 0 || imgWidth > maxExportDimension || imgHeight < 0 || imgHeight > maxExportDimension {
+			slog.Warn("svg dimensions out of safe range, using defaults", "url", url, "img_width", imgWidth, "img_height", imgHeight)
 			imgWidth = defaultWidth
-		}
-		if imgHeight < 0 || imgHeight > maxExportDimension {
-			slog.Warn("svg height out of safe range, using default", "url", url, "img_height", imgHeight)
 			imgHeight = defaultHeight
 		}
 	}
@@ -302,6 +304,10 @@ func runSingleFile(s3Client *s3.Client, url string, imageWidth int, imageHeight 
 		// If there is no specified width for the new image file, use the proportions of the original image
 		imgRatio := float64(origImgDimensions.Width) / float64(origImgDimensions.Height)
 		imageWidth = int(float64(imageHeight) * imgRatio)
+		if imageWidth < 1 || imageWidth > maxExportDimension {
+			slog.Warn("calculated image width out of safe range, clamping to default", "url", url, "image_width", imageWidth)
+			imageWidth = defaultWidth
+		}
 		slog.Debug("calculated adjusted png image width from original image height",
 			"orig_image_height", origImgDimensions.Height,
 			"orig_image_width", origImgDimensions.Width,
