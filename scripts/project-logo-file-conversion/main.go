@@ -62,6 +62,17 @@ type ProjectBase struct {
 const (
 	defaultHeight = 800
 	defaultWidth  = 1600
+
+	// maxLogoBytes caps the decompressed response body read from an external logo
+	// URL. Go's default Transport transparently decompresses gzip, so the limit
+	// applies to post-decompression bytes and prevents a gzip-bomb from exhausting
+	// operator memory regardless of wire size.
+	maxLogoBytes = 10 * 1024 * 1024 // 10 MiB
+
+	// maxExportDimension clamps SVG viewBox/width/height values and the derived
+	// Inkscape export dimensions to a safe range so attacker-controlled SVG
+	// attributes cannot produce arbitrarily large --export-width/--export-height args.
+	maxExportDimension = 8192
 )
 
 // createFile creates a file for a file path
@@ -99,9 +110,17 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		return nil, err
 	}
 
+	// Cap the body to maxLogoBytes before buffering. Go's default Transport
+	// transparently decompresses gzip, so the limit applies to decompressed bytes
+	// and prevents a gzip-bomb from exhausting operator memory within the 30s window.
+	if resp.ContentLength > maxLogoBytes {
+		return nil, fmt.Errorf("logo at %s declares Content-Length %d exceeding %d-byte limit", url, resp.ContentLength, maxLogoBytes)
+	}
+	limited := io.LimitReader(resp.Body, maxLogoBytes+1)
+
 	// Duplicate io.ReadCloser so it can be used for writing to the file and for parsing the svg file content
 	var buf bytes.Buffer
-	respBody := io.TeeReader(resp.Body, &buf)
+	respBody := io.TeeReader(limited, &buf)
 
 	// Recover from a panic that can be caused by svg.ParseSvgFromReader, which we don't have control over
 	defer func() {
@@ -134,6 +153,11 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		slog.Warn("unable to parse svg image", "url", url, "error", err)
 	}
 
+	// Reject the body if it hit the limit (LimitReader stops silently at the cap).
+	if buf.Len() > maxLogoBytes {
+		return nil, fmt.Errorf("logo at %s exceeds %d-byte limit after decompression", url, maxLogoBytes)
+	}
+
 	// Set defaults, then try to get the image's actual width and height
 	imgWidth := defaultWidth
 	imgHeight := defaultHeight
@@ -153,6 +177,17 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		if imgWidth == 0 || imgHeight == 0 {
 			slog.Warn("one of the image dimensions is set to zero, so using default height and width", "url", url, "img_width", imgWidth, "img_height", imgHeight)
 			imgWidth = defaultWidth
+			imgHeight = defaultHeight
+		}
+
+		// Clamp dimensions to a safe range so attacker-controlled SVG attributes
+		// cannot produce arbitrarily large Inkscape export arguments.
+		if imgWidth < 0 || imgWidth > maxExportDimension {
+			slog.Warn("svg width out of safe range, using default", "url", url, "img_width", imgWidth)
+			imgWidth = defaultWidth
+		}
+		if imgHeight < 0 || imgHeight > maxExportDimension {
+			slog.Warn("svg height out of safe range, using default", "url", url, "img_height", imgHeight)
 			imgHeight = defaultHeight
 		}
 	}
@@ -356,6 +391,10 @@ func runSelectProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, proje
 			// If there is no specified width for the new image file, use the proportions of the original image
 			imgRatio := float64(origImgDimensions.Width) / float64(origImgDimensions.Height)
 			imageWidth = int(float64(imageHeight) * imgRatio)
+			if imageWidth < 1 || imageWidth > maxExportDimension {
+				slog.Warn("calculated image width out of safe range, clamping to default", "project_id", project.UID, "image_width", imageWidth)
+				imageWidth = defaultWidth
+			}
 			slog.Debug("calculated adjusted png image width from original image height",
 				"orig_image_height", origImgDimensions.Height,
 				"orig_image_width", origImgDimensions.Width,
@@ -444,6 +483,10 @@ func runAllProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, imageWid
 			// If there is no specified width for the new image file, use the proportions of the original image
 			imgRatio := float64(origImgDimensions.Width) / float64(origImgDimensions.Height)
 			imageWidth = int(float64(imageHeight) * imgRatio)
+			if imageWidth < 1 || imageWidth > maxExportDimension {
+				slog.Warn("calculated image width out of safe range, clamping to default", "project_id", project.UID, "image_width", imageWidth)
+				imageWidth = defaultWidth
+			}
 			slog.Debug("calculated adjusted png image width from original image height",
 				"orig_image_height", origImgDimensions.Height,
 				"orig_image_width", origImgDimensions.Width,
