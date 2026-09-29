@@ -367,6 +367,15 @@ func TestNatsRepository_CreateProject(t *testing.T) {
 			expectedErr: domain.ErrProjectSlugExists,
 		},
 		{
+			name: "error creating slug mapping (infra error)",
+			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
+				// Create slug mapping fails with a generic infra error
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(0), errors.New("nats error"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
 			name: "error putting project base",
 			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
 				// Create slug mapping succeeds
@@ -376,6 +385,24 @@ func TestNatsRepository_CreateProject(t *testing.T) {
 				// Rollback: deleteProjectSlugMapping reads the slug key then deletes it
 				mockProjectsKV.On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{value: []byte("test-project-uid"), revision: 1}, nil)
 				mockProjectsKV.On("Delete", mock.Anything, "slug/test-project", mock.Anything).Return(nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "error putting project settings",
+			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
+				// Create slug mapping succeeds
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
+				// Put project base succeeds
+				mockProjectsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(2), nil)
+				// Put project settings fails
+				mockSettingsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(0), errors.New("nats error"))
+				// Rollback slug: deleteProjectSlugMapping reads the slug key then deletes it
+				mockProjectsKV.On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{value: []byte("test-project-uid"), revision: 1}, nil)
+				mockProjectsKV.On("Delete", mock.Anything, "slug/test-project", mock.Anything).Return(nil)
+				// Rollback base: deleteProjectBase deletes by revision
+				mockProjectsKV.On("Delete", mock.Anything, "test-project-uid", mock.Anything).Return(nil)
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrInternal,

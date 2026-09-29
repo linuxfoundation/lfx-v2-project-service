@@ -266,7 +266,7 @@ func (s *NatsRepository) CreateProject(ctx context.Context, projectBase *models.
 
 	// Store the project base data. Roll back the slug reservation on failure so the
 	// key is not orphaned and the slug remains available for a retry.
-	_, err = s.putProjectBase(ctx, projectBase)
+	baseRevision, err := s.putProjectBase(ctx, projectBase)
 	if err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
@@ -277,10 +277,22 @@ func (s *NatsRepository) CreateProject(ctx context.Context, projectBase *models.
 		return domain.ErrInternal
 	}
 
-	// Store the project settings if provided
+	// Store the project settings if provided. Roll back both the slug reservation
+	// and the base record on failure so a client retry with the same slug is not
+	// permanently blocked.
 	if projectSettings != nil {
 		_, err = s.putProjectSettings(ctx, projectSettings)
 		if err != nil {
+			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			if delErr := s.deleteProjectSlugMapping(cleanupCtx, projectBase.Slug, projectBase.UID); delErr != nil {
+				slog.ErrorContext(cleanupCtx, "error rolling back slug mapping after settings write failure",
+					constants.ErrKey, delErr, "slug", projectBase.Slug, "project_uid", projectBase.UID)
+			}
+			if delErr := s.deleteProjectBase(cleanupCtx, projectBase.UID, baseRevision); delErr != nil {
+				slog.ErrorContext(cleanupCtx, "error rolling back base record after settings write failure",
+					constants.ErrKey, delErr, "project_uid", projectBase.UID)
+			}
 			return domain.ErrInternal
 		}
 	}
