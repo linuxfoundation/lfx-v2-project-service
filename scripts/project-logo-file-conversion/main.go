@@ -388,6 +388,7 @@ func runSelectProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, proje
 		// Download the remote file into the local file
 		origImgDimensions, err := downloadFile(project.LogoURL, out)
 		if err != nil {
+			_ = out.Close()
 			slog.Error("error downloading remote file", "project_id", project.UID, "error", err)
 			continue
 		}
@@ -480,6 +481,7 @@ func runAllProjectLogos(natsKV jetstream.KeyValue, s3Client *s3.Client, imageWid
 		// Download the remote file into the local file
 		origImgDimensions, err := downloadFile(project.LogoURL, out)
 		if err != nil {
+			_ = out.Close()
 			slog.Error("error downloading remote file", "project_id", project.UID, "error", err)
 			continue
 		}
