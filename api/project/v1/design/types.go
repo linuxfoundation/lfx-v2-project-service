@@ -591,6 +591,17 @@ var NotFoundError = Type("NotFoundError", func() {
 	Required("code", "message")
 })
 
+// ForbiddenError is the DSL type for a forbidden error.
+var ForbiddenError = Type("ForbiddenError", func() {
+	Attribute("code", String, "HTTP status code", func() {
+		Example("403")
+	})
+	Attribute("message", String, "Error message", func() {
+		Example("The caller lacks the required permission.")
+	})
+	Required("code", "message")
+})
+
 // ConflictError is the DSL type for a conflict error.
 var ConflictError = Type("ConflictError", func() {
 	Attribute("code", String, "HTTP status code", func() {

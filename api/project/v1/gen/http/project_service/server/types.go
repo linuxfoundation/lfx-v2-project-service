@@ -614,6 +614,16 @@ type UpdateProjectBaseConflictResponseBody struct {
 	Message string `form:"message" json:"message" xml:"message"`
 }
 
+// UpdateProjectBaseForbiddenResponseBody is the type of the "project-service"
+// service "update-project-base" endpoint HTTP response body for the
+// "Forbidden" error.
+type UpdateProjectBaseForbiddenResponseBody struct {
+	// HTTP status code
+	Code string `form:"code" json:"code" xml:"code"`
+	// Error message
+	Message string `form:"message" json:"message" xml:"message"`
+}
+
 // UpdateProjectBaseInternalServerErrorResponseBody is the type of the
 // "project-service" service "update-project-base" endpoint HTTP response body
 // for the "InternalServerError" error.
@@ -2039,6 +2049,17 @@ func NewUpdateProjectBaseBadRequestResponseBody(res *projectservice.BadRequestEr
 // service.
 func NewUpdateProjectBaseConflictResponseBody(res *projectservice.ConflictError) *UpdateProjectBaseConflictResponseBody {
 	body := &UpdateProjectBaseConflictResponseBody{
+		Code:    res.Code,
+		Message: res.Message,
+	}
+	return body
+}
+
+// NewUpdateProjectBaseForbiddenResponseBody builds the HTTP response body from
+// the result of the "update-project-base" endpoint of the "project-service"
+// service.
+func NewUpdateProjectBaseForbiddenResponseBody(res *projectservice.ForbiddenError) *UpdateProjectBaseForbiddenResponseBody {
+	body := &UpdateProjectBaseForbiddenResponseBody{
 		Code:    res.Code,
 		Message: res.Message,
 	}

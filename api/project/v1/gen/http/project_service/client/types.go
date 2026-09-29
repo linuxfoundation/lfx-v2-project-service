@@ -614,6 +614,16 @@ type UpdateProjectBaseConflictResponseBody struct {
 	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
 }
 
+// UpdateProjectBaseForbiddenResponseBody is the type of the "project-service"
+// service "update-project-base" endpoint HTTP response body for the
+// "Forbidden" error.
+type UpdateProjectBaseForbiddenResponseBody struct {
+	// HTTP status code
+	Code *string `form:"code,omitempty" json:"code,omitempty" xml:"code,omitempty"`
+	// Error message
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+}
+
 // UpdateProjectBaseInternalServerErrorResponseBody is the type of the
 // "project-service" service "update-project-base" endpoint HTTP response body
 // for the "InternalServerError" error.
@@ -2043,6 +2053,17 @@ func NewUpdateProjectBaseBadRequest(body *UpdateProjectBaseBadRequestResponseBod
 // update-project-base endpoint Conflict error.
 func NewUpdateProjectBaseConflict(body *UpdateProjectBaseConflictResponseBody) *projectservice.ConflictError {
 	v := &projectservice.ConflictError{
+		Code:    *body.Code,
+		Message: *body.Message,
+	}
+
+	return v
+}
+
+// NewUpdateProjectBaseForbidden builds a project-service service
+// update-project-base endpoint Forbidden error.
+func NewUpdateProjectBaseForbidden(body *UpdateProjectBaseForbiddenResponseBody) *projectservice.ForbiddenError {
+	v := &projectservice.ForbiddenError{
 		Code:    *body.Code,
 		Message: *body.Message,
 	}
@@ -3701,6 +3722,18 @@ func ValidateUpdateProjectBaseBadRequestResponseBody(body *UpdateProjectBaseBadR
 // ValidateUpdateProjectBaseConflictResponseBody runs the validations defined
 // on update-project-base_Conflict_response_body
 func ValidateUpdateProjectBaseConflictResponseBody(body *UpdateProjectBaseConflictResponseBody) (err error) {
+	if body.Code == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	return
+}
+
+// ValidateUpdateProjectBaseForbiddenResponseBody runs the validations defined
+// on update-project-base_Forbidden_response_body
+func ValidateUpdateProjectBaseForbiddenResponseBody(body *UpdateProjectBaseForbiddenResponseBody) (err error) {
 	if body.Code == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("code", "body"))
 	}

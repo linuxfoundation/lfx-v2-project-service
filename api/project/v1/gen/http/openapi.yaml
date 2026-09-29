@@ -257,6 +257,13 @@ paths:
                         required:
                             - code
                             - message
+                "403":
+                    description: Forbidden response.
+                    schema:
+                        $ref: '#/definitions/ForbiddenError'
+                        required:
+                            - code
+                            - message
                 "404":
                     description: Not Found response.
                     schema:
@@ -1364,6 +1371,25 @@ definitions:
         example:
             code: "409"
             message: The resource already exists.
+        required:
+            - code
+            - message
+    ForbiddenError:
+        title: ForbiddenError
+        type: object
+        properties:
+            code:
+                type: string
+                description: HTTP status code
+                example: "403"
+            message:
+                type: string
+                description: Error message
+                example: The caller lacks the required permission.
+        description: Forbidden
+        example:
+            code: "403"
+            message: The caller lacks the required permission.
         required:
             - code
             - message

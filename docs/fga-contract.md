@@ -101,3 +101,37 @@ On delete, only `uid` is sent — all FGA tuples for `project:{uid}` are removed
 | Username scrub (`HandleUserDeleted`) | `project` | `lfx.fga-sync.update_access` | After KV username clear; indexer is also refreshed. `project_settings.updated` is not emitted. |
 | Delete project | `project` | `lfx.fga-sync.delete_access` | Always sent |
 | `project-cli sync reindex-projects --include-access` | `project` | `lfx.fga-sync.update_access` | Manual repair path, opt-in only — see `cmd/project-cli/README.md` |
+
+---
+
+## Access Check RPC
+
+The project service sends an **outbound request/reply** to fga-sync to verify caller authorization when a project's parent changes. This is distinct from the fire-and-forget update/delete messages above.
+
+**Subject:** `lfx.access_check.request`
+
+**Request payload:** a single UTF-8 string in the form:
+
+```
+object#relation@user
+```
+
+For parent-change checks the fields are:
+
+| Field | Example | Description |
+|---|---|---|
+| `object` | `project:00000000-0000-0000-0000-000000000001` | The parent project being checked (`project:<uid>`) |
+| `relation` | `writer` | The relation the caller must hold |
+| `user` | `user:alice` | The principal from the request JWT (`user:<username>`) |
+
+**Response payload:** newline-delimited lines, each in the form:
+
+```
+object#relation@user\tallowed
+```
+
+where `allowed` is the literal string `true` or `false`. The checker reads the line whose leading tuple matches the request and returns `true` when `allowed` is `true`. Unrecognised or malformed lines are ignored.
+
+**When it fires:** `UpdateProjectBase` — only when `parent_uid` in the request differs from the stored value. One request is sent for the old parent (detach) and one for the new parent (attach), each in sequence. When `parent_uid` changes to empty (detach to root), only the old-parent check runs.
+
+**Denial semantics:** a `false` response, or a response that contains no matching tuple, is treated as denied and the endpoint returns HTTP 403 `ForbiddenError`. A NATS error (timeout, no responders) returns HTTP 500. The check is skipped entirely when `FGAChecker` is nil (i.e., when `FGA_ENABLED=false`).
