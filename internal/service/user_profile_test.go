@@ -96,9 +96,20 @@ func TestUserResolver_ResolveRequestingUser(t *testing.T) {
 }
 
 func TestUserResolver_EnrichAuditUser(t *testing.T) {
-	t.Run("skips when profile is complete", func(t *testing.T) {
+	t.Run("skips when profile is complete with email", func(t *testing.T) {
 		resolver := NewUserResolver(&domainmocks.MockUserReader{})
 		user := &models.UserInfo{Username: "alice", Name: "Alice Example", Avatar: "a.png", Email: "a@example.com"}
+
+		got := resolver.EnrichAuditUser(context.Background(), user)
+
+		assert.Equal(t, user, got)
+	})
+
+	t.Run("skips when name and avatar present even without email", func(t *testing.T) {
+		// auditUserProfileComplete no longer requires email; a record with name+avatar
+		// must short-circuit without any reader call.
+		resolver := NewUserResolver(&domainmocks.MockUserReader{})
+		user := &models.UserInfo{Username: "alice", Name: "Alice Example", Avatar: "a.png"}
 
 		got := resolver.EnrichAuditUser(context.Background(), user)
 

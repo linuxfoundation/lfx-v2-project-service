@@ -1028,3 +1028,64 @@ func TestBuildFGAUpdateAccessMessage(t *testing.T) {
 		assert.Equal(t, []string{"admin1"}, data.Relations["mentorship_program_admin"])
 	})
 }
+
+func TestConvertAuditUserToAPI(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         *models.UserInfo
+		wantNil       bool
+		wantName      string
+		wantUsername  string
+		wantAvatar    string
+		wantEmailNone bool
+	}{
+		{
+			name:    "nil input returns nil",
+			input:   nil,
+			wantNil: true,
+		},
+		{
+			name: "email is omitted; name username avatar are mapped",
+			input: &models.UserInfo{
+				Name:     "Alice Example",
+				Username: "alice",
+				Avatar:   "https://cdn.example/avatar.png",
+				Email:    "alice@example.com",
+			},
+			wantName:      "Alice Example",
+			wantUsername:  "alice",
+			wantAvatar:    "https://cdn.example/avatar.png",
+			wantEmailNone: true,
+		},
+		{
+			name: "empty email on input is also absent on output",
+			input: &models.UserInfo{
+				Name:     "Bob Fixture",
+				Username: "bob",
+			},
+			wantName:      "Bob Fixture",
+			wantUsername:  "bob",
+			wantEmailNone: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ConvertAuditUserToAPI(tt.input)
+			if tt.wantNil {
+				assert.Nil(t, got)
+				return
+			}
+			require.NotNil(t, got)
+			assert.Equal(t, tt.wantName, *got.Name)
+			assert.Equal(t, tt.wantUsername, *got.Username)
+			assert.Equal(t, tt.wantAvatar, *got.Avatar)
+			if tt.wantEmailNone {
+				// AuditUserInfo has no Email field — verify by checking the struct type.
+				type hasEmail interface{ GetEmail() string }
+				_, hasEmailField := any(got).(hasEmail)
+				assert.False(t, hasEmailField, "AuditUserInfo must not expose an email field")
+			}
+		})
+	}
+}

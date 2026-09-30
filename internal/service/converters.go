@@ -501,11 +501,6 @@ func convertUsersFromAPI(apiUsers []*projsvc.UserInfo, existing []models.UserInf
 	return users
 }
 
-// ConvertUserToAPI converts a single domain UserInfo pointer to an API UserInfo pointer.
-func ConvertUserToAPI(user *models.UserInfo) *projsvc.UserInfo {
-	return convertUserToAPI(user)
-}
-
 // ConvertAuditUserToAPI converts a domain UserInfo to a display-only AuditUserInfo for
 // viewer-readable responses. Email is intentionally omitted to avoid exposing PII to
 // anonymous callers on public projects.
