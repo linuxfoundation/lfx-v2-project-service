@@ -258,8 +258,9 @@ func ProjectLogoURLAttribute() {
 }
 
 // ProjectLogoURLWriteAttribute is the DSL attribute for a project logo URL on
-// create/update payloads. Restricts the scheme to https so non-public URLs
-// cannot be persisted into the KV store via the API.
+// create/update payloads. The https pattern rejects non-https scheme URIs;
+// full SSRF protection (IP blocklist, redirect policy) is applied by the logo
+// conversion script at fetch time, not here.
 func ProjectLogoURLWriteAttribute() {
 	Attribute("logo_url", String, "The URL of the project logo", func() {
 		Example("https://example.com/logo.svg")
