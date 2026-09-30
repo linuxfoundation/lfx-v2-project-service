@@ -3008,6 +3008,9 @@ func ValidateCreateProjectResponseBody(body *CreateProjectResponseBody) (err err
 	if body.LogoURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
 	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.logo_url", *body.LogoURL, "^https://"))
+	}
 	if body.RepositoryURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
 	}
@@ -3123,6 +3126,9 @@ func ValidateGetOneProjectBaseResponseBody(body *GetOneProjectBaseResponseBody) 
 	}
 	if body.LogoURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.logo_url", *body.LogoURL, "^https://"))
 	}
 	if body.RepositoryURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
@@ -3254,6 +3260,9 @@ func ValidateUpdateProjectBaseResponseBody(body *UpdateProjectBaseResponseBody) 
 	}
 	if body.LogoURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.logo_url", *body.LogoURL, "^https://"))
 	}
 	if body.RepositoryURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
@@ -4526,6 +4535,9 @@ func ValidateProjectFullResponseBody(body *ProjectFullResponseBody) (err error) 
 	if body.LogoURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
 	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.logo_url", *body.LogoURL, "^https://"))
+	}
 	if body.RepositoryURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
 	}
@@ -4693,6 +4705,9 @@ func ValidateProjectBaseResponseBody(body *ProjectBaseResponseBody) (err error) 
 	}
 	if body.LogoURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.logo_url", *body.LogoURL, "^https://"))
 	}
 	if body.RepositoryURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))

@@ -251,8 +251,9 @@ func ProjectParentUIDAttribute() {
 // ProjectLogoURLAttribute is the DSL attribute for a project logo URL.
 func ProjectLogoURLAttribute() {
 	Attribute("logo_url", String, "The URL of the project logo", func() {
-		Example("https://example.com/logo.png")
+		Example("https://example.com/logo.svg")
 		Format(FormatURI)
+		Pattern(`^https://`)
 	})
 }
 

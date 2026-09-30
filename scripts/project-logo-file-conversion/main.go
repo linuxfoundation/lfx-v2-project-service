@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -91,11 +92,115 @@ type ImageDimensions struct {
 	Height int
 }
 
+// privateRanges lists IP blocks that must never be dialed by the logo fetcher.
+// Covers loopback, link-local (including cloud IMDS at 169.254.169.254),
+// RFC1918 private space, and IPv6 ULA/link-local.
+var privateRanges = func() []net.IPNet {
+	cidrs := []string{
+		"127.0.0.0/8",    // IPv4 loopback
+		"169.254.0.0/16", // link-local / AWS IMDS
+		"10.0.0.0/8",     // RFC1918
+		"172.16.0.0/12",  // RFC1918
+		"192.168.0.0/16", // RFC1918
+		"100.64.0.0/10",  // RFC6598 shared address
+		"::1/128",        // IPv6 loopback
+		"fe80::/10",      // IPv6 link-local
+		"fc00::/7",       // IPv6 ULA
+	}
+	nets := make([]net.IPNet, 0, len(cidrs))
+	for _, c := range cidrs {
+		_, ipNet, err := net.ParseCIDR(c)
+		if err == nil {
+			nets = append(nets, *ipNet)
+		}
+	}
+	return nets
+}()
+
+// isPublicIP returns false for any IP in a private/loopback/link-local range.
+func isPublicIP(ip net.IP) bool {
+	for _, block := range privateRanges {
+		if block.Contains(ip) {
+			return false
+		}
+	}
+	return true
+}
+
+// safeDialContext resolves the address, rejects any IP that is not publicly
+// routable, then dials. This check runs for every TCP connection, including
+// each redirect hop, so a redirect from a public host to an internal one is
+// also blocked.
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address %q: %w", addr, err)
+	}
+	ips, err := net.DefaultResolver.LookupHost(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("DNS lookup failed for %q: %w", host, err)
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			return nil, fmt.Errorf("invalid IP %q returned by DNS for %q", ipStr, host)
+		}
+		if !isPublicIP(ip) {
+			return nil, fmt.Errorf("logo URL %q resolves to non-public address %s — skipping (SSRF protection)", host, ip)
+		}
+	}
+	var d net.Dialer
+	return d.DialContext(ctx, network, net.JoinHostPort(ips[0], port))
+}
+
+// safeHTTPClient returns an http.Client hardened against SSRF:
+//   - custom DialContext rejects non-public IPs on connect (and on every
+//     redirect hop, because each hop opens a new connection)
+//   - CheckRedirect refuses any redirect to a non-https scheme
+//   - 30 s overall timeout
+func safeHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			DialContext: safeDialContext,
+		},
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			if req.URL.Scheme != "https" {
+				return fmt.Errorf("redirect to non-https scheme %q rejected (SSRF protection)", req.URL.Scheme)
+			}
+			return nil
+		},
+	}
+}
+
+// validateLogoURL returns an error if rawURL is not safe to fetch:
+//   - scheme must be https
+//   - host must not be an IP literal in a private/loopback/link-local range
+//     (hostname targets are checked at dial time by safeDialContext)
+func validateLogoURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid logo URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("logo URL scheme %q is not https", u.Scheme)
+	}
+	// Reject bare IP literals without waiting for DNS.
+	if ip := net.ParseIP(u.Hostname()); ip != nil && !isPublicIP(ip) {
+		return fmt.Errorf("logo URL host %s is a non-public IP address", ip)
+	}
+	return nil
+}
+
 // downloadFile tries to download an image file from a url into a local file, and then returns
 // the image dimensions by parsing the original .svg file
 func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err error) {
+	if err := validateLogoURL(url); err != nil {
+		return nil, err
+	}
+
 	downloadImageTime := time.Now()
-	client := http.Client{Timeout: 30 * time.Second}
+	client := safeHTTPClient()
 	resp, err := client.Get(url)
 	if err != nil {
 		slog.Error("http bad status", "url", url, "error", err)
@@ -108,6 +213,11 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		err = fmt.Errorf("unexpected status %d while downloading %s", resp.StatusCode, url)
 		slog.Error("http bad status", "url", url, "status_code", resp.StatusCode)
 		return nil, err
+	}
+
+	// Reject non-SVG content types before reading the body.
+	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "image/svg+xml") {
+		return nil, fmt.Errorf("logo at %s has unexpected Content-Type %q (want image/svg+xml)", url, ct)
 	}
 
 	// Cap the body to maxLogoBytes before buffering. Go's default Transport

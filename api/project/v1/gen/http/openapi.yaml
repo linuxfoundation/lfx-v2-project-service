@@ -1585,8 +1585,9 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
+                pattern: ^https://
             name:
                 type: string
                 description: The pretty name of the project
@@ -1655,7 +1656,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             name: Foo Foundation
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             public: true
@@ -1917,8 +1918,9 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
+                pattern: ^https://
             meeting_coordinators:
                 type: array
                 items:
@@ -2048,7 +2050,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com
@@ -2326,8 +2328,9 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
+                pattern: ^https://
             meeting_coordinators:
                 type: array
                 items:
@@ -2446,7 +2449,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             meeting_coordinators:
                 - avatar: https://example.com/avatar1.jpg
                   email: john.doe@example.com
@@ -2548,7 +2551,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2622,7 +2625,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2696,7 +2699,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2770,7 +2773,7 @@ definitions:
                       legal_entity_name: Example Foundation LLC
                       legal_entity_type: Subproject
                       legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                      logo_url: https://example.com/logo.png
+                      logo_url: https://example.com/logo.svg
                       meeting_coordinators:
                         - avatar: https://example.com/avatar1.jpg
                           email: john.doe@example.com
@@ -2846,7 +2849,7 @@ definitions:
                   legal_entity_name: Example Foundation LLC
                   legal_entity_type: Subproject
                   legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  logo_url: https://example.com/logo.png
+                  logo_url: https://example.com/logo.svg
                   meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -2920,7 +2923,7 @@ definitions:
                   legal_entity_name: Example Foundation LLC
                   legal_entity_type: Subproject
                   legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-                  logo_url: https://example.com/logo.png
+                  logo_url: https://example.com/logo.svg
                   meeting_coordinators:
                     - avatar: https://example.com/avatar1.jpg
                       email: john.doe@example.com
@@ -3071,8 +3074,9 @@ definitions:
             logo_url:
                 type: string
                 description: The URL of the project logo
-                example: https://example.com/logo.png
+                example: https://example.com/logo.svg
                 format: uri
+                pattern: ^https://
             name:
                 type: string
                 description: The pretty name of the project
@@ -3130,7 +3134,7 @@ definitions:
             legal_entity_name: Example Foundation LLC
             legal_entity_type: Subproject
             legal_parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
-            logo_url: https://example.com/logo.png
+            logo_url: https://example.com/logo.svg
             name: Foo Foundation
             parent_uid: 7cad5a8d-19d0-41a4-81a6-043453daf9ee
             public: true
