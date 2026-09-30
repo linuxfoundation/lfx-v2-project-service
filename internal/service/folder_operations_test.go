@@ -160,7 +160,6 @@ func TestProjectsService_GetFolder(t *testing.T) {
 				mockUser.On("UserMetadataByPrincipal", mock.Anything, "alice").Return(&domain.UserMetadata{
 					Name: "Alice Example",
 				}, nil)
-				mockUser.On("PrimaryEmailByUsername", mock.Anything, "alice").Return("", nil)
 				t.Cleanup(func() { mockUser.AssertExpectations(t) })
 			}
 			tt.setupMocks(mockFolder)

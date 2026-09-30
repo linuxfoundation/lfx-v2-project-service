@@ -287,6 +287,23 @@ var InviteInfo = Type("InviteInfo", func() {
 	})
 })
 
+// AuditUserInfo is a display-only identity type for created_by/updated_by on viewer-readable
+// resources. It intentionally omits email to avoid exposing PII to anonymous callers.
+var AuditUserInfo = Type("AuditUserInfo", func() {
+	Description("Display-only user identity for audit attribution on viewer-readable resources.")
+
+	Attribute("name", String, "The full name of the user", func() {
+		Example("John Doe")
+	})
+	Attribute("username", String, "The username/LFID of the user", func() {
+		Example("johndoe123")
+	})
+	Attribute("avatar", String, "The avatar URL of the user", func() {
+		Example("https://example.com/avatar.jpg")
+		Pattern(`^$|^[a-zA-Z][a-zA-Z0-9+\-.]*:.+$`)
+	})
+})
+
 // UserInfo is the DSL type for user information.
 var UserInfo = Type("UserInfo", func() {
 	Description("User information including profile details.")
@@ -662,20 +679,20 @@ func ResourceDescriptionAttribute(field, description string) {
 	})
 }
 
-// ResourceAuditUserAttributes adds created_by and updated_by user profile objects.
+// ResourceAuditUserAttributes adds created_by and updated_by display-only identity objects.
+// Uses AuditUserInfo (no email) so viewer-level callers, including anonymous principals on
+// public projects, do not receive the writer's primary email address.
 func ResourceAuditUserAttributes() {
-	Attribute("created_by", UserInfo, "User who created this resource", func() {
+	Attribute("created_by", AuditUserInfo, "User who created this resource", func() {
 		Example(map[string]interface{}{
 			"name":     "John Doe",
-			"email":    "john.doe@example.com",
 			"username": "johndoe",
 			"avatar":   "https://example.com/avatar.jpg",
 		})
 	})
-	Attribute("updated_by", UserInfo, "User who last updated this resource", func() {
+	Attribute("updated_by", AuditUserInfo, "User who last updated this resource", func() {
 		Example(map[string]interface{}{
 			"name":     "John Doe",
-			"email":    "john.doe@example.com",
 			"username": "johndoe",
 			"avatar":   "https://example.com/avatar.jpg",
 		})

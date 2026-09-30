@@ -3192,3 +3192,19 @@ func marshalInviteInfoRequestBodyToProjectserviceInviteInfo(v *InviteInfoRequest
 
 	return res
 }
+
+// unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo builds a
+// value of type *projectservice.AuditUserInfo from a value of type
+// *AuditUserInfoResponseBody.
+func unmarshalAuditUserInfoResponseBodyToProjectserviceAuditUserInfo(v *AuditUserInfoResponseBody) *projectservice.AuditUserInfo {
+	if v == nil {
+		return nil
+	}
+	res := &projectservice.AuditUserInfo{
+		Name:     v.Name,
+		Username: v.Username,
+		Avatar:   v.Avatar,
+	}
+
+	return res
+}
