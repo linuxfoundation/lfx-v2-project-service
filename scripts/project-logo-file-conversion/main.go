@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -92,33 +93,38 @@ type ImageDimensions struct {
 	Height int
 }
 
-// privateRanges lists IP blocks that must never be dialed by the logo fetcher.
-// Covers loopback, link-local (including cloud IMDS at 169.254.169.254),
-// RFC1918 private space, and IPv6 ULA/link-local.
+// privateRanges lists reserved IP blocks not covered by net.IP classification
+// methods. These complement the stdlib classifiers in isPublicIP.
 var privateRanges = func() []net.IPNet {
 	cidrs := []string{
-		"127.0.0.0/8",    // IPv4 loopback
-		"169.254.0.0/16", // link-local / AWS IMDS
-		"10.0.0.0/8",     // RFC1918
-		"172.16.0.0/12",  // RFC1918
-		"192.168.0.0/16", // RFC1918
-		"100.64.0.0/10",  // RFC6598 shared address
-		"::1/128",        // IPv6 loopback
-		"fe80::/10",      // IPv6 link-local
-		"fc00::/7",       // IPv6 ULA
+		"100.64.0.0/10", // RFC6598 shared address (CGNAT)
+		"192.0.0.0/24",  // IANA special-purpose
+		"198.18.0.0/15", // benchmark/testing (RFC2544)
+		"240.0.0.0/4",   // reserved / future use
+		"64:ff9b::/96",  // NAT64 well-known prefix
 	}
 	nets := make([]net.IPNet, 0, len(cidrs))
 	for _, c := range cidrs {
 		_, ipNet, err := net.ParseCIDR(c)
-		if err == nil {
-			nets = append(nets, *ipNet)
+		if err != nil {
+			// A bad CIDR here would silently weaken the blocklist; fail fast.
+			panic(fmt.Sprintf("privateRanges: invalid CIDR %q: %v", c, err))
 		}
+		nets = append(nets, *ipNet)
 	}
 	return nets
 }()
 
-// isPublicIP returns false for any IP in a private/loopback/link-local range.
+// isPublicIP returns false for any IP that is not a publicly routable address.
+// It first uses stdlib classifiers (which catch loopback, unspecified/0.0.0.0,
+// link-local, multicast, RFC1918, and ULA) then falls through to privateRanges
+// for reserved blocks those methods do not cover.
 func isPublicIP(ip net.IP) bool {
+	if ip.IsUnspecified() || ip.IsLoopback() || ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() {
+		return false
+	}
 	for _, block := range privateRanges {
 		if block.Contains(ip) {
 			return false
@@ -192,6 +198,11 @@ func validateLogoURL(rawURL string) error {
 	return nil
 }
 
+// parseMimeType wraps mime.ParseMediaType so callers and tests share one entry point.
+func parseMimeType(ct string) (string, map[string]string, error) {
+	return mime.ParseMediaType(ct)
+}
+
 // downloadFile tries to download an image file from a url into a local file, and then returns
 // the image dimensions by parsing the original .svg file
 func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err error) {
@@ -216,8 +227,9 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 	}
 
 	// Reject non-SVG content types before reading the body.
-	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(ct, "image/svg+xml") {
-		return nil, fmt.Errorf("logo at %s has unexpected Content-Type %q (want image/svg+xml)", url, ct)
+	// parseMimeType handles case-insensitive comparison per RFC 2045.
+	if mt, _, err := parseMimeType(resp.Header.Get("Content-Type")); err != nil || mt != "image/svg+xml" {
+		return nil, fmt.Errorf("logo at %s has unexpected Content-Type %q (want image/svg+xml)", url, resp.Header.Get("Content-Type"))
 	}
 
 	// Cap the body to maxLogoBytes before buffering. Go's default Transport
