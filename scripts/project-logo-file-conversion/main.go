@@ -105,7 +105,9 @@ var privateRanges = func() []net.IPNet {
 		"198.51.100.0/24", // TEST-NET-2 (RFC5737 / documentation)
 		"203.0.113.0/24",  // TEST-NET-3 (RFC5737 / documentation)
 		"240.0.0.0/4",     // reserved / future use
+		"2001::/32",       // Teredo (embeds IPv4 addresses, RFC4380)
 		"2001:db8::/32",   // IPv6 documentation (RFC3849)
+		"2002::/16",       // 6to4 (embeds IPv4 addresses, RFC3056)
 		"64:ff9b::/96",    // NAT64 well-known prefix (RFC6052)
 		"64:ff9b:1::/48",  // NAT64 local-use prefix (RFC8215)
 	}
@@ -176,7 +178,10 @@ func safeHTTPClient() *http.Client {
 		Transport: &http.Transport{
 			DialContext: safeDialContext,
 		},
-		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
 			if req.URL.Scheme != "https" {
 				return fmt.Errorf("redirect to non-https scheme %q rejected (SSRF protection)", req.URL.Scheme)
 			}
