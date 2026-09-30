@@ -348,8 +348,8 @@ func TestNatsRepository_CreateProject(t *testing.T) {
 		{
 			name: "successful project creation",
 			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
-				// Put slug mapping
-				mockProjectsKV.On("Put", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
+				// Create slug mapping (conditional)
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
 				// Put project base
 				mockProjectsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(1), nil)
 				// Put project settings
@@ -360,19 +360,92 @@ func TestNatsRepository_CreateProject(t *testing.T) {
 		{
 			name: "slug already exists",
 			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
-				// Slug mapping Put call fails with ErrKeyExists
-				mockProjectsKV.On("Put", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(0), jetstream.ErrKeyExists)
+				// Create slug mapping fails because key already exists
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(0), jetstream.ErrKeyExists)
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrProjectSlugExists,
 		},
 		{
-			name: "error putting project base",
+			name: "error creating slug mapping (infra error)",
 			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
-				// Put slug mapping succeeds
-				mockProjectsKV.On("Put", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
+				// Create slug mapping fails with a generic infra error
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(0), errors.New("nats error"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "error putting project base: base not committed",
+			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
+				// Create slug mapping succeeds
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
 				// Put project base fails
 				mockProjectsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(0), errors.New("nats error"))
+				// Re-read confirms base was not committed
+				mockProjectsKV.On("Get", mock.Anything, "test-project-uid").Return(nil, jetstream.ErrKeyNotFound)
+				// Rollback: deleteProjectSlugMapping reads the slug key then deletes it
+				mockProjectsKV.On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{value: []byte("test-project-uid"), revision: 1}, nil)
+				mockProjectsKV.On("Delete", mock.Anything, "slug/test-project", mock.Anything).Return(nil)
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "error putting project base: base not committed, rollback delete fails",
+			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
+				// Create slug mapping succeeds
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
+				// Put project base fails
+				mockProjectsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(0), errors.New("nats error"))
+				// Re-read confirms base was not committed
+				mockProjectsKV.On("Get", mock.Anything, "test-project-uid").Return(nil, jetstream.ErrKeyNotFound)
+				// Rollback: slug key found but Delete fails — still returns ErrInternal
+				mockProjectsKV.On("Get", mock.Anything, "slug/test-project").Return(&MockKeyValueEntry{value: []byte("test-project-uid"), revision: 1}, nil)
+				mockProjectsKV.On("Delete", mock.Anything, "slug/test-project", mock.Anything).Return(errors.New("delete failed"))
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "error putting project base: base committed (keep slug reservation)",
+			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
+				// Create slug mapping succeeds
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
+				// Put project base fails (ambiguous — ack lost)
+				mockProjectsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(0), errors.New("nats error"))
+				// Re-read finds the base — write was committed; slug reservation must be kept
+				baseData, _ := json.Marshal(projectBase)
+				mockProjectsKV.On("Get", mock.Anything, "test-project-uid").Return(&MockKeyValueEntry{value: baseData}, nil)
+				// No rollback calls expected
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "error putting project base: verification read fails (keep slug reservation)",
+			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
+				// Create slug mapping succeeds
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
+				// Put project base fails
+				mockProjectsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(0), errors.New("nats error"))
+				// Re-read also fails — outcome unknown; slug reservation must be kept
+				mockProjectsKV.On("Get", mock.Anything, "test-project-uid").Return(nil, errors.New("nats error"))
+				// No rollback calls expected
+			},
+			wantErr:     true,
+			expectedErr: domain.ErrInternal,
+		},
+		{
+			name: "error putting project settings",
+			setupMocks: func(mockProjectsKV, mockSettingsKV *MockKeyValue) {
+				// Create slug mapping succeeds
+				mockProjectsKV.On("Create", mock.Anything, "slug/test-project", []byte("test-project-uid")).Return(uint64(1), nil)
+				// Put project base succeeds — base is now confirmed committed
+				mockProjectsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(2), nil)
+				// Put project settings fails — base and slug must NOT be rolled back
+				mockSettingsKV.On("Put", mock.Anything, "test-project-uid", mock.Anything).Return(uint64(0), errors.New("nats error"))
+				// No rollback calls expected (base is real, destroying it would be data loss)
 			},
 			wantErr:     true,
 			expectedErr: domain.ErrInternal,
