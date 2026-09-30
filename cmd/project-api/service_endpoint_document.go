@@ -148,8 +148,8 @@ func toServiceDocument(d *models.ProjectDocument) *projsvc.ProjectDocument {
 		Name:       &d.Name,
 		FileName:   &d.FileName,
 		FileSize:   &d.FileSize,
-		CreatedBy:  service.ConvertUserToAPI(d.CreatedBy),
-		UpdatedBy:  service.ConvertUserToAPI(d.UpdatedBy),
+		CreatedBy:  service.ConvertAuditUserToAPI(d.CreatedBy),
+		UpdatedBy:  service.ConvertAuditUserToAPI(d.UpdatedBy),
 		CreatedAt:  misc.StringPtr(d.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
 		UpdatedAt:  misc.StringPtr(d.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}

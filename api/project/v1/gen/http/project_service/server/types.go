@@ -395,9 +395,9 @@ type CreateProjectLinkResponseBody struct {
 	// A description of the link
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// User who created this resource
-	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
 	// User who last updated this resource
-	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -418,9 +418,9 @@ type CreateProjectFolderResponseBody struct {
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// User who created this resource
-	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
 	// User who last updated this resource
-	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -451,9 +451,9 @@ type UploadProjectDocumentResponseBody struct {
 	// MIME type of the file
 	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
 	// User who created this resource
-	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
 	// User who last updated this resource
-	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1397,6 +1397,16 @@ type ProjectSettingsResponseBody struct {
 	UpdatedAt *string `form:"updated_at,omitempty" json:"updated_at,omitempty" xml:"updated_at,omitempty"`
 }
 
+// AuditUserInfoResponseBody is used to define fields on response body types.
+type AuditUserInfoResponseBody struct {
+	// The full name of the user
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// The username/LFID of the user
+	Username *string `form:"username,omitempty" json:"username,omitempty" xml:"username,omitempty"`
+	// The avatar URL of the user
+	Avatar *string `form:"avatar,omitempty" json:"avatar,omitempty" xml:"avatar,omitempty"`
+}
+
 // ProjectLinkResponseBody is used to define fields on response body types.
 type ProjectLinkResponseBody struct {
 	// Link UID
@@ -1412,9 +1422,9 @@ type ProjectLinkResponseBody struct {
 	// A description of the link
 	Description *string `form:"description,omitempty" json:"description,omitempty" xml:"description,omitempty"`
 	// User who created this resource
-	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
 	// User who last updated this resource
-	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1430,9 +1440,9 @@ type ProjectFolderResponseBody struct {
 	// Folder display name
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// User who created this resource
-	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
 	// User who last updated this resource
-	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1458,9 +1468,9 @@ type ProjectDocumentResponseBody struct {
 	// MIME type of the file
 	ContentType *string `form:"content_type,omitempty" json:"content_type,omitempty" xml:"content_type,omitempty"`
 	// User who created this resource
-	CreatedBy *UserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
+	CreatedBy *AuditUserInfoResponseBody `form:"created_by,omitempty" json:"created_by,omitempty" xml:"created_by,omitempty"`
 	// User who last updated this resource
-	UpdatedBy *UserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
+	UpdatedBy *AuditUserInfoResponseBody `form:"updated_by,omitempty" json:"updated_by,omitempty" xml:"updated_by,omitempty"`
 	// RFC3339 timestamp
 	CreatedAt *string `form:"created_at,omitempty" json:"created_at,omitempty" xml:"created_at,omitempty"`
 	// RFC3339 timestamp
@@ -1774,10 +1784,10 @@ func NewCreateProjectLinkResponseBody(res *projectservice.ProjectLink) *CreatePr
 		UpdatedAt:   res.UpdatedAt,
 	}
 	if res.CreatedBy != nil {
-		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.CreatedBy)
+		body.CreatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.CreatedBy)
 	}
 	if res.UpdatedBy != nil {
-		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.UpdatedBy)
+		body.UpdatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.UpdatedBy)
 	}
 	return body
 }
@@ -1796,10 +1806,10 @@ func NewGetProjectLinkResponseBody(res *projectservice.GetProjectLinkResult) *Ge
 		UpdatedAt:   res.Link.UpdatedAt,
 	}
 	if res.Link.CreatedBy != nil {
-		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Link.CreatedBy)
+		body.CreatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.Link.CreatedBy)
 	}
 	if res.Link.UpdatedBy != nil {
-		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Link.UpdatedBy)
+		body.UpdatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.Link.UpdatedBy)
 	}
 	return body
 }
@@ -1816,10 +1826,10 @@ func NewCreateProjectFolderResponseBody(res *projectservice.ProjectFolder) *Crea
 		UpdatedAt:  res.UpdatedAt,
 	}
 	if res.CreatedBy != nil {
-		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.CreatedBy)
+		body.CreatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.CreatedBy)
 	}
 	if res.UpdatedBy != nil {
-		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.UpdatedBy)
+		body.UpdatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.UpdatedBy)
 	}
 	return body
 }
@@ -1835,10 +1845,10 @@ func NewGetProjectFolderResponseBody(res *projectservice.GetProjectFolderResult)
 		UpdatedAt:  res.Folder.UpdatedAt,
 	}
 	if res.Folder.CreatedBy != nil {
-		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Folder.CreatedBy)
+		body.CreatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.Folder.CreatedBy)
 	}
 	if res.Folder.UpdatedBy != nil {
-		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Folder.UpdatedBy)
+		body.UpdatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.Folder.UpdatedBy)
 	}
 	return body
 }
@@ -1860,10 +1870,10 @@ func NewUploadProjectDocumentResponseBody(res *projectservice.ProjectDocument) *
 		UpdatedAt:   res.UpdatedAt,
 	}
 	if res.CreatedBy != nil {
-		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.CreatedBy)
+		body.CreatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.CreatedBy)
 	}
 	if res.UpdatedBy != nil {
-		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.UpdatedBy)
+		body.UpdatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.UpdatedBy)
 	}
 	return body
 }
@@ -1885,10 +1895,10 @@ func NewGetProjectDocumentResponseBody(res *projectservice.GetProjectDocumentRes
 		UpdatedAt:   res.Document.UpdatedAt,
 	}
 	if res.Document.CreatedBy != nil {
-		body.CreatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Document.CreatedBy)
+		body.CreatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.Document.CreatedBy)
 	}
 	if res.Document.UpdatedBy != nil {
-		body.UpdatedBy = marshalProjectserviceUserInfoToUserInfoResponseBody(res.Document.UpdatedBy)
+		body.UpdatedBy = marshalProjectserviceAuditUserInfoToAuditUserInfoResponseBody(res.Document.UpdatedBy)
 	}
 	return body
 }

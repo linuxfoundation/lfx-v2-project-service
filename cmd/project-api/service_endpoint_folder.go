@@ -20,8 +20,8 @@ func toServiceFolder(f *models.ProjectFolder) *projsvc.ProjectFolder {
 		UID:        &f.UID,
 		ProjectUID: &f.ProjectUID,
 		Name:       &f.Name,
-		CreatedBy:  service.ConvertUserToAPI(f.CreatedBy),
-		UpdatedBy:  service.ConvertUserToAPI(f.UpdatedBy),
+		CreatedBy:  service.ConvertAuditUserToAPI(f.CreatedBy),
+		UpdatedBy:  service.ConvertAuditUserToAPI(f.UpdatedBy),
 		CreatedAt:  misc.StringPtr(f.CreatedAt.Format("2006-01-02T15:04:05Z07:00")),
 		UpdatedAt:  misc.StringPtr(f.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")),
 	}
