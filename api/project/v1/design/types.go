@@ -249,7 +249,18 @@ func ProjectParentUIDAttribute() {
 }
 
 // ProjectLogoURLAttribute is the DSL attribute for a project logo URL.
+// Used on response types — no write-only constraints.
 func ProjectLogoURLAttribute() {
+	Attribute("logo_url", String, "The URL of the project logo", func() {
+		Example("https://example.com/logo.svg")
+		Format(FormatURI)
+	})
+}
+
+// ProjectLogoURLWriteAttribute is the DSL attribute for a project logo URL on
+// create/update payloads. Restricts the scheme to https so non-public URLs
+// cannot be persisted into the KV store via the API.
+func ProjectLogoURLWriteAttribute() {
 	Attribute("logo_url", String, "The URL of the project logo", func() {
 		Example("https://example.com/logo.svg")
 		Format(FormatURI)

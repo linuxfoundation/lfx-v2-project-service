@@ -1587,7 +1587,6 @@ definitions:
                 description: The URL of the project logo
                 example: https://example.com/logo.svg
                 format: uri
-                pattern: ^https://
             name:
                 type: string
                 description: The pretty name of the project
@@ -1920,7 +1919,6 @@ definitions:
                 description: The URL of the project logo
                 example: https://example.com/logo.svg
                 format: uri
-                pattern: ^https://
             meeting_coordinators:
                 type: array
                 items:
