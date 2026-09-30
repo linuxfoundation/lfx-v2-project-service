@@ -41,6 +41,8 @@ func TestIsPublicIP(t *testing.T) {
 		{"IPv6 documentation 2001:db8::/32", "2001:db8::1", false},
 		{"IPv6 multicast", "ff02::1", false},
 		{"IPv4 multicast", "224.0.0.1", false},
+		{"Teredo 2001::/32", "2001::1", false},
+		{"6to4 2002::/16", "2002::1", false},
 		{"NAT64 well-known 64:ff9b::/96", "64:ff9b::1", false},
 		{"NAT64 local 64:ff9b:1::/48", "64:ff9b:1::1", false},
 		// Must be accepted
@@ -106,6 +108,13 @@ func TestSafeHTTPClient_CheckRedirect(t *testing.T) {
 	httpsReq := &http.Request{URL: &url.URL{Scheme: "https", Host: "example.com", Path: "/logo.svg"}}
 	if err := client.CheckRedirect(httpsReq, nil); err != nil {
 		t.Errorf("CheckRedirect: unexpected error for https redirect: %v", err)
+	}
+
+	// 10-hop limit must be enforced.
+	via := make([]*http.Request, 10)
+	loopReq := &http.Request{URL: &url.URL{Scheme: "https", Host: "example.com", Path: "/logo.svg"}}
+	if err := client.CheckRedirect(loopReq, via); err == nil {
+		t.Error("CheckRedirect: expected error after 10 redirects, got nil")
 	}
 }
 
