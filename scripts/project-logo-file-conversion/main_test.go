@@ -6,7 +6,7 @@ package main
 import (
 	"net"
 	"net/http"
-	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -22,6 +22,7 @@ func TestIsPublicIP(t *testing.T) {
 		{"loopback IPv6", "::1", false},
 		{"unspecified IPv4 (0.0.0.0)", "0.0.0.0", false},
 		{"unspecified IPv6 (::)", "::", false},
+		{"this-network 0.0.0.0/8", "0.1.2.3", false},
 		{"link-local / AWS IMDS", "169.254.169.254", false},
 		{"link-local other", "169.254.0.1", false},
 		{"IPv6 link-local", "fe80::1", false},
@@ -30,12 +31,18 @@ func TestIsPublicIP(t *testing.T) {
 		{"RFC1918 192.168/16", "192.168.1.1", false},
 		{"RFC6598 CGNAT", "100.64.0.1", false},
 		{"IANA special 192.0.0/24", "192.0.0.1", false},
+		{"TEST-NET-1 192.0.2/24", "192.0.2.1", false},
 		{"benchmark 198.18/15", "198.18.0.1", false},
+		{"TEST-NET-2 198.51.100/24", "198.51.100.1", false},
+		{"TEST-NET-3 203.0.113/24", "203.0.113.1", false},
 		{"reserved 240/4", "240.0.0.1", false},
 		{"IPv6 ULA fc00::/7", "fc00::1", false},
 		{"IPv6 ULA fd00::/8", "fd00::1", false},
+		{"IPv6 documentation 2001:db8::/32", "2001:db8::1", false},
 		{"IPv6 multicast", "ff02::1", false},
 		{"IPv4 multicast", "224.0.0.1", false},
+		{"NAT64 well-known 64:ff9b::/96", "64:ff9b::1", false},
+		{"NAT64 local 64:ff9b:1::/48", "64:ff9b:1::1", false},
 		// Must be accepted
 		{"public IPv4", "1.1.1.1", true},
 		{"public IPv4 alt", "8.8.8.8", true},
@@ -66,6 +73,7 @@ func TestValidateLogoURL(t *testing.T) {
 		{"file scheme", "file:///etc/passwd", true},
 		{"loopback IP literal", "https://127.0.0.1/logo.svg", true},
 		{"unspecified IP literal 0.0.0.0", "https://0.0.0.0/logo.svg", true},
+		{"this-network IP literal 0.1.2.3", "https://0.1.2.3/logo.svg", true},
 		{"IMDS IP literal", "https://169.254.169.254/logo.svg", true},
 		{"RFC1918 IP literal", "https://10.0.0.1/logo.svg", true},
 		{"IPv6 loopback literal", "https://[::1]/logo.svg", true},
@@ -85,43 +93,41 @@ func TestValidateLogoURL(t *testing.T) {
 	}
 }
 
-func TestSafeHTTPClient_RedirectToHTTP(t *testing.T) {
-	// Server that redirects to http://
-	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "http://internal.example.com/secret", http.StatusFound)
-	}))
-	defer target.Close()
-
+func TestSafeHTTPClient_CheckRedirect(t *testing.T) {
 	client := safeHTTPClient()
-	resp, err := client.Get(target.URL + "/logo.svg")
-	if resp != nil {
-		resp.Body.Close() //nolint:errcheck
+
+	// Non-https redirect must be rejected.
+	httpReq := &http.Request{URL: &url.URL{Scheme: "http", Host: "example.com", Path: "/logo.svg"}}
+	if err := client.CheckRedirect(httpReq, nil); err == nil {
+		t.Error("CheckRedirect: expected error for http redirect, got nil")
 	}
-	if err == nil {
-		t.Error("expected error on http redirect, got nil")
+
+	// https redirect must be allowed.
+	httpsReq := &http.Request{URL: &url.URL{Scheme: "https", Host: "example.com", Path: "/logo.svg"}}
+	if err := client.CheckRedirect(httpsReq, nil); err != nil {
+		t.Errorf("CheckRedirect: unexpected error for https redirect: %v", err)
 	}
 }
 
-func TestSafeHTTPClient_NonSVGContentType(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"secret":"data"}`))
-	}))
-	defer server.Close()
-
-	// validateLogoURL would reject non-https; bypass it by calling downloadFile
-	// indirectly through a URL that passes scheme check but hits local test server.
-	// We verify the Content-Type check using the mime-parsed comparison directly.
-	ct := "application/json"
-	mt, _, err := parseMimeType(ct)
-	if err == nil && mt == "image/svg+xml" {
-		t.Error("application/json should not match image/svg+xml")
+func TestIsSVGContentType(t *testing.T) {
+	tests := []struct {
+		ct   string
+		want bool
+	}{
+		{"image/svg+xml", true},
+		{"Image/SVG+XML", true},                // case-insensitive
+		{"image/svg+xml; charset=utf-8", true}, // with parameter
+		{"IMAGE/SVG+XML; CHARSET=UTF-8", true}, // all-caps with parameter
+		{"application/json", false},
+		{"text/plain", false},
+		{"image/png", false},
+		{"", false},
+		{"not-a-media-type", false},
 	}
 
-	ctSVG := "Image/SVG+XML; charset=utf-8"
-	mt2, _, err2 := parseMimeType(ctSVG)
-	if err2 != nil || mt2 != "image/svg+xml" {
-		t.Errorf("parseMimeType(%q) = %q, %v; want image/svg+xml, nil", ctSVG, mt2, err2)
+	for _, tt := range tests {
+		if got := isSVGContentType(tt.ct); got != tt.want {
+			t.Errorf("isSVGContentType(%q) = %v, want %v", tt.ct, got, tt.want)
+		}
 	}
 }

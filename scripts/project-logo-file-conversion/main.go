@@ -97,11 +97,17 @@ type ImageDimensions struct {
 // methods. These complement the stdlib classifiers in isPublicIP.
 var privateRanges = func() []net.IPNet {
 	cidrs := []string{
-		"100.64.0.0/10", // RFC6598 shared address (CGNAT)
-		"192.0.0.0/24",  // IANA special-purpose
-		"198.18.0.0/15", // benchmark/testing (RFC2544)
-		"240.0.0.0/4",   // reserved / future use
-		"64:ff9b::/96",  // NAT64 well-known prefix
+		"0.0.0.0/8",       // "this network" (RFC1122 §3.2.1.3)
+		"100.64.0.0/10",   // RFC6598 shared address (CGNAT)
+		"192.0.0.0/24",    // IANA special-purpose
+		"192.0.2.0/24",    // TEST-NET-1 (RFC5737 / documentation)
+		"198.18.0.0/15",   // benchmark/testing (RFC2544)
+		"198.51.100.0/24", // TEST-NET-2 (RFC5737 / documentation)
+		"203.0.113.0/24",  // TEST-NET-3 (RFC5737 / documentation)
+		"240.0.0.0/4",     // reserved / future use
+		"2001:db8::/32",   // IPv6 documentation (RFC3849)
+		"64:ff9b::/96",    // NAT64 well-known prefix (RFC6052)
+		"64:ff9b:1::/48",  // NAT64 local-use prefix (RFC8215)
 	}
 	nets := make([]net.IPNet, 0, len(cidrs))
 	for _, c := range cidrs {
@@ -198,9 +204,11 @@ func validateLogoURL(rawURL string) error {
 	return nil
 }
 
-// parseMimeType wraps mime.ParseMediaType so callers and tests share one entry point.
-func parseMimeType(ct string) (string, map[string]string, error) {
-	return mime.ParseMediaType(ct)
+// isSVGContentType reports whether ct is an image/svg+xml media type.
+// Comparison is case-insensitive per RFC 2045; parameters (e.g. charset=utf-8) are ignored.
+func isSVGContentType(ct string) bool {
+	mt, _, err := mime.ParseMediaType(ct)
+	return err == nil && mt == "image/svg+xml"
 }
 
 // downloadFile tries to download an image file from a url into a local file, and then returns
@@ -227,9 +235,8 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 	}
 
 	// Reject non-SVG content types before reading the body.
-	// parseMimeType handles case-insensitive comparison per RFC 2045.
-	if mt, _, err := parseMimeType(resp.Header.Get("Content-Type")); err != nil || mt != "image/svg+xml" {
-		return nil, fmt.Errorf("logo at %s has unexpected Content-Type %q (want image/svg+xml)", url, resp.Header.Get("Content-Type"))
+	if ct := resp.Header.Get("Content-Type"); !isSVGContentType(ct) {
+		return nil, fmt.Errorf("logo at %s has unexpected Content-Type %q (want image/svg+xml)", url, ct)
 	}
 
 	// Cap the body to maxLogoBytes before buffering. Go's default Transport
