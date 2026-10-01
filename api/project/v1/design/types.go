@@ -249,10 +249,23 @@ func ProjectParentUIDAttribute() {
 }
 
 // ProjectLogoURLAttribute is the DSL attribute for a project logo URL.
+// Used on response types — no write-only constraints.
 func ProjectLogoURLAttribute() {
 	Attribute("logo_url", String, "The URL of the project logo", func() {
-		Example("https://example.com/logo.png")
+		Example("https://example.com/logo.svg")
 		Format(FormatURI)
+	})
+}
+
+// ProjectLogoURLWriteAttribute is the DSL attribute for a project logo URL on
+// create/update payloads. The https pattern rejects non-https scheme URIs;
+// full SSRF protection (IP blocklist, redirect policy) is applied by the logo
+// conversion script at fetch time, not here.
+func ProjectLogoURLWriteAttribute() {
+	Attribute("logo_url", String, "The URL of the project logo", func() {
+		Example("https://example.com/logo.svg")
+		Format(FormatURI)
+		Pattern(`^https://`)
 	})
 }
 

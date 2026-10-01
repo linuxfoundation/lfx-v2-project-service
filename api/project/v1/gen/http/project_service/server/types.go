@@ -3147,6 +3147,9 @@ func ValidateCreateProjectRequestBody(body *CreateProjectRequestBody) (err error
 	if body.LogoURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
 	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.logo_url", *body.LogoURL, "^https://"))
+	}
 	if body.RepositoryURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
 	}
@@ -3270,6 +3273,9 @@ func ValidateUpdateProjectBaseRequestBody(body *UpdateProjectBaseRequestBody) (e
 	}
 	if body.LogoURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.logo_url", *body.LogoURL, goa.FormatURI))
+	}
+	if body.LogoURL != nil {
+		err = goa.MergeErrors(err, goa.ValidatePattern("body.logo_url", *body.LogoURL, "^https://"))
 	}
 	if body.RepositoryURL != nil {
 		err = goa.MergeErrors(err, goa.ValidateFormat("body.repository_url", *body.RepositoryURL, goa.FormatURI))
