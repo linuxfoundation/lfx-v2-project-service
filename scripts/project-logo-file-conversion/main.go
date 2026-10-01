@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -91,11 +93,138 @@ type ImageDimensions struct {
 	Height int
 }
 
+// privateRanges lists reserved IP blocks not covered by net.IP classification
+// methods. These complement the stdlib classifiers in isPublicIP.
+var privateRanges = func() []net.IPNet {
+	cidrs := []string{
+		"0.0.0.0/8",       // "this network" (RFC1122 §3.2.1.3)
+		"100.64.0.0/10",   // RFC6598 shared address (CGNAT)
+		"192.0.0.0/24",    // IANA special-purpose
+		"192.0.2.0/24",    // TEST-NET-1 (RFC5737 / documentation)
+		"198.18.0.0/15",   // benchmark/testing (RFC2544)
+		"198.51.100.0/24", // TEST-NET-2 (RFC5737 / documentation)
+		"203.0.113.0/24",  // TEST-NET-3 (RFC5737 / documentation)
+		"240.0.0.0/4",     // reserved / future use
+		"2001::/32",       // Teredo (embeds IPv4 addresses, RFC4380)
+		"2001:db8::/32",   // IPv6 documentation (RFC3849)
+		"2002::/16",       // 6to4 (embeds IPv4 addresses, RFC3056)
+		"64:ff9b::/96",    // NAT64 well-known prefix (RFC6052)
+		"64:ff9b:1::/48",  // NAT64 local-use prefix (RFC8215)
+	}
+	nets := make([]net.IPNet, 0, len(cidrs))
+	for _, c := range cidrs {
+		_, ipNet, err := net.ParseCIDR(c)
+		if err != nil {
+			// A bad CIDR here would silently weaken the blocklist; fail fast.
+			panic(fmt.Sprintf("privateRanges: invalid CIDR %q: %v", c, err))
+		}
+		nets = append(nets, *ipNet)
+	}
+	return nets
+}()
+
+// isPublicIP returns false for any IP that is not a publicly routable address.
+// It first uses stdlib classifiers (which catch loopback, unspecified/0.0.0.0,
+// link-local, multicast, RFC1918, and ULA) then falls through to privateRanges
+// for reserved blocks those methods do not cover.
+func isPublicIP(ip net.IP) bool {
+	if ip.IsUnspecified() || ip.IsLoopback() || ip.IsPrivate() ||
+		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() {
+		return false
+	}
+	for _, block := range privateRanges {
+		if block.Contains(ip) {
+			return false
+		}
+	}
+	return true
+}
+
+// safeDialContext resolves the address, rejects any IP that is not publicly
+// routable, then dials. This check runs for every TCP connection, including
+// each redirect hop, so a redirect from a public host to an internal one is
+// also blocked.
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address %q: %w", addr, err)
+	}
+	ips, err := net.DefaultResolver.LookupHost(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("DNS lookup failed for %q: %w", host, err)
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			return nil, fmt.Errorf("invalid IP %q returned by DNS for %q", ipStr, host)
+		}
+		if !isPublicIP(ip) {
+			return nil, fmt.Errorf("logo URL %q resolves to non-public address %s — skipping (SSRF protection)", host, ip)
+		}
+	}
+	var d net.Dialer
+	return d.DialContext(ctx, network, net.JoinHostPort(ips[0], port))
+}
+
+// safeHTTPClient returns an http.Client hardened against SSRF:
+//   - custom DialContext rejects non-public IPs on connect (and on every
+//     redirect hop, because each hop opens a new connection)
+//   - CheckRedirect refuses any redirect to a non-https scheme
+//   - 30 s overall timeout
+func safeHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			DialContext: safeDialContext,
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			if req.URL.Scheme != "https" {
+				return fmt.Errorf("redirect to non-https scheme %q rejected (SSRF protection)", req.URL.Scheme)
+			}
+			return nil
+		},
+	}
+}
+
+// validateLogoURL returns an error if rawURL is not safe to fetch:
+//   - scheme must be https
+//   - host must not be an IP literal in a private/loopback/link-local range
+//     (hostname targets are checked at dial time by safeDialContext)
+func validateLogoURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid logo URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("logo URL scheme %q is not https", u.Scheme)
+	}
+	// Reject bare IP literals without waiting for DNS.
+	if ip := net.ParseIP(u.Hostname()); ip != nil && !isPublicIP(ip) {
+		return fmt.Errorf("logo URL host %s is a non-public IP address", ip)
+	}
+	return nil
+}
+
+// isSVGContentType reports whether ct is an image/svg+xml media type.
+// Comparison is case-insensitive per RFC 2045; parameters (e.g. charset=utf-8) are ignored.
+func isSVGContentType(ct string) bool {
+	mt, _, err := mime.ParseMediaType(ct)
+	return err == nil && mt == "image/svg+xml"
+}
+
 // downloadFile tries to download an image file from a url into a local file, and then returns
 // the image dimensions by parsing the original .svg file
 func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err error) {
+	if err := validateLogoURL(url); err != nil {
+		return nil, err
+	}
+
 	downloadImageTime := time.Now()
-	client := http.Client{Timeout: 30 * time.Second}
+	client := safeHTTPClient()
 	resp, err := client.Get(url)
 	if err != nil {
 		slog.Error("http bad status", "url", url, "error", err)
@@ -108,6 +237,11 @@ func downloadFile(url string, out *os.File) (imgDimensions *ImageDimensions, err
 		err = fmt.Errorf("unexpected status %d while downloading %s", resp.StatusCode, url)
 		slog.Error("http bad status", "url", url, "status_code", resp.StatusCode)
 		return nil, err
+	}
+
+	// Reject non-SVG content types before reading the body.
+	if ct := resp.Header.Get("Content-Type"); !isSVGContentType(ct) {
+		return nil, fmt.Errorf("logo at %s has unexpected Content-Type %q (want image/svg+xml)", url, ct)
 	}
 
 	// Cap the body to maxLogoBytes before buffering. Go's default Transport
