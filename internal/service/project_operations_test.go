@@ -2027,6 +2027,26 @@ func TestValidateProjectName(t *testing.T) {
 			input:   "{project}",
 			wantErr: true,
 		},
+		{
+			name:    "name with CR is rejected",
+			input:   "Evil\rProject",
+			wantErr: true,
+		},
+		{
+			name:    "name with LF is rejected",
+			input:   "Evil\nProject",
+			wantErr: true,
+		},
+		{
+			name:    "name with CRLF is rejected",
+			input:   "Evil\r\nBcc: attacker@example.com\r\nProject",
+			wantErr: true,
+		},
+		{
+			name:    "name with NUL is rejected",
+			input:   "Evil\x00Project",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

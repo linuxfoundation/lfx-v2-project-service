@@ -53,7 +53,7 @@ func RenderProjectRoleRemoved(data ProjectRoleRemovedData) (subject, html, text 
 		data.OldRoleVerb = "were"
 	}
 
-	subject = "You have been removed from " + data.ProjectName
+	subject = sanitizeSubject("You have been removed from " + data.ProjectName)
 
 	var htmlBuf bytes.Buffer
 	if err = projectRoleRemovedHTMLTemplate.Execute(&htmlBuf, data); err != nil {

@@ -59,6 +59,18 @@ func TestRenderProjectRoleChanged(t *testing.T) {
 			wantHTML:    []string{"Alice", "Demo Project"},
 			wantText:    []string{"Alice", "Demo Project"},
 		},
+		{
+			name: "CRLF in project name is stripped from subject",
+			data: ProjectRoleChangedData{
+				RecipientName: "Alice",
+				ProjectName:   "Evil\r\nBcc: attacker@example.com\r\nProject",
+				OldRoles:      []string{"Writer"},
+				NewRoles:      []string{"Auditor"},
+				ProjectURL:    "https://app.dev.lfx.dev/projects/evil",
+				InviterName:   "Bob",
+			},
+			wantSubject: []string{"EvilBcc: attacker@example.comProject"},
+		},
 	}
 
 	for _, tt := range tests {

@@ -64,9 +64,9 @@ func RenderProjectRoleChanged(data ProjectRoleChangedData) (subject, html, text 
 	}
 
 	if data.InviterName != "" {
-		subject = data.InviterName + " updated your role on " + data.ProjectName
+		subject = sanitizeSubject(data.InviterName + " updated your role on " + data.ProjectName)
 	} else {
-		subject = "Your role on " + data.ProjectName + " has been updated"
+		subject = sanitizeSubject("Your role on " + data.ProjectName + " has been updated")
 	}
 
 	var htmlBuf bytes.Buffer

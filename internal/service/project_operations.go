@@ -952,6 +952,11 @@ func validateProjectName(name string) error {
 	if trimmed[0] == '{' {
 		return domain.NewValidationError("project name must not start with '{'")
 	}
+	for _, r := range trimmed {
+		if r < 0x20 || r == 0x7F {
+			return domain.NewValidationError("project name must not contain control characters")
+		}
+	}
 	return nil
 }
 
